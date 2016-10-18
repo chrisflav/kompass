@@ -9,14 +9,19 @@ MAX_TIME_MATERIAL = 5
 
 # Create your models here.
 class MaterialPart(models.Model):
+    """
+    Represents one part of material, which is owned (and stored) by different
+    members of the association (Ownership)
+    """
     name = models.CharField(max_length=30)
     buy_date = models.DateField('purchase date')
-    # owner = models.ForeignKey(Leiter)  to be added later when there are user
 
-    def __repr__(self):
+    def __str__(self):
+        """String representation"""
         return self.name
 
     def should_be_replaced(self):
+        """Returns wether the part should be replaced cause of age"""
         buy_time = timezone.make_aware(datetime.combine(self.buy_date,
                                                         datetime.min.time()))
         return yearsago(MAX_TIME_MATERIAL) >= buy_time
@@ -26,7 +31,19 @@ class MaterialPart(models.Model):
     should_be_replaced.short_description = 'Should be replaced?'
 
 
+class Ownership(models.Model):
+    """Represents the connection between a MaterialPart and a Member"""
+    material = models.ForeignKey(MaterialPart, on_delete=models.CASCADE)
+    owner = models.ForeignKey('members.Member')
+    count = models.IntegerField(default=1)
+
+    def __str__(self):
+        """String representation"""
+        return str(self.owner)
+
+
 def yearsago(years, from_date=None):
+    """Function to return the date with a delta of years in the past"""
     if from_date is None:
         from_date = timezone.now()
     try:
