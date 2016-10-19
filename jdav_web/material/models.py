@@ -14,7 +14,8 @@ class MaterialPart(models.Model):
     members of the association (Ownership)
     """
     name = models.CharField(max_length=30)
-    buy_date = models.DateField('purchase date')
+    buy_date = models.DateField('purchase date', editable=True)
+    lifetime = models.DecimalField('lifetime (years)', decimal_places=0, max_digits=3)
 
     def __str__(self):
         """String representation"""
@@ -24,7 +25,7 @@ class MaterialPart(models.Model):
         """Returns wether the part should be replaced cause of age"""
         buy_time = timezone.make_aware(datetime.combine(self.buy_date,
                                                         datetime.min.time()))
-        return yearsago(MAX_TIME_MATERIAL) >= buy_time
+        return yearsago(self.lifetime) >= buy_time
 
     should_be_replaced.admin_order_field = 'buy_date'
     should_be_replaced.boolean = True

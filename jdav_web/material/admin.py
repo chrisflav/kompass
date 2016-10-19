@@ -15,8 +15,8 @@ class OwnershipInline(admin.StackedInline):
 
 class MaterialAdmin(admin.ModelAdmin):
     """Edit view of a MaterialPart"""
-    fields = ['name', 'buy_date']
-    list_display = ('name', 'buy_date', 'should_be_replaced')
+    fields = ['name', 'buy_date', 'lifetime']
+    list_display = ('name', 'buy_date', 'lifetime', 'should_be_replaced')
     inlines = [OwnershipInline]
 
 admin.site.register(MaterialPart, MaterialAdmin)
