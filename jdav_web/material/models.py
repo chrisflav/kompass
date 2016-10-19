@@ -21,15 +21,15 @@ class MaterialPart(models.Model):
         """String representation"""
         return self.name
 
-    def should_be_replaced(self):
+    def not_too_old(self):
         """Returns wether the part should be replaced cause of age"""
         buy_time = timezone.make_aware(datetime.combine(self.buy_date,
                                                         datetime.min.time()))
-        return yearsago(self.lifetime) >= buy_time
+        return yearsago(self.lifetime) < buy_time
 
-    should_be_replaced.admin_order_field = 'buy_date'
-    should_be_replaced.boolean = True
-    should_be_replaced.short_description = 'Should be replaced?'
+    not_too_old.admin_order_field = 'buy_date'
+    not_too_old.boolean = True
+    not_too_old.short_description = 'Not too old?'
 
 
 class Ownership(models.Model):
