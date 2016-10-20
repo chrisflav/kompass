@@ -15,8 +15,12 @@ Including another URLconf
 """
 from django.conf.urls import url, include
 from django.contrib import admin
+from django.conf.urls.static import static
+from django.conf import settings
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^$', include('startpage.urls'))
-]
+    url(r'^$', include('startpage.urls')),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# TODO: django serving from MEDIA_URL should be disabled in production stage
+# see http://stackoverflow.com/questions/5871730/need-a-minimal-django-file-upload-example

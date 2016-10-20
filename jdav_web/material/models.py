@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from decimal import Decimal
 from django.db import models
 from django.utils import timezone
 
@@ -15,7 +16,9 @@ class MaterialPart(models.Model):
     """
     name = models.CharField(max_length=30)
     buy_date = models.DateField('purchase date', editable=True)
-    lifetime = models.DecimalField('lifetime (years)', decimal_places=0, max_digits=3)
+    lifetime = models.DecimalField('lifetime (years)', decimal_places=0,
+            max_digits=3)
+    photo = models.ImageField('photo', upload_to='images', blank=True)
 
     def __str__(self):
         """String representation"""

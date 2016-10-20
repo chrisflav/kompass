@@ -92,3 +92,7 @@ jdav_web/db.sqlite3
 
 # django database migrations
 */*/migrations/*
+
+# test images for file upload
+*.jpeg
+*.png
