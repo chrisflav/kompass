@@ -7,6 +7,7 @@ from .models import Member, Group
 class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'birth_date', 'group']
     list_display = ('name', 'birth_date')
+    list_filter = ('group',)
 
 
 class GroupAdmin(admin.ModelAdmin):
