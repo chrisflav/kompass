@@ -91,4 +91,4 @@ jdav_web/db.sqlite3
 *.py.swp
 
 # django database migrations
-*/migrations/*
+*/*/migrations/*
