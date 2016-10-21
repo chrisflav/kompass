@@ -1,7 +1,6 @@
 from django.contrib import admin
-from django import forms
 
-from .models import MaterialPart, MaterialPartForm, Ownership
+from .models import MaterialPart, Ownership
 
 
 # Register your models here.
@@ -17,7 +16,6 @@ class OwnershipInline(admin.StackedInline):
 class MaterialAdmin(admin.ModelAdmin):
     """Edit view of a MaterialPart"""
 
-    form = MaterialPartForm
     list_display = ('name', 'buy_date', 'lifetime', 'not_too_old', 'photo')
     inlines = [OwnershipInline]
 
