@@ -2,6 +2,8 @@ from datetime import datetime
 
 from decimal import Decimal
 from django.db import models
+from django.contrib.admin import widgets
+from django import forms
 from django.utils import timezone
 
 # maximum time in years of a material part until being replaced
@@ -33,6 +35,19 @@ class MaterialPart(models.Model):
     not_too_old.admin_order_field = 'buy_date'
     not_too_old.boolean = True
     not_too_old.short_description = 'Not too old?'
+
+class MaterialPartForm(forms.ModelForm):
+    """
+    An input form for the `MaterialPart` model.
+
+    This additional class is needed to override djangos default
+    `models.DateField` date format with a european format.
+    """
+    buy_date = forms.DateField(widget=widgets.AdminDateWidget, input_formats=('%d.%m.%Y',))
+
+    class Meta:
+        model = MaterialPart
+        exclude = []
 
 
 class Ownership(models.Model):
