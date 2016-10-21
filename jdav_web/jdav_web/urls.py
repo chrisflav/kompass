@@ -20,7 +20,6 @@ from django.conf.urls.i18n import i18n_patterns
 from django.conf import settings
 
 urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-print("urlpatterns", urlpatterns)
 
 urlpatterns += i18n_patterns(
     url(r'^admin/', admin.site.urls),
