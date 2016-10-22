@@ -25,3 +25,6 @@ class Message(models.Model):
     class Meta:
         verbose_name = _('message')
         verbose_name_plural = _('messages')
+        permissions = (
+            ("submit_mails", _("Can submit mails")),
+        )

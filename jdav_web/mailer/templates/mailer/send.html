@@ -1,0 +1,25 @@
+{% load i18n %}
+{% trans "Here you can send new emails!" %}
+
+{% if error_message %}
+	<p><b>{{ error_message }}</b></p>
+{% endif %}
+
+<form action="{% url 'mailer:send_mail' %}" method="post">
+	{% csrf_token %}
+
+	{% trans "Subject:" %}<br>
+	<input type="text" name="subject"><br>
+
+	{% trans "Content:" %}<br>
+	<textarea rows="10" cols="80" name="content"></textarea><br>
+
+	{% trans "Receiving group:" %}<br>
+	<select name="to_group">
+		{% for group in groups %}
+		<option value="{{ group.id }}">{{ group.name }}</option>
+		{% endfor %}
+	</select><br>
+
+	<input type="submit" value="{% trans "Send mail" %}">
+</form>
