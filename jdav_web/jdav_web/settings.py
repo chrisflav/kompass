@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'startpage.apps.StartpageConfig',
     'material.apps.MaterialConfig',
     'members.apps.MembersConfig',
+    'mailer.apps.MailerConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
