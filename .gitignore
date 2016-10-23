@@ -90,9 +90,10 @@ ENV/
 jdav_web/db.sqlite3
 *.swp
 
-# django database migrations
-*/*/migrations/*
-
 # test images for file upload
 *.jpeg
 *.png
+*.py.swp
+
+# django database migrations
+*/*/migrations/*
