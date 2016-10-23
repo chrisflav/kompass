@@ -88,6 +88,11 @@ ENV/
 # Rope project settings
 .ropeproject
 jdav_web/db.sqlite3
+*.swp
+
+# test images for file upload
+*.jpeg
+*.png
 *.py.swp
 
 # django database migrations
