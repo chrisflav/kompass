@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
@@ -43,3 +44,22 @@ class Member(models.Model):
     class Meta:
         verbose_name = _('member')
         verbose_name_plural = _('members')
+
+class MemberList(models.Model):
+    """Lets the user create a list of members in pdf format. """
+    name = models.CharField(verbose_name='List Name', default='', max_length=50)
+    date = models.DateField(default=datetime.today)
+    comment = models.TextField(_('Comments'), default='')
+
+    def __str__(self):
+        """String represenation"""
+        return self.name
+
+
+class MemberOnList(models.Model):
+    """
+    Connects members to a list of members.
+    """
+    member = models.ForeignKey(Member)
+    memberlist = models.ForeignKey(MemberList) 
+    comments = models.TextField(_('Comment'), default='')

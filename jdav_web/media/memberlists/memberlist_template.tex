@@ -1,0 +1,21 @@
+\documentclass{article}
+
+\usepackage{booktabs}
+\usepackage{cmbright}
+\usepackage[margin=1in,landscape]{geometry}
+
+\begin{document}
+\noindent
+{\LARGE\textsc{MEMBERLIST-TITLE}}\\
+\textit{Erstellt: MEMBERLIST-DATE}\\
+MEMBERLIST-COMMENTS
+\begin{table}[h]
+  \begin{tabular}{llll}
+    \toprule
+    Name & Vorname & Geburtsdatum & Kommentare \\
+    \midrule
+    \input{TABLE-NAME}
+    \bottomrule
+  \end{tabular}
+\end{table}
+\end{document}
