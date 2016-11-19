@@ -1,0 +1,15 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+{% block content %}
+{{ block.super }}
+{% load static %}
+
+<link rel="stylesheet" type="text/css" href="{% static 'mailer/change_style.css' %}" />
+
+<script type="text/javascript">
+    (function($){
+        $('<input type="submit" value="{% trans 'Save and send mail' %}" name="_send" class="send_mail"/>')
+        .prependTo('div.submit-row');
+    })(django.jQuery);
+</script>
+{% endblock %}

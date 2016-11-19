@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-10-22 18:28+0200\n"
+"POT-Creation-Date: 2016-11-19 16:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,9 +18,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin.py:41
+#: admin.py:20
 msgid "Message sent"
 msgstr "Nachricht gesendet"
+
+#: admin.py:28
+msgid "Send message"
+msgstr "Nachricht verschicken"
 
 #: apps.py:7
 msgid "mailer"
@@ -42,18 +46,76 @@ msgstr "Inhalt"
 msgid "to group"
 msgstr "An Gruppe"
 
-#: models.py:23
+#: models.py:13
+msgid "sent"
+msgstr "Gesendet"
+
+#: models.py:29
 msgid "message"
 msgstr "Nachricht"
 
-#: models.py:24
+#: models.py:30
 msgid "messages"
 msgstr "Nachrichten"
 
-#: templates/admin/change_form.html:10
-msgid "History"
-msgstr "Geschichte"
+#: models.py:32
+msgid "Can submit mails"
+msgstr "Kann Mails verschicken"
+
+#: templates/admin/change_form.html:11
+msgid "Save and send mail"
+msgstr "Speichern und Email senden"
+
+#: templates/mailer/confirm_send.html:7
+msgid "Do you really want to send these mails?"
+msgstr "Möchtest du diese Emails wirklich verschicken?"
+
+#: templates/mailer/confirm_send.html:13
+msgid "already sent"
+msgstr "schon verschickt"
+
+#: templates/mailer/confirm_send.html:19
+msgid ""
+"Some messages have already been sent! Do you really want to resend them?"
+msgstr ""
+"Einige Emails wurden schon versendet! Möchtest du diese wirklich nochmal "
+"senden?"
+
+#: templates/mailer/confirm_send.html:30
+msgid "Send"
+msgstr "Senden"
+
+#: templates/mailer/confirm_send.html:35
+msgid "Cancel"
+msgstr "Abbruch"
 
 #: templates/mailer/index.html:2
 msgid "This is the mailer app!"
 msgstr "Das ist die Mailer App!"
+
+#: templates/mailer/send.html:2
+msgid "Here you can send new emails!"
+msgstr "Hier kannst du neue Emails verschicken!"
+
+#: templates/mailer/send.html:11
+msgid "Subject:"
+msgstr "Betreff"
+
+#: templates/mailer/send.html:14
+msgid "Content:"
+msgstr "Inhalt:"
+
+#: templates/mailer/send.html:17
+msgid "Receiving group:"
+msgstr "Erhaltende Gruppe"
+
+#: templates/mailer/send.html:24
+msgid "Send mail"
+msgstr "Email senden"
+
+#: views.py:33
+msgid "Please fill in every field!"
+msgstr "Bitte jedes Feld ausfüllen!"
+
+#~ msgid "History"
+#~ msgstr "Geschichte"
