@@ -9,6 +9,7 @@ from .models import Message
 class MessageAdmin(admin.ModelAdmin):
     """Message creation view"""
     list_display = ('subject', 'from_addr', 'to_group', 'sent')
+    change_form_template = "mailer/change_form.html"
 
     actions = ['send_message']
 
