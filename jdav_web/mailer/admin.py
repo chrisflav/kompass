@@ -6,36 +6,10 @@ from django.shortcuts import render
 from .models import Message
 
 
-class Button:
-    short_description = ""
-    view = ""
-
-
-class ButtonableModelAdmin(admin.ModelAdmin):
-    buttons = []
-
-    def change_view(self, request, object_id, extra_context={}):
-        extra_context['buttons'] = self.buttons
-        if '/' in object_id:
-            object_id = object_id[:object_id.find('/')]
-        return super(
-            ButtonableModelAdmin,
-            self).change_view(
-            request,
-            object_id,
-            extra_context=extra_context)
-
-
-class MessageAdmin(ButtonableModelAdmin):
+class MessageAdmin():
     """Message creation view"""
     list_display = ('subject', 'from_addr', 'to_group', 'sent')
 
-    # TODO: get this working
-    # can't find a good solution for this at the moment
-    send_message = Button()
-    send_message.short_description = _("Send")
-    send_message.view = "mailer:send_mail"
-    buttons = [send_message]
     actions = ['send_message']
 
     def send_message(self, request, queryset):
@@ -52,6 +26,16 @@ class MessageAdmin(ButtonableModelAdmin):
                        'some_sent': any(m.sent for m in queryset)}
             return render(request, 'mailer/confirm_send.html', context)
     send_message.short_description = _("Send message")
+
+    def response_change(self, request, obj):
+        if "_send" in request.POST:
+            obj.submit()
+        return super(MessageAdmin, self).response_change(request, obj)
+
+    def response_add(self, request, obj):
+        if "_send" in request.POST:
+            obj.submit()
+        return super(MessageAdmin, self).response_change(request, obj)
 
 
 admin.site.register(Message, MessageAdmin)
