@@ -1,0 +1,38 @@
+[
+	{
+		"model": "material.MaterialPart",
+		"pk": "1",
+		"fields": {
+			"name": "Seil 40m grün",
+			"buy_date": "2016-01-01",
+			"lifetime": "3"
+		}
+	},
+	{
+		"model": "material.MaterialPart",
+		"pk": "2",
+		"fields": {
+			"name": "Seil 40m blau",
+			"buy_date": "2012-01-01",
+			"lifetime": "3"
+		}
+	},
+	{
+		"model": "material.MaterialPart",
+		"pk": "3",
+		"fields": {
+			"name": "Seil 60m gelb",
+			"buy_date": "2013-01-01",
+			"lifetime": "3"
+		}
+	},
+	{
+		"model": "material.MaterialPart",
+		"pk": "4",
+		"fields": {
+			"name": "Seil 60m blau",
+			"buy_date": "2016-01-01",
+			"lifetime": "3"
+		}
+	}
+]
