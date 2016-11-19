@@ -10,6 +10,7 @@ class Message(models.Model):
     subject = models.CharField(_('subject'), max_length=50)
     content = models.TextField(_('content'))
     to_group = models.ForeignKey('members.Group', verbose_name=_('to group'))
+    sent = models.BooleanField(_('sent'), default=False)
 
     def __str__(self):
         return self.subject
@@ -21,6 +22,8 @@ class Message(models.Model):
             for member in self.to_group.member_set.all()
         ]
         send_mass_mail(data)
+        self.sent = True
+        self.save()
 
     class Meta:
         verbose_name = _('message')
