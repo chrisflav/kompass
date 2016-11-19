@@ -6,7 +6,7 @@ from django.shortcuts import render
 from .models import Message
 
 
-class MessageAdmin():
+class MessageAdmin(admin.ModelAdmin):
     """Message creation view"""
     list_display = ('subject', 'from_addr', 'to_group', 'sent')
 
