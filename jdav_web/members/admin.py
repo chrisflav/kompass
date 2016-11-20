@@ -20,9 +20,10 @@ from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
 
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'birth_date', 'group']
-    list_display = ('name', 'birth_date')
-    list_filter = ('group',)
+    fields = ['prename', 'lastname', 'email', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
+              'gets_newsletter', 'comments']
+    list_display = ('name', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'gets_newsletter', 'comments')
+    list_filter = ('group', 'gets_newsletter')
 
 
 class GroupAdmin(admin.ModelAdmin):

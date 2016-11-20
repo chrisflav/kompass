@@ -15,14 +15,22 @@ class MaterialPart(models.Model):
     members of the association (Ownership)
     """
     name = models.CharField(_('name'), max_length=30)
+    quantity = models.IntegerField(_('quantity'), default=0)
     buy_date = models.DateField(_('purchase date'), editable=True)
-    lifetime = models.DecimalField(_('lifetime (years)'), decimal_places=0,
-                                   max_digits=3)
+    lifetime = models.DecimalField(_('lifetime (years)'), decimal_places=0, max_digits=3)
     photo = models.ImageField(_('photo'), upload_to='images', blank=True)
 
     def __str__(self):
         """String representation"""
         return self.name
+
+    def quantity_real(self):
+        real = sum([o.count for o in Ownership.objects.filter(material__id = self.pk)])
+        return str(real) + '/' + str(self.quantity)
+
+    quantity_real.admin_order_field = 'quantity'
+    quantity_real.short_description = _('Quantity')
+
 
     def not_too_old(self):
         """Returns wether the part should be replaced cause of age"""

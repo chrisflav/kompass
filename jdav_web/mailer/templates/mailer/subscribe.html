@@ -1,0 +1,44 @@
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.0/themes/smoothness/jquery-ui.css"> 
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/ui/1.11.0/jquery-ui.js"></script>
+{% load i18n %}
+<p><b>{% trans "Here you can register yourself to the newsletter" %}</b></p>
+
+{% if error_message %}
+	<p><b>{{ error_message }}</b></p>
+{% endif %}
+
+<form action="" method="post">
+	{% csrf_token %}
+
+	<input type="hidden" name="post" value="yes">
+	<p>
+	{% trans "Prename" %}
+	<input type="text" name="prename">
+	</p>
+
+	<p>
+	{% trans "Lastname" %}
+	<input type="text" name="lastname">
+	</p>
+
+	<p>
+	{% trans "Birthdate" %}
+	<input type="date" name="birthdate" class="datepicker">
+	</p>
+	<script>
+		$(document).ready(function() {
+			$('.datepicker').datepicker({
+			dateFormat: "yy-mm-dd"});
+		});
+	</script>
+
+	<p>
+	{% trans "Email address" %}
+	<input type="email" name="email">
+	</p>
+
+	<p>
+	<input type="submit" value="{% trans "Register" %}">
+	</p>
+</form>

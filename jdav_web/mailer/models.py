@@ -26,6 +26,8 @@ class Message(models.Model):
         for group in self.to_groups.all():
             group_members = group.member_set.all()
             for member in group_members:
+                if not member.gets_newsletter:
+                    continue
                 members.add(member)
         data = [
             (self.subject, self.content, self.from_addr, [member.email])
