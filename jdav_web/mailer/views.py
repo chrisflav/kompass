@@ -1,40 +1,57 @@
 from django.shortcuts import render
+from django import forms
 from django.utils.translation import ugettext_lazy as _
 from django.urls import reverse
 from django.http import HttpResponseRedirect
-from django.contrib.auth.decorators import permission_required
 
-from members.models import Group
-
-from .models import Message
+from members.models import Member
 
 
-@permission_required('mailer.submit_mails', login_url='/admin/')
 def index(request):
-    """This is the main newsletter view"""
-    return render(request, 'mailer/index.html')
+    return HttpResponseRedirect(reverse('mailer:subscribe'))
 
 
-@permission_required('mailer.submit_mails', login_url='/admin/')
-def send(request):
-    return render(request, 'mailer/send.html', {
-        'groups': Group.objects.all()
-    })
+def render_subscribe(request, error_message=""):
+    date_input = forms.DateInput(attrs={'required': True,
+                                        'class': 'datepicker',
+                                        'name': 'birthdate'})
+    date_field = date_input.render(_("Birthdate"), "")
+    context = {'date_field': date_field}
+    if error_message:
+        context['error_message'] = error_message
+    return render(request, 'mailer/subscribe.html', context)
 
 
-@permission_required('mailer.submit_mails', login_url='/admin/')
-def send_mail(request):
+def subscribe(request):
     try:
-        subject = request.POST['subject']
-        content = request.POST['content']
-        to_group = Group.objects.get(pk=request.POST['to_group'])
-    except (KeyError, Group.DoesNotExist):
-        return render(request, 'mailer/send.html', {
-            'error_message': _("Please fill in every field!"),
-            'groups': Group.objects.all()
-        })
-    else:
-        msg = Message(subject=subject, content=content, to_group=to_group)
-        msg.submit()
-        msg.save()
-        return HttpResponseRedirect(reverse('mailer:index'))
+        request.POST['post']
+        try:
+            print("trying to subscribe")
+            prename = request.POST['prename']
+            lastname = request.POST['lastname']
+            email = request.POST['email']
+            print("email", email)
+            birth_date = request.POST['birthdate']
+            print("birthdate", birth_date)
+        except KeyError:
+            return subscribe(request, _("Please fill in every field!"))
+        else:
+            # TODO: check whether member exists
+            exists = Member.objects.filter(prename=prename,
+                                           lastname=lastname)
+            if len(exists) > 0:
+                return render_subscribe(request,
+                                        error_message=_("Member already exists"))
+            member = Member(prename=prename,
+                            lastname=lastname,
+                            email=email,
+                            birth_date=birth_date,
+                            gets_newsletter=True)
+            member.save()
+            return subscribed(request)
+    except KeyError:
+        return render_subscribe(request)
+
+
+def subscribed(request):
+    return render(request, 'mailer/subscribed.html')
