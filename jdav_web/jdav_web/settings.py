@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'startpage.apps.StartpageConfig',
     'material.apps.MaterialConfig',
     'members.apps.MembersConfig',
+    'mailer.apps.MailerConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -133,3 +134,12 @@ STATIC_URL = '/static/'
 # Locale files (translations)
 
 LOCALE_PATHS = (os.path.join(BASE_DIR, 'locale'),)
+
+
+# Email setup
+
+EMAIL_HOST = 'localhost'
+EMAIL_PORT = 25
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+EMAIL_USE_TLS = False
