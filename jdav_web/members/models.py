@@ -28,11 +28,16 @@ class Member(models.Model):
     """
     prename = models.CharField(max_length=20, verbose_name=_('prename'))
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
+    street = models.CharField(max_length=30, verbose_name=_('street'), default='', blank=True)
+    town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
+    phone_number = models.CharField(max_length=12, verbose_name=_('phone number'), default='', blank=True)
+    phone_number_parents = models.CharField(max_length=12, verbose_name=_('parents phone number'), default='', blank=True)
     email = models.EmailField(max_length=100, default="")
     birth_date = models.DateField(_('birth date'))  # to determine the age
     group = models.ManyToManyField(Group)
     gets_newsletter = models.BooleanField(_('receives newsletter'),
                                           default=True)
+    comments = models.TextField(_('comments'), default='', blank=True)
 
     def __str__(self):
         """String representation"""
