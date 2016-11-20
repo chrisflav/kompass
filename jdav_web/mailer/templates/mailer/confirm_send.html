@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" type="text/css" href="{% static 'admin/style.css' %}" />
+<p>{% trans "Do you really want to send these mails?" %}</p>
+<ul>
+{% for mail in mails %}
+<li>
+	{{mail.subject}}
+	{% if mail.sent %}
+	({% trans "already sent" %})
+	{%endif %}
+</li>
+{% endfor %}
+</ul>
+{% if some_sent %}
+<p><b>{% trans "Some messages have already been sent! Do you really want to resend them?" %}</b></p>
+{% endif %}
+
+<form action="" method="post">
+	{% csrf_token %}
+
+	<input type="hidden" name="confirmed" value="yes">
+	<input type="hidden" name="action" value="send_message">
+	{% for id in ids %}
+		<input type="hidden" name="{{ action_checkbox_name }}" value="{{ id.0 }}">
+	{% endfor %}
+	<input type="submit" value={% trans "Send" %}>
+</form>
+
+<form action="" method="post" class="cancel">
+	{% csrf_token %}
+	<input type="submit" value={% trans "Cancel" %}>
+</form>
+
+{% endblock %}
