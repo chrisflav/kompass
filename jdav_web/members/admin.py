@@ -9,11 +9,13 @@ from django.http import HttpResponse
 from wsgiref.util import FileWrapper
 from django import forms
 from django.contrib import admin
+from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import ugettext_lazy as translate
 from django.db.models import TextField
 from django.forms import Textarea
 
-from .models import Member, Group, MemberList, MemberOnList
+from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
+        KlettertreffAttendee)
 
 
 # Register your models here.
@@ -51,6 +53,9 @@ class MemberListAdmin(admin.ModelAdmin):
     form = MemberListAdminForm
     actions = ['convert_to_pdf']
     inlines = [MemberOnListInline]
+
+    def __init__(self, *args, **kwargs):
+        super(MemberListAdmin, self).__init__(*args, **kwargs)
 
     def convert_to_pdf(self, request, queryset):
         """Converts a member list to pdf.
@@ -113,10 +118,33 @@ class MemberListAdmin(admin.ModelAdmin):
             # provide the user with the resulting pdf file
             with open('media/memberlists/'+filename_pdf, 'rb') as pdf:
                 response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
+                response['Content-Type'] = 'application/pdf'
                 response['Content-Disposition'] = 'attachment; filename='+filename_pdf
 
             return response
 
+class KlettertreffAdminForm(forms.ModelForm):
+    class Meta:
+        model = Klettertreff
+        exclude = []
+
+    def __init__(self, *args, **kwargs):
+        super(KlettertreffAdminForm, self).__init__(*args, **kwargs)
+        self.fields['jugendleiter'].queryset = Member.objects.filter(group__name='Jugendleiter')
+
+class KlettertreffAttendeeInline(admin.StackedInline):
+
+    model = KlettertreffAttendee
+    extra = 0
+
+class KlettertreffAdmin(admin.ModelAdmin):
+    form = KlettertreffAdminForm
+    exclude = []
+    inlines = [KlettertreffAttendeeInline]
+    list_display = ['__str__', 'date', 'get_jugendleiter']
+    list_filter = [('date', DateFieldListFilter)]
+
 admin.site.register(Member, MemberAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(MemberList, MemberListAdmin)
+admin.site.register(Klettertreff, KlettertreffAdmin)

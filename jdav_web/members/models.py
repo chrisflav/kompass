@@ -61,5 +61,32 @@ class MemberOnList(models.Model):
     Connects members to a list of members.
     """
     member = models.ForeignKey(Member)
-    memberlist = models.ForeignKey(MemberList) 
+    memberlist = models.ForeignKey(MemberList)
     comments = models.TextField(_('Comment'), default='')
+
+
+class Klettertreff(models.Model):
+    """ This model represents a Klettertreff event.
+
+    A Klettertreff can take a date, location, Jugendleiter, attending members as
+    input.
+    """
+    date = models.DateField(_('Date'), default=datetime.today)
+    location = models.CharField(_('Location'), default='', max_length=60)
+    jugendleiter = models.ManyToManyField(Member)
+    
+    def __str__(self):
+        return self.location + ' ' + self.date.strftime('%d.%m.%Y')
+
+    def get_jugendleiter(self):
+        jl_string = ''.join(j.name + ',\n' for j in self.jugendleiter.all())
+        jl_string = jl_string[:-2]
+        return jl_string
+
+    get_jugendleiter.short_description = _('Jugendleiter')
+
+class KlettertreffAttendee(models.Model):
+    """Connects members to Klettertreffs."""
+    member = models.ForeignKey(Member)
+    klettertreff = models.ForeignKey(Klettertreff)
+
