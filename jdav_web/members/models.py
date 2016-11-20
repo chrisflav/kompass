@@ -1,4 +1,5 @@
 from datetime import datetime
+import hashlib
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
@@ -33,10 +34,17 @@ class Member(models.Model):
     group = models.ManyToManyField(Group)
     gets_newsletter = models.BooleanField(_('receives newsletter'),
                                           default=True)
+    key = models.CharField(max_length=32, default="")
 
     def __str__(self):
         """String representation"""
         return self.name
+
+    def save(self, *args, **kwargs):
+        if len(self.key) == 0:
+            self.key = hashlib.md5((self.prename + self.lastname +
+                                    self.email).encode()).hexdigest()
+        super(Member, self).save(*args, **kwargs)
 
     @property
     def name(self):

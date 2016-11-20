@@ -30,9 +30,11 @@ class Message(models.Model):
                     continue
                 members.add(member)
         data = [
-            (self.subject, self.content, self.from_addr, [member.email])
+            (self.subject, get_content(self.content), self.from_addr,
+             [member.email])
             for member in members
         ]
+        print("data to be sent", data)
         send_mass_mail(data)
         self.sent = True
         self.save()
@@ -43,3 +45,13 @@ class Message(models.Model):
         permissions = (
             ("submit_mails", _("Can submit mails")),
         )
+
+
+def get_content(content):
+    # TODO: generate right url here
+    url = "work in progress"
+    text = "{}\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
+        "verschickt. Wenn du in Zukunft keine Emails mehr erhalten möchtest,"\
+        "kannst du hier den Newsletter deabonnieren.\n\n{}"\
+        .format(content, url)
+    return text
