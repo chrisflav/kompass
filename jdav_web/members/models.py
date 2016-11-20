@@ -31,6 +31,8 @@ class Member(models.Model):
     email = models.EmailField(max_length=100, default="")
     birth_date = models.DateField(_('birth date'))  # to determine the age
     group = models.ManyToManyField(Group)
+    gets_newsletter = models.BooleanField(_('receives newsletter'),
+                                          default=True)
 
     def __str__(self):
         """String representation"""
@@ -45,9 +47,11 @@ class Member(models.Model):
         verbose_name = _('member')
         verbose_name_plural = _('members')
 
+
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format. """
-    name = models.CharField(verbose_name='List Name', default='', max_length=50)
+    name = models.CharField(verbose_name='List Name', default='',
+                            max_length=50)
     date = models.DateField(default=datetime.today)
     comment = models.TextField(_('Comments'), default='')
 
@@ -61,5 +65,5 @@ class MemberOnList(models.Model):
     Connects members to a list of members.
     """
     member = models.ForeignKey(Member)
-    memberlist = models.ForeignKey(MemberList) 
+    memberlist = models.ForeignKey(MemberList)
     comments = models.TextField(_('Comment'), default='')

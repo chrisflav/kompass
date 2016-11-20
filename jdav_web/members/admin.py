@@ -18,9 +18,10 @@ from .models import Member, Group, MemberList, MemberOnList
 
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'birth_date', 'group']
-    list_display = ('name', 'birth_date')
-    list_filter = ('group',)
+    fields = ['prename', 'lastname', 'email', 'birth_date', 'group',
+              'gets_newsletter']
+    list_display = ('name', 'birth_date', 'gets_newsletter')
+    list_filter = ('group', 'gets_newsletter')
 
 
 class GroupAdmin(admin.ModelAdmin):
