@@ -47,6 +47,13 @@ class Member(models.Model):
     def name(self):
         """Returning whole name (prename + lastname)"""
         return "{0} {1}".format(self.prename, self.lastname)
+    
+    def get_group(self):
+        """Returns a string of groups in which the member is."""
+        groupstring = ''.join(g.name + ',\n' for g in self.group.all())
+        groupstring = groupstring[:-2]
+        return groupstring
+    get_group.short_description = _('Group')
 
     class Meta:
         verbose_name = _('member')
