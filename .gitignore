@@ -96,3 +96,5 @@ jdav_web/db.sqlite3
 # test images for file upload
 *.jpeg
 *.png
+jdav_web/media
+jdav_web/*/migrations
