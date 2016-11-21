@@ -28,4 +28,5 @@ urlpatterns += i18n_patterns(
 )
 
 # TODO: django serving from MEDIA_URL should be disabled in production stage
-# see http://stackoverflow.com/questions/5871730/need-a-minimal-django-file-upload-example
+# see
+# http://stackoverflow.com/questions/5871730/need-a-minimal-django-file-upload-example

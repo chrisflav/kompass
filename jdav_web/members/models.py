@@ -1,7 +1,8 @@
 from datetime import datetime
-import hashlib
+import uuid
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from django.utils import timezone
 
 
 class Group(models.Model):
@@ -34,17 +35,29 @@ class Member(models.Model):
     group = models.ManyToManyField(Group)
     gets_newsletter = models.BooleanField(_('receives newsletter'),
                                           default=True)
-    key = models.CharField(max_length=32, default="")
+    unsubscribe_key = models.CharField(max_length=32, default="")
+    unsubscribe_expire = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         """String representation"""
         return self.name
 
-    def save(self, *args, **kwargs):
-        if len(self.key) == 0:
-            self.key = hashlib.md5((self.prename + self.lastname +
-                                    self.email).encode()).hexdigest()
-        super(Member, self).save(*args, **kwargs)
+    def generate_key(self):
+        self.unsubscribe_key = uuid.uuid4().hex
+        self.unsubscribe_expire = timezone.now() + timezone.timedelta(days=1)
+        self.save()
+        return self.unsubscribe_key
+
+    def unsubscribe(self, key):
+        if self.unsubscribe_key == key and timezone.now() <\
+                self.unsubscribe_expire:
+            for member in Member.objects.filter(email=self.email):
+                member.gets_newsletter = False
+                member.save()
+            self.unsubscribe_key, self.unsubscribe_expire = "", timezone.now()
+            return True
+        else:
+            return False
 
     @property
     def name(self):
