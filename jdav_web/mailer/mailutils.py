@@ -1,16 +1,25 @@
-from django.core.mail import send_mass_mail, send_mail
+from django.core.mail import EmailMessage
 
 
-def send(subject, content, sender, recipicient):
-    send_mail(subject, content, sender, [recipicient])
-
-
-def send_mass(subject, content, sender, recipicients):
-    data = [
-        (subject, content, sender, [recipicient])
-        for recipicient in recipicients]
-    print("sending data", data)
-    send_mass_mail(data)
+def send(subject, content, sender, recipients, reply_to=None,
+         attachments=None):
+    if type(recipients) != list:
+        recipients = [recipients]
+    if reply_to is not None:
+        kwargs = {"reply_to": [reply_to]}
+    else:
+        kwargs = {}
+    email = EmailMessage(subject, content, sender, recipients, **kwargs)
+    if attachments is not None:
+        for attach in attachments:
+            email.attach_file(attach)
+    try:
+        email.send()
+    except Exception as e:
+        print("Error when sending mail:", e)
+        return False
+    else:
+        return True
 
 
 def get_content(content):
