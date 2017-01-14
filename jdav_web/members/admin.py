@@ -135,24 +135,44 @@ class KlettertreffAdminForm(forms.ModelForm):
         super(KlettertreffAdminForm, self).__init__(*args, **kwargs)
         self.fields['jugendleiter'].queryset = Member.objects.filter(group__name='Jugendleiter')
 
-class KlettertreffAttendeeInline(admin.StackedInline):
 
+class KlettertreffAttendeeInlineForm(forms.ModelForm):
+    class Meta:
+        model = KlettertreffAttendee
+        exclude = []
+
+    """
+    def __init__(self, *args, **kwargs):
+        super(KlettertreffAttendeeInlineForm, self).__init__(*args, **kwargs)
+        self.fields['member'].queryset = Member.objects.filter(group__name='J1')
+    """
+
+class KlettertreffAttendeeInline(admin.StackedInline):
     model = KlettertreffAttendee
+    form = KlettertreffAttendeeInlineForm
     extra = 0
+
 
 class KlettertreffAdmin(admin.ModelAdmin):
     form = KlettertreffAdminForm
     exclude = []
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
-    list_filter = [('date', DateFieldListFilter)]
+    list_filter = [('date', DateFieldListFilter), 'group__name']
     actions = ['overview']
 
     def overview(self, request, queryset):
+        group = request.GET.get('group__name')
+        if group != 'NONE':
+            members = Member.objects.filter(group__name__contains=group)
+        else:
+            members = Member.objects.all()
         context = {
                    'klettertreffs': queryset,
-                   'members': Member.objects.all(),
-                   'attendees': KlettertreffAttendee.objects.all()
+                   'members': members,
+                   'attendees': KlettertreffAttendee.objects.all(),
+                   'jugendleiters':
+                   Member.objects.filter(group__name='Jugendleiter')
                    }
 
         return render(request, 'admin/klettertreff_overview.html',
