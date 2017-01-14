@@ -1,9 +1,11 @@
 from datetime import datetime
 import uuid
+from django import forms
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 
+from multiselectfield import MultiSelectField
 
 class Group(models.Model):
     """
@@ -83,10 +85,18 @@ class Member(models.Model):
 
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format. """
-    name = models.CharField(verbose_name='List Name', default='',
+    name = models.CharField(verbose_name='Activity', default='',
                             max_length=50)
+    place = models.CharField(verbose_name=_('Place'), default='', max_length=50) 
+    destination = models.CharField(verbose_name=_('Destination (optional)'), default='', max_length=50, blank=True) 
     date = models.DateField(default=datetime.today)
-    comment = models.TextField(_('Comments'), default='')
+    end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
+    #comment = models.TextField(_('Comments'), default='', blank=True)
+    groups = models.ManyToManyField(Group)
+    jugendleiter = models.ManyToManyField(Member)
+    tour_type_choices = (('Gemeinschaftstour','Gemeinschaftstour'), ('Führungstour', 'Führungstour'), 
+                            ('Ausbildung', 'Ausbildung'))
+    tour_type = MultiSelectField(choices=tour_type_choices, default='', max_choices=1) 
 
     def __str__(self):
         """String represenation"""
@@ -99,7 +109,7 @@ class MemberOnList(models.Model):
     """
     member = models.ForeignKey(Member)
     memberlist = models.ForeignKey(MemberList)
-    comments = models.TextField(_('Comment'), default='')
+    comments = models.TextField(_('Comment'), default='', blank=True)
 
 
 class Klettertreff(models.Model):
