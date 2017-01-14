@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from django.core.mail import send_mass_mail
+from .mailutils import send_mass, get_content
 
 
 # Create your models here.
@@ -29,11 +29,8 @@ class Message(models.Model):
                 if not member.gets_newsletter:
                     continue
                 members.add(member)
-        data = [
-            (self.subject, self.content, self.from_addr, [member.email])
-            for member in members
-        ]
-        send_mass_mail(data)
+        send_mass(self.subject, get_content(self.content),
+                       self.from_addr, [member.email for member in members])
         self.sent = True
         self.save()
 

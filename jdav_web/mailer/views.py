@@ -3,12 +3,54 @@ from django import forms
 from django.utils.translation import ugettext_lazy as _
 from django.urls import reverse
 from django.http import HttpResponseRedirect
+from .mailutils import send as send_mail, mail_root, get_unsubscribe_link
 
 from members.models import Member
 
 
 def index(request):
-    return HttpResponseRedirect(reverse('mailer:subscribe'))
+    return HttpResponseRedirect(reverse('mailer:unsubscribe'))
+
+
+def render_unsubscribe(request, error_message=""):
+    context = {}
+    if error_message:
+        context['error_message'] = error_message
+    return render(request, 'mailer/unsubscribe.html', context)
+
+
+def render_unsubscribed(request, email):
+    return render(request, 'mailer/unsubscribed.html', {'email': email})
+
+
+def unsubscribe(request):
+    if request.method == 'GET' and 'key' in request.GET:
+        try:
+            key = request.GET['key']
+            member = Member.objects.get(unsubscribe_key=key)
+            if not member.unsubscribe(key):
+                raise KeyError
+        except (KeyError, Member.DoesNotExist):
+            return render_unsubscribe(request,
+                                      _("Can't verify this link. Try again!"))
+        else:
+            return render_unsubscribed(request, member.email)
+    elif not request.POST.get('post', False):
+        # just calling up unsubscribe page
+        return render_unsubscribe(request)
+    try:
+        email = request.POST['email']
+        member = Member.objects.filter(email=email).first()
+        if not member:  # member not found
+            raise KeyError
+    except (KeyError, Member.DoesNotExist):
+        return render_unsubscribe(request, _("Please fill in every field"))
+    else:
+        send_mail(_("Confirmation of unsubscription"),
+                  _("Click the link to unsubscribe to the newsletter of"
+                    " the JDAV\n{}".format(get_unsubscribe_link(member))),
+                  mail_root, email)
+        return render_confirmation_sent(request, email)
 
 
 def render_subscribe(request, error_message=""):
@@ -20,6 +62,10 @@ def render_subscribe(request, error_message=""):
     if error_message:
         context['error_message'] = error_message
     return render(request, 'mailer/subscribe.html', context)
+
+
+def render_confirmation_sent(request, email):
+    return render(request, 'mailer/confirmation_sent.html', {'email': email})
 
 
 def subscribe(request):
@@ -41,7 +87,8 @@ def subscribe(request):
                                            lastname=lastname)
             if len(exists) > 0:
                 return render_subscribe(request,
-                                        error_message=_("Member already exists"))
+                                        error_message=_("Member "
+                                                        "already exists"))
             member = Member(prename=prename,
                             lastname=lastname,
                             email=email,

@@ -1,0 +1,21 @@
+{% load i18n %}
+
+<p><b>{% trans "Here you can unsubscribe from the newsletter" %}</b></p>
+
+{% if error_message %}
+	<p><b>{{ error_message }}</b></p>
+{% endif %}
+
+<form action="" method="post">
+	{% csrf_token %}
+
+	<input type="hidden" name="post" value="yes">
+	<p>
+	{% trans "Email address" %}
+	<input type="email" name="email">
+	</p>
+	
+	<p>
+	<input type="submit" value="{% trans "Unsubscribe" %}">
+	</p>
+</form>
