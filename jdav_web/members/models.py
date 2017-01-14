@@ -30,6 +30,10 @@ class Member(models.Model):
     """
     prename = models.CharField(max_length=20, verbose_name=_('prename'))
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
+    street = models.CharField(max_length=30, verbose_name=_('street'), default='', blank=True)
+    town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
+    phone_number = models.CharField(max_length=12, verbose_name=_('phone number'), default='', blank=True)
+    phone_number_parents = models.CharField(max_length=12, verbose_name=_('parents phone number'), default='', blank=True)
     email = models.EmailField(max_length=100, default="")
     birth_date = models.DateField(_('birth date'))  # to determine the age
     group = models.ManyToManyField(Group)
@@ -37,6 +41,7 @@ class Member(models.Model):
                                           default=True)
     unsubscribe_key = models.CharField(max_length=32, default="")
     unsubscribe_expire = models.DateTimeField(default=timezone.now)
+    comments = models.TextField(_('comments'), default='', blank=True)
 
     def __str__(self):
         """String representation"""
@@ -63,6 +68,13 @@ class Member(models.Model):
     def name(self):
         """Returning whole name (prename + lastname)"""
         return "{0} {1}".format(self.prename, self.lastname)
+    
+    def get_group(self):
+        """Returns a string of groups in which the member is."""
+        groupstring = ''.join(g.name + ',\n' for g in self.group.all())
+        groupstring = groupstring[:-2]
+        return groupstring
+    get_group.short_description = _('Group')
 
     class Meta:
         verbose_name = _('member')
@@ -88,3 +100,30 @@ class MemberOnList(models.Model):
     member = models.ForeignKey(Member)
     memberlist = models.ForeignKey(MemberList)
     comments = models.TextField(_('Comment'), default='')
+
+
+class Klettertreff(models.Model):
+    """ This model represents a Klettertreff event.
+
+    A Klettertreff can take a date, location, Jugendleiter, attending members as
+    input.
+    """
+    date = models.DateField(_('Date'), default=datetime.today)
+    location = models.CharField(_('Location'), default='', max_length=60)
+    jugendleiter = models.ManyToManyField(Member)
+    
+    def __str__(self):
+        return self.location + ' ' + self.date.strftime('%d.%m.%Y')
+
+    def get_jugendleiter(self):
+        jl_string = ''.join(j.name + ',\n' for j in self.jugendleiter.all())
+        jl_string = jl_string[:-2]
+        return jl_string
+
+    get_jugendleiter.short_description = _('Jugendleiter')
+
+class KlettertreffAttendee(models.Model):
+    """Connects members to Klettertreffs."""
+    member = models.ForeignKey(Member)
+    klettertreff = models.ForeignKey(Klettertreff)
+
