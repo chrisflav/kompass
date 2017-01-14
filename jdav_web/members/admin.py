@@ -11,7 +11,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import ugettext_lazy as translate
-from django.db.models import TextField
+from django.db.models import TextField, ManyToManyField
 from django.forms import Textarea
 
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
@@ -25,6 +25,9 @@ class MemberAdmin(admin.ModelAdmin):
     list_display = ('name', 'street', 'town', 'phone_number',
             'phone_number_parents', 'birth_date', 'gets_newsletter', 'get_group', 'comments')
     list_filter = ('group', 'gets_newsletter')
+    formfield_overrides = {
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+    }
 
 
 class GroupAdmin(admin.ModelAdmin):
@@ -125,6 +128,7 @@ class MemberListAdmin(admin.ModelAdmin):
 
             return response
 
+
 class KlettertreffAdminForm(forms.ModelForm):
     class Meta:
         model = Klettertreff
@@ -145,6 +149,10 @@ class KlettertreffAdmin(admin.ModelAdmin):
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
     list_filter = [('date', DateFieldListFilter)]
+    formfield_overrides = {
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+    }
+
 
 admin.site.register(Member, MemberAdmin)
 admin.site.register(Group, GroupAdmin)
