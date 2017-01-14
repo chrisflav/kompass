@@ -3,6 +3,8 @@ from django.core.mail import EmailMessage
 
 def send(subject, content, sender, recipients, reply_to=None,
          attachments=None):
+    if type(recipients) != list:
+        recipients = [recipients]
     if reply_to is not None:
         kwargs = {"reply_to": [reply_to]}
     else:
