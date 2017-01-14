@@ -59,6 +59,10 @@ class Message(models.Model):
         success = send(self.subject, get_content(self.content),
                        self.from_addr, [member.email for member in members],
                        attachments=attach)
+        for a in Attachment.objects.filter(msg__id=self.pk):
+            if a.f.name:
+                os.remove(a.f.path)
+            a.delete()
         if success:
             self.sent = True
             self.save()
