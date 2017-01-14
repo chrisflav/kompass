@@ -41,17 +41,15 @@ class MessageAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_send" in request.POST:
-            success = obj.submit()
-            if not success:
+            if not obj.submit():
                 messages.error(request, _("Failed to send message"))
         return super(MessageAdmin, self).response_change(request, obj)
 
     def response_add(self, request, obj):
-        success = True
         if "_send" in request.POST:
-            success = obj.submit()
-        if success:
-            return super(MessageAdmin, self).response_add(request, obj)
+            if not obj.submit():
+                messages.error(request, _("Failed to send message"))
+        return super(MessageAdmin, self).response_add(request, obj)
 
 
 admin.site.register(Message, MessageAdmin)
