@@ -1,11 +1,16 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import helpers
 from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import render
 from django.db import models
 from django import forms
 
-from .models import Message
+from .models import Message, Attachment
+
+
+class AttachmentInline(admin.StackedInline):
+    model = Attachment
+    extra = 0
 
 
 class MessageAdmin(admin.ModelAdmin):
@@ -16,6 +21,7 @@ class MessageAdmin(admin.ModelAdmin):
         models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     }
 
+    inlines = [AttachmentInline]
     actions = ['send_message']
 
     def send_message(self, request, queryset):
@@ -35,13 +41,15 @@ class MessageAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_send" in request.POST:
-            obj.submit()
+            if not obj.submit():
+                messages.error(request, _("Failed to send message"))
         return super(MessageAdmin, self).response_change(request, obj)
 
     def response_add(self, request, obj):
         if "_send" in request.POST:
-            obj.submit()
-        return super(MessageAdmin, self).response_change(request, obj)
+            if not obj.submit():
+                messages.error(request, _("Failed to send message"))
+        return super(MessageAdmin, self).response_add(request, obj)
 
 
 admin.site.register(Message, MessageAdmin)
