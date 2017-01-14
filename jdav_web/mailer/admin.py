@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.contrib.admin import helpers
 from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import render
+from django.db import models
+from django import forms
 
 from .models import Message
 
@@ -10,6 +12,9 @@ class MessageAdmin(admin.ModelAdmin):
     """Message creation view"""
     list_display = ('subject', 'from_addr', 'get_groups', 'sent')
     change_form_template = "mailer/change_form.html"
+    formfield_overrides = {
+        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+    }
 
     actions = ['send_message']
 
