@@ -116,8 +116,7 @@ class Klettertreff(models.Model):
         return self.location + ' ' + self.date.strftime('%d.%m.%Y')
 
     def get_jugendleiter(self):
-        jl_string = ''.join(j.name + ',\n' for j in self.jugendleiter.all())
-        jl_string = jl_string[:-2]
+        jl_string = ', '.join(j.name for j in self.jugendleiter.all())
         return jl_string
 
     get_jugendleiter.short_description = _('Jugendleiter')
