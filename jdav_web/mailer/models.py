@@ -18,7 +18,7 @@ class Message(models.Model):
 
     def get_groups(self):
         return ", ".join([g.name for g in self.to_groups.all()])
-    get_groups.short_description = _('recipicients')
+    get_groups.short_description = _('recipients')
 
     def submit(self):
         """Sends the mail to the specified group of members"""
