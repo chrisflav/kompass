@@ -46,9 +46,10 @@ def unsubscribe(request):
     except (KeyError, Member.DoesNotExist):
         return render_unsubscribe(request, _("Please fill in every field"))
     else:
-        send_mail(_("Confirmation of unsubscription"),
-                  _("Click the link to unsubscribe to the newsletter of"
-                    " the JDAV\n{}".format(get_unsubscribe_link(member))),
+        send_mail("Abmeldebestätigung",
+                  "Klicke auf den Link, um dich vom Newsletter des JDAV "
+                  "Ludwigsburg "
+                  "abzumelden\n{}".format(get_unsubscribe_link(member)),
                   mail_root, email)
         return render_confirmation_sent(request, email)
 
