@@ -18,6 +18,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: startpage/templates/startpage/index.html:2
-msgid "Awesome JDAV website being able to do a lot!"
-msgstr "Tolle JDAV Webseite die ganz viel kann!"
+#: templates/admin/base_site.html:5 templates/admin/base_site.html:9
+msgid "JDAV Administration"
+msgstr "JDAV Verwaltung"
