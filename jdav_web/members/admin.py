@@ -38,11 +38,12 @@ class MemberListAdminForm(forms.ModelForm):
         model = MemberList
         exclude = ['add_member']
 
+
     def __init__(self, *args, **kwargs):
         super(MemberListAdminForm, self).__init__(*args, **kwargs)
-        if self.instance.pk:
-            pass
-            #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
+        self.fields['jugendleiter'].queryset = Member.objects.filter(group__name='Jugendleiter')
+        #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
+        
 
 class MemberOnListInline(admin.StackedInline):
     model = MemberOnList
@@ -54,9 +55,10 @@ class MemberOnListInline(admin.StackedInline):
     }
 
 class MemberListAdmin(admin.ModelAdmin):
-    form = MemberListAdminForm
-    actions = ['convert_to_pdf']
     inlines = [MemberOnListInline]
+    form = MemberListAdminForm
+    list_display = ['__str__', 'date']
+    actions = ['convert_to_pdf']
 
     def __init__(self, *args, **kwargs):
         super(MemberListAdmin, self).__init__(*args, **kwargs)
@@ -66,10 +68,9 @@ class MemberListAdmin(admin.ModelAdmin):
 
         """
         for memberlist in queryset:
-            # build a unique filename
+            # create a unique filename
             filename = memberlist.name + "_" + datetime.today().strftime("%d_%m_%Y")
             filename = filename.replace(' ', '_')
- 
             filename_table = 'table_' + filename
             filename_tex = filename + '.tex'
             filename_pdf = filename + '.pdf'
@@ -78,9 +79,9 @@ class MemberListAdmin(admin.ModelAdmin):
             with open('media/memberlists/'+filename_table, 'w+') as f:
                 for memberonlist in memberlist.memberonlist_set.all():
                     # write table of members in latex compatible format
-                    line = '{0} & {1} & {2} & {3} \\\\ \n'.format(memberonlist.member.prename,
-                            memberonlist.member.lastname,
-                            memberonlist.member.birth_date.strftime('%d.%m.%Y'), memberonlist.comments)
+                    line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(memberonlist.member.prename,
+                            memberonlist.member.lastname, memberonlist.member.street,
+                            memberonlist.member.town, memberonlist.member.phone_number, memberonlist.member.email)
                     f.write(line) 
             
             # copy and adapt latex memberlist template
@@ -92,13 +93,36 @@ class MemberListAdmin(admin.ModelAdmin):
                 template_content = f.read()
             
             # adapt template
-            template_content = template_content.replace('MEMBERLIST-TITLE', memberlist.name)
+            template_content = template_content.replace('ACTIVITY', memberlist.name)
+            groups = ', '.join(g.name for g in memberlist.groups.all())
+            template_content = template_content.replace('GROUP', groups)
+            template_content = template_content.replace('DESTINATION', memberlist.destination)
+            template_content = template_content.replace('PLACE', memberlist.place)
             template_content = template_content.replace('MEMBERLIST-DATE',
-                    memberlist.date.strftime('%d.%m.%Y'))
-            template_content = template_content.replace('MEMBERLIST-COMMENTS',
-                    memberlist.comment)
+                    datetime.today().strftime('%d.%m.%Y'))
+            time_period = memberlist.date.strftime('%d.%m.%Y')
+            if memberlist.end != memberlist.date:
+                time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
+            template_content = template_content.replace('TIME-PERIOD', time_period)
+            jugendleiter = ', '.join(j.name for j in memberlist.jugendleiter.all())
+            template_content = template_content.replace('JUGENDLEITER', jugendleiter)
+
+            # create tickboxes for tour type
+            tour_type = ''
+            for tt in ['Gemeinschaftstour', 'Führungstour', 'Ausbildung']:
+                print(memberlist.tour_type)
+                if tt in memberlist.tour_type:
+                    tour_type += '\\tickedbox ' + tt
+                else:
+                    tour_type += '\\checkbox'
+                    tour_type += '\\enspace ' + tt
+
+                tour_type += '\\qquad \\qquad '
+            template_content = template_content.replace('TOUR-TYPE', tour_type)
+
             template_content = template_content.replace('TABLE-NAME',
                     filename_table)
+
             # write adapted template to file
             with open('media/memberlists/' + filename_tex, 'w') as f:
                 f.write(template_content)

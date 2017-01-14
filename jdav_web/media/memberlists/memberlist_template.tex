@@ -1,21 +1,76 @@
 \documentclass{article}
 
+\usepackage[utf8]{inputenc}
 \usepackage{booktabs}
+\usepackage{amssymb}
 \usepackage{cmbright}
-\usepackage[margin=1in,landscape]{geometry}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=1in]{geometry}
 
+\newcommand{\picpos}[4]{
+  \begin{textblock*}{#1}(#2, #3)
+    \includegraphics[width=\textwidth]{#4}
+  \end{textblock*}
+}
+
+\renewcommand{\arraystretch}{1.5}
+
+\newcommand{\tickedbox}{
+    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
+}
+\newcommand{\checkbox}{
+    \makebox[0pt][l]{$\square$}
+}
 \begin{document}
-\noindent
-{\LARGE\textsc{MEMBERLIST-TITLE}}\\
+% HEADER RIGHT
+\picpos{4.5cm}{11.5cm}{0cm}{dav_logo.png}
+\begin{textblock*}{5cm}(11.5cm, 2.3cm)
+    \begin{flushright}
+        \small
+        \noindent Deutscher Alpenverein e. V. \\
+        Sektion Ludwigsburg\\
+        Imbröderstraße 14\\
+        71634 Ludwigsburg\\
+        Tel.: 07141 927893\\
+        Fax: 07141 924042\\
+        info@alpenverein-ludwigsburg.de\\
+    \end{flushright}
+\end{textblock*}
+
+% HEADLINE
+{\noindent\LARGE\textsc{Teilnehmerliste \\Sektionsveranstaltung}}\\
 \textit{Erstellt: MEMBERLIST-DATE}\\
-MEMBERLIST-COMMENTS
-\begin{table}[h]
-  \begin{tabular}{llll}
+
+% DESCRIPTION TABLE
+\begin{table}[H]
+    \begin{tabular}{ll}
+        \large Aktivität: & ACTIVITY \\
+        \large Gruppe: & GROUP \\
+        \large Ziel: & DESTINATION \\
+        \large Stützpunkt: & PLACE \\
+        \large Zeitraum: & TIME-PERIOD \\
+        \large Betreuer: & JUGENDLEITER \\
+    \end{tabular}
+\end{table}
+
+\noindent TOUR-TYPE
+\begin{table}[H]
+    \begin{tabular*}{1\linewidth}{@{\extracolsep{\fill}}llll}
     \toprule
-    Name & Vorname & Geburtsdatum & Kommentare \\
+    \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{E-Mail} \\
     \midrule
     \input{TABLE-NAME}
     \bottomrule
-  \end{tabular}
+  \end{tabular*}
 \end{table}
+
+\vspace{1cm}
+
+\noindent Bitte die ausgefüllte Teilnehmerliste vor Antritt der Aktivität per E-Mail an
+\href{mailto:info@alpenverein-ludwigsburg.de}{info@alpenverein.de} und 
+\href{mailto:vorstand@alpenverein-ludwigsburg.de}{vorstand@alpenverein-ludwigsburg.de} senden. 
+
 \end{document}
