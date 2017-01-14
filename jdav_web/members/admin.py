@@ -13,6 +13,7 @@ from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import ugettext_lazy as translate
 from django.db.models import TextField
 from django.forms import Textarea
+from django.shortcuts import render
 
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
         KlettertreffAttendee)
@@ -145,6 +146,18 @@ class KlettertreffAdmin(admin.ModelAdmin):
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
     list_filter = [('date', DateFieldListFilter)]
+    actions = ['overview']
+
+    def overview(self, request, queryset):
+        context = {
+                   'klettertreffs': queryset,
+                   'members': Member.objects.all(),
+                   'attendees': KlettertreffAttendee.objects.all()
+                   }
+
+        return render(request, 'admin/klettertreff_overview.html',
+                      context)
+
 
 admin.site.register(Member, MemberAdmin)
 admin.site.register(Group, GroupAdmin)

@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% load static %}
+{% load overview_extras %}
+
+{% block content %}
+<table>
+    <tr>
+        <th>Datum</th>
+        {% for klettertreff in klettertreffs %}
+        <td>{{ klettertreff.date }}</td>
+        {% endfor %}
+    </tr>
+    <tr>
+        <th>Ort</th>
+        {% for klettertreff in klettertreffs %}
+        <td>{{ klettertreff.location }}</td>
+        {% endfor %}
+    </tr>
+    {% for member in members %}
+    <tr>
+        <th>{{ member.name }}
+        {% for klettertreff in klettertreffs %}
+        <td>
+            {% has_attendee_wrapper klettertreff member as test %}
+            {% if test %}
+                yes
+            {% else %}
+                no
+            {% endif %}
+        </td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

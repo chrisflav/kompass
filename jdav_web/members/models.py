@@ -120,7 +120,17 @@ class Klettertreff(models.Model):
         jl_string = jl_string[:-2]
         return jl_string
 
+    def has_attendee(self, member):
+        attendees = KlettertreffAttendee.objects.filter(
+                member__id__contains=member.id,
+                klettertreff__id__contains=self.id)
+        if attendees:
+            return True
+        return False
+
+
     get_jugendleiter.short_description = _('Jugendleiter')
+
 
 class KlettertreffAttendee(models.Model):
     """Connects members to Klettertreffs."""
