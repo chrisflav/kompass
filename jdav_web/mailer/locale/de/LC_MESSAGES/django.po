@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-01-14 15:55+0100\n"
+"POT-Creation-Date: 2017-01-14 17:13+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,202 +18,204 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin.py:32
+#: mailer/admin.py:32
 msgid "Message sent"
 msgstr "Nachricht gesendet"
 
-#: admin.py:40
+#: mailer/admin.py:40
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: admin.py:45 admin.py:53
+#: mailer/admin.py:45 mailer/admin.py:53
 msgid "Failed to send message"
 msgstr "Fehler beim senden der Email"
 
-#: admin.py:47 admin.py:55
+#: mailer/admin.py:47 mailer/admin.py:55
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
-#: apps.py:7
+#: mailer/apps.py:7
 msgid "mailer"
 msgstr "Verteiler"
 
-#: models.py:34
+#: mailer/models.py:34
 msgid "from email"
 msgstr "Von Email"
 
-#: models.py:35
+#: mailer/models.py:35
 msgid "subject"
 msgstr "Betreff"
 
-#: models.py:36
+#: mailer/models.py:36
 msgid "content"
 msgstr "Inhalt"
 
-#: models.py:38
+#: mailer/models.py:38
 msgid "to group"
 msgstr "An Gruppe"
 
-#: models.py:39
+#: mailer/models.py:39
 msgid "sent"
 msgstr "Gesendet"
 
-#: models.py:46
+#: mailer/models.py:46
 msgid "recipients"
 msgstr "Empfänger"
 
-#: models.py:74
+#: mailer/models.py:74
 msgid "message"
 msgstr "Nachricht"
 
-#: models.py:75
+#: mailer/models.py:75
 msgid "messages"
 msgstr "Nachrichten"
 
-#: models.py:77
+#: mailer/models.py:77
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: models.py:86
+#: mailer/models.py:86
 msgid "file"
 msgstr "Datei"
 
-#: models.py:92
+#: mailer/models.py:92
 msgid "Empty"
 msgstr "Leer"
 
-#: models.py:95
+#: mailer/models.py:95
 msgid "attachment"
 msgstr "Anhang"
 
-#: models.py:96
+#: mailer/models.py:96
 msgid "attachments"
 msgstr "Anhänge"
 
-#: templates/mailer/change_form.html:11
+#: mailer/templates/mailer/change_form.html:11
 msgid "Save and send mail"
 msgstr "Speichern und Email senden"
 
-#: templates/mailer/confirm_send.html:7
+#: mailer/templates/mailer/confirm_send.html:7
 msgid "Do you really want to send these mails?"
 msgstr "Möchtest du diese Emails wirklich verschicken?"
 
-#: templates/mailer/confirm_send.html:13
+#: mailer/templates/mailer/confirm_send.html:13
 msgid "already sent"
 msgstr "schon verschickt"
 
-#: templates/mailer/confirm_send.html:19
+#: mailer/templates/mailer/confirm_send.html:19
 msgid ""
 "Some messages have already been sent! Do you really want to resend them?"
 msgstr ""
 "Einige Emails wurden schon versendet! Möchtest du diese wirklich nochmal "
 "senden?"
 
-#: templates/mailer/confirm_send.html:30
+#: mailer/templates/mailer/confirm_send.html:30
 msgid "Send"
 msgstr "Senden"
 
-#: templates/mailer/confirm_send.html:35
+#: mailer/templates/mailer/confirm_send.html:35
 msgid "Cancel"
 msgstr "Abbruch"
 
-#: templates/mailer/confirmation_sent.html:3
-msgid "Sent confirmation mail to"
-msgstr "Bestätigungsmail gesendet an"
-
-#: templates/mailer/confirmation_sent.html:3
-msgid "Follow the link in your mail to confirm your unsubscription."
-msgstr ""
-
-#: templates/mailer/index.html:2
-msgid "This is the mailer app!"
-msgstr "Das ist die Mailer App!"
-
-#: templates/mailer/send.html:2
-msgid "Here you can send new emails!"
-msgstr "Hier kannst du neue Emails verschicken!"
-
-#: templates/mailer/send.html:11
-msgid "Subject:"
-msgstr "Betreff"
-
-#: templates/mailer/send.html:14
-msgid "Content:"
-msgstr "Inhalt:"
-
-#: templates/mailer/send.html:17
-msgid "Receiving group:"
-msgstr "Erhaltende Gruppe"
-
-#: templates/mailer/send.html:24
-msgid "Send mail"
-msgstr "Email senden"
-
-#: templates/mailer/subscribe.html:5
-msgid "Here you can register yourself to the newsletter"
-msgstr "Hier kannst du dich für den Newsletter anmelden."
-
-#: templates/mailer/subscribe.html:16
-msgid "Prename"
-msgstr "Vorname"
-
-#: templates/mailer/subscribe.html:21
-msgid "Lastname"
-msgstr "Nachname"
-
-#: templates/mailer/subscribe.html:26 views.py:60
-msgid "Birthdate"
-msgstr "Geburtsdatum"
-
-#: templates/mailer/subscribe.html:37 templates/mailer/unsubscribe.html:14
-msgid "Email address"
-msgstr "Email-Adresse"
-
-#: templates/mailer/subscribe.html:42
-msgid "Register"
-msgstr "Registrieren"
-
-#: templates/mailer/subscribed.html:3
-msgid "Subscribed successfully"
-msgstr "Erfolgreich angemeldet"
-
-#: templates/mailer/unsubscribe.html:3
-msgid "Here you can unsubscribe from the newsletter"
-msgstr "Hier kannst du dich vom Newsletter abmelden"
-
-#: templates/mailer/unsubscribe.html:19
+#: mailer/templates/mailer/confirmation_sent.html:4
+#: mailer/templates/mailer/unsubscribe.html:5
+#: mailer/templates/mailer/unsubscribe.html:25
 msgid "Unsubscribe"
 msgstr "Vom Newsletter abmelden"
 
-#: templates/mailer/unsubscribed.html:4
+#: mailer/templates/mailer/confirmation_sent.html:7
+msgid "Sent confirmation mail to"
+msgstr "Bestätigungsmail gesendet an"
+
+#: mailer/templates/mailer/confirmation_sent.html:7
+msgid "Follow the link in your mail to confirm your unsubscription."
+msgstr ""
+
+#: mailer/templates/mailer/index.html:2
+msgid "This is the mailer app!"
+msgstr "Das ist die Mailer App!"
+
+#: mailer/templates/mailer/send.html:2
+msgid "Here you can send new emails!"
+msgstr "Hier kannst du neue Emails verschicken!"
+
+#: mailer/templates/mailer/send.html:11
+msgid "Subject:"
+msgstr "Betreff"
+
+#: mailer/templates/mailer/send.html:14
+msgid "Content:"
+msgstr "Inhalt:"
+
+#: mailer/templates/mailer/send.html:17
+msgid "Receiving group:"
+msgstr "Erhaltende Gruppe"
+
+#: mailer/templates/mailer/send.html:24
+msgid "Send mail"
+msgstr "Email senden"
+
+#: mailer/templates/mailer/subscribe.html:5
+msgid "Here you can register yourself to the newsletter"
+msgstr "Hier kannst du dich für den Newsletter anmelden."
+
+#: mailer/templates/mailer/subscribe.html:16
+msgid "Prename"
+msgstr "Vorname"
+
+#: mailer/templates/mailer/subscribe.html:21
+msgid "Lastname"
+msgstr "Nachname"
+
+#: mailer/templates/mailer/subscribe.html:26 mailer/views.py:61
+msgid "Birthdate"
+msgstr "Geburtsdatum"
+
+#: mailer/templates/mailer/subscribe.html:37
+#: mailer/templates/mailer/unsubscribe.html:20
+msgid "Email address"
+msgstr "Email-Adresse"
+
+#: mailer/templates/mailer/subscribe.html:42
+msgid "Register"
+msgstr "Registrieren"
+
+#: mailer/templates/mailer/subscribed.html:3
+msgid "Subscribed successfully"
+msgstr "Erfolgreich angemeldet"
+
+#: mailer/templates/mailer/unsubscribe.html:9
+msgid "Here you can unsubscribe from the newsletter"
+msgstr "Hier kannst du dich vom Newsletter abmelden"
+
+#: mailer/templates/mailer/unsubscribed.html:8
 msgid "Successfully unsubscribed from the newsletter for "
 msgstr "Newsletter erfolgreich abbestellt für "
 
-#: views.py:35
+#: mailer/views.py:35
 msgid "Can't verify this link. Try again!"
 msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 
-#: views.py:47
+#: mailer/views.py:47
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"
 
-#: views.py:49
-msgid "Confirmation of unsubscription"
-msgstr "Abmeldebestätigung"
-
-#: views.py:50
-msgid ""
-"Click the link to unsubscribe to the newsletter of the JDAV\n"
-"{}"
-msgstr "Klicke auf den Link um dich von Newsletter des JDAV Ludwigsburg abzumelden"
-
-#: views.py:83
+#: mailer/views.py:84
 msgid "Please fill in every field!"
 msgstr "Bitte jedes Feld ausfüllen!"
 
-#: views.py:90
+#: mailer/views.py:91
 msgid "Member already exists"
 msgstr "Mitglied schon vorhanden"
+
+#~ msgid "Confirmation of unsubscription"
+#~ msgstr "Abmeldebestätigung"
+
+#~ msgid ""
+#~ "Click the link to unsubscribe to the newsletter of the JDAV\n"
+#~ "{}"
+#~ msgstr ""
+#~ "Klicke auf den Link um dich von Newsletter des JDAV Ludwigsburg abzumelden"
 
 #~ msgid "History"
 #~ msgstr "Geschichte"

@@ -59,6 +59,9 @@ class MemberListAdmin(admin.ModelAdmin):
     form = MemberListAdminForm
     list_display = ['__str__', 'date']
     actions = ['convert_to_pdf']
+    formfield_overrides = {
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+    }
 
     def __init__(self, *args, **kwargs):
         super(MemberListAdmin, self).__init__(*args, **kwargs)
