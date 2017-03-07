@@ -9,17 +9,18 @@ def send(subject, content, sender, recipients, reply_to=None,
         kwargs = {"reply_to": [reply_to]}
     else:
         kwargs = {}
-    email = EmailMessage(subject, content, sender, recipients, **kwargs)
-    if attachments is not None:
-        for attach in attachments:
-            email.attach_file(attach)
-    try:
-        email.send()
-    except Exception as e:
-        print("Error when sending mail:", e)
-        return False
-    else:
-        return True
+    for recipient in recipients:
+        email = EmailMessage(subject, content, sender, [recipient], **kwargs)
+        if attachments is not None:
+            for attach in attachments:
+                email.attach_file(attach)
+        try:
+            email.send()
+        except Exception as e:
+            print("Error when sending mail:", e)
+            return False
+        else:
+            return True
 
 
 def get_content(content):
