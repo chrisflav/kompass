@@ -25,12 +25,11 @@ class MaterialPart(models.Model):
         return self.name
 
     def quantity_real(self):
-        real = sum([o.count for o in Ownership.objects.filter(material__id = self.pk)])
+        real = sum([o.count for o in Ownership.objects.filter(material__id=self.pk)])
         return str(real) + '/' + str(self.quantity)
 
     quantity_real.admin_order_field = 'quantity'
     quantity_real.short_description = _('Quantity')
-
 
     def not_too_old(self):
         """Returns wether the part should be replaced cause of age"""

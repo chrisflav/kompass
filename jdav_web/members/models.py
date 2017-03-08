@@ -1,9 +1,11 @@
 from datetime import datetime
 import uuid
+from django import forms
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 
+from multiselectfield import MultiSelectField
 
 class Group(models.Model):
     """
@@ -36,7 +38,7 @@ class Member(models.Model):
     phone_number_parents = models.CharField(max_length=12, verbose_name=_('parents phone number'), default='', blank=True)
     email = models.EmailField(max_length=100, default="")
     birth_date = models.DateField(_('birth date'))  # to determine the age
-    group = models.ManyToManyField(Group)
+    group = models.ManyToManyField(Group, verbose_name=_('group'))
     gets_newsletter = models.BooleanField(_('receives newsletter'),
                                           default=True)
     unsubscribe_key = models.CharField(max_length=32, default="")
@@ -68,7 +70,7 @@ class Member(models.Model):
     def name(self):
         """Returning whole name (prename + lastname)"""
         return "{0} {1}".format(self.prename, self.lastname)
-    
+
     def get_group(self):
         """Returns a string of groups in which the member is."""
         groupstring = ''.join(g.name + ',\n' for g in self.group.all())
@@ -83,30 +85,48 @@ class Member(models.Model):
 
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format. """
-    name = models.CharField(verbose_name='List Name', default='',
+
+    name = models.CharField(verbose_name='Activity', default='',
                             max_length=50)
+    place = models.CharField(verbose_name=_('Place'), default='', max_length=50) 
+    destination = models.CharField(verbose_name=_('Destination (optional)'), default='', max_length=50, blank=True) 
     date = models.DateField(default=datetime.today)
-    comment = models.TextField(_('Comments'), default='')
+    end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
+    #comment = models.TextField(_('Comments'), default='', blank=True)
+    groups = models.ManyToManyField(Group)
+    jugendleiter = models.ManyToManyField(Member)
+    tour_type_choices = (('Gemeinschaftstour','Gemeinschaftstour'), ('Führungstour', 'Führungstour'), 
+                            ('Ausbildung', 'Ausbildung'))
+    tour_type = MultiSelectField(choices=tour_type_choices, default='', max_choices=1) 
+
 
     def __str__(self):
         """String represenation"""
         return self.name
+
+    class Meta:
+        verbose_name = _('Memberlist')
+        verbose_name_plural = _('Memberlists')
 
 
 class MemberOnList(models.Model):
     """
     Connects members to a list of members.
     """
-    member = models.ForeignKey(Member)
+    member = models.ForeignKey(Member, verbose_name=_('Member'))
     memberlist = models.ForeignKey(MemberList)
-    comments = models.TextField(_('Comment'), default='')
+    comments = models.TextField(_('Comment'), default='', blank=True)
+
+    class Meta:
+        verbose_name = _('Member')
+        verbose_name_plural = _('Members')
 
 
 class Klettertreff(models.Model):
     """ This model represents a Klettertreff event.
 
-    A Klettertreff can take a date, location, Jugendleiter, attending members as
-    input.
+    A Klettertreff can take a date, location, Jugendleiter, attending members
+    as input.
     """
     date = models.DateField(_('Date'), default=datetime.today)
     location = models.CharField(_('Location'), default='', max_length=60)
@@ -117,8 +137,7 @@ class Klettertreff(models.Model):
         return self.location + ' ' + self.date.strftime('%d.%m.%Y')
 
     def get_jugendleiter(self):
-        jl_string = ''.join(j.name + ',\n' for j in self.jugendleiter.all())
-        jl_string = jl_string[:-2]
+        jl_string = ', '.join(j.name for j in self.jugendleiter.all())
         return jl_string
 
     def has_attendee(self, member):
@@ -137,9 +156,16 @@ class Klettertreff(models.Model):
 
     get_jugendleiter.short_description = _('Jugendleiter')
 
+    class Meta:
+        verbose_name = _('Klettertreff')
+        verbose_name_plural = _('Klettertreffs')
+
 
 class KlettertreffAttendee(models.Model):
     """Connects members to Klettertreffs."""
-    member = models.ForeignKey(Member)
+    member = models.ForeignKey(Member, verbose_name=_('Member'))
     klettertreff = models.ForeignKey(Klettertreff)
 
+    class Meta:
+        verbose_name = _('Member')
+        verbose_name_plural = _('Members')
