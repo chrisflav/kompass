@@ -44,6 +44,8 @@ class Member(models.Model):
     unsubscribe_key = models.CharField(max_length=32, default="")
     unsubscribe_expire = models.DateTimeField(default=timezone.now)
     comments = models.TextField(_('comments'), default='', blank=True)
+    created = models.DateField(auto_now=True, verbose_name=_('created'))
+    queue = models.BooleanField(default=False, verbose_name=_('queue'))
 
     def __str__(self):
         """String representation"""

@@ -22,9 +22,9 @@ from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
-              'gets_newsletter', 'comments']
-    list_display = ('name', 'birth_date', 'gets_newsletter', 'get_group', 'comments')
-    list_filter = ('group', 'gets_newsletter')
+              'gets_newsletter', 'queue', 'comments']
+    list_display = ('name', 'birth_date', 'gets_newsletter', 'get_group', 'queue', 'created', 'comments')
+    list_filter = ('group', 'gets_newsletter', 'queue')
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     }
