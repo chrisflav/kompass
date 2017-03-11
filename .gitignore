@@ -91,8 +91,8 @@ jdav_web/db.sqlite3
 *.swp
 
 # test images for file upload
-*.jpeg
-*.png
+#*.jpeg
+#*.png
 jdav_web/media
 jdav_web/*/migrations
 *.py.swp
