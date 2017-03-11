@@ -13,6 +13,7 @@ from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import ugettext_lazy as translate
 from django.db.models import TextField, ManyToManyField
 from django.forms import Textarea
+from django.shortcuts import render
 
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
         KlettertreffAttendee)
@@ -21,9 +22,9 @@ from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
-              'gets_newsletter', 'comments']
-    list_display = ('name', 'birth_date', 'gets_newsletter', 'get_group', 'comments')
-    list_filter = ('group', 'gets_newsletter')
+              'gets_newsletter', 'queue', 'registration_form', 'comments']
+    list_display = ('name', 'birth_date', 'gets_newsletter', 'get_group', 'queue', 'created', 'comments')
+    list_filter = ('group', 'gets_newsletter', 'queue')
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     }
@@ -164,17 +165,49 @@ class KlettertreffAdminForm(forms.ModelForm):
         super(KlettertreffAdminForm, self).__init__(*args, **kwargs)
         self.fields['jugendleiter'].queryset = Member.objects.filter(group__name='Jugendleiter')
 
-class KlettertreffAttendeeInline(admin.StackedInline):
 
+class KlettertreffAttendeeInlineForm(forms.ModelForm):
+    class Meta:
+        model = KlettertreffAttendee
+        exclude = []
+
+    """
+    def __init__(self, *args, **kwargs):
+        super(KlettertreffAttendeeInlineForm, self).__init__(*args, **kwargs)
+        self.fields['member'].queryset = Member.objects.filter(group__name='J1')
+    """
+
+class KlettertreffAttendeeInline(admin.StackedInline):
     model = KlettertreffAttendee
+    form = KlettertreffAttendeeInlineForm
     extra = 0
+
 
 class KlettertreffAdmin(admin.ModelAdmin):
     form = KlettertreffAdminForm
     exclude = []
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
-    list_filter = [('date', DateFieldListFilter)]
+    list_filter = [('date', DateFieldListFilter), 'group__name']
+    actions = ['overview']
+
+    def overview(self, request, queryset):
+        group = request.GET.get('group__name')
+        if group != None:
+            members = Member.objects.filter(group__name__contains=group)
+        else:
+            members = Member.objects.all()
+        context = {
+                   'klettertreffs': queryset,
+                   'members': members,
+                   'attendees': KlettertreffAttendee.objects.all(),
+                   'jugendleiters':
+                   Member.objects.filter(group__name='Jugendleiter')
+                   }
+
+        return render(request, 'admin/klettertreff_overview.html',
+                      context)
+
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     }

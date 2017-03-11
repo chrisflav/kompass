@@ -44,6 +44,9 @@ class Member(models.Model):
     unsubscribe_key = models.CharField(max_length=32, default="")
     unsubscribe_expire = models.DateTimeField(default=timezone.now)
     comments = models.TextField(_('comments'), default='', blank=True)
+    created = models.DateField(auto_now=True, verbose_name=_('created'))
+    queue = models.BooleanField(default=False, verbose_name=_('queue'))
+    registration_form = models.ImageField(verbose_name=_('registration form'), blank=True)
 
     def __str__(self):
         """String representation"""
@@ -131,13 +134,28 @@ class Klettertreff(models.Model):
     date = models.DateField(_('Date'), default=datetime.today)
     location = models.CharField(_('Location'), default='', max_length=60)
     jugendleiter = models.ManyToManyField(Member)
-
+    group = models.ForeignKey(Group, default='')
+    
     def __str__(self):
         return self.location + ' ' + self.date.strftime('%d.%m.%Y')
 
     def get_jugendleiter(self):
         jl_string = ', '.join(j.name for j in self.jugendleiter.all())
         return jl_string
+
+    def has_attendee(self, member):
+        queryset = KlettertreffAttendee.objects.filter(
+                member__id__contains=member.id,
+                klettertreff__id__contains=self.id)
+        if queryset:
+            return True
+        return False
+
+    def has_jugendleiter(self, jugendleiter):
+        if jugendleiter in self.jugendleiter.all():
+            return True
+        return False
+
 
     get_jugendleiter.short_description = _('Jugendleiter')
 
