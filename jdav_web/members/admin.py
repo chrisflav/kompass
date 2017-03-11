@@ -193,7 +193,7 @@ class KlettertreffAdmin(admin.ModelAdmin):
 
     def overview(self, request, queryset):
         group = request.GET.get('group__name')
-        if group != 'NONE':
+        if group != None:
             members = Member.objects.filter(group__name__contains=group)
         else:
             members = Member.objects.all()
