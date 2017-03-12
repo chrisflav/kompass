@@ -15,6 +15,7 @@ class MaterialPart(models.Model):
     members of the association (Ownership)
     """
     name = models.CharField(_('name'), max_length=30)
+    description = models.CharField(_('description'), default='', max_length=140)
     quantity = models.IntegerField(_('quantity'), default=0)
     buy_date = models.DateField(_('purchase date'), editable=True)
     lifetime = models.DecimalField(_('lifetime (years)'), decimal_places=0, max_digits=3)
