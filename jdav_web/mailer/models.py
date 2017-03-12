@@ -71,7 +71,7 @@ class Message(models.Model):
                   if a.f.name]
         success = send(self.subject, get_content(self.content),
                        self.from_addr,
-                       set([member.email for member in members]),
+                       [member.email for member in members],
                        attachments=attach)
         for a in Attachment.objects.filter(msg__id=self.pk):
             if a.f.name:
