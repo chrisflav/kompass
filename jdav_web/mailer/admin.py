@@ -25,9 +25,9 @@ class MessageAdmin(admin.ModelAdmin):
     inlines = [AttachmentInline]
     actions = ['send_message']
     form = MessageForm
+    filter_horizontal = ('to_members',)
 
     def send_message(self, request, queryset):
-        print("calling send_message")
         if request.POST.get('confirmed'):
             for msg in queryset:
                 submit_message(msg, request)

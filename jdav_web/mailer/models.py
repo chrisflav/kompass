@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django import forms
 from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext
 from .mailutils import send, get_content, SENT, PARTLY_SENT
 
 import os
@@ -42,10 +43,14 @@ class Message(models.Model):
                                       verbose_name=_('to member list'),
                                       blank=True,
                                       null=True)
+    to_members = models.ManyToManyField('members.Member',
+                                        verbose_name=_('to member'),
+                                        blank=True)
     reply_to = models.ForeignKey('members.Member',
                                  verbose_name=_('reply to'),
                                  blank=True,
-                                 null=True)
+                                 null=True,
+                                 related_name='reply_to')
     sent = models.BooleanField(_('sent'), default=False)
 
     def __str__(self):
@@ -55,14 +60,23 @@ class Message(models.Model):
         recipients = [g.name for g in self.to_groups.all()]
         if self.to_memberlist is not None:
             recipients.append(self.to_memberlist.name)
+        if 3 > self.to_members.count() > 0:
+            recipients.extend([m.name for m in self.to_members.all()])
+        elif self.to_members.count() > 2:
+            recipients.append(ugettext('Some other members'))
         return ", ".join(recipients)
     get_recipients.short_description = _('recipients')
 
     def submit(self):
         """Sends the mail to the specified group of members"""
+        # recipients
         members = set()
+        # get all the members of the selected groups
         groups = [gr.member_set.all() for gr in self.to_groups.all()]
         members.update([m for gr in groups for m in gr])
+        # get all the individually picked members
+        members.update(self.to_members.all())
+        # get all the members of the selected member list
         if self.to_memberlist is not None:
             members.update([mol.member for mol in
                             self.to_memberlist.memberonlist_set.all()])
@@ -102,16 +116,15 @@ class MessageForm(forms.ModelForm):
     def clean(self):
         group = self.cleaned_data.get('to_groups')
         memberlist = self.cleaned_data.get('to_memberlist')
-        print("group", group, "memberlist", memberlist)
-        if not group and memberlist is None:
-            raise ValidationError(_('Either a group is required or a '
-                                    'memberlist as recipient'))
+        members = self.cleaned_data.get('to_members')
+        if not group and memberlist is None and not members:
+            raise ValidationError(_('Either a group, a memberlist or at least'
+                                    ' one member is required as recipient'))
 
 
 class Attachment(models.Model):
     """Represents an attachment to an email"""
     msg = models.ForeignKey(Message, on_delete=models.CASCADE)
-    print("attachment class")
     # file (not naming it file because of builtin)
     f = RestrictedFileField(_('file'),
                             upload_to='attachments',
