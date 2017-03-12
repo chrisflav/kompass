@@ -1,8 +1,12 @@
 from django.core.mail import EmailMessage
 
 
+NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
+
+
 def send(subject, content, sender, recipients, reply_to=None,
          attachments=None):
+    failed, succeeded = False, False
     if type(recipients) != list:
         recipients = [recipients]
     if reply_to is not None:
@@ -18,9 +22,11 @@ def send(subject, content, sender, recipients, reply_to=None,
             email.send()
         except Exception as e:
             print("Error when sending mail:", e)
-            return False
+            failed = True
         else:
-            return True
+            succeeded = True
+    return NOT_SENT if failed and not succeeded else SENT if not failed\
+        and succeeded else PARTLY_SENT
 
 
 def get_content(content):

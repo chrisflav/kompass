@@ -6,6 +6,7 @@ from django.db import models
 from django import forms
 
 from .models import Message, Attachment, MessageForm
+from .mailutils import NOT_SENT, PARTLY_SENT
 
 
 class AttachmentInline(admin.StackedInline):
@@ -29,8 +30,7 @@ class MessageAdmin(admin.ModelAdmin):
         print("calling send_message")
         if request.POST.get('confirmed'):
             for msg in queryset:
-                msg.submit()
-            self.message_user(request, _("Message sent"))
+                submit_message(msg, request)
         else:
             context = {
                        'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
@@ -42,19 +42,23 @@ class MessageAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_send" in request.POST:
-            if not obj.submit():
-                messages.error(request, _("Failed to send message"))
-            else:
-                messages.info(request, _("Successfully sent message"))
+            submit_message(obj, request)
         return super(MessageAdmin, self).response_change(request, obj)
 
     def response_add(self, request, obj):
         if "_send" in request.POST:
-            if not obj.submit():
-                messages.error(request, _("Failed to send message"))
-            else:
-                messages.info(request, _("Successfully sent message"))
+            submit_message(obj, request)
         return super(MessageAdmin, self).response_add(request, obj)
+
+
+def submit_message(msg, request):
+    success = msg.submit()
+    if success == NOT_SENT:
+        messages.error(request, _("Failed to send message"))
+    elif success == PARTLY_SENT:
+        messages.warning(request, _("Failed to send some messages"))
+    else:
+        messages.info(request, _("Successfully sent message"))
 
 
 admin.site.register(Message, MessageAdmin)

@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django import forms
 from django.utils.translation import ugettext_lazy as _
-from .mailutils import send, get_content
+from .mailutils import send, get_content, SENT, PARTLY_SENT
 
 import os
 
@@ -57,32 +57,28 @@ class Message(models.Model):
     def submit(self):
         """Sends the mail to the specified group of members"""
         members = set()
-        for group in self.to_groups.all():
-            group_members = group.member_set.all()
-            for member in group_members:
-                if not member.gets_newsletter:
-                    continue
-                members.add(member)
+        groups = [gr.member_set.all() for gr in self.to_groups.all()]
+        members.update([m for gr in groups for m in gr])
         if self.to_memberlist is not None:
-            for memberonlist in self.to_memberlist.memberonlist_set.all():
-                if memberonlist.member.gets_newsletter:
-                    members.add(memberonlist.member)
+            members.update([mol.member for mol in
+                            self.to_memberlist.memberonlist_set.all()])
+            members.update(self.to_memberlist.jugendleiter.all())
+        filtered = [m for m in members if m.gets_newsletter]
+        print("sending mail to", filtered)
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
         success = send(self.subject, get_content(self.content),
                        self.from_addr,
-                       [member.email for member in members],
+                       [member.email for member in filtered],
                        attachments=attach)
         for a in Attachment.objects.filter(msg__id=self.pk):
             if a.f.name:
                 os.remove(a.f.path)
             a.delete()
-        if success:
+        if success == SENT or success == PARTLY_SENT:
             self.sent = True
             self.save()
-            return True
-        else:
-            return False
+        return success
 
     class Meta:
         verbose_name = _('message')
