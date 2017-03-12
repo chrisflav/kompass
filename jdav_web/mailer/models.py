@@ -1,7 +1,9 @@
 from django.db import models
-from django.forms import forms
+from django.core.exceptions import ValidationError
+from django import forms
 from django.utils.translation import ugettext_lazy as _
-from .mailutils import send, get_content
+from django.utils.translation import ugettext
+from .mailutils import send, get_content, SENT, PARTLY_SENT
 
 import os
 
@@ -35,40 +37,67 @@ class Message(models.Model):
     subject = models.CharField(_('subject'), max_length=50)
     content = models.TextField(_('content'))
     to_groups = models.ManyToManyField('members.Group',
-                                       verbose_name=_('to group'))
+                                       verbose_name=_('to group'),
+                                       blank=True)
+    to_memberlist = models.ForeignKey('members.MemberList',
+                                      verbose_name=_('to member list'),
+                                      blank=True,
+                                      null=True)
+    to_members = models.ManyToManyField('members.Member',
+                                        verbose_name=_('to member'),
+                                        blank=True)
+    reply_to = models.ForeignKey('members.Member',
+                                 verbose_name=_('reply to'),
+                                 blank=True,
+                                 null=True,
+                                 related_name='reply_to')
     sent = models.BooleanField(_('sent'), default=False)
 
     def __str__(self):
         return self.subject
 
-    def get_groups(self):
-        return ", ".join([g.name for g in self.to_groups.all()])
-    get_groups.short_description = _('recipients')
+    def get_recipients(self):
+        recipients = [g.name for g in self.to_groups.all()]
+        if self.to_memberlist is not None:
+            recipients.append(self.to_memberlist.name)
+        if 3 > self.to_members.count() > 0:
+            recipients.extend([m.name for m in self.to_members.all()])
+        elif self.to_members.count() > 2:
+            recipients.append(ugettext('Some other members'))
+        return ", ".join(recipients)
+    get_recipients.short_description = _('recipients')
 
     def submit(self):
         """Sends the mail to the specified group of members"""
+        # recipients
         members = set()
-        for group in self.to_groups.all():
-            group_members = group.member_set.all()
-            for member in group_members:
-                if not member.gets_newsletter:
-                    continue
-                members.add(member)
+        # get all the members of the selected groups
+        groups = [gr.member_set.all() for gr in self.to_groups.all()]
+        members.update([m for gr in groups for m in gr])
+        # get all the individually picked members
+        members.update(self.to_members.all())
+        # get all the members of the selected member list
+        if self.to_memberlist is not None:
+            members.update([mol.member for mol in
+                            self.to_memberlist.memberonlist_set.all()])
+            members.update(self.to_memberlist.jugendleiter.all())
+        filtered = [m for m in members if m.gets_newsletter]
+        print("sending mail to", filtered)
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
         success = send(self.subject, get_content(self.content),
-                       self.from_addr, [member.email for member in members],
-                       attachments=attach)
+                       self.from_addr,
+                       [member.email for member in filtered],
+                       attachments=attach,
+                       reply_to=self.reply_to.email if self.reply_to else None)
         for a in Attachment.objects.filter(msg__id=self.pk):
             if a.f.name:
                 os.remove(a.f.path)
             a.delete()
-        if success:
+        if success == SENT or success == PARTLY_SENT:
             self.sent = True
             self.save()
-            return True
-        else:
-            return False
+        return success
 
     class Meta:
         verbose_name = _('message')
@@ -78,10 +107,24 @@ class Message(models.Model):
         )
 
 
+class MessageForm(forms.ModelForm):
+
+    class Meta:
+        model = Message
+        exclude = []
+
+    def clean(self):
+        group = self.cleaned_data.get('to_groups')
+        memberlist = self.cleaned_data.get('to_memberlist')
+        members = self.cleaned_data.get('to_members')
+        if not group and memberlist is None and not members:
+            raise ValidationError(_('Either a group, a memberlist or at least'
+                                    ' one member is required as recipient'))
+
+
 class Attachment(models.Model):
     """Represents an attachment to an email"""
     msg = models.ForeignKey(Message, on_delete=models.CASCADE)
-    print("attachment class")
     # file (not naming it file because of builtin)
     f = RestrictedFileField(_('file'),
                             upload_to='attachments',

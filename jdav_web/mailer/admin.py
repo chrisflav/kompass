@@ -5,7 +5,8 @@ from django.shortcuts import render
 from django.db import models
 from django import forms
 
-from .models import Message, Attachment
+from .models import Message, Attachment, MessageForm
+from .mailutils import NOT_SENT, PARTLY_SENT
 
 
 class AttachmentInline(admin.StackedInline):
@@ -15,7 +16,7 @@ class AttachmentInline(admin.StackedInline):
 
 class MessageAdmin(admin.ModelAdmin):
     """Message creation view"""
-    list_display = ('subject', 'from_addr', 'get_groups', 'sent')
+    list_display = ('subject', 'from_addr', 'get_recipients', 'sent')
     change_form_template = "mailer/change_form.html"
     formfield_overrides = {
         models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
@@ -23,13 +24,13 @@ class MessageAdmin(admin.ModelAdmin):
 
     inlines = [AttachmentInline]
     actions = ['send_message']
+    form = MessageForm
+    filter_horizontal = ('to_members',)
 
     def send_message(self, request, queryset):
-        print("calling send_message")
         if request.POST.get('confirmed'):
             for msg in queryset:
-                msg.submit()
-            self.message_user(request, _("Message sent"))
+                submit_message(msg, request)
         else:
             context = {
                        'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
@@ -41,19 +42,23 @@ class MessageAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_send" in request.POST:
-            if not obj.submit():
-                messages.error(request, _("Failed to send message"))
-            else:
-                messages.info(request, _("Successfully sent message"))
+            submit_message(obj, request)
         return super(MessageAdmin, self).response_change(request, obj)
 
     def response_add(self, request, obj):
         if "_send" in request.POST:
-            if not obj.submit():
-                messages.error(request, _("Failed to send message"))
-            else:
-                messages.info(request, _("Successfully sent message"))
+            submit_message(obj, request)
         return super(MessageAdmin, self).response_add(request, obj)
+
+
+def submit_message(msg, request):
+    success = msg.submit()
+    if success == NOT_SENT:
+        messages.error(request, _("Failed to send message"))
+    elif success == PARTLY_SENT:
+        messages.warning(request, _("Failed to send some messages"))
+    else:
+        messages.info(request, _("Successfully sent message"))
 
 
 admin.site.register(Message, MessageAdmin)
