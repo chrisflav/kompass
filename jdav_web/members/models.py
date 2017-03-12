@@ -133,6 +133,7 @@ class Klettertreff(models.Model):
     """
     date = models.DateField(_('Date'), default=datetime.today)
     location = models.CharField(_('Location'), default='', max_length=60)
+    topic = models.CharField(_('Topic'), default='', max_length=60)
     jugendleiter = models.ManyToManyField(Member)
     group = models.ForeignKey(Group, default='')
     
