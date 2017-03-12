@@ -1,5 +1,6 @@
 from django.db import models
-from django.forms import forms
+from django.core.exceptions import ValidationError
+from django import forms
 from django.utils.translation import ugettext_lazy as _
 from .mailutils import send, get_content
 
@@ -35,15 +36,23 @@ class Message(models.Model):
     subject = models.CharField(_('subject'), max_length=50)
     content = models.TextField(_('content'))
     to_groups = models.ManyToManyField('members.Group',
-                                       verbose_name=_('to group'))
+                                       verbose_name=_('to group'),
+                                       blank=True)
+    to_memberlist = models.ForeignKey('members.MemberList',
+                                      verbose_name=_('to member list'),
+                                      blank=True,
+                                      null=True)
     sent = models.BooleanField(_('sent'), default=False)
 
     def __str__(self):
         return self.subject
 
-    def get_groups(self):
-        return ", ".join([g.name for g in self.to_groups.all()])
-    get_groups.short_description = _('recipients')
+    def get_recipients(self):
+        recipients = [g.name for g in self.to_groups.all()]
+        if self.to_memberlist is not None:
+            recipients.append(self.to_memberlist.name)
+        return ", ".join(recipients)
+    get_recipients.short_description = _('recipients')
 
     def submit(self):
         """Sends the mail to the specified group of members"""
@@ -54,10 +63,15 @@ class Message(models.Model):
                 if not member.gets_newsletter:
                     continue
                 members.add(member)
+        if self.to_memberlist is not None:
+            for memberonlist in self.to_memberlist.memberonlist_set.all():
+                if memberonlist.member.gets_newsletter:
+                    members.add(memberonlist.member)
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
         success = send(self.subject, get_content(self.content),
-                       self.from_addr, [member.email for member in members],
+                       self.from_addr,
+                       set([member.email for member in members]),
                        attachments=attach)
         for a in Attachment.objects.filter(msg__id=self.pk):
             if a.f.name:
@@ -76,6 +90,21 @@ class Message(models.Model):
         permissions = (
             ("submit_mails", _("Can submit mails")),
         )
+
+
+class MessageForm(forms.ModelForm):
+
+    class Meta:
+        model = Message
+        exclude = []
+
+    def clean(self):
+        group = self.cleaned_data.get('to_groups')
+        memberlist = self.cleaned_data.get('to_memberlist')
+        print("group", group, "memberlist", memberlist)
+        if not group and memberlist is None:
+            raise ValidationError(_('Either a group is required or a '
+                                    'memberlist as recipient'))
 
 
 class Attachment(models.Model):

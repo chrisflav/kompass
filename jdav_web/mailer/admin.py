@@ -5,7 +5,7 @@ from django.shortcuts import render
 from django.db import models
 from django import forms
 
-from .models import Message, Attachment
+from .models import Message, Attachment, MessageForm
 
 
 class AttachmentInline(admin.StackedInline):
@@ -15,7 +15,7 @@ class AttachmentInline(admin.StackedInline):
 
 class MessageAdmin(admin.ModelAdmin):
     """Message creation view"""
-    list_display = ('subject', 'from_addr', 'get_groups', 'sent')
+    list_display = ('subject', 'from_addr', 'get_recipients', 'sent')
     change_form_template = "mailer/change_form.html"
     formfield_overrides = {
         models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
@@ -23,6 +23,7 @@ class MessageAdmin(admin.ModelAdmin):
 
     inlines = [AttachmentInline]
     actions = ['send_message']
+    form = MessageForm
 
     def send_message(self, request, queryset):
         print("calling send_message")
