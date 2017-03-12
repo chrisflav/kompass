@@ -42,6 +42,10 @@ class Message(models.Model):
                                       verbose_name=_('to member list'),
                                       blank=True,
                                       null=True)
+    reply_to = models.ForeignKey('members.Member',
+                                 verbose_name=_('reply to'),
+                                 blank=True,
+                                 null=True)
     sent = models.BooleanField(_('sent'), default=False)
 
     def __str__(self):
@@ -70,7 +74,8 @@ class Message(models.Model):
         success = send(self.subject, get_content(self.content),
                        self.from_addr,
                        [member.email for member in filtered],
-                       attachments=attach)
+                       attachments=attach,
+                       reply_to=self.reply_to.email if self.reply_to else None)
         for a in Attachment.objects.filter(msg__id=self.pk):
             if a.f.name:
                 os.remove(a.f.path)
