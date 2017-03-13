@@ -61,7 +61,7 @@ class MemberListAdminForm(forms.ModelForm):
         super(MemberListAdminForm, self).__init__(*args, **kwargs)
         self.fields['jugendleiter'].queryset = Member.objects.filter(group__name='Jugendleiter')
         #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
-        
+
 
 class MemberOnListInline(admin.StackedInline):
     model = MemberOnList
@@ -72,11 +72,12 @@ class MemberOnListInline(admin.StackedInline):
                                   'cols': 40})},
     }
 
+
 class MemberListAdmin(admin.ModelAdmin):
     inlines = [MemberOnListInline]
     form = MemberListAdminForm
     list_display = ['__str__', 'date']
-    actions = ['convert_to_pdf']
+    actions = ['convert_to_pdf', 'generate_notes']
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     }
@@ -86,7 +87,6 @@ class MemberListAdmin(admin.ModelAdmin):
 
     def convert_to_pdf(self, request, queryset):
         """Converts a member list to pdf.
-
         """
         for memberlist in queryset:
             # create a unique filename
@@ -103,8 +103,8 @@ class MemberListAdmin(admin.ModelAdmin):
                     line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(memberonlist.member.prename,
                             memberonlist.member.lastname, memberonlist.member.street,
                             memberonlist.member.town, memberonlist.member.phone_number, memberonlist.member.email)
-                    f.write(line) 
-            
+                    f.write(line)
+
             # copy and adapt latex memberlist template
             shutil.copy('media/memberlists/memberlist_template.tex',
                         'media/memberlists/'+filename_tex)
@@ -112,7 +112,7 @@ class MemberListAdmin(admin.ModelAdmin):
             # read in template
             with open('media/memberlists/'+filename_tex, 'r') as f:
                 template_content = f.read()
-            
+
             # adapt template
             template_content = template_content.replace('ACTIVITY', memberlist.name)
             groups = ', '.join(g.name for g in memberlist.groups.all())
@@ -169,6 +169,102 @@ class MemberListAdmin(admin.ModelAdmin):
                 response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
                 response['Content-Type'] = 'application/pdf'
                 response['Content-Disposition'] = 'attachment; filename='+filename_pdf
+
+            return response
+
+    def generate_notes(self, request, queryset):
+        """Generates a short note for the jugendleiter"""
+        for memberlist in queryset:
+            # unique filename
+            filename = memberlist.name + "_note_" +\
+                datetime.today().strftime("%d_%m_%Y")
+            filename = filename.replace(' ', '_')
+            filename_tex = filename + '.tex'
+            filename_pdf = filename + '.pdf'
+
+            # generate table
+            table = ""
+            activities = [a.name for a in memberlist.activity.all()]
+            skills = {a: [] for a in activities}
+            for memberonlist in memberlist.memberonlist_set.all():
+                m = memberonlist.member
+                qualities = []
+                for activity, value in m.get_skills().items():
+                    if activity not in activities:
+                        continue
+                    skills[activity].append(value)
+                    qualities.append("\\textit{%s:} %s" % (activity, value))
+                comment = ". ".join(c for c
+                                    in (m.comments,
+                                        memberonlist.comments) if
+                                    c).replace("..", ".")
+                line = '{0} {1} & {2} & {3} \\\\'.format(
+                    m.prename, m.lastname,
+                    ", ".join(qualities), comment or "---",
+                    )
+                table += line
+
+            table_qualities = ""
+            for activity in activities:
+                line = '{0} & {1} & {2} & {3} \\\\ \n'.format(
+                    activity,
+                    sum(skills[activity]) / len(skills[activity]),
+                    min(skills[activity]),
+                    max(skills[activity])
+                    )
+                table_qualities += line
+
+            # copy template
+            shutil.copy('media/memberlists/membernote_template.tex',
+                        'media/memberlists/' + filename_tex)
+
+            # read in template
+            with open('media/memberlists/' + filename_tex, 'r') as f:
+                template_content = f.read()
+
+            # adapt template
+            template_content = template_content.replace('ACTIVITY', memberlist.name)
+            groups = ', '.join(g.name for g in memberlist.groups.all())
+            template_content = template_content.replace('GROUP', groups)
+            template_content = template_content.replace('DESTINATION', memberlist.destination)
+            template_content = template_content.replace('PLACE', memberlist.place)
+            template_content = template_content.replace('MEMBERLIST-DATE',
+                    datetime.today().strftime('%d.%m.%Y'))
+            time_period = memberlist.date.strftime('%d.%m.%Y')
+            if memberlist.end != memberlist.date:
+                time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
+            template_content = template_content.replace('TIME-PERIOD', time_period)
+            jugendleiter = ', '.join(j.name for j in memberlist.jugendleiter.all())
+            template_content = template_content.replace('JUGENDLEITER', jugendleiter)
+
+            template_content = template_content.replace('TABLE-QUALITIES',
+                                                        table_qualities)
+            template_content = template_content.replace('TABLE', table)
+
+            # write adapted template to file
+            with open('media/memberlists/' + filename_tex, 'w') as f:
+                f.write(template_content)
+
+            # compile using pdflatex
+            oldwd = os.getcwd()
+            os.chdir('media/memberlists')
+            subprocess.call(['pdflatex', filename_tex])
+            time.sleep(1)
+
+            # do some cleanup
+            for f in glob.glob('*.log'):
+                os.remove(f)
+            for f in glob.glob('*.aux'):
+                os.remove(f)
+            os.remove(filename_tex)
+
+            os.chdir(oldwd)
+
+            # provide the user with the resulting pdf file
+            with open('media/memberlists/'+filename_pdf, 'rb') as pdf:
+                response = HttpResponse(FileWrapper(pdf))
+                response['Content-Type'] = 'application/pdf'
+                response['Content-Disposition'] = 'attachment; filename=' + filename_pdf
 
             return response
 
