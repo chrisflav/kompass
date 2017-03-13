@@ -1,0 +1,20 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+{% load static %}
+{% block after_field_sets %}
+
+<p><b>{% trans "Qualities:" %}</b></p>
+<table style="width:100%">
+	<tr>
+		<th>{% trans "Activity" %}</th>	
+		<th>{% trans "Skill level" %}</th>
+	</tr>
+{% for key, value in qualities.items %}
+	<tr>
+		<td>{{ key }}</td>
+		<td><progress value="{{ value }}" max="100"></progress></td>
+	</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

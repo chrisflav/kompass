@@ -16,7 +16,7 @@ from django.forms import Textarea
 from django.shortcuts import render
 
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
-        KlettertreffAttendee)
+                     KlettertreffAttendee, ActivityCategory)
 
 
 # Register your models here.
@@ -28,17 +28,30 @@ class MemberAdmin(admin.ModelAdmin):
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     }
+    change_form_template = "members/change_member.html"
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['qualities'] =\
+            Member.objects.get(pk=object_id).get_skills()
+        return super(MemberAdmin, self).change_view(request, object_id,
+                                                    form_url=form_url,
+                                                    extra_context=extra_context)
 
 
 class GroupAdmin(admin.ModelAdmin):
     fields = ['name', 'min_age']
     list_display = ('name', 'min_age')
 
+
+class ActivityCategoryAdmin(admin.ModelAdmin):
+    fields = ['name', 'description']
+
+
 class MemberListAdminForm(forms.ModelForm):
     class Meta:
         model = MemberList
         exclude = ['add_member']
-
 
     def __init__(self, *args, **kwargs):
         super(MemberListAdminForm, self).__init__(*args, **kwargs)
@@ -217,3 +230,4 @@ admin.site.register(Member, MemberAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(MemberList, MemberListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
+admin.site.register(ActivityCategory, ActivityCategoryAdmin)

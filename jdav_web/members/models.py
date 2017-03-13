@@ -7,6 +7,22 @@ from django.utils import timezone
 
 from multiselectfield import MultiSelectField
 
+
+class ActivityCategory(models.Model):
+    """
+    Describes one kind of activity
+    """
+    name = models.CharField(max_length=20, verbose_name=_('Name'))
+    description = models.TextField(_('Description'))
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = _('Activity')
+        verbose_name_plural = _('Activities')
+
+
 class Group(models.Model):
     """
     Represents one group of the association
@@ -85,22 +101,32 @@ class Member(models.Model):
         verbose_name = _('member')
         verbose_name_plural = _('members')
 
+    def get_skills(self):
+        # get skills by summing up all the activities taken part in
+        skills = {}
+        for kind in ActivityCategory.objects.all():
+            lists = MemberList.objects.filter(activity=kind,
+                                              memberonlist__member=self)
+            skills[kind.name] = len(lists)
+        return skills
+
 
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format. """
 
     name = models.CharField(verbose_name='Activity', default='',
                             max_length=50)
-    place = models.CharField(verbose_name=_('Place'), default='', max_length=50) 
-    destination = models.CharField(verbose_name=_('Destination (optional)'), default='', max_length=50, blank=True) 
+    place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
+    destination = models.CharField(verbose_name=_('Destination (optional)'), default='', max_length=50, blank=True)
     date = models.DateField(default=datetime.today)
     end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
     #comment = models.TextField(_('Comments'), default='', blank=True)
     groups = models.ManyToManyField(Group)
     jugendleiter = models.ManyToManyField(Member)
-    tour_type_choices = (('Gemeinschaftstour','Gemeinschaftstour'), ('Führungstour', 'Führungstour'), 
+    tour_type_choices = (('Gemeinschaftstour','Gemeinschaftstour'), ('Führungstour', 'Führungstour'),
                             ('Ausbildung', 'Ausbildung'))
-    tour_type = MultiSelectField(choices=tour_type_choices, default='', max_choices=1) 
+    tour_type = MultiSelectField(choices=tour_type_choices, default='', max_choices=1)
+    activity = models.ManyToManyField(ActivityCategory, default=None)
 
 
     def __str__(self):
@@ -136,7 +162,7 @@ class Klettertreff(models.Model):
     topic = models.CharField(_('Topic'), default='', max_length=60)
     jugendleiter = models.ManyToManyField(Member)
     group = models.ForeignKey(Group, default='')
-    
+
     def __str__(self):
         return self.location + ' ' + self.date.strftime('%d.%m.%Y')
 
@@ -156,7 +182,6 @@ class Klettertreff(models.Model):
         if jugendleiter in self.jugendleiter.all():
             return True
         return False
-
 
     get_jugendleiter.short_description = _('Jugendleiter')
 
