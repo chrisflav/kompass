@@ -12,7 +12,7 @@ from django.contrib import admin
 from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import ugettext_lazy as translate
 from django.db.models import TextField, ManyToManyField
-from django.forms import Textarea
+from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
@@ -49,6 +49,10 @@ class ActivityCategoryAdmin(admin.ModelAdmin):
 
 
 class MemberListAdminForm(forms.ModelForm):
+    difficulty = TypedChoiceField(MemberList.difficulty_choices,
+                                  widget=RadioSelect,
+                                  coerce=int)
+
     class Meta:
         model = MemberList
         exclude = ['add_member']

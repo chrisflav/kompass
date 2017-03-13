@@ -127,6 +127,9 @@ class MemberList(models.Model):
                             ('Ausbildung', 'Ausbildung'))
     tour_type = MultiSelectField(choices=tour_type_choices, default='', max_choices=1)
     activity = models.ManyToManyField(ActivityCategory, default=None)
+    difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
+    difficulty = models.IntegerField(verbose_name=_('Difficulty'),
+                                     choices=difficulty_choices)
 
 
     def __str__(self):
