@@ -107,7 +107,7 @@ class Member(models.Model):
         for kind in ActivityCategory.objects.all():
             lists = MemberList.objects.filter(activity=kind,
                                               memberonlist__member=self)
-            skills[kind.name] = len(lists)
+            skills[kind.name] = sum([l.difficulty * 3 for l in lists])
         return skills
 
 
