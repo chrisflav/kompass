@@ -1,3 +1,4 @@
+from django.core import mail
 from django.core.mail import EmailMessage
 
 
@@ -13,18 +14,20 @@ def send(subject, content, sender, recipients, reply_to=None,
         kwargs = {"reply_to": [reply_to]}
     else:
         kwargs = {}
-    for recipient in recipients:
-        email = EmailMessage(subject, content, sender, [recipient], **kwargs)
-        if attachments is not None:
-            for attach in attachments:
-                email.attach_file(attach)
-        try:
-            email.send()
-        except Exception as e:
-            print("Error when sending mail:", e)
-            failed = True
-        else:
-            succeeded = True
+    with mail.get_connection() as connection:
+        for recipient in recipients:
+            email = EmailMessage(subject, content, sender, [recipient],
+                                 connection=connection, **kwargs)
+            if attachments is not None:
+                for attach in attachments:
+                    email.attach_file(attach)
+            try:
+                email.send()
+            except Exception as e:
+                print("Error when sending mail:", e)
+                failed = True
+            else:
+                succeeded = True
     return NOT_SENT if failed and not succeeded else SENT if not failed\
         and succeeded else PARTLY_SENT
 
