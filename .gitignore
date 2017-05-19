@@ -99,3 +99,4 @@ jdav_web/*/migrations
 
 # django database migrations
 */*/migrations/*
+static/
