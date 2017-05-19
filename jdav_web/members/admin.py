@@ -17,6 +17,7 @@ from django.shortcuts import render
 
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
                      KlettertreffAttendee, ActivityCategory)
+from django.conf import settings
 
 
 # Register your models here.
@@ -97,7 +98,7 @@ class MemberListAdmin(admin.ModelAdmin):
             filename_pdf = filename + '.pdf'
 
             # open temporary file for table
-            with open('media/memberlists/'+filename_table, 'w+') as f:
+            with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
                 for memberonlist in memberlist.memberonlist_set.all():
                     # write table of members in latex compatible format
                     line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(memberonlist.member.prename,
@@ -106,11 +107,11 @@ class MemberListAdmin(admin.ModelAdmin):
                     f.write(line)
 
             # copy and adapt latex memberlist template
-            shutil.copy('media/memberlists/memberlist_template.tex',
-                        'media/memberlists/'+filename_tex)
+            shutil.copy(media_path('memberlist_template.tex'),
+                        media_path(filename_tex))
 
             # read in template
-            with open('media/memberlists/'+filename_tex, 'r') as f:
+            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
                 template_content = f.read()
 
             # adapt template
@@ -145,12 +146,12 @@ class MemberListAdmin(admin.ModelAdmin):
                     filename_table)
 
             # write adapted template to file
-            with open('media/memberlists/' + filename_tex, 'w') as f:
+            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
                 f.write(template_content)
 
             # compile using pdflatex
             oldwd = os.getcwd()
-            os.chdir('media/memberlists')
+            os.chdir(media_dir())
             subprocess.call(['pdflatex', filename_tex])
             time.sleep(1)
 
@@ -165,7 +166,7 @@ class MemberListAdmin(admin.ModelAdmin):
             os.chdir(oldwd)
 
             # provide the user with the resulting pdf file
-            with open('media/memberlists/'+filename_pdf, 'rb') as pdf:
+            with open(media_path(filename_pdf), 'rb') as pdf:
                 response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
                 response['Content-Type'] = 'application/pdf'
                 response['Content-Disposition'] = 'attachment; filename='+filename_pdf
@@ -176,8 +177,7 @@ class MemberListAdmin(admin.ModelAdmin):
         """Generates a short note for the jugendleiter"""
         for memberlist in queryset:
             # unique filename
-            filename = memberlist.name + "_note_" +\
-                datetime.today().strftime("%d_%m_%Y")
+            filename = memberlist.name + "_note_" + datetime.today().strftime("%d_%m_%Y")
             filename = filename.replace(' ', '_')
             filename_tex = filename + '.tex'
             filename_pdf = filename + '.pdf'
@@ -215,11 +215,11 @@ class MemberListAdmin(admin.ModelAdmin):
                 table_qualities += line
 
             # copy template
-            shutil.copy('media/memberlists/membernote_template.tex',
-                        'media/memberlists/' + filename_tex)
+            shutil.copy(media_path('membernote_template.tex'),
+                        media_path(filename_tex))
 
             # read in template
-            with open('media/memberlists/' + filename_tex, 'r') as f:
+            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
                 template_content = f.read()
 
             # adapt template
@@ -242,12 +242,12 @@ class MemberListAdmin(admin.ModelAdmin):
             template_content = template_content.replace('TABLE', table)
 
             # write adapted template to file
-            with open('media/memberlists/' + filename_tex, 'w') as f:
+            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
                 f.write(template_content)
 
             # compile using pdflatex
             oldwd = os.getcwd()
-            os.chdir('media/memberlists')
+            os.chdir(media_dir())
             subprocess.call(['pdflatex', filename_tex])
             time.sleep(1)
 
@@ -261,7 +261,7 @@ class MemberListAdmin(admin.ModelAdmin):
             os.chdir(oldwd)
 
             # provide the user with the resulting pdf file
-            with open('media/memberlists/'+filename_pdf, 'rb') as pdf:
+            with open(media_path(filename_pdf), 'rb') as pdf:
                 response = HttpResponse(FileWrapper(pdf))
                 response['Content-Type'] = 'application/pdf'
                 response['Content-Disposition'] = 'attachment; filename=' + filename_pdf
@@ -331,3 +331,11 @@ admin.site.register(Group, GroupAdmin)
 admin.site.register(MemberList, MemberListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
 admin.site.register(ActivityCategory, ActivityCategoryAdmin)
+
+
+def media_path(fp):
+    return os.path.join(os.path.join(settings.MEDIA_ROOT, "memberlists"), fp)
+
+
+def media_dir():
+    return os.path.join(settings.MEDIA_ROOT, "memberlists")
