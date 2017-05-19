@@ -132,6 +132,10 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static")
 ]
+# static root where all the static files are collected to
+# use python3 manage.py collectstatic to collect static files in the STATIC_ROOT
+# this is needed for deployment
+STATIC_ROOT = os.path.join((os.path.join(BASE_DIR, os.pardir)), "static")
 
 
 # Locale files (translations)
