@@ -7,6 +7,9 @@ from .mailutils import send, get_content, SENT, PARTLY_SENT
 
 import os
 
+# this is the mail address that is used to send mails
+SENDING_ADDRESS = "jdav-lb@gmx.de"
+
 
 class RestrictedFileField(models.FileField):
 
@@ -33,7 +36,6 @@ class RestrictedFileField(models.FileField):
 # Create your models here.
 class Message(models.Model):
     """Represents a message that can be sent to some members"""
-    from_addr = models.EmailField(_('from email'))
     subject = models.CharField(_('subject'), max_length=50)
     content = models.TextField(_('content'))
     to_groups = models.ManyToManyField('members.Group',
@@ -86,7 +88,7 @@ class Message(models.Model):
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
         success = send(self.subject, get_content(self.content),
-                       self.from_addr,
+                       SENDING_ADDRESS,
                        [member.email for member in filtered],
                        attachments=attach,
                        reply_to=self.reply_to.email if self.reply_to else None)
