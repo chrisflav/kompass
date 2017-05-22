@@ -1,11 +1,12 @@
 from datetime import datetime
 import uuid
-from django import forms
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 
-from multiselectfield import MultiSelectField
+GEMEINSCHAFTS_TOUR = 0
+FUEHRUNGS_TOUR = 1
+AUSBILDUNGS_TOUR = 2
 
 
 class ActivityCategory(models.Model):
@@ -118,20 +119,22 @@ class MemberList(models.Model):
     name = models.CharField(verbose_name='Activity', default='',
                             max_length=50)
     place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
-    destination = models.CharField(verbose_name=_('Destination (optional)'), default='', max_length=50, blank=True)
+    destination = models.CharField(verbose_name=_('Destination (optional)'),
+                                   default='', max_length=50, blank=True)
     date = models.DateField(default=datetime.today)
     end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
-    #comment = models.TextField(_('Comments'), default='', blank=True)
+    # comment = models.TextField(_('Comments'), default='', blank=True)
     groups = models.ManyToManyField(Group)
     jugendleiter = models.ManyToManyField(Member)
-    tour_type_choices = (('Gemeinschaftstour','Gemeinschaftstour'), ('Führungstour', 'Führungstour'),
-                            ('Ausbildung', 'Ausbildung'))
-    tour_type = MultiSelectField(choices=tour_type_choices, default='', max_choices=1)
+    tour_type_choices = ((GEMEINSCHAFTS_TOUR, 'Gemeinschaftstour'),
+                         (FUEHRUNGS_TOUR, 'Führungstour'),
+                         (AUSBILDUNGS_TOUR, 'Ausbildung'))
+    tour_type = models.IntegerField(verbose_name=_('Art der Tour'),
+                                    choices=tour_type_choices)
     activity = models.ManyToManyField(ActivityCategory, default=None)
     difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
     difficulty = models.IntegerField(verbose_name=_('Difficulty'),
                                      choices=difficulty_choices)
-
 
     def __str__(self):
         """String represenation"""
@@ -140,6 +143,14 @@ class MemberList(models.Model):
     class Meta:
         verbose_name = _('Memberlist')
         verbose_name_plural = _('Memberlists')
+
+    def get_tour_type(self):
+        if self.tour_type == FUEHRUNGS_TOUR:
+            return "Führungstour"
+        elif self.tour_type == AUSBILDUNGS_TOUR:
+            return "Ausbildung"
+        else:
+            return "Gemeinschaftstour"
 
 
 class MemberOnList(models.Model):

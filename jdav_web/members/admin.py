@@ -53,6 +53,9 @@ class MemberListAdminForm(forms.ModelForm):
     difficulty = TypedChoiceField(MemberList.difficulty_choices,
                                   widget=RadioSelect,
                                   coerce=int)
+    tour_type = TypedChoiceField(MemberList.tour_type_choices,
+                                 widget=RadioSelect,
+                                 coerce=int)
 
     class Meta:
         model = MemberList
@@ -133,7 +136,7 @@ class MemberListAdmin(admin.ModelAdmin):
             tour_type = ''
             for tt in ['Gemeinschaftstour', 'Führungstour', 'Ausbildung']:
                 print(memberlist.tour_type)
-                if tt in memberlist.tour_type:
+                if tt == memberlist.get_tour_type():
                     tour_type += '\\tickedbox ' + tt
                 else:
                     tour_type += '\\checkbox'
