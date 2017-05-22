@@ -104,7 +104,7 @@ class MemberListAdmin(admin.ModelAdmin):
             with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
                 if memberlist.memberonlist_set.count() == 0:
                     f.write('{0} & {1} & {2} & {3} \\\\ \n'.format(
-                        'keine Teilnemher', '-', '-', '-'
+                        'keine Teilnehmer', '-', '-', '-'
                     ))
                 for memberonlist in memberlist.memberonlist_set.all():
                     # write table of members in latex compatible format
