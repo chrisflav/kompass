@@ -215,11 +215,17 @@ class MemberListAdmin(admin.ModelAdmin):
 
             table_qualities = ""
             for activity in activities:
+                skill_avg = 0 if len(skills[activity]) == 0 else\
+                    sum(skills[activity]) / len(skills[activity])
+                skill_min = 0 if len(skills[activity]) == 0 else\
+                    min(skills[activity])
+                skill_max = 0 if len(skills[activity]) == 0 else\
+                    max(skills[activity])
                 line = '{0} & {1} & {2} & {3} \\\\ \n'.format(
                     activity,
-                    sum(skills[activity]) / len(skills[activity]),
-                    min(skills[activity]),
-                    max(skills[activity])
+                    skill_avg,
+                    skill_min,
+                    skill_max
                     )
                 table_qualities += line
 
