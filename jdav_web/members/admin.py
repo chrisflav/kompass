@@ -99,11 +99,17 @@ class MemberListAdmin(admin.ModelAdmin):
 
             # open temporary file for table
             with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
+                if memberlist.memberonlist_set.count() == 0:
+                    f.write('{0} & {1} & {2} & {3} \\\\ \n'.format(
+                        'keine Teilnemher', '-', '-', '-'
+                    ))
                 for memberonlist in memberlist.memberonlist_set.all():
                     # write table of members in latex compatible format
-                    line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(memberonlist.member.prename,
+                    line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(
+                            memberonlist.member.prename,
                             memberonlist.member.lastname, memberonlist.member.street,
-                            memberonlist.member.town, memberonlist.member.phone_number, memberonlist.member.email)
+                            memberonlist.member.town, memberonlist.member.phone_number,
+                            memberonlist.member.email)
                     f.write(line)
 
             # copy and adapt latex memberlist template
@@ -121,7 +127,7 @@ class MemberListAdmin(admin.ModelAdmin):
             template_content = template_content.replace('DESTINATION', memberlist.destination)
             template_content = template_content.replace('PLACE', memberlist.place)
             template_content = template_content.replace('MEMBERLIST-DATE',
-                    datetime.today().strftime('%d.%m.%Y'))
+                                                        datetime.today().strftime('%d.%m.%Y'))
             time_period = memberlist.date.strftime('%d.%m.%Y')
             if memberlist.end != memberlist.date:
                 time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
