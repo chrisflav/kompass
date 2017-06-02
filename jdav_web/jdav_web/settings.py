@@ -154,7 +154,7 @@ LOCALE_PATHS = (os.path.join(BASE_DIR, 'locale'),)
 
 # Email setup
 
-EMAIL_HOST = 'localhost'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
 EMAIL_PORT = 587 if deployed else 25
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
