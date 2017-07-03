@@ -4,7 +4,7 @@ import os
 
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
-HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000')
+HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
 def send(subject, content, sender, recipients, reply_to=None,
