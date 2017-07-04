@@ -53,6 +53,9 @@ class MemberListAdminForm(forms.ModelForm):
     difficulty = TypedChoiceField(MemberList.difficulty_choices,
                                   widget=RadioSelect,
                                   coerce=int)
+    tour_type = TypedChoiceField(MemberList.tour_type_choices,
+                                 widget=RadioSelect,
+                                 coerce=int)
 
     class Meta:
         model = MemberList
@@ -99,11 +102,17 @@ class MemberListAdmin(admin.ModelAdmin):
 
             # open temporary file for table
             with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
+                if memberlist.memberonlist_set.count() == 0:
+                    f.write('{0} & {1} & {2} & {3} \\\\ \n'.format(
+                        'keine Teilnehmer', '-', '-', '-'
+                    ))
                 for memberonlist in memberlist.memberonlist_set.all():
                     # write table of members in latex compatible format
-                    line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(memberonlist.member.prename,
+                    line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(
+                            memberonlist.member.prename,
                             memberonlist.member.lastname, memberonlist.member.street,
-                            memberonlist.member.town, memberonlist.member.phone_number, memberonlist.member.email)
+                            memberonlist.member.town, memberonlist.member.phone_number,
+                            memberonlist.member.email)
                     f.write(line)
 
             # copy and adapt latex memberlist template
@@ -121,7 +130,7 @@ class MemberListAdmin(admin.ModelAdmin):
             template_content = template_content.replace('DESTINATION', memberlist.destination)
             template_content = template_content.replace('PLACE', memberlist.place)
             template_content = template_content.replace('MEMBERLIST-DATE',
-                    datetime.today().strftime('%d.%m.%Y'))
+                                                        datetime.today().strftime('%d.%m.%Y'))
             time_period = memberlist.date.strftime('%d.%m.%Y')
             if memberlist.end != memberlist.date:
                 time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
@@ -133,7 +142,7 @@ class MemberListAdmin(admin.ModelAdmin):
             tour_type = ''
             for tt in ['Gemeinschaftstour', 'Führungstour', 'Ausbildung']:
                 print(memberlist.tour_type)
-                if tt in memberlist.tour_type:
+                if tt == memberlist.get_tour_type():
                     tour_type += '\\tickedbox ' + tt
                 else:
                     tour_type += '\\checkbox'
@@ -206,11 +215,17 @@ class MemberListAdmin(admin.ModelAdmin):
 
             table_qualities = ""
             for activity in activities:
+                skill_avg = 0 if len(skills[activity]) == 0 else\
+                    sum(skills[activity]) / len(skills[activity])
+                skill_min = 0 if len(skills[activity]) == 0 else\
+                    min(skills[activity])
+                skill_max = 0 if len(skills[activity]) == 0 else\
+                    max(skills[activity])
                 line = '{0} & {1} & {2} & {3} \\\\ \n'.format(
                     activity,
-                    sum(skills[activity]) / len(skills[activity]),
-                    min(skills[activity]),
-                    max(skills[activity])
+                    skill_avg,
+                    skill_min,
+                    skill_max
                     )
                 table_qualities += line
 
