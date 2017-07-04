@@ -5,6 +5,23 @@ JDAV to send newsletters, manage user lists and keep material lists up to date.
 As this repository is also meant to be a base for exchange during development, feel free
 to contribute ideas in form of edits to this README, issues, landmarks, projects, wiki entries, ...
 
+# Setup
+
+## Development server
+
+1. Install `virtualenv` (with pip3)
+2. Create a new virtualenv with `virtualenv --no-site-packages -p python3.5`
+3. Activate the environment with `source venv/bin/activate`
+4. Install requirements with `pip3 install -r requirements.txt`
+5. Setup a MySQL database called `jdav_db` and create a user that can access this database.
+6. Create a `my.cnf` at `jdav_web/my.cnf` with username and password for the mysql database.
+7. Change working directory to `jdav_web` and execute `python3 manage.py runserver`
+
+## Deployed version
+
+- Mostly the same as the development version
+- Check the README on the server for further information.
+
 # Useful stuff
 
 ## Reset database for certain app
