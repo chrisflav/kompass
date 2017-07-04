@@ -37,9 +37,9 @@ def send(subject, content, sender, recipients, reply_to=None,
 def get_content(content):
     # TODO: generate right url here
     url = "https://{}/newsletter/unsubscribe".format(HOST)
-    text = "{}\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
+    text = "{}\n\n\n*********\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
         " verschickt. Wenn du in Zukunft keine Emails mehr erhalten möchtest,"\
-        " kannst du hier den Newsletter deabonnieren.\n\n{}"\
+        " kannst du hier den Newsletter deabonnieren:\n{}"\
         .format(content, url)
     return text
 
