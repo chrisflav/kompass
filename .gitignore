@@ -101,3 +101,6 @@ jdav_web/*/migrations
 */*/migrations/*
 static/
 media/
+
+# database configuration
+jdav_web/my.cnf
