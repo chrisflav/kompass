@@ -1,8 +1,10 @@
 from django.core import mail
 from django.core.mail import EmailMessage
+import os
 
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
+HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
 def send(subject, content, sender, recipients, reply_to=None,
@@ -34,7 +36,7 @@ def send(subject, content, sender, recipients, reply_to=None,
 
 def get_content(content):
     # TODO: generate right url here
-    url = "localhost:8000/newsletter/unsubscribe"
+    url = "https://{}/newsletter/unsubscribe".format(HOST)
     text = "{}\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
         " verschickt. Wenn du in Zukunft keine Emails mehr erhalten möchtest,"\
         " kannst du hier den Newsletter deabonnieren.\n\n{}"\
@@ -44,9 +46,8 @@ def get_content(content):
 
 def get_unsubscribe_link(member):
     key = member.generate_key()
-    print("generating key for", member, key)
     # TODO: generate right url here
-    return "localhost:8000/newsletter/unsubscribe?key={}".format(key)
+    return "https://{}/newsletter/unsubscribe?key={}".format(HOST, key)
 
 
-mail_root = "christian@localhost"
+mail_root = os.environ.get('EMAIL_SENDING_ADDRESS', 'christian@localhost')

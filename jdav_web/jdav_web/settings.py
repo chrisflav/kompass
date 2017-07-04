@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 
 import os
 
+deployed = '1' == os.environ.get('DJANGO_DEPLOY', '0')
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -20,16 +22,21 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '6_ew6l1r9_4(8=p8quv(e8b+z+k+*wm7&zxx%mcnnec99a!lpw'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY',
+			    '6_ew6l1r9_4(8=p8quv(e8b+z+k+*wm7&zxx%mcnnec99a!lpw')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOST', '').split(",")
 
 # Define media paths e.g. for image storage
 MEDIA_ROOT = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 MEDIA_URL = '/media/'
+
+# x forward
+
+USE_X_FORWARDED_HOST = True
 
 # Application definition
 
@@ -84,10 +91,11 @@ WSGI_APPLICATION = 'jdav_web.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'jdav_db',
-        'USER': 'jdav_user',
-        'PASSWORD': 'jdav00jdav',
-        'HOST': 'localhost'
+	'NAME': os.environ.get('DJANGO_DATABASE_NAME', 'jdav_db'),
+	'OPTIONS': {
+		'read_default_file': os.environ.get('DJANGO_DATABASE_CONFIG',
+						    os.path.join(BASE_DIR, 'my.cnf'))
+	},
     }
 }
 
@@ -135,7 +143,8 @@ STATICFILES_DIRS = [
 # static root where all the static files are collected to
 # use python3 manage.py collectstatic to collect static files in the STATIC_ROOT
 # this is needed for deployment
-STATIC_ROOT = os.path.join((os.path.join(BASE_DIR, os.pardir)), "static")
+STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT',
+			     os.path.join((os.path.join(BASE_DIR, os.pardir)), "static"))
 
 
 # Locale files (translations)
@@ -145,8 +154,8 @@ LOCALE_PATHS = (os.path.join(BASE_DIR, 'locale'),)
 
 # Email setup
 
-EMAIL_HOST = 'localhost'
-EMAIL_PORT = 25
-EMAIL_HOST_USER = ''
-EMAIL_HOST_PASSWORD = ''
-EMAIL_USE_TLS = False
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
+EMAIL_PORT = 587 if deployed else 25
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = True if deployed else False

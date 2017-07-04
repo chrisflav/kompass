@@ -3,12 +3,12 @@ from django.core.exceptions import ValidationError
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext
-from .mailutils import send, get_content, SENT, PARTLY_SENT
+from .mailutils import send, get_content, SENT, PARTLY_SENT, mail_root
 
 import os
 
 # this is the mail address that is used to send mails
-SENDING_ADDRESS = "jdav-lb@gmx.de"
+SENDING_ADDRESS = mail_root
 
 
 class RestrictedFileField(models.FileField):
