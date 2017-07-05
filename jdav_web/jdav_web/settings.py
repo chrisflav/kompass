@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'material.apps.MaterialConfig',
     'members.apps.MembersConfig',
     'mailer.apps.MailerConfig',
+    'easy_select2',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

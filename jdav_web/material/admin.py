@@ -1,8 +1,11 @@
 from django.contrib import admin
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.admin import SimpleListFilter
+from django.db import models
+from django import forms
 
 from .models import MaterialPart, Ownership
+from easy_select2 import apply_select2
 
 
 # Register your models here.
@@ -13,6 +16,9 @@ class OwnershipInline(admin.StackedInline):
     """
     model = Ownership
     extra = 0
+    formfield_overrides = {
+        models.ForeignKey: {'widget': apply_select2(forms.Select)}
+    }
 
 
 class NotTooOldFilter(SimpleListFilter):
