@@ -9,7 +9,7 @@ from easy_select2 import apply_select2
 
 
 # Register your models here.
-class OwnershipInline(admin.StackedInline):
+class OwnershipInline(admin.TabularInline):
     """
     This shows the ownership selection directly in the MaterialPart edit
     view
@@ -22,21 +22,20 @@ class OwnershipInline(admin.StackedInline):
 
 
 class NotTooOldFilter(SimpleListFilter):
-	title = _('Age')
-	parameter_name = 'age'
+    title = _('Age')
+    parameter_name = 'age'
 
-	def lookups(self, request, model_admin):
-		return (
-        	('too_old', _('Not too old')),
-        	('not_too_old', _('Too old')),
-		)
+    def lookups(self, request, model_admin):
+        return (
+            ('too_old', _('Not too old')),
+            ('not_too_old', _('Too old')),
+        )
 
-	def queryset(self, request, queryset):
-		if self.value() == 'too_old':
-			return queryset.filter(pk__in=[x.pk for x in queryset.all() if x.not_too_old()])
-		if self.value() == 'not_too_old':
-			return queryset.filter(pk__in=[x.pk for x in queryset.all() if not x.not_too_old()])
-
+    def queryset(self, request, queryset):
+        if self.value() == 'too_old':
+            return queryset.filter(pk__in=[x.pk for x in queryset.all() if x.not_too_old()])
+        if self.value() == 'not_too_old':
+            return queryset.filter(pk__in=[x.pk for x in queryset.all() if not x.not_too_old()])
 
 
 class MaterialAdmin(admin.ModelAdmin):
@@ -47,6 +46,9 @@ class MaterialAdmin(admin.ModelAdmin):
                     'lifetime', 'not_too_old', 'admin_thumbnail')
     inlines = [OwnershipInline]
     list_filter = (NotTooOldFilter,)
+
+    class Media:
+        css = {'all': ('admin/css/tabular_hide_original.css',)}
 
 
 admin.site.register(MaterialPart, MaterialAdmin)
