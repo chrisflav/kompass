@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-07-05 18:57+0200\n"
+"POT-Creation-Date: 2017-07-05 19:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -66,30 +66,34 @@ msgstr "Anzahl"
 msgid "Thumbnail"
 msgstr "Bild"
 
-#: models.py:51
+#: models.py:49
+msgid "Owners"
+msgstr "Verantwortliche"
+
+#: models.py:59
 msgid "Not too old?"
 msgstr "Nicht zu alt?"
 
-#: models.py:54
+#: models.py:62
 msgid "material part"
 msgstr "Materialteil"
 
-#: models.py:55
+#: models.py:63
 msgid "material parts"
 msgstr "Materialteile"
 
-#: models.py:61
+#: models.py:69
 msgid "owner"
 msgstr "Besitzer"
 
-#: models.py:62
+#: models.py:70
 msgid "count"
 msgstr "Anzahl"
 
-#: models.py:69
+#: models.py:77
 msgid "ownership"
 msgstr "Besitzer"
 
-#: models.py:70
+#: models.py:78
 msgid "ownerships"
 msgstr "Verantwortliche"

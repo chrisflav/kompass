@@ -40,6 +40,14 @@ class MaterialPart(models.Model):
     admin_thumbnail.short_description = _('Thumbnail')
     admin_thumbnail.allow_tags = True
 
+    def ownership_overview(self):
+        summary = ''
+        for owner in self.ownership_set.all():
+            summary += '<p>{}: {}</p>'.format(str(owner.owner), owner.count)
+        return summary
+    ownership_overview.allow_tags = True
+    ownership_overview.short_description = _('Owners')
+
     def not_too_old(self):
         """Returns wether the part should be replaced cause of age"""
         buy_time = timezone.make_aware(datetime.combine(self.buy_date,
