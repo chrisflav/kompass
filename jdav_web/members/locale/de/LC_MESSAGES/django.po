@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-07-05 10:06+0000\n"
+"POT-Creation-Date: 2017-07-05 10:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,19 +18,28 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: members/admin.py:58
+msgid "Difficulty"
+msgstr "Schwierigkeit"
+
+#: members/admin.py:62
+msgid "Tour type"
+msgstr "Art der Tour"
+
 #: members/apps.py:7 members/models.py:103
 msgid "members"
 msgstr "Teilnehmer"
 
 #: members/models.py:16
 msgid "Name"
-msgstr ""
+msgstr "Name"
 
 #: members/models.py:17
 msgid "Description"
-msgstr ""
+msgstr "Beschreibung"
 
-#: members/models.py:23 members/templates/members/change_member.html:9
+#: members/models.py:23 members/models.py:119
+#: members/templates/members/change_member.html:9
 msgid "Activity"
 msgstr "Aktivität"
 
@@ -102,7 +111,7 @@ msgstr "Warteliste"
 msgid "registration form"
 msgstr "Anmeldeformular"
 
-#: members/models.py:99
+#: members/models.py:99 members/models.py:183
 msgid "Group"
 msgstr "Gruppe"
 
@@ -118,72 +127,72 @@ msgstr "Ort"
 msgid "Destination (optional)"
 msgstr "Ziel (optional)"
 
+#: members/models.py:124 members/models.py:179
+msgid "Date"
+msgstr "Datum"
+
 #: members/models.py:125
 msgid "End (optional)"
 msgstr "Ende"
 
-#: members/models.py:132
-msgid "Art der Tour"
-msgstr "Art der Tour"
+#: members/models.py:127
+msgid "Groups"
+msgstr "Gruppen"
 
 #: members/models.py:135
+msgid "Categories"
+msgstr "Kategorien"
+
+#: members/models.py:136
 msgid "easy"
 msgstr "leicht"
 
-#: members/models.py:135
+#: members/models.py:136
 msgid "medium"
 msgstr "mittel"
 
-#: members/models.py:135
+#: members/models.py:136
 msgid "hard"
 msgstr "schwer"
 
-#: members/models.py:136
-msgid "Difficulty"
-msgstr "Schwierigkeit"
-
-#: members/models.py:144
+#: members/models.py:145
 msgid "Memberlist"
 msgstr "Teilnehmerliste"
 
-#: members/models.py:145
+#: members/models.py:146
 msgid "Memberlists"
 msgstr "Teilnehmerlisten"
 
-#: members/models.py:160 members/models.py:165 members/models.py:210
-#: members/models.py:214
+#: members/models.py:161 members/models.py:169 members/models.py:214
+#: members/models.py:221
 msgid "Member"
 msgstr "Teilnehmer"
 
-#: members/models.py:162
+#: members/models.py:163
 msgid "Comment"
 msgstr "Kommentar"
 
-#: members/models.py:166 members/models.py:215
+#: members/models.py:170 members/models.py:222
 msgid "Members"
 msgstr "Teilnehmer"
 
-#: members/models.py:175
-msgid "Date"
-msgstr "Datum"
-
-#: members/models.py:176
+#: members/models.py:180
 msgid "Location"
 msgstr "Ort"
 
-#: members/models.py:177
+#: members/models.py:181
 msgid "Topic"
 msgstr "Thema"
 
-#: members/models.py:201
+#: members/models.py:205
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: members/models.py:204
+#: members/models.py:208
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: members/models.py:205
+#: members/models.py:209
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 
@@ -198,6 +207,9 @@ msgstr "Fähigkeiten:"
 #: members/templates/members/change_member.html:10
 msgid "Skill level"
 msgstr "Fähigkeitsniveau"
+
+#~ msgid "Art der Tour"
+#~ msgstr "Art der Tour"
 
 #~ msgid "Listname"
 #~ msgstr "Name der Liste"

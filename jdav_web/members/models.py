@@ -116,25 +116,26 @@ class Member(models.Model):
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format. """
 
-    name = models.CharField(verbose_name='Activity', default='',
+    name = models.CharField(verbose_name=_('Activity'), default='',
                             max_length=50)
     place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
     destination = models.CharField(verbose_name=_('Destination (optional)'),
                                    default='', max_length=50, blank=True)
-    date = models.DateField(default=datetime.today)
+    date = models.DateField(default=datetime.today, verbose_name=_('Date'))
     end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
     # comment = models.TextField(_('Comments'), default='', blank=True)
-    groups = models.ManyToManyField(Group)
+    groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
     jugendleiter = models.ManyToManyField(Member)
     tour_type_choices = ((GEMEINSCHAFTS_TOUR, 'Gemeinschaftstour'),
                          (FUEHRUNGS_TOUR, 'Führungstour'),
                          (AUSBILDUNGS_TOUR, 'Ausbildung'))
-    tour_type = models.IntegerField(verbose_name=_('Art der Tour'),
-                                    choices=tour_type_choices)
-    activity = models.ManyToManyField(ActivityCategory, default=None)
+    # verbose_name is overriden by form, label is set in admin.py
+    tour_type = models.IntegerField(choices=tour_type_choices)
+    activity = models.ManyToManyField(ActivityCategory, default=None,
+                                      verbose_name=_('Categories'))
     difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
-    difficulty = models.IntegerField(verbose_name=_('Difficulty'),
-                                     choices=difficulty_choices)
+    # verbose_name is overriden by form, label is set in admin.py
+    difficulty = models.IntegerField(choices=difficulty_choices)
 
     def __str__(self):
         """String represenation"""
@@ -161,6 +162,9 @@ class MemberOnList(models.Model):
     memberlist = models.ForeignKey(MemberList)
     comments = models.TextField(_('Comment'), default='', blank=True)
 
+    def __str__(self):
+        return str(self.member)
+
     class Meta:
         verbose_name = _('Member')
         verbose_name_plural = _('Members')
@@ -176,7 +180,7 @@ class Klettertreff(models.Model):
     location = models.CharField(_('Location'), default='', max_length=60)
     topic = models.CharField(_('Topic'), default='', max_length=60)
     jugendleiter = models.ManyToManyField(Member)
-    group = models.ForeignKey(Group, default='')
+    group = models.ForeignKey(Group, default='', verbose_name=_('Group'))
 
     def __str__(self):
         return self.location + ' ' + self.date.strftime('%d.%m.%Y')
@@ -209,6 +213,9 @@ class KlettertreffAttendee(models.Model):
     """Connects members to Klettertreffs."""
     member = models.ForeignKey(Member, verbose_name=_('Member'))
     klettertreff = models.ForeignKey(Klettertreff)
+
+    def __str__(self):
+        return str(self.member)
 
     class Meta:
         verbose_name = _('Member')
