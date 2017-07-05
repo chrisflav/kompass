@@ -99,8 +99,8 @@ jdav_web/*/migrations
 
 # django database migrations
 */*/migrations/*
-static/
-media/
+/static/
+/media/
 
 # database configuration
 jdav_web/my.cnf
