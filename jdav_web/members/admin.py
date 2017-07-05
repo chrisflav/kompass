@@ -10,7 +10,7 @@ from wsgiref.util import FileWrapper
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import DateFieldListFilter
-from django.utils.translation import ugettext_lazy as translate
+from django.utils.translation import ugettext_lazy as _
 from django.db.models import TextField, ManyToManyField, ForeignKey
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
@@ -54,10 +54,12 @@ class ActivityCategoryAdmin(admin.ModelAdmin):
 class MemberListAdminForm(forms.ModelForm):
     difficulty = TypedChoiceField(MemberList.difficulty_choices,
                                   widget=RadioSelect,
-                                  coerce=int)
+                                  coerce=int,
+                                  label=_('Difficulty'))
     tour_type = TypedChoiceField(MemberList.tour_type_choices,
                                  widget=RadioSelect,
-                                 coerce=int)
+                                 coerce=int,
+                                 label=_('Tour type'))
 
     class Meta:
         model = MemberList
