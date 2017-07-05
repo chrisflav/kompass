@@ -32,6 +32,14 @@ class MaterialPart(models.Model):
     quantity_real.admin_order_field = 'quantity'
     quantity_real.short_description = _('Quantity')
 
+    def admin_thumbnail(self):
+        if self.photo:
+            return '<a href="{0}"><img src="{0}" height="40"></a>'.format(self.photo.url)
+        else:
+            return '<i>kein Bild</i>'
+    admin_thumbnail.short_description = _('Thumbnail')
+    admin_thumbnail.allow_tags = True
+
     def not_too_old(self):
         """Returns wether the part should be replaced cause of age"""
         buy_time = timezone.make_aware(datetime.combine(self.buy_date,

@@ -42,7 +42,8 @@ class NotTooOldFilter(SimpleListFilter):
 class MaterialAdmin(admin.ModelAdmin):
     """Edit view of a MaterialPart"""
 
-    list_display = ('name', 'description', 'quantity_real', 'buy_date', 'lifetime', 'not_too_old', 'photo')
+    list_display = ('name', 'description', 'quantity_real', 'buy_date',
+                    'lifetime', 'not_too_old', 'admin_thumbnail')
     inlines = [OwnershipInline]
     list_filter = (NotTooOldFilter,)
 
