@@ -4,6 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import render
 from django.db import models
 from django import forms
+from easy_select2 import apply_select2
 
 from .models import Message, Attachment, MessageForm
 from .mailutils import NOT_SENT, PARTLY_SENT
@@ -19,7 +20,8 @@ class MessageAdmin(admin.ModelAdmin):
     list_display = ('subject', 'get_recipients', 'sent')
     change_form_template = "mailer/change_form.html"
     formfield_overrides = {
-        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+        models.ForeignKey: {'widget': apply_select2(forms.Select)}
     }
 
     inlines = [AttachmentInline]

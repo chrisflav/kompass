@@ -11,13 +11,14 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import ugettext_lazy as translate
-from django.db.models import TextField, ManyToManyField
+from django.db.models import TextField, ManyToManyField, ForeignKey
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
                      KlettertreffAttendee, ActivityCategory)
 from django.conf import settings
+from easy_select2 import apply_select2
 
 
 # Register your models here.
@@ -27,7 +28,8 @@ class MemberAdmin(admin.ModelAdmin):
     list_display = ('name', 'birth_date', 'gets_newsletter', 'get_group', 'queue', 'created', 'comments')
     list_filter = ('group', 'gets_newsletter', 'queue')
     formfield_overrides = {
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+        ForeignKey: {'widget': apply_select2(forms.Select)}
     }
     change_form_template = "members/change_member.html"
 
@@ -71,9 +73,10 @@ class MemberOnListInline(admin.StackedInline):
     model = MemberOnList
     extra = 0
     formfield_overrides = {
-    TextField: {'widget': Textarea(
-                           attrs={'rows': 1,
-                                  'cols': 40})},
+        TextField: {'widget': Textarea(attrs={'rows': 1,
+                                              'cols': 40})},
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+        ForeignKey: {'widget': apply_select2(forms.Select)}
     }
 
 
@@ -83,7 +86,8 @@ class MemberListAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'date']
     actions = ['convert_to_pdf', 'generate_notes']
     formfield_overrides = {
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+        ForeignKey: {'widget': apply_select2(forms.Select)}
     }
 
     def __init__(self, *args, **kwargs):
@@ -309,6 +313,10 @@ class KlettertreffAttendeeInline(admin.StackedInline):
     model = KlettertreffAttendee
     form = KlettertreffAttendeeInlineForm
     extra = 0
+    formfield_overrides = {
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+        ForeignKey: {'widget': apply_select2(forms.Select)}
+    }
 
 
 class KlettertreffAdmin(admin.ModelAdmin):
@@ -337,7 +345,8 @@ class KlettertreffAdmin(admin.ModelAdmin):
                       context)
 
     formfield_overrides = {
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+        ForeignKey: {'widget': apply_select2(forms.Select)}
     }
 
 
