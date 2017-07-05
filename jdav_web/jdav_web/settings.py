@@ -31,8 +31,10 @@ DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOST', '').split(",")
 
 # Define media paths e.g. for image storage
-MEDIA_ROOT = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 MEDIA_URL = '/media/'
+MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT',
+			    os.path.join((os.path.join(BASE_DIR, os.pardir)), "media"))
+MEDIA_MEMBERLISTS = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 
 # x forward
 

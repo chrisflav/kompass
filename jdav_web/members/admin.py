@@ -360,8 +360,8 @@ admin.site.register(ActivityCategory, ActivityCategoryAdmin)
 
 
 def media_path(fp):
-    return os.path.join(os.path.join(settings.MEDIA_ROOT, "memberlists"), fp)
+    return os.path.join(os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists"), fp)
 
 
 def media_dir():
-    return os.path.join(settings.MEDIA_ROOT, "memberlists")
+    return os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists")
