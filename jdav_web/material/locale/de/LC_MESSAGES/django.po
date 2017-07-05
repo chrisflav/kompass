@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-07-05 10:06+0000\n"
+"POT-Creation-Date: 2017-07-05 19:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,74 +18,82 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: material/admin.py:25
+#: admin.py:25
 msgid "Age"
 msgstr "Alter"
 
-#: material/admin.py:30
+#: admin.py:30
 msgid "Not too old"
 msgstr "Nicht zu alt"
 
-#: material/admin.py:31
+#: admin.py:31
 msgid "Too old"
 msgstr "Zu alt"
 
-#: material/apps.py:7
+#: apps.py:7
 msgid "material"
 msgstr "Material"
 
-#: material/models.py:17
+#: models.py:17
 msgid "name"
 msgstr "Name"
 
-#: material/models.py:18
+#: models.py:18
 msgid "description"
 msgstr "Beschreibung"
 
-#: material/models.py:19
+#: models.py:19
 msgid "quantity"
 msgstr "Anzahl"
 
-#: material/models.py:20
+#: models.py:20
 msgid "purchase date"
 msgstr "Kaufdatum"
 
-#: material/models.py:21
+#: models.py:21
 msgid "lifetime (years)"
 msgstr "Lebenszeit (Jahre)"
 
-#: material/models.py:22
+#: models.py:22
 msgid "photo"
 msgstr "Bild"
 
-#: material/models.py:33
+#: models.py:33
 msgid "Quantity"
 msgstr "Anzahl"
 
-#: material/models.py:43
+#: models.py:40
+msgid "Thumbnail"
+msgstr "Bild"
+
+#: models.py:49
+msgid "Owners"
+msgstr "Verantwortliche"
+
+#: models.py:59
 msgid "Not too old?"
 msgstr "Nicht zu alt?"
 
-#: material/models.py:46
+#: models.py:62
 msgid "material part"
 msgstr "Materialteil"
 
-#: material/models.py:47
+#: models.py:63
 msgid "material parts"
 msgstr "Materialteile"
 
-#: material/models.py:53
+#: models.py:69
 msgid "owner"
 msgstr "Besitzer"
 
-#: material/models.py:54
+#: models.py:70
 msgid "count"
 msgstr "Anzahl"
 
-#: material/models.py:61
+#: models.py:77
 msgid "ownership"
 msgstr "Besitzer"
 
-#: material/models.py:62
+#: models.py:78
 msgid "ownerships"
 msgstr "Verantwortliche"

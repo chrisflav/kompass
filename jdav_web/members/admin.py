@@ -71,7 +71,7 @@ class MemberListAdminForm(forms.ModelForm):
         #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
 
 
-class MemberOnListInline(admin.StackedInline):
+class MemberOnListInline(admin.TabularInline):
     model = MemberOnList
     extra = 0
     formfield_overrides = {
@@ -91,6 +91,9 @@ class MemberListAdmin(admin.ModelAdmin):
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
         ForeignKey: {'widget': apply_select2(forms.Select)}
     }
+
+    class Media:
+        css = {'all': ('admin/css/tabular_hide_original.css',)}
 
     def __init__(self, *args, **kwargs):
         super(MemberListAdmin, self).__init__(*args, **kwargs)
@@ -311,7 +314,7 @@ class KlettertreffAttendeeInlineForm(forms.ModelForm):
         self.fields['member'].queryset = Member.objects.filter(group__name='J1')
     """
 
-class KlettertreffAttendeeInline(admin.StackedInline):
+class KlettertreffAttendeeInline(admin.TabularInline):
     model = KlettertreffAttendee
     form = KlettertreffAttendeeInlineForm
     extra = 0
@@ -350,6 +353,9 @@ class KlettertreffAdmin(admin.ModelAdmin):
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
         ForeignKey: {'widget': apply_select2(forms.Select)}
     }
+
+    class Media:
+        css = {'all': ('admin/css/tabular_hide_original.css',)}
 
 
 admin.site.register(Member, MemberAdmin)

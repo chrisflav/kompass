@@ -10,7 +10,7 @@ from .models import Message, Attachment, MessageForm
 from .mailutils import NOT_SENT, PARTLY_SENT
 
 
-class AttachmentInline(admin.StackedInline):
+class AttachmentInline(admin.TabularInline):
     model = Attachment
     extra = 0
 
@@ -51,6 +51,9 @@ class MessageAdmin(admin.ModelAdmin):
         if "_send" in request.POST:
             submit_message(obj, request)
         return super(MessageAdmin, self).response_add(request, obj)
+
+    class Media:
+        css = {'all': ('admin/css/tabular_hide_original.css',)}
 
 
 def submit_message(msg, request):
