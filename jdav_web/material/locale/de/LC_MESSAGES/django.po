@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-01-14 17:13+0100\n"
+"POT-Creation-Date: 2017-07-05 10:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,15 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: material/admin.py:19
+#: material/admin.py:25
 msgid "Age"
 msgstr "Alter"
 
-#: material/admin.py:24
+#: material/admin.py:30
 msgid "Not too old"
 msgstr "Nicht zu alt"
 
-#: material/admin.py:25
+#: material/admin.py:31
 msgid "Too old"
 msgstr "Zu alt"
 
@@ -39,49 +39,53 @@ msgid "name"
 msgstr "Name"
 
 #: material/models.py:18
+msgid "description"
+msgstr "Beschreibung"
+
+#: material/models.py:19
 msgid "quantity"
 msgstr "Anzahl"
 
-#: material/models.py:19
+#: material/models.py:20
 msgid "purchase date"
 msgstr "Kaufdatum"
 
-#: material/models.py:20
+#: material/models.py:21
 msgid "lifetime (years)"
 msgstr "Lebenszeit (Jahre)"
 
-#: material/models.py:21
+#: material/models.py:22
 msgid "photo"
 msgstr "Bild"
 
-#: material/models.py:32
+#: material/models.py:33
 msgid "Quantity"
 msgstr "Anzahl"
 
-#: material/models.py:42
+#: material/models.py:43
 msgid "Not too old?"
 msgstr "Nicht zu alt?"
 
-#: material/models.py:45
+#: material/models.py:46
 msgid "material part"
 msgstr "Materialteil"
 
-#: material/models.py:46
+#: material/models.py:47
 msgid "material parts"
 msgstr "Materialteile"
 
-#: material/models.py:52
+#: material/models.py:53
 msgid "owner"
 msgstr "Besitzer"
 
-#: material/models.py:53
+#: material/models.py:54
 msgid "count"
 msgstr "Anzahl"
 
-#: material/models.py:60
-msgid "ownership"
-msgstr "Besitztum"
-
 #: material/models.py:61
+msgid "ownership"
+msgstr "Besitzer"
+
+#: material/models.py:62
 msgid "ownerships"
-msgstr "Besitztümer"
+msgstr "Verantwortliche"

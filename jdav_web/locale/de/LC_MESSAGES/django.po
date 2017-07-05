@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-01-14 17:13+0100\n"
+"POT-Creation-Date: 2017-07-05 10:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,6 +18,30 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: templates/admin/base.html:32
+msgid "Welcome,"
+msgstr "Willkommen"
+
+#: templates/admin/base.html:37
+msgid "View site"
+msgstr "Seite anzeigen"
+
+#: templates/admin/base.html:42
+msgid "Documentation"
+msgstr "Dokumentation"
+
+#: templates/admin/base.html:46
+msgid "Change password"
+msgstr "Passwort ändern"
+
+#: templates/admin/base.html:48
+msgid "Log out"
+msgstr "Abmelden"
+
+#: templates/admin/base.html:58
+msgid "Home"
+msgstr "Home"
+
 #: templates/admin/base_site.html:5 templates/admin/base_site.html:9
-msgid "JDAV Administration"
-msgstr "JDAV Verwaltung"
+msgid "JDAV LB Administration"
+msgstr "JDAV LB Verwaltung"

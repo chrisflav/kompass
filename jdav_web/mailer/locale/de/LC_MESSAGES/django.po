@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-01-14 17:13+0100\n"
+"POT-Creation-Date: 2017-07-05 10:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,19 +18,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: mailer/admin.py:32
-msgid "Message sent"
-msgstr "Nachricht gesendet"
-
-#: mailer/admin.py:40
+#: mailer/admin.py:43
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: mailer/admin.py:45 mailer/admin.py:53
+#: mailer/admin.py:59
 msgid "Failed to send message"
-msgstr "Fehler beim senden der Email"
+msgstr "Fehler beim Senden der Email"
 
-#: mailer/admin.py:47 mailer/admin.py:55
+#: mailer/admin.py:61
+msgid "Failed to send some messages"
+msgstr "Fehler beim Senden der Emails"
+
+#: mailer/admin.py:63
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
@@ -38,55 +38,72 @@ msgstr "Email wurde erfolgreich verschickt"
 msgid "mailer"
 msgstr "Verteiler"
 
-#: mailer/models.py:34
-msgid "from email"
-msgstr "Von Email"
-
-#: mailer/models.py:35
+#: mailer/models.py:39
 msgid "subject"
 msgstr "Betreff"
 
-#: mailer/models.py:36
+#: mailer/models.py:40
 msgid "content"
 msgstr "Inhalt"
 
-#: mailer/models.py:38
+#: mailer/models.py:42
 msgid "to group"
 msgstr "An Gruppe"
 
-#: mailer/models.py:39
+#: mailer/models.py:45
+msgid "to member list"
+msgstr "An Teilnehmerliste"
+
+#: mailer/models.py:49
+msgid "to member"
+msgstr "An Teilnehmer"
+
+#: mailer/models.py:52
+msgid "reply to"
+msgstr "Antwort an"
+
+#: mailer/models.py:56
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py:46
+#: mailer/models.py:68
+msgid "Some other members"
+msgstr "Andere Teilnehmer"
+
+#: mailer/models.py:70
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:74
+#: mailer/models.py:105
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:75
+#: mailer/models.py:106
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:77
+#: mailer/models.py:108
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py:86
+#: mailer/models.py:123
+msgid ""
+"Either a group, a memberlist or at least one member is required as recipient"
+msgstr "Es muss entweder eine Gruppe, eine Teilnehmerliste oder mindestens ein Teilnehmer als Empfänger ausgewählt werden."
+
+#: mailer/models.py:131
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py:92
+#: mailer/models.py:137
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py:95
+#: mailer/models.py:140
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py:96
+#: mailer/models.py:141
 msgid "attachments"
 msgstr "Anhänge"
 
@@ -129,7 +146,7 @@ msgstr "Bestätigungsmail gesendet an"
 
 #: mailer/templates/mailer/confirmation_sent.html:7
 msgid "Follow the link in your mail to confirm your unsubscription."
-msgstr ""
+msgstr "Folge dem Link in der Email, um die Abmeldung zu bestätigen."
 
 #: mailer/templates/mailer/index.html:2
 msgid "This is the mailer app!"
@@ -207,6 +224,12 @@ msgstr "Bitte jedes Feld ausfüllen!"
 #: mailer/views.py:91
 msgid "Member already exists"
 msgstr "Mitglied schon vorhanden"
+
+#~ msgid "Message sent"
+#~ msgstr "Nachricht gesendet"
+
+#~ msgid "from email"
+#~ msgstr "Von Email"
 
 #~ msgid "Confirmation of unsubscription"
 #~ msgstr "Abmeldebestätigung"
