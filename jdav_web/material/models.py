@@ -34,7 +34,7 @@ class MaterialPart(models.Model):
 
     def admin_thumbnail(self):
         if self.photo:
-            return '<a href="{0}"><img src="{0}" height="40"></a>'.format(self.photo.url)
+            return '<a href="{0}"><img src="{0}" height="60" style="image-orientation: from-image;"></a>'.format(self.photo.url)
         else:
             return '<i>kein Bild</i>'
     admin_thumbnail.short_description = _('Thumbnail')
