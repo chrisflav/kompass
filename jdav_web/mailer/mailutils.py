@@ -17,7 +17,7 @@ def send(subject, content, sender, recipients, reply_to=None,
     else:
         kwargs = {}
     with mail.get_connection() as connection:
-        for recipient in recipients:
+        for recipient in set(recipients):
             email = EmailMessage(subject, content, sender, [recipient],
                                  connection=connection, **kwargs)
             if attachments is not None:
