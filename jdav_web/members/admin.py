@@ -23,7 +23,7 @@ from easy_select2 import apply_select2
 
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
+    fields = ['prename', 'lastname', 'email', 'email_parents', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
               'gets_newsletter', 'queue', 'registration_form', 'comments']
     list_display = ('name', 'birth_date', 'gets_newsletter', 'get_group', 'queue', 'created', 'comments')
     list_filter = ('group', 'gets_newsletter', 'queue')
