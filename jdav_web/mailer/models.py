@@ -87,9 +87,12 @@ class Message(models.Model):
         print("sending mail to", filtered)
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
+        emails = [member.email for member in filtered]
+        emails.extend([member.email_parents for member in filtered
+                       if member.email_parents])
         success = send(self.subject, get_content(self.content),
                        SENDING_ADDRESS,
-                       [member.email for member in filtered],
+                       emails,
                        attachments=attach,
                        reply_to=self.reply_to.email if self.reply_to else None)
         for a in Attachment.objects.filter(msg__id=self.pk):
