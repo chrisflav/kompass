@@ -90,6 +90,9 @@ class Message(models.Model):
         emails = [member.email for member in filtered]
         emails.extend([member.email_parents for member in filtered
                        if member.email_parents])
+        # remove any underscores from subject to prevent Arne from using
+        # terrible looking underscores in subjects
+        self.subject = self.subject.replace('_', ' ')
         success = send(self.subject, get_content(self.content),
                        SENDING_ADDRESS,
                        emails,
