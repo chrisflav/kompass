@@ -122,7 +122,7 @@ class MemberListAdmin(admin.ModelAdmin):
                             memberonlist.member.lastname, memberonlist.member.street,
                             memberonlist.member.town, memberonlist.member.phone_number,
                             memberonlist.member.email)
-                    f.write(line)
+                    f.write(line.replace('_', '\_'))
 
             # copy and adapt latex memberlist template
             shutil.copy(media_path('memberlist_template.tex'),
