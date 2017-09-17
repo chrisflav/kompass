@@ -122,7 +122,7 @@ class MemberListAdmin(admin.ModelAdmin):
                             memberonlist.member.lastname, memberonlist.member.street,
                             memberonlist.member.town, memberonlist.member.phone_number,
                             memberonlist.member.email)
-                    f.write(line.replace('_', '\_'))
+                    f.write(esc_underscore(line))
 
             # copy and adapt latex memberlist template
             shutil.copy(media_path('memberlist_template.tex'),
@@ -133,11 +133,17 @@ class MemberListAdmin(admin.ModelAdmin):
                 template_content = f.read()
 
             # adapt template
-            template_content = template_content.replace('ACTIVITY', memberlist.name)
-            groups = ', '.join(g.name for g in memberlist.groups.all())
-            template_content = template_content.replace('GROUP', groups)
-            template_content = template_content.replace('DESTINATION', memberlist.destination)
-            template_content = template_content.replace('PLACE', memberlist.place)
+            name = esc_underscore(memberlist.name)
+            template_content = template_content.replace('ACTIVITY', name)
+            groups = ', '.join(g.name for g in
+                               memberlist.groups.all())
+            template_content = template_content.replace('GROUP',
+                                                        esc_underscore(groups))
+            destination = esc_underscore(memberlist.destination)
+            template_content = template_content.replace('DESTINATION',
+                                                        destination)
+            place = esc_underscore(memberlist.place)
+            template_content = template_content.replace('PLACE', place)
             template_content = template_content.replace('MEMBERLIST-DATE',
                                                         datetime.today().strftime('%d.%m.%Y'))
             time_period = memberlist.date.strftime('%d.%m.%Y')
@@ -220,7 +226,7 @@ class MemberListAdmin(admin.ModelAdmin):
                     m.prename, m.lastname,
                     ", ".join(qualities), comment or "---",
                     )
-                table += line
+                table += esc_underscore(line)
 
             table_qualities = ""
             for activity in activities:
@@ -236,7 +242,7 @@ class MemberListAdmin(admin.ModelAdmin):
                     skill_min,
                     skill_max
                     )
-                table_qualities += line
+                table_qualities += esc_underscore(line)
 
             # copy template
             shutil.copy(media_path('membernote_template.tex'),
@@ -247,11 +253,15 @@ class MemberListAdmin(admin.ModelAdmin):
                 template_content = f.read()
 
             # adapt template
-            template_content = template_content.replace('ACTIVITY', memberlist.name)
+            name = esc_underscore(memberlist.name)
+            template_content = template_content.replace('ACTIVITY', name)
             groups = ', '.join(g.name for g in memberlist.groups.all())
-            template_content = template_content.replace('GROUP', groups)
-            template_content = template_content.replace('DESTINATION', memberlist.destination)
-            template_content = template_content.replace('PLACE', memberlist.place)
+            template_content = template_content.replace('GROUP',
+                                                        esc_underscore(groups))
+            destination = esc_underscore(memberlist.destination)
+            template_content = template_content.replace('DESTINATION', destination)
+            place = esc_underscore(memberlist.place)
+            template_content = template_content.replace('PLACE', place)
             template_content = template_content.replace('MEMBERLIST-DATE',
                     datetime.today().strftime('%d.%m.%Y'))
             time_period = memberlist.date.strftime('%d.%m.%Y')
@@ -371,3 +381,7 @@ def media_path(fp):
 
 def media_dir():
     return os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists")
+
+
+def esc_underscore(txt):
+    return txt.replace('_', '\_')
