@@ -196,6 +196,7 @@ class MemberListAdmin(admin.ModelAdmin):
                 response['Content-Disposition'] = 'attachment; filename='+filename_pdf
 
             return response
+    convert_to_pdf.short_description = _('Convert to PDF')
 
     def generate_notes(self, request, queryset):
         """Generates a short note for the jugendleiter"""
@@ -301,6 +302,7 @@ class MemberListAdmin(admin.ModelAdmin):
                 response['Content-Disposition'] = 'attachment; filename=' + filename_pdf
 
             return response
+    generate_notes.short_description = _('Generate overview')
 
 
 class KlettertreffAdminForm(forms.ModelForm):

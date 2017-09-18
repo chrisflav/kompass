@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-07-12 18:16+0200\n"
+"POT-Creation-Date: 2017-09-18 17:27+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,6 +25,14 @@ msgstr "Schwierigkeit"
 #: admin.py:62
 msgid "Tour type"
 msgstr "Art der Tour"
+
+#: admin.py:199
+msgid "Convert to PDF"
+msgstr "Kriseninterventionsliste erstellen"
+
+#: admin.py:305
+msgid "Generate overview"
+msgstr "Hinweise für Jugendleiter erstellen"
 
 #: apps.py:7 models.py:105
 msgid "members"
