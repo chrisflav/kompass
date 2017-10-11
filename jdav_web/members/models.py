@@ -51,8 +51,8 @@ class Member(models.Model):
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
     street = models.CharField(max_length=30, verbose_name=_('street'), default='', blank=True)
     town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
-    phone_number = models.CharField(max_length=12, verbose_name=_('phone number'), default='', blank=True)
-    phone_number_parents = models.CharField(max_length=12, verbose_name=_('parents phone number'), default='', blank=True)
+    phone_number = models.CharField(max_length=18, verbose_name=_('phone number'), default='', blank=True)
+    phone_number_parents = models.CharField(max_length=18, verbose_name=_('parents phone number'), default='', blank=True)
     email = models.EmailField(max_length=100, default="")
     email_parents = models.EmailField(max_length=100, default="", blank=True,
                                       verbose_name=_("Parents' Email"))
