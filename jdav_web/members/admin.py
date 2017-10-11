@@ -62,7 +62,8 @@ class RegistrationFilter(admin.SimpleListFilter):
 
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'email_parents', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
+    fields = ['prename', 'lastname', 'email', 'email_parents', 'street', 'plz',
+              'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
               'gets_newsletter', 'registered', 'registration_form', 'comments']
     list_display = ('name', 'birth_date', 'get_group', 'gets_newsletter',
                     'registered', 'created', 'comments')
@@ -162,7 +163,7 @@ class MemberListAdmin(admin.ModelAdmin):
                     line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(
                             memberonlist.member.prename,
                             memberonlist.member.lastname, memberonlist.member.street,
-                            memberonlist.member.town, memberonlist.member.phone_number,
+                            memberonlist.member.place, memberonlist.member.phone_number,
                             memberonlist.member.email)
                     f.write(esc_underscore(line))
 

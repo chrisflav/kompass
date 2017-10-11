@@ -50,6 +50,8 @@ class Member(models.Model):
     prename = models.CharField(max_length=20, verbose_name=_('prename'))
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
     street = models.CharField(max_length=30, verbose_name=_('street'), default='', blank=True)
+    plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
+                           default='', blank=True)
     town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
     phone_number = models.CharField(max_length=18, verbose_name=_('phone number'), default='', blank=True)
     phone_number_parents = models.CharField(max_length=18, verbose_name=_('parents phone number'), default='', blank=True)
@@ -92,6 +94,11 @@ class Member(models.Model):
     def name(self):
         """Returning whole name (prename + lastname)"""
         return "{0} {1}".format(self.prename, self.lastname)
+
+    @property
+    def place(self):
+        """Returning the whole place (plz + town)"""
+        return "{0} {1}".format(self.plz, self.town)
 
     def get_group(self):
         """Returns a string of groups in which the member is."""
