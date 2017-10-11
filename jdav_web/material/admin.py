@@ -4,8 +4,12 @@ from django.contrib.admin import SimpleListFilter
 from django.db import models
 from django import forms
 
-from .models import MaterialPart, Ownership
+from .models import MaterialPart, Ownership, MaterialCategory
 from easy_select2 import apply_select2
+
+
+class MaterialCategoryAdmin(admin.ModelAdmin):
+    fields = ['name']
 
 
 # Register your models here.
@@ -44,11 +48,16 @@ class MaterialAdmin(admin.ModelAdmin):
     list_display = ('name', 'description', 'quantity_real',
                     'ownership_overview', 'buy_date',
                     'lifetime', 'not_too_old', 'admin_thumbnail')
+    search_fields = ('name', 'description')
     inlines = [OwnershipInline]
-    list_filter = (NotTooOldFilter,)
+    list_filter = (NotTooOldFilter, 'material_cat')
+    formfield_overrides = {
+        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+    }
 
     class Media:
         css = {'all': ('admin/css/tabular_hide_original.css',)}
 
 
+admin.site.register(MaterialCategory, MaterialCategoryAdmin)
 admin.site.register(MaterialPart, MaterialAdmin)

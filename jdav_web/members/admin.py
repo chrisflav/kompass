@@ -21,12 +21,54 @@ from django.conf import settings
 from easy_select2 import apply_select2
 
 
+class RegistrationFilter(admin.SimpleListFilter):
+    title = _('Registration complete')
+    parameter_name = 'registered'
+    default_value = ('All', None)
+
+    def lookups(self, request, model_admin):
+        return (
+            ('True', _('True')),
+            ('False', _('False')),
+            ('All', _('All'))
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'True':
+            return queryset.filter(registered=True)
+        elif self.value() == 'False':
+            return queryset.filter(registered=False)
+        elif self.value() is None:
+            if self.default_value[1] is None:
+                return queryset
+            else:
+                return queryset.filter(registered=self.default_value[1])
+        elif self.value() == 'All':
+            return queryset
+
+    def choices(self, cl):
+        for lookup, title in self.lookup_choices:
+            yield {
+                'selected':
+                    self.value() == lookup or
+                    (self.value() is None and lookup == self.default_value[0]),
+                'query_string': cl.get_query_string({
+                                    self.parameter_name:
+                                    lookup,
+                                }, []),
+                'display': title
+            }
+
+
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'email_parents', 'street', 'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
-              'gets_newsletter', 'queue', 'registration_form', 'comments']
-    list_display = ('name', 'birth_date', 'gets_newsletter', 'get_group', 'queue', 'created', 'comments')
-    list_filter = ('group', 'gets_newsletter', 'queue')
+    fields = ['prename', 'lastname', 'email', 'email_parents', 'street', 'plz',
+              'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
+              'gets_newsletter', 'registered', 'registration_form', 'comments']
+    list_display = ('name', 'birth_date', 'get_group', 'gets_newsletter',
+                    'registered', 'created', 'comments')
+    search_fields = ('prename', 'lastname')
+    list_filter = ('group', 'gets_newsletter', RegistrationFilter)
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
         ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -86,6 +128,7 @@ class MemberListAdmin(admin.ModelAdmin):
     inlines = [MemberOnListInline]
     form = MemberListAdminForm
     list_display = ['__str__', 'date']
+    search_fields = ('name',)
     actions = ['convert_to_pdf', 'generate_notes']
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
@@ -120,7 +163,7 @@ class MemberListAdmin(admin.ModelAdmin):
                     line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(
                             memberonlist.member.prename,
                             memberonlist.member.lastname, memberonlist.member.street,
-                            memberonlist.member.town, memberonlist.member.phone_number,
+                            memberonlist.member.place, memberonlist.member.phone_number,
                             memberonlist.member.email)
                     f.write(esc_underscore(line))
 
@@ -341,6 +384,7 @@ class KlettertreffAdmin(admin.ModelAdmin):
     exclude = []
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
+    search_fields = ('date', 'location', 'topic')
     list_filter = [('date', DateFieldListFilter), 'group__name']
     actions = ['overview']
 
