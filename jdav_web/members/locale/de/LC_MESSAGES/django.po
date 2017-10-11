@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-10-11 11:50+0200\n"
+"POT-Creation-Date: 2017-10-11 12:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,19 +18,35 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin.py:59
+#: admin.py:25 models.py:67
+msgid "Registration complete"
+msgstr "Anmeldung vollständig"
+
+#: admin.py:31
+msgid "True"
+msgstr "Ja"
+
+#: admin.py:32
+msgid "False"
+msgstr "Nein"
+
+#: admin.py:33
+msgid "All"
+msgstr "Alle"
+
+#: admin.py:98
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: admin.py:63
+#: admin.py:102
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: admin.py:200
+#: admin.py:239
 msgid "Convert to PDF"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: admin.py:306
+#: admin.py:345
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
@@ -113,10 +129,6 @@ msgstr "Kommentare"
 #: models.py:66
 msgid "created"
 msgstr "erstellt"
-
-#: models.py:67
-msgid "Registration complete"
-msgstr "Anmeldung vollständig"
 
 #: models.py:68
 msgid "registration form"
