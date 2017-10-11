@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-07-05 19:07+0200\n"
+"POT-Creation-Date: 2017-10-11 13:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,15 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin.py:25
+#: admin.py:29
 msgid "Age"
 msgstr "Alter"
 
-#: admin.py:30
+#: admin.py:34
 msgid "Not too old"
 msgstr "Nicht zu alt"
 
-#: admin.py:31
+#: admin.py:35
 msgid "Too old"
 msgstr "Zu alt"
 
@@ -34,66 +34,82 @@ msgstr "Zu alt"
 msgid "material"
 msgstr "Material"
 
-#: models.py:17
+#: models.py:15
+msgid "Name"
+msgstr "Name"
+
+#: models.py:16
+msgid "Description"
+msgstr "Beschreibung"
+
+#: models.py:22 models.py:39
+msgid "Material category"
+msgstr "Materialart"
+
+#: models.py:23
+msgid "Material categories"
+msgstr "Materialarten"
+
+#: models.py:32
 msgid "name"
 msgstr "Name"
 
-#: models.py:18
+#: models.py:33
 msgid "description"
 msgstr "Beschreibung"
 
-#: models.py:19
+#: models.py:34
 msgid "quantity"
 msgstr "Anzahl"
 
-#: models.py:20
+#: models.py:35
 msgid "purchase date"
 msgstr "Kaufdatum"
 
-#: models.py:21
+#: models.py:36
 msgid "lifetime (years)"
 msgstr "Lebenszeit (Jahre)"
 
-#: models.py:22
+#: models.py:37
 msgid "photo"
 msgstr "Bild"
 
-#: models.py:33
+#: models.py:50
 msgid "Quantity"
 msgstr "Anzahl"
 
-#: models.py:40
+#: models.py:57
 msgid "Thumbnail"
 msgstr "Bild"
 
-#: models.py:49
+#: models.py:66
 msgid "Owners"
 msgstr "Verantwortliche"
 
-#: models.py:59
+#: models.py:76
 msgid "Not too old?"
 msgstr "Nicht zu alt?"
 
-#: models.py:62
+#: models.py:79
 msgid "material part"
 msgstr "Materialteil"
 
-#: models.py:63
+#: models.py:80
 msgid "material parts"
 msgstr "Materialteile"
 
-#: models.py:69
+#: models.py:86
 msgid "owner"
 msgstr "Besitzer"
 
-#: models.py:70
+#: models.py:87
 msgid "count"
 msgstr "Anzahl"
 
-#: models.py:77
+#: models.py:94
 msgid "ownership"
 msgstr "Besitzer"
 
-#: models.py:78
+#: models.py:95
 msgid "ownerships"
 msgstr "Verantwortliche"

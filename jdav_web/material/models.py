@@ -8,6 +8,20 @@ from django.utils.translation import ugettext_lazy as _
 MAX_TIME_MATERIAL = 5
 
 
+class MaterialCategory(models.Model):
+    """
+    Describes one kind of material
+    """
+    name = models.CharField(max_length=40, verbose_name=_('Name'))
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = _('Material category')
+        verbose_name_plural = _('Material categories')
+
+
 # Create your models here.
 class MaterialPart(models.Model):
     """
@@ -20,6 +34,8 @@ class MaterialPart(models.Model):
     buy_date = models.DateField(_('purchase date'), editable=True)
     lifetime = models.DecimalField(_('lifetime (years)'), decimal_places=0, max_digits=3)
     photo = models.ImageField(_('photo'), upload_to='images', blank=True)
+    material_cat = models.ManyToManyField(MaterialCategory, default=None,
+                                          verbose_name=_('Material category'))
 
     def __str__(self):
         """String representation"""
