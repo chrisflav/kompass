@@ -64,7 +64,7 @@ class Member(models.Model):
     unsubscribe_expire = models.DateTimeField(default=timezone.now)
     comments = models.TextField(_('comments'), default='', blank=True)
     created = models.DateField(auto_now=True, verbose_name=_('created'))
-    queue = models.BooleanField(default=False, verbose_name=_('queue'))
+    registered = models.BooleanField(default=False, verbose_name=_('Registration complete'))
     registration_form = models.ImageField(verbose_name=_('registration form'), blank=True)
 
     def __str__(self):
