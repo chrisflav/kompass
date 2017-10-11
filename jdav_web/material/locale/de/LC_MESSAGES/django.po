@@ -44,11 +44,11 @@ msgstr "Beschreibung"
 
 #: models.py:22 models.py:39
 msgid "Material category"
-msgstr "Materialart"
+msgstr "Materialtyp"
 
 #: models.py:23
 msgid "Material categories"
-msgstr "Materialarten"
+msgstr "Materialtypen"
 
 #: models.py:32
 msgid "name"
