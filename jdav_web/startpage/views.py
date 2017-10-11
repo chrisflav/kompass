@@ -1,6 +1,6 @@
-from django.shortcuts import render
+from django.shortcuts import redirect
 
 
 # Create your views here.
 def index(request):
-    return render(request, 'startpage/index.html')
+    return redirect('http://www.alpenverein-ludwigsburg.de/index.php?id=122')
