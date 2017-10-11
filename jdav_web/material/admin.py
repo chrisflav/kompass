@@ -48,6 +48,7 @@ class MaterialAdmin(admin.ModelAdmin):
     list_display = ('name', 'description', 'quantity_real',
                     'ownership_overview', 'buy_date',
                     'lifetime', 'not_too_old', 'admin_thumbnail')
+    search_fields = ('name', 'description')
     inlines = [OwnershipInline]
     list_filter = (NotTooOldFilter, 'material_cat')
     formfield_overrides = {

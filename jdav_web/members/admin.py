@@ -66,6 +66,7 @@ class MemberAdmin(admin.ModelAdmin):
               'gets_newsletter', 'registered', 'registration_form', 'comments']
     list_display = ('name', 'birth_date', 'get_group', 'gets_newsletter',
                     'registered', 'created', 'comments')
+    search_fields = ('prename', 'lastname')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter)
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
@@ -126,6 +127,7 @@ class MemberListAdmin(admin.ModelAdmin):
     inlines = [MemberOnListInline]
     form = MemberListAdminForm
     list_display = ['__str__', 'date']
+    search_fields = ('name',)
     actions = ['convert_to_pdf', 'generate_notes']
     formfield_overrides = {
         ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
@@ -381,6 +383,7 @@ class KlettertreffAdmin(admin.ModelAdmin):
     exclude = []
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
+    search_fields = ('date', 'location', 'topic')
     list_filter = [('date', DateFieldListFilter), 'group__name']
     actions = ['overview']
 

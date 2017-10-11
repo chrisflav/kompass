@@ -18,6 +18,7 @@ class AttachmentInline(admin.TabularInline):
 class MessageAdmin(admin.ModelAdmin):
     """Message creation view"""
     list_display = ('subject', 'get_recipients', 'sent')
+    search_fields = ('subject',)
     change_form_template = "mailer/change_form.html"
     formfield_overrides = {
         models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
