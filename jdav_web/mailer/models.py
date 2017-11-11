@@ -4,33 +4,12 @@ from django import forms
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext
 from .mailutils import send, get_content, SENT, PARTLY_SENT, mail_root
+from utils import RestrictedFileField
 
 import os
 
 # this is the mail address that is used to send mails
 SENDING_ADDRESS = mail_root
-
-
-class RestrictedFileField(models.FileField):
-
-    def __init__(self, *args, **kwargs):
-        if "max_upload_size" in kwargs:
-            self.max_upload_size = kwargs.pop("max_upload_size")
-
-        super(RestrictedFileField, self).__init__(*args, **kwargs)
-
-    def clean(self, *args, **kwargs):
-        data = super(RestrictedFileField, self).clean(*args, **kwargs)
-        f = data.file
-        try:
-            if f._size > self.max_upload_size:
-                raise forms.ValidationError('Please keep filesize under {}. '
-                                            'Current filesize: '
-                                            '{}'.format(self.max_upload_size,
-                                                        f._size))
-        except AttributeError as e:
-            print(e)
-        return data
 
 
 # Create your models here.

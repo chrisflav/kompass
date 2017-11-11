@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
+from utils import RestrictedFileField
 
 GEMEINSCHAFTS_TOUR = 0
 FUEHRUNGS_TOUR = 1
@@ -67,7 +68,14 @@ class Member(models.Model):
     comments = models.TextField(_('comments'), default='', blank=True)
     created = models.DateField(auto_now=True, verbose_name=_('created'))
     registered = models.BooleanField(default=False, verbose_name=_('Registration complete'))
-    registration_form = models.ImageField(verbose_name=_('registration form'), blank=True)
+    registration_form = RestrictedFileField(verbose_name=_('registration form'),
+                                            upload_to='registration_forms',
+                                            blank=True,
+                                            max_upload_size=5242880,
+                                            content_types=['application/pdf',
+                                                           'image/jpeg',
+                                                           'image/png',
+                                                           'image/gif'])
 
     def __str__(self):
         """String representation"""
