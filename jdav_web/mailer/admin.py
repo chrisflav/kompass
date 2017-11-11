@@ -53,6 +53,13 @@ class MessageAdmin(admin.ModelAdmin):
             submit_message(obj, request)
         return super(MessageAdmin, self).response_add(request, obj)
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super(MessageAdmin, self).get_form(request, obj, **kwargs)
+        members = request.GET.get('members', None)
+        if members is not None:
+            form.base_fields['to_members'].initial = members
+        return form
+
     class Media:
         css = {'all': ('admin/css/tabular_hide_original.css',)}
 

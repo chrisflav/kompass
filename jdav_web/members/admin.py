@@ -5,7 +5,7 @@ import subprocess
 import shutil
 import time
 
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
 from django import forms
 from django.contrib import admin
@@ -74,6 +74,7 @@ class MemberAdmin(admin.ModelAdmin):
         ForeignKey: {'widget': apply_select2(forms.Select)}
     }
     change_form_template = "members/change_member.html"
+    actions = ['send_mail_to']
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -82,6 +83,12 @@ class MemberAdmin(admin.ModelAdmin):
         return super(MemberAdmin, self).change_view(request, object_id,
                                                     form_url=form_url,
                                                     extra_context=extra_context)
+
+    def send_mail_to(self, request, queryset):
+        member_pks = [m.pk for m in queryset]
+        query = str(member_pks).replace(' ', '')
+        return HttpResponseRedirect("/admin/mailer/message/add/?members={}".format(query))
+    send_mail_to.short_description = _('Compose new mail to selected members')
 
 
 class GroupAdmin(admin.ModelAdmin):
