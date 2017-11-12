@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext
-from .mailutils import send, get_content, SENT, PARTLY_SENT, mail_root
+from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT, mail_root
 from utils import RestrictedFileField
 
 import os
@@ -72,17 +72,22 @@ class Message(models.Model):
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')
-        success = send(self.subject, get_content(self.content),
-                       SENDING_ADDRESS,
-                       emails,
-                       attachments=attach,
-                       reply_to=self.reply_to.email if self.reply_to else None)
-        for a in Attachment.objects.filter(msg__id=self.pk):
-            if a.f.name:
-                os.remove(a.f.path)
-            a.delete()
-        if success == SENT or success == PARTLY_SENT:
-            self.sent = True
+        try:
+            success = send(self.subject, get_content(self.content),
+                           SENDING_ADDRESS,
+                           emails,
+                           attachments=attach,
+                           reply_to=self.reply_to.email if self.reply_to else None)
+            if success == SENT or success == PARTLY_SENT:
+                self.sent = True
+            for a in Attachment.objects.filter(msg__id=self.pk):
+                if a.f.name:
+                    os.remove(a.f.path)
+                a.delete()
+        except Exception as e:
+            print("Exception catched", e)
+            success = NOT_SENT
+        finally:
             self.save()
         return success
 
