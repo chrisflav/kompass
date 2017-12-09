@@ -24,7 +24,7 @@ def send(subject, content, sender, recipients, reply_to=None,
                 for attach in attachments:
                     email.attach_file(attach)
             try:
-                email.send()
+                email.send(fail_silently=True)
             except Exception as e:
                 print("Error when sending mail:", e)
                 failed = True
