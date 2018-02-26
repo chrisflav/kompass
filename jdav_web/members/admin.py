@@ -4,6 +4,7 @@ import os
 import subprocess
 import shutil
 import time
+import unicodedata
 
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
@@ -155,6 +156,9 @@ class MemberListAdmin(admin.ModelAdmin):
             # create a unique filename
             filename = memberlist.name + "_" + datetime.today().strftime("%d_%m_%Y")
             filename = filename.replace(' ', '_')
+            # drop umlauts, accents etc.
+            filename = unicodedata.normalize('NFKD', filename).\
+                encode('ASCII', 'ignore').decode()
             filename_table = 'table_' + filename
             filename_tex = filename + '.tex'
             filename_pdf = filename + '.pdf'
@@ -254,6 +258,9 @@ class MemberListAdmin(admin.ModelAdmin):
             # unique filename
             filename = memberlist.name + "_note_" + datetime.today().strftime("%d_%m_%Y")
             filename = filename.replace(' ', '_')
+            # drop umlauts, accents etc.
+            filename = unicodedata.normalize('NFKD', filename).\
+                encode('ASCII', 'ignore').decode()
             filename_tex = filename + '.tex'
             filename_pdf = filename + '.pdf'
 
