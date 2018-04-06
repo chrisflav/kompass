@@ -5,6 +5,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext
 from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT, mail_root
 from utils import RestrictedFileField
+from jdav_web.celery import app
 
 import os
 
