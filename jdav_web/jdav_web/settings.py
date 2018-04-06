@@ -173,6 +173,4 @@ ADMINS = (('admin', 'christian@merten-moser.de'),)
 
 
 # Celery and Redis setup
-REDIS_HOST = 'localhost'
-REDIS_PORT = '6379'
-BROKER_URL = os.environ.get('BROKER_URL', 'redis://' + REDIS_HOST + ':' + REDIS_PORT + '/0')
+BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost/6379/0')
