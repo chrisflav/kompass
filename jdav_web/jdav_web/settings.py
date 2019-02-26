@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     'members.apps.MembersConfig',
     'mailer.apps.MailerConfig',
     'easy_select2',
+    'djcelery_email',
+    'djcelery',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -162,3 +164,13 @@ EMAIL_PORT = 587 if deployed else 25
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = True if deployed else False
+EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
+
+
+# Admin setup
+
+ADMINS = (('admin', 'christian@merten-moser.de'),)
+
+
+# Celery and Redis setup
+BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')

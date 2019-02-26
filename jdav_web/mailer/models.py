@@ -3,34 +3,14 @@ from django.core.exceptions import ValidationError
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext
-from .mailutils import send, get_content, SENT, PARTLY_SENT, mail_root
+from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT, mail_root
+from utils import RestrictedFileField
+from jdav_web.celery import app
 
 import os
 
 # this is the mail address that is used to send mails
 SENDING_ADDRESS = mail_root
-
-
-class RestrictedFileField(models.FileField):
-
-    def __init__(self, *args, **kwargs):
-        if "max_upload_size" in kwargs:
-            self.max_upload_size = kwargs.pop("max_upload_size")
-
-        super(RestrictedFileField, self).__init__(*args, **kwargs)
-
-    def clean(self, *args, **kwargs):
-        data = super(RestrictedFileField, self).clean(*args, **kwargs)
-        f = data.file
-        try:
-            if f._size > self.max_upload_size:
-                raise forms.ValidationError('Please keep filesize under {}. '
-                                            'Current filesize: '
-                                            '{}'.format(self.max_upload_size,
-                                                        f._size))
-        except AttributeError as e:
-            print(e)
-        return data
 
 
 # Create your models here.
@@ -93,17 +73,22 @@ class Message(models.Model):
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')
-        success = send(self.subject, get_content(self.content),
-                       SENDING_ADDRESS,
-                       emails,
-                       attachments=attach,
-                       reply_to=self.reply_to.email if self.reply_to else None)
-        for a in Attachment.objects.filter(msg__id=self.pk):
-            if a.f.name:
-                os.remove(a.f.path)
-            a.delete()
-        if success == SENT or success == PARTLY_SENT:
-            self.sent = True
+        try:
+            success = send(self.subject, get_content(self.content),
+                           SENDING_ADDRESS,
+                           emails,
+                           attachments=attach,
+                           reply_to=self.reply_to.email if self.reply_to else None)
+            if success == SENT or success == PARTLY_SENT:
+                self.sent = True
+            for a in Attachment.objects.filter(msg__id=self.pk):
+                if a.f.name:
+                    os.remove(a.f.path)
+                a.delete()
+        except Exception as e:
+            print("Exception catched", e)
+            success = NOT_SENT
+        finally:
             self.save()
         return success
 

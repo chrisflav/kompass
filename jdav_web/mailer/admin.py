@@ -5,9 +5,11 @@ from django.shortcuts import render
 from django.db import models
 from django import forms
 from easy_select2 import apply_select2
+import json
 
 from .models import Message, Attachment, MessageForm
 from .mailutils import NOT_SENT, PARTLY_SENT
+from members.models import Member
 
 
 class AttachmentInline(admin.TabularInline):
@@ -52,6 +54,17 @@ class MessageAdmin(admin.ModelAdmin):
         if "_send" in request.POST:
             submit_message(obj, request)
         return super(MessageAdmin, self).response_add(request, obj)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super(MessageAdmin, self).get_form(request, obj, **kwargs)
+        raw_members = request.GET.get('members', None)
+        if raw_members is not None:
+            m_ids = json.loads(raw_members)
+            if type(m_ids) != list:
+                return form
+            members = Member.objects.filter(pk__in=m_ids)
+            form.base_fields['to_members'].initial = members
+        return form
 
     class Media:
         css = {'all': ('admin/css/tabular_hide_original.css',)}

@@ -4,8 +4,9 @@ import os
 import subprocess
 import shutil
 import time
+import unicodedata
 
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
 from django import forms
 from django.contrib import admin
@@ -74,6 +75,7 @@ class MemberAdmin(admin.ModelAdmin):
         ForeignKey: {'widget': apply_select2(forms.Select)}
     }
     change_form_template = "members/change_member.html"
+    actions = ['send_mail_to']
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -82,6 +84,12 @@ class MemberAdmin(admin.ModelAdmin):
         return super(MemberAdmin, self).change_view(request, object_id,
                                                     form_url=form_url,
                                                     extra_context=extra_context)
+
+    def send_mail_to(self, request, queryset):
+        member_pks = [m.pk for m in queryset]
+        query = str(member_pks).replace(' ', '')
+        return HttpResponseRedirect("/admin/mailer/message/add/?members={}".format(query))
+    send_mail_to.short_description = _('Compose new mail to selected members')
 
 
 class GroupAdmin(admin.ModelAdmin):
@@ -148,6 +156,9 @@ class MemberListAdmin(admin.ModelAdmin):
             # create a unique filename
             filename = memberlist.name + "_" + datetime.today().strftime("%d_%m_%Y")
             filename = filename.replace(' ', '_')
+            # drop umlauts, accents etc.
+            filename = unicodedata.normalize('NFKD', filename).\
+                encode('ASCII', 'ignore').decode()
             filename_table = 'table_' + filename
             filename_tex = filename + '.tex'
             filename_pdf = filename + '.pdf'
@@ -247,6 +258,9 @@ class MemberListAdmin(admin.ModelAdmin):
             # unique filename
             filename = memberlist.name + "_note_" + datetime.today().strftime("%d_%m_%Y")
             filename = filename.replace(' ', '_')
+            # drop umlauts, accents etc.
+            filename = unicodedata.normalize('NFKD', filename).\
+                encode('ASCII', 'ignore').decode()
             filename_tex = filename + '.tex'
             filename_pdf = filename + '.pdf'
 
