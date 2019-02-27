@@ -25,6 +25,7 @@ urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 admin.site.index_title = _('Startpage')
 
 urlpatterns += i18n_patterns(
+    url(r'^kompass/', admin.site.urls),
     url(r'^admin/', admin.site.urls),
     url(r'^newsletter/', include('mailer.urls', namespace="mailer")),
     url(r'^$', include('startpage.urls')),
