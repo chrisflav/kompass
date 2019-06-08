@@ -28,11 +28,10 @@ class Message(models.Model):
     to_members = models.ManyToManyField('members.Member',
                                         verbose_name=_('to member'),
                                         blank=True)
-    reply_to = models.ForeignKey('members.Member',
-                                 verbose_name=_('reply to'),
-                                 blank=True,
-                                 null=True,
-                                 related_name='reply_to')
+    reply_to = models.ManyToManyField('members.Member',
+                                      verbose_name=_('reply to'),
+                                      blank=True,
+                                      related_name='reply_to')
     sent = models.BooleanField(_('sent'), default=False)
 
     def __str__(self):
@@ -77,8 +76,8 @@ class Message(models.Model):
             success = send(self.subject, get_content(self.content),
                            SENDING_ADDRESS,
                            emails,
-                           attachments=attach,
-                           reply_to=self.reply_to.email if self.reply_to else None)
+                           message_id=self.pk,
+                           attachments=attach)
             if success == SENT or success == PARTLY_SENT:
                 self.sent = True
             for a in Attachment.objects.filter(msg__id=self.pk):

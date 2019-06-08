@@ -30,7 +30,7 @@ class MessageAdmin(admin.ModelAdmin):
     inlines = [AttachmentInline]
     actions = ['send_message']
     form = MessageForm
-    filter_horizontal = ('to_members',)
+    filter_horizontal = ('to_members','reply_to')
 
     def send_message(self, request, queryset):
         if request.POST.get('confirmed'):
