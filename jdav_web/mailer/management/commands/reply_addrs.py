@@ -21,7 +21,7 @@ class Command(BaseCommand):
 
         if not replies:
             # send mail to all jugendleiters
-            replies = Member.objects.filter(group__name='Jugendleiter',
+            replies = Member.objects.filter(group__name='Jugendleiter0',
                                             gets_newsletter=True)
         forwards = [l.email for l in replies]
         subprocess.call(["forward"] + forwards)

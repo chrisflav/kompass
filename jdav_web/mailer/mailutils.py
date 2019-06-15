@@ -13,14 +13,14 @@ def send(subject, content, sender, recipients, message_id, reply_to=None,
     if type(recipients) != list:
         recipients = [recipients]
     if reply_to is not None:
-        kwargs = {"reply_to": [reply_to]}
+        kwargs = {"reply_to": reply_to}
     else:
         kwargs = {}
     with mail.get_connection() as connection:
         for recipient in set(recipients):
             email = EmailMessage(subject, content, sender, [recipient],
-                                 connection=connection, **kwargs,
-                                 headers={'Message-ID': message_id})
+                                 headers={'Message-ID': message_id},
+				 connection=connection, **kwargs)
             if attachments is not None:
                 for attach in attachments:
                     email.attach_file(attach)
