@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from mailer.models import Message
 from members.models import Member
+import subprocess
 
 
 class Command(BaseCommand):
@@ -22,5 +23,7 @@ class Command(BaseCommand):
             # send mail to all jugendleiters
             replies = Member.objects.filter(group__name='Jugendleiter',
                                             gets_newsletter=True)
-        response = "\n".join([l.email for l in replies])
-        self.stdout.write(response)
+        forwards = [l.email for l in replies]
+        subprocess.call(["forward"] + forwards)
+
+        self.stdout.write("forwarded email to {}".format(forwards))
