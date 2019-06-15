@@ -7,7 +7,7 @@ NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
-def send(subject, content, sender, recipients, reply_to=None,
+def send(subject, content, sender, recipients, message_id, reply_to=None,
          attachments=None):
     failed, succeeded = False, False
     if type(recipients) != list:
@@ -19,7 +19,8 @@ def send(subject, content, sender, recipients, reply_to=None,
     with mail.get_connection() as connection:
         for recipient in set(recipients):
             email = EmailMessage(subject, content, sender, [recipient],
-                                 connection=connection, **kwargs)
+                                 connection=connection, **kwargs,
+                                 headers={'Message-ID': message_id})
             if attachments is not None:
                 for attach in attachments:
                     email.attach_file(attach)
