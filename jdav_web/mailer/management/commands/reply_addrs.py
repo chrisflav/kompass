@@ -6,24 +6,25 @@ import subprocess
 
 class Command(BaseCommand):
     help = 'Shows reply-to addresses'
+    requires_system_checks = False
 
     def add_arguments(self, parser):
-        parser.add_argument('message_id', type=int)
+        parser.add_argument('message_id', nargs='?', default="-1")
 
     def handle(self, *args, **options):
         replies = []
         try:
-            message = Message.objects.get(pk=options['message_id'])
+            message_id = int(options['message_id'])
+            message = Message.objects.get(pk=message_id)
             if message.reply_to:
                 replies = message.reply_to.all()
-        except Message.DoesNotExist:
+        except (Message.DoesNotExist, ValueError):
             pass
 
         if not replies:
             # send mail to all jugendleiters
-            replies = Member.objects.filter(group__name='Jugendleiter0',
+            replies = Member.objects.filter(group__name='Jugendleiter',
                                             gets_newsletter=True)
         forwards = [l.email for l in replies]
-        subprocess.call(["forward"] + forwards)
 
-        self.stdout.write("forwarded email to {}".format(forwards))
+        self.stdout.write(" ".join(forwards))

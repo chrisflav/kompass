@@ -72,16 +72,12 @@ class Message(models.Model):
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')
-        if len(self.reply_to.all()) > 0:
-            temporary_reply_to = [r.email for r in self.reply_to.all()]
-        else:
-            temporary_reply_to = None
+        message_id = "<{}@jdav-ludwigsburg.de>".format(self.pk)
         try:
             success = send(self.subject, get_content(self.content),
                            SENDING_ADDRESS,
                            emails,
-                           reply_to=temporary_reply_to,
-                           message_id=self.pk,
+                           message_id=message_id,
                            attachments=attach)
             if success == SENT or success == PARTLY_SENT:
                 self.sent = True
