@@ -39,7 +39,7 @@ MEDIA_MEMBERLISTS = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 # prevent large files from being unreadable by the server
 # see
 # https://stackoverflow.com/questions/51439689/django-nginx-error-403-forbidden-when-serving-media-files-over-some-size
-FILE_UPLOAD_PERMISSIONS = 0o640
+FILE_UPLOAD_PERMISSIONS = 0o644
 
 # x forward
 
