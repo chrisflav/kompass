@@ -50,7 +50,7 @@ class MaterialAdmin(admin.ModelAdmin):
                     'lifetime', 'not_too_old', 'admin_thumbnail')
     search_fields = ('name', 'description')
     inlines = [OwnershipInline]
-    list_filter = (NotTooOldFilter, 'material_cat')
+    list_filter = (NotTooOldFilter, 'material_cat', 'ownership__owner')
     formfield_overrides = {
         models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     }
