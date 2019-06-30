@@ -1,7 +1,9 @@
 from django.core.management.base import BaseCommand
 from mailer.models import Message
 from members.models import Member
-import subprocess
+from django.db.models import Q
+
+import re
 
 
 class Command(BaseCommand):
@@ -9,7 +11,8 @@ class Command(BaseCommand):
     requires_system_checks = False
 
     def add_arguments(self, parser):
-        parser.add_argument('message_id', nargs='?', default="-1")
+        parser.add_argument('--message_id', default="-1")
+        parser.add_argument('--subject', default="")
 
     def handle(self, *args, **options):
         replies = []
@@ -19,7 +22,15 @@ class Command(BaseCommand):
             if message.reply_to:
                 replies = message.reply_to.all()
         except (Message.DoesNotExist, ValueError):
-            pass
+            extracted = re.match("^([Rr][Ee]:|[Aa][Ww]:)* *(.*)$",
+                                 options['subject']).group(2)
+            try:
+                msgs = Message.objects.filter(subject=extracted)
+                message = msgs.all()[0]
+                if message.reply_to:
+                    replies = message.reply_to.all()
+            except (Message.DoesNotExist, ValueError, IndexError):
+                pass
 
         if not replies:
             # send mail to all jugendleiters
