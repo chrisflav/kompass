@@ -22,7 +22,7 @@ class Command(BaseCommand):
             if message.reply_to:
                 replies = message.reply_to.all()
         except (Message.DoesNotExist, ValueError):
-            extracted = re.match("^([Rr][Ee]:|[Aa][Ww]:)* *(.*)$",
+            extracted = re.match("^([Ww][Gg]: *|[Ff][Ww]: *|[Rr][Ee]: *|[Aa][Ww]: *)* *(.*)$",
                                  options['subject']).group(2)
             try:
                 msgs = Message.objects.filter(subject=extracted)
