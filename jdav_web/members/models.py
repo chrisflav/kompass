@@ -4,10 +4,12 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 from utils import RestrictedFileField
+import os
 
 GEMEINSCHAFTS_TOUR = 0
 FUEHRUNGS_TOUR = 1
 AUSBILDUNGS_TOUR = 2
+HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
 class ActivityCategory(models.Model):
@@ -107,6 +109,11 @@ class Member(models.Model):
     def place(self):
         """Returning the whole place (plz + town)"""
         return "{0} {1}".format(self.plz, self.town)
+
+    @property
+    def association_email(self):
+        """Returning the association email of the member"""
+        return "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), HOST)
 
     def get_group(self):
         """Returns a string of groups in which the member is."""
