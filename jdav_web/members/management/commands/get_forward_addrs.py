@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from members.models import Member
-from django.db.models import Q
 
 import re
 
@@ -19,15 +18,19 @@ class Command(BaseCommand):
         prename, lastname = match.groups()
         try:
             jugendleiter = Member.objects.filter(group__name='Jugendleiter')
-            matching = [jl.email for jl in jugendleiter if matches(jl.prename.lower(),
-                                                                   jl.lastname.lower(),
-                                                                   prename.lower(),
-                                                                   lastname.lower())]
+            matching = [jl.email for jl in jugendleiter if matches(simplify(jl.prename),
+                                                                   simplify(jl.lastname),
+                                                                   simplify(prename),
+                                                                   simplify(lastname))]
             if not matching:
                 return
             self.stdout.write(" ".join(matching))
         except Member.DoesNotExist:
             pass
+
+
+def simplify(name):
+    return name.lower().replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue')
 
 
 def matches(prename, lastname, matched_pre, matched_last):

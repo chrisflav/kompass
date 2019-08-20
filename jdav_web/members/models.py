@@ -113,7 +113,8 @@ class Member(models.Model):
     @property
     def association_email(self):
         """Returning the association email of the member"""
-        return "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), HOST)
+        raw = "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), HOST)
+        return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
 
     def get_group(self):
         """Returns a string of groups in which the member is."""
