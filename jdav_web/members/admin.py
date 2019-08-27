@@ -155,7 +155,7 @@ class MemberListAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # create a unique filename
             filename = memberlist.name + "_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_')
+            filename = filename.replace(' ', '_').replace('&', '')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
@@ -259,7 +259,7 @@ class MemberListAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # unique filename
             filename = memberlist.name + "_note_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_')
+            filename = filename.replace(' ', '_').replace('&', '')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
@@ -454,4 +454,4 @@ def esc_ampersand(txt):
 
 
 def esc_all(txt):
-    esc_underscore(esc_ampersand(txt))
+    return esc_underscore(esc_ampersand(txt))
