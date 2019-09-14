@@ -155,7 +155,7 @@ class MemberListAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # create a unique filename
             filename = memberlist.name + "_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_')
+            filename = filename.replace(' ', '_').replace('&', '')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
@@ -172,10 +172,12 @@ class MemberListAdmin(admin.ModelAdmin):
                 for memberonlist in memberlist.memberonlist_set.all():
                     # write table of members in latex compatible format
                     line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(
-                            memberonlist.member.prename,
-                            memberonlist.member.lastname, memberonlist.member.street,
-                            memberonlist.member.place, memberonlist.member.phone_number,
-                            memberonlist.member.email)
+                            esc_ampersand(memberonlist.member.prename),
+                            esc_ampersand(memberonlist.member.lastname),
+                            esc_ampersand(memberonlist.member.street),
+                            esc_ampersand(memberonlist.member.place),
+                            esc_ampersand(memberonlist.member.phone_number),
+                            esc_ampersand(memberonlist.member.email))
                     f.write(esc_underscore(line))
 
             # copy and adapt latex memberlist template
@@ -187,16 +189,16 @@ class MemberListAdmin(admin.ModelAdmin):
                 template_content = f.read()
 
             # adapt template
-            name = esc_underscore(memberlist.name)
+            name = esc_all(memberlist.name)
             template_content = template_content.replace('ACTIVITY', name)
             groups = ', '.join(g.name for g in
                                memberlist.groups.all())
             template_content = template_content.replace('GROUP',
-                                                        esc_underscore(groups))
-            destination = esc_underscore(memberlist.destination)
+                                                        esc_all(groups))
+            destination = esc_all(memberlist.destination)
             template_content = template_content.replace('DESTINATION',
                                                         destination)
-            place = esc_underscore(memberlist.place)
+            place = esc_all(memberlist.place)
             template_content = template_content.replace('PLACE', place)
             template_content = template_content.replace('MEMBERLIST-DATE',
                                                         datetime.today().strftime('%d.%m.%Y'))
@@ -257,7 +259,7 @@ class MemberListAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # unique filename
             filename = memberlist.name + "_note_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_')
+            filename = filename.replace(' ', '_').replace('&', '')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
@@ -281,9 +283,9 @@ class MemberListAdmin(admin.ModelAdmin):
                                         memberonlist.comments) if
                                     c).replace("..", ".")
                 line = '{0} {1} & {2} & {3} \\\\'.format(
-                    m.prename, m.lastname,
-                    ", ".join(qualities), comment or "---",
-                    )
+                    esc_ampersand(m.prename), esc_ampersand(m.lastname),
+                    esc_ampersand(", ".join(qualities)),
+	            esc_ampersand(comment) or "---")
                 table += esc_underscore(line)
 
             table_qualities = ""
@@ -295,7 +297,7 @@ class MemberListAdmin(admin.ModelAdmin):
                 skill_max = 0 if len(skills[activity]) == 0 else\
                     max(skills[activity])
                 line = '{0} & {1} & {2} & {3} \\\\ \n'.format(
-                    activity,
+                    esc_ampersand(activity),
                     skill_avg,
                     skill_min,
                     skill_max
@@ -311,14 +313,14 @@ class MemberListAdmin(admin.ModelAdmin):
                 template_content = f.read()
 
             # adapt template
-            name = esc_underscore(memberlist.name)
+            name = esc_all(memberlist.name)
             template_content = template_content.replace('ACTIVITY', name)
             groups = ', '.join(g.name for g in memberlist.groups.all())
             template_content = template_content.replace('GROUP',
-                                                        esc_underscore(groups))
-            destination = esc_underscore(memberlist.destination)
+                                                        esc_all(groups))
+            destination = esc_all(memberlist.destination)
             template_content = template_content.replace('DESTINATION', destination)
-            place = esc_underscore(memberlist.place)
+            place = esc_all(memberlist.place)
             template_content = template_content.replace('PLACE', place)
             template_content = template_content.replace('MEMBERLIST-DATE',
                     datetime.today().strftime('%d.%m.%Y'))
@@ -445,3 +447,11 @@ def media_dir():
 
 def esc_underscore(txt):
     return txt.replace('_', '\_')
+
+
+def esc_ampersand(txt):
+    return txt.replace('&', '\&')
+
+
+def esc_all(txt):
+    return esc_underscore(esc_ampersand(txt))
