@@ -7,8 +7,8 @@
 <ul>
 {% for activity in activities %}
     <li><a href="{{ activity.get_absolute_url }}">{{ activity.name }}</a>, {{ activity.date }}</li>
-</ul>
 {% endfor %}
+</ul>
 
 {% if perms.members.may_see_qualities %}
 <p><b>{% trans "Qualities:" %}</b></p>
