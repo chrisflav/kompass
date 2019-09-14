@@ -3,6 +3,14 @@
 {% load static %}
 {% block after_field_sets %}
 
+<p><b>{% trans "Participations:" %}</b></p>
+<ul>
+{% for activity in activities %}
+    <li><a href="{{ activity.get_absolute_url }}">{{ activity.name }}</a>, {{ activity.date }}</li>
+</ul>
+{% endfor %}
+
+{% if perms.members.may_see_qualities %}
 <p><b>{% trans "Qualities:" %}</b></p>
 <table style="width:100%">
 	<tr>
@@ -16,5 +24,6 @@
 	</tr>
 {% endfor %}
 </table>
+{% endif %}
 
 {% endblock %}

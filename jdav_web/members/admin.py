@@ -81,6 +81,8 @@ class MemberAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['qualities'] =\
             Member.objects.get(pk=object_id).get_skills()
+        extra_context['activities'] =\
+            Member.objects.get(pk=object_id).get_activities()
         return super(MemberAdmin, self).change_view(request, object_id,
                                                     form_url=form_url,
                                                     extra_context=extra_context)

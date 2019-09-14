@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
+from django.urls import reverse
 from utils import RestrictedFileField
 import os
 
@@ -126,6 +127,7 @@ class Member(models.Model):
     class Meta:
         verbose_name = _('member')
         verbose_name_plural = _('members')
+        permissions = (('may_see_qualities', 'Is allowed to see the quality overview'),)
 
     def get_skills(self):
         # get skills by summing up all the activities taken part in
@@ -136,6 +138,10 @@ class Member(models.Model):
             skills[kind.name] = sum([l.difficulty * 3 for l in lists
                                      if l.date < datetime.now().date()])
         return skills
+
+    def get_activities(self):
+        # get activity overview
+        return MemberList.objects.filter(memberonlist__member=self)
 
 
 class MemberList(models.Model):
@@ -177,6 +183,9 @@ class MemberList(models.Model):
             return "Ausbildung"
         else:
             return "Gemeinschaftstour"
+
+    def get_absolute_url(self):
+        return reverse('admin:members_memberlist_change', args=[str(self.id)])
 
 
 class MemberOnList(models.Model):
