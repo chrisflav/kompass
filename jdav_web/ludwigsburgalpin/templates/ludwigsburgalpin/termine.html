@@ -1,0 +1,21 @@
+{% load i18n %}
+
+<head>
+	<title>
+		Ludwigsburg Alpin Terminverwaltung
+	</title>
+</head>
+
+<p><b>Hier kannst Du Deinen Termin eintragen, pass bitte auf, weil danach kannst Du ihn nicht mehr ändern</b></p>
+
+{% if error_message %}
+	<p><b>{{ error_message }}</b></p>
+{% endif %}
+
+<form action="" method="post">
+    <table>
+	{% csrf_token %}
+    {{ form }}
+    <tr><td><input type="submit" value="Abschicken"/></td></tr>
+    </table>
+</form>
