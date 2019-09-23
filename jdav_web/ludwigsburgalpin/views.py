@@ -1,15 +1,20 @@
 from django.shortcuts import render
 from django import forms
 from django.http import HttpResponseRedirect
+from django.contrib.admin import widgets
 from .models import Group, Termin
+
+from bootstrap_datepicker.widgets import DatePicker
+
+datepicker = forms.TextInput(attrs={'class': 'datepicker'})
 
 
 class TerminForm(forms.Form):
     title = forms.CharField(label='Termin')
-    start_date = forms.DateField(widget=forms.SelectDateWidget(),
-                           label='Von')
-    end_date = forms.DateField(widget=forms.SelectDateWidget(),
-                               label='Bis')
+    start_date = forms.DateField(label='Von',
+                                 widget=datepicker)
+    end_date = forms.DateField(label='Bis',
+                               widget=datepicker)
     group = forms.ModelChoiceField(label='Gruppe',
                                    queryset=Group.objects.all())
 
