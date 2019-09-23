@@ -4,8 +4,6 @@ from django.http import HttpResponseRedirect
 from django.contrib.admin import widgets
 from .models import Group, Termin
 
-from bootstrap_datepicker.widgets import DatePicker
-
 datepicker = forms.TextInput(attrs={'class': 'datepicker'})
 
 
