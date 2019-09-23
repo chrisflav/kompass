@@ -1,0 +1,9 @@
+table.termine {
+    text-align: left;
+}
+
+td {
+    padding-left: 50px;
+    display: block;
+    float: left;
+}

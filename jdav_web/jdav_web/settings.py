@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'material.apps.MaterialConfig',
     'members.apps.MembersConfig',
     'mailer.apps.MailerConfig',
+    'ludwigsburgalpin.apps.LudwigsburgalpinConfig',
     'easy_select2',
     'djcelery_email',
     'djcelery',

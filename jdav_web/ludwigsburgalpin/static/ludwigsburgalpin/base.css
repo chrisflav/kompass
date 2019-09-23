@@ -1,0 +1,132 @@
+body,html{
+    font-size: 16px;
+    line-height: 29px;
+    color:#0c1a30;
+    font-family: "Helvetica Neue Light", "HelveticaNeue-Light", "Helvetica Neue", Calibri, Helvetica, Arial;
+    margin: 0;
+}
+
+#content {
+    width: 80%;
+    margin: 0 auto;
+    overflow:hidden;
+    position: relative;
+}
+
+h1 {
+    font-size: 22px;
+}
+
+h2{
+    font-size: 22px;
+}
+
+h3 a:link, h3 a:visited, h2 a:link, h2 a:visited {
+    color: #58ab27;
+}
+
+h3 {
+    font-size: 19px;
+}
+
+h4 {
+    font-size: 17px;
+}
+
+h1,h2,h3,h4{
+    color: #58ab27;
+    font-weight: normal;
+    text-shadow: #fff 0px 1px 1px;
+    letter-spacing:0.1em;
+}
+
+a {
+    color: #58ab27;
+    text-decoration: none;
+    outline: 0;
+}
+
+a:hover, a:focus {
+    color: #386d19;
+    text-decoration: none;
+    outline: 0;
+}
+
+div.navbar-header {
+    width: 83%;
+    margin: 0 auto;
+    overflow:hidden;
+    position: relative;
+}
+
+ul.navbar {
+    float: right;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.navbar > li {
+    float: left;
+    position: relative;
+    display: block;
+}
+
+a.navbar-brand {
+    line-height: 120px;
+    display: inline-block;
+    height: 120px;
+    opacity: 1;
+    padding: 23px 23px;
+    transition: opacity 0.15s linear;
+}
+
+a.navbar-brand:hover {
+    opacity: 0.8;
+    transition: opacity 0.15s linear;
+}
+
+.navbar > li a {
+    display: inline-block;
+    color: #777777;
+    text-align: center;
+    text-transform: uppercase;
+    padding: 16px;
+    line-height: 120px;
+}
+
+.navbar > li a:hover {
+    color: #333333;
+}
+
+.navbar > li a:before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 5px;
+    top: 0;
+    left: 0;
+    background-color: #58ab27;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s linear;
+}
+
+.navbar > li a:hover:before {
+    visibility: visible;
+    opacity: 0.5;
+    transition: opacity 0.3s linear;
+}
+
+.navbar > li.current a:before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 5px;
+    top: 0;
+    left: 0;
+    background-color: #58ab27;
+    visibility: visible;
+    opacity: 1;
+}
