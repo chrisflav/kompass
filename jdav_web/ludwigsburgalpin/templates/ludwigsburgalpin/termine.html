@@ -1,31 +1,25 @@
+{% extends "ludwigsburgalpin/base.html" %}
 {% load i18n %}
+{% load static %}
 
-<head>
-	<title>
-		Ludwigsburg Alpin Terminverwaltung
-	</title>
-  <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
-  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-  <script>
-  $( function() {
-      $( ".datepicker" ).datepicker({
-        dateFormat: "dd.mm.yy" 
-      });
-  } );
-  </script>
-</head>
+{% block content %}
 
-<p><b>Hier kannst Du Deinen Termin eintragen, pass bitte auf, weil danach kannst Du ihn nicht mehr ändern</b></p>
+<link rel="stylesheet" href="{% static "ludwigsburgalpin/termine.css" static %}">
+
+<h1>Ludwigsburg Alpin Termine</h1>
+
+<p>Hier kannst du einen Termin für deine Gruppe hinzufügen</p>
 
 {% if error_message %}
-	<p><b>{{ error_message }}</b></p>
+    <p><b>{{ error_message }}</b></p>
 {% endif %}
 
 <form action="" method="post">
-    <table>
-	{% csrf_token %}
+    <table class="termine">
+    {% csrf_token %}
     {{ form }}
-    <tr><td><input type="submit" value="Abschicken"/></td></tr>
     </table>
+    <p><input type="submit" value="Abschicken"/></p>
 </form>
+
+{% endblock %}

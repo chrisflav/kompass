@@ -10,7 +10,7 @@ datepicker = forms.TextInput(attrs={'class': 'datepicker'})
 
 
 class TerminForm(forms.Form):
-    title = forms.CharField(label='Termin')
+    title = forms.CharField(label='Titel')
     start_date = forms.DateField(label='Von',
                                  widget=datepicker)
     end_date = forms.DateField(label='Bis',
