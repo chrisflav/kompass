@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django import forms
 from django.http import HttpResponseRedirect
 from django.contrib.admin import widgets
-from .models import Group, Termin
+from .models import Termin
 
 datepicker = forms.TextInput(attrs={'class': 'datepicker'})
 
@@ -13,13 +13,17 @@ class TerminForm(forms.Form):
                                  widget=datepicker)
     end_date = forms.DateField(label='Bis',
                                widget=datepicker)
-    group = forms.ModelChoiceField(label='Gruppe',
-                                   queryset=Group.objects.all())
-    responsible = forms.CharField(label='Organisator', max_length=100)
-    phone = forms.CharField(max_length=20, label='Telefonnumer')
-    email = forms.EmailField(max_length=100, label='Email')
+    group = forms.CharField(label='Gruppe',
+                            required=False)
+    responsible = forms.CharField(label='Organisator', max_length=100,
+                                  required=False)
+    phone = forms.CharField(max_length=20, label='Telefonnumer',
+                            required=False)
+    email = forms.EmailField(max_length=100, label='Email',
+                             required=False)
     description = forms.CharField(label='Tourenbeschreibung/Anforderung',
-                                  widget=forms.Textarea)
+                                  widget=forms.Textarea,
+                                  required=False)
 
 
 # Create your views here.

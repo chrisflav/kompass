@@ -4,13 +4,9 @@ from django.contrib import admin
 from wsgiref.util import FileWrapper
 from django.http import HttpResponse
 from django.conf import settings
-from .models import Group, Termin
+from .models import Termin
 
 import xlsxwriter
-
-
-class GroupAdmin(admin.ModelAdmin):
-    list_display = ('name',)
 
 
 class TerminAdmin(admin.ModelAdmin):
@@ -36,7 +32,7 @@ class TerminAdmin(admin.ModelAdmin):
             worksheet.write(row+2, 0, termin.title)
             worksheet.write(row+2, 1, termin.start_date.strftime('%d.%m.%Y'))
             worksheet.write(row+2, 2, termin.end_date.strftime('%d.%m.%Y'))
-            worksheet.write(row+2, 3, str(termin.group))
+            worksheet.write(row+2, 3, termin.group)
             worksheet.write(row+2, 4, termin.responsible)
             worksheet.write(row+2, 5, termin.phone)
             worksheet.write(row+2, 6, termin.email)
@@ -51,7 +47,6 @@ class TerminAdmin(admin.ModelAdmin):
     make_overview.short_description = "Termine in Excel Liste überführen"
 
 # Register your models here.
-admin.site.register(Group, GroupAdmin)
 admin.site.register(Termin, TerminAdmin)
 
 
