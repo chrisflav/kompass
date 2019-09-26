@@ -2,7 +2,7 @@ table.termine {
     text-align: left;
 }
 
-td {
+table.termine td {
     padding-left: 50px;
     display: block;
     float: left;

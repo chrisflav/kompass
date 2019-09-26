@@ -29,7 +29,7 @@ urlpatterns += i18n_patterns(
     url(r'^kompass/', admin.site.urls),
     url(r'^admin/', RedirectView.as_view(url='/kompass')),
     url(r'^newsletter/', include('mailer.urls', namespace="mailer")),
-    url(r'^ludwigsburgalpin/', include('ludwigsburgalpin.urls',
+    url(r'^LBAlpin/Programm/2020', include('ludwigsburgalpin.urls',
        namespace="ludwigsburgalpin")),
     url(r'^$', include('startpage.urls')),
 )

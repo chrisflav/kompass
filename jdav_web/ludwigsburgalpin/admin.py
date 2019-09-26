@@ -14,7 +14,7 @@ class GroupAdmin(admin.ModelAdmin):
 
 
 class TerminAdmin(admin.ModelAdmin):
-    list_display = ('title','start_date', 'end_date', 'group')
+    list_display = ('title','start_date', 'end_date', 'group', 'responsible')
     list_filter = ('group',)
     ordering = ('start_date','end_date')
     actions = ['make_overview']
@@ -28,11 +28,19 @@ class TerminAdmin(admin.ModelAdmin):
         worksheet.write(0, 1, "Von", bold)
         worksheet.write(0, 2, "Bis", bold)
         worksheet.write(0, 3, "Gruppe", bold)
+        worksheet.write(0, 4, "Organisator", bold)
+        worksheet.write(0, 5, "Telefonnummer", bold)
+        worksheet.write(0, 6, "Emailadresse", bold)
+        worksheet.write(0, 7, "Tourenbeschreibung/Anforderung", bold)
         for row, termin in enumerate(queryset):
             worksheet.write(row+2, 0, termin.title)
             worksheet.write(row+2, 1, termin.start_date.strftime('%d.%m.%Y'))
             worksheet.write(row+2, 2, termin.end_date.strftime('%d.%m.%Y'))
             worksheet.write(row+2, 3, str(termin.group))
+            worksheet.write(row+2, 4, termin.responsible)
+            worksheet.write(row+2, 5, termin.phone)
+            worksheet.write(row+2, 6, termin.email)
+            worksheet.write(row+2, 7, termin.description)
         workbook.close()
         with open(media_path(filename), 'rb') as xls:
             response = HttpResponse(FileWrapper(xls))

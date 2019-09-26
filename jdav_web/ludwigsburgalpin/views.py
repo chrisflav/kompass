@@ -15,6 +15,11 @@ class TerminForm(forms.Form):
                                widget=datepicker)
     group = forms.ModelChoiceField(label='Gruppe',
                                    queryset=Group.objects.all())
+    responsible = forms.CharField(label='Organisator', max_length=100)
+    phone = forms.CharField(max_length=20, label='Telefonnumer')
+    email = forms.EmailField(max_length=100, label='Email')
+    description = forms.CharField(label='Tourenbeschreibung/Anforderung',
+                                  widget=forms.Textarea)
 
 
 # Create your views here.
@@ -25,7 +30,11 @@ def index(request):
             termin = Termin(title=form.cleaned_data["title"],
                             start_date=form.cleaned_data["start_date"],
                             end_date=form.cleaned_data["end_date"],
-                            group=form.cleaned_data["group"])
+                            group=form.cleaned_data["group"],
+                            responsible=form.cleaned_data["responsible"],
+                            phone=form.cleaned_data["phone"],
+                            email=form.cleaned_data["email"],
+                            description=form.cleaned_data["description"])
             termin.save()
             return published(request)
     else:

@@ -19,6 +19,10 @@ class Termin(models.Model):
     end_date = models.DateField('Bis')
     group = models.ForeignKey('ludwigsburgalpin.Group',
                               verbose_name='Gruppe')
+    responsible = models.CharField('Organisator', max_length=100)
+    phone = models.CharField(max_length=20, verbose_name='Telefonnumer')
+    email = models.EmailField(max_length=100, verbose_name='Email')
+    description = models.TextField('Tourenbeschreibung/Anforderung')
 
     def __str__(self):
         return "{} {}".format(self.title, str(self.group))
