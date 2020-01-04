@@ -7,7 +7,7 @@ NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
-def send(subject, content, sender, recipients, message_id, reply_to=None,
+def send(subject, content, sender, recipients, message_id=None, reply_to=None,
          attachments=None):
     failed, succeeded = False, False
     if type(recipients) != list:
@@ -16,10 +16,14 @@ def send(subject, content, sender, recipients, message_id, reply_to=None,
         kwargs = {"reply_to": reply_to}
     else:
         kwargs = {}
+    if message_id is not None:
+        headers = {'Message-ID': message_id}
+    else:
+        headers = {}
     with mail.get_connection() as connection:
         for recipient in set(recipients):
             email = EmailMessage(subject, content, sender, [recipient],
-                                 headers={'Message-ID': message_id},
+                                 headers=headers,
 				 connection=connection, **kwargs)
             if attachments is not None:
                 for attach in attachments:
@@ -36,7 +40,6 @@ def send(subject, content, sender, recipients, message_id, reply_to=None,
 
 
 def get_content(content):
-    # TODO: generate right url here
     url = "https://{}/newsletter/unsubscribe".format(HOST)
     text = "{}\n\n\n*********\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
         " verschickt. Wenn du in Zukunft keine Emails mehr erhalten möchtest,"\
@@ -47,7 +50,6 @@ def get_content(content):
 
 def get_unsubscribe_link(member):
     key = member.generate_key()
-    # TODO: generate right url here
     return "https://{}/newsletter/unsubscribe?key={}".format(HOST, key)
 
 
