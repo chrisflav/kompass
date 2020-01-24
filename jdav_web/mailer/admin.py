@@ -7,7 +7,7 @@ from django import forms
 from easy_select2 import apply_select2
 import json
 
-from .models import Message, Attachment, MessageForm
+from .models import Message, Attachment, MessageForm, EmailAddress
 from .mailutils import NOT_SENT, PARTLY_SENT
 from members.models import Member
 
@@ -15,6 +15,15 @@ from members.models import Member
 class AttachmentInline(admin.TabularInline):
     model = Attachment
     extra = 0
+
+
+class EmailAddressAdmin(admin.ModelAdmin):
+    list_display = ('email', )
+    formfield_overrides = {
+        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+        models.ForeignKey: {'widget': apply_select2(forms.Select)}
+    }
+    filter_horizontal = ('to_members',)
 
 
 class MessageAdmin(admin.ModelAdmin):
@@ -81,3 +90,4 @@ def submit_message(msg, request):
 
 
 admin.site.register(Message, MessageAdmin)
+admin.site.register(EmailAddress, EmailAddressAdmin)

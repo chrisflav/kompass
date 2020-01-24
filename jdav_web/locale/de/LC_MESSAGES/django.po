@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-11-11 16:16+0100\n"
+"POT-Creation-Date: 2020-01-24 23:21+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: jdav_web/urls.py:25
+#: jdav_web/urls.py:26
 msgid "Startpage"
 msgstr "Startseite"
 
@@ -26,28 +26,21 @@ msgstr "Startseite"
 msgid "Welcome,"
 msgstr "Willkommen"
 
-#: templates/admin/base.html:37
-msgid "View site"
-msgstr "Seite anzeigen"
-
-#: templates/admin/base.html:42
+#: templates/admin/base.html:40
 msgid "Documentation"
 msgstr "Dokumentation"
 
-#: templates/admin/base.html:46
+#: templates/admin/base.html:44
 msgid "Change password"
 msgstr "Passwort ändern"
 
-#: templates/admin/base.html:48
+#: templates/admin/base.html:46
 msgid "Log out"
 msgstr "Abmelden"
 
-#: templates/admin/base.html:58
+#: templates/admin/base.html:56
 msgid "Home"
 msgstr "Start"
-
-#~ msgid "JDAV LB Administration"
-#~ msgstr "JDAV LB Verwaltung"
 
 #: utils.py:26
 msgid "Filetype not supported."
@@ -56,3 +49,9 @@ msgstr "Dateityp nicht unterstützt."
 #: utils.py:28
 msgid "Please keep filesize under {}. Current filesize: {}"
 msgstr "Maximale Dateigröße {}. Aktuelle Dateigröße: {}."
+
+#~ msgid "View site"
+#~ msgstr "Seite anzeigen"
+
+#~ msgid "JDAV LB Administration"
+#~ msgstr "JDAV LB Verwaltung"

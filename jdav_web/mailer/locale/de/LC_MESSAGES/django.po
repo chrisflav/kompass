@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-07-05 10:46+0000\n"
+"POT-Creation-Date: 2020-01-24 23:21+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,19 +18,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: mailer/admin.py:43
+#: mailer/admin.py:55
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: mailer/admin.py:59
+#: mailer/admin.py:85
 msgid "Failed to send message"
 msgstr "Fehler beim Senden der Email"
 
-#: mailer/admin.py:61
+#: mailer/admin.py:87
 msgid "Failed to send some messages"
 msgstr "Fehler beim Senden der Emails"
 
-#: mailer/admin.py:63
+#: mailer/admin.py:89
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
@@ -38,76 +38,96 @@ msgstr "Email wurde erfolgreich verschickt"
 msgid "mailer"
 msgstr "Verteiler"
 
-#: mailer/models.py:39
+#: mailer/models.py:21
 msgid "subject"
 msgstr "Betreff"
 
-#: mailer/models.py:40
+#: mailer/models.py:22
 msgid "content"
 msgstr "Inhalt"
 
-#: mailer/models.py:42
+#: mailer/models.py:24
 msgid "to group"
 msgstr "An Gruppe"
 
-#: mailer/models.py:45
+#: mailer/models.py:27
 msgid "to member list"
 msgstr "An Teilnehmerliste"
 
-#: mailer/models.py:49
+#: mailer/models.py:31
 msgid "to member"
 msgstr "An Teilnehmer"
 
-#: mailer/models.py:52
+#: mailer/models.py:34
 msgid "reply to"
 msgstr "Antwort an"
 
-#: mailer/models.py:56
+#: mailer/models.py:37
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py:68
+#: mailer/models.py:49
 msgid "Some other members"
 msgstr "Andere Teilnehmer"
 
-#: mailer/models.py:70
+#: mailer/models.py:51
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:105
+#: mailer/models.py:102
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:106
+#: mailer/models.py:103
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:108
+#: mailer/models.py:105
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py:123
+#: mailer/models.py:120
 msgid ""
 "Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmerliste oder mindestens ein "
 "Teilnehmer als Empfänger ausgewählt werden."
 
-#: mailer/models.py:131
+#: mailer/models.py:127
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py:137
+#: mailer/models.py:133
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py:140
+#: mailer/models.py:136
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py:141
+#: mailer/models.py:137
 msgid "attachments"
 msgstr "Anhänge"
+
+#: mailer/models.py:140
+msgid "Only alphanumeric characters are allowed"
+msgstr "Nur Buchstaben und Zahlen erlaubt"
+
+#: mailer/models.py:145
+msgid "name"
+msgstr "Name"
+
+#: mailer/models.py:147
+msgid "Forward to"
+msgstr "Weiterleitung"
+
+#: mailer/models.py:157
+msgid "email address"
+msgstr "Email-Adresse"
+
+#: mailer/models.py:158
+msgid "email addresses"
+msgstr "Email-Adressen"
 
 #: mailer/templates/mailer/change_form.html:11
 msgid "Save and send mail"

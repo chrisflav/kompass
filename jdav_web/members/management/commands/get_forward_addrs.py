@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from members.models import Member
+from mailer.models import EmailAddress
 
 import re
 
@@ -16,6 +17,10 @@ class Command(BaseCommand):
         if not match:
             return
         prename, lastname = match.groups()
+        addresses = [addr.email for addr in EmailAddress.objects.filter(name=prename)]
+        if addresses:
+            self.stdout.write(" ".join(addresses))
+            return
         try:
             jugendleiter = Member.objects.filter(group__name='Jugendleiter')
             matching = [jl.email for jl in jugendleiter if matches(simplify(jl.prename),

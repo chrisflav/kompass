@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-14 23:12+0200\n"
+"POT-Creation-Date: 2020-01-24 23:21+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: members/admin.py:26 members/models.py:72
+#: members/admin.py:26 members/models.py:73
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
@@ -54,177 +54,177 @@ msgstr "Kriseninterventionsliste erstellen"
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: members/apps.py:7 members/models.py:128
+#: members/apps.py:7 members/models.py:129
 msgid "members"
 msgstr "Teilnehmer"
 
-#: members/models.py:19
+#: members/models.py:20
 msgid "Name"
 msgstr "Name"
 
-#: members/models.py:20
+#: members/models.py:21
 msgid "Description"
 msgstr "Beschreibung"
 
-#: members/models.py:26 members/models.py:151
+#: members/models.py:27 members/models.py:150
 #: members/templates/members/change_member.html:17
 msgid "Activity"
 msgstr "Aktivität"
 
-#: members/models.py:27
+#: members/models.py:28
 msgid "Activities"
 msgstr "Aktivitäten"
 
-#: members/models.py:35
+#: members/models.py:36
 msgid "name"
 msgstr "Name"
 
-#: members/models.py:37
+#: members/models.py:38
 msgid "minimum age (years)"
 msgstr "Mindestalter (Jahre)"
 
-#: members/models.py:44 members/models.py:65
+#: members/models.py:45 members/models.py:66
 msgid "group"
 msgstr "Gruppe"
 
-#: members/models.py:45
+#: members/models.py:46
 msgid "groups"
 msgstr "Gruppen"
 
-#: members/models.py:53
+#: members/models.py:54
 msgid "prename"
 msgstr "Vorname"
 
-#: members/models.py:54
+#: members/models.py:55
 msgid "last name"
 msgstr "Nachname"
 
-#: members/models.py:55
+#: members/models.py:56
 msgid "street"
 msgstr "Straße"
 
-#: members/models.py:56
+#: members/models.py:57
 msgid "Postcode"
 msgstr "PLZ"
 
-#: members/models.py:58
+#: members/models.py:59
 msgid "town"
 msgstr "Stadt"
 
-#: members/models.py:59
+#: members/models.py:60
 msgid "phone number"
 msgstr "Telefonnummer"
 
-#: members/models.py:60
+#: members/models.py:61
 msgid "parents phone number"
 msgstr "Telefonnummer der Eltern"
 
-#: members/models.py:63
+#: members/models.py:64
 msgid "Parents' Email"
 msgstr "Email der Eltern"
 
-#: members/models.py:64
+#: members/models.py:65
 msgid "birth date"
 msgstr "Geburtsdatum"
 
-#: members/models.py:66
+#: members/models.py:67
 msgid "receives newsletter"
 msgstr "Erhält den Newsletter"
 
-#: members/models.py:70
+#: members/models.py:71
 msgid "comments"
 msgstr "Kommentare"
 
-#: members/models.py:71
+#: members/models.py:72
 msgid "created"
 msgstr "erstellt"
 
-#: members/models.py:73
+#: members/models.py:74
 msgid "registration form"
 msgstr "Anmeldeformular"
 
-#: members/models.py:124 members/models.py:215
+#: members/models.py:125 members/models.py:217
 msgid "Group"
 msgstr "Gruppe"
 
-#: members/models.py:127
+#: members/models.py:128
 msgid "member"
 msgstr "Teilnehmer"
 
-#: members/models.py:153
+#: members/models.py:152
 msgid "Place"
 msgstr "Ort"
 
-#: members/models.py:154
+#: members/models.py:153
 msgid "Destination (optional)"
 msgstr "Ziel (optional)"
 
-#: members/models.py:156 members/models.py:211
+#: members/models.py:155 members/models.py:213
 msgid "Date"
 msgstr "Datum"
 
-#: members/models.py:157
+#: members/models.py:156
 msgid "End (optional)"
 msgstr "Ende"
 
-#: members/models.py:159
+#: members/models.py:158
 msgid "Groups"
 msgstr "Gruppen"
 
-#: members/models.py:167
+#: members/models.py:166
 msgid "Categories"
 msgstr "Kategorien"
 
-#: members/models.py:168
+#: members/models.py:167
 msgid "easy"
 msgstr "leicht"
 
-#: members/models.py:168
+#: members/models.py:167
 msgid "medium"
 msgstr "mittel"
 
-#: members/models.py:168
+#: members/models.py:167
 msgid "hard"
 msgstr "schwer"
 
-#: members/models.py:177
+#: members/models.py:176
 msgid "Memberlist"
 msgstr "Teilnehmerliste"
 
-#: members/models.py:178
+#: members/models.py:177
 msgid "Memberlists"
 msgstr "Teilnehmerlisten"
 
-#: members/models.py:193 members/models.py:201 members/models.py:246
-#: members/models.py:253
+#: members/models.py:195 members/models.py:203 members/models.py:248
+#: members/models.py:255
 msgid "Member"
 msgstr "Teilnehmer"
 
-#: members/models.py:195
+#: members/models.py:197
 msgid "Comment"
 msgstr "Kommentar"
 
-#: members/models.py:202 members/models.py:254
+#: members/models.py:204 members/models.py:256
 msgid "Members"
 msgstr "Teilnehmer"
 
-#: members/models.py:212
+#: members/models.py:214
 msgid "Location"
 msgstr "Ort"
 
-#: members/models.py:213
+#: members/models.py:215
 msgid "Topic"
 msgstr "Thema"
 
-#: members/models.py:237
+#: members/models.py:239
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: members/models.py:240
+#: members/models.py:242
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: members/models.py:241
+#: members/models.py:243
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 

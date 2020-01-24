@@ -6,11 +6,13 @@ from django.utils.translation import ugettext
 from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT, mail_root
 from utils import RestrictedFileField
 from jdav_web.celery import app
+from django.core.validators import RegexValidator
 
 import os
 
 # this is the mail address that is used to send mails
 SENDING_ADDRESS = mail_root
+HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
 # Create your models here.
@@ -118,7 +120,6 @@ class MessageForm(forms.ModelForm):
             raise ValidationError(_('Either a group, a memberlist or at least'
                                     ' one member is required as recipient'))
 
-
 class Attachment(models.Model):
     """Represents an attachment to an email"""
     msg = models.ForeignKey(Message, on_delete=models.CASCADE)
@@ -134,3 +135,24 @@ class Attachment(models.Model):
     class Meta:
         verbose_name = _('attachment')
         verbose_name_plural = _('attachments')
+
+
+alphanumeric = RegexValidator(r'^[0-9a-zA-Z]*$', _('Only alphanumeric characters are allowed'))
+
+
+class EmailAddress(models.Model):
+    """Represents an email address, that is forwarded to specific members"""
+    name = models.CharField(_('name'), max_length=50, validators=[alphanumeric])
+    to_members = models.ManyToManyField('members.Member',
+                                        verbose_name=_('Forward to'))
+
+    @property
+    def email(self):
+        return "{0}@{1}".format(self.name, HOST)
+
+    def __str__(self):
+        return self.email
+
+    class Meta:
+        verbose_name = _('email address')
+        verbose_name_plural = _('email addresses')
