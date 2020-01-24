@@ -17,9 +17,12 @@ class Command(BaseCommand):
         if not match:
             return
         prename, lastname = match.groups()
-        addresses = [addr.email for addr in EmailAddress.objects.filter(name=prename)]
+        addresses = EmailAddress.objects.filter(name=prename)
         if addresses:
-            self.stdout.write(" ".join(addresses))
+            forwards = []
+            for addr in addresses:
+                forwards.extend([member.email for member in addr.to_members.all()])
+            self.stdout.write(" ".join(forwards))
             return
         try:
             jugendleiter = Member.objects.filter(group__name='Jugendleiter')
