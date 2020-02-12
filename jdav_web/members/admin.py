@@ -181,12 +181,12 @@ class MemberListAdmin(admin.ModelAdmin):
                     email = member.email_parents if\
                         member.email_parents else member.email
                     line = '{0} {1} & {2} & {3} & \\Email{{{4}}} \\\\ \n'.format(
-                            esc_ampersand(memberonlist.member.prename),
-                            esc_ampersand(memberonlist.member.lastname),
-                            esc_ampersand(memberonlist.member.address),
-                            esc_ampersand(memberonlist.member.contact_phone_number),
+                            esc_all(memberonlist.member.prename),
+                            esc_all(memberonlist.member.lastname),
+                            esc_all(memberonlist.member.address),
+                            esc_all(memberonlist.member.contact_phone_number),
                             memberonlist.member.contact_email) # don't escape here, because url is used in tex
-                    f.write(esc_underscore(line))
+                    f.write(line)
 
             # copy and adapt latex memberlist template
             shutil.copy(media_path('memberlist_template.tex'),
