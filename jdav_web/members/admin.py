@@ -185,7 +185,7 @@ class MemberListAdmin(admin.ModelAdmin):
                             esc_ampersand(memberonlist.member.lastname),
                             esc_ampersand(memberonlist.member.address),
                             esc_ampersand(memberonlist.member.contact_phone_number),
-                            esc_ampersand(memberonlist.member.contact_email))
+                            memberonlist.member.contact_email) # don't escape here, because url is used in tex
                     f.write(esc_underscore(line))
 
             # copy and adapt latex memberlist template
