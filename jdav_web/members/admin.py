@@ -173,13 +173,19 @@ class MemberListAdmin(admin.ModelAdmin):
                     ))
                 for memberonlist in memberlist.memberonlist_set.all():
                     # write table of members in latex compatible format
-                    line = '{0} {1} & {2}, {3} & {4} & {5} \\\\ \n'.format(
+                    member = memberonlist.member
+                    # use parents phone number if available
+                    phone_number = member.phone_number_parents if\
+                        member.phone_number_parents else member.phone_number
+                    # use parents email address if available
+                    email = member.email_parents if\
+                        member.email_parents else member.email
+                    line = '{0} {1} & {2} & {3} & \\Email{{{4}}} \\\\ \n'.format(
                             esc_ampersand(memberonlist.member.prename),
                             esc_ampersand(memberonlist.member.lastname),
-                            esc_ampersand(memberonlist.member.street),
-                            esc_ampersand(memberonlist.member.place),
-                            esc_ampersand(memberonlist.member.phone_number),
-                            esc_ampersand(memberonlist.member.email))
+                            esc_ampersand(memberonlist.member.address),
+                            esc_ampersand(memberonlist.member.contact_phone_number),
+                            esc_ampersand(memberonlist.member.contact_email))
                     f.write(esc_underscore(line))
 
             # copy and adapt latex memberlist template

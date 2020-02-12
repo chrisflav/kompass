@@ -112,6 +112,32 @@ class Member(models.Model):
         return "{0} {1}".format(self.plz, self.town)
 
     @property
+    def address(self):
+        """Returning the whole address"""
+        if not self.street and not self.town and not self.plz:
+            return "---"
+        else:
+            return "{0}, {1}".format(self.street, self.place)
+
+    @property
+    def contact_phone_number(self):
+        """Returning, if available phone number of parents, else member's phone number"""
+        if self.phone_number_parents:
+            return str(self.phone_number_parents)
+        elif self.phone_number:
+            return str(self.phone_number)
+        else:
+            return "---"
+
+    @property
+    def contact_email(self):
+        """Returning, if available email of parents, else member's email"""
+        if self.email_parents:
+            return self.email_parents
+        else:
+            return self.email
+
+    @property
     def association_email(self):
         """Returning the association email of the member"""
         raw = "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), HOST)

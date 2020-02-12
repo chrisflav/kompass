@@ -6,9 +6,11 @@
 \usepackage{cmbright}
 \usepackage{graphicx}
 \usepackage{textpos}
-\usepackage[colorlinks]{hyperref}
+\usepackage[colorlinks, breaklinks]{hyperref}
 \usepackage{float}
 \usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{tabularx}
 
 \newcommand{\picpos}[4]{
   \begin{textblock*}{#1}(#2, #3)
@@ -16,8 +18,20 @@
   \end{textblock*}
 }
 
+% custom url command for properly formatting emails
+\DeclareUrlCommand\Email{\urlstyle{same}}
+% allow linebreak after every character
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
+\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
+\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
+\do\w\do\x\do\y\do\z
+\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
+\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
+\do\W\do\X\do\Y\do\Z}
+
 \renewcommand{\arraystretch}{1.5}
 
+\newcolumntype{L}{>{\hspace{0pt}}X}
 \newcommand{\tickedbox}{
     \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
 }
@@ -58,13 +72,13 @@
 
 \noindent TOUR-TYPE
 \begin{table}[H]
-    \begin{tabular*}{1\linewidth}{@{\extracolsep{\fill}}llll}
+    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLlL}
     \toprule
     \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{E-Mail} \\
     \midrule
     \input{TABLE-NAME}
     \bottomrule
-  \end{tabular*}
+  \end{tabularx}
 \end{table}
 
 \vspace{1cm}
