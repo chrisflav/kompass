@@ -209,13 +209,13 @@ JET_SIDE_MENU_ITEMS = [
     ]},
     {'app_label': 'members', 'items': [
         {'name': 'member'},
-        {'name': 'group'},
+        {'name': 'group', 'permissions': ['members.group']},
         {'name': 'memberlist'},
         {'name': 'klettertreff'},
         {'name': 'activitycategory', 'permissions': ['members.activitycategory'] },
     ]},
     {'app_label': 'material', 'items': [
-        {'name': 'materialcategory'},
+        {'name': 'materialcategory', 'permissions': ['material.materialcategory']},
         {'name': 'materialpart'},
     ]},
     {'label': 'Externe Links', 'items' : [
