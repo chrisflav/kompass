@@ -185,7 +185,7 @@ BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
 # JET options (admin interface)
 
 JET_SIDE_MENU_COMPACT = True
-JET_DEFAULT_THEME = 'light-green'
+JET_DEFAULT_THEME = 'green'
 JET_CHANGE_FORM_SIBLING_LINKS = False
 
 JET_SIDE_MENU_ITEMS = [
