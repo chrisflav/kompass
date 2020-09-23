@@ -104,3 +104,6 @@ jdav_web/*/migrations
 
 # database configuration
 jdav_web/my.cnf
+
+# sass cache
+jdav_web/static/jet/css/themes/*/.sass-cache/*
