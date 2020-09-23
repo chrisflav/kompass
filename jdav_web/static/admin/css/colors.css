@@ -1,9 +1,0 @@
-/* Admin color file. Keep the number of different colors low to increase readability of the webpage */
-:root {
-  --primary: #5fad00;
-  --primary-dark: #6dad1e;
-  --link: #666;
-  --link-dark: #222;
-  --link-hover: #444;
-  --text-light: #fff;
-}

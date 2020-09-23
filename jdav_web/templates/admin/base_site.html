@@ -1,17 +1,20 @@
-{% extends "admin/base.html" %}
-{% load i18n %}
-{% load static %}
+{% extends "admin/base_site.html" %}
+{% load static i18n %}
 
-{% block title %}
-{{ title }} | KOMPASS
-{% endblock %}
+{# Setup favicon #}
+{% block extrahead %}<link rel="shortcut icon" type="image/png" href="{% static 'admin/images/favicon2.png' %}"/>{% endblock %}
 
-{% block extrastyle %}
-<link rel="shortcut icon" href="{% static 'admin/images/favicon2.png' %}">
-{% endblock %}
+{# Setup browser tab label #}
+{% block title %}{{ title }} | KOMPASS {% endblock %}
 
+{# Setup branding #}
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'admin:index' %}">KOMPASS</a></h1>
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">
+            {# Your logo here #}
+            <img src="{% static 'admin/images/jdav_logo_transparent.png' %}" alt="Your Company Name" height="50%" width="50%">
+            <br><br>
+            </span> KOMPASS
+        </a>
+    </h1>
 {% endblock %}
-
-{% block nav-global %}{% endblock %}

@@ -5,7 +5,7 @@ from django.db import models
 from django import forms
 
 from .models import MaterialPart, Ownership, MaterialCategory
-from easy_select2 import apply_select2
+#from easy_select2 import apply_select2
 
 
 class MaterialCategoryAdmin(admin.ModelAdmin):
@@ -20,9 +20,9 @@ class OwnershipInline(admin.TabularInline):
     """
     model = Ownership
     extra = 0
-    formfield_overrides = {
-        models.ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
 
 
 class NotTooOldFilter(SimpleListFilter):
@@ -51,12 +51,12 @@ class MaterialAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description')
     inlines = [OwnershipInline]
     list_filter = (NotTooOldFilter, 'material_cat', 'ownership__owner')
-    formfield_overrides = {
-        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
-    }
+    #formfield_overrides = {
+    #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
+    #}
 
-    class Media:
-        css = {'all': ('admin/css/tabular_hide_original.css',)}
+    #class Media:
+    #    css = {'all': ('admin/css/tabular_hide_original.css',)}
 
 
 admin.site.register(MaterialCategory, MaterialCategoryAdmin)

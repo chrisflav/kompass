@@ -4,7 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import render
 from django.db import models
 from django import forms
-from easy_select2 import apply_select2
+#from easy_select2 import apply_select2
 import json
 
 from .models import Message, Attachment, MessageForm, EmailAddress
@@ -19,10 +19,10 @@ class AttachmentInline(admin.TabularInline):
 
 class EmailAddressAdmin(admin.ModelAdmin):
     list_display = ('email', )
-    formfield_overrides = {
-        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-        models.ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
     filter_horizontal = ('to_members',)
 
 
@@ -31,10 +31,10 @@ class MessageAdmin(admin.ModelAdmin):
     list_display = ('subject', 'get_recipients', 'sent')
     search_fields = ('subject',)
     change_form_template = "mailer/change_form.html"
-    formfield_overrides = {
-        models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-        models.ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
 
     inlines = [AttachmentInline]
     actions = ['send_message']

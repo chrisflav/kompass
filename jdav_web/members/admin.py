@@ -19,7 +19,7 @@ from django.shortcuts import render
 from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
                      KlettertreffAttendee, ActivityCategory)
 from django.conf import settings
-from easy_select2 import apply_select2
+#from easy_select2 import apply_select2
 
 
 class RegistrationFilter(admin.SimpleListFilter):
@@ -70,10 +70,10 @@ class MemberAdmin(admin.ModelAdmin):
                     'registered', 'created', 'comments')
     search_fields = ('prename', 'lastname')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter)
-    formfield_overrides = {
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-        ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
     change_form_template = "members/change_member.html"
     actions = ['send_mail_to']
 
@@ -105,11 +105,11 @@ class ActivityCategoryAdmin(admin.ModelAdmin):
 
 class MemberListAdminForm(forms.ModelForm):
     difficulty = TypedChoiceField(MemberList.difficulty_choices,
-                                  widget=RadioSelect,
+                                  #widget=RadioSelect,
                                   coerce=int,
                                   label=_('Difficulty'))
     tour_type = TypedChoiceField(MemberList.tour_type_choices,
-                                 widget=RadioSelect,
+                                 #widget=RadioSelect,
                                  coerce=int,
                                  label=_('Tour type'))
 
@@ -126,12 +126,12 @@ class MemberListAdminForm(forms.ModelForm):
 class MemberOnListInline(admin.TabularInline):
     model = MemberOnList
     extra = 0
-    formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1,
-                                              'cols': 40})},
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-        ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    TextField: {'widget': Textarea(attrs={'rows': 1,
+    #                                          'cols': 40})},
+    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
 
 
 class MemberListAdmin(admin.ModelAdmin):
@@ -140,10 +140,10 @@ class MemberListAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'date']
     search_fields = ('name',)
     actions = ['convert_to_pdf', 'generate_notes']
-    formfield_overrides = {
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-        ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
 
     class Media:
         css = {'all': ('admin/css/tabular_hide_original.css',)}
@@ -397,10 +397,10 @@ class KlettertreffAttendeeInline(admin.TabularInline):
     model = KlettertreffAttendee
     form = KlettertreffAttendeeInlineForm
     extra = 0
-    formfield_overrides = {
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-        ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
 
 
 class KlettertreffAdmin(admin.ModelAdmin):
@@ -429,10 +429,10 @@ class KlettertreffAdmin(admin.ModelAdmin):
         return render(request, 'admin/klettertreff_overview.html',
                       context)
 
-    formfield_overrides = {
-        ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-        ForeignKey: {'widget': apply_select2(forms.Select)}
-    }
+    #formfield_overrides = {
+    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
 
     class Media:
         css = {'all': ('admin/css/tabular_hide_original.css',)}

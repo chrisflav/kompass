@@ -53,9 +53,10 @@ INSTALLED_APPS = [
     'members.apps.MembersConfig',
     'mailer.apps.MailerConfig',
     'ludwigsburgalpin.apps.LudwigsburgalpinConfig',
-    'easy_select2',
+    #'easy_select2',
     'djcelery_email',
     'djcelery',
+    'jet',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -180,3 +181,44 @@ ADMINS = (('admin', 'christian@merten-moser.de'),)
 
 # Celery and Redis setup
 BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
+
+# JET options (admin interface)
+
+JET_SIDE_MENU_COMPACT = True
+JET_DEFAULT_THEME = 'light-green'
+JET_CHANGE_FORM_SIBLING_LINKS = False
+
+JET_SIDE_MENU_ITEMS = [
+    {'app_label': 'auth', 'permissions': ['auth'], 'items': [
+        {'name': 'group', 'permissions': ['auth.group'] },
+        {'name': 'user', 'permissions': ['auth.user']},
+    ]},
+    {'app_label': 'djcelery', 'permissions': ['djcelery'], 'items': [
+        {'name': 'crontabschedule'},
+        {'name': 'intervalschedule'},
+        {'name': 'periodictask'},
+        {'name': 'taskstate'},
+        {'name': 'workerstate'},
+    ]},
+    {'app_label': 'ludwigsburgalpin', 'permissions': ['ludwigsburgalpin'], 'items': [
+        {'name': 'termin'},
+    ]},
+    {'app_label': 'mailer', 'items': [
+        {'name': 'message'},
+        {'name': 'emailaddress', 'permissions': ['mailer.emailaddress'] },
+    ]},
+    {'app_label': 'members', 'items': [
+        {'name': 'member'},
+        {'name': 'group'},
+        {'name': 'memberlist'},
+        {'name': 'klettertreff'},
+        {'name': 'activitycategory', 'permissions': ['members.activitycategory'] },
+    ]},
+    {'app_label': 'material', 'items': [
+        {'name': 'materialcategory'},
+        {'name': 'materialpart'},
+    ]},
+    {'label': 'Externe Links', 'items' : [
+        { 'label': 'Packlisten und Co.', 'url': 'https://cloud.jdav-ludwigsburg.de/index.php/s/5xzZH5wHiqKeC2P'}
+    ]},
+]
