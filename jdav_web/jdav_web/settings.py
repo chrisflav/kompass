@@ -205,7 +205,7 @@ JET_SIDE_MENU_ITEMS = [
     ]},
     {'app_label': 'mailer', 'items': [
         {'name': 'message'},
-        {'name': 'emailaddress', 'permissions': ['mailer.emailaddress'] },
+        {'name': 'emailaddress'},
     ]},
     {'app_label': 'members', 'items': [
         {'name': 'member'},

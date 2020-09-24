@@ -22,11 +22,21 @@ class EmailAddress(models.Model):
     """Represents an email address, that is forwarded to specific members"""
     name = models.CharField(_('name'), max_length=50, validators=[alphanumeric])
     to_members = models.ManyToManyField('members.Member',
-                                        verbose_name=_('Forward to'))
+                                        verbose_name=_('Forward to participants'),
+                                        blank=True)
+    to_groups = models.ManyToManyField('members.Group',
+                                       verbose_name=_('Forward to group'),
+                                       blank=True)
 
     @property
     def email(self):
         return "{0}@{1}".format(self.name, HOST)
+
+    @property
+    def forwards(self):
+        mails = set(member.email for member in self.to_members.all())
+        mails.update([member.email for group in self.to_groups.all() for member in group.member_set.all()])
+        return mails
 
     def __str__(self):
         return self.email
@@ -34,6 +44,21 @@ class EmailAddress(models.Model):
     class Meta:
         verbose_name = _('email address')
         verbose_name_plural = _('email addresses')
+
+
+class EmailAddressForm(forms.ModelForm):
+
+    class Meta:
+        model = EmailAddress
+        exclude = []
+
+    def clean(self):
+        group = self.cleaned_data.get('to_groups')
+        members = self.cleaned_data.get('to_members')
+        if not group and not members:
+            raise ValidationError(_('Either a group or at least'
+                                    ' one member is required as forward recipient.'))
+
 
 
 # Create your models here.
@@ -112,8 +137,11 @@ class Message(models.Model):
         # generate message id
         message_id = "<{}@jdav-ludwigsburg.de>".format(self.pk)
         # reply to addresses
-        reply_to = [jl.association_email for jl in self.reply_to.all()]
-        reply_to.extend([ml.email for ml in self.reply_to_email_address.all()])
+        reply_to_unfiltered = [jl.association_email for jl in self.reply_to.all()]
+        reply_to_unfiltered.extend([ml.email for ml in self.reply_to_email_address.all()])
+        # remove sending address from reply-to field (probably unnecessary since it's removed by
+        # the mail provider anyways)
+        reply_to = [mail for mail in reply_to if mail != SENDING_ADDRESS ]
         try:
             success = send(self.subject, get_content(self.content),
                            SENDING_ADDRESS,
@@ -128,7 +156,7 @@ class Message(models.Model):
                     os.remove(a.f.path)
                 a.delete()
         except Exception as e:
-            print("Exception catched", e)
+            print("Exception caught", e)
             success = NOT_SENT
         finally:
             self.save()
@@ -153,9 +181,14 @@ class MessageForm(forms.ModelForm):
         freizeit = self.cleaned_data.get('to_freizeit')
         notelist = self.cleaned_data.get('to_notelist')
         members = self.cleaned_data.get('to_members')
-        if not group and memberlist is None and not members and notelist is None:
+        if not group and freizeit is None and not members and notelist is None:
             raise ValidationError(_('Either a group, a memberlist or at least'
                                     ' one member is required as recipient'))
+        reply_to = self.cleaned_data.get('reply_to')
+        reply_to_email_address = self.cleaned_data.get('reply_to_email_address')
+        if not reply_to and not reply_to_email_address:
+            raise ValidationError(_('At least one reply-to recipient is required.'
+                                    'Use the info mail if you really want no reply-to recipient.'))
 
 class Attachment(models.Model):
     """Represents an attachment to an email"""
