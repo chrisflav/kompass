@@ -161,15 +161,15 @@ class Member(models.Model):
         # get skills by summing up all the activities taken part in
         skills = {}
         for kind in ActivityCategory.objects.all():
-            lists = MemberList.objects.filter(activity=kind,
-                                              oldmemberonlist__member=self)
+            lists = Freizeit.objects.filter(activity=kind,
+                                            membersonlist__member=self)
             skills[kind.name] = sum([l.difficulty * 3 for l in lists
                                      if l.date < datetime.now().date()])
         return skills
 
     def get_activities(self):
         # get activity overview
-        return MemberList.objects.filter(oldmemberonlist__member=self)
+        return Freizeit.objects.filter(membersonlist__member=self)
 
 
 class MemberList(models.Model):
@@ -293,7 +293,7 @@ class Freizeit(models.Model):
             return "Gemeinschaftstour"
 
     def get_absolute_url(self):
-        return reverse('admin:members_memberlist_change', args=[str(self.id)])
+        return reverse('admin:members_freizeit_change', args=[str(self.id)])
 
 
 class MemberNoteList(models.Model):
