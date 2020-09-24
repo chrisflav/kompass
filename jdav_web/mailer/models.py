@@ -153,7 +153,7 @@ class MessageForm(forms.ModelForm):
         freizeit = self.cleaned_data.get('to_freizeit')
         notelist = self.cleaned_data.get('to_notelist')
         members = self.cleaned_data.get('to_members')
-        if not group and memberlist is None and not members and notelist is None:
+        if not group and freizeit is None and not members and notelist is None:
             raise ValidationError(_('Either a group, a memberlist or at least'
                                     ' one member is required as recipient'))
 
