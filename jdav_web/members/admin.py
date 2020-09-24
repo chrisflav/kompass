@@ -142,8 +142,9 @@ class OldMemberOnListInline(admin.TabularInline):
 
 class MemberNoteListAdmin(admin.ModelAdmin):
     inlines = [MemberOnListInline]
-    list_display = ['__str__']
+    list_display = ['__str__', 'date']
     search_fields = ('name',)
+    ordering = ('-date',)
     actions = ['generate_summary']
     
     def generate_summary(self, request, queryset):
@@ -275,6 +276,7 @@ class FreizeitAdmin(admin.ModelAdmin):
     form = FreizeitAdminForm
     list_display = ['__str__', 'date']
     search_fields = ('name',)
+    ordering = ('-date',)
     actions = ['convert_to_pdf', 'generate_notes']
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
