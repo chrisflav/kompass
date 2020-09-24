@@ -187,7 +187,7 @@ class MessageForm(forms.ModelForm):
         reply_to = self.cleaned_data.get('reply_to')
         reply_to_email_address = self.cleaned_data.get('reply_to_email_address')
         if not reply_to and not reply_to_email_address:
-            raise ValidationError(_('At least one reply-to recipient is required.'
+            raise ValidationError(_('At least one reply-to recipient is required. '
                                     'Use the info mail if you really want no reply-to recipient.'))
 
 class Attachment(models.Model):

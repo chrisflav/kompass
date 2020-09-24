@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-24 17:31+0200\n"
+"POT-Creation-Date: 2020-09-24 22:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,19 +18,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: mailer/admin.py:55
+#: mailer/admin.py:56
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: mailer/admin.py:85
+#: mailer/admin.py:86
 msgid "Failed to send message"
 msgstr "Fehler beim Senden der Email"
 
-#: mailer/admin.py:87
+#: mailer/admin.py:88
 msgid "Failed to send some messages"
 msgstr "Fehler beim Senden der Emails"
 
-#: mailer/admin.py:89
+#: mailer/admin.py:90
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
@@ -47,93 +47,110 @@ msgid "name"
 msgstr "Name"
 
 #: mailer/models.py:25
-msgid "Forward to"
-msgstr "Weiterleitung"
+msgid "Forward to participants"
+msgstr "Weiterleitung an Teilnehmer"
 
-#: mailer/models.py:35
+#: mailer/models.py:28
+msgid "Forward to group"
+msgstr "Weiterleitung an Gruppe"
+
+#: mailer/models.py:45
 msgid "email address"
 msgstr "Email-Adresse"
 
-#: mailer/models.py:36
+#: mailer/models.py:46
 msgid "email addresses"
 msgstr "Email-Adressen"
 
-#: mailer/models.py:42
+#: mailer/models.py:59
+msgid "Either a group or at least one member is required as forward recipient."
+msgstr ""
+"Es muss entweder eine Gruppe oder mindestens ein Teilnehmer als Empfänger "
+"ausgewählt werden."
+
+#: mailer/models.py:67
 msgid "subject"
 msgstr "Betreff"
 
-#: mailer/models.py:43
+#: mailer/models.py:68
 msgid "content"
 msgstr "Inhalt"
 
-#: mailer/models.py:45
+#: mailer/models.py:70
 msgid "to group"
 msgstr "An Gruppe"
 
-#: mailer/models.py:48
+#: mailer/models.py:73
 msgid "to freizeit"
 msgstr "An Freizeit"
 
-#: mailer/models.py:52
+#: mailer/models.py:77
 msgid "to notes list"
 msgstr "An Notizliste"
 
-#: mailer/models.py:56
+#: mailer/models.py:81
 msgid "to member"
 msgstr "An Teilnehmer"
 
-#: mailer/models.py:59
+#: mailer/models.py:84
 msgid "reply to participant"
 msgstr "Antwort an Teilnehmer"
 
-#: mailer/models.py:63
+#: mailer/models.py:88
 msgid "reply to custom email address"
 msgstr "Antwort an Email-Adresse"
 
-#: mailer/models.py:66
+#: mailer/models.py:91
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py:80
+#: mailer/models.py:105
 msgid "Some other members"
 msgstr "Andere Teilnehmer"
 
-#: mailer/models.py:82
+#: mailer/models.py:107
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:138
+#: mailer/models.py:166
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:139
+#: mailer/models.py:167
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:141
+#: mailer/models.py:169
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py:157
+#: mailer/models.py:185
 msgid ""
 "Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmerliste oder mindestens ein "
 "Teilnehmer als Empfänger ausgewählt werden."
 
-#: mailer/models.py:164
+#: mailer/models.py:190
+msgid ""
+"At least one reply-to recipient is required. Use the info mail if you really "
+"want no reply-to recipient."
+msgstr "Es muss mindestens ein Antwort-An Empfänger angegeben werden. Nutze die info Email-Adresse "
+"falls du wirklich keinen Antwort-An Empfänger haben möchtest."
+
+#: mailer/models.py:197
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py:170
+#: mailer/models.py:203
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py:173
+#: mailer/models.py:206
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py:174
+#: mailer/models.py:207
 msgid "attachments"
 msgstr "Anhänge"
 
