@@ -141,7 +141,7 @@ class Message(models.Model):
         reply_to_unfiltered.extend([ml.email for ml in self.reply_to_email_address.all()])
         # remove sending address from reply-to field (probably unnecessary since it's removed by
         # the mail provider anyways)
-        reply_to = [mail for mail in reply_to if mail != SENDING_ADDRESS ]
+        reply_to = [mail for mail in reply_to_unfiltered if mail != SENDING_ADDRESS ]
         try:
             success = send(self.subject, get_content(self.content),
                            SENDING_ADDRESS,
