@@ -9,15 +9,16 @@ import unicodedata
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import DateFieldListFilter
+from django.contrib.contenttypes.admin import GenericTabularInline
 from django.utils.translation import ugettext_lazy as _
 from django.db.models import TextField, ManyToManyField, ForeignKey
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 
-from .models import (Member, Group, MemberList, MemberOnList, Klettertreff,
-                     KlettertreffAttendee, ActivityCategory)
+from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
+                     KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList)
 from django.conf import settings
 #from easy_select2 import apply_select2
 
@@ -103,28 +104,28 @@ class ActivityCategoryAdmin(admin.ModelAdmin):
     fields = ['name', 'description']
 
 
-class MemberListAdminForm(forms.ModelForm):
-    difficulty = TypedChoiceField(MemberList.difficulty_choices,
+class FreizeitAdminForm(forms.ModelForm):
+    difficulty = TypedChoiceField(Freizeit.difficulty_choices,
                                   #widget=RadioSelect,
                                   coerce=int,
                                   label=_('Difficulty'))
-    tour_type = TypedChoiceField(MemberList.tour_type_choices,
+    tour_type = TypedChoiceField(Freizeit.tour_type_choices,
                                  #widget=RadioSelect,
                                  coerce=int,
                                  label=_('Tour type'))
 
     class Meta:
-        model = MemberList
+        model = Freizeit
         exclude = ['add_member']
 
     def __init__(self, *args, **kwargs):
-        super(MemberListAdminForm, self).__init__(*args, **kwargs)
+        super(FreizeitAdminForm, self).__init__(*args, **kwargs)
         self.fields['jugendleiter'].queryset = Member.objects.filter(group__name='Jugendleiter')
         #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
 
 
-class MemberOnListInline(admin.TabularInline):
-    model = MemberOnList
+class MemberOnListInline(GenericTabularInline):
+    model = NewMemberOnList
     extra = 0
     #formfield_overrides = {
     #    TextField: {'widget': Textarea(attrs={'rows': 1,
@@ -134,9 +135,144 @@ class MemberOnListInline(admin.TabularInline):
     #}
 
 
-class MemberListAdmin(admin.ModelAdmin):
+class OldMemberOnListInline(admin.TabularInline):
+    model = OldMemberOnList
+    extra = 0
+
+
+class MemberNoteListAdmin(admin.ModelAdmin):
     inlines = [MemberOnListInline]
-    form = MemberListAdminForm
+    list_display = ['__str__']
+    search_fields = ('name',)
+    actions = ['generate_summary']
+    
+    def generate_summary(self, request, queryset):
+        """Generates a pdf summary of the given NoteMemberLists
+        """
+        for memberlist in queryset:
+            # unique filename
+            filename = memberlist.title + "_notes_" + datetime.today().strftime("%d_%m_%Y")
+            filename = filename.replace(' ', '_').replace('&', '')
+            # drop umlauts, accents etc.
+            filename = unicodedata.normalize('NFKD', filename).\
+                encode('ASCII', 'ignore').decode()
+            filename_tex = filename + '.tex'
+            filename_pdf = filename + '.pdf'
+
+            # generate table
+            table = ""
+            for memberonlist in memberlist.membersonlist.all():
+                m = memberonlist.member
+                comment = ". ".join(c for c
+                                    in (m.comments,
+                                        memberonlist.comments) if
+                                    c).replace("..", ".")
+                line = '{0} {1} & {2} \\\\'.format(
+                    esc_ampersand(m.prename), esc_ampersand(m.lastname),
+	            esc_ampersand(comment) or "---")
+                table += esc_underscore(line)
+
+            # copy template
+            shutil.copy(media_path('memberlistnote_template.tex'),
+                        media_path(filename_tex))
+
+            # read in template
+            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
+                template_content = f.read()
+
+            # adapt template
+            title = esc_all(memberlist.title)
+            template_content = template_content.replace('MEMBERLIST-TITLE', title)
+            template_content = template_content.replace('MEMBERLIST-DATE',
+                    datetime.today().strftime('%d.%m.%Y'))
+            template_content = template_content.replace('TABLE', table)
+
+            # write adapted template to file
+            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
+                f.write(template_content)
+
+            # compile using pdflatex
+            oldwd = os.getcwd()
+            os.chdir(media_dir())
+            subprocess.call(['pdflatex', filename_tex])
+            time.sleep(1)
+
+            # do some cleanup
+            for f in glob.glob('*.log'):
+                os.remove(f)
+            for f in glob.glob('*.aux'):
+                os.remove(f)
+            os.remove(filename_tex)
+
+            os.chdir(oldwd)
+
+            # provide the user with the resulting pdf file
+            with open(media_path(filename_pdf), 'rb') as pdf:
+                response = HttpResponse(FileWrapper(pdf))
+                response['Content-Type'] = 'application/pdf'
+                response['Content-Disposition'] = 'attachment; filename=' + filename_pdf
+
+            return response
+    generate_summary.short_description = "PDF Übersicht erstellen"
+
+
+
+class MemberListAdmin(admin.ModelAdmin):
+    inlines = [OldMemberOnListInline]
+    form = FreizeitAdminForm
+    list_display = ['__str__', 'date']
+    search_fields = ('name',)
+    actions = ['migrate_to_freizeit', 'migrate_to_notelist']
+    #formfield_overrides = {
+    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
+    #    ForeignKey: {'widget': apply_select2(forms.Select)}
+    #}
+
+    class Media:
+        css = {'all': ('admin/css/tabular_hide_original.css',)}
+
+    def __init__(self, *args, **kwargs):
+        super(MemberListAdmin, self).__init__(*args, **kwargs)
+
+    def migrate_to_freizeit(self, request, queryset):
+        """Creates 'Freizeiten' from the given memberlists """
+        for memberlist in queryset:
+            freizeit = Freizeit(name=memberlist.name,
+                                place=memberlist.place,
+                                destination=memberlist.destination,
+                                date=memberlist.date,
+                                end=memberlist.end,
+                                tour_type=memberlist.tour_type,
+                                difficulty=memberlist.difficulty)
+            freizeit.save()
+            freizeit.jugendleiter = memberlist.jugendleiter.all()
+            freizeit.groups = memberlist.groups.all()
+            freizeit.activity = memberlist.activity.all()
+            for memberonlist in memberlist.oldmemberonlist_set.all():
+                newonlist = NewMemberOnList(member=memberonlist.member,
+                                            comments=memberonlist.comments,
+                                            memberlist=freizeit)
+                newonlist.save()
+        messages.info(request, "Freizeit(en) erfolgreich erstellt.")
+    migrate_to_freizeit.short_description = "Aus Teilnehmerliste(n) Freizeit(en) erstellen"
+
+    def migrate_to_notelist(self, request, queryset):
+        """Creates 'MemberNoteList' from the given memberlists """
+        for memberlist in queryset:
+            notelist = MemberNoteList(title=memberlist.name,
+                                      date=memberlist.date)
+            notelist.save()
+            for memberonlist in memberlist.oldmemberonlist_set.all():
+                newonlist = NewMemberOnList(member=memberonlist.member,
+                                            comments=memberonlist.comments,
+                                            memberlist=notelist)
+                newonlist.save()
+        messages.info(request, "Teilnehmerlist(en) erfolgreich erstellt.")
+    migrate_to_notelist.short_description = "Aus Teilnehmerliste(n) Notizliste erstellen"
+
+class FreizeitAdmin(admin.ModelAdmin):
+    inlines = [MemberOnListInline]
+    form = FreizeitAdminForm
     list_display = ['__str__', 'date']
     search_fields = ('name',)
     actions = ['convert_to_pdf', 'generate_notes']
@@ -149,7 +285,7 @@ class MemberListAdmin(admin.ModelAdmin):
         css = {'all': ('admin/css/tabular_hide_original.css',)}
 
     def __init__(self, *args, **kwargs):
-        super(MemberListAdmin, self).__init__(*args, **kwargs)
+        super(FreizeitAdmin, self).__init__(*args, **kwargs)
 
     def convert_to_pdf(self, request, queryset):
         """Converts a member list to pdf.
@@ -167,11 +303,11 @@ class MemberListAdmin(admin.ModelAdmin):
 
             # open temporary file for table
             with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
-                if memberlist.memberonlist_set.count() == 0:
+                if memberlist.membersonlist.count() == 0:
                     f.write('{0} & {1} & {2} & {3} \\\\ \n'.format(
                         'keine Teilnehmer', '-', '-', '-'
                     ))
-                for memberonlist in memberlist.memberonlist_set.all():
+                for memberonlist in memberlist.membersonlist.all():
                     # write table of members in latex compatible format
                     member = memberonlist.member
                     # use parents phone number if available
@@ -278,7 +414,7 @@ class MemberListAdmin(admin.ModelAdmin):
             table = ""
             activities = [a.name for a in memberlist.activity.all()]
             skills = {a: [] for a in activities}
-            for memberonlist in memberlist.memberonlist_set.all():
+            for memberonlist in memberlist.membersonlist.all():
                 m = memberonlist.member
                 qualities = []
                 for activity, value in m.get_skills().items():
@@ -440,6 +576,8 @@ class KlettertreffAdmin(admin.ModelAdmin):
 
 admin.site.register(Member, MemberAdmin)
 admin.site.register(Group, GroupAdmin)
+admin.site.register(Freizeit, FreizeitAdmin)
+admin.site.register(MemberNoteList, MemberNoteListAdmin)
 admin.site.register(MemberList, MemberListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
 admin.site.register(ActivityCategory, ActivityCategoryAdmin)

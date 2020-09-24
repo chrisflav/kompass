@@ -23,7 +23,7 @@ class Message(models.Model):
     to_groups = models.ManyToManyField('members.Group',
                                        verbose_name=_('to group'),
                                        blank=True)
-    to_memberlist = models.ForeignKey('members.MemberList',
+    to_memberlist = models.ForeignKey('members.Freizeit',
                                       verbose_name=_('to member list'),
                                       blank=True,
                                       null=True)
