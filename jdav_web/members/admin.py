@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import glob
 import os
 import subprocess
@@ -12,8 +12,10 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import DateFieldListFilter
 from django.contrib.contenttypes.admin import GenericTabularInline
+from django.utils.html import format_html
 from django.utils.translation import ugettext_lazy as _
-from django.db.models import TextField, ManyToManyField, ForeignKey
+from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
+    Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 
@@ -68,7 +70,7 @@ class MemberAdmin(admin.ModelAdmin):
               'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
               'gets_newsletter', 'registered', 'registration_form', 'comments']
     list_display = ('name', 'birth_date', 'get_group', 'gets_newsletter',
-                    'registered', 'created', 'comments')
+                    'registered', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter)
     #formfield_overrides = {
@@ -76,7 +78,60 @@ class MemberAdmin(admin.ModelAdmin):
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
     change_form_template = "members/change_member.html"
+    #ordering = ('activity_score',)
     actions = ['send_mail_to']
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        one_year_ago = datetime.now() - timedelta(days=365)
+        queryset = queryset.annotate(
+            _jugendleiter_klettertreff_score=Sum(Case(
+                When(
+                    klettertreff__date__gte=one_year_ago,
+                    then=1),
+                default=0,
+                output_field=IntegerField()
+                )),
+            _jugendleiter_freizeit_score=Sum(Case(
+                When(
+                    freizeit__date__gte=one_year_ago,
+                    then=1),
+                default=0,
+                output_field=IntegerField()
+                )),
+            _klettertreff_score_calc=Subquery(
+                KlettertreffAttendee.objects.filter(member=OuterRef('pk'),
+                                                    klettertreff__date__gte=one_year_ago)
+                    .values('member')
+                    .annotate(cnt=Count('pk', distinct=True))
+                    .values('cnt'),
+                output_field=IntegerField()),
+            _klettertreff_score=Case(
+                When(
+                    _klettertreff_score_calc=None,
+                    then=0
+                ),
+                default=F('_klettertreff_score_calc'),
+                output_field=IntegerField()),
+            _freizeit_score_calc=Subquery(
+                Freizeit.objects.filter(membersonlist__member=OuterRef('pk'),
+                                        date__gte=one_year_ago)
+                    .values('membersonlist__member')
+                    .annotate(cnt=Count('pk', distinct=True))
+                    .values('cnt'),
+                output_field=IntegerField()
+                ),
+            _freizeit_score=Case(
+                When(
+                    _freizeit_score_calc=None,
+                    then=0
+                ),
+                default=F('_freizeit_score_calc'),
+                output_field=IntegerField()),
+            _activity_score=(F('_klettertreff_score') + 3 * F('_freizeit_score')
+                + 2 * F('_jugendleiter_klettertreff_score') + 6 * F('_jugendleiter_freizeit_score'))
+        )
+        return queryset
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -93,6 +148,22 @@ class MemberAdmin(admin.ModelAdmin):
         query = str(member_pks).replace(' ', '')
         return HttpResponseRedirect("/admin/mailer/message/add/?members={}".format(query))
     send_mail_to.short_description = _('Compose new mail to selected members')
+
+    def activity_score(self, obj):
+        score = obj._activity_score
+        # show 1 to 5 climbers based on activity in last year
+        if score < 5:
+            level = 1
+        elif score >= 5 and score < 10:
+            level = 2
+        elif score >= 10 and score < 20:
+            level = 3
+        elif score >= 20 and score < 30:
+            level = 4
+        else:
+            level = 5
+        return format_html(level*'<img height=20px src="{}"/>&nbsp;'.format("/static/admin/images/climber.png"))
+    activity_score.admin_order_field = '_activity_score'
 
 
 class GroupAdmin(admin.ModelAdmin):
