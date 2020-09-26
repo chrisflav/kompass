@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-24 17:31+0200\n"
+"POT-Creation-Date: 2020-09-26 14:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,39 +18,43 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: members/admin.py:27 members/models.py:75
+#: members/admin.py:29 members/models.py:75
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
-#: members/admin.py:33
+#: members/admin.py:35
 msgid "True"
 msgstr "Ja"
 
-#: members/admin.py:34
+#: members/admin.py:36
 msgid "False"
 msgstr "Nein"
 
-#: members/admin.py:35
+#: members/admin.py:37
 msgid "All"
 msgstr "Alle"
 
-#: members/admin.py:95
+#: members/admin.py:187
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer verfassen"
 
-#: members/admin.py:111
+#: members/admin.py:204
+msgid "activity"
+msgstr "Aktivität"
+
+#: members/admin.py:220
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: members/admin.py:115
+#: members/admin.py:224
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: members/admin.py:401
+#: members/admin.py:510
 msgid "Convert to PDF"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: members/admin.py:510
+#: members/admin.py:619
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
@@ -211,7 +215,7 @@ msgstr "Teilnehmer"
 
 #: members/models.py:303
 msgid "Title"
-msgstr ""
+msgstr "Titel"
 
 #: members/models.py:323
 msgid "Location"

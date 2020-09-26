@@ -201,6 +201,7 @@ class MemberAdmin(admin.ModelAdmin):
             level = 5
         return format_html(level*'<img height=20px src="{}"/>&nbsp;'.format("/static/admin/images/climber.png"))
     activity_score.admin_order_field = '_activity_score'
+    activity_score.short_description = _('activity')
 
 
 class GroupAdmin(admin.ModelAdmin):
