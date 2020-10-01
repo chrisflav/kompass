@@ -236,12 +236,10 @@ class FreizeitAdminForm(forms.ModelForm):
 class MemberOnListInline(GenericTabularInline):
     model = NewMemberOnList
     extra = 0
-    #formfield_overrides = {
-    #    TextField: {'widget': Textarea(attrs={'rows': 1,
-    #                                          'cols': 40})},
-    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-    #    ForeignKey: {'widget': apply_select2(forms.Select)}
-    #}
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1,
+                                              'cols': 40})}
+    }
 
 
 class OldMemberOnListInline(admin.TabularInline):
