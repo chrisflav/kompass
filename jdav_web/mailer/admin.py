@@ -87,7 +87,7 @@ def submit_message(msg, request):
     elif success == PARTLY_SENT:
         messages.warning(request, _("Failed to send some messages"))
     else:
-        messages.info(request, _("Successfully sent message"))
+        messages.success(request, _("Successfully sent message"))
 
 
 admin.site.register(Message, MessageAdmin)
