@@ -5,11 +5,6 @@
  */
 /* 
  * Colors
- * 
- * primary:
- * primary-dark:
- * background:
- * 
  */
 /*
  * General
@@ -2370,10 +2365,10 @@ img[src$="admin/img/icon-unknown.gif"], img[src$="admin/img/icon-unknown.svg"] {
     color: #61782b; }
 
 img[src$="admin/img/icon-yes.gif"] + span, img[src$="admin/img/icon-yes.svg"] + span {
-  color: #61782b; }
+  color: #bcd386; }
 
 img[src$="admin/img/icon-no.gif"] + span, img[src$="admin/img/icon-no.svg"] + span {
-  color: #bd5757; }
+  color: #dba4a4; }
 
 /* LOADING INDOCATOR */
 .loading-indicator {

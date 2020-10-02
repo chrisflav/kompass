@@ -275,11 +275,11 @@ img[src$="admin/img/icon-unknown.gif"], img[src$="admin/img/icon-unknown.svg"] {
 }
 
 img[src$="admin/img/icon-yes.gif"] + span, img[src$="admin/img/icon-yes.svg"] + span {
-  color: $success-text-color;
+  color: $boolean-yes;
 }
 
 img[src$="admin/img/icon-no.gif"] + span, img[src$="admin/img/icon-no.svg"] + span {
-  color: $warning-text-color;
+  color: $boolean-no;
 }
 
 /* LOADING INDOCATOR */
