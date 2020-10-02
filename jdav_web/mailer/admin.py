@@ -7,7 +7,7 @@ from django import forms
 #from easy_select2 import apply_select2
 import json
 
-from .models import Message, Attachment, MessageForm, EmailAddress
+from .models import Message, Attachment, MessageForm, EmailAddress, EmailAddressForm
 from .mailutils import NOT_SENT, PARTLY_SENT
 from members.models import Member
 
@@ -24,6 +24,7 @@ class EmailAddressAdmin(admin.ModelAdmin):
     #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
     filter_horizontal = ('to_members',)
+    form = EmailAddressForm
 
 
 class MessageAdmin(admin.ModelAdmin):

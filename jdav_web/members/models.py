@@ -4,6 +4,8 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 from django.urls import reverse
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
 
@@ -159,15 +161,15 @@ class Member(models.Model):
         # get skills by summing up all the activities taken part in
         skills = {}
         for kind in ActivityCategory.objects.all():
-            lists = MemberList.objects.filter(activity=kind,
-                                              memberonlist__member=self)
+            lists = Freizeit.objects.filter(activity=kind,
+                                            membersonlist__member=self)
             skills[kind.name] = sum([l.difficulty * 3 for l in lists
                                      if l.date < datetime.now().date()])
         return skills
 
     def get_activities(self):
         # get activity overview
-        return MemberList.objects.filter(memberonlist__member=self)
+        return Freizeit.objects.filter(membersonlist__member=self)
 
 
 class MemberList(models.Model):
@@ -214,7 +216,7 @@ class MemberList(models.Model):
         return reverse('admin:members_memberlist_change', args=[str(self.id)])
 
 
-class MemberOnList(models.Model):
+class OldMemberOnList(models.Model):
     """
     Connects members to a list of members.
     """
@@ -228,6 +230,87 @@ class MemberOnList(models.Model):
     class Meta:
         verbose_name = _('Member')
         verbose_name_plural = _('Members')
+
+
+class NewMemberOnList(models.Model):
+    """
+    Connects members to a list of members.
+    """
+    member = models.ForeignKey(Member, verbose_name=_('Member'))
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE,
+                                     default=ContentType('members', 'Freizeit').pk)
+    object_id = models.PositiveIntegerField()
+    memberlist = GenericForeignKey('content_type', 'object_id')
+    comments = models.TextField(_('Comment'), default='', blank=True)
+
+    def __str__(self):
+        return str(self.member)
+
+    class Meta:
+        verbose_name = _('Member')
+        verbose_name_plural = _('Members')
+
+
+class Freizeit(models.Model):
+    """Lets the user create a 'Freizeit' and generate a members overview in pdf format. """
+
+    name = models.CharField(verbose_name=_('Activity'), default='',
+                            max_length=50)
+    place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
+    destination = models.CharField(verbose_name=_('Destination (optional)'),
+                                   default='', max_length=50, blank=True)
+    date = models.DateField(default=datetime.today, verbose_name=_('Date'))
+    end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
+    # comment = models.TextField(_('Comments'), default='', blank=True)
+    groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
+    jugendleiter = models.ManyToManyField(Member)
+    tour_type_choices = ((GEMEINSCHAFTS_TOUR, 'Gemeinschaftstour'),
+                         (FUEHRUNGS_TOUR, 'Führungstour'),
+                         (AUSBILDUNGS_TOUR, 'Ausbildung'))
+    # verbose_name is overriden by form, label is set in admin.py
+    tour_type = models.IntegerField(choices=tour_type_choices)
+    activity = models.ManyToManyField(ActivityCategory, default=None,
+                                      verbose_name=_('Categories'))
+    difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
+    # verbose_name is overriden by form, label is set in admin.py
+    difficulty = models.IntegerField(choices=difficulty_choices)
+    membersonlist = GenericRelation(NewMemberOnList)
+
+    def __str__(self):
+        """String represenation"""
+        return self.name
+
+    class Meta:
+        verbose_name = "Freizeit"
+        verbose_name_plural = "Freizeiten"
+
+    def get_tour_type(self):
+        if self.tour_type == FUEHRUNGS_TOUR:
+            return "Führungstour"
+        elif self.tour_type == AUSBILDUNGS_TOUR:
+            return "Ausbildung"
+        else:
+            return "Gemeinschaftstour"
+
+    def get_absolute_url(self):
+        return reverse('admin:members_freizeit_change', args=[str(self.id)])
+
+
+class MemberNoteList(models.Model):
+    """
+    A member list with a title and a bunch of members to take some notes.
+    """
+    title = models.CharField(verbose_name=_('Title'), default='', max_length=50)
+    date = models.DateField(default=datetime.today, verbose_name=_('Date'), null=True, blank=True)
+    membersonlist = GenericRelation(NewMemberOnList)
+
+    def __str__(self):
+        """String represenation"""
+        return self.title
+
+    class Meta:
+        verbose_name = "Notizliste"
+        verbose_name_plural = "Notizlisten"
 
 
 class Klettertreff(models.Model):

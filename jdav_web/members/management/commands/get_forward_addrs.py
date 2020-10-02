@@ -21,7 +21,7 @@ class Command(BaseCommand):
         if addresses:
             forwards = []
             for addr in addresses:
-                forwards.extend([member.email for member in addr.to_members.all()])
+                forwards.extend(addr.forwards)
             self.stdout.write(" ".join(forwards))
             return
         try:

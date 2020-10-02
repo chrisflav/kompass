@@ -15,6 +15,52 @@ SENDING_ADDRESS = mail_root
 HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
+alphanumeric = RegexValidator(r'^[0-9a-zA-Z]*$', _('Only alphanumeric characters are allowed'))
+
+
+class EmailAddress(models.Model):
+    """Represents an email address, that is forwarded to specific members"""
+    name = models.CharField(_('name'), max_length=50, validators=[alphanumeric])
+    to_members = models.ManyToManyField('members.Member',
+                                        verbose_name=_('Forward to participants'),
+                                        blank=True)
+    to_groups = models.ManyToManyField('members.Group',
+                                       verbose_name=_('Forward to group'),
+                                       blank=True)
+
+    @property
+    def email(self):
+        return "{0}@{1}".format(self.name, HOST)
+
+    @property
+    def forwards(self):
+        mails = set(member.email for member in self.to_members.all())
+        mails.update([member.email for group in self.to_groups.all() for member in group.member_set.all()])
+        return mails
+
+    def __str__(self):
+        return self.email
+
+    class Meta:
+        verbose_name = _('email address')
+        verbose_name_plural = _('email addresses')
+
+
+class EmailAddressForm(forms.ModelForm):
+
+    class Meta:
+        model = EmailAddress
+        exclude = []
+
+    def clean(self):
+        group = self.cleaned_data.get('to_groups')
+        members = self.cleaned_data.get('to_members')
+        if not group and not members:
+            raise ValidationError(_('Either a group or at least'
+                                    ' one member is required as forward recipient.'))
+
+
+
 # Create your models here.
 class Message(models.Model):
     """Represents a message that can be sent to some members"""
@@ -23,17 +69,25 @@ class Message(models.Model):
     to_groups = models.ManyToManyField('members.Group',
                                        verbose_name=_('to group'),
                                        blank=True)
-    to_memberlist = models.ForeignKey('members.MemberList',
-                                      verbose_name=_('to member list'),
+    to_freizeit = models.ForeignKey('members.Freizeit',
+                                    verbose_name=_('to freizeit'),
+                                    blank=True,
+                                    null=True)
+    to_notelist = models.ForeignKey('members.MemberNoteList',
+                                      verbose_name=_('to notes list'),
                                       blank=True,
                                       null=True)
     to_members = models.ManyToManyField('members.Member',
                                         verbose_name=_('to member'),
                                         blank=True)
     reply_to = models.ManyToManyField('members.Member',
-                                      verbose_name=_('reply to'),
+                                      verbose_name=_('reply to participant'),
                                       blank=True,
                                       related_name='reply_to')
+    reply_to_email_address = models.ManyToManyField('mailer.EmailAddress',
+                                                    verbose_name=_('reply to custom email address'),
+                                                    blank=True,
+                                                    related_name='reply_to_email_addr')
     sent = models.BooleanField(_('sent'), default=False)
 
     def __str__(self):
@@ -41,8 +95,10 @@ class Message(models.Model):
 
     def get_recipients(self):
         recipients = [g.name for g in self.to_groups.all()]
-        if self.to_memberlist is not None:
-            recipients.append(self.to_memberlist.name)
+        if self.to_freizeit is not None:
+            recipients.append(self.to_freizeit.name)
+        if self.to_notelist is not None:
+            recipients.append(self.to_notelist.title)
         if 3 > self.to_members.count() > 0:
             recipients.extend([m.name for m in self.to_members.all()])
         elif self.to_members.count() > 2:
@@ -59,11 +115,15 @@ class Message(models.Model):
         members.update([m for gr in groups for m in gr])
         # get all the individually picked members
         members.update(self.to_members.all())
-        # get all the members of the selected member list
-        if self.to_memberlist is not None:
+        # get all the members of the selected freizeit
+        if self.to_freizeit is not None:
             members.update([mol.member for mol in
-                            self.to_memberlist.memberonlist_set.all()])
-            members.update(self.to_memberlist.jugendleiter.all())
+                            self.to_freizeit.membersonlist.all()])
+            members.update(self.to_freizeit.jugendleiter.all())
+        # get all the members of the selected notes list
+        if self.to_notelist is not None:
+            members.update([mol.member for mol in
+                            self.to_notelist.membersonlist.all()])
         filtered = [m for m in members if m.gets_newsletter]
         print("sending mail to", filtered)
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
@@ -76,8 +136,12 @@ class Message(models.Model):
         self.subject = self.subject.replace('_', ' ')
         # generate message id
         message_id = "<{}@jdav-ludwigsburg.de>".format(self.pk)
-        # reply to adresses
-        reply_to = [jl.association_email for jl in self.reply_to.all()]
+        # reply to addresses
+        reply_to_unfiltered = [jl.association_email for jl in self.reply_to.all()]
+        reply_to_unfiltered.extend([ml.email for ml in self.reply_to_email_address.all()])
+        # remove sending address from reply-to field (probably unnecessary since it's removed by
+        # the mail provider anyways)
+        reply_to = [mail for mail in reply_to_unfiltered if mail != SENDING_ADDRESS ]
         try:
             success = send(self.subject, get_content(self.content),
                            SENDING_ADDRESS,
@@ -92,7 +156,7 @@ class Message(models.Model):
                     os.remove(a.f.path)
                 a.delete()
         except Exception as e:
-            print("Exception catched", e)
+            print("Exception caught", e)
             success = NOT_SENT
         finally:
             self.save()
@@ -114,11 +178,17 @@ class MessageForm(forms.ModelForm):
 
     def clean(self):
         group = self.cleaned_data.get('to_groups')
-        memberlist = self.cleaned_data.get('to_memberlist')
+        freizeit = self.cleaned_data.get('to_freizeit')
+        notelist = self.cleaned_data.get('to_notelist')
         members = self.cleaned_data.get('to_members')
-        if not group and memberlist is None and not members:
+        if not group and freizeit is None and not members and notelist is None:
             raise ValidationError(_('Either a group, a memberlist or at least'
                                     ' one member is required as recipient'))
+        reply_to = self.cleaned_data.get('reply_to')
+        reply_to_email_address = self.cleaned_data.get('reply_to_email_address')
+        if not reply_to and not reply_to_email_address:
+            raise ValidationError(_('At least one reply-to recipient is required. '
+                                    'Use the info mail if you really want no reply-to recipient.'))
 
 class Attachment(models.Model):
     """Represents an attachment to an email"""
@@ -135,24 +205,3 @@ class Attachment(models.Model):
     class Meta:
         verbose_name = _('attachment')
         verbose_name_plural = _('attachments')
-
-
-alphanumeric = RegexValidator(r'^[0-9a-zA-Z]*$', _('Only alphanumeric characters are allowed'))
-
-
-class EmailAddress(models.Model):
-    """Represents an email address, that is forwarded to specific members"""
-    name = models.CharField(_('name'), max_length=50, validators=[alphanumeric])
-    to_members = models.ManyToManyField('members.Member',
-                                        verbose_name=_('Forward to'))
-
-    @property
-    def email(self):
-        return "{0}@{1}".format(self.name, HOST)
-
-    def __str__(self):
-        return self.email
-
-    class Meta:
-        verbose_name = _('email address')
-        verbose_name_plural = _('email addresses')

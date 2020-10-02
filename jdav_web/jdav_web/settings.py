@@ -185,7 +185,7 @@ BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
 # JET options (admin interface)
 
 JET_SIDE_MENU_COMPACT = True
-JET_DEFAULT_THEME = 'light-green'
+JET_DEFAULT_THEME = 'green'
 JET_CHANGE_FORM_SIBLING_LINKS = False
 
 JET_SIDE_MENU_ITEMS = [
@@ -205,17 +205,19 @@ JET_SIDE_MENU_ITEMS = [
     ]},
     {'app_label': 'mailer', 'items': [
         {'name': 'message'},
-        {'name': 'emailaddress', 'permissions': ['mailer.emailaddress'] },
+        {'name': 'emailaddress'},
     ]},
     {'app_label': 'members', 'items': [
         {'name': 'member'},
-        {'name': 'group'},
-        {'name': 'memberlist'},
+        {'name': 'group', 'permissions': ['members.group']},
+        {'name': 'memberlist', 'permissions': ['members.memberlist']},
+        {'name': 'membernotelist'},
+        {'name': 'freizeit'},
         {'name': 'klettertreff'},
         {'name': 'activitycategory', 'permissions': ['members.activitycategory'] },
     ]},
     {'app_label': 'material', 'items': [
-        {'name': 'materialcategory'},
+        {'name': 'materialcategory', 'permissions': ['material.materialcategory']},
         {'name': 'materialpart'},
     ]},
     {'label': 'Externe Links', 'items' : [

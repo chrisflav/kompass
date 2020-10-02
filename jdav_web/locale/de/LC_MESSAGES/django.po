@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-24 23:21+0100\n"
+"POT-Creation-Date: 2020-09-26 14:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,26 +22,6 @@ msgstr ""
 msgid "Startpage"
 msgstr "Startseite"
 
-#: templates/admin/base.html:32
-msgid "Welcome,"
-msgstr "Willkommen"
-
-#: templates/admin/base.html:40
-msgid "Documentation"
-msgstr "Dokumentation"
-
-#: templates/admin/base.html:44
-msgid "Change password"
-msgstr "Passwort ändern"
-
-#: templates/admin/base.html:46
-msgid "Log out"
-msgstr "Abmelden"
-
-#: templates/admin/base.html:56
-msgid "Home"
-msgstr "Start"
-
 #: utils.py:26
 msgid "Filetype not supported."
 msgstr "Dateityp nicht unterstützt."
@@ -49,6 +29,21 @@ msgstr "Dateityp nicht unterstützt."
 #: utils.py:28
 msgid "Please keep filesize under {}. Current filesize: {}"
 msgstr "Maximale Dateigröße {}. Aktuelle Dateigröße: {}."
+
+#~ msgid "Welcome,"
+#~ msgstr "Willkommen"
+
+#~ msgid "Documentation"
+#~ msgstr "Dokumentation"
+
+#~ msgid "Change password"
+#~ msgstr "Passwort ändern"
+
+#~ msgid "Log out"
+#~ msgstr "Abmelden"
+
+#~ msgid "Home"
+#~ msgstr "Start"
 
 #~ msgid "View site"
 #~ msgstr "Seite anzeigen"

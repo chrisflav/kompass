@@ -20,7 +20,8 @@ class Command(BaseCommand):
             message_id = int(options['message_id'])
             message = Message.objects.get(pk=message_id)
             if message.reply_to:
-                replies = message.reply_to.all()
+                replies = list(message.reply_to.all())
+                replies.extend(message.reply_to_email_address.all())
         except (Message.DoesNotExist, ValueError):
             extracted = re.match("^([Ww][Gg]: *|[Ff][Ww]: *|[Rr][Ee]: *|[Aa][Ww]: *)* *(.*)$",
                                  options['subject']).group(2)
@@ -29,6 +30,7 @@ class Command(BaseCommand):
                 message = msgs.all()[0]
                 if message.reply_to:
                     replies = message.reply_to.all()
+                    replies.extend(message.reply_to_email_address.all())
             except (Message.DoesNotExist, ValueError, IndexError):
                 pass
 
