@@ -29,7 +29,7 @@ class Command(BaseCommand):
                 msgs = Message.objects.filter(subject=extracted)
                 message = msgs.all()[0]
                 if message.reply_to:
-                    replies = message.reply_to.all()
+                    replies = list(message.reply_to.all())
                     replies.extend(message.reply_to_email_address.all())
             except (Message.DoesNotExist, ValueError, IndexError):
                 pass
