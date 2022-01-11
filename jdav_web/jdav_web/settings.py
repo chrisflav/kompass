@@ -58,7 +58,7 @@ INSTALLED_APPS = [
     'ludwigsburgalpin.apps.LudwigsburgalpinConfig',
     #'easy_select2',
     'djcelery_email',
-    #'jet',
+    'jet',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -194,13 +194,6 @@ JET_SIDE_MENU_ITEMS = [
     {'app_label': 'auth', 'permissions': ['auth'], 'items': [
         {'name': 'group', 'permissions': ['auth.group'] },
         {'name': 'user', 'permissions': ['auth.user']},
-    ]},
-    {'app_label': 'djcelery', 'permissions': ['djcelery'], 'items': [
-        {'name': 'crontabschedule'},
-        {'name': 'intervalschedule'},
-        {'name': 'periodictask'},
-        {'name': 'taskstate'},
-        {'name': 'workerstate'},
     ]},
     {'app_label': 'ludwigsburgalpin', 'permissions': ['ludwigsburgalpin'], 'items': [
         {'name': 'termin'},
