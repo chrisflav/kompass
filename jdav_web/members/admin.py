@@ -13,7 +13,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import DateFieldListFilter
 from django.contrib.contenttypes.admin import GenericTabularInline
 from django.utils.html import format_html
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
 from django.forms import Textarea, RadioSelect, TypedChoiceField
@@ -214,12 +214,10 @@ class ActivityCategoryAdmin(admin.ModelAdmin):
 
 
 class FreizeitAdminForm(forms.ModelForm):
-    difficulty = TypedChoiceField(Freizeit.difficulty_choices,
-                                  #widget=RadioSelect,
+    difficulty = TypedChoiceField(choices=Freizeit.difficulty_choices,
                                   coerce=int,
                                   label=_('Difficulty'))
-    tour_type = TypedChoiceField(Freizeit.tour_type_choices,
-                                 #widget=RadioSelect,
+    tour_type = TypedChoiceField(choices=Freizeit.tour_type_choices,
                                  coerce=int,
                                  label=_('Tour type'))
 

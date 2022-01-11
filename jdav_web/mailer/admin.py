@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.shortcuts import render
 from django.db import models
 from django import forms

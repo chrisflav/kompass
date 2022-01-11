@@ -2,7 +2,7 @@ from datetime import datetime
 
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 # maximum time in years of a material part until being replaced
 MAX_TIME_MATERIAL = 5
@@ -82,7 +82,7 @@ class MaterialPart(models.Model):
 class Ownership(models.Model):
     """Represents the connection between a MaterialPart and a Member"""
     material = models.ForeignKey(MaterialPart, on_delete=models.CASCADE)
-    owner = models.ForeignKey('members.Member', verbose_name=_('owner'))
+    owner = models.ForeignKey('members.Member', verbose_name=_('owner'), on_delete=models.CASCADE)
     count = models.IntegerField(_('count'), default=1)
 
     def __str__(self):

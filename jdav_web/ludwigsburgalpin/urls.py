@@ -1,9 +1,9 @@
-from django.conf.urls import url
+from django.urls import re_path
 
 from . import views
 
 app_name = "ludwigsburgalpin"
 urlpatterns = [
-    url(r'^$', views.index, name='index')
-    # url(r'^subscribe', views.subscribe, name='subscribe'),
+    re_path(r'^$', views.index, name='index')
+    # re_path(r'^subscribe', views.subscribe, name='subscribe'),
 ]

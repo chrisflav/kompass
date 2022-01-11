@@ -13,12 +13,12 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url, include
+from django.urls import re_path, include
 from django.contrib import admin
 from django.conf.urls.static import static
 from django.conf.urls.i18n import i18n_patterns
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
 
 urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
@@ -27,13 +27,13 @@ admin.site.index_title = _('Startpage')
 admin.site.site_header = 'Kompass'
 
 urlpatterns += i18n_patterns(
-    url(r'^kompass/', admin.site.urls),
-    url(r'^jet/', include('jet.urls', 'jet')), # Django JET URLS
-    url(r'^admin/', RedirectView.as_view(url='/kompass')),
-    url(r'^newsletter/', include('mailer.urls', namespace="mailer")),
-    url(r'^LBAlpin/Programm/2020', include('ludwigsburgalpin.urls',
-       namespace="ludwigsburgalpin")),
-    url(r'^$', include('startpage.urls')),
+    re_path(r'^kompass/', admin.site.urls),
+    #re_path(r'^jet/', include('jet.urls', 'jet')), # Django JET URLS
+    re_path(r'^admin/', RedirectView.as_view(url='/kompass')),
+    re_path(r'^newsletter/', include('mailer.urls', namespace="mailer")),
+    re_path(r'^LBAlpin/Programm/2020', include('ludwigsburgalpin.urls',
+            namespace="ludwigsburgalpin")),
+    re_path(r'^$', include('startpage.urls')),
 )
 
 # TODO: django serving from MEDIA_URL should be disabled in production stage

@@ -8,10 +8,10 @@ def blToColor(bl):
     else:
         return 'red'
 
-@register.assignment_tag
+@register.simple_tag
 def has_attendee_wrapper(klettertreff, member):
     return blToColor(klettertreff.has_attendee(member))
 
-@register.assignment_tag
+@register.simple_tag
 def has_jugendleiter_wrapper(klettertreff, jugendleiter):
     return blToColor(klettertreff.has_jugendleiter(jugendleiter))

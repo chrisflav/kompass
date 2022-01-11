@@ -36,6 +36,9 @@ MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT',
 			    os.path.join((os.path.join(BASE_DIR, os.pardir)), "media"))
 MEDIA_MEMBERLISTS = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 
+# default primary key auto field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 # prevent large files from being unreadable by the server
 # see
 # https://stackoverflow.com/questions/51439689/django-nginx-error-403-forbidden-when-serving-media-files-over-some-size
@@ -55,8 +58,7 @@ INSTALLED_APPS = [
     'ludwigsburgalpin.apps.LudwigsburgalpinConfig',
     #'easy_select2',
     'djcelery_email',
-    'djcelery',
-    'jet',
+    #'jet',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

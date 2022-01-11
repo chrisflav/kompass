@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.urls import reverse
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
@@ -220,8 +220,8 @@ class OldMemberOnList(models.Model):
     """
     Connects members to a list of members.
     """
-    member = models.ForeignKey(Member, verbose_name=_('Member'))
-    memberlist = models.ForeignKey(MemberList)
+    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
+    memberlist = models.ForeignKey(MemberList, on_delete=models.CASCADE)
     comments = models.TextField(_('Comment'), default='', blank=True)
 
     def __str__(self):
@@ -236,7 +236,7 @@ class NewMemberOnList(models.Model):
     """
     Connects members to a list of members.
     """
-    member = models.ForeignKey(Member, verbose_name=_('Member'))
+    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE,
                                      default=ContentType('members', 'Freizeit').pk)
     object_id = models.PositiveIntegerField()
@@ -323,7 +323,7 @@ class Klettertreff(models.Model):
     location = models.CharField(_('Location'), default='', max_length=60)
     topic = models.CharField(_('Topic'), default='', max_length=60)
     jugendleiter = models.ManyToManyField(Member)
-    group = models.ForeignKey(Group, default='', verbose_name=_('Group'))
+    group = models.ForeignKey(Group, default='', verbose_name=_('Group'), on_delete=models.CASCADE)
 
     def __str__(self):
         return self.location + ' ' + self.date.strftime('%d.%m.%Y')
@@ -354,8 +354,8 @@ class Klettertreff(models.Model):
 
 class KlettertreffAttendee(models.Model):
     """Connects members to Klettertreffs."""
-    member = models.ForeignKey(Member, verbose_name=_('Member'))
-    klettertreff = models.ForeignKey(Klettertreff)
+    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
+    klettertreff = models.ForeignKey(Klettertreff, on_delete=models.CASCADE)
 
     def __str__(self):
         return str(self.member)

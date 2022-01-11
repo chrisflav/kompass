@@ -1,8 +1,8 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django import forms
-from django.utils.translation import ugettext_lazy as _
-from django.utils.translation import ugettext
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext
 from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT, mail_root
 from utils import RestrictedFileField
 from jdav_web.celery import app
@@ -71,10 +71,12 @@ class Message(models.Model):
                                        blank=True)
     to_freizeit = models.ForeignKey('members.Freizeit',
                                     verbose_name=_('to freizeit'),
+                                    on_delete=models.CASCADE,
                                     blank=True,
                                     null=True)
     to_notelist = models.ForeignKey('members.MemberNoteList',
                                       verbose_name=_('to notes list'),
+                                      on_delete=models.CASCADE,
                                       blank=True,
                                       null=True)
     to_members = models.ManyToManyField('members.Member',
