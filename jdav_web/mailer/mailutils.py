@@ -43,10 +43,10 @@ def get_content(content, registration_complete=True):
     url = "https://{}/newsletter/unsubscribe".format(HOST)
     prepend = "WICHTIGE MITTEILUNG\n\n"\
         "Deine Anmeldung ist aktuell nicht vollständig. Bitte fülle umgehend das"\
-        " Anmeldeformular aus und lasse es Deine*r Jugendleiter*in zukommen! Falls"\
-        " Du kein Anmeldeformular hast oder Dich wunderst, wieso Du diese Nachricht siehst,"\
-        " dann melde dich unter jugendreferent@{}\n"\
-        "\n****************\n\n".format(HOST)
+        " Anmeldeformular aus und lasse es Deine*r Jugendleiter*in zukommen! Dieses"\
+        " kannst Du unter folgendem Link herunterladen:\n"\
+        "https://cloud.jdav-ludwigsburg.de/index.php/s/MPELBnfHp2p6Rjy"\
+        "\n\n****************\n\n".format(HOST)
     text = "{}{}\n\n\n****************\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
         " verschickt. Wenn Du in Zukunft keine Emails mehr erhalten möchtest,"\
         " kannst Du hier den Newsletter deabonnieren:\n{}"\
