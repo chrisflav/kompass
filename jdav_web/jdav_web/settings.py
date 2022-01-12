@@ -37,7 +37,7 @@ MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT',
 MEDIA_MEMBERLISTS = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 
 # default primary key auto field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 # prevent large files from being unreadable by the server
 # see
