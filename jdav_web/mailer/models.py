@@ -128,10 +128,17 @@ class Message(models.Model):
                             self.to_notelist.membersonlist.all()])
         filtered = [m for m in members if m.gets_newsletter]
         print("sending mail to", filtered)
+
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
-        emails = [member.email for member in filtered]
-        emails.extend([member.email_parents for member in filtered
+        recipients_with_reminder = [m for m in filtered if not m.registered]
+        recipients_without_reminder = [m for m in filtered if m.registered]
+
+        emails_rem = [member.email for member in recipients_with_reminder]
+        emails_rem.extend([member.email_parents for member in recipients_with_reminder
+                       if member.email_parents and member.cc_email_parents])
+        emails_no_rem = [member.email for member in recipients_without_reminder]
+        emails_no_rem.extend([member.email_parents for member in recipients_without_reminder
                        if member.email_parents and member.cc_email_parents])
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
@@ -145,18 +152,25 @@ class Message(models.Model):
         # the mail provider anyways)
         reply_to = [mail for mail in reply_to_unfiltered if mail != SENDING_ADDRESS ]
         try:
-            success = send(self.subject, get_content(self.content),
-                           SENDING_ADDRESS,
-                           emails,
-                           message_id=message_id,
-                           attachments=attach,
-                           reply_to=reply_to)
-            if success == SENT or success == PARTLY_SENT:
+            success1 = send(self.subject, get_content(self.content, registration_complete=False),
+                            SENDING_ADDRESS,
+                            emails_rem,
+                            message_id=message_id,
+                            attachments=attach,
+                            reply_to=reply_to)
+            success2 = send(self.subject, get_content(self.content, registration_complete=True),
+                            SENDING_ADDRESS,
+                            emails_no_rem,
+                            message_id=message_id,
+                            attachments=attach,
+                            reply_to=reply_to)
+            if (success1 == SENT or success1 == PARTLY_SENT) and (success2 == SENT or success2 == PARTLY_SENT):
                 self.sent = True
             for a in Attachment.objects.filter(msg__id=self.pk):
                 if a.f.name:
                     os.remove(a.f.path)
                 a.delete()
+            success = SENT
         except Exception as e:
             print("Exception caught", e)
             success = NOT_SENT

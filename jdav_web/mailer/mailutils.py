@@ -39,12 +39,18 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
         and succeeded else PARTLY_SENT
 
 
-def get_content(content):
+def get_content(content, registration_complete=True):
     url = "https://{}/newsletter/unsubscribe".format(HOST)
-    text = "{}\n\n\n*********\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
-        " verschickt. Wenn du in Zukunft keine Emails mehr erhalten möchtest,"\
-        " kannst du hier den Newsletter deabonnieren:\n{}"\
-        .format(content, url)
+    prepend = "WICHTIGE MITTEILUNG\n\n"\
+        "Deine Anmeldung ist aktuell nicht vollständig. Bitte fülle umgehend das"\
+        " Anmeldeformular aus und lasse es Deine*r Jugendleiter*in zukommen! Falls"\
+        " Du kein Anmeldeformular hast oder Dich wunderst, wieso Du diese Nachricht siehst,"\
+        " dann melde dich unter jugendreferent@{}\n"\
+        "\n****************\n\n".format(HOST)
+    text = "{}{}\n\n\n****************\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
+        " verschickt. Wenn Du in Zukunft keine Emails mehr erhalten möchtest,"\
+        " kannst Du hier den Newsletter deabonnieren:\n{}"\
+        .format("" if registration_complete else prepend, content, url)
     return text
 
 
