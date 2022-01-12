@@ -132,7 +132,7 @@ class Message(models.Model):
                   if a.f.name]
         emails = [member.email for member in filtered]
         emails.extend([member.email_parents for member in filtered
-                       if member.email_parents])
+                       if member.email_parents and member.cc_email_parents])
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-09-24 12:24+0200\n"
+"POT-Creation-Date: 2022-01-12 17:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -84,54 +84,54 @@ msgstr "An Gruppe"
 msgid "to freizeit"
 msgstr "An Freizeit"
 
-#: mailer/models.py:77
+#: mailer/models.py:78
 msgid "to notes list"
 msgstr "An Notizliste"
 
-#: mailer/models.py:81
+#: mailer/models.py:83
 msgid "to member"
 msgstr "An Teilnehmer"
 
-#: mailer/models.py:84
+#: mailer/models.py:86
 msgid "reply to participant"
 msgstr "Antwort an Teilnehmer"
 
-#: mailer/models.py:88
+#: mailer/models.py:90
 msgid "reply to custom email address"
 msgstr "Antwort an Email-Adresse"
 
-#: mailer/models.py:91
+#: mailer/models.py:93
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py:105
+#: mailer/models.py:107
 msgid "Some other members"
 msgstr "Andere Teilnehmer"
 
-#: mailer/models.py:107
+#: mailer/models.py:109
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:166
+#: mailer/models.py:168
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:167
+#: mailer/models.py:169
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:169
+#: mailer/models.py:171
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py:185
+#: mailer/models.py:187
 msgid ""
 "Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmerliste oder mindestens ein "
 "Teilnehmer als Empfänger ausgewählt werden."
 
-#: mailer/models.py:190
+#: mailer/models.py:192
 msgid ""
 "At least one reply-to recipient is required. Use the info mail if you really "
 "want no reply-to recipient."
@@ -139,19 +139,19 @@ msgstr ""
 "Es muss mindestens ein Antwort-An Empfänger angegeben werden. Nutze die info "
 "Email-Adresse falls du wirklich keinen Antwort-An Empfänger haben möchtest."
 
-#: mailer/models.py:197
+#: mailer/models.py:199
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py:203
+#: mailer/models.py:205
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py:206
+#: mailer/models.py:208
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py:207
+#: mailer/models.py:209
 msgid "attachments"
 msgstr "Anhänge"
 

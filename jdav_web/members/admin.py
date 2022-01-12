@@ -66,7 +66,7 @@ class RegistrationFilter(admin.SimpleListFilter):
 
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'email_parents', 'street', 'plz',
+    fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
               'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
               'gets_newsletter', 'registered', 'registration_form', 'active',
               'not_waiting', 'comments']

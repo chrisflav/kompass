@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-09-24 12:24+0200\n"
+"POT-Creation-Date: 2022-01-12 17:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: members/admin.py:29 members/models.py:77
+#: members/admin.py:29 members/models.py:78
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
@@ -42,27 +42,27 @@ msgstr "Neue Nachricht an ausgewählte Teilnehmer verfassen"
 msgid "activity"
 msgstr "Aktivität"
 
-#: members/admin.py:222
+#: members/admin.py:221
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: members/admin.py:226
+#: members/admin.py:224
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: members/admin.py:510
+#: members/admin.py:508
 msgid "Convert to PDF"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: members/admin.py:619
+#: members/admin.py:617
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: members/admin.py:716
+#: members/admin.py:714
 msgid "Generate list for LJP"
 msgstr "LJP Liste erstellen"
 
-#: members/apps.py:7 members/models.py:166
+#: members/apps.py:7 members/models.py:167
 msgid "members"
 msgstr "Teilnehmer"
 
@@ -74,7 +74,7 @@ msgstr "Name"
 msgid "Description"
 msgstr "Beschreibung"
 
-#: members/models.py:31 members/models.py:187 members/models.py:266
+#: members/models.py:31 members/models.py:188 members/models.py:267
 #: members/templates/members/change_member.html:17
 msgid "Activity"
 msgstr "Aktivität"
@@ -91,7 +91,7 @@ msgstr "Name"
 msgid "minimum age (years)"
 msgstr "Mindestalter (Jahre)"
 
-#: members/models.py:49 members/models.py:70
+#: members/models.py:49 members/models.py:71
 msgid "group"
 msgstr "Gruppe"
 
@@ -132,120 +132,124 @@ msgid "Parents' Email"
 msgstr "Email der Eltern"
 
 #: members/models.py:69
+msgid "Also send mails to parents"
+msgstr "Emails auch an Eltern schicken"
+
+#: members/models.py:70
 msgid "birth date"
 msgstr "Geburtsdatum"
 
-#: members/models.py:71
+#: members/models.py:72
 msgid "receives newsletter"
 msgstr "Erhält den Newsletter"
 
-#: members/models.py:75
+#: members/models.py:76
 msgid "comments"
 msgstr "Kommentare"
 
-#: members/models.py:76
+#: members/models.py:77
 msgid "created"
 msgstr "erstellt"
 
-#: members/models.py:78
+#: members/models.py:79
 msgid "Active"
 msgstr "Aktiv"
 
-#: members/models.py:79
+#: members/models.py:80
 msgid "Not waiting"
 msgstr "NICHT Warteliste"
 
-#: members/models.py:80
+#: members/models.py:81
 msgid "registration form"
 msgstr "Anmeldeformular"
 
-#: members/models.py:162 members/models.py:335
+#: members/models.py:163 members/models.py:336
 msgid "Group"
 msgstr "Gruppe"
 
-#: members/models.py:165
+#: members/models.py:166
 msgid "member"
 msgstr "Teilnehmer"
 
-#: members/models.py:189 members/models.py:268
+#: members/models.py:190 members/models.py:269
 msgid "Place"
 msgstr "Ort"
 
-#: members/models.py:190 members/models.py:269
+#: members/models.py:191 members/models.py:270
 msgid "Destination (optional)"
 msgstr "Ziel (optional)"
 
-#: members/models.py:192 members/models.py:271 members/models.py:313
-#: members/models.py:331
+#: members/models.py:193 members/models.py:272 members/models.py:314
+#: members/models.py:332
 msgid "Date"
 msgstr "Datum"
 
-#: members/models.py:193 members/models.py:272
+#: members/models.py:194 members/models.py:273
 msgid "End (optional)"
 msgstr "Ende"
 
-#: members/models.py:195 members/models.py:274
+#: members/models.py:196 members/models.py:275
 msgid "Groups"
 msgstr "Gruppen"
 
-#: members/models.py:203 members/models.py:282
+#: members/models.py:204 members/models.py:283
 msgid "Categories"
 msgstr "Kategorien"
 
-#: members/models.py:204 members/models.py:283
+#: members/models.py:205 members/models.py:284
 msgid "easy"
 msgstr "leicht"
 
-#: members/models.py:204 members/models.py:283
+#: members/models.py:205 members/models.py:284
 msgid "medium"
 msgstr "mittel"
 
-#: members/models.py:204 members/models.py:283
+#: members/models.py:205 members/models.py:284
 msgid "hard"
 msgstr "schwer"
 
-#: members/models.py:213
+#: members/models.py:214
 msgid "Memberlist"
 msgstr "Teilnehmerliste"
 
-#: members/models.py:214
+#: members/models.py:215
 msgid "Memberlists"
 msgstr "Teilnehmerlisten"
 
-#: members/models.py:232 members/models.py:240 members/models.py:248
-#: members/models.py:259 members/models.py:366 members/models.py:373
+#: members/models.py:233 members/models.py:241 members/models.py:249
+#: members/models.py:260 members/models.py:367 members/models.py:374
 msgid "Member"
 msgstr "Teilnehmer"
 
-#: members/models.py:234 members/models.py:253
+#: members/models.py:235 members/models.py:254
 msgid "Comment"
 msgstr "Kommentar"
 
-#: members/models.py:241 members/models.py:260 members/models.py:374
+#: members/models.py:242 members/models.py:261 members/models.py:375
 msgid "Members"
 msgstr "Teilnehmer"
 
-#: members/models.py:312
+#: members/models.py:313
 msgid "Title"
 msgstr "Titel"
 
-#: members/models.py:332
+#: members/models.py:333
 msgid "Location"
 msgstr "Ort"
 
-#: members/models.py:333
+#: members/models.py:334
 msgid "Topic"
 msgstr "Thema"
 
-#: members/models.py:357
+#: members/models.py:358
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: members/models.py:360
+#: members/models.py:361
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: members/models.py:361
+#: members/models.py:362
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 

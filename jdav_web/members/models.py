@@ -66,6 +66,7 @@ class Member(models.Model):
     email = models.EmailField(max_length=100, default="")
     email_parents = models.EmailField(max_length=100, default="", blank=True,
                                       verbose_name=_("Parents' Email"))
+    cc_email_parents = models.BooleanField(default=True, verbose_name=_('Also send mails to parents'))
     birth_date = models.DateField(_('birth date'))  # to determine the age
     group = models.ManyToManyField(Group, verbose_name=_('group'))
     gets_newsletter = models.BooleanField(_('receives newsletter'),
