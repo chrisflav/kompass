@@ -104,7 +104,7 @@ class Message(models.Model):
         if 3 > self.to_members.count() > 0:
             recipients.extend([m.name for m in self.to_members.all()])
         elif self.to_members.count() > 2:
-            recipients.append(ugettext('Some other members'))
+            recipients.append(gettext('Some other members'))
         return ", ".join(recipients)
     get_recipients.short_description = _('recipients')
 
