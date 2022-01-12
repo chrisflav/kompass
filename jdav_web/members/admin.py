@@ -68,11 +68,13 @@ class RegistrationFilter(admin.SimpleListFilter):
 class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'street', 'plz',
               'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
-              'gets_newsletter', 'registered', 'registration_form', 'comments']
-    list_display = ('name', 'birth_date', 'get_group', 'gets_newsletter',
-                    'registered', 'comments', 'activity_score')
+              'gets_newsletter', 'registered', 'registration_form', 'active',
+              'not_waiting', 'comments']
+    list_display = ('name', 'birth_date', 'age', 'get_group', 'gets_newsletter',
+                    'registered', 'active', 'not_waiting', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname')
-    list_filter = ('group', 'gets_newsletter', RegistrationFilter)
+    list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active',
+                   'not_waiting')
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -382,7 +384,7 @@ class FreizeitAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'date']
     search_fields = ('name',)
     ordering = ('-date',)
-    actions = ['convert_to_pdf', 'generate_notes']
+    actions = ['convert_to_pdf', 'generate_notes', 'convert_to_ljp']
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -613,6 +615,103 @@ class FreizeitAdmin(admin.ModelAdmin):
 
             return response
     generate_notes.short_description = _('Generate overview')
+
+    def convert_to_ljp(self, request, queryset):
+        """Converts a member list to pdf but without email and with birth date.
+        Suitable for LJP lists.
+        """
+        for memberlist in queryset:
+            # create a unique filename
+            filename = memberlist.name + "_ljp_" + datetime.today().strftime("%d_%m_%Y")
+            filename = filename.replace(' ', '_').replace('&', '')
+            # drop umlauts, accents etc.
+            filename = unicodedata.normalize('NFKD', filename).\
+                encode('ASCII', 'ignore').decode()
+            filename_table = 'table_' + filename
+            filename_tex = filename + '.tex'
+            filename_pdf = filename + '.pdf'
+
+            # open temporary file for table
+            with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
+                if memberlist.membersonlist.count() == 0:
+                    f.write('{0} & {1} & {2} & {3} \\\\ \n'.format(
+                        'keine Teilnehmer', '-', '-', '-'
+                    ))
+                for memberonlist in memberlist.membersonlist.all():
+                    # write table of members in latex compatible format
+                    member = memberonlist.member
+                    # use parents phone number if available
+                    phone_number = member.phone_number_parents if\
+                        member.phone_number_parents else member.phone_number
+                    # use parents email address if available
+                    email = member.email_parents if\
+                        member.email_parents else member.email
+                    line = '{0} {1} & {2} & {3} & & & \\\\ \\hline \n'.format(
+                            esc_all(memberonlist.member.prename),
+                            esc_all(memberonlist.member.lastname),
+                            esc_all(memberonlist.member.address),
+                            esc_all(memberonlist.member.birth_date.strftime("%d.%m.%Y")))
+                    f.write(line)
+
+            # copy and adapt latex memberlist template
+            shutil.copy(media_path('memberlist_ljp_template.tex'),
+                        media_path(filename_tex))
+
+            # read in template
+            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
+                template_content = f.read()
+
+            # adapt template
+            name = esc_all(memberlist.name)
+            template_content = template_content.replace('ACTIVITY', name)
+            groups = ', '.join(g.name for g in
+                               memberlist.groups.all())
+            template_content = template_content.replace('GROUP',
+                                                        esc_all(groups))
+            destination = esc_all(memberlist.destination)
+            template_content = template_content.replace('DESTINATION',
+                                                        destination)
+            place = esc_all(memberlist.place)
+            template_content = template_content.replace('PLACE', place)
+            template_content = template_content.replace('MEMBERLIST-DATE',
+                                                        datetime.today().strftime('%d.%m.%Y'))
+            time_period = memberlist.date.strftime('%d.%m.%Y')
+            if memberlist.end != memberlist.date:
+                time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
+            template_content = template_content.replace('TIME-PERIOD', time_period)
+            jugendleiter = ', '.join(j.name for j in memberlist.jugendleiter.all())
+            template_content = template_content.replace('JUGENDLEITER', jugendleiter)
+            template_content = template_content.replace('TABLE-NAME',
+                    filename_table)
+
+            # write adapted template to file
+            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
+                f.write(template_content)
+
+            # compile using pdflatex
+            oldwd = os.getcwd()
+            os.chdir(media_dir())
+            subprocess.call(['pdflatex', filename_tex])
+            time.sleep(1)
+
+            # do some cleanup
+            for f in glob.glob('*.log'):
+                os.remove(f)
+            for f in glob.glob('*.aux'):
+                os.remove(f)
+            os.remove(filename_tex)
+            os.remove(filename_table)
+
+            os.chdir(oldwd)
+
+            # provide the user with the resulting pdf file
+            with open(media_path(filename_pdf), 'rb') as pdf:
+                response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
+                response['Content-Type'] = 'application/pdf'
+                response['Content-Disposition'] = 'attachment; filename='+filename_pdf
+
+            return response
+    convert_to_ljp.short_description = _('Generate list for LJP')
 
 
 class KlettertreffAdminForm(forms.ModelForm):

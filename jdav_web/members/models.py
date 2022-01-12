@@ -9,6 +9,8 @@ from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
 
+from dateutil.relativedelta import relativedelta
+
 GEMEINSCHAFTS_TOUR = 0
 FUEHRUNGS_TOUR = 1
 AUSBILDUNGS_TOUR = 2
@@ -73,6 +75,8 @@ class Member(models.Model):
     comments = models.TextField(_('comments'), default='', blank=True)
     created = models.DateField(auto_now=True, verbose_name=_('created'))
     registered = models.BooleanField(default=False, verbose_name=_('Registration complete'))
+    active = models.BooleanField(default=True, verbose_name=_('Active'))
+    not_waiting = models.BooleanField(default=True, verbose_name=_('Not waiting'))
     registration_form = RestrictedFileField(verbose_name=_('registration form'),
                                             upload_to='registration_forms',
                                             blank=True,
@@ -85,6 +89,11 @@ class Member(models.Model):
     def __str__(self):
         """String representation"""
         return self.name
+
+    @property
+    def age(self):
+        """Age of member"""
+        return relativedelta(datetime.today(), self.birth_date).years
 
     def generate_key(self):
         self.unsubscribe_key = uuid.uuid4().hex
