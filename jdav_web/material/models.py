@@ -2,6 +2,7 @@ from datetime import datetime
 
 from django.db import models
 from django.utils import timezone
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 # maximum time in years of a material part until being replaced
@@ -50,18 +51,16 @@ class MaterialPart(models.Model):
 
     def admin_thumbnail(self):
         if self.photo:
-            return '<a href="{0}"><img src="{0}" height="60" style="image-orientation: from-image;"></a>'.format(self.photo.url)
+            return format_html('<a href="{0}"><img src="{0}" height="60" style="image-orientation: from-image;"></a>'.format(self.photo.url))
         else:
-            return '<i>kein Bild</i>'
+            return format_html('<i>kein Bild</i>')
     admin_thumbnail.short_description = _('Thumbnail')
-    admin_thumbnail.allow_tags = True
 
     def ownership_overview(self):
         summary = ''
         for owner in self.ownership_set.all():
             summary += '<p>{}: {}</p>'.format(str(owner.owner), owner.count)
-        return summary
-    ownership_overview.allow_tags = True
+        return format_html(summary)
     ownership_overview.short_description = _('Owners')
 
     def not_too_old(self):
