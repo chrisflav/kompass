@@ -176,6 +176,13 @@ EMAIL_USE_TLS = True if deployed else False
 EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
 
 
+# Celery Email Setup
+
+CELERY_EMAIL_TASK_CONFIG = {
+    'rate_limit' : '1/m'  # * CELERY_EMAIL_CHUNK_SIZE (default: 10)
+}
+
+
 # Admin setup
 
 ADMINS = (('admin', 'christian@merten-moser.de'),)

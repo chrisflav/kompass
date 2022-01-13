@@ -20,21 +20,27 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
         headers = {'Message-ID': message_id}
     else:
         headers = {}
-    with mail.get_connection() as connection:
-        for recipient in set(recipients):
-            email = EmailMessage(subject, content, sender, [recipient],
-                                 headers=headers,
-				 connection=connection, **kwargs)
-            if attachments is not None:
-                for attach in attachments:
-                    email.attach_file(attach)
-            try:
-                email.send(fail_silently=True)
-            except Exception as e:
-                print("Error when sending mail:", e)
-                failed = True
-            else:
-                succeeded = True
+
+    # construct mails
+    mails = []
+    for recipient in set(recipients):
+        email = EmailMessage(subject, content, sender, [recipient],
+                             headers=headers, **kwargs)
+        if attachments is not None:
+            for attach in attachments:
+                email.attach_file(attach)
+        mails.append(email)
+    try:
+        # connect to smtp server
+        connection = mail.get_connection()
+        # send all mails with one connection
+        connection.send_messages(mails)
+    except Exception as e:
+        print("Error when sending mail:", e)
+        failed = True
+    else:
+        succeeded = True
+
     return NOT_SENT if failed and not succeeded else SENT if not failed\
         and succeeded else PARTLY_SENT
 
