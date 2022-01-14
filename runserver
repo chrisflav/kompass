@@ -1,0 +1,10 @@
+#!/bin/bash
+
+source config
+source venv/bin/activate
+
+cd jdav_web
+
+celery -A jdav_web worker -l debug &
+
+python3 manage.py runserver
