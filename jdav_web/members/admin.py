@@ -20,7 +20,8 @@ from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
-                     KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList)
+                     KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
+                     annotate_activity_score)
 from django.conf import settings
 #from easy_select2 import apply_select2
 
@@ -85,92 +86,7 @@ class MemberAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        one_year_ago = datetime.now() - timedelta(days=365)
-        queryset = queryset.annotate(
-            _jugendleiter_freizeit_score_calc=Subquery(
-                Freizeit.objects.filter(jugendleiter=OuterRef('pk'),
-                                        date__gte=one_year_ago)
-                    .values('jugendleiter')
-                    .annotate(cnt=Count('pk', distinct=True))
-                    .values('cnt'),
-                output_field=IntegerField()
-                ),
-            # better solution but does not work in production apparently
-            #_jugendleiter_freizeit_score=Sum(Case(
-            #    When(
-            #        freizeit__date__gte=one_year_ago,
-            #        then=1),
-            #    default=0,
-            #    output_field=IntegerField()
-            #    ),
-            #    distinct=True),
-            _jugendleiter_klettertreff_score_calc=Subquery(
-                Klettertreff.objects.filter(jugendleiter=OuterRef('pk'),
-                                            date__gte=one_year_ago)
-                    .values('jugendleiter')
-                    .annotate(cnt=Count('pk', distinct=True))
-                    .values('cnt'),
-                output_field=IntegerField()
-                ),
-            # better solution but does not work in production apparently
-            #_jugendleiter_klettertreff_score=Sum(Case(
-            #    When(
-            #        klettertreff__date__gte=one_year_ago,
-            #        then=1),
-            #    default=0,
-            #    output_field=IntegerField()
-            #    ),
-            #    distinct=True),
-            _freizeit_score_calc=Subquery(
-                Freizeit.objects.filter(membersonlist__member=OuterRef('pk'),
-                                        date__gte=one_year_ago)
-                    .values('membersonlist__member')
-                    .annotate(cnt=Count('pk', distinct=True))
-                    .values('cnt'),
-                output_field=IntegerField()
-                ),
-            _klettertreff_score_calc=Subquery(
-                KlettertreffAttendee.objects.filter(member=OuterRef('pk'),
-                                                    klettertreff__date__gte=one_year_ago)
-                    .values('member')
-                    .annotate(cnt=Count('pk', distinct=True))
-                    .values('cnt'),
-                output_field=IntegerField()))
-        queryset = queryset.annotate(
-            _jugendleiter_freizeit_score=Case(
-                When(
-                    _jugendleiter_freizeit_score_calc=None,
-                    then=0
-                ),
-                default=F('_jugendleiter_freizeit_score_calc'),
-                output_field=IntegerField()),
-            _jugendleiter_klettertreff_score=Case(
-                When(
-                    _jugendleiter_klettertreff_score_calc=None,
-                    then=0
-                ),
-                default=F('_jugendleiter_klettertreff_score_calc'),
-                output_field=IntegerField()),
-            _klettertreff_score=Case(
-                When(
-                    _klettertreff_score_calc=None,
-                    then=0
-                ),
-                default=F('_klettertreff_score_calc'),
-                output_field=IntegerField()),
-            _freizeit_score=Case(
-                When(
-                    _freizeit_score_calc=None,
-                    then=0
-                ),
-                default=F('_freizeit_score_calc'),
-                output_field=IntegerField()))
-        queryset = queryset.annotate(
-            #_activity_score=F('_jugendleiter_freizeit_score')
-            _activity_score=(F('_klettertreff_score') + 3 * F('_freizeit_score')
-                + F('_jugendleiter_klettertreff_score') + 3 * F('_jugendleiter_freizeit_score'))
-        )
-        return queryset
+        return annotate_activity_score(queryset)
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
