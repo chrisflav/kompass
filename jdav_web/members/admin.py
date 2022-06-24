@@ -138,6 +138,9 @@ class FreizeitAdminForm(forms.ModelForm):
     tour_type = TypedChoiceField(choices=Freizeit.tour_type_choices,
                                  coerce=int,
                                  label=_('Tour type'))
+    tour_approach = TypedChoiceField(choices=Freizeit.tour_approach_choices,
+                                 coerce=int,
+                                 label=_('Tour type'))
 
     class Meta:
         model = Freizeit
@@ -390,6 +393,20 @@ class FreizeitAdmin(admin.ModelAdmin):
 
                 tour_type += '\\qquad \\qquad '
             template_content = template_content.replace('TOUR-TYPE', tour_type)
+
+            # create tickboxes for tour approach
+            tour_approach = ''
+            for tt in ['Muskelkraft', 'Öffentliche VM', 'Fahrgemeinschaften']:
+                print(memberlist.tour_approach)
+                if tt == memberlist.get_tour_approach():
+                    tour_approach += '\\tickedbox ' + tt
+                else:
+                    tour_approach += '\\checkbox'
+                    tour_approach += '\\enspace ' + tt
+
+                tour_approach += '\\qquad \\qquad '
+            template_content = template_content.replace('TOUR-APPROACH', tour_approach)
+
 
             template_content = template_content.replace('TABLE-NAME',
                     filename_table)

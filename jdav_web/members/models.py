@@ -13,11 +13,10 @@ import os
 
 from dateutil.relativedelta import relativedelta
 
-GEMEINSCHAFTS_TOUR = 0
-FUEHRUNGS_TOUR = 1
-AUSBILDUNGS_TOUR = 2
+GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = 0
+FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = 1
+AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = 2
 HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
-
 
 class ActivityCategory(models.Model):
     """
@@ -202,6 +201,10 @@ class MemberList(models.Model):
                          (AUSBILDUNGS_TOUR, 'Ausbildung'))
     # verbose_name is overriden by form, label is set in admin.py
     tour_type = models.IntegerField(choices=tour_type_choices)
+    tour_approach_choices = ((MUSKELKRAFT_ANREISE, 'Muskelkraft'),
+                            (OEFFENTLICHE_ANREISE, 'Öffentliche VM'),
+                            (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
+    tour_approach = models.IntegerField(choices=tour_approach_choices)
     activity = models.ManyToManyField(ActivityCategory, default=None,
                                       verbose_name=_('Categories'))
     difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
@@ -223,6 +226,14 @@ class MemberList(models.Model):
             return "Ausbildung"
         else:
             return "Gemeinschaftstour"
+
+    def get_tour_approach(self):
+        if self.tour_approach == MUSKELKRAFT_ANREISE:
+            return "Muskelkraft"
+        elif self.tour_approach == OEFFENTLICHE_ANREISE:
+            return "Öffentliche VM"
+        else:
+            return "Fahrgemeinschaften"
 
     def get_absolute_url(self):
         return reverse('admin:members_memberlist_change', args=[str(self.id)])
@@ -281,6 +292,10 @@ class Freizeit(models.Model):
                          (AUSBILDUNGS_TOUR, 'Ausbildung'))
     # verbose_name is overriden by form, label is set in admin.py
     tour_type = models.IntegerField(choices=tour_type_choices)
+    tour_approach_choices = ((MUSKELKRAFT_ANREISE, 'Muskelkraft'),
+                         (OEFFENTLICHE_ANREISE, 'Öffentliche VM'),
+                         (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
+    tour_approach = models.IntegerField(choices=tour_approach_choices)
     activity = models.ManyToManyField(ActivityCategory, default=None,
                                       verbose_name=_('Categories'))
     difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
@@ -303,6 +318,14 @@ class Freizeit(models.Model):
             return "Ausbildung"
         else:
             return "Gemeinschaftstour"
+
+    def get_tour_approach(self):
+        if self.tour_approach == MUSKELKRAFT_ANREISE:
+            return "Muskelkraft"
+        elif self.tour_approach == OEFFENTLICHE_ANREISE:
+            return "Öffentliche VM"
+        else:
+            return "Fahrgemeinschaften"
 
     def get_absolute_url(self):
         return reverse('admin:members_freizeit_change', args=[str(self.id)])
