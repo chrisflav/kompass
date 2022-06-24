@@ -10,7 +10,7 @@ to contribute ideas in form of edits to this README, issues, landmarks, projects
 ## Development server
 
 1. Install `virtualenv` (with pip3)
-2. Create a new virtualenv with `virtualenv --no-site-packages -p python3.5`
+2. Create a new virtualenv with `virtualenv --no-site-packages -p python3.9`
 3. Activate the environment with `source venv/bin/activate`
 4. Install requirements with `pip3 install -r requirements.txt`
 5. Setup a MySQL database called `jdav_db` and create a user that can access this database.
