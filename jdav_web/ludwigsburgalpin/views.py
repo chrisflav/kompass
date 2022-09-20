@@ -64,7 +64,7 @@ class TerminForm(forms.Form):
 
 
 # Create your views here.
-def index(request):
+def index(request, *args):
     if request.method == 'POST':
         form = TerminForm(request.POST)
         if form.is_valid():

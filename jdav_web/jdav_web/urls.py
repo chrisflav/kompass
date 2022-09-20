@@ -31,7 +31,7 @@ urlpatterns += i18n_patterns(
     re_path(r'^jet/', include('jet.urls', 'jet')), # Django JET URLS
     re_path(r'^admin/', RedirectView.as_view(url='/kompass')),
     re_path(r'^newsletter/', include('mailer.urls', namespace="mailer")),
-    re_path(r'^LBAlpin/Programm/2020', include('ludwigsburgalpin.urls',
+    re_path(r'^LBAlpin/Programm(/)?(20)?[0-9]{0,2}', include('ludwigsburgalpin.urls',
             namespace="ludwigsburgalpin")),
     re_path(r'^$', include('startpage.urls')),
 )
