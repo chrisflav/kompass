@@ -184,7 +184,10 @@ class Member(models.Model):
 
 
 class MemberList(models.Model):
-    """Lets the user create a list of members in pdf format. """
+    """Lets the user create a list of members in pdf format.
+       
+       DEPRECATED: Replaced by Freizeit and Notizliste
+    """
 
     name = models.CharField(verbose_name=_('Activity'), default='',
                             max_length=50)
@@ -201,10 +204,6 @@ class MemberList(models.Model):
                          (AUSBILDUNGS_TOUR, 'Ausbildung'))
     # verbose_name is overriden by form, label is set in admin.py
     tour_type = models.IntegerField(choices=tour_type_choices)
-    tour_approach_choices = ((MUSKELKRAFT_ANREISE, 'Muskelkraft'),
-                            (OEFFENTLICHE_ANREISE, 'Öffentliche VM'),
-                            (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
-    tour_approach = models.IntegerField(choices=tour_approach_choices)
     activity = models.ManyToManyField(ActivityCategory, default=None,
                                       verbose_name=_('Categories'))
     difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
@@ -226,14 +225,6 @@ class MemberList(models.Model):
             return "Ausbildung"
         else:
             return "Gemeinschaftstour"
-
-    def get_tour_approach(self):
-        if self.tour_approach == MUSKELKRAFT_ANREISE:
-            return "Muskelkraft"
-        elif self.tour_approach == OEFFENTLICHE_ANREISE:
-            return "Öffentliche VM"
-        else:
-            return "Fahrgemeinschaften"
 
     def get_absolute_url(self):
         return reverse('admin:members_memberlist_change', args=[str(self.id)])
@@ -295,7 +286,8 @@ class Freizeit(models.Model):
     tour_approach_choices = ((MUSKELKRAFT_ANREISE, 'Muskelkraft'),
                          (OEFFENTLICHE_ANREISE, 'Öffentliche VM'),
                          (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
-    tour_approach = models.IntegerField(choices=tour_approach_choices)
+    tour_approach = models.IntegerField(choices=tour_approach_choices,
+                                        default=MUSKELKRAFT_ANREISE)
     activity = models.ManyToManyField(ActivityCategory, default=None,
                                       verbose_name=_('Categories'))
     difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
