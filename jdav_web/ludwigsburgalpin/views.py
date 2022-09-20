@@ -26,12 +26,12 @@ class TerminForm(forms.Form):
     saison = forms.ChoiceField(label='Saison', required=True, choices=SAISON)
     eventart = forms.ChoiceField(label='Eventart', required=True, choices=EVENTART)
     klassifizierung = forms.ChoiceField(label='Klassifizierung', required=True, choices=KLASSIFIZIERUNG)
-    anforderung_hoehe = forms.IntegerField(label='Höhenmeter in Meter',
+    anforderung_hoehe = forms.IntegerField(label='Höhenmeter in Metern',
                                            required=True,
                                            validators=[
                                                MinValueValidator(0)
                                            ])
-    anforderung_strecke = forms.IntegerField(label='Strecke in Kilometer',
+    anforderung_strecke = forms.IntegerField(label='Strecke in Kilometern',
                                              required=True,
                                              validators=[
                                                  MinValueValidator(0)
@@ -41,15 +41,15 @@ class TerminForm(forms.Form):
                                            validators=[
                                                MinValueValidator(0)
                                            ])
+    description = forms.CharField(label='Beschreibung',
+                                  widget=forms.Textarea,
+                                  required=False)
     equipment = forms.CharField(label='Ausrüstung',
                                 widget=forms.Textarea,
                                 required=False)
     voraussetzungen = forms.CharField(label='Voraussetzungen',
                                       widget=forms.Textarea,
                                       required=False)
-    description = forms.CharField(label='Beschreibung',
-                                  widget=forms.Textarea,
-                                  required=False)
     max_participants = forms.IntegerField(label='Max. Teilnehmerzahl',
                                          required=True,
                                          validators=[

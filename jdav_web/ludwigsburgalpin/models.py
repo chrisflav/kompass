@@ -6,7 +6,7 @@ GRUPPE = [
     ('OGB', 'Ortsgruppe Bietigheim'),
     ('OGV', 'Ortsgruppe Vaihingen'),
     ('JUG', 'Jugend'),
-    ('FAM', 'Familen'),
+    ('FAM', 'Familie'),
     ('Ü30', 'Ü30'),
     ('MTB', 'Mountainbike'),
     ('RA',  'RegioAktiv'),
