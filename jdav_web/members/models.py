@@ -39,8 +39,8 @@ class Group(models.Model):
     e.g: J1, J2, Jugendleiter, etc.
     """
     name = models.CharField(max_length=20, verbose_name=_('name'))  # e.g: J1
-    min_age = models.IntegerField(default=5,
-                                  verbose_name=_('minimum age (years)'))
+    year_from = models.IntegerField(verbose_name=_('lowest year'), default=2010)
+    year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
 
     def __str__(self):
         """String representation"""

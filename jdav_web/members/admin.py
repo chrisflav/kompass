@@ -123,8 +123,8 @@ class MemberAdmin(admin.ModelAdmin):
 
 
 class GroupAdmin(admin.ModelAdmin):
-    fields = ['name', 'min_age']
-    list_display = ('name', 'min_age')
+    fields = ['name', 'year_from', 'year_to']
+    list_display = ('name', 'year_from', 'year_to')
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
