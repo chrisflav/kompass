@@ -212,7 +212,7 @@ JET_SIDE_MENU_ITEMS = [
     ]},
     {'app_label': 'members', 'items': [
         {'name': 'member'},
-        {'name': 'group', 'permissions': ['members.group']},
+        {'name': 'group'},
         {'name': 'memberlist', 'permissions': ['members.memberlist']},
         {'name': 'membernotelist'},
         {'name': 'freizeit'},
@@ -224,6 +224,6 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'materialpart'},
     ]},
     {'label': 'Externe Links', 'items' : [
-        { 'label': 'Packlisten und Co.', 'url': 'https://cloud.jdav-ludwigsburg.de/index.php/s/5xzZH5wHiqKeC2P'}
+        { 'label': 'Packlisten und Co.', 'url': 'https://cloud.jdav-ludwigsburg.de/index.php/s/qxQCTR8JqYSXXCQ'}
     ]},
 ]
