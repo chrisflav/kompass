@@ -5,7 +5,6 @@ import os
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
-HOST = "localhost:8008"
 
 
 def send(subject, content, sender, recipients, message_id=None, reply_to=None,
