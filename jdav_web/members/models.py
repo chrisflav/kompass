@@ -87,6 +87,9 @@ class Member(models.Model):
                                                            'image/jpeg',
                                                            'image/png',
                                                            'image/gif'])
+    echo_key = models.CharField(max_length=32, default="")
+    echo_expire = models.DateTimeField(default=timezone.now)
+    echoed = models.BooleanField(default=True, verbose_name=_('Echoed'))
 
     def __str__(self):
         """String representation"""
@@ -103,6 +106,13 @@ class Member(models.Model):
         self.save()
         return self.unsubscribe_key
 
+    def generate_echo_key(self):
+        self.echo_key = uuid.uuid4().hex
+        self.echo_expire = timezone.now() + timezone.timedelta(days=30)
+        self.echoed = False
+        self.save()
+        return self.echo_key
+
     def unsubscribe(self, key):
         if self.unsubscribe_key == key and timezone.now() <\
                 self.unsubscribe_expire:
@@ -113,6 +123,9 @@ class Member(models.Model):
             return True
         else:
             return False
+
+    def may_echo(self, key):
+        return self.echo_key == key and timezone.now() < self.echo_expire
 
     @property
     def name(self):

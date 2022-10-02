@@ -5,6 +5,7 @@ import os
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
+HOST = "localhost:8008"
 
 
 def send(subject, content, sender, recipients, message_id=None, reply_to=None,
@@ -63,6 +64,11 @@ def get_content(content, registration_complete=True):
 def get_unsubscribe_link(member):
     key = member.generate_key()
     return "https://{}/newsletter/unsubscribe?key={}".format(HOST, key)
+
+
+def get_echo_link(member):
+    key = member.generate_echo_key()
+    return "https://{}/members/echo?key={}".format(HOST, key)
 
 
 mail_root = os.environ.get('EMAIL_SENDING_ADDRESS', 'christian@localhost')

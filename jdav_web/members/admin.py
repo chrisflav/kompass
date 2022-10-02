@@ -5,6 +5,8 @@ import subprocess
 import shutil
 import time
 import unicodedata
+import random
+import string
 
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
@@ -22,6 +24,7 @@ from django.shortcuts import render
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
                      annotate_activity_score)
+from mailer.mailutils import send as send_mail, get_echo_link, mail_root
 from django.conf import settings
 #from easy_select2 import apply_select2
 
@@ -70,9 +73,9 @@ class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
               'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
               'gets_newsletter', 'registered', 'registration_form', 'active',
-              'not_waiting', 'comments']
+              'not_waiting', 'echoed', 'comments']
     list_display = ('name', 'birth_date', 'age', 'get_group', 'gets_newsletter',
-                    'registered', 'active', 'not_waiting', 'comments', 'activity_score')
+                    'registered', 'active', 'not_waiting', 'echoed', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active',
                    'not_waiting')
@@ -82,7 +85,7 @@ class MemberAdmin(admin.ModelAdmin):
     #}
     change_form_template = "members/change_member.html"
     #ordering = ('activity_score',)
-    actions = ['send_mail_to']
+    actions = ['send_mail_to', 'request_echo']
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -103,6 +106,30 @@ class MemberAdmin(admin.ModelAdmin):
         query = str(member_pks).replace(' ', '')
         return HttpResponseRedirect("/admin/mailer/message/add/?members={}".format(query))
     send_mail_to.short_description = _('Compose new mail to selected members')
+
+    def request_echo(self, request, queryset):
+        for member in queryset:
+            send_mail("Wichtig: Rückmeldung erforderlich!",
+                      """Hallo {name},
+
+um unsere Daten auf dem aktuellen Stand zu halten, brauchen wir eine
+kurze Bestätigung von dir. Dafür besuche einfach diesen Link:
+
+{link}
+
+Dort kannst du deine Daten überprüfen und ändern. Falls du nicht innerhalb von
+30 Tagen deine Daten bestätigst, wirst du aus unserer Datenbank gelöscht und
+erhälst in Zukunft keine Mails mehr von uns.
+
+Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
+
+Viele Grüße
+Deine JDAV Ludwigsburg""".format(name=member.prename, link=get_echo_link(member)),
+                      mail_root,
+                      [member.email, member.email_parents] if member.email_parents and member.cc_email_parents
+                      else member.email)
+        messages.success(request, _("Successfully requested echo from selected members."))
+    request_echo.short_description = _('Request echo from selected members')
 
     def activity_score(self, obj):
         score = obj._activity_score

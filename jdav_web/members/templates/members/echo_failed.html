@@ -1,0 +1,17 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Echo failed" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Echo" %}</h1>
+
+<p><b>{% trans "Something went wrong. The key you supplied is" %} {{ reason }}.</b></p>
+
+<p>{% trans "If you think this is a mistake, please" %} <a href="mailto:jugendreferent@jdav-ludwigsburg.de">{% trans "contact us." %}</a></p>
+
+{% endblock %}
