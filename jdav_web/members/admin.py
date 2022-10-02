@@ -109,6 +109,8 @@ class MemberAdmin(admin.ModelAdmin):
 
     def request_echo(self, request, queryset):
         for member in queryset:
+            if not member.gets_newsletter:
+                continue
             send_mail("Wichtig: Rückmeldung erforderlich!",
                       """Hallo {name},
 
