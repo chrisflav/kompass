@@ -1,0 +1,30 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Echo" %}
+{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static "ludwigsburgalpin/termine.css" static %}">
+
+<h1>{% trans "Echo" %}</h1>
+
+<p>{% trans "Thanks for echoing back. Here is your current data:" %}</p>
+
+{% if error_message %}
+	<p><b>{{ error_message }}</b></p>
+{% endif %}
+
+<form action="" method="post">
+    <table class="termine">
+    {% csrf_token %}
+    {{form}}
+    </table>
+    <input type="hidden" name="key" value="{{ key }}">
+    <p><input type="submit" value="{% trans "submit" %}"/></p>
+</form>
+
+{% endblock %}

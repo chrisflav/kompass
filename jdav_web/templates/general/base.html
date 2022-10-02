@@ -1,0 +1,43 @@
+{% load i18n %}
+{% load static %}
+<html>
+
+<head>
+	<title>
+        {% block title %}
+        {% endblock %}
+	</title>
+    <link rel="shortcut icon" href="{% static "general/img/favicon.ico" %}" type="image/x-icon">
+    <link rel="stylesheet" href="{% static "general/base.css" %}">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script>
+    $( function() {
+        $( ".datepicker" ).datepicker({
+          dateFormat: "dd.mm.yy" 
+        });
+    } );
+    </script>
+</head>
+
+<body>
+
+<div class="navbar-header">
+    <a class="navbar-brand" href="http://www.alpenverein-ludwigsburg.de"> 
+        <img class="navbar-logo" src="{% static "general/img/logo_dav.png" %}">
+    </a>
+    <ul class="navbar">
+        {% block navbar %}
+        {% endblock %}
+    </ul>
+</div>
+
+<div id=content>
+    {% block content %}
+    {% endblock %}
+</div>
+
+</body>
+
+</html>

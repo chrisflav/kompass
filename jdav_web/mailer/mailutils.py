@@ -65,4 +65,9 @@ def get_unsubscribe_link(member):
     return "https://{}/newsletter/unsubscribe?key={}".format(HOST, key)
 
 
+def get_echo_link(member):
+    key = member.generate_echo_key()
+    return "https://{}/members/echo?key={}".format(HOST, key)
+
+
 mail_root = os.environ.get('EMAIL_SENDING_ADDRESS', 'christian@localhost')
