@@ -76,7 +76,7 @@ class MemberAdmin(admin.ModelAdmin):
               'not_waiting', 'echoed', 'comments']
     list_display = ('name', 'birth_date', 'age', 'get_group', 'gets_newsletter',
                     'registered', 'active', 'not_waiting', 'echoed', 'comments', 'activity_score')
-    search_fields = ('prename', 'lastname')
+    search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active',
                    'not_waiting')
     #formfield_overrides = {
