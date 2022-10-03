@@ -15,8 +15,7 @@ class Command(BaseCommand):
     requires_system_checks = False
 
     def handle(self, *args, **options):
-        qs = annotate_activity_score(Member.objects.all())\
-                .order_by('_activity_score')[:CONGRATULATE_MEMBERS_MAX]
+        qs = list(reversed(annotate_activity_score(Member.objects.all()).order_by('_activity_score')))[:CONGRATULATE_MEMBERS_MAX]
         for position, member in enumerate(qs):
             positiontext = "{}. ".format(position + 1) if position > 0 else ""
             score = member._activity_score
@@ -30,6 +29,7 @@ class Command(BaseCommand):
                 level = 4
             else:
                 level = 5
+            print("sent to ", member.prename)
             content = "Hallo {}!\n\n"\
                 "Herzlichen Glückwunsch, du hast im letzten Jahr zu den {} aktivsten "\
                 "Mitgliedern der JDAV Ludwigsburg gehört! Um genau zu sein beträgt "\
@@ -45,4 +45,4 @@ class Command(BaseCommand):
                                                   positiontext)
             send("Herzlichen Glückwunsch {}".format(member.prename),
                  content, SENDING_ADDRESS, [member.email],
-                 reply_to=["jugendreferent@jdav-ludwigsburgs.de"])
+                 reply_to=["jugendreferent@jdav-ludwigsburg.de"])
