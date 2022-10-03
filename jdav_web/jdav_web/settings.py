@@ -213,15 +213,15 @@ JET_SIDE_MENU_ITEMS = [
     {'app_label': 'members', 'items': [
         {'name': 'member'},
         {'name': 'group'},
-        {'name': 'memberlist', 'permissions': ['members.memberlist']},
+        {'name': 'memberlist', 'permissions': ['members.view_memberlist']},
         {'name': 'membernotelist'},
         {'name': 'freizeit'},
         {'name': 'klettertreff'},
-        {'name': 'activitycategory', 'permissions': ['members.activitycategory']},
-        {'name': 'memberunconfirmedproxy', 'permissions': ['members.memberunconfirmedproxy']},
+        {'name': 'activitycategory', 'permissions': ['members.view_activitycategory']},
+        {'name': 'memberunconfirmedproxy', 'permissions': ['members.view_memberunconfirmedproxy']},
     ]},
     {'app_label': 'material', 'items': [
-        {'name': 'materialcategory', 'permissions': ['material.materialcategory']},
+        {'name': 'materialcategory', 'permissions': ['material.view_materialcategory']},
         {'name': 'materialpart'},
     ]},
     {'label': 'Externe Links', 'items' : [
