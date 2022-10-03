@@ -42,6 +42,8 @@ class Group(models.Model):
     name = models.CharField(max_length=20, verbose_name=_('name'))  # e.g: J1
     year_from = models.IntegerField(verbose_name=_('lowest year'), default=2010)
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
+    leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
+                                     related_name='leiters', blank=True)
 
     def __str__(self):
         """String representation"""
