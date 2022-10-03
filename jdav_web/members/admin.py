@@ -87,9 +87,18 @@ class MemberAdmin(admin.ModelAdmin):
     #ordering = ('activity_score',)
     actions = ['send_mail_to', 'request_echo']
 
+    def get_fields(self, request, obj=None):
+        if request.user.has_perm('members.may_set_auth_user'):
+            if 'user' not in self.fields:
+                self.fields.append('user')
+        else:
+            if 'user' in self.fields:
+                self.fields.remove('user')
+        return super(MemberAdmin, self).get_fields(request, obj)
+
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        return annotate_activity_score(queryset.filter(confirmed=True))
+        return annotate_activity_score(queryset)
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -167,7 +176,13 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        return queryset.filter(confirmed=False)
+        if request.user.has_perm('members.may_manage_all_registrations'):
+            return queryset
+        if request.user.member is None:
+            return MemberUnconfirmedProxy.objects.none()
+        groups = request.user.member.leited_groups.all()
+        # this is magic (the first part, group is a manytomanyfield) but seems to work
+        return queryset.filter(group__in=groups).distinct()
 
     def request_mail_confirmation(self, request, queryset):
         for member in queryset:
@@ -209,8 +224,20 @@ class RegistrationPasswordInline(admin.TabularInline):
     extra = 0
 
 
+class GroupAdminForm(forms.ModelForm):
+    class Meta:
+        model = Freizeit
+        exclude = ['add_member']
+
+
+    def __init__(self, *args, **kwargs):
+        super(GroupAdminForm, self).__init__(*args, **kwargs)
+        self.fields['leiters'].queryset = Member.objects.filter(group__name='Jugendleiter')
+
+
 class GroupAdmin(admin.ModelAdmin):
-    fields = ['name', 'year_from', 'year_to']
+    fields = ['name', 'year_from', 'year_to', 'leiters']
+    form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')
     inlines = [RegistrationPasswordInline]
 

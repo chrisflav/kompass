@@ -11,6 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
 from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation_link
+from django.contrib.auth.models import User
 
 from dateutil.relativedelta import relativedelta
 
@@ -43,7 +44,7 @@ class Group(models.Model):
     year_from = models.IntegerField(verbose_name=_('lowest year'), default=2010)
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
-                                     related_name='leiters', blank=True)
+                                     related_name='leited_groups', blank=True)
 
     def __str__(self):
         """String representation"""
@@ -52,6 +53,11 @@ class Group(models.Model):
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
+
+
+class MemberManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(confirmed=True)
 
 
 class Member(models.Model):
@@ -98,6 +104,9 @@ class Member(models.Model):
     confirmed_mail_parents = models.BooleanField(default=True, verbose_name=_('Parents email confirmed'))
     confirm_mail_key = models.CharField(max_length=32, default="")
     confirm_mail_parents_key = models.CharField(max_length=32, default="")
+    user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL)
+
+    objects = MemberManager()
 
     def __str__(self):
         """String representation"""
@@ -229,7 +238,8 @@ class Member(models.Model):
     class Meta:
         verbose_name = _('member')
         verbose_name_plural = _('members')
-        permissions = (('may_see_qualities', 'Is allowed to see the quality overview'),)
+        permissions = (('may_see_qualities', 'Is allowed to see the quality overview'),
+                       ('may_set_auth_user', 'Is allowed to set auth user member connections.'))
 
     def get_skills(self):
         # get skills by summing up all the activities taken part in
@@ -246,13 +256,20 @@ class Member(models.Model):
         return Freizeit.objects.filter(membersonlist__member=self)
 
 
+class MemberUnconfirmedManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(confirmed=False)
+
+
 class MemberUnconfirmedProxy(Member):
     """Proxy to show unconfirmed members seperately in admin"""
+    objects = MemberUnconfirmedManager()
 
     class Meta:
         proxy = True
         verbose_name = _('Unconfirmed registration')
         verbose_name_plural = _('Unconfirmed registrations')
+        permissions = (('may_manage_all_registrations', 'Can view and manage all unconfirmed registrations.'),)
 
     def __str__(self):
         """String representation"""
