@@ -59,7 +59,7 @@ class Member(models.Model):
     """
     prename = models.CharField(max_length=20, verbose_name=_('prename'))
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
-    street = models.CharField(max_length=30, verbose_name=_('street'), default='', blank=True)
+    street = models.CharField(max_length=30, verbose_name=_('street and house number'), default='', blank=True)
     plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
                            default='', blank=True)
     town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
