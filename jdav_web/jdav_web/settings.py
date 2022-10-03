@@ -217,7 +217,8 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'membernotelist'},
         {'name': 'freizeit'},
         {'name': 'klettertreff'},
-        {'name': 'activitycategory', 'permissions': ['members.activitycategory'] },
+        {'name': 'activitycategory', 'permissions': ['members.activitycategory']},
+        {'name': 'memberunconfirmedproxy', 'permissions': ['members.memberunconfirmedproxy']},
     ]},
     {'app_label': 'material', 'items': [
         {'name': 'materialcategory', 'permissions': ['material.materialcategory']},

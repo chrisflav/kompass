@@ -23,7 +23,7 @@ from django.shortcuts import render
 
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
-                     annotate_activity_score)
+                     annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
 from mailer.mailutils import send as send_mail, get_echo_link, mail_root
 from django.conf import settings
 #from easy_select2 import apply_select2
@@ -89,7 +89,7 @@ class MemberAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        return annotate_activity_score(queryset)
+        return annotate_activity_score(queryset.filter(confirmed=True))
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
@@ -151,9 +151,68 @@ Deine JDAV Ludwigsburg""".format(name=member.prename, link=get_echo_link(member)
     activity_score.short_description = _('activity')
 
 
+class MemberUnconfirmedAdmin(admin.ModelAdmin):
+    fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
+              'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
+              'registered', 'registration_form', 'active',
+              'not_waiting', 'comments']
+    list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_mail_parents')
+    search_fields = ('prename', 'lastname', 'email')
+    list_filter = ('group', 'confirmed_mail', 'confirmed_mail_parents')
+    actions = ['request_mail_confirmation', 'confirm']
+    change_form_template = "members/change_member_unconfirmed.html"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.filter(confirmed=False)
+
+    def request_mail_confirmation(self, request, queryset):
+        for member in queryset:
+            member.request_mail_confirmation()
+        messages.success(request, _("Successfully requested mail confirmation from selected registrations."))
+    request_mail_confirmation.short_description = _('Request mail confirmation from selected registrations')
+
+    def confirm(self, request, queryset):
+        notify_individual = len(queryset.all()) < 10
+        success = True
+        for member in queryset:
+            if member.confirm() and notify_individual:
+                messages.success(request, _("Successfully confirmed %(name)s.") % {'name': member.name})
+            else:
+                if notify_individual:
+                    messages.error(request,
+                            _("Can't confirm. %(name)s has unconfirmed email addresses.") % {'name': member.name})
+                success = False
+        if notify_individual:
+            return
+        if success:
+            messages.success(request, _("Successfully confirmed multiple registrations."))
+        else:
+            messages.error(request, _("Failed to confirm some registrations because of unconfirmed email addresses."))
+    confirm.short_description = _('Confirm selected registrations')
+
+    def response_change(self, request, member):
+        if "_confirm" in request.POST:
+            if member.confirm():
+                messages.success(request, _("Successfully confirmed %(name)s.") % {'name': member.name})
+            else:
+                messages.error(request,
+                        _("Can't confirm. %(name)s has unconfirmed email addresses.") % {'name': member.name})
+        return super(MemberUnconfirmedAdmin, self).response_change(request, member)
+
+
+class RegistrationPasswordInline(admin.TabularInline):
+    model = RegistrationPassword
+    extra = 0
+
+
 class GroupAdmin(admin.ModelAdmin):
     fields = ['name', 'year_from', 'year_to']
     list_display = ('name', 'year_from', 'year_to')
+    inlines = [RegistrationPasswordInline]
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
@@ -743,6 +802,7 @@ class KlettertreffAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Member, MemberAdmin)
+admin.site.register(MemberUnconfirmedProxy, MemberUnconfirmedAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Freizeit, FreizeitAdmin)
 admin.site.register(MemberNoteList, MemberNoteListAdmin)

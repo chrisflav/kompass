@@ -1,0 +1,21 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Mail confirmed" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Mail confirmed" %}</h1>
+
+{% if parents %}
+<p>{% blocktrans %}The email address {{ email }} was successfully confirmed as parents email of {{name}}.{% endblocktrans %}
+</p>
+{% else %}
+<p>{% blocktrans %}The email address {{email}} was successfully confirmed as personal email of {{name}}.{% endblocktrans %}
+</p>
+{% endif %}
+
+{% endblock %}

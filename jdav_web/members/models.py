@@ -10,6 +10,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
+from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation_link
 
 from dateutil.relativedelta import relativedelta
 
@@ -90,6 +91,11 @@ class Member(models.Model):
     echo_key = models.CharField(max_length=32, default="")
     echo_expire = models.DateTimeField(default=timezone.now)
     echoed = models.BooleanField(default=True, verbose_name=_('Echoed'))
+    confirmed = models.BooleanField(default=True, verbose_name=_('Confirmed'))
+    confirmed_mail = models.BooleanField(default=True, verbose_name=_('Email confirmed'))
+    confirmed_mail_parents = models.BooleanField(default=True, verbose_name=_('Parents email confirmed'))
+    confirm_mail_key = models.CharField(max_length=32, default="")
+    confirm_mail_parents_key = models.CharField(max_length=32, default="")
 
     def __str__(self):
         """String representation"""
@@ -112,6 +118,48 @@ class Member(models.Model):
         self.echoed = False
         self.save()
         return self.echo_key
+
+    def request_mail_confirmation(self):
+        self.confirmed_mail = False
+        self.confirm_mail_key = uuid.uuid4().hex
+        group = ", ".join([g.name for g in self.group.all()])
+        send_mail(_('Email confirmation'),
+                  CONFIRM_MAIL_TEXT.format(name=self.prename,
+                                           group=group,
+                                           link=get_mail_confirmation_link(self.confirm_mail_key),
+                                           whattoconfirm='deiner Emailadresse'),
+                  mail_root,
+                  self.email)
+        if self.email_parents:
+            self.confirmed_mail_parents = False
+            self.confirm_mail_parents_key = uuid.uuid4().hex
+            send_mail(_('Email confirmation'),
+                      CONFIRM_MAIL_TEXT.format(name=self.prename,
+                                               group=group,
+                                               link=get_mail_confirmation_link(self.confirm_mail_parents_key),
+                                               whattoconfirm='der Emailadresse deiner Eltern'),
+                      mail_root,
+                      self.email_parents)
+        else:
+            self.confirmed_mail_parents = True
+        self.save()
+
+    def confirm_mail(self, key):
+        if self.confirm_mail_key == key:
+            self.confirm_mail_key, self.confirmed_mail = "", True
+            self.save()
+            return (self.email, False)
+        elif self.confirm_mail_parents_key == key:
+            self.confirm_mail_parents_key, self.confirmed_mail_parents = "", True
+            self.save()
+            return (self.email_parents, True)
+
+    def confirm(self):
+        if not self.confirmed_mail or not self.confirmed_mail_parents:
+            return False
+        self.confirmed = True
+        self.save()
+        return True
 
     def unsubscribe(self, key):
         if self.unsubscribe_key == key and timezone.now() <\
@@ -194,6 +242,19 @@ class Member(models.Model):
     def get_activities(self):
         # get activity overview
         return Freizeit.objects.filter(membersonlist__member=self)
+
+
+class MemberUnconfirmedProxy(Member):
+    """Proxy to show unconfirmed members seperately in admin"""
+
+    class Meta:
+        proxy = True
+        verbose_name = _('Unconfirmed registration')
+        verbose_name_plural = _('Unconfirmed registrations')
+
+    def __str__(self):
+        """String representation"""
+        return self.name
 
 
 class MemberList(models.Model):
@@ -501,3 +562,15 @@ def annotate_activity_score(queryset):
             + F('_jugendleiter_klettertreff_score') + 3 * F('_jugendleiter_freizeit_score'))
     )
     return queryset
+
+
+CONFIRM_MAIL_TEXT = """Hallo {name},
+
+du hast dich bei der JDAV Ludwigsburg für die Gruppe {group} registriert. Da bei uns alle Kommunikation
+per Email funktioniert, brauchen wir eine Bestätigung {whattoconfirm}. Dazu klicke bitte einfach auf
+folgenden Link:
+
+{link}
+
+Viele Grüße,
+Deine JDAV Ludwigsburg"""

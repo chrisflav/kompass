@@ -1,0 +1,15 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Mail confirmation failed" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Mail confirmation failed" %}</h1>
+
+<p>{% trans "The supplied link is invalid." %}</p>
+
+{% endblock %}

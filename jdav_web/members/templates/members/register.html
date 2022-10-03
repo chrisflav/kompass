@@ -12,7 +12,7 @@
 
 <h1>{% trans "Register" %}</h1>
 
-<p>{% trans "Here you can register for group" %} {{groupname}}.</p>
+<p>{% trans "Here you can register for group" %} {{ pwd.group.name }}.</p>
 
 {% if error_message %}
 	<p><b>{{ error_message }}</b></p>
@@ -23,7 +23,8 @@
     {% csrf_token %}
     {{form}}
     </table>
-    <input type="hidden" name="password" value="{{ password }}">
+    <input type="hidden" name="password" value="{{ pwd.password }}">
+    <input type="hidden" name="save">
     <p><input type="submit" value="{% trans "submit" %}"/></p>
 </form>
 

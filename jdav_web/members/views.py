@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponseRedirect
 from django.forms import ModelForm, TextInput, DateInput
-from members.models import Member
+from members.models import Member, RegistrationPassword
 from django.urls import reverse
 from django.utils import timezone
 
@@ -16,10 +16,14 @@ class MemberForm(ModelForm):
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
         }
 
-class MemberFormWithEmail(MemberForm):
+class MemberFormWithEmail(ModelForm):
     class Meta:
+        model = Member
         fields = ['prename', 'lastname', 'street', 'plz', 'town', 'phone_number',
                   'phone_number_parents', 'birth_date', 'email', 'email_parents', 'cc_email_parents']
+        widgets = {
+            'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
+        }
 
 def render_echo_failed(request, reason=""):
     context = {}
@@ -78,7 +82,7 @@ def render_register_password(request):
 def render_register_wrong_password(request):
     return render(request,
                   'members/register_password.html',
-                  {'error_message': _("The entered password is wrong."))
+                  {'error_message': _("The entered password is wrong.")})
 
 
 def render_register_success(request, groupname, membername):
@@ -88,12 +92,12 @@ def render_register_success(request, groupname, membername):
                    'membername': membername})
 
 
-def render_register(request, groupname, pwd, form=None):
+def render_register(request, pwd, form=None):
     if form is None:
-        form = MemberFormWithEmail(request.POST)
+        form = MemberFormWithEmail()
     return render(request,
                   'members/register.html',
-                  {'form': form, 'password': pwd, 'groupname': groupname})
+                  {'form': form, 'pwd': pwd})
 
 
 def register(request):
@@ -103,16 +107,41 @@ def register(request):
     # confirm password
     try:
         pwd = RegistrationPassword.objects.get(password=request.POST['password'])
-    except Member.DoesNotExist:
+    except RegistrationPassword.DoesNotExist:
         return render_register_wrong_password(request)
     if "save" in request.POST:
         # process registration
         form = MemberFormWithEmail(request.POST)
         try:
-            form.save()
-            return render_register_success(request, pwd.group.name, form.prename)
+            new_member = form.save()
+            new_member.group.add(pwd.group)
+            new_member.confirmed = False
+            new_member.save()
+            new_member.request_mail_confirmation()
+            return render_register_success(request, pwd.group.name, new_member.prename)
         except ValueError:
             # when input is invalid
             return render_register(request, pwd, form)
     # we are not saving yet
     return render_register(request, pwd, form=None)
+
+
+def confirm_mail(request):
+    if request.method == 'GET' and 'key' in request.GET:
+        key = request.GET['key']
+        res = Member.objects.filter(confirm_mail_key=key) | Member.objects.filter(confirm_mail_parents_key=key)
+        if len(res) != 1:
+            return render_mail_confirmation_invalid(request)
+        member = res[0]
+        email, parents = member.confirm_mail(key)
+        return render_mail_confirmation_success(request, email, member.prename, parents)
+    return HttpResponseRedirect(reverse('startpage:index'))
+
+
+def render_mail_confirmation_invalid(request):
+    return render(request, 'members/mail_confirmation_invalid.html')
+
+
+def render_mail_confirmation_success(request, email, name, parents=False):
+    return render(request, 'members/mail_confirmation_success.html',
+                  {'email': email, 'name': name, 'parents': parents})
