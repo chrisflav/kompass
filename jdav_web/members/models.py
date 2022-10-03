@@ -405,6 +405,15 @@ class KlettertreffAttendee(models.Model):
         verbose_name_plural = _('Members')
 
 
+class RegistrationPassword(models.Model):
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    password = models.CharField(_('Password'), default='', max_length=20, unique=True)
+
+    class Meta:
+        verbose_name = _('registration password')
+        verbose_name_plural = _('registration passwords')
+
+
 def annotate_activity_score(queryset):
     one_year_ago = datetime.now() - timedelta(days=365)
     queryset = queryset.annotate(

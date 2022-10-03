@@ -16,6 +16,10 @@ class MemberForm(ModelForm):
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
         }
 
+class MemberFormWithEmail(MemberForm):
+    class Meta:
+        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'phone_number',
+                  'phone_number_parents', 'birth_date', 'email', 'email_parents', 'cc_email_parents']
 
 def render_echo_failed(request, reason=""):
     context = {}
@@ -65,3 +69,50 @@ def echo(request):
                 return render_echo(request, key, form)
         except (Member.DoesNotExist, KeyError):
             return render_echo_failed(request, _("invalid"))
+
+
+def render_register_password(request):
+    return render(request, 'members/register_password.html')
+
+
+def render_register_wrong_password(request):
+    return render(request,
+                  'members/register_password.html',
+                  {'error_message': _("The entered password is wrong."))
+
+
+def render_register_success(request, groupname, membername):
+    return render(request,
+                  'members/register_success.html',
+                  {'groupname': groupname,
+                   'membername': membername})
+
+
+def render_register(request, groupname, pwd, form=None):
+    if form is None:
+        form = MemberFormWithEmail(request.POST)
+    return render(request,
+                  'members/register.html',
+                  {'form': form, 'password': pwd, 'groupname': groupname})
+
+
+def register(request):
+    if request.method == 'GET' or not "password" in request.POST:
+        # show password
+        return render_register_password(request)
+    # confirm password
+    try:
+        pwd = RegistrationPassword.objects.get(password=request.POST['password'])
+    except Member.DoesNotExist:
+        return render_register_wrong_password(request)
+    if "save" in request.POST:
+        # process registration
+        form = MemberFormWithEmail(request.POST)
+        try:
+            form.save()
+            return render_register_success(request, pwd.group.name, form.prename)
+        except ValueError:
+            # when input is invalid
+            return render_register(request, pwd, form)
+    # we are not saving yet
+    return render_register(request, pwd, form=None)
