@@ -18,11 +18,16 @@
 	<p><b>{{ error_message }}</b></p>
 {% endif %}
 
-<form action="" method="post">
+<form action="" method="post" enctype="multipart/form-data">
     <table class="termine">
     {% csrf_token %}
     {{form}}
     </table>
+    <p>
+    <input type="checkbox" required>
+    {% trans "I am member of the DAV Ludwigsburg." %}<br>
+    <input type="checkbox" required>
+    {% trans "I agree that my data is stored and processed on the server of the JDAV Ludwigsburg." %}</p>
     <input type="hidden" name="password" value="{{ pwd.password }}">
     <input type="hidden" name="save">
     <p><input type="submit" value="{% trans "submit" %}"/></p>

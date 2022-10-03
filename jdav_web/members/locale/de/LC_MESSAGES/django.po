@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-03 18:21+0200\n"
+"POT-Creation-Date: 2022-10-03 21:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -154,8 +154,8 @@ msgid "last name"
 msgstr "Nachname"
 
 #: members/models.py:62
-msgid "street"
-msgstr "Straße"
+msgid "street and house number"
+msgstr "Straße und Hausnummer"
 
 #: members/models.py:63
 msgid "Postcode"
@@ -372,7 +372,7 @@ msgstr ""
 "Falls sich etwas geändert hat, trage das bitte hier ein."
 
 #: members/templates/members/echo.html:27
-#: members/templates/members/register.html:28
+#: members/templates/members/register.html:33
 #: members/templates/members/register_password.html:22
 msgid "submit"
 msgstr "Bestätigen"
@@ -455,6 +455,17 @@ msgstr "Registrieren"
 msgid "Here you can register for group"
 msgstr "Hier kannst du dich registrieren für die Gruppe"
 
+#: members/templates/members/register.html:28
+msgid "I am member of the DAV Ludwigsburg."
+msgstr "Ich bin Mitglied des DAV Ludwigsburg."
+
+#: members/templates/members/register.html:30
+msgid ""
+"I agree that my data is stored and processed on the server of the JDAV "
+"Ludwigsburg."
+msgstr "Ich bin einverstanden, dass meine Daten auf dem Server der JDAV "
+"Ludwigsburg gespeichert und verarbeitet werden."
+
 #: members/templates/members/register_password.html:13
 msgid ""
 "Thanks for your interest in participating. Please enter the registration "
@@ -480,17 +491,20 @@ msgstr ""
 "Du hast zu oft ein falsches Passwort eingegeben. Bitte frage deinen "
 "Jugendleiter nach einem korrekten Passwort."
 
-#: members/views.py:54 members/views.py:75
+#: members/views.py:62 members/views.py:83
 msgid "invalid"
 msgstr "ungültig"
 
-#: members/views.py:56
+#: members/views.py:64
 msgid "expired"
 msgstr "abgelaufen"
 
-#: members/views.py:85
+#: members/views.py:93
 msgid "The entered password is wrong."
 msgstr "Das eingegebene Passwort ist falsch."
+
+#~ msgid "street"
+#~ msgstr "Straße"
 
 #~ msgid "Can't confirm. "
 #~ msgstr "Bestätigung nicht möglich. "

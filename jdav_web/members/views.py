@@ -16,14 +16,22 @@ class MemberForm(ModelForm):
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
         }
 
-class MemberFormWithEmail(ModelForm):
+class MemberRegistrationForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(MemberRegistrationForm, self).__init__(*args, **kwargs)
+
+        for field in self.Meta.required:
+            self.fields[field].required = True
+
     class Meta:
         model = Member
         fields = ['prename', 'lastname', 'street', 'plz', 'town', 'phone_number',
-                  'phone_number_parents', 'birth_date', 'email', 'email_parents', 'cc_email_parents']
+                  'phone_number_parents', 'birth_date', 'email', 'email_parents', 'cc_email_parents',
+                  'registration_form']
         widgets = {
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
         }
+        required = ['registration_form', 'street', 'plz', 'town']
 
 def render_echo_failed(request, reason=""):
     context = {}
@@ -94,7 +102,7 @@ def render_register_success(request, groupname, membername):
 
 def render_register(request, pwd, form=None):
     if form is None:
-        form = MemberFormWithEmail()
+        form = MemberRegistrationForm()
     return render(request,
                   'members/register.html',
                   {'form': form, 'pwd': pwd})
@@ -111,7 +119,7 @@ def register(request):
         return render_register_wrong_password(request)
     if "save" in request.POST:
         # process registration
-        form = MemberFormWithEmail(request.POST)
+        form = MemberRegistrationForm(request.POST, request.FILES)
         try:
             new_member = form.save()
             new_member.group.add(pwd.group)
