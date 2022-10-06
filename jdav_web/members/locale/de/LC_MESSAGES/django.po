@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-03 21:38+0200\n"
+"POT-Creation-Date: 2022-10-03 23:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: members/admin.py:33 members/models.py:80
+#: members/admin.py:33 members/models.py:88
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
@@ -34,122 +34,126 @@ msgstr "Nein"
 msgid "All"
 msgstr "Alle"
 
-#: members/admin.py:108
+#: members/admin.py:117
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer verfassen"
 
-#: members/admin.py:133
+#: members/admin.py:142
 msgid "Successfully requested echo from selected members."
 msgstr ""
 "Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer verschickt."
 
-#: members/admin.py:134
+#: members/admin.py:143
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer verschicken"
 
-#: members/admin.py:151
+#: members/admin.py:160
 msgid "activity"
 msgstr "Aktivität"
 
-#: members/admin.py:175
+#: members/admin.py:190
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet"
 
-#: members/admin.py:176
+#: members/admin.py:191
 msgid "Request mail confirmation from selected registrations"
 msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
 
-#: members/admin.py:183 members/admin.py:200
+#: members/admin.py:198 members/admin.py:215
 #, python-format
 msgid "Successfully confirmed %(name)s."
 msgstr "Registrierung von %(name)s erfolgreich bestätigt."
 
-#: members/admin.py:187 members/admin.py:203
+#: members/admin.py:202 members/admin.py:218
 #, python-format
 msgid "Can't confirm. %(name)s has unconfirmed email addresses."
 msgstr "Bestätigung nicht möglich. %(name)s hat unbestätigte Emailadressen."
 
-#: members/admin.py:192
+#: members/admin.py:207
 msgid "Successfully confirmed multiple registrations."
 msgstr "Erfolgreich mehrere Registrierungen bestätigt."
 
-#: members/admin.py:194
+#: members/admin.py:209
 msgid ""
 "Failed to confirm some registrations because of unconfirmed email addresses."
 msgstr ""
 "Einige Bestätigungen fehlgeschlagen, weil Emailadressen noch nicht bestätigt "
 "sind."
 
-#: members/admin.py:195
+#: members/admin.py:210
 msgid "Confirm selected registrations"
 msgstr "Ausgewählte Registrierungen bestätigen"
 
-#: members/admin.py:225
+#: members/admin.py:252
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: members/admin.py:228 members/admin.py:231
+#: members/admin.py:255 members/admin.py:258
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: members/admin.py:529
+#: members/admin.py:556
 msgid "Convert to PDF"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: members/admin.py:638
+#: members/admin.py:665
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: members/admin.py:735
+#: members/admin.py:762
 msgid "Generate list for LJP"
 msgstr "LJP Liste erstellen"
 
-#: members/apps.py:7 members/models.py:229
+#: members/apps.py:7 members/models.py:240
 msgid "members"
 msgstr "Teilnehmer"
 
-#: members/models.py:26
+#: members/models.py:27
 msgid "Name"
 msgstr "Name"
 
-#: members/models.py:27
+#: members/models.py:28
 msgid "Description"
 msgstr "Beschreibung"
 
-#: members/models.py:33 members/models.py:266 members/models.py:345
+#: members/models.py:34 members/models.py:285 members/models.py:364
 #: members/templates/members/change_member.html:17
 msgid "Activity"
 msgstr "Aktivität"
 
-#: members/models.py:34
+#: members/models.py:35
 msgid "Activities"
 msgstr "Aktivitäten"
 
-#: members/models.py:42
+#: members/models.py:43
 msgid "name"
 msgstr "Name"
 
-#: members/models.py:43
+#: members/models.py:44
 msgid "lowest year"
 msgstr "Ab Jahrgang"
 
-#: members/models.py:44
+#: members/models.py:45
 msgid "highest year"
 msgstr "Bis Jahrgang"
 
-#: members/models.py:51 members/models.py:73
+#: members/models.py:46
+msgid "youth leaders"
+msgstr "Jugendleiter"
+
+#: members/models.py:54 members/models.py:81
 msgid "group"
 msgstr "Gruppe"
 
-#: members/models.py:52
+#: members/models.py:55
 msgid "groups"
 msgstr "Gruppen"
 
-#: members/models.py:60
+#: members/models.py:68
 msgid "prename"
 msgstr "Vorname"
 
-#: members/models.py:61
+#: members/models.py:69
 msgid "last name"
 msgstr "Nachname"
 
@@ -157,185 +161,185 @@ msgstr "Nachname"
 msgid "street and house number"
 msgstr "Straße und Hausnummer"
 
-#: members/models.py:63
+#: members/models.py:71
 msgid "Postcode"
 msgstr "PLZ"
 
-#: members/models.py:65
+#: members/models.py:73
 msgid "town"
 msgstr "Stadt"
 
-#: members/models.py:66
+#: members/models.py:74
 msgid "phone number"
 msgstr "Telefonnummer"
 
-#: members/models.py:67
+#: members/models.py:75
 msgid "parents phone number"
 msgstr "Telefonnummer der Eltern"
 
-#: members/models.py:70
+#: members/models.py:78
 msgid "Parents' Email"
 msgstr "Email der Eltern"
 
-#: members/models.py:71
+#: members/models.py:79
 msgid "Also send mails to parents"
 msgstr "Emails auch an Eltern schicken"
 
-#: members/models.py:72
+#: members/models.py:80
 msgid "birth date"
 msgstr "Geburtsdatum"
 
-#: members/models.py:74
+#: members/models.py:82
 msgid "receives newsletter"
 msgstr "Erhält den Newsletter"
 
-#: members/models.py:78
+#: members/models.py:86
 msgid "comments"
 msgstr "Kommentare"
 
-#: members/models.py:79
+#: members/models.py:87
 msgid "created"
 msgstr "erstellt"
 
-#: members/models.py:81
+#: members/models.py:89
 msgid "Active"
 msgstr "Aktiv"
 
-#: members/models.py:82
+#: members/models.py:90
 msgid "Not waiting"
 msgstr "NICHT Warteliste"
 
-#: members/models.py:83
+#: members/models.py:91
 msgid "registration form"
 msgstr "Anmeldeformular"
 
-#: members/models.py:93
+#: members/models.py:101
 msgid "Echoed"
 msgstr "Rückgemeldet"
 
-#: members/models.py:94
+#: members/models.py:102
 msgid "Confirmed"
 msgstr "Bestätigt"
 
-#: members/models.py:95
+#: members/models.py:103
 msgid "Email confirmed"
 msgstr "Emailadresse bestätigt"
 
-#: members/models.py:96
+#: members/models.py:104
 msgid "Parents email confirmed"
 msgstr "Emailadresse der Eltern bestätigt"
 
-#: members/models.py:126 members/models.py:136
+#: members/models.py:137 members/models.py:147
 msgid "Email confirmation"
 msgstr "Email Bestätigung"
 
-#: members/models.py:225 members/models.py:427
+#: members/models.py:236 members/models.py:446
 msgid "Group"
 msgstr "Gruppe"
 
-#: members/models.py:228
+#: members/models.py:239
 msgid "member"
 msgstr "Teilnehmer"
 
-#: members/models.py:252
+#: members/models.py:270
 msgid "Unconfirmed registration"
 msgstr "Unbestätigte Registrierung"
 
-#: members/models.py:253
+#: members/models.py:271
 msgid "Unconfirmed registrations"
 msgstr "Unbestätigte Registrierungen"
 
-#: members/models.py:268 members/models.py:347
+#: members/models.py:287 members/models.py:366
 msgid "Place"
 msgstr "Ort"
 
-#: members/models.py:269 members/models.py:348
+#: members/models.py:288 members/models.py:367
 msgid "Destination (optional)"
 msgstr "Ziel (optional)"
 
-#: members/models.py:271 members/models.py:350 members/models.py:405
-#: members/models.py:423
+#: members/models.py:290 members/models.py:369 members/models.py:424
+#: members/models.py:442
 msgid "Date"
 msgstr "Datum"
 
-#: members/models.py:272 members/models.py:351
+#: members/models.py:291 members/models.py:370
 msgid "End (optional)"
 msgstr "Ende"
 
-#: members/models.py:274 members/models.py:353
+#: members/models.py:293 members/models.py:372
 msgid "Groups"
 msgstr "Gruppen"
 
-#: members/models.py:282 members/models.py:366
+#: members/models.py:301 members/models.py:385
 msgid "Categories"
 msgstr "Kategorien"
 
-#: members/models.py:283 members/models.py:367
+#: members/models.py:302 members/models.py:386
 msgid "easy"
 msgstr "leicht"
 
-#: members/models.py:283 members/models.py:367
+#: members/models.py:302 members/models.py:386
 msgid "medium"
 msgstr "mittel"
 
-#: members/models.py:283 members/models.py:367
+#: members/models.py:302 members/models.py:386
 msgid "hard"
 msgstr "schwer"
 
-#: members/models.py:292
+#: members/models.py:311
 msgid "Memberlist"
 msgstr "Teilnehmerliste"
 
-#: members/models.py:293
+#: members/models.py:312
 msgid "Memberlists"
 msgstr "Teilnehmerlisten"
 
-#: members/models.py:311 members/models.py:319 members/models.py:327
-#: members/models.py:338 members/models.py:458 members/models.py:465
+#: members/models.py:330 members/models.py:338 members/models.py:346
+#: members/models.py:357 members/models.py:477 members/models.py:484
 msgid "Member"
 msgstr "Teilnehmer"
 
-#: members/models.py:313 members/models.py:332
+#: members/models.py:332 members/models.py:351
 msgid "Comment"
 msgstr "Kommentar"
 
-#: members/models.py:320 members/models.py:339 members/models.py:466
+#: members/models.py:339 members/models.py:358 members/models.py:485
 msgid "Members"
 msgstr "Teilnehmer"
 
-#: members/models.py:404
+#: members/models.py:423
 msgid "Title"
 msgstr "Titel"
 
-#: members/models.py:424
+#: members/models.py:443
 msgid "Location"
 msgstr "Ort"
 
-#: members/models.py:425
+#: members/models.py:444
 msgid "Topic"
 msgstr "Thema"
 
-#: members/models.py:449
+#: members/models.py:468
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: members/models.py:452
+#: members/models.py:471
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: members/models.py:453
+#: members/models.py:472
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 
-#: members/models.py:471
+#: members/models.py:490
 msgid "Password"
 msgstr "Passwort"
 
-#: members/models.py:474
+#: members/models.py:493
 msgid "registration password"
 msgstr "Registrierungspassort"
 
-#: members/models.py:475
+#: members/models.py:494
 msgid "registration passwords"
 msgstr "Registrierungspasswörter"
 
