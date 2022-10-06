@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponseRedirect
 from django.forms import ModelForm, TextInput, DateInput
-from members.models import Member, RegistrationPassword
+from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy
 from django.urls import reverse
 from django.utils import timezone
 
@@ -137,7 +137,8 @@ def register(request):
 def confirm_mail(request):
     if request.method == 'GET' and 'key' in request.GET:
         key = request.GET['key']
-        res = Member.objects.filter(confirm_mail_key=key) | Member.objects.filter(confirm_mail_parents_key=key)
+        res = MemberUnconfirmedProxy.objects.filter(confirm_mail_key=key) \
+            | MemberUnconfirmedProxy.objects.filter(confirm_mail_parents_key=key)
         if len(res) != 1:
             return render_mail_confirmation_invalid(request)
         member = res[0]

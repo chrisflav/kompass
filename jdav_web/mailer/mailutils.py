@@ -5,6 +5,8 @@ import os
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
+PROTOCOL = os.environ.get('DJANGO_PROTOCOL', 'https')
+BASE_URL = os.environ.get('DJANGO_BASE_URL', HOST)
 
 
 def send(subject, content, sender, recipients, message_id=None, reply_to=None,
@@ -46,7 +48,7 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
 
 
 def get_content(content, registration_complete=True):
-    url = "https://{}/newsletter/unsubscribe".format(HOST)
+    url = prepend_base_url("/newsletter/unsubscribe")
     prepend = "WICHTIGE MITTEILUNG\n\n"\
         "Deine Anmeldung ist aktuell nicht vollständig. Bitte fülle umgehend das"\
         " Anmeldeformular aus und lasse es Deine*r Jugendleiter*in zukommen! Dieses"\
@@ -62,16 +64,20 @@ def get_content(content, registration_complete=True):
 
 def get_unsubscribe_link(member):
     key = member.generate_key()
-    return "https://{}/newsletter/unsubscribe?key={}".format(HOST, key)
+    return prepend_base_url("/newsletter/unsubscribe?key={}".format(key))
 
 
 def get_echo_link(member):
     key = member.generate_echo_key()
-    return "https://{}/members/echo?key={}".format(HOST, key)
+    return prepend_base_url("/members/echo?key={}".format(key))
 
 
 def get_mail_confirmation_link(key):
-    return "https://{}/members/mail/confirm?key={}".format(HOST, key)
+    return prepend_base_url("/members/mail/confirm?key={}".format(key))
+
+
+def prepend_base_url(absolutelink):
+    return "{protocol}://{base}{link}".format(protocol=PROTOCOL, base=BASE_URL, link=absolutelink)
 
 
 mail_root = os.environ.get('EMAIL_SENDING_ADDRESS', 'christian@localhost')

@@ -10,7 +10,8 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
-from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation_link
+from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation_link,\
+    prepend_base_url
 from django.contrib.auth.models import User
 
 from dateutil.relativedelta import relativedelta
@@ -134,7 +135,7 @@ class Member(models.Model):
         self.confirmed_mail = False
         self.confirm_mail_key = uuid.uuid4().hex
         group = ", ".join([g.name for g in self.group.all()])
-        send_mail(_('Email confirmation'),
+        send_mail(_('Email confirmation needed'),
                   CONFIRM_MAIL_TEXT.format(name=self.prename,
                                            group=group,
                                            link=get_mail_confirmation_link(self.confirm_mail_key),
@@ -144,7 +145,7 @@ class Member(models.Model):
         if self.email_parents:
             self.confirmed_mail_parents = False
             self.confirm_mail_parents_key = uuid.uuid4().hex
-            send_mail(_('Email confirmation'),
+            send_mail(_('Email confirmation needed'),
                       CONFIRM_MAIL_TEXT.format(name=self.prename,
                                                group=group,
                                                link=get_mail_confirmation_link(self.confirm_mail_parents_key),
@@ -156,14 +157,29 @@ class Member(models.Model):
         self.save()
 
     def confirm_mail(self, key):
+        parents = False
+        email = None
         if self.confirm_mail_key == key:
             self.confirm_mail_key, self.confirmed_mail = "", True
-            self.save()
-            return (self.email, False)
+            email, parents = self.email, False
         elif self.confirm_mail_parents_key == key:
             self.confirm_mail_parents_key, self.confirmed_mail_parents = "", True
-            self.save()
-            return (self.email_parents, True)
+            email, parents = self.email_parents, True
+        self.save()
+        if self.confirmed_mail_parents and self.confirmed_mail and not self.confirmed:
+            group = ", ".join([g.name for g in self.group.all()])
+            # notify jugendleiters of group of registration
+            jls = [jl for group in self.group.all() for jl in group.leiters.all()]
+            for jl in jls:
+                link = prepend_base_url(reverse('admin:members_memberunconfirmedproxy_change',
+                                                args=[str(self.id)]))
+                send_mail(_('New unconfirmed registration for group %(group)s') % {'group': group},
+                          NEW_UNCONFIRMED_REGISTRATION.format(name=jl.prename,
+                                                              group=group,
+                                                              link=link),
+                          mail_root,
+                          jl.email)
+        return (email, parents)
 
     def confirm(self):
         if not self.confirmed_mail or not self.confirmed_mail_parents:
@@ -591,5 +607,16 @@ folgenden Link:
 
 {link}
 
-Viele Grüße,
+Viele Grüße
 Deine JDAV Ludwigsburg"""
+
+NEW_UNCONFIRMED_REGISTRATION = """Hallo {name},
+
+für deine Gruppe {group} liegt eine neue unbestätigte Reservierung vor. Die Person hat bereits ihre
+E-Mailadressen bestätigt. Bitte prüfe die Registrierung eingehend und bestätige falls möglich. Zu
+der Registrierung kommst du hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS"""
