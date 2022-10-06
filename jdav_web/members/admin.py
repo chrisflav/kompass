@@ -178,7 +178,7 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
         queryset = super().get_queryset(request)
         if request.user.has_perm('members.may_manage_all_registrations'):
             return queryset
-        if request.user.member is None:
+        if not hasattr(request.user, 'member'):
             return MemberUnconfirmedProxy.objects.none()
         groups = request.user.member.leited_groups.all()
         # this is magic (the first part, group is a manytomanyfield) but seems to work
