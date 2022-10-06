@@ -23,6 +23,8 @@ class MemberRegistrationForm(ModelForm):
         for field in self.Meta.required:
             self.fields[field].required = True
 
+        self.fields['cc_email_parents'].initial = False
+
     class Meta:
         model = Member
         fields = ['prename', 'lastname', 'street', 'plz', 'town', 'phone_number',

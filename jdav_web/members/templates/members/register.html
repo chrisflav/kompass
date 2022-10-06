@@ -33,4 +33,22 @@
     <p><input type="submit" value="{% trans "submit" %}"/></p>
 </form>
 
+<script>
+
+var checkBox = document.querySelector('input[id="id_cc_email_parents"]');
+var textInput = document.querySelector('input[id="id_email_parents"]');
+
+function toggleRequired() {
+    if (checkBox.checked ) {
+        textInput.setAttribute('required','required');
+    }
+    else {
+        textInput.removeAttribute('required');
+    }
+}
+
+checkBox.addEventListener('change',toggleRequired,false);
+
+</script>
+
 {% endblock %}
