@@ -294,7 +294,7 @@ class MemberNoteListAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # unique filename
             filename = memberlist.title + "_notes_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '')
+            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
@@ -436,7 +436,7 @@ class FreizeitAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # create a unique filename
             filename = memberlist.name + "_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '')
+            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
@@ -560,7 +560,7 @@ class FreizeitAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # unique filename
             filename = memberlist.name + "_note_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '')
+            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
@@ -671,7 +671,7 @@ class FreizeitAdmin(admin.ModelAdmin):
         for memberlist in queryset:
             # create a unique filename
             filename = memberlist.name + "_ljp_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '')
+            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
                 encode('ASCII', 'ignore').decode()
