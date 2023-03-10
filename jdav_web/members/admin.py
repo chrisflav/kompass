@@ -22,9 +22,10 @@ from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
+                     MemberWaitingList,
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
-from mailer.mailutils import send as send_mail, get_echo_link, mail_root
+from mailer.mailutils import send as send_mail, get_echo_link, mail_root, get_registration_link
 from django.conf import settings
 #from easy_select2 import apply_select2
 
@@ -72,13 +73,11 @@ class RegistrationFilter(admin.SimpleListFilter):
 class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
               'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
-              'gets_newsletter', 'registered', 'registration_form', 'active',
-              'not_waiting', 'echoed', 'comments']
+              'gets_newsletter', 'registered', 'registration_form', 'active', 'echoed', 'comments']
     list_display = ('name', 'birth_date', 'age', 'get_group', 'gets_newsletter',
-                    'registered', 'active', 'not_waiting', 'echoed', 'comments', 'activity_score')
+                    'registered', 'active', 'echoed', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
-    list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active',
-                   'not_waiting')
+    list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active')
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -163,12 +162,11 @@ Deine JDAV Ludwigsburg""".format(name=member.prename, link=get_echo_link(member)
 class MemberUnconfirmedAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
               'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
-              'registered', 'registration_form', 'active',
-              'not_waiting', 'comments']
+              'registered', 'registration_form', 'active', 'comments']
     list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_mail_parents')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'confirmed_mail', 'confirmed_mail_parents')
-    actions = ['request_mail_confirmation', 'confirm']
+    actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter']
     change_form_template = "members/change_member_unconfirmed.html"
 
     def has_add_permission(self, request, obj=None):
@@ -209,6 +207,27 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
             messages.error(request, _("Failed to confirm some registrations because of unconfirmed email addresses."))
     confirm.short_description = _('Confirm selected registrations')
 
+    def demote_to_waiter(self, request, queryset):
+        for member in queryset:
+            #mem_as_dict = member.__dict__
+            #del mem_as_dict['_state']
+            #del mem_as_dict['id']
+            waiter = MemberWaitingList(prename=member.prename,
+                                       lastname=member.lastname,
+                                       email=member.email,
+                                       email_parents=member.email_parents,
+                                       cc_email_parents=member.cc_email_parents,
+                                       birth_date=member.birth_date,
+                                       comments=member.comments,
+                                       confirmed_mail=member.confirmed_mail,
+                                       confirmed_mail_parents=member.confirmed_mail_parents,
+                                       confirm_mail_key=member.confirm_mail_key,
+                                       confirm_mail_parents_key=member.confirm_mail_parents_key)
+            waiter.save()
+            member.delete()
+            messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': waiter.name})
+    demote_to_waiter.short_description = _('Demote selected registrations to waiters.')
+
     def response_change(self, request, member):
         if "_confirm" in request.POST:
             if member.confirm():
@@ -217,6 +236,49 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
                 messages.error(request,
                         _("Can't confirm. %(name)s has unconfirmed email addresses.") % {'name': member.name})
         return super(MemberUnconfirmedAdmin, self).response_change(request, member)
+
+
+class MemberWaitingListAdmin(admin.ModelAdmin):
+    fields = ['prename', 'lastname', 'email', 'email_parents', 'birth_date',  'comments', 'invited_for_group']
+    list_display = ('name', 'birth_date', 'age', 'confirmed_mail', 'confirmed_mail_parents')
+    search_fields = ('prename', 'lastname', 'email')
+    list_filter = ('confirmed_mail', 'confirmed_mail_parents')
+    actions = ['request_mail_confirmation', 'ask_for_registration']
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def ask_for_registration(self, request, queryset):
+        """Asks the waiting person to register with all required data."""
+        for waiter in queryset:
+            if not waiter.invited_for_group:
+                messages.error(request,
+                        _("Can't invite %(name)s. No group was specified.") % {'name': waiter.name})
+                continue
+            send_mail("Gute Neuigkeiten von der JDAV",
+                      """Hallo {name},
+
+wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe freigeworden. Wir brauchen
+jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
+Link erledigen:
+
+{link}
+
+Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste angegeben hast. Bitte
+überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
+
+Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
+
+Viele Grüße
+Deine JDAV Ludwigsburg""".format(name=waiter.prename,
+                      link=get_registration_link(waiter)),
+                      mail_root,
+                      [waiter.email, waiter.email_parents] if waiter.email_parents and waiter.cc_email_parents
+                      else waiter.email)
+            messages.success(request, 
+                    _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
+        return None
+    ask_for_registration.short_description = _('Offer waiter a place in a group.')
 
 
 class RegistrationPasswordInline(admin.TabularInline):
@@ -830,6 +892,7 @@ class KlettertreffAdmin(admin.ModelAdmin):
 
 admin.site.register(Member, MemberAdmin)
 admin.site.register(MemberUnconfirmedProxy, MemberUnconfirmedAdmin)
+admin.site.register(MemberWaitingList, MemberWaitingListAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Freizeit, FreizeitAdmin)
 admin.site.register(MemberNoteList, MemberNoteListAdmin)

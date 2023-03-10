@@ -1,0 +1,17 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Registration for waiting list." %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Registration for waiting list." %}</h1>
+
+<p>{% trans "Your registration for the waiting list was successful." %}
+{% trans "Please remember to confirm all email addresses that you entered." %}
+{% trans "We will notify you if there is a vacant place in one of our groups." %}</p>
+
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Registration failed" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Registration" %}</h1>
+
+<p><b>{% trans "Something went wrong while processing your registration." %}</b></p>
+
+<p>{% trans "If you think this is a mistake, please" %} <a href="mailto:jugendreferent@jdav-ludwigsburg.de">{% trans "contact us." %}</a></p>
+
+{% endblock %}

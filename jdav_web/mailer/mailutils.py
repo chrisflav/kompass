@@ -72,6 +72,11 @@ def get_echo_link(member):
     return prepend_base_url("/members/echo?key={}".format(key))
 
 
+def get_registration_link(waiter):
+    key = waiter.generate_registration_key()
+    return prepend_base_url("/members/registration?key={}".format(key))
+
+
 def get_mail_confirmation_link(key):
     return prepend_base_url("/members/mail/confirm?key={}".format(key))
 

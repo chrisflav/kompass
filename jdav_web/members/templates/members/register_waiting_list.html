@@ -3,16 +3,16 @@
 {% load static %}
 
 {% block title %}
-{% trans "Registration" %}
+{% trans "Registration for waiting list" %}
 {% endblock %}
 
 {% block content %}
 
 <link rel="stylesheet" href="{% static "ludwigsburgalpin/termine.css" static %}">
 
-<h1>{% trans "Register" %}</h1>
+<h1>{% trans "Register for waiting list" %}</h1>
 
-<p>{% trans "Here you can register for group" %} {{ pwd.group.name }}.</p>
+<p>{% trans "Here you can register for the waiting list." %}</p>
 
 {% if error_message %}
 	<p><b>{{ error_message }}</b></p>
@@ -25,11 +25,8 @@
     </table>
     <p>
     <input type="checkbox" required>
-    {% trans "I am member of the DAV Ludwigsburg." %}<br>
-    <input type="checkbox" required>
     {% trans "I agree that my data is stored and processed on the server of the JDAV Ludwigsburg." %}</p>
     <input type="hidden" name="password" value="{{ pwd.password }}">
-    <input type="hidden" name="waiter_key" value="{{ waiter_key }}">
     <input type="hidden" name="save">
     <p><input type="submit" value="{% trans "submit" %}"/></p>
 </form>

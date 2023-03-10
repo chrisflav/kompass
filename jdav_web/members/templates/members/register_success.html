@@ -10,6 +10,13 @@
 
 <h1>{% trans "Register" %}</h1>
 
-<p>{% trans "Your registration succeeded. Please remember to confirm your email address. The coordinating team will process your registration when your email address is confirmed." %}</p>
+<p>{% trans "Your registration succeeded." %}
+
+{% if needs_mail_confirmation %}
+    {% trans "Please remember to confirm your email address." %}
+    {% trans "The coordinating team will process your registration when your email address is confirmed." %}</p>
+{% else %}
+    {% trans "The coordinating team will process your registration as soon as possible." %}</p>
+{% endif %}
 
 {% endblock %}

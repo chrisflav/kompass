@@ -16,6 +16,11 @@ from django.contrib.auth.models import User
 
 from dateutil.relativedelta import relativedelta
 
+
+def generate_random_key():
+    return uuid.uuid4().hex
+
+
 GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = 0
 FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = 1
 AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = 2
@@ -46,6 +51,7 @@ class Group(models.Model):
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
                                      related_name='leited_groups', blank=True)
+    secret = models.CharField(max_length=32, default=generate_random_key)
 
     def __str__(self):
         """String representation"""
@@ -61,83 +67,48 @@ class MemberManager(models.Manager):
         return super().get_queryset().filter(confirmed=True)
 
 
-class Member(models.Model):
+class Person(models.Model):
     """
-    Represents a member of the association
-    Might be a member of different groups: e.g. J1, J2, Jugendleiter, etc.
+    Represents an abstract person. Not necessarily a member of any group.
     """
     prename = models.CharField(max_length=20, verbose_name=_('prename'))
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
-    street = models.CharField(max_length=30, verbose_name=_('street and house number'), default='', blank=True)
-    plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
-                           default='', blank=True)
-    town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
-    phone_number = models.CharField(max_length=18, verbose_name=_('phone number'), default='', blank=True)
-    phone_number_parents = models.CharField(max_length=18, verbose_name=_('parents phone number'), default='', blank=True)
     email = models.EmailField(max_length=100, default="")
     email_parents = models.EmailField(max_length=100, default="", blank=True,
                                       verbose_name=_("Parents' Email"))
     cc_email_parents = models.BooleanField(default=True, verbose_name=_('Also send mails to parents'))
+
     birth_date = models.DateField(_('birth date'))  # to determine the age
-    group = models.ManyToManyField(Group, verbose_name=_('group'))
-    gets_newsletter = models.BooleanField(_('receives newsletter'),
-                                          default=True)
-    unsubscribe_key = models.CharField(max_length=32, default="")
-    unsubscribe_expire = models.DateTimeField(default=timezone.now)
+
     comments = models.TextField(_('comments'), default='', blank=True)
-    created = models.DateField(auto_now=True, verbose_name=_('created'))
-    registered = models.BooleanField(default=False, verbose_name=_('Registration complete'))
-    active = models.BooleanField(default=True, verbose_name=_('Active'))
-    not_waiting = models.BooleanField(default=True, verbose_name=_('Not waiting'))
-    registration_form = RestrictedFileField(verbose_name=_('registration form'),
-                                            upload_to='registration_forms',
-                                            blank=True,
-                                            max_upload_size=5242880,
-                                            content_types=['application/pdf',
-                                                           'image/jpeg',
-                                                           'image/png',
-                                                           'image/gif'])
-    echo_key = models.CharField(max_length=32, default="")
-    echo_expire = models.DateTimeField(default=timezone.now)
-    echoed = models.BooleanField(default=True, verbose_name=_('Echoed'))
-    confirmed = models.BooleanField(default=True, verbose_name=_('Confirmed'))
+
     confirmed_mail = models.BooleanField(default=True, verbose_name=_('Email confirmed'))
     confirmed_mail_parents = models.BooleanField(default=True, verbose_name=_('Parents email confirmed'))
     confirm_mail_key = models.CharField(max_length=32, default="")
     confirm_mail_parents_key = models.CharField(max_length=32, default="")
-    user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL)
 
-    objects = MemberManager()
+    class Meta:
+        abstract = True
 
     def __str__(self):
         """String representation"""
         return self.name
 
     @property
+    def name(self):
+        """Returning whole name (prename + lastname)"""
+        return "{0} {1}".format(self.prename, self.lastname)
+
+    @property
     def age(self):
         """Age of member"""
         return relativedelta(datetime.today(), self.birth_date).years
 
-    def generate_key(self):
-        self.unsubscribe_key = uuid.uuid4().hex
-        self.unsubscribe_expire = timezone.now() + timezone.timedelta(days=1)
-        self.save()
-        return self.unsubscribe_key
-
-    def generate_echo_key(self):
-        self.echo_key = uuid.uuid4().hex
-        self.echo_expire = timezone.now() + timezone.timedelta(days=30)
-        self.echoed = False
-        self.save()
-        return self.echo_key
-
     def request_mail_confirmation(self):
         self.confirmed_mail = False
         self.confirm_mail_key = uuid.uuid4().hex
-        group = ", ".join([g.name for g in self.group.all()])
         send_mail(_('Email confirmation needed'),
                   CONFIRM_MAIL_TEXT.format(name=self.prename,
-                                           group=group,
                                            link=get_mail_confirmation_link(self.confirm_mail_key),
                                            whattoconfirm='deiner Emailadresse'),
                   mail_root,
@@ -147,7 +118,6 @@ class Member(models.Model):
             self.confirm_mail_parents_key = uuid.uuid4().hex
             send_mail(_('Email confirmation needed'),
                       CONFIRM_MAIL_TEXT.format(name=self.prename,
-                                               group=group,
                                                link=get_mail_confirmation_link(self.confirm_mail_parents_key),
                                                whattoconfirm='der Emailadresse deiner Eltern'),
                       mail_root,
@@ -166,20 +136,72 @@ class Member(models.Model):
             self.confirm_mail_parents_key, self.confirmed_mail_parents = "", True
             email, parents = self.email_parents, True
         self.save()
-        if self.confirmed_mail_parents and self.confirmed_mail and not self.confirmed:
-            group = ", ".join([g.name for g in self.group.all()])
-            # notify jugendleiters of group of registration
-            jls = [jl for group in self.group.all() for jl in group.leiters.all()]
-            for jl in jls:
-                link = prepend_base_url(reverse('admin:members_memberunconfirmedproxy_change',
-                                                args=[str(self.id)]))
-                send_mail(_('New unconfirmed registration for group %(group)s') % {'group': group},
-                          NEW_UNCONFIRMED_REGISTRATION.format(name=jl.prename,
-                                                              group=group,
-                                                              link=link),
-                          mail_root,
-                          jl.email)
         return (email, parents)
+
+
+class Member(Person):
+    """
+    Represents a member of the association
+    Might be a member of different groups: e.g. J1, J2, Jugendleiter, etc.
+    """
+    street = models.CharField(max_length=30, verbose_name=_('street and house number'), default='', blank=True)
+    plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
+                           default='', blank=True)
+    town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
+
+    phone_number = models.CharField(max_length=18, verbose_name=_('phone number'), default='', blank=True)
+    phone_number_parents = models.CharField(max_length=18, verbose_name=_('parents phone number'), default='', blank=True)
+    group = models.ManyToManyField(Group, verbose_name=_('group'))
+
+    gets_newsletter = models.BooleanField(_('receives newsletter'),
+                                          default=True)
+    unsubscribe_key = models.CharField(max_length=32, default="")
+    unsubscribe_expire = models.DateTimeField(default=timezone.now)
+    created = models.DateField(auto_now=True, verbose_name=_('created'))
+    registered = models.BooleanField(default=False, verbose_name=_('Registration complete'))
+    active = models.BooleanField(default=True, verbose_name=_('Active'))
+    #not_waiting = models.BooleanField(default=True, verbose_name=_('Not waiting'))
+    registration_form = RestrictedFileField(verbose_name=_('registration form'),
+                                            upload_to='registration_forms',
+                                            blank=True,
+                                            max_upload_size=5242880,
+                                            content_types=['application/pdf',
+                                                           'image/jpeg',
+                                                           'image/png',
+                                                           'image/gif'])
+    echo_key = models.CharField(max_length=32, default="")
+    echo_expire = models.DateTimeField(default=timezone.now)
+    echoed = models.BooleanField(default=True, verbose_name=_('Echoed'))
+    confirmed = models.BooleanField(default=True, verbose_name=_('Confirmed'))
+    user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL)
+
+    objects = MemberManager()
+
+    @property
+    def place(self):
+        """Returning the whole place (plz + town)"""
+        return "{0} {1}".format(self.plz, self.town)
+
+    @property
+    def address(self):
+        """Returning the whole address"""
+        if not self.street and not self.town and not self.plz:
+            return "---"
+        else:
+            return "{0}, {1}".format(self.street, self.place)
+
+    def generate_key(self):
+        self.unsubscribe_key = uuid.uuid4().hex
+        self.unsubscribe_expire = timezone.now() + timezone.timedelta(days=1)
+        self.save()
+        return self.unsubscribe_key
+
+    def generate_echo_key(self):
+        self.echo_key = uuid.uuid4().hex
+        self.echo_expire = timezone.now() + timezone.timedelta(days=30)
+        self.echoed = False
+        self.save()
+        return self.echo_key
 
     def confirm(self):
         if not self.confirmed_mail or not self.confirmed_mail_parents:
@@ -201,24 +223,6 @@ class Member(models.Model):
 
     def may_echo(self, key):
         return self.echo_key == key and timezone.now() < self.echo_expire
-
-    @property
-    def name(self):
-        """Returning whole name (prename + lastname)"""
-        return "{0} {1}".format(self.prename, self.lastname)
-
-    @property
-    def place(self):
-        """Returning the whole place (plz + town)"""
-        return "{0} {1}".format(self.plz, self.town)
-
-    @property
-    def address(self):
-        """Returning the whole address"""
-        if not self.street and not self.town and not self.plz:
-            return "---"
-        else:
-            return "{0}, {1}".format(self.street, self.place)
 
     @property
     def contact_phone_number(self):
@@ -271,6 +275,25 @@ class Member(models.Model):
         # get activity overview
         return Freizeit.objects.filter(membersonlist__member=self)
 
+    def confirm_mail(self, key):
+        ret = super().confirm_mail(key)
+        if self.confirmed_mail_parents and self.confirmed_mail and not self.confirmed:
+            self.notify_jugendleiters_about_confirmed_mail()
+        return ret
+
+    def notify_jugendleiters_about_confirmed_mail(self):
+        group = ", ".join([g.name for g in self.group.all()])
+        # notify jugendleiters of group of registration
+        jls = [jl for group in self.group.all() for jl in group.leiters.all()]
+        for jl in jls:
+            link = prepend_base_url(reverse('admin:members_memberunconfirmedproxy_change',
+                                            args=[str(self.id)]))
+            send_mail(_('New unconfirmed registration for group %(group)s') % {'group': group},
+                      NEW_UNCONFIRMED_REGISTRATION.format(name=jl.prename,
+                                                          group=group,
+                                                          link=link),
+                      mail_root,
+                      jl.email)
 
 class MemberUnconfirmedManager(models.Manager):
     def get_queryset(self):
@@ -291,6 +314,47 @@ class MemberUnconfirmedProxy(Member):
         """String representation"""
         return self.name
 
+
+class MemberWaitingList(Person):
+    """A participant on the waiting list"""
+
+    last_wait_confirmation = models.DateField(auto_now=True, verbose_name=_('Last wait confirmation'))
+    wait_confirmation_key = models.CharField(max_length=32, default="")
+    wait_confirmation_key_expiry = models.DateTimeField(default=timezone.now)
+
+    registration_key = models.CharField(max_length=32, default="")
+    registration_expire = models.DateTimeField(default=timezone.now)
+
+    invited_for_group = models.ForeignKey(Group,
+                                          null=True,
+                                          default=None,
+                                          verbose_name=_('Invited for group'),
+                                          on_delete=models.SET_NULL)
+
+    class Meta:
+        verbose_name = _('Waiter')
+        verbose_name_plural = _('Waiters')
+        permissions = (('may_manage_waiting_list', 'Can view and manage the waiting list.'),)
+
+    @property
+    def waiting_confirmation_needed(self):
+        """Returns if person should be asked to confirm waiting status."""
+        return wait_confirmation_key is None \
+            and last_wait_confirmation < timezone.now - timezone.timedelta(days=90)
+
+    @property
+    def waiting_confirmed(self):
+        """Returns if person is still confirmed to be waiting."""
+        return last_wait_confirmation < timezone.now() - timezone.timedelta(days=100)
+
+    def generate_registration_key(self):
+        self.registration_key = uuid.uuid4().hex
+        self.registration_expire = timezone.now() + timezone.timedelta(days=30)
+        self.save()
+        return self.registration_key
+
+    def may_register(self, key):
+        return self.registration_key == key and timezone.now() < self.registration_expire
 
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format.
@@ -601,7 +665,7 @@ def annotate_activity_score(queryset):
 
 CONFIRM_MAIL_TEXT = """Hallo {name},
 
-du hast dich bei der JDAV Ludwigsburg für die Gruppe {group} registriert. Da bei uns alle Kommunikation
+du hast bei der JDAV Ludwigsburg eine E-Mail Adresse hinterlegt. Da bei uns alle Kommunikation
 per Email funktioniert, brauchen wir eine Bestätigung {whattoconfirm}. Dazu klicke bitte einfach auf
 folgenden Link:
 
