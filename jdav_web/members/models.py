@@ -11,7 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
 from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation_link,\
-    prepend_base_url
+    prepend_base_url, get_registration_link
 from django.contrib.auth.models import User
 
 from dateutil.relativedelta import relativedelta
@@ -327,6 +327,7 @@ class MemberWaitingList(Person):
 
     invited_for_group = models.ForeignKey(Group,
                                           null=True,
+                                          blank=True,
                                           default=None,
                                           verbose_name=_('Invited for group'),
                                           on_delete=models.SET_NULL)
@@ -355,6 +356,15 @@ class MemberWaitingList(Person):
 
     def may_register(self, key):
         return self.registration_key == key and timezone.now() < self.registration_expire
+
+    def invite_to_group(self):
+        send_mail("Gute Neuigkeiten von der JDAV",
+                  INVITE_TEXT.format(name=self.prename,
+                  link=get_registration_link(self)),
+                  mail_root,
+                  [self.email, self.email_parents] if self.email_parents and self.cc_email_parents
+                  else self.email)
+
 
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format.
@@ -684,3 +694,19 @@ der Registrierung kommst du hier:
 
 Viele Grüße
 Dein KOMPASS"""
+
+INVITE_TEXT = """Hallo {name},
+
+wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe freigeworden. Wir brauchen
+jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
+Link erledigen:
+
+{link}
+
+Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste angegeben hast. Bitte
+überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
+
+Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
+
+Viele Grüße
+Deine JDAV Ludwigsburg"""

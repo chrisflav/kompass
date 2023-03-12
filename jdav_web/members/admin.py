@@ -7,7 +7,9 @@ import time
 import unicodedata
 import random
 import string
+from functools import partial, update_wrapper
 
+from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
 from django import forms
@@ -25,7 +27,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
                      MemberWaitingList,
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
-from mailer.mailutils import send as send_mail, get_echo_link, mail_root, get_registration_link
+from mailer.mailutils import send as send_mail, get_echo_link, mail_root
 from django.conf import settings
 #from easy_select2 import apply_select2
 
@@ -238,48 +240,106 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
         return super(MemberUnconfirmedAdmin, self).response_change(request, member)
 
 
+class WaiterInviteForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+    group = forms.ModelChoiceField(queryset=Group.objects.all(),
+                                   label=_('Group'))
+
+
 class MemberWaitingListAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'birth_date',  'comments', 'invited_for_group']
     list_display = ('name', 'birth_date', 'age', 'confirmed_mail', 'confirmed_mail_parents')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('confirmed_mail', 'confirmed_mail_parents')
     actions = ['request_mail_confirmation', 'ask_for_registration']
+    readonly_fields= ('invited_for_group',)
 
     def has_add_permission(self, request, obj=None):
         return False
 
     def ask_for_registration(self, request, queryset):
         """Asks the waiting person to register with all required data."""
-        for waiter in queryset:
-            if not waiter.invited_for_group:
+        if "apply" in request.POST:
+            try:
+                group = Group.objects.get(pk=request.POST['group'])
+            except Group.DoesNotExist:
                 messages.error(request,
-                        _("Can't invite %(name)s. No group was specified.") % {'name': waiter.name})
-                continue
-            send_mail("Gute Neuigkeiten von der JDAV",
-                      """Hallo {name},
+                               _("An error occurred while trying to invite said members. Please try again."))
+                return HttpResponseRedirect(request.get_full_path())
 
-wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe freigeworden. Wir brauchen
-jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
-Link erledigen:
+            for waiter in queryset:
+                waiter.invited_for_group = group
+                waiter.save()
+                waiter.invite_to_group()
+                messages.success(request, 
+                        _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
 
-{link}
-
-Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste angegeben hast. Bitte
-überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
-
-Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
-
-Viele Grüße
-Deine JDAV Ludwigsburg""".format(name=waiter.prename,
-                      link=get_registration_link(waiter)),
-                      mail_root,
-                      [waiter.email, waiter.email_parents] if waiter.email_parents and waiter.cc_email_parents
-                      else waiter.email)
-            messages.success(request, 
-                    _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
-        return None
+            return HttpResponseRedirect(request.get_full_path())
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Select group for invitation'),
+                       opts=self.opts,
+                       waiters=queryset.all(),
+                       form=WaiterInviteForm(initial={'_selected_action': queryset.values_list('id', flat=True)}))
+        return render(request,
+                      'admin/invite_selected_for_group.html',
+                      context=context)
     ask_for_registration.short_description = _('Offer waiter a place in a group.')
 
+    def response_change(self, request, waiter):
+        ret = super(MemberWaitingListAdmin, self).response_change(request, waiter)
+        if "_invite" in request.POST:
+            return HttpResponseRedirect(
+                        reverse('admin:%s_%s_invite' % (waiter._meta.app_label, waiter._meta.model_name),
+                                args=(waiter.pk,)))
+        return ret
+
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = [
+            path(
+                "<path:object_id>/invite/",
+                wrap(self.invite_view),
+                name="%s_%s_invite" % (self.opts.app_label, self.opts.model_name),
+            ),
+        ]
+        return custom_urls + urls
+
+    def invite_view(self, request, object_id):
+        waiter = MemberWaitingList.objects.get(pk=object_id)
+
+        if "apply" in request.POST:
+            try:
+                group = Group.objects.get(pk=request.POST['group'])
+            except Group.DoesNotExist:
+                messages.error(request,
+                               _("An error occurred while trying to invite said members. Please try again."))
+                return HttpResponseRedirect(request.get_full_path())
+
+            waiter.invited_for_group = group
+            waiter.save()
+            waiter.invite_to_group()
+            messages.success(request, 
+                    _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
+
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (waiter._meta.app_label, waiter._meta.model_name)))
+
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Select group for invitation'),
+                       opts=self.opts,
+                       object=waiter,
+                       waiter=waiter,
+                       form=WaiterInviteForm(initial={'_selected_action': [waiter.pk]}))
+        return render(request,
+                      'admin/invite_for_group.html',
+                      context=context)
 
 class RegistrationPasswordInline(admin.TabularInline):
     model = RegistrationPassword

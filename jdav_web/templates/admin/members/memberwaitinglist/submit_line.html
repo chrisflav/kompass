@@ -1,0 +1,13 @@
+{% extends "admin/submit_line.html" %}
+{% load i18n admin_urls %}
+
+{% block submit-row %}
+{{block.super}}
+
+<p class="deletelink-box">
+{% url opts|admin_urlname:'invite' original.pk|admin_urlquote as invite_url %}
+<a class="button" style="" href="{% add_preserved_filters invite_url %}">{% trans 'Invite to group' %}</a>
+</p>
+
+
+{% endblock %}
