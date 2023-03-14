@@ -108,3 +108,6 @@ jdav_web/static/jet/css/themes/*/.sass-cache/*
 
 # test config
 config
+
+# celerybeat schedule database
+jdav_web/celerybeat-schedule.db

@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'ludwigsburgalpin.apps.LudwigsburgalpinConfig',
     #'easy_select2',
     'djcelery_email',
+    'django_celery_beat',
     'jet',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -203,6 +204,13 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'group', 'permissions': ['auth.group'] },
         {'name': 'user', 'permissions': ['auth.user']},
     ]},
+    {'app_label': 'django_celery_beat', 'permissions': ['django_celery_beat'], 'items': [
+        {'name': 'crontabschedule'},
+        {'name': 'clockedschedule'},
+        {'name': 'intervalschedule'},
+        {'name': 'periodictask'},
+        {'name': 'solarschedule'},
+    ]},
     {'app_label': 'ludwigsburgalpin', 'permissions': ['ludwigsburgalpin'], 'items': [
         {'name': 'termin'},
     ]},
@@ -229,3 +237,9 @@ JET_SIDE_MENU_ITEMS = [
         { 'label': 'Packlisten und Co.', 'url': 'https://cloud.jdav-ludwigsburg.de/index.php/s/qxQCTR8JqYSXXCQ'}
     ]},
 ]
+
+# Waiting list configuration parameters, all numbers are in days
+
+
+GRACE_PERIOD_WAITING_CONFIRMATION = 30
+WAITING_CONFIRMATION_FREQUENCY = 90

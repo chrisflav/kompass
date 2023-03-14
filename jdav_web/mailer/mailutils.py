@@ -77,6 +77,11 @@ def get_registration_link(waiter):
     return prepend_base_url("/members/registration?key={}".format(key))
 
 
+def get_wait_confirmation_link(waiter):
+    key = waiter.generate_wait_confirmation_key()
+    return prepend_base_url("/members/waitinglist/confirm?key={}".format(key))
+
+
 def get_mail_confirmation_link(key):
     return prepend_base_url("/members/mail/confirm?key={}".format(key))
 

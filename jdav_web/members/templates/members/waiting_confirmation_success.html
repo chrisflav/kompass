@@ -1,0 +1,23 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Waiting confirmed" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Waiting confirmed" %}</h1>
+
+{% if already_confirmed %}
+<p>{% blocktrans %}Thank you {{prename}} for your interest in staying on the waiting list.
+Your spot was already confirmed.{% endblocktrans %}
+</p>
+{% else %}
+<p>{% blocktrans %}Thank you {{prename}} for your interest in staying on the waiting list.
+Your spot has been confirmed.{% endblocktrans %}
+</p>
+{% endif %}
+
+{% endblock %}

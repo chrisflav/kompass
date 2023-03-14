@@ -5,6 +5,6 @@ source venv/bin/activate
 
 cd jdav_web
 
-celery -A jdav_web worker -l debug &
+celery -A jdav_web worker -B --scheduler django_celery_beat.schedulers:DatabaseScheduler -l info &
 
 python3 manage.py runserver 8008

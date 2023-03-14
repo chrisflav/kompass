@@ -248,14 +248,23 @@ class WaiterInviteForm(forms.Form):
 
 class MemberWaitingListAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'birth_date',  'comments', 'invited_for_group']
-    list_display = ('name', 'birth_date', 'age', 'confirmed_mail', 'confirmed_mail_parents')
+    list_display = ('name', 'birth_date', 'age', 'confirmed_mail', 'confirmed_mail_parents',
+                    'waiting_confirmed')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('confirmed_mail', 'confirmed_mail_parents')
-    actions = ['request_mail_confirmation', 'ask_for_registration']
+    actions = ['ask_for_registration', 'ask_for_wait_confirmation']
     readonly_fields= ('invited_for_group',)
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    def ask_for_wait_confirmation(self, request, queryset):
+        """Asks the waiting person to confirm their waiting status."""
+        for waiter in queryset:
+            waiter.ask_for_wait_confirmation()
+            messages.success(request,
+                    _("Successfully asked %(name)s to confirm their waiting status.") % {'name': waiter.name})
+    ask_for_wait_confirmation.short_description = _('Ask the waiter to confirm their waiting status')
 
     def ask_for_registration(self, request, queryset):
         """Asks the waiting person to register with all required data."""

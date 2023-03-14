@@ -8,7 +8,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'jdav_web.settings')
 
 app = Celery()
 app.config_from_object('django.conf:settings')
-app.autodiscover_tasks(settings.INSTALLED_APPS)
+app.autodiscover_tasks()
 
 if __name__ == '__main__':
     app.start()

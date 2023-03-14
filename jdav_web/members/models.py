@@ -11,8 +11,9 @@ from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
 from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation_link,\
-    prepend_base_url, get_registration_link
+    prepend_base_url, get_registration_link, get_wait_confirmation_link
 from django.contrib.auth.models import User
+from django.conf import settings
 
 from dateutil.relativedelta import relativedelta
 
@@ -51,7 +52,6 @@ class Group(models.Model):
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
                                      related_name='leited_groups', blank=True)
-    secret = models.CharField(max_length=32, default=generate_random_key)
 
     def __str__(self):
         """String representation"""
@@ -137,6 +137,13 @@ class Person(models.Model):
             email, parents = self.email_parents, True
         self.save()
         return (email, parents)
+
+    def send_mail(self, subject, content):
+        send_mail(subject,
+                  content,
+                  mail_root,
+                  [self.email, self.email_parents] if self.email_parents and self.cc_email_parents
+                  else self.email)
 
 
 class Member(Person):
@@ -318,9 +325,14 @@ class MemberUnconfirmedProxy(Member):
 class MemberWaitingList(Person):
     """A participant on the waiting list"""
 
+    WAITING_CONFIRMATION_SUCCESS = 0
+    WAITING_CONFIRMATION_INVALID = 1
+    WAITING_CONFIRMATION_EXPIRED = 1
+    WAITING_CONFIRMED = 2
+
     last_wait_confirmation = models.DateField(auto_now=True, verbose_name=_('Last wait confirmation'))
     wait_confirmation_key = models.CharField(max_length=32, default="")
-    wait_confirmation_key_expiry = models.DateTimeField(default=timezone.now)
+    wait_confirmation_key_expire = models.DateTimeField(default=timezone.now)
 
     registration_key = models.CharField(max_length=32, default="")
     registration_expire = models.DateTimeField(default=timezone.now)
@@ -341,12 +353,50 @@ class MemberWaitingList(Person):
     def waiting_confirmation_needed(self):
         """Returns if person should be asked to confirm waiting status."""
         return wait_confirmation_key is None \
-            and last_wait_confirmation < timezone.now - timezone.timedelta(days=90)
+            and last_wait_confirmation < timezone.now() - timezone.timedelta(days=90)
 
-    @property
     def waiting_confirmed(self):
-        """Returns if person is still confirmed to be waiting."""
-        return last_wait_confirmation < timezone.now() - timezone.timedelta(days=100)
+        """Returns if the persons waiting status is considered to be confirmed."""
+        cutoff = timezone.now() \
+            - timezone.timedelta(days=  settings.GRACE_PERIOD_WAITING_CONFIRMATION \
+                                      + settings.WAITING_CONFIRMATION_FREQUENCY)
+        return self.last_wait_confirmation > cutoff.date()
+    waiting_confirmed.admin_order_field = 'last_wait_confirmation'
+    waiting_confirmed.boolean = True
+    waiting_confirmed.short_description = _('Waiting status confirmed')
+
+    def ask_for_wait_confirmation(self):
+        """Sends an email to the person asking them to confirm their intention to wait."""
+        self.send_mail(_('Waiting confirmation needed'),
+                       WAIT_CONFIRMATION_TEXT.format(name=self.prename,
+                                                     link=get_wait_confirmation_link(self)))
+
+    def confirm_waiting(self, key):
+        # if a wrong key is supplied, we return invalid
+        if not self.wait_confirmation_key == key:
+            return self.WAITING_CONFIRMATION_INVALID
+
+        # if the current wait confirmation key is not expired, return sucess
+        if timezone.now() < self.wait_confirmation_key_expire:
+            self.last_wait_confirmation = timezone.now()
+            self.wait_confirmation_key_expire = timezone.now()
+            self.save()
+            return self.WAITING_CONFIRMATION_SUCCESS
+
+        # if the waiting is already confirmed, return success
+        # this might happen if both parents and member mail are used for communication
+        if self.waiting_confirmed():
+            return self.WAITING_CONFIRMED
+
+        # otherwise the link is too old and the person was not confirmed in time
+        return self.WAITING_CONFIRMATION_EXPIRED
+
+    def generate_wait_confirmation_key(self):
+        self.wait_confirmation_key = uuid.uuid4().hex
+        self.wait_confirmation_key_expire = timezone.now() \
+            + timezone.timedelta(days=settings.GRACE_PERIOD_WAITING_CONFIRMATION)
+        self.save()
+        return self.wait_confirmation_key
 
     def generate_registration_key(self):
         self.registration_key = uuid.uuid4().hex
@@ -707,6 +757,23 @@ Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste a
 überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
 
 Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
+
+Viele Grüße
+Deine JDAV Ludwigsburg"""
+
+
+WAIT_CONFIRMATION_TEXT = """Hallo {name},
+
+leider können wir dir zur Zeit noch keinen Platz in einer Jugendgruppe anbieten. Da wir
+sehr viele Interessenten haben und wir möglichst vielen die Möglichkeit bieten möchten, an
+einer Jugendgruppe teilhaben zu können, fragen wir regelmäßig alle Personen auf der
+Warteliste ab, ob sie noch Interesse haben.
+
+Wenn du weiterhin auf der Warteliste bleiben möchtest, klicke auf den folgenden Link:
+
+{link}
+
+Falls du nicht mehr auf der Warteliste bleiben möchtest, musst du nichts machen. Du wirst automatisch entfernt.
 
 Viele Grüße
 Deine JDAV Ludwigsburg"""

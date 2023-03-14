@@ -278,3 +278,38 @@ def render_invited_registration_failed(request, reason=""):
     if reason:
         context['reason'] = reason
     return render(request, 'members/invited_registration_failed.html', context)
+
+
+def confirm_waiting(request):
+    if request.method == 'GET' and 'key' in request.GET:
+        key = request.GET['key']
+        try:
+            waiter = MemberWaitingList.objects.get(wait_confirmation_key=key)
+        except MemberWaitingList.DoesNotExist:
+            return render_waiting_confirmation_invalid(request)
+        status = waiter.confirm_waiting(key)
+        if status == MemberWaitingList.WAITING_CONFIRMATION_SUCCESS:
+            return render_waiting_confirmation_success(request,
+                                                       waiter.prename,
+                                                       already_confirmed=False)
+        elif status == MemberWaitingList.WAITING_CONFIRMED:
+            return render_waiting_confirmation_success(request,
+                                                       waiter.prename,
+                                                       already_confirmed=True)
+        elif status == MemberWaitingList.WAITING_CONFIRMATION_EXPIRED:
+            return render_waiting_confirmation_invalid(request, prename=waiter.prename, expired=True)
+        else:
+            # invalid
+            return render_waiting_confirmation_invalid(request)
+    return HttpResponseRedirect(reverse('startpage:index'))
+
+
+def render_waiting_confirmation_invalid(request, prename=None, expired=False):
+    return render(request,
+                  'members/waiting_confirmation_invalid.html',
+                  {'expired': expired, 'prename': prename})
+
+
+def render_waiting_confirmation_success(request, prename, already_confirmed):
+    return render(request, 'members/waiting_confirmation_success.html',
+                  {'prename': prename, 'already_confirmed': already_confirmed})
