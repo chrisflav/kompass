@@ -12,7 +12,8 @@
 
 {% if expired %}
 {% url 'members:register_waiting_list' as reg_wait_link %}
-<p>{% blocktrans %}Unfortunately, you did not confirm your intention to stay on the waiting list in time. You lost your spot on the list. You can <a href="{{reg_wait_link}}">rejoin the waiting list</a>.{% endblocktrans %}
+<p>{% blocktrans %}Unfortunately, you did not confirm your intention to stay on the waiting list in time. You lost your spot on the list. You can{% endblocktrans %}
+<a href="{{reg_wait_link}}">{% trans "rejoin the waiting list" %}</a>.
 </p>
 {% else %}
 <p>{% trans "The supplied link is invalid." %}</p>

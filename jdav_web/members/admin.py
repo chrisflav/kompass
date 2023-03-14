@@ -264,7 +264,7 @@ class MemberWaitingListAdmin(admin.ModelAdmin):
             waiter.ask_for_wait_confirmation()
             messages.success(request,
                     _("Successfully asked %(name)s to confirm their waiting status.") % {'name': waiter.name})
-    ask_for_wait_confirmation.short_description = _('Ask the waiter to confirm their waiting status')
+    ask_for_wait_confirmation.short_description = _('Ask selected waiters to confirm their waiting status')
 
     def ask_for_registration(self, request, queryset):
         """Asks the waiting person to register with all required data."""

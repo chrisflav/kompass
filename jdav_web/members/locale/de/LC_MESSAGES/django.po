@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-12 19:31+0100\n"
+"POT-Creation-Date: 2023-03-14 01:18+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin.py:36 models.py:161
+#: admin.py:36 models.py:168
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
@@ -93,84 +93,97 @@ msgstr "%(name)s zurück auf die Warteliste gesetzt."
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
-#: admin.py:266 admin.py:322
+#: admin.py:246 models.py:263 models.py:586
+msgid "Group"
+msgstr "Gruppe"
+
+#: admin.py:266
+#, python-format
+msgid "Successfully asked %(name)s to confirm their waiting status."
+msgstr "Erfolgreich %(name)s aufgefordert den Wartelistenplatz zu bestätigen."
+
+#: admin.py:267
+msgid "Ask selected waiters to confirm their waiting status"
+msgstr "Wartende auffordern den Wartelistenplatz zu bestätigen"
+
+#: admin.py:276 admin.py:332
 msgid ""
 "An error occurred while trying to invite said members. Please try again."
 msgstr ""
 "Beim Einladen dieser Personen ist ein Fehler aufgetreten. Bitte versuche es "
 "nochmal. "
 
-#: admin.py:274 admin.py:329
+#: admin.py:284 admin.py:339
 #, python-format
 msgid "Successfully invited %(name)s to %(group)s."
 msgstr "Erfolgreich %(name)s zu Gruppe %(group)s eingeladen."
 
-#: admin.py:278 admin.py:334
+#: admin.py:288 admin.py:344
 msgid "Select group for invitation"
 msgstr "Wähle Gruppe für Einladung aus"
 
-#: admin.py:285
+#: admin.py:295
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
 
-#: admin.py:373
+#: admin.py:383
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: admin.py:376 admin.py:379
+#: admin.py:386 admin.py:389
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: admin.py:677
+#: admin.py:687
 msgid "Convert to PDF"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: admin.py:786
+#: admin.py:796
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: admin.py:883
+#: admin.py:893
 msgid "Generate list for LJP"
 msgstr "LJP Liste erstellen"
 
-#: apps.py:7 models.py:260
+#: apps.py:7 models.py:267
 msgid "members"
 msgstr "Teilnehmer"
 
-#: models.py:33
+#: models.py:34
 msgid "Name"
 msgstr "Name"
 
-#: models.py:34
+#: models.py:35
 msgid "Description"
 msgstr "Beschreibung"
 
-#: models.py:40 models.py:375 models.py:454
+#: models.py:41 models.py:425 models.py:504
 #: templates/members/change_member.html:17
 msgid "Activity"
 msgstr "Aktivität"
 
-#: models.py:41
+#: models.py:42
 msgid "Activities"
 msgstr "Aktivitäten"
 
-#: models.py:49
+#: models.py:50
 msgid "name"
 msgstr "Name"
 
-#: models.py:50
+#: models.py:51
 msgid "lowest year"
 msgstr "Ab Jahrgang"
 
-#: models.py:51
+#: models.py:52
 msgid "highest year"
 msgstr "Bis Jahrgang"
 
-#: models.py:52
+#: models.py:53
 msgid "youth leaders"
 msgstr "Jugendleiter"
 
-#: models.py:61 models.py:154
+#: models.py:61 models.py:161
 msgid "group"
 msgstr "Gruppe"
 
@@ -214,177 +227,181 @@ msgstr "Emailadresse der Eltern bestätigt"
 msgid "Email confirmation needed"
 msgstr "Email Bestätigung erforderlich"
 
-#: models.py:147
+#: models.py:154
 msgid "street and house number"
 msgstr "Straße und Hausnummer"
 
-#: models.py:148
+#: models.py:155
 msgid "Postcode"
 msgstr "PLZ"
 
-#: models.py:150
+#: models.py:157
 msgid "town"
 msgstr "Stadt"
 
-#: models.py:152
+#: models.py:159
 msgid "phone number"
 msgstr "Telefonnummer"
 
-#: models.py:153
+#: models.py:160
 msgid "parents phone number"
 msgstr "Telefonnummer der Eltern"
 
-#: models.py:156
+#: models.py:163
 msgid "receives newsletter"
 msgstr "Erhält den Newsletter"
 
-#: models.py:160
+#: models.py:167
 msgid "created"
 msgstr "erstellt"
 
-#: models.py:162
+#: models.py:169
 msgid "Active"
 msgstr "Aktiv"
 
-#: models.py:164
+#: models.py:171
 msgid "registration form"
 msgstr "Anmeldeformular"
 
-#: models.py:174
+#: models.py:181
 msgid "Echoed"
 msgstr "Rückgemeldet"
 
-#: models.py:175
+#: models.py:182
 msgid "Confirmed"
 msgstr "Bestätigt"
 
-#: models.py:256 models.py:536
-msgid "Group"
-msgstr "Gruppe"
-
-#: models.py:259
+#: models.py:266
 msgid "member"
 msgstr "Teilnehmer"
 
-#: models.py:291
+#: models.py:298
 #, python-format
 msgid "New unconfirmed registration for group %(group)s"
 msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 
-#: models.py:309
+#: models.py:316
 msgid "Unconfirmed registration"
 msgstr "Unbestätigte Registrierung"
 
-#: models.py:310
+#: models.py:317
 msgid "Unconfirmed registrations"
 msgstr "Unbestätigte Registrierungen"
 
-#: models.py:321
+#: models.py:333
 msgid "Last wait confirmation"
 msgstr "Letzte Wartebestätigung"
 
-#: models.py:332
+#: models.py:344
 msgid "Invited for group"
 msgstr "Einladung zu Gruppe austehend"
 
-#: models.py:336
+#: models.py:348
 msgid "Waiter"
 msgstr "Wartende Person"
 
-#: models.py:337
+#: models.py:349
 msgid "Waiters"
 msgstr "Warteliste"
 
-#: models.py:377 models.py:456
+#: models.py:366
+msgid "Waiting status confirmed"
+msgstr "Wartelistenplatz bestätigt"
+
+#: models.py:370
+msgid "Waiting confirmation needed"
+msgstr "Wartelistenplatzbestätigung erforderlich"
+
+#: models.py:427 models.py:506
 msgid "Place"
 msgstr "Ort"
 
-#: models.py:378 models.py:457
+#: models.py:428 models.py:507
 msgid "Destination (optional)"
 msgstr "Ziel (optional)"
 
-#: models.py:380 models.py:459 models.py:514 models.py:532
+#: models.py:430 models.py:509 models.py:564 models.py:582
 msgid "Date"
 msgstr "Datum"
 
-#: models.py:381 models.py:460
+#: models.py:431 models.py:510
 msgid "End (optional)"
 msgstr "Ende"
 
-#: models.py:383 models.py:462
+#: models.py:433 models.py:512
 msgid "Groups"
 msgstr "Gruppen"
 
-#: models.py:391 models.py:475
+#: models.py:441 models.py:525
 msgid "Categories"
 msgstr "Kategorien"
 
-#: models.py:392 models.py:476
+#: models.py:442 models.py:526
 msgid "easy"
 msgstr "leicht"
 
-#: models.py:392 models.py:476
+#: models.py:442 models.py:526
 msgid "medium"
 msgstr "mittel"
 
-#: models.py:392 models.py:476
+#: models.py:442 models.py:526
 msgid "hard"
 msgstr "schwer"
 
-#: models.py:401
+#: models.py:451
 msgid "Memberlist"
 msgstr "Teilnehmerliste"
 
-#: models.py:402
+#: models.py:452
 msgid "Memberlists"
 msgstr "Teilnehmerlisten"
 
-#: models.py:420 models.py:428 models.py:436 models.py:447 models.py:567
-#: models.py:574
+#: models.py:470 models.py:478 models.py:486 models.py:497 models.py:617
+#: models.py:624
 msgid "Member"
 msgstr "Teilnehmer"
 
-#: models.py:422 models.py:441
+#: models.py:472 models.py:491
 msgid "Comment"
 msgstr "Kommentar"
 
-#: models.py:429 models.py:448 models.py:575
+#: models.py:479 models.py:498 models.py:625
 msgid "Members"
 msgstr "Teilnehmer"
 
-#: models.py:513
+#: models.py:563
 msgid "Title"
 msgstr "Titel"
 
-#: models.py:533
+#: models.py:583
 msgid "Location"
 msgstr "Ort"
 
-#: models.py:534
+#: models.py:584
 msgid "Topic"
 msgstr "Thema"
 
-#: models.py:558
+#: models.py:608
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: models.py:561
+#: models.py:611
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: models.py:562
+#: models.py:612
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 
-#: models.py:580
+#: models.py:630
 msgid "Password"
 msgstr "Passwort"
 
-#: models.py:583
+#: models.py:633
 msgid "registration password"
 msgstr "Registrierungspassort"
 
-#: models.py:584
+#: models.py:634
 msgid "registration passwords"
 msgstr "Registrierungspasswörter"
 
@@ -523,6 +540,7 @@ msgid "Mail confirmation failed"
 msgstr "Emailbestätigung fehlgeschlagen"
 
 #: templates/members/mail_confirmation_invalid.html:13
+#: templates/members/waiting_confirmation_invalid.html:19
 msgid "The supplied link is invalid."
 msgstr "Der verwendete Link ist ungültig."
 
@@ -646,6 +664,46 @@ msgstr ""
 "Du hast zu oft ein falsches Passwort eingegeben. Bitte frage deinen "
 "Jugendleiter nach einem korrekten Passwort."
 
+#: templates/members/waiting_confirmation_invalid.html:6
+#: templates/members/waiting_confirmation_invalid.html:11
+msgid "Waiting confirmation failed"
+msgstr "Wartelistenplatzbestätigung fehlgeschlagen"
+
+#: templates/members/waiting_confirmation_invalid.html:15
+msgid ""
+"Unfortunately, you did not confirm your intention to stay on the waiting "
+"list in time. You lost your spot on the list. You can"
+msgstr ""
+"Leider hast du deinen Wartelistenplatz nicht rechtzeitig bestätigt und hast "
+"somit deinen Platz verloren. Du kannst"
+
+#: templates/members/waiting_confirmation_invalid.html:16
+msgid "rejoin the waiting list"
+msgstr "der Warteliste erneut beitreten"
+
+#: templates/members/waiting_confirmation_success.html:6
+#: templates/members/waiting_confirmation_success.html:11
+msgid "Waiting confirmed"
+msgstr "Wartelistenplatz bestätigt"
+
+#: templates/members/waiting_confirmation_success.html:14
+#, python-format
+msgid ""
+"Thank you %(prename)s for your interest in staying on the waiting list.\n"
+"Your spot was already confirmed."
+msgstr ""
+"Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
+"Dein Platz ist bereits bestätigt."
+
+#: templates/members/waiting_confirmation_success.html:18
+#, python-format
+msgid ""
+"Thank you %(prename)s for your interest in staying on the waiting list.\n"
+"Your spot has been confirmed."
+msgstr ""
+"Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
+"Dein Platz wurde bestätigt."
+
 #: views.py:83 views.py:104 views.py:268
 msgid "invalid"
 msgstr "ungültig"
@@ -662,11 +720,6 @@ msgstr "Das eingegebene Passwort ist falsch."
 #~ msgid "Can't invite %(name)s. No group was specified."
 #~ msgstr ""
 #~ "Einladen von %(name)s nicht möglich. Es wurde keine Gruppe angegeben."
-
-#~ msgid "Successfully asked for registration from selected waiting persons."
-#~ msgstr ""
-#~ "Erfolgreich Einladung zur Registrierung an die ausgewählten Wartenden "
-#~ "verschickt."
 
 #~ msgid "Not waiting"
 #~ msgstr "NICHT Warteliste"
