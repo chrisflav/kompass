@@ -14,6 +14,7 @@ from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation
     prepend_base_url, get_registration_link, get_wait_confirmation_link
 from django.contrib.auth.models import User
 from django.conf import settings
+from django.core.validators import MinValueValidator
 
 from dateutil.relativedelta import relativedelta
 
@@ -159,6 +160,8 @@ class Member(Person):
     phone_number = models.CharField(max_length=18, verbose_name=_('phone number'), default='', blank=True)
     phone_number_parents = models.CharField(max_length=18, verbose_name=_('parents phone number'), default='', blank=True)
     group = models.ManyToManyField(Group, verbose_name=_('group'))
+
+    iban = models.CharField(max_length=30, blank=True, verbose_name='IBAN')
 
     gets_newsletter = models.BooleanField(_('receives newsletter'),
                                           default=True)
@@ -517,10 +520,13 @@ class Freizeit(models.Model):
     # verbose_name is overriden by form, label is set in admin.py
     tour_type = models.IntegerField(choices=tour_type_choices)
     tour_approach_choices = ((MUSKELKRAFT_ANREISE, 'Muskelkraft'),
-                         (OEFFENTLICHE_ANREISE, 'Öffentliche VM'),
-                         (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
+                             (OEFFENTLICHE_ANREISE, 'ÖPNV'),
+                             (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
     tour_approach = models.IntegerField(choices=tour_approach_choices,
-                                        default=MUSKELKRAFT_ANREISE)
+                                        default=MUSKELKRAFT_ANREISE,
+                                        verbose_name=_('Means of transportation'))
+    kilometers_traveled = models.IntegerField(verbose_name=_('Kilometers traveled'),
+                                              validators=[MinValueValidator(0)])
     activity = models.ManyToManyField(ActivityCategory, default=None,
                                       verbose_name=_('Categories'))
     difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
@@ -632,6 +638,37 @@ class RegistrationPassword(models.Model):
     class Meta:
         verbose_name = _('registration password')
         verbose_name_plural = _('registration passwords')
+
+
+class LJPProposal(models.Model):
+    """A proposal for LJP"""
+    title = models.CharField(verbose_name=_('Title'), max_length=30)
+
+    goals_alpinistic = models.TextField(verbose_name=_('Alpinistic goals'))
+    goals_pedagogic = models.TextField(verbose_name=_('Pedagogic goals'))
+    methods = models.TextField(verbose_name=_('Content and methods'))
+    evaluation = models.TextField(verbose_name=_('Evaluation'))
+    experiences = models.TextField(verbose_name=_('Experiences and possible improvements'))
+
+    excursion = models.OneToOneField(Freizeit,
+                                     verbose_name=_('Excursion'),
+                                     blank=True,
+                                     null=True,
+                                     on_delete=models.SET_NULL)
+
+
+class Intervention(models.Model):
+    """An intervention during a seminar as part of a LJP proposal"""
+    date_start = models.DateTimeField(verbose_name=_('Starting time'))
+    duration = models.DecimalField(verbose_name=_('Duration in hours'),
+                                   max_digits=3,
+                                   decimal_places=2)
+    activity = models.TextField(verbose_name=_('Activity and method'))
+
+    ljp_proposal = models.ForeignKey(LJPProposal,
+                                     verbose_name=_('LJP Proposal'),
+                                     blank=False,
+                                     on_delete=models.CASCADE)
 
 
 def annotate_activity_score(queryset):

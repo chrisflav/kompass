@@ -55,9 +55,11 @@ INSTALLED_APPS = [
     'material.apps.MaterialConfig',
     'members.apps.MembersConfig',
     'mailer.apps.MailerConfig',
+    'finance.apps.FinanceConfig',
     'ludwigsburgalpin.apps.LudwigsburgalpinConfig',
     #'easy_select2',
     'djcelery_email',
+    'nested_admin',
     'django_celery_beat',
     'jet',
     'django.contrib.admin',
@@ -199,44 +201,44 @@ JET_SIDE_MENU_COMPACT = True
 JET_DEFAULT_THEME = 'jdav-green'
 JET_CHANGE_FORM_SIBLING_LINKS = False
 
-JET_SIDE_MENU_ITEMS = [
-    {'app_label': 'auth', 'permissions': ['auth'], 'items': [
-        {'name': 'group', 'permissions': ['auth.group'] },
-        {'name': 'user', 'permissions': ['auth.user']},
-    ]},
-    {'app_label': 'django_celery_beat', 'permissions': ['django_celery_beat'], 'items': [
-        {'name': 'crontabschedule'},
-        {'name': 'clockedschedule'},
-        {'name': 'intervalschedule'},
-        {'name': 'periodictask'},
-        {'name': 'solarschedule'},
-    ]},
-    {'app_label': 'ludwigsburgalpin', 'permissions': ['ludwigsburgalpin'], 'items': [
-        {'name': 'termin'},
-    ]},
-    {'app_label': 'mailer', 'items': [
-        {'name': 'message'},
-        {'name': 'emailaddress'},
-    ]},
-    {'app_label': 'members', 'items': [
-        {'name': 'member'},
-        {'name': 'group'},
-        {'name': 'memberlist', 'permissions': ['members.view_memberlist']},
-        {'name': 'membernotelist'},
-        {'name': 'freizeit'},
-        {'name': 'klettertreff'},
-        {'name': 'activitycategory', 'permissions': ['members.view_activitycategory']},
-        {'name': 'memberunconfirmedproxy', 'permissions': ['members.view_memberunconfirmedproxy']},
-        {'name': 'memberwaitinglist', 'permissions': ['members.view_memberwaitinglist']},
-    ]},
-    {'app_label': 'material', 'items': [
-        {'name': 'materialcategory', 'permissions': ['material.view_materialcategory']},
-        {'name': 'materialpart'},
-    ]},
-    {'label': 'Externe Links', 'items' : [
-        { 'label': 'Packlisten und Co.', 'url': 'https://cloud.jdav-ludwigsburg.de/index.php/s/qxQCTR8JqYSXXCQ'}
-    ]},
-]
+#JET_SIDE_MENU_ITEMS = [
+#    {'app_label': 'auth', 'permissions': ['auth'], 'items': [
+#        {'name': 'group', 'permissions': ['auth.group'] },
+#        {'name': 'user', 'permissions': ['auth.user']},
+#    ]},
+#    {'app_label': 'django_celery_beat', 'permissions': ['django_celery_beat'], 'items': [
+#        {'name': 'crontabschedule'},
+#        {'name': 'clockedschedule'},
+#        {'name': 'intervalschedule'},
+#        {'name': 'periodictask'},
+#        {'name': 'solarschedule'},
+#    ]},
+#    {'app_label': 'ludwigsburgalpin', 'permissions': ['ludwigsburgalpin'], 'items': [
+#        {'name': 'termin'},
+#    ]},
+#    {'app_label': 'mailer', 'items': [
+#        {'name': 'message'},
+#        {'name': 'emailaddress'},
+#    ]},
+#    {'app_label': 'members', 'items': [
+#        {'name': 'member'},
+#        {'name': 'group'},
+#        {'name': 'memberlist', 'permissions': ['members.view_memberlist']},
+#        {'name': 'membernotelist'},
+#        {'name': 'freizeit'},
+#        {'name': 'klettertreff'},
+#        {'name': 'activitycategory', 'permissions': ['members.view_activitycategory']},
+#        {'name': 'memberunconfirmedproxy', 'permissions': ['members.view_memberunconfirmedproxy']},
+#        {'name': 'memberwaitinglist', 'permissions': ['members.view_memberwaitinglist']},
+#    ]},
+#    {'app_label': 'material', 'items': [
+#        {'name': 'materialcategory', 'permissions': ['material.view_materialcategory']},
+#        {'name': 'materialpart'},
+#    ]},
+#    {'label': 'Externe Links', 'items' : [
+#        { 'label': 'Packlisten und Co.', 'url': 'https://cloud.jdav-ludwigsburg.de/index.php/s/qxQCTR8JqYSXXCQ'}
+#    ]},
+#]
 
 # Waiting list configuration parameters, all numbers are in days
 

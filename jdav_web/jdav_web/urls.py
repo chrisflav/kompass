@@ -35,6 +35,7 @@ urlpatterns += i18n_patterns(
     re_path(r'^LBAlpin/Programm(/)?(20)?[0-9]{0,2}', include('ludwigsburgalpin.urls',
             namespace="ludwigsburgalpin")),
     re_path(r'^$', include('startpage.urls', namespace="startpage")),
+    re_path(r'^_nested_admin/', include('nested_admin.urls')),
 )
 
 # TODO: django serving from MEDIA_URL should be disabled in production stage

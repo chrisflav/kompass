@@ -23,10 +23,13 @@ from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 
+import nested_admin
+
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
-                     MemberWaitingList,
+                     MemberWaitingList, LJPProposal, Intervention,
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
+from finance.models import Statement, Bill
 from mailer.mailutils import send as send_mail, get_echo_link, mail_root
 from django.conf import settings
 #from easy_select2 import apply_select2
@@ -74,7 +77,7 @@ class RegistrationFilter(admin.SimpleListFilter):
 # Register your models here.
 class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
-              'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
+              'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group', 'iban',
               'gets_newsletter', 'registered', 'registration_form', 'active', 'echoed', 'comments']
     list_display = ('name', 'birth_date', 'age', 'get_group', 'gets_newsletter',
                     'registered', 'active', 'echoed', 'comments', 'activity_score')
@@ -386,7 +389,7 @@ class FreizeitAdminForm(forms.ModelForm):
                                  label=_('Tour type'))
     tour_approach = TypedChoiceField(choices=Freizeit.tour_approach_choices,
                                  coerce=int,
-                                 label=_('Tour type'))
+                                 label=_('Means of transportation'))
 
     class Meta:
         model = Freizeit
@@ -398,13 +401,47 @@ class FreizeitAdminForm(forms.ModelForm):
         #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
 
 
+class BillOnStatementInline(admin.TabularInline):
+    model = Bill
+    extra = 0
+    sortable_options = []
+    fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+    }
+
+
+class StatementOnListInline(nested_admin.NestedStackedInline):
+    model = Statement
+    extra = 1
+    sortable_options = []
+    fields = ['explanation']
+    inlines = [BillOnStatementInline]
+
+
+class InterventionOnLJPInline(admin.TabularInline):
+    model = Intervention
+    extra = 0
+    sortable_options = []
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 80})}
+    }
+
+
+class LJPOnListInline(nested_admin.NestedStackedInline):
+    model = LJPProposal
+    extra = 1
+    sortable_options = []
+    inlines = [InterventionOnLJPInline]
+
+
 class MemberOnListInline(GenericTabularInline):
     model = NewMemberOnList
     extra = 0
     formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1,
-                                              'cols': 40})}
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
+    sortable_options = []
 
 
 class OldMemberOnListInline(admin.TabularInline):
@@ -418,7 +455,7 @@ class MemberNoteListAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     ordering = ('-date',)
     actions = ['generate_summary']
-    
+
     def generate_summary(self, request, queryset):
         """Generates a pdf summary of the given NoteMemberLists
         """
@@ -428,7 +465,7 @@ class MemberNoteListAdmin(admin.ModelAdmin):
             filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
             # drop umlauts, accents etc.
             filename = unicodedata.normalize('NFKD', filename).\
-                encode('ASCII', 'ignore').decode()
+                    encode('ASCII', 'ignore').decode()
             filename_tex = filename + '.tex'
             filename_pdf = filename + '.pdf'
 
@@ -437,17 +474,17 @@ class MemberNoteListAdmin(admin.ModelAdmin):
             for memberonlist in memberlist.membersonlist.all():
                 m = memberonlist.member
                 comment = ". ".join(c for c
-                                    in (m.comments,
-                                        memberonlist.comments) if
-                                    c).replace("..", ".")
+                        in (m.comments,
+                            memberonlist.comments) if
+                        c).replace("..", ".")
                 line = '{0} {1} & {2} \\\\'.format(
-                    esc_ampersand(m.prename), esc_ampersand(m.lastname),
-	            esc_ampersand(comment) or "---")
+                        esc_ampersand(m.prename), esc_ampersand(m.lastname),
+                        esc_ampersand(comment) or "---")
                 table += esc_underscore(line)
 
             # copy template
             shutil.copy(media_path('memberlistnote_template.tex'),
-                        media_path(filename_tex))
+                    media_path(filename_tex))
 
             # read in template
             with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
@@ -543,8 +580,8 @@ class MemberListAdmin(admin.ModelAdmin):
         messages.info(request, "Teilnehmerlist(en) erfolgreich erstellt.")
     migrate_to_notelist.short_description = "Aus Teilnehmerliste(n) Notizliste erstellen"
 
-class FreizeitAdmin(admin.ModelAdmin):
-    inlines = [MemberOnListInline]
+class FreizeitAdmin(nested_admin.NestedModelAdmin):
+    inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ['__str__', 'date']
     search_fields = ('name',)
