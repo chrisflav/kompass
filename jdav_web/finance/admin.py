@@ -7,7 +7,7 @@ from functools import update_wrapper
 from django.utils.translation import gettext_lazy as _
 from django.shortcuts import render
 
-from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted
+from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted, StatementConfirmed
 
 @admin.register(Ledger)
 class LedgerAdmin(admin.ModelAdmin):
@@ -76,14 +76,36 @@ class StatementAdmin(admin.ModelAdmin):
                        title=_('Submit statement'),
                        opts=self.opts,
                        statement=statement)
-        
+
         return render(request, 'admin/submit_statement.html', context=context)
+
+
+class TransactionOnSubmittedStatementInline(admin.TabularInline):
+    model = Transaction
+    fields = ['amount', 'member', 'reference']
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+    }
+    extra = 0
+
+
+class BillOnSubmittedStatementInline(BillOnStatementInline):
+    model = Bill
+    extra = 0
+    sortable_options = []
+    fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof', 'costs_covered']
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+    }
+
+    def get_readonly_fields(self, request, obj=None):
+        return ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
 
 
 @admin.register(StatementSubmitted)
 class StatementSubmittedAdmin(admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'submitted']
-    inlines = [BillOnStatementInline]
+    inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -111,6 +133,11 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                 wrap(self.overview_view),
                 name="%s_%s_overview" % (self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "<path:object_id>/reduce_transactions/",
+                wrap(self.reduce_transactions_view),
+                name="%s_%s_reduce_transactions" % (self.opts.app_label, self.opts.model_name),
+            ),
         ]
         return custom_urls + urls
 
@@ -120,21 +147,55 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
             messages.error(request,
                     _("%(name)s is not yet submitted.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+        if "confirm" in request.POST:
+            statement.confirmed = True
+            statement.save()
+            for trans in statement.transaction_set.all():
+                trans.confirmed = True
+                trans.save()
 
-        if "apply" in request.POST:
-            #statement.submit()
-            #messages.success(request,
-            #        _("Successfully submited %(name)s. The finance department will notify the requestors as soon as possible.") % {'name': str(statement)})
+        if "generate_transactions" in request.POST:
+            if statement.transaction_set.count() > 0:
+                messages.error(request,
+                        _("%(name)s already has transactions. Please delete them first, if you want to generate new ones") % {'name': str(statement)})
+            else:
+                statement.generate_transactions()
+                messages.success(request,
+                        _("Successfully generated transactions for %(name)s") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
         context = dict(self.admin_site.each_context(request),
                        title=_('View submitted statement'),
                        opts=self.opts,
                        statement=statement,
-                       total_bills=statement.total_bills(),
-                       total_transportation=statement.total_transportation(),
+                       nights=statement.excursion.night_count,
+                       price_per_night=statement.real_night_cost,
+                       duration=statement.excursion.duration,
+                       staff_count=statement.real_staff_count,
+                       kilometers_traveled=statement.excursion.kilometers_traveled,
+                       means_of_transport=statement.excursion.get_tour_approach(),
+                       euro_per_km=statement.euro_per_km,
+                       allowance_per_day=statement.ALLOWANCE_PER_DAY,
+                       total_bills=statement.total_bills,
+                       nights_per_yl=statement.nights_per_yl,
+                       allowance_per_yl=statement.allowance_per_yl,
+                       transportation_per_yl=statement.transportation_per_yl,
+                       total_per_yl=statement.total_per_yl,
+                       total_staff=statement.total_staff,
                        total=statement.total())
-        
+
         return render(request, 'admin/overview_submitted_statement.html', context=context)
+
+    def reduce_transactions_view(self, request, object_id):
+        statement = Statement.objects.get(pk=object_id)
+        statement.reduce_transactions()
+        messages.success(request,
+                _("Successfully reduced transactions for %(name)s.") % {'name': str(statement)})
+        return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+
+@admin.register(StatementConfirmed)
+class StatementConfirmedAdmin(admin.ModelAdmin):
+    fields = ['short_description', 'explanation', 'excursion', 'confirmed']
+    readonly_fields = fields
 
 
 @admin.register(Receipt)

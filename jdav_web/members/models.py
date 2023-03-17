@@ -278,7 +278,7 @@ class Member(Person):
             lists = Freizeit.objects.filter(activity=kind,
                                             membersonlist__member=self)
             skills[kind.name] = sum([l.difficulty * 3 for l in lists
-                                     if l.date < datetime.now().date()])
+                                     if l.date < timezone.now()])
         return skills
 
     def get_activities(self):
@@ -509,8 +509,8 @@ class Freizeit(models.Model):
     place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
     destination = models.CharField(verbose_name=_('Destination (optional)'),
                                    default='', max_length=50, blank=True)
-    date = models.DateField(default=datetime.today, verbose_name=_('Date'))
-    end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
+    date = models.DateTimeField(default=datetime.today, verbose_name=_('Begin'))
+    end = models.DateTimeField(verbose_name=_('End (optional)'), default=datetime.today)
     # comment = models.TextField(_('Comments'), default='', blank=True)
     groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
     jugendleiter = models.ManyToManyField(Member)
@@ -554,13 +554,45 @@ class Freizeit(models.Model):
         if self.tour_approach == MUSKELKRAFT_ANREISE:
             return "Muskelkraft"
         elif self.tour_approach == OEFFENTLICHE_ANREISE:
-            return "Öffentliche VM"
+            return "ÖPNV"
         else:
             return "Fahrgemeinschaften"
 
     def get_absolute_url(self):
         return reverse('admin:members_freizeit_change', args=[str(self.id)])
 
+    @property
+    def night_count(self):
+        # convert to date first, since we might start at 11pm and end at 1am, which is one night
+        return (self.end.date() - self.date.date()).days
+
+    @property
+    def duration(self):
+        # number of nights is number of full days + 1
+        full_days = self.night_count - 1
+        extra_days = 0
+
+        if self.date.hour <= 12:
+            extra_days += 1.0
+        else:
+            extra_days += 0.5
+
+        if self.end.hour <= 12:
+            extra_days += 1.0
+        else:
+            extra_days += 0.5
+
+        return full_days + extra_days
+
+    @property
+    def staff_count(self):
+        return self.jugendleiter.count()
+
+    @property
+    def participant_count(self):
+        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
+        jls = set(self.jugendleiter.distinct())
+        return len(ps - jls)
 
 class MemberNoteList(models.Model):
     """

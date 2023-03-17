@@ -4,6 +4,10 @@
 {% block object-tools-items %}
 
 <li>
+    {% url opts|admin_urlname:'reduce_transactions' original.pk|admin_urlquote as invite_url %}
+    <a class="historylink" href="{% add_preserved_filters invite_url %}">{% trans 'Reduce transactions' %}</a>
+</li>
+<li>
     {% url opts|admin_urlname:'overview' original.pk|admin_urlquote as invite_url %}
     <a class="historylink" href="{% add_preserved_filters invite_url %}">{% trans 'Overview' %}</a>
 </li>
