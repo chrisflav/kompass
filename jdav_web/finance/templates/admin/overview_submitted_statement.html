@@ -28,8 +28,8 @@
 <p>
 <table>
     <th>
-        <td>Amount</td>
-        <td>Covered by association</td>
+        <td>{% trans "Amount" %}</td>
+        <td>{% trans "Covered by association" %}</td>
     </th>
     {% for bill in statement.bill_set.all %}
         <tr>
@@ -53,41 +53,38 @@
 
 <h2>{% trans "Excursion" %}</h2>
 
-{% blocktrans %}
 <p>
-This excursion featured {{ staff_count }} youth leader(s), each costing
+{% blocktrans %}This excursion featured {{ staff_count }} youth leader(s), each costing{% endblocktrans %}
 </p>
 <p>
 <ul>
     <li>
-        {{ nights }} nights for {{ price_per_night }}€ per night making a total of {{ nights_per_yl }}€.
+        {% blocktrans %}{{ nights }} nights for {{ price_per_night }}€ per night making a total of {{ nights_per_yl }}€.{% endblocktrans %}
     </li>
     <li>
-        {{ duration }} days for {{ allowance_per_day }}€ per day making a total of {{ allowance_per_yl }}€.
+        {% blocktrans %}{{ duration }} days for {{ allowance_per_day }}€ per day making a total of {{ allowance_per_yl }}€.{% endblocktrans %}
     </li>
     <li>
-        {{ kilometers_traveled }} km by {{ means_of_transport }} ({{euro_per_km}} € / km) making a total of {{ transportation_per_yl }}€.
+        {% blocktrans %}{{ kilometers_traveled }} km by {{ means_of_transport }} ({{euro_per_km}} € / km) making a total of {{ transportation_per_yl }}€.{% endblocktrans %}
     </li>
 </ul>
 </p>
 <p>
-In total this is {{ total_per_yl }}€ times {{ staff_count }}, giving {{ total_staff }}€.
+{% blocktrans %}In total this is {{ total_per_yl }}€ times {{ staff_count }}, giving {{ total_staff }}€.{% endblocktrans %}
 </p>
-{% endblocktrans %}
 
 {% endif %}
 
 <h2>{% trans "Total" %}</h2>
 
 <p>
-{% blocktrans %} This results in a total amount of {{ total }} € {% endblocktrans %}
+{% blocktrans %}This results in a total amount of {{ total }}€{% endblocktrans %}
 </p>
 
 <h2>{% trans 'Transactions' %}</h2>
 
 {% if statement.transaction_set.count == 0 %}
-{% blocktrans %}Currently, no transactions are planned. You can auto generate them from the data, by clicking the button at the
-end of the page.{% endblocktrans %}
+{% blocktrans %}Currently, no transactions are planned. You can auto generate them from the data, by clicking the following button.{% endblocktrans %}
 <form method="post">
     {% csrf_token %}
     <input class="default other" type="submit" name="generate_transactions" value="{% translate 'Generate transactions' %}">
@@ -98,9 +95,9 @@ end of the page.{% endblocktrans %}
 <p>
 <table>
     <th>
-        <td>Amount</td>
-        <td>Reference</td>
-        <td>Ledger</td>
+        <td>{% trans "Amount" %}</td>
+        <td>{% trans "Reference" %}</td>
+        <td>{% trans "Ledger" %}</td>
     </th>
     {% for transaction in statement.transaction_set.all %}
     <tr>
@@ -145,9 +142,9 @@ end of the page.{% endblocktrans %}
 <p>
 <table>
     <th>
-        <td>Currently receiving</td>
-        <td>Actual costs</td>
-        <td>Difference</td>
+        <td>{% trans "Currently receiving" %}</td>
+        <td>{% trans "Actual costs" %}</td>
+        <td>{% trans "Difference" %}</td>
     </th>
     {% for issue in transaction_issues %}
     <tr>

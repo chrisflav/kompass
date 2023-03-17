@@ -337,6 +337,7 @@ class Bill(models.Model):
     def pretty_amount(self):
         return "{}€".format(self.amount)
     pretty_amount.admin_order_field = 'amount'
+    pretty_amount.short_description = _('Amount')
 
     class Meta:
         verbose_name = _('Bill')
@@ -345,7 +346,7 @@ class Bill(models.Model):
 
 class Transaction(models.Model):
     reference = models.TextField(verbose_name=_('Reference'))
-    amount = models.DecimalField(max_digits=6, decimal_places=2)
+    amount = models.DecimalField(max_digits=6, decimal_places=2, verbose_name=_('Amount'))
     member = models.ForeignKey(Member, verbose_name=_('Recipient'),
                                on_delete=models.CASCADE)
     ledger = models.ForeignKey(Ledger, blank=False, null=True, default=None, verbose_name=_('Ledger'),
