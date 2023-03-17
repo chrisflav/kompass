@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-17 21:05+0100\n"
+"POT-Creation-Date: 2023-03-17 23:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -104,11 +104,15 @@ msgstr "Eingereichte Abrechnung einsehen"
 msgid "Successfully reduced transactions for %(name)s."
 msgstr "Überweisungsträger für %(name)s minimiert."
 
+#: apps.py:8
+msgid "Finance"
+msgstr "Finanzen"
+
 #: models.py:13
 msgid "Name"
 msgstr "Name"
 
-#: models.py:19 models.py:351 models.py:375
+#: models.py:19 models.py:352 models.py:376
 #: templates/admin/confirmed_statement.html:38
 #: templates/admin/overview_submitted_statement.html:100
 msgid "Ledger"
@@ -118,7 +122,7 @@ msgstr "Geldtopf"
 msgid "Ledgers"
 msgstr "Geldtöpfe"
 
-#: models.py:42 models.py:323 models.py:374
+#: models.py:42 models.py:323 models.py:375
 msgid "Short description"
 msgstr "Kurzbeschreibung"
 
@@ -146,7 +150,7 @@ msgstr "Eingereicht am"
 msgid "Confirmed"
 msgstr "Abgewickelt"
 
-#: models.py:57 models.py:358
+#: models.py:57 models.py:359
 msgid "Paid on"
 msgstr "Bezahlt am"
 
@@ -154,11 +158,11 @@ msgstr "Bezahlt am"
 msgid "Submitted by"
 msgstr "Eingereicht bei"
 
-#: models.py:64 models.py:327 models.py:359
+#: models.py:64 models.py:360
 msgid "Authorized by"
 msgstr "Autorisiert von"
 
-#: models.py:71 models.py:322 models.py:354
+#: models.py:71 models.py:322 models.py:355
 msgid "Statement"
 msgstr "Abrechnung"
 
@@ -208,6 +212,10 @@ msgstr "Bezahlte Abrechnung"
 msgid "Paid statements"
 msgstr "Bezahlte Abrechnungen"
 
+#: models.py:327
+msgid "Paid by"
+msgstr "Bezahlt von"
+
 #: models.py:329
 msgid "Covered"
 msgstr "Übernommen"
@@ -220,32 +228,38 @@ msgstr "Ausgezahlt"
 msgid "Proof"
 msgstr "Beleg"
 
-#: models.py:342
+#: models.py:340 models.py:349 templates/admin/confirmed_statement.html:36
+#: templates/admin/overview_submitted_statement.html:31
+#: templates/admin/overview_submitted_statement.html:98
+msgid "Amount"
+msgstr "Betrag"
+
+#: models.py:343
 msgid "Bill"
 msgstr "Quittung"
 
-#: models.py:343 templates/admin/overview_submitted_statement.html:26
+#: models.py:344 templates/admin/overview_submitted_statement.html:26
 msgid "Bills"
 msgstr "Quittungen"
 
-#: models.py:347 templates/admin/confirmed_statement.html:37
+#: models.py:348 templates/admin/confirmed_statement.html:37
 #: templates/admin/overview_submitted_statement.html:99
 msgid "Reference"
 msgstr "Verwendungszweck"
 
-#: models.py:349
+#: models.py:350
 msgid "Recipient"
 msgstr "Empfänger"
 
-#: models.py:357
+#: models.py:358
 msgid "Paid"
 msgstr "Bezahlt"
 
-#: models.py:369
+#: models.py:370
 msgid "Transaction"
 msgstr "Überweisung"
 
-#: models.py:370 templates/admin/overview_submitted_statement.html:84
+#: models.py:371 templates/admin/overview_submitted_statement.html:84
 msgid "Transactions"
 msgstr "Überweisungen"
 
@@ -274,12 +288,6 @@ msgstr ""
 #: templates/admin/confirmed_statement.html:35
 msgid "IBAN"
 msgstr "IBAN"
-
-#: templates/admin/confirmed_statement.html:36
-#: templates/admin/overview_submitted_statement.html:31
-#: templates/admin/overview_submitted_statement.html:98
-msgid "Amount"
-msgstr "Betrag"
 
 #: templates/admin/confirmed_statement.html:66
 msgid "I did execute the listed transactions."

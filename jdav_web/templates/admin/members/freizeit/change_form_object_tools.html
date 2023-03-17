@@ -1,0 +1,14 @@
+{% extends "admin/change_form_object_tools.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+
+<li>
+    {% if original.statement and not original.statement.submitted %}
+    <a class="historylink" href="{% url 'admin:finance_statementunsubmitted_submit' original.statement.pk %}">{% trans 'Submit statement' %}</a>
+    {% endif %}
+</li>
+
+{{block.super}}
+
+{% endblock %}

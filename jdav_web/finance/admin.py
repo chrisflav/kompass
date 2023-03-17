@@ -32,12 +32,12 @@ class BillOnStatementInline(admin.TabularInline):
 
 
 @admin.register(StatementUnSubmitted)
-class StatementUnSubmitteddAdmin(admin.ModelAdmin):
+class StatementUnSubmittedAdmin(admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'submitted']
     inlines = [BillOnStatementInline]
 
     def get_readonly_fields(self, request, obj=None):
-        readonly_fields = ['submitted']
+        readonly_fields = ['submitted', 'excursion']
         if obj is not None and obj.submitted:
             return readonly_fields + self.fields
         else:
@@ -67,7 +67,7 @@ class StatementUnSubmitteddAdmin(admin.ModelAdmin):
         if statement.submitted:
             messages.error(request,
                     _("%(name)s is already submitted.") % {'name': str(statement)})
-            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         if "apply" in request.POST:
             statement.submit(get_member(request))
@@ -250,7 +250,11 @@ class TransactionAdmin(admin.ModelAdmin):
     list_filter = ('ledger', 'member', 'statement', 'confirmed')
     search_fields = ('reference', )
     fields = ['reference', 'amount', 'member', 'ledger', 'statement']
-    readonly_fields = fields
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is not None and obj.confirmed:
+            return self.fields
+        return super(TransactionAdmin, self).get_readonly_fields(request, obj)
 
 
 @admin.register(Bill)

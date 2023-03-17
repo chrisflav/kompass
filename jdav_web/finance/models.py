@@ -324,7 +324,7 @@ class Bill(models.Model):
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
 
     amount = models.DecimalField(max_digits=6, decimal_places=2, default=0)
-    paid_by = models.ForeignKey(Member, verbose_name=_('Authorized by'), null=True,
+    paid_by = models.ForeignKey(Member, verbose_name=_('Paid by'), null=True,
                                 on_delete=models.SET_NULL)
     costs_covered = models.BooleanField(verbose_name=_('Covered'), default=False)
     refunded = models.BooleanField(verbose_name=_('Refunded'), default=False)

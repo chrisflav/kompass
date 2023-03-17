@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-10-02 12:55+0200\n"
+"POT-Creation-Date: 2023-03-17 23:10+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,6 +21,31 @@ msgstr ""
 #: jdav_web/urls.py:26
 msgid "Startpage"
 msgstr "Startseite"
+
+#: templates/admin/finance/statementconfirmed/change_form_object_tools.html:8
+msgid "Unconfirm"
+msgstr ""
+
+#: templates/admin/finance/statementsubmitted/change_form_object_tools.html:21
+msgid "Reduce transactions"
+msgstr "Überweisungen minimieren"
+
+#: templates/admin/finance/statementsubmitted/change_form_object_tools.html:36
+msgid "Overview"
+msgstr "Übersicht"
+
+#: templates/admin/finance/statementunsubmitted/change_form_object_tools.html:9
+msgid "Submit"
+msgstr "Einreichen"
+
+#: templates/admin/members/freizeit/change_form_object_tools.html:8
+msgid "Submit statement"
+msgstr "Abrechnung einreichen"
+
+#: templates/admin/members/memberwaitinglist/change_form_object_tools.html:8
+#: templates/admin/members/memberwaitinglist/submit_line.html:9
+msgid "Invite to group"
+msgstr "Zu Gruppe einladen"
 
 #: utils.py:26
 msgid "Filetype not supported."

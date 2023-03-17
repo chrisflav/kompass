@@ -410,13 +410,23 @@ class BillOnStatementInline(admin.TabularInline):
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
 
+    def get_readonly_fields(self, request, obj=None):
+        if obj is not None and obj.submitted:
+            return self.fields
+        return super(BillOnStatementInline, self).get_readonly_fields(request, obj)
+
 
 class StatementOnListInline(nested_admin.NestedStackedInline):
     model = Statement
     extra = 1
     sortable_options = []
-    fields = ['explanation']
+    fields = ['night_cost']
     inlines = [BillOnStatementInline]
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is not None and hasattr(obj, 'statement') and obj.statement.submitted:
+            return self.fields
+        return super(StatementOnListInline, self).get_readonly_fields(request, obj)
 
 
 class InterventionOnLJPInline(admin.TabularInline):
