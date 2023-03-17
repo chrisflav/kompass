@@ -1,5 +1,7 @@
 import math
 from itertools import groupby
+from decimal import Decimal, ROUND_HALF_DOWN
+from django.utils import timezone
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -13,8 +15,28 @@ class Ledger(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = _('Ledger')
+        verbose_name_plural = _('Ledgers')
+
+
+class TransactionIssue:
+    def __init__(self, member, current, target):
+        self.member, self.current, self. target = member, current, target
+
+    @property
+    def difference(self):
+        return self.target - self.current
+
+
+class StatementManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(submitted=False, confirmed=False)
+
 
 class Statement(models.Model):
+    MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, VALID = 0, 1, 2
+
     ALLOWANCE_PER_DAY = 10
 
     short_description = models.CharField(verbose_name=_('Short description'),
@@ -30,9 +52,24 @@ class Statement(models.Model):
     night_cost = models.DecimalField(verbose_name=_('Price per night'), default=0, decimal_places=2, max_digits=3)
 
     submitted = models.BooleanField(verbose_name=_('Submitted'), default=False)
+    submitted_date = models.DateTimeField(verbose_name=_('Submitted on'), default=None, null=True)
     confirmed = models.BooleanField(verbose_name=_('Confirmed'), default=False)
+    confirmed_date = models.DateTimeField(verbose_name=_('Paid on'), default=None, null=True)
+
+    submitted_by = models.ForeignKey(Member, verbose_name=_('Submitted by'),
+                                     blank=True,
+                                     null=True,
+                                     on_delete=models.SET_NULL,
+                                     related_name='submitted_statements')
+    confirmed_by = models.ForeignKey(Member, verbose_name=_('Authorized by'),
+                                     blank=True,
+                                     null=True,
+                                     on_delete=models.SET_NULL,
+                                     related_name='confirmed_statements')
 
     class Meta:
+        verbose_name = _('Statement')
+        verbose_name_plural = _('Statements')
         permissions = [('may_edit_submitted_statements', 'Is allowed to edit submitted statements')]
 
     def __str__(self):
@@ -41,9 +78,73 @@ class Statement(models.Model):
         else:
             return self.short_description
 
-    def submit(self):
+    def submit(self, submitter=None):
         self.submitted = True
+        self.submitted_date = timezone.now()
+        self.submitted_by = submitter
         self.save()
+
+    @property
+    def transaction_issues(self):
+        needed_paiments = [(b.paid_by, b.amount) for b in self.bill_set.all() if b.costs_covered]
+
+        if self.excursion is not None:
+            needed_paiments.extend([(yl, self.real_per_yl) for yl in self.excursion.jugendleiter.all()])
+
+        needed_paiments = sorted(needed_paiments, key=lambda p: p[0].pk)
+        target = map(lambda p: (p[0], sum([x[1] for x in p[1]])), groupby(needed_paiments, lambda p: p[0]))
+
+        transactions = sorted(self.transaction_set.all(), key=lambda trans: trans.member.pk)
+        current = dict(map(lambda p: (p[0], sum([t.amount for t in p[1]])), groupby(transactions, lambda trans: trans.member)))
+
+        issues = []
+        for member, amount in target:
+            if amount == 0:
+                continue
+            elif member not in current:
+                issue = TransactionIssue(member=member, current=0, target=amount)
+                issues.append(issue)
+            elif current[member] != amount:
+                issue = TransactionIssue(member=member, current=current[member], target=amount)
+                issues.append(issue)
+        return issues
+
+    @property
+    def ledgers_configured(self):
+        return all([trans.ledger is not None for trans in self.transaction_set.all()])
+
+    @property
+    def transactions_match_expenses(self):
+        return len(self.transaction_issues) == 0
+
+    def is_valid(self):
+        return self.ledgers_configured and self.transactions_match_expenses
+    is_valid.boolean = True
+    is_valid.short_description = _('Ready to confirm')
+
+    @property
+    def validity(self):
+        if not self.transactions_match_expenses:
+            return Statement.NON_MATCHING_TRANSACTIONS
+        if not self.ledgers_configured:
+            return Statement.MISSING_LEDGER
+        else:
+            return Statement.VALID
+
+    def confirm(self, confirmer=None):
+        if not self.validity == Statement.VALID:
+            return False
+
+        self.confirmed = True
+        self.confirmed_date = timezone.now()
+        self.confirmed_by = confirmer
+        for trans in self.transaction_set.all():
+            trans.confirmed = True
+            trans.confirmed_date = timezone.now()
+            trans.confirmed_by = confirmer
+            trans.save()
+        self.save()
+        return True
 
     def generate_transactions(self):
         # bills
@@ -58,20 +159,29 @@ class Statement(models.Model):
             return
 
         for yl in self.excursion.jugendleiter.all():
-            real_per_yl = self.total_staff / self.excursion.jugendleiter.count()
-            ref = _("Compensation for %(excu)s.") % {'excu': self.excursion.name}
-            Transaction(statement=self, member=yl, amount=real_per_yl, confirmed=False, reference=ref).save()
+            ref = _("Compensation for %(excu)s") % {'excu': self.excursion.name}
+            Transaction(statement=self, member=yl, amount=self.real_per_yl, confirmed=False, reference=ref).save()
 
     def reduce_transactions(self):
-        transactions = sorted(self.transaction_set.all(), key=lambda trans: trans.member.pk)
-        for member, transaction_group in groupby(transactions, lambda trans: trans.member):
+        # to minimize the number of needed bank transactions, we bundle transactions from same ledger to
+        # same member
+        transactions = self.transaction_set.all()
+        if any((t.ledger is None for t in transactions)):
+            return
+
+        sort_key = lambda trans: (trans.member.pk, trans.ledger.pk)
+        group_key = lambda trans: (trans.member, trans.ledger)
+        transactions = sorted(transactions, key=sort_key)
+        for pair, transaction_group in groupby(transactions, group_key):
+            member, ledger = pair
             grp = list(transaction_group)
             if len(grp) == 1:
                 continue
 
             new_amount = sum((trans.amount for trans in grp))
             new_ref = "\n".join((trans.reference for trans in grp))
-            Transaction(statement=self, member=member, amount=new_amount, confirmed=False, reference=new_ref).save()
+            Transaction(statement=self, member=member, amount=new_amount, confirmed=False, reference=new_ref,
+                        ledger=ledger).save()
             for trans in grp:
                 trans.delete()
 
@@ -95,14 +205,14 @@ class Statement(models.Model):
         if self.excursion is None:
             return 0
 
-        return self.excursion.kilometers_traveled * self.euro_per_km
+        return cvt_to_decimal(self.excursion.kilometers_traveled * self.euro_per_km)
 
     @property
     def allowance_per_yl(self):
         if self.excursion is None:
             return 0
 
-        return self.excursion.duration * self.ALLOWANCE_PER_DAY
+        return cvt_to_decimal(self.excursion.duration * self.ALLOWANCE_PER_DAY)
 
     @property
     def real_night_cost(self):
@@ -113,13 +223,20 @@ class Statement(models.Model):
         if self.excursion is None:
             return 0
 
-        return float(self.excursion.night_count * self.real_night_cost)
+        return self.excursion.night_count * self.real_night_cost
 
     @property
     def total_per_yl(self):
         return self.transportation_per_yl \
                 + self.allowance_per_yl \
                 + self.nights_per_yl
+
+    @property
+    def real_per_yl(self):
+        if self.excursion is None:
+            return 0
+
+        return self.total_staff / self.excursion.staff_count
 
     @property
     def total_staff(self):
@@ -148,8 +265,27 @@ class Statement(models.Model):
         else:
             return 2 + math.ceil((participant_count - 7) / 7)
 
+    @property
     def total(self):
-        return float(self.total_bills) + self.total_staff
+        return self.total_bills + self.total_staff
+
+    def total_pretty(self):
+        return "{}€".format(self.total)
+    total_pretty.short_description = _('Total')
+
+
+class StatementUnSubmittedManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(submitted=False, confirmed=False)
+
+
+class StatementUnSubmitted(Statement):
+    objects = StatementUnSubmittedManager()
+
+    class Meta:
+        proxy = True
+        verbose_name = _('Statement in preparation')
+        verbose_name_plural = _('Statements in preparation')
 
 
 class StatementSubmittedManager(models.Manager):
@@ -177,8 +313,8 @@ class StatementConfirmed(Statement):
 
     class Meta:
         proxy = True
-        verbose_name = _('Confirmed statement')
-        verbose_name_plural = _('Confirmed statements')
+        verbose_name = _('Paid statement')
+        verbose_name_plural = _('Paid statements')
         permissions = (('may_manage_confirmed_statements', 'Can view and manage confirmed statements.'),)
 
 
@@ -188,7 +324,7 @@ class Bill(models.Model):
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
 
     amount = models.DecimalField(max_digits=6, decimal_places=2, default=0)
-    paid_by = models.ForeignKey(Member, verbose_name=_('Paid by'), null=True,
+    paid_by = models.ForeignKey(Member, verbose_name=_('Authorized by'), null=True,
                                 on_delete=models.SET_NULL)
     costs_covered = models.BooleanField(verbose_name=_('Covered'), default=False)
     refunded = models.BooleanField(verbose_name=_('Refunded'), default=False)
@@ -199,8 +335,12 @@ class Bill(models.Model):
         return "{} ({}€)".format(self.short_description, self.amount)
 
     def pretty_amount(self):
-        return "{} €".format(self.amount)
+        return "{}€".format(self.amount)
     pretty_amount.admin_order_field = 'amount'
+
+    class Meta:
+        verbose_name = _('Bill')
+        verbose_name_plural = _('Bills')
 
 
 class Transaction(models.Model):
@@ -208,11 +348,26 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=6, decimal_places=2)
     member = models.ForeignKey(Member, verbose_name=_('Recipient'),
                                on_delete=models.CASCADE)
+    ledger = models.ForeignKey(Ledger, blank=False, null=True, default=None, verbose_name=_('Ledger'),
+                               on_delete=models.SET_NULL)
 
     statement = models.ForeignKey(Statement, verbose_name=_('Statement'),
                                   on_delete=models.CASCADE)
 
-    confirmed = models.BooleanField(verbose_name=_('Confirmed'), default=False)
+    confirmed = models.BooleanField(verbose_name=_('Paid'), default=False)
+    confirmed_date = models.DateTimeField(verbose_name=_('Paid on'), default=None, null=True)
+    confirmed_by = models.ForeignKey(Member, verbose_name=_('Authorized by'),
+                                     blank=True,
+                                     null=True,
+                                     on_delete=models.SET_NULL,
+                                     related_name='confirmed_transactions')
+
+    def __str__(self):
+        return "T#{}".format(self.pk)
+
+    class Meta:
+        verbose_name = _('Transaction')
+        verbose_name_plural = _('Transactions')
 
 
 class Receipt(models.Model):
@@ -221,3 +376,7 @@ class Receipt(models.Model):
                                on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=6, decimal_places=2)
     comments = models.TextField()
+
+
+def cvt_to_decimal(f):
+    return Decimal(f).quantize(Decimal('.01'), rounding=ROUND_HALF_DOWN)

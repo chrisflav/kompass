@@ -7,11 +7,13 @@ from functools import update_wrapper
 from django.utils.translation import gettext_lazy as _
 from django.shortcuts import render
 
-from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted, StatementConfirmed
+from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted, StatementConfirmed,\
+        StatementUnSubmitted
+
 
 @admin.register(Ledger)
 class LedgerAdmin(admin.ModelAdmin):
-    pass
+    search_fields = ('name', )
 
 
 class BillOnStatementInline(admin.TabularInline):
@@ -29,8 +31,8 @@ class BillOnStatementInline(admin.TabularInline):
         return super(BillOnStatementInline, self).get_readonly_fields(request, obj)
 
 
-@admin.register(Statement)
-class StatementAdmin(admin.ModelAdmin):
+@admin.register(StatementUnSubmitted)
+class StatementUnSubmitteddAdmin(admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'submitted']
     inlines = [BillOnStatementInline]
 
@@ -65,13 +67,13 @@ class StatementAdmin(admin.ModelAdmin):
         if statement.submitted:
             messages.error(request,
                     _("%(name)s is already submitted.") % {'name': str(statement)})
-            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (statement._meta.app_label, statement._meta.model_name), args=(statement.pk,)))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
 
         if "apply" in request.POST:
-            statement.submit()
+            statement.submit(get_member(request))
             messages.success(request,
                     _("Successfully submited %(name)s. The finance department will notify the requestors as soon as possible.") % {'name': str(statement)})
-            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (statement._meta.app_label, statement._meta.model_name), args=(statement.pk,)))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
         context = dict(self.admin_site.each_context(request),
                        title=_('Submit statement'),
                        opts=self.opts,
@@ -82,7 +84,7 @@ class StatementAdmin(admin.ModelAdmin):
 
 class TransactionOnSubmittedStatementInline(admin.TabularInline):
     model = Transaction
-    fields = ['amount', 'member', 'reference']
+    fields = ['amount', 'member', 'reference', 'ledger']
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
@@ -105,6 +107,8 @@ class BillOnSubmittedStatementInline(BillOnStatementInline):
 @admin.register(StatementSubmitted)
 class StatementSubmittedAdmin(admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'submitted']
+    list_display = ['__str__', 'is_valid', 'submitted_date', 'submitted_by']
+    ordering = ('-submitted_date',)
     inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
     def has_add_permission(self, request, obj=None):
@@ -142,17 +146,50 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def overview_view(self, request, object_id):
-        statement = Statement.objects.get(pk=object_id)
+        statement = StatementSubmitted.objects.get(pk=object_id)
         if not statement.submitted:
             messages.error(request,
                     _("%(name)s is not yet submitted.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+        if "transaction_execution_confirm" in request.POST:
+            res = statement.confirm(confirmer=get_member(request))
+            if not res:
+                # this should NOT happen!
+                messages.error(request,
+                        _("An error occured while trying to confirm %(name)s. Please try again.") % {'name': str(statement)})
+                return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name)))
+
+            messages.success(request,
+                    _("Successfully confirmed %(name)s. I hope you executed the associated transactions, I wont remind you again.")
+                    % {'name': str(statement)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
         if "confirm" in request.POST:
-            statement.confirmed = True
+            res = statement.validity
+            if res == Statement.VALID:
+                context = dict(self.admin_site.each_context(request),
+                               title=_('Statement confirmed'),
+                               opts=self.opts,
+                               statement=statement)
+                return render(request, 'admin/confirmed_statement.html', context=context)
+            elif res == Statement.NON_MATCHING_TRANSACTIONS:
+                messages.error(request,
+                        _("Transactions do not match the covered expenses. Please correct the mistakes listed below.")
+                        % {'name': str(statement)})
+                return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+            elif res == Statement.MISSING_LEDGER:
+                messages.error(request,
+                        _("Some transactions have no ledger configured. Please fill in the gaps.")
+                        % {'name': str(statement)})
+                return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+
+        if "reject" in request.POST:
+            statement.submitted = False
             statement.save()
-            for trans in statement.transaction_set.all():
-                trans.confirmed = True
-                trans.save()
+            messages.success(request,
+                    _("Successfully rejected %(name)s. The requestor can reapply, when needed.")
+                    % {'name': str(statement)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         if "generate_transactions" in request.POST:
             if statement.transaction_set.count() > 0:
@@ -167,6 +204,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                        title=_('View submitted statement'),
                        opts=self.opts,
                        statement=statement,
+                       transaction_issues=statement.transaction_issues,
                        nights=statement.excursion.night_count,
                        price_per_night=statement.real_night_cost,
                        duration=statement.excursion.duration,
@@ -181,33 +219,49 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                        transportation_per_yl=statement.transportation_per_yl,
                        total_per_yl=statement.total_per_yl,
                        total_staff=statement.total_staff,
-                       total=statement.total())
+                       total=statement.total)
 
         return render(request, 'admin/overview_submitted_statement.html', context=context)
 
     def reduce_transactions_view(self, request, object_id):
-        statement = Statement.objects.get(pk=object_id)
+        statement = StatementSubmitted.objects.get(pk=object_id)
         statement.reduce_transactions()
         messages.success(request,
                 _("Successfully reduced transactions for %(name)s.") % {'name': str(statement)})
-        return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+        return HttpResponseRedirect(request.GET['redirectTo'])
+        #return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+
 
 @admin.register(StatementConfirmed)
 class StatementConfirmedAdmin(admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'confirmed']
-    readonly_fields = fields
+    #readonly_fields = fields
+    list_display = ['__str__', 'total_pretty', 'confirmed_date', 'confirmed_by']
+    ordering = ('-confirmed_date',)
 
-
-@admin.register(Receipt)
-class ReceiptAdmin(admin.ModelAdmin):
-    pass
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['member', 'ledger', 'amount', 'reference', 'statement', 'confirmed',
+            'confirmed_date', 'confirmed_by']
+    list_filter = ('ledger', 'member', 'statement', 'confirmed')
+    search_fields = ('reference', )
+    fields = ['reference', 'amount', 'member', 'ledger', 'statement']
+    readonly_fields = fields
 
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ['short_description', 'pretty_amount', 'paid_by', 'refunded']
+    list_display = ['__str__', 'statement', 'short_description', 'pretty_amount', 'paid_by', 'refunded']
+    list_filter = ('statement', 'paid_by', 'refunded')
+    search_fields = ('reference', 'statement')
+
+
+def get_member(request):
+    if not hasattr(request.user, 'member'):
+        return None
+    else:
+        return request.user.member

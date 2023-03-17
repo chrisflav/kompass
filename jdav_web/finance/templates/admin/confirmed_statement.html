@@ -1,0 +1,72 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} admin-view
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' statement.pk|admin_urlquote %}">{{ statement|truncatewords:"18" }}</a>
+&rsaquo; {% translate 'Paiment' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h2>{% translate "Paying statement" %}</h2>
+
+<p>
+{% blocktrans %}The statement is valid. Please execute the following transactions and then proceed by
+finalizing the confirmation.
+{% endblocktrans %}
+</p>
+
+<p>
+<table>
+    <th>
+        <td>{% trans "IBAN" %}</td>
+        <td>{% trans "Amount" %}</td>
+        <td>{% trans "Reference" %}</td>
+        <td>{% trans "Ledger" %}</td>
+    </th>
+    {% for transaction in statement.transaction_set.all %}
+    <tr>
+    <td>
+        {{ transaction.member }}
+    </td>
+    <td>
+        {{ transaction.member.iban }}
+    </td>
+    <td>
+        {{ transaction.amount }}€
+    </td>
+    <td>
+        {{ transaction.reference }}
+    </td>
+    <td>
+        {{ transaction.ledger }}
+    </td>
+    </tr>
+    {% endfor %}
+</table>
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <p>
+    <input type="checkbox" required>
+    {% blocktrans %}I did execute the listed transactions.{% endblocktrans %}
+    </p>
+    <input class="default confirm" type="submit" name="transaction_execution_confirm" value="{% translate 'Confirm' %}">
+</form>
+{% endblock %}

@@ -1,0 +1,193 @@
+@import "globals";
+
+.admin-view {
+  #content > ul, #content > h1 + p + ul {
+    background: $content-background-color;
+    border-radius: 4px;
+    box-shadow: 0 2px 0 0 $content-border2-color;
+
+    &, ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+
+      li {
+        list-style: disc;
+        line-height: 1.8;
+      }
+    }
+
+    ul {
+      margin-left: 20px;
+    }
+
+    > li {
+      padding: 8px;
+      border-bottom: 1px solid $content-border-color;
+      font-size: 13px;
+      list-style: none;
+
+      &:last-child {
+        border-bottom: 0;
+      }
+    }
+  }
+
+  #content form {
+    margin-top: 20px;
+
+    input[type="submit"].danger {
+      background-color: $danger-button-background-color;
+      color: $danger-button-text-color;
+      font-size: 12px;
+      font-weight: lighter;
+      padding: 0 20px;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-bottom: 5px;
+
+      @include for-mobile {
+        display: block;
+        width: 100%;
+      }
+
+      &:hover, &:focus {
+        background-color: $button-hover-background-color;
+        color: $button-hover-text-color;
+      }
+
+      &:active {
+        background-color: $button-active-background-color;
+        color: $button-active-text-color;
+      }
+    }
+
+    input[type="submit"].confirm {
+      background-color: $primary-button-background-color;
+      color: $primary-button-text-color;
+      font-size: 12px;
+      font-weight: lighter;
+      padding: 0 20px;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-bottom: 5px;
+
+      @include for-mobile {
+        display: block;
+        width: 100%;
+      }
+
+      &:hover, &:focus {
+        background-color: $button-hover-background-color;
+        color: $button-hover-text-color;
+      }
+
+      &:active {
+        background-color: $button-active-background-color;
+        color: $button-active-text-color;
+      }
+    }
+
+    input[type="submit"].other {
+      background-color: $button-background-color;
+      color: $button-text-color;
+      font-size: 12px;
+      padding: 0 20px;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-bottom: 5px;
+
+      @include for-mobile {
+        display: block;
+        width: 100%;
+      }
+
+      &:hover, &:focus {
+        background-color: $button-hover-background-color;
+        color: $button-hover-text-color;
+      }
+
+      &:active {
+        background-color: $button-active-background-color;
+        color: $button-active-text-color;
+      }
+    }
+
+    .button {
+      vertical-align: middle;
+      margin-left: 10px;
+      margin-bottom: 5px;
+      box-sizing: border-box;
+
+      @include for-mobile {
+        margin-left: 0;
+        display: block;
+        width: 100%;
+      }
+    }
+  }
+}
+
+/*
+@import "globals";
+
+.admin-view {
+  #content > ul, #content > h1 + p + ul {
+    background: $content-background-color;
+    border-radius: 4px;
+    box-shadow: 0 2px 0 0 $content-border2-color;
+
+    &, ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+
+      li {
+        list-style: disc;
+        line-height: 1.8;
+      }
+    }
+
+    ul {
+      margin-left: 20px;
+    }
+
+    > li {
+      padding: 8px;
+      border-bottom: 1px solid $content-border-color;
+      font-size: 13px;
+      list-style: none;
+
+      &:last-child {
+        border-bottom: 0;
+      }
+    }
+  }
+
+  input[type="submit"] {
+        background-color: $danger-button-background-color;
+        color: $danger-button-text-color;
+        font-size: 12px;
+        font-weight: lighter;
+        padding: 0 20px;
+        text-transform: uppercase;
+        vertical-align: middle;
+        margin-bottom: 5px;
+  
+        @include for-mobile {
+          display: block;
+          width: 100%;
+        }
+  
+        &:hover, &:focus {
+          background-color: $button-hover-background-color;
+          color: $button-hover-text-color;
+        }
+  
+        &:active {
+          background-color: $button-active-background-color;
+          color: $button-active-text-color;
+        }
+  }
+}
+*/

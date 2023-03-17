@@ -3,9 +3,32 @@
 
 {% block object-tools-items %}
 
+<script>
+function requestWithCurrentURL(path) {
+    var xpath = path + "?redirectTo=" + window.location.href;
+    location.href = xpath;
+}
+</script>
+
+{% comment %}
+/de/kompass/finance/statementsubmitted/1/reduce_transactions/?redirectTo=http://localhost:8000/de/kompass/finance/statementsubmitted/1/change/
+
+{% endcomment %}
+
 <li>
     {% url opts|admin_urlname:'reduce_transactions' original.pk|admin_urlquote as invite_url %}
+    <a value="hi" onclick='requestWithCurrentURL("{% add_preserved_filters invite_url %}")'>
+    {% trans 'Reduce transactions' %}
+    </a>
+    {% comment %}
+    <form method="post" action=""
+        onsubmit="";>
+        {% csrf_token %}
+        <input type="submit" name="reduce_transactions" value="{% trans 'Reduce transactions' %}">
+        <input type="hidden" name="path" value="{{request.path}}">
+    </form>
     <a class="historylink" href="{% add_preserved_filters invite_url %}">{% trans 'Reduce transactions' %}</a>
+    {% endcomment %}
 </li>
 <li>
     {% url opts|admin_urlname:'overview' original.pk|admin_urlquote as invite_url %}

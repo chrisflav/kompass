@@ -1,8 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static %}
 
-{% load finance_extras %}
-
 {% block extrahead %}
     {{ block.super }}
     {{ media }}
@@ -11,7 +9,7 @@
     <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
 {% endblock %}
 
-{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} admin-view
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -28,16 +26,25 @@
 <h2>{% translate "Bills" %}</h2>
 
 <p>
-<ul>
+<table>
+    <th>
+        <td>Amount</td>
+        <td>Covered by association</td>
+    </th>
     {% for bill in statement.bill_set.all %}
-        <li>
-            {{bill.short_description}} {%trans "for" %} {{ bill.amount }}€.
-            {% if not bill.costs_covered %}
-            This bill is not covered by the association.
-            {% endif %}
-        </li>
+        <tr>
+            <td>
+            {{bill.short_description}}
+            </td>
+            <td>
+            {{ bill.amount }}€.
+            </td>
+            <td>
+                {{ bill.costs_covered }}
+            </td>
+        </tr>
     {% endfor %}
-</ul>
+</table>
 </p>
 
 <p>{% blocktrans %}The total amount is {{total_bills}} €.{% endblocktrans %}</p>
@@ -76,12 +83,101 @@ In total this is {{ total_per_yl }}€ times {{ staff_count }}, giving {{ total_
 {% blocktrans %} This results in a total amount of {{ total }} € {% endblocktrans %}
 </p>
 
+<h2>{% trans 'Transactions' %}</h2>
+
+{% if statement.transaction_set.count == 0 %}
+{% blocktrans %}Currently, no transactions are planned. You can auto generate them from the data, by clicking the button at the
+end of the page.{% endblocktrans %}
+<form method="post">
+    {% csrf_token %}
+    <input class="default other" type="submit" name="generate_transactions" value="{% translate 'Generate transactions' %}">
+</form>
+{% else %}
+
+{% blocktrans %}Currently the following transactions are planned.{% endblocktrans %}
+<p>
+<table>
+    <th>
+        <td>Amount</td>
+        <td>Reference</td>
+        <td>Ledger</td>
+    </th>
+    {% for transaction in statement.transaction_set.all %}
+    <tr>
+    <td>
+        {{ transaction.member }}
+    </td>
+    <td>
+        {{ transaction.amount }}€
+    </td>
+    <td>
+        {{ transaction.reference }}
+    </td>
+    <td>
+        {{ transaction.ledger }}
+    </td>
+    </tr>
+    {% endfor %}
+</table>
+{% comment %}
+<ul>
+{% for transaction in statement.transaction_set.all %}
+<li>
+    {{ transaction.member }}
+    {% trans "receives" %}
+    {{ transaction.amount }}€
+    {% trans "for" %}
+    {{ transaction.reference }},
+    {% trans "paid with" %}
+    {{ transaction.ledger }}.
+</li>
+{% endfor %}
+</ul>
+{% endcomment%}
+</p>
+
+{% if transaction_issues|length == 0 %}
+{% blocktrans %}These transactions match the calculated costs.{% endblocktrans %}
+{% else %}
+<p>
+{% blocktrans %}The current transactions do not reflect all costs in this statement. Please fix the following issues:{% endblocktrans %}
+</p>
+<p>
+<table>
+    <th>
+        <td>Currently receiving</td>
+        <td>Actual costs</td>
+        <td>Difference</td>
+    </th>
+    {% for issue in transaction_issues %}
+    <tr>
+        <td>
+        {{ issue.member }}
+        </td>
+        <td>
+        {{ issue.current }}€
+        </td>
+        <td>
+        {{ issue.target }}€
+        </td>
+        <td>
+        {{ issue.difference }}€
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+</p>
+{% endif %}
+
+{% endif %}
+
 <form action="" method="post">
     {% csrf_token %}
     <input type="hidden" name="action" value="submit_statement">
-    <input class="default" type="submit" name="confirm" value="{% translate 'Accept' %}">
-    <input class="default" type="submit" name="reject" value="{% translate 'Reject' %}">
-    <input class="default" type="submit" name="generate_transactions" value="{% translate 'Generate transactions' %}">
-    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+    <input class="default confirm" type="submit" name="confirm" value="{% translate 'Accept' %}">
+    <input class="default danger" type="submit" name="reject" value="{% translate 'Reject' %}">
+
+    {% url opts|admin_urlname:'change' original.pk|admin_urlquote as change_url %}
+    <a class="button cancel-link" href="{% add_preserved_filters change_url %}">{% trans 'Cancel' %}</a>
 </form>
 {% endblock %}
