@@ -245,3 +245,13 @@ JET_CHANGE_FORM_SIBLING_LINKS = False
 
 GRACE_PERIOD_WAITING_CONFIRMATION = 30
 WAITING_CONFIRMATION_FREQUENCY = 90
+
+# password hash algorithms used
+
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.BCryptPasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
+]
