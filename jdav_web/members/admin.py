@@ -9,6 +9,7 @@ import random
 import string
 from functools import partial, update_wrapper
 
+from django.template.loader import get_template
 from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
@@ -22,6 +23,7 @@ from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
+from .pdf import render_tex
 
 import nested_admin
 
@@ -596,7 +598,7 @@ class FreizeitAdmin(nested_admin.NestedModelAdmin):
     list_display = ['__str__', 'date']
     search_fields = ('name',)
     ordering = ('-date',)
-    actions = ['convert_to_pdf', 'generate_notes', 'convert_to_ljp']
+    actions = ['crisis_intervention_list', 'notes_list', 'seminar_report']
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -608,336 +610,25 @@ class FreizeitAdmin(nested_admin.NestedModelAdmin):
     def __init__(self, *args, **kwargs):
         super(FreizeitAdmin, self).__init__(*args, **kwargs)
 
-    def convert_to_pdf(self, request, queryset):
-        """Converts a member list to pdf.
-        """
+    def crisis_intervention_list(self, request, queryset):
         for memberlist in queryset:
-            # create a unique filename
-            filename = memberlist.name + "_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
-            # drop umlauts, accents etc.
-            filename = unicodedata.normalize('NFKD', filename).\
-                encode('ASCII', 'ignore').decode()
-            filename_table = 'table_' + filename
-            filename_tex = filename + '.tex'
-            filename_pdf = filename + '.pdf'
+            context = dict(memberlist=memberlist)
+            return render_tex(memberlist.name + "_Krisenliste", 'members/crisis_intervention_list.tex', context)
+    crisis_intervention_list.short_description = _('Generate crisis intervention list')
 
-            # open temporary file for table
-            with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
-                if memberlist.membersonlist.count() == 0:
-                    f.write('{0} & {1} & {2} & {3} \\\\ \n'.format(
-                        'keine Teilnehmer', '-', '-', '-'
-                    ))
-                for memberonlist in memberlist.membersonlist.all():
-                    # write table of members in latex compatible format
-                    member = memberonlist.member
-                    # use parents phone number if available
-                    phone_number = member.phone_number_parents if\
-                        member.phone_number_parents else member.phone_number
-                    # use parents email address if available
-                    email = member.email_parents if\
-                        member.email_parents else member.email
-                    line = '{0} {1} & {2} & {3} & \\Email{{{4}}} \\\\ \n'.format(
-                            esc_all(memberonlist.member.prename),
-                            esc_all(memberonlist.member.lastname),
-                            esc_all(memberonlist.member.address),
-                            esc_all(memberonlist.member.contact_phone_number),
-                            memberonlist.member.contact_email) # don't escape here, because url is used in tex
-                    f.write(line)
-
-            # copy and adapt latex memberlist template
-            shutil.copy(media_path('memberlist_template.tex'),
-                        media_path(filename_tex))
-
-            # read in template
-            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
-                template_content = f.read()
-
-            # adapt template
-            name = esc_all(memberlist.name)
-            template_content = template_content.replace('ACTIVITY', name)
-            groups = ', '.join(g.name for g in
-                               memberlist.groups.all())
-            template_content = template_content.replace('GROUP',
-                                                        esc_all(groups))
-            destination = esc_all(memberlist.destination)
-            template_content = template_content.replace('DESTINATION',
-                                                        destination)
-            place = esc_all(memberlist.place)
-            template_content = template_content.replace('PLACE', place)
-            template_content = template_content.replace('MEMBERLIST-DATE',
-                                                        datetime.today().strftime('%d.%m.%Y'))
-            time_period = memberlist.date.strftime('%d.%m.%Y')
-            if memberlist.end != memberlist.date:
-                time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
-            template_content = template_content.replace('TIME-PERIOD', time_period)
-            jugendleiter = ', '.join(j.name for j in memberlist.jugendleiter.all())
-            template_content = template_content.replace('JUGENDLEITER', jugendleiter)
-
-            # create tickboxes for tour type
-            tour_type = ''
-            for tt in ['Gemeinschaftstour', 'Führungstour', 'Ausbildung']:
-                print(memberlist.tour_type)
-                if tt == memberlist.get_tour_type():
-                    tour_type += '\\tickedbox ' + tt
-                else:
-                    tour_type += '\\checkbox'
-                    tour_type += '\\enspace ' + tt
-
-                tour_type += '\\qquad \\qquad '
-            template_content = template_content.replace('TOUR-TYPE', tour_type)
-
-            # create tickboxes for tour approach
-            tour_approach = ''
-            for tt in ['Muskelkraft', 'Öffentliche VM', 'Fahrgemeinschaften']:
-                print(memberlist.tour_approach)
-                if tt == memberlist.get_tour_approach():
-                    tour_approach += '\\tickedbox ' + tt
-                else:
-                    tour_approach += '\\checkbox'
-                    tour_approach += '\\enspace ' + tt
-
-                tour_approach += '\\qquad \\qquad '
-            template_content = template_content.replace('TOUR-APPROACH', tour_approach)
-
-
-            template_content = template_content.replace('TABLE-NAME',
-                    filename_table)
-
-            # write adapted template to file
-            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
-                f.write(template_content)
-
-            # compile using pdflatex
-            oldwd = os.getcwd()
-            os.chdir(media_dir())
-            subprocess.call(['pdflatex', filename_tex])
-            time.sleep(1)
-
-            # do some cleanup
-            for f in glob.glob('*.log'):
-                os.remove(f)
-            for f in glob.glob('*.aux'):
-                os.remove(f)
-            os.remove(filename_tex)
-            os.remove(filename_table)
-
-            os.chdir(oldwd)
-
-            # provide the user with the resulting pdf file
-            with open(media_path(filename_pdf), 'rb') as pdf:
-                response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
-                response['Content-Type'] = 'application/pdf'
-                response['Content-Disposition'] = 'attachment; filename='+filename_pdf
-
-            return response
-    convert_to_pdf.short_description = _('Convert to PDF')
-
-    def generate_notes(self, request, queryset):
-        """Generates a short note for the jugendleiter"""
+    def notes_list(self, request, queryset):
         for memberlist in queryset:
-            # unique filename
-            filename = memberlist.name + "_note_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
-            # drop umlauts, accents etc.
-            filename = unicodedata.normalize('NFKD', filename).\
-                encode('ASCII', 'ignore').decode()
-            filename_tex = filename + '.tex'
-            filename_pdf = filename + '.pdf'
+            people, skills = memberlist.skill_summary
+            context = dict(memberlist=memberlist, people=people, skills=skills)
+            return render_tex(memberlist.name + "_Notizen", 'members/notes_list.tex', context)
+    notes_list.short_description = _('Generate overview')
 
-            # generate table
-            table = ""
-            activities = [a.name for a in memberlist.activity.all()]
-            skills = {a: [] for a in activities}
-            for memberonlist in memberlist.membersonlist.all():
-                m = memberonlist.member
-                qualities = []
-                for activity, value in m.get_skills().items():
-                    if activity not in activities:
-                        continue
-                    skills[activity].append(value)
-                    qualities.append("\\textit{%s:} %s" % (activity, value))
-                comment = ". ".join(c for c
-                                    in (m.comments,
-                                        memberonlist.comments) if
-                                    c).replace("..", ".")
-                line = '{0} {1} & {2} & {3} \\\\'.format(
-                    esc_ampersand(m.prename), esc_ampersand(m.lastname),
-                    esc_ampersand(", ".join(qualities)),
-	            esc_ampersand(comment) or "---")
-                table += esc_underscore(line)
-
-            table_qualities = ""
-            for activity in activities:
-                skill_avg = 0 if len(skills[activity]) == 0 else\
-                    sum(skills[activity]) / len(skills[activity])
-                skill_min = 0 if len(skills[activity]) == 0 else\
-                    min(skills[activity])
-                skill_max = 0 if len(skills[activity]) == 0 else\
-                    max(skills[activity])
-                line = '{0} & {1} & {2} & {3} \\\\ \n'.format(
-                    esc_ampersand(activity),
-                    skill_avg,
-                    skill_min,
-                    skill_max
-                    )
-                table_qualities += esc_underscore(line)
-
-            # copy template
-            shutil.copy(media_path('membernote_template.tex'),
-                        media_path(filename_tex))
-
-            # read in template
-            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
-                template_content = f.read()
-
-            # adapt template
-            name = esc_all(memberlist.name)
-            template_content = template_content.replace('ACTIVITY', name)
-            groups = ', '.join(g.name for g in memberlist.groups.all())
-            template_content = template_content.replace('GROUP',
-                                                        esc_all(groups))
-            destination = esc_all(memberlist.destination)
-            template_content = template_content.replace('DESTINATION', destination)
-            place = esc_all(memberlist.place)
-            template_content = template_content.replace('PLACE', place)
-            template_content = template_content.replace('MEMBERLIST-DATE',
-                    datetime.today().strftime('%d.%m.%Y'))
-            time_period = memberlist.date.strftime('%d.%m.%Y')
-            if memberlist.end != memberlist.date:
-                time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
-            template_content = template_content.replace('TIME-PERIOD', time_period)
-            jugendleiter = ', '.join(j.name for j in memberlist.jugendleiter.all())
-            template_content = template_content.replace('JUGENDLEITER', jugendleiter)
-
-            template_content = template_content.replace('TABLE-QUALITIES',
-                                                        table_qualities)
-            template_content = template_content.replace('TABLE', table)
-
-            # write adapted template to file
-            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
-                f.write(template_content)
-
-            # compile using pdflatex
-            oldwd = os.getcwd()
-            os.chdir(media_dir())
-            subprocess.call(['pdflatex', filename_tex])
-            time.sleep(1)
-
-            # do some cleanup
-            for f in glob.glob('*.log'):
-                os.remove(f)
-            for f in glob.glob('*.aux'):
-                os.remove(f)
-            os.remove(filename_tex)
-
-            os.chdir(oldwd)
-
-            # provide the user with the resulting pdf file
-            with open(media_path(filename_pdf), 'rb') as pdf:
-                response = HttpResponse(FileWrapper(pdf))
-                response['Content-Type'] = 'application/pdf'
-                response['Content-Disposition'] = 'attachment; filename=' + filename_pdf
-
-            return response
-    generate_notes.short_description = _('Generate overview')
-
-    def convert_to_ljp(self, request, queryset):
-        """Converts a member list to pdf but without email and with birth date.
-        Suitable for LJP lists.
-        """
+    def seminar_report(self, request, queryset):
         for memberlist in queryset:
-            # create a unique filename
-            filename = memberlist.name + "_ljp_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
-            # drop umlauts, accents etc.
-            filename = unicodedata.normalize('NFKD', filename).\
-                encode('ASCII', 'ignore').decode()
-            filename_table = 'table_' + filename
-            filename_tex = filename + '.tex'
-            filename_pdf = filename + '.pdf'
-
-            # open temporary file for table
-            with open(media_path(filename_table), 'w+', encoding='utf-8') as f:
-                if memberlist.membersonlist.count() == 0:
-                    f.write('{0} & {1} & {2} & {3} \\\\ \n'.format(
-                        'keine Teilnehmer', '-', '-', '-'
-                    ))
-                for memberonlist in memberlist.membersonlist.all():
-                    # write table of members in latex compatible format
-                    member = memberonlist.member
-                    # use parents phone number if available
-                    phone_number = member.phone_number_parents if\
-                        member.phone_number_parents else member.phone_number
-                    # use parents email address if available
-                    email = member.email_parents if\
-                        member.email_parents else member.email
-                    line = '{0} {1} & {2} & {3} & & & \\\\ \\hline \n'.format(
-                            esc_all(memberonlist.member.prename),
-                            esc_all(memberonlist.member.lastname),
-                            esc_all(memberonlist.member.address),
-                            esc_all(memberonlist.member.birth_date.strftime("%d.%m.%Y")))
-                    f.write(line)
-
-            # copy and adapt latex memberlist template
-            shutil.copy(media_path('memberlist_ljp_template.tex'),
-                        media_path(filename_tex))
-
-            # read in template
-            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
-                template_content = f.read()
-
-            # adapt template
-            name = esc_all(memberlist.name)
-            template_content = template_content.replace('ACTIVITY', name)
-            groups = ', '.join(g.name for g in
-                               memberlist.groups.all())
-            template_content = template_content.replace('GROUP',
-                                                        esc_all(groups))
-            destination = esc_all(memberlist.destination)
-            template_content = template_content.replace('DESTINATION',
-                                                        destination)
-            place = esc_all(memberlist.place)
-            template_content = template_content.replace('PLACE', place)
-            template_content = template_content.replace('MEMBERLIST-DATE',
-                                                        datetime.today().strftime('%d.%m.%Y'))
-            time_period = memberlist.date.strftime('%d.%m.%Y')
-            if memberlist.end != memberlist.date:
-                time_period += " - " + memberlist.end.strftime('%d.%m.%Y')
-            template_content = template_content.replace('TIME-PERIOD', time_period)
-            jugendleiter = ', '.join(j.name for j in memberlist.jugendleiter.all())
-            template_content = template_content.replace('JUGENDLEITER', jugendleiter)
-            template_content = template_content.replace('TABLE-NAME',
-                    filename_table)
-
-            # write adapted template to file
-            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
-                f.write(template_content)
-
-            # compile using pdflatex
-            oldwd = os.getcwd()
-            os.chdir(media_dir())
-            subprocess.call(['pdflatex', filename_tex])
-            time.sleep(1)
-
-            # do some cleanup
-            for f in glob.glob('*.log'):
-                os.remove(f)
-            for f in glob.glob('*.aux'):
-                os.remove(f)
-            os.remove(filename_tex)
-            os.remove(filename_table)
-
-            os.chdir(oldwd)
-
-            # provide the user with the resulting pdf file
-            with open(media_path(filename_pdf), 'rb') as pdf:
-                response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
-                response['Content-Type'] = 'application/pdf'
-                response['Content-Disposition'] = 'attachment; filename='+filename_pdf
-
-            return response
-    convert_to_ljp.short_description = _('Generate list for LJP')
+            context = dict(memberlist=memberlist)
+            title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
+            return render_tex(title + "_Seminarbericht", 'members/seminar_report.tex', context)
+    seminar_report.short_description = _('Generate seminar report')
 
 
 class KlettertreffAdminForm(forms.ModelForm):

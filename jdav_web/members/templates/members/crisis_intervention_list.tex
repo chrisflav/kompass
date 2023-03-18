@@ -1,0 +1,99 @@
+{% load tex_extras %}
+
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{cmbright}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks, breaklinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{tabularx}
+
+\newcommand{\picpos}[4]{
+  \begin{textblock*}{#1}(#2, #3)
+    \includegraphics[width=\textwidth]{#4}
+  \end{textblock*}
+}
+
+% custom url command for properly formatting emails
+\DeclareUrlCommand\Email{\urlstyle{same}}
+% allow linebreak after every character
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
+\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
+\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
+\do\w\do\x\do\y\do\z
+\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
+\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
+\do\W\do\X\do\Y\do\Z}
+
+\renewcommand{\arraystretch}{1.5}
+
+\newcolumntype{L}{>{\hspace{0pt}}X}
+\newcommand{\tickedbox}{
+    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
+}
+\newcommand{\checkbox}{
+    \makebox[0pt][l]{$\square$}
+}
+\begin{document}
+% HEADER RIGHT
+\picpos{4.5cm}{11.5cm}{0cm}{dav_logo.png}
+\begin{textblock*}{5cm}(11.5cm, 2.3cm)
+    \begin{flushright}
+        \small
+        \noindent Deutscher Alpenverein e. V. \\
+        Sektion Ludwigsburg\\
+        Fuchshofstr. 66\\
+        71638 Ludwigsburg\\
+        Tel.: 07141 927893\\
+        Fax: 07141 924042\\
+        info@alpenverein-ludwigsburg.de\\
+    \end{flushright}
+\end{textblock*}
+
+% HEADLINE
+{\noindent\LARGE{Teilnehmer:innenliste\\[2mm]Sektionsveranstaltung}}\\[1mm]
+\textit{Erstellt: {{ creation_date }} }\\
+
+% DESCRIPTION TABLE
+\begin{table}[H]
+    \begin{tabular}{ll}
+        \large Aktivität: & {{ memberlist.name|esc_all }} \\
+        \large Gruppe: & {{ memberlist.groups_str|esc_all }}  \\
+        \large Ziel: & {{ memberlist.place|esc_all }} \\
+        \large Stützpunkt: & {{ memberlist.destination|esc_all }} \\
+        \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
+        \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }} \\
+        \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' memberlist.get_tour_type %}
+            {% checked_if_true 'Führungstour' memberlist.get_tour_type %}
+            {% checked_if_true 'Ausbildung' memberlist.get_tour_type %} \\
+        \large Anreise: & {% checked_if_true 'ÖPNV' memberlist.get_tour_approach %}
+            {% checked_if_true 'Muskelkraft' memberlist.get_tour_approach %}
+            {% checked_if_true 'Fahrgemeinschaften' memberlist.get_tour_approach %}
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLlL}
+    \toprule
+    \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{E-Mail} \\
+    \midrule
+    {% for m in memberlist.membersonlist.all %}
+        {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.contact_phone_number|esc_all }} & \Email{ {{ m.member.contact_email }} } \\
+    {% endfor %}
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\vspace{1cm}
+
+\noindent Bitte die ausgefüllte Teilnehmerliste vor Antritt der Aktivität per E-Mail an
+\href{mailto:info@alpenverein-ludwigsburg.de}{info@alpenverein-ludwigsburg.de} und 
+\href{mailto:vorstand@alpenverein-ludwigsburg.de}{vorstand@alpenverein-ludwigsburg.de} senden. 
+
+\end{document}

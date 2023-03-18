@@ -1,0 +1,156 @@
+{% load tex_extras %}
+
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{cmbright}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks, breaklinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{tabularx}
+\usepackage{titlesec}
+
+\titleformat{\section}
+  {\Large\slshape}{\thesection\;}
+  {0em}{}
+
+\newcommand{\picpos}[4]{
+  \begin{textblock*}{#1}(#2, #3)
+    \includegraphics[width=\textwidth]{#4}
+  \end{textblock*}
+}
+
+% custom url command for properly formatting emails
+\DeclareUrlCommand\Email{\urlstyle{same}}
+% allow linebreak after every character
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
+\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
+\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
+\do\w\do\x\do\y\do\z
+\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
+\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
+\do\W\do\X\do\Y\do\Z}
+
+\renewcommand{\arraystretch}{1.5}
+
+\newcolumntype{L}{>{\hspace{0pt}}X}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\newcommand{\tickedbox}{
+    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
+}
+\newcommand{\checkbox}{
+    \makebox[0pt][l]{$\square$}
+}
+\begin{document}
+% HEADER RIGHT
+\picpos{4.5cm}{11.5cm}{0cm}{dav_logo.png}
+\begin{textblock*}{5cm}(11.5cm, 2.3cm)
+    \begin{flushright}
+        \small
+        \noindent Deutscher Alpenverein e. V. \\
+        Sektion Ludwigsburg\\
+        Fuchshofstr. 66\\
+        71638 Ludwigsburg\\
+        Tel.: 07141 927893\\
+        Fax: 07141 924042\\
+        info@alpenverein-ludwigsburg.de\\
+    \end{flushright}
+\end{textblock*}
+
+% HEADLINE
+{\noindent\LARGE{Seminarbericht}}\\[1mm]
+\textit{Erstellt: {{ creation_date }} }\\
+
+% DESCRIPTION TABLE
+\begin{table}[H]
+    \begin{tabular}{ll}
+        \large Kursname: & {% if not memberlist.ljpproposal %}{{ memberlist.name|esc_all }}{% else %}{{ memberlist.ljpproposal.title }} {% endif %} \\
+        \large Gruppe: & {{ memberlist.groups_str|esc_all }} \\
+        \large Ziel: & {{ memberlist.place|esc_all }} \\
+        \large Stützpunkt: & {{ memberlist.destination|esc_all }} \\
+        \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
+        \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }} \\
+    \end{tabular}
+\end{table}
+
+{% if memberlist.ljpproposal %}
+
+\section{Alpine Ziele}
+
+{{ memberlist.ljpproposal.goals_alpinistic|esc_all }}
+
+\section{Pädagogische Ziele}
+
+{{ memberlist.ljpproposal.goals_pedagogic|esc_all }}
+
+\section{Inhalt und Methoden}
+
+{{ memberlist.ljpproposal.methods|esc_all }}
+
+\section{Evaluation}
+
+{{ memberlist.ljpproposal.evaluation|esc_all }}
+
+\section{Erfahrungen und mögliche Verbesserungsvorschläge}
+
+{{ memberlist.ljpproposal.experiences|esc_all }}
+
+\section{Methodischer Ablauf}
+
+\begin{table}[H]
+    \begin{tabularx}{1\linewidth}{@{}l l Y @{}}
+    \toprule
+    \textbf{Zeitpunkt} & \textbf{Dauer} & \textbf{Aktivität und Methode} \\
+    \midrule
+    {% for intervention in memberlist.ljpproposal.intervention_set.all %}
+        {{ intervention.date_start|datetime_short }} & {{ intervention.duration }} h & {{ intervention.activity|esc_all }} \\
+    {% endfor %}
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+{% endif %}
+
+\section{Teilnehmer:innenliste}
+
+\begin{table}[H]
+    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLl|l|l|l}
+    \hline
+    \textbf{Name} & \textbf{Anschrift} & \textbf{Geburtsdatum} & \textbf{m} & \textbf{w} & \textbf{d} \\ \hline
+    %\midrule
+    {% for m in memberlist.membersonlist.all %}
+        {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.birth_date_str|esc_all }} & & & \\
+    {% endfor %}
+    %\bottomrule
+  \end{tabularx}
+\end{table}
+
+{% if memberlist.statement %}
+
+\section{Kosten}
+
+\begin{table}[H]
+    \begin{tabularx}{1\linewidth}{@{}L r @{}}
+    \toprule
+    \textbf{Beschreibung} & \textbf{Betrag} \\
+    \midrule
+    Aufwandsentschädigung & {{ memberlist.statement.total_allowance }} € \\
+    Fahrtkosten & {{ memberlist.statement.total_transportation }} € \\
+    Übernachtungskosten & {{ memberlist.statement.total_nights }} € \\
+    {% for bill in memberlist.statement.bill_set.all %}
+        {{ bill.short_description|esc_all }} & {{ bill.amount }} € \\
+    {% endfor %}
+    \bottomrule
+        Gesamt & {{ memberlist.statement.total_theoretic }} € \\
+  \end{tabularx}
+\end{table}
+
+{% endif %}
+
+\end{document}

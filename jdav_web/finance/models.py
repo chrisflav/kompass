@@ -49,7 +49,7 @@ class Statement(models.Model):
                                      null=True,
                                      on_delete=models.SET_NULL)
 
-    night_cost = models.DecimalField(verbose_name=_('Price per night'), default=0, decimal_places=2, max_digits=3)
+    night_cost = models.DecimalField(verbose_name=_('Price per night'), default=0, decimal_places=2, max_digits=5)
 
     submitted = models.BooleanField(verbose_name=_('Submitted'), default=False)
     submitted_date = models.DateTimeField(verbose_name=_('Submitted on'), default=None, null=True)
@@ -190,6 +190,10 @@ class Statement(models.Model):
         return sum([bill.amount for bill in self.bill_set.all() if bill.costs_covered])
 
     @property
+    def total_bills_theoretic(self):
+        return sum([bill.amount for bill in self.bill_set.all()])
+
+    @property
     def euro_per_km(self):
         if self.excursion is None:
             return 0
@@ -215,6 +219,14 @@ class Statement(models.Model):
         return cvt_to_decimal(self.excursion.duration * self.ALLOWANCE_PER_DAY)
 
     @property
+    def total_allowance(self):
+        return self.allowance_per_yl * self.real_staff_count
+
+    @property
+    def total_transportation(self):
+        return self.transportation_per_yl * self.real_staff_count
+
+    @property
     def real_night_cost(self):
         return min(self.night_cost, 11)
 
@@ -224,6 +236,10 @@ class Statement(models.Model):
             return 0
 
         return self.excursion.night_count * self.real_night_cost
+
+    @property
+    def total_nights(self):
+        return self.nights_per_yl * self.real_staff_count
 
     @property
     def total_per_yl(self):
@@ -268,6 +284,10 @@ class Statement(models.Model):
     @property
     def total(self):
         return self.total_bills + self.total_staff
+
+    @property
+    def total_theoretic(self):
+        return self.total_bills_theoretic + self.total_staff
 
     def total_pretty(self):
         return "{}€".format(self.total)

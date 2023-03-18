@@ -105,6 +105,10 @@ class Person(models.Model):
         """Age of member"""
         return relativedelta(datetime.today(), self.birth_date).years
 
+    @property
+    def birth_date_str(self):
+        return self.birth_date.strftime("%d.%m.%Y")
+
     def request_mail_confirmation(self):
         self.confirmed_mail = False
         self.confirm_mail_key = uuid.uuid4().hex
@@ -500,6 +504,26 @@ class NewMemberOnList(models.Model):
         verbose_name = _('Member')
         verbose_name_plural = _('Members')
 
+    @property
+    def comments_tex(self):
+        raw = ". ".join(c for c in (self.member.comments, self.comments) if c).replace("..", ".")
+        if not raw:
+            return "---"
+        else:
+            return raw
+
+    @property
+    def skills(self):
+        activities = [a.name for a in memberlist.activity.all()]
+        return {k: v for k, v in self.member.get_skills().items() if k in activities}
+
+    @property
+    def qualities_tex(self):
+        qualities = []
+        for activity, value in self.skills:
+            qualities.append("\\textit{%s:} %s" % (activity, value))
+        return ", ".join(qualities)
+
 
 class Freizeit(models.Model):
     """Lets the user create a 'Freizeit' and generate a members overview in pdf format. """
@@ -593,6 +617,48 @@ class Freizeit(models.Model):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         return len(ps - jls)
+
+    @property
+    def time_period_str(self):
+        time_period = self.date.strftime('%d.%m.%Y')
+        if self.end != self.date:
+            time_period += " - " + self.end.strftime('%d.%m.%Y')
+        return time_period
+
+    @property
+    def groups_str(self):
+        return ', '.join(g.name for g in self.groups.all())
+
+    @property
+    def staff_str(self):
+        return ', '.join(yl.name for yl in self.jugendleiter.all())
+
+    @property
+    def skill_summary(self):
+        activities = [a.name for a in self.activity.all()]
+        skills = {a: [] for a in activities}
+        people = []
+        for memberonlist in self.membersonlist.all():
+            m = memberonlist.member
+            qualities = []
+            for activity, value in m.get_skills().items():
+                if activity not in activities:
+                    continue
+                skills[activity].append(value)
+                qualities.append("\\textit{%s:} %s" % (activity, value))
+            people.append(dict(name=m.name, qualities=", ".join(qualities), comments=memberonlist.comments_tex))
+
+        sks = []
+        for activity in activities:
+            skill_avg = 0 if len(skills[activity]) == 0 else\
+                sum(skills[activity]) / len(skills[activity])
+            skill_min = 0 if len(skills[activity]) == 0 else\
+                min(skills[activity])
+            skill_max = 0 if len(skills[activity]) == 0 else\
+                max(skills[activity])
+            sks.append(dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max))
+        return (people, sks)
+
 
 class MemberNoteList(models.Model):
     """
@@ -693,7 +759,7 @@ class Intervention(models.Model):
     """An intervention during a seminar as part of a LJP proposal"""
     date_start = models.DateTimeField(verbose_name=_('Starting time'))
     duration = models.DecimalField(verbose_name=_('Duration in hours'),
-                                   max_digits=3,
+                                   max_digits=4,
                                    decimal_places=2)
     activity = models.TextField(verbose_name=_('Activity and method'))
 
