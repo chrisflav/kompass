@@ -4,11 +4,31 @@
 {% block object-tools-items %}
 
 <li>
-    {% if original.statement and not original.statement.submitted %}
-    <a class="historylink" href="{% url 'admin:finance_statementunsubmitted_submit' original.statement.pk %}">{% trans 'Submit statement' %}</a>
-    {% endif %}
+    <form method="post" action="{% url 'admin:members_freizeit_action' original.statement.pk %}">
+        {% csrf_token %}
+        <input type="submit" name="crisis_intervention_list" value="{% trans 'Generate crisis intervention list' %}">
+    </form>
 </li>
 
+<li>
+    <form method="post" action="{% url 'admin:members_freizeit_action' original.statement.pk %}">
+        {% csrf_token %}
+        <input type="submit" name="notes_list" value="{% trans 'Generate overview' %}">
+    </form>
+</li>
+
+<li>
+    <form method="post" action="{% url 'admin:members_freizeit_action' original.statement.pk %}">
+        {% csrf_token %}
+        <input type="submit" name="seminar_report" value="{% trans 'Generate seminar report' %}">
+    </form>
+</li>
+
+{% if original.statement and not original.statement.submitted %}
+<li>
+<a class="historylink" href="{% url 'admin:finance_statementunsubmitted_submit' original.statement.pk %}">{% trans 'Submit statement' %}</a>
+</li>
+{% endif %}
 {{block.super}}
 
 {% endblock %}

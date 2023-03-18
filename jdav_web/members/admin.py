@@ -9,6 +9,7 @@ import random
 import string
 from functools import partial, update_wrapper
 
+from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.template.loader import get_template
 from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
@@ -599,6 +600,7 @@ class FreizeitAdmin(nested_admin.NestedModelAdmin):
     search_fields = ('name',)
     ordering = ('-date',)
     actions = ['crisis_intervention_list', 'notes_list', 'seminar_report']
+    view_on_site = False
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -630,6 +632,34 @@ class FreizeitAdmin(nested_admin.NestedModelAdmin):
             return render_tex(title + "_Seminarbericht", 'members/seminar_report.tex', context)
     seminar_report.short_description = _('Generate seminar report')
 
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = [
+            path(
+                "<path:object_id>/action/",
+                wrap(self.action_view),
+                name="%s_%s_action" % (self.opts.app_label, self.opts.model_name),
+            ),
+        ]
+        return custom_urls + urls
+
+    def action_view(self, request, object_id):
+        if "seminar_report" in request.POST:
+            return self.seminar_report(request, [Freizeit.objects.get(pk=object_id)])
+        if "notes_list" in request.POST:
+            return self.notes_list(request, [Freizeit.objects.get(pk=object_id)])
+        if "crisis_intervention_list" in request.POST:
+            return self.crisis_intervention_list(request, [Freizeit.objects.get(pk=object_id)])
+        return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                            args=(object_id,)))
 
 class KlettertreffAdminForm(forms.ModelForm):
     class Meta:
