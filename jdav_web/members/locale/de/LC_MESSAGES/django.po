@@ -140,7 +140,7 @@ msgstr "Verkehrsmittel"
 
 #: admin.py:617
 msgid "Generate crisis intervention list"
-msgstr "Erstelle Kriseninterventionsliste"
+msgstr "Kriseninterventionsliste erstellen"
 
 #: admin.py:624
 msgid "Generate overview"
