@@ -733,7 +733,6 @@ admin.site.register(MemberWaitingList, MemberWaitingListAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Freizeit, FreizeitAdmin)
 admin.site.register(MemberNoteList, MemberNoteListAdmin)
-admin.site.register(MemberList, MemberListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
 admin.site.register(ActivityCategory, ActivityCategoryAdmin)
 

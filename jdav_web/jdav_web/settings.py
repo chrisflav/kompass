@@ -231,7 +231,6 @@ JET_SIDE_MENU_ITEMS = [
     {'app_label': 'members', 'items': [
         {'name': 'member'},
         {'name': 'group'},
-        {'name': 'memberlist', 'permissions': ['members.view_memberlist']},
         {'name': 'membernotelist'},
         {'name': 'freizeit'},
         {'name': 'klettertreff'},
