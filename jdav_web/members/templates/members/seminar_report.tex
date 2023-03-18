@@ -81,7 +81,7 @@
 
 {% if memberlist.ljpproposal %}
 
-\section{Alpine Ziele}
+\section{Alpintechnische Ziele}
 
 {{ memberlist.ljpproposal.goals_alpinistic|esc_all }}
 
@@ -89,24 +89,24 @@
 
 {{ memberlist.ljpproposal.goals_pedagogic|esc_all }}
 
-\section{Inhalt und Methoden}
+\section{Inhalte und Methoden}
 
 {{ memberlist.ljpproposal.methods|esc_all }}
 
-\section{Evaluation}
+\section{Wertung}
 
 {{ memberlist.ljpproposal.evaluation|esc_all }}
 
-\section{Erfahrungen und mögliche Verbesserungsvorschläge}
+\section{Erfahrungen und Verbesserungsvorschläge}
 
 {{ memberlist.ljpproposal.experiences|esc_all }}
 
-\section{Methodischer Ablauf}
+\section{Zeitlicher und methodischer Ablauf}
 
 \begin{table}[H]
     \begin{tabularx}{1\linewidth}{@{}l l Y @{}}
     \toprule
-    \textbf{Zeitpunkt} & \textbf{Dauer} & \textbf{Aktivität und Methode} \\
+    \textbf{Zeitpunkt} & \textbf{Dauer} & \textbf{Art der Aktion inkl. Methode} \\
     \midrule
     {% for intervention in memberlist.ljpproposal.intervention_set.all %}
         {{ intervention.date_start|datetime_short }} & {{ intervention.duration }} h & {{ intervention.activity|esc_all }} \\

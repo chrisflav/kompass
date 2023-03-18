@@ -754,6 +754,12 @@ class LJPProposal(models.Model):
                                      null=True,
                                      on_delete=models.SET_NULL)
 
+    class Meta:
+        verbose_name = _('LJP Proposal')
+        verbose_name_plural = _('LJP Proposals')
+
+    def __str__(self):
+        return self.title
 
 class Intervention(models.Model):
     """An intervention during a seminar as part of a LJP proposal"""
@@ -767,6 +773,10 @@ class Intervention(models.Model):
                                      verbose_name=_('LJP Proposal'),
                                      blank=False,
                                      on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = _('Intervention')
+        verbose_name_plural = _('Interventions')
 
 
 def annotate_activity_score(queryset):
