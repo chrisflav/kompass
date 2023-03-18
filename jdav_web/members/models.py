@@ -601,7 +601,7 @@ class Freizeit(models.Model):
         else:
             extra_days += 0.5
 
-        if self.end.hour <= 12:
+        if self.end.hour >= 12:
             extra_days += 1.0
         else:
             extra_days += 0.5
