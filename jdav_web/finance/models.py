@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from members.models import Member, Freizeit, OEFFENTLICHE_ANREISE, MUSKELKRAFT_ANREISE
+from django.conf import settings
 
 # Create your models here.
 
@@ -36,8 +37,6 @@ class StatementManager(models.Manager):
 
 class Statement(models.Model):
     MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, VALID = 0, 1, 2
-
-    ALLOWANCE_PER_DAY = 10
 
     short_description = models.CharField(verbose_name=_('Short description'),
                                          max_length=30,
@@ -151,7 +150,7 @@ class Statement(models.Model):
         for bill in self.bill_set.all():
             if not bill.costs_covered:
                 continue
-            ref = "{}: {}".format(self.excursion.name, bill.short_description)
+            ref = "{}: {}".format(str(self), bill.short_description)
             Transaction(statement=self, member=bill.paid_by, amount=bill.amount, confirmed=False, reference=ref).save()
 
         # excursion specific
@@ -216,7 +215,7 @@ class Statement(models.Model):
         if self.excursion is None:
             return 0
 
-        return cvt_to_decimal(self.excursion.duration * self.ALLOWANCE_PER_DAY)
+        return cvt_to_decimal(self.excursion.duration * settings.ALLOWANCE_PER_DAY)
 
     @property
     def total_allowance(self):
@@ -228,7 +227,7 @@ class Statement(models.Model):
 
     @property
     def real_night_cost(self):
-        return min(self.night_cost, 11)
+        return min(self.night_cost, settings.MAX_NIGHT_COST)
 
     @property
     def nights_per_yl(self):

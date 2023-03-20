@@ -400,3 +400,8 @@ DEFAULT_SENDING_MAIL = os.environ.get('EMAIL_SENDING_ADDRESS', 'christian@localh
 # misc
 
 CONGRATULATE_MEMBERS_MAX = 10
+
+# finance
+
+ALLOWANCE_PER_DAY = 10
+MAX_NIGHT_COST = 11

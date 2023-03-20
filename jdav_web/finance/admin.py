@@ -6,6 +6,7 @@ from django.urls import path, reverse
 from functools import update_wrapper
 from django.utils.translation import gettext_lazy as _
 from django.shortcuts import render
+from django.conf import settings
 
 from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted, StatementConfirmed,\
         StatementUnSubmitted
@@ -205,21 +206,23 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                        opts=self.opts,
                        statement=statement,
                        transaction_issues=statement.transaction_issues,
-                       nights=statement.excursion.night_count,
-                       price_per_night=statement.real_night_cost,
-                       duration=statement.excursion.duration,
-                       staff_count=statement.real_staff_count,
-                       kilometers_traveled=statement.excursion.kilometers_traveled,
-                       means_of_transport=statement.excursion.get_tour_approach(),
-                       euro_per_km=statement.euro_per_km,
-                       allowance_per_day=statement.ALLOWANCE_PER_DAY,
                        total_bills=statement.total_bills,
-                       nights_per_yl=statement.nights_per_yl,
-                       allowance_per_yl=statement.allowance_per_yl,
-                       transportation_per_yl=statement.transportation_per_yl,
-                       total_per_yl=statement.total_per_yl,
-                       total_staff=statement.total_staff,
                        total=statement.total)
+        if statement.excursion is not None:
+            context = dict(context,
+                           nights=statement.excursion.night_count,
+                           price_per_night=statement.real_night_cost,
+                           duration=statement.excursion.duration,
+                           staff_count=statement.real_staff_count,
+                           kilometers_traveled=statement.excursion.kilometers_traveled,
+                           means_of_transport=statement.excursion.get_tour_approach(),
+                           euro_per_km=statement.euro_per_km,
+                           allowance_per_day=settings.ALLOWANCE_PER_DAY,
+                           nights_per_yl=statement.nights_per_yl,
+                           allowance_per_yl=statement.allowance_per_yl,
+                           transportation_per_yl=statement.transportation_per_yl,
+                           total_per_yl=statement.total_per_yl,
+                           total_staff=statement.total_staff)
 
         return render(request, 'admin/overview_submitted_statement.html', context=context)
 
