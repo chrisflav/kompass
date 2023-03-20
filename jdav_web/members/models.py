@@ -10,7 +10,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
-from mailer.mailutils import send as send_mail, mail_root, get_mail_confirmation_link,\
+from mailer.mailutils import send as send_mail, get_mail_confirmation_link,\
     prepend_base_url, get_registration_link, get_wait_confirmation_link
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -113,10 +113,10 @@ class Person(models.Model):
         self.confirmed_mail = False
         self.confirm_mail_key = uuid.uuid4().hex
         send_mail(_('Email confirmation needed'),
-                  CONFIRM_MAIL_TEXT.format(name=self.prename,
-                                           link=get_mail_confirmation_link(self.confirm_mail_key),
-                                           whattoconfirm='deiner Emailadresse'),
-                  mail_root,
+                  settings.CONFIRM_MAIL_TEXT.format(name=self.prename,
+                                                    link=get_mail_confirmation_link(self.confirm_mail_key),
+                                                    whattoconfirm='deiner Emailadresse'),
+                  settings.DEFAULT_SENDING_MAIL,
                   self.email)
         if self.email_parents:
             self.confirmed_mail_parents = False
@@ -125,7 +125,7 @@ class Person(models.Model):
                       CONFIRM_MAIL_TEXT.format(name=self.prename,
                                                link=get_mail_confirmation_link(self.confirm_mail_parents_key),
                                                whattoconfirm='der Emailadresse deiner Eltern'),
-                      mail_root,
+                      settings.DEFAULT_SENDING_MAIL,
                       self.email_parents)
         else:
             self.confirmed_mail_parents = True
@@ -146,7 +146,7 @@ class Person(models.Model):
     def send_mail(self, subject, content):
         send_mail(subject,
                   content,
-                  mail_root,
+                  settings.DEFAULT_SENDING_MAIL,
                   [self.email, self.email_parents] if self.email_parents and self.cc_email_parents
                   else self.email)
 
@@ -303,10 +303,10 @@ class Member(Person):
             link = prepend_base_url(reverse('admin:members_memberunconfirmedproxy_change',
                                             args=[str(self.id)]))
             send_mail(_('New unconfirmed registration for group %(group)s') % {'group': group},
-                      NEW_UNCONFIRMED_REGISTRATION.format(name=jl.prename,
-                                                          group=group,
-                                                          link=link),
-                      mail_root,
+                      settings.NEW_UNCONFIRMED_REGISTRATION.format(name=jl.prename,
+                                                                   group=group,
+                                                                   link=link),
+                      settings.DEFAULT_SENDING_MAIL,
                       jl.email)
 
 class MemberUnconfirmedManager(models.Manager):
@@ -375,8 +375,8 @@ class MemberWaitingList(Person):
     def ask_for_wait_confirmation(self):
         """Sends an email to the person asking them to confirm their intention to wait."""
         self.send_mail(_('Waiting confirmation needed'),
-                       WAIT_CONFIRMATION_TEXT.format(name=self.prename,
-                                                     link=get_wait_confirmation_link(self)))
+                       settings.WAIT_CONFIRMATION_TEXT.format(name=self.prename,
+                                                              link=get_wait_confirmation_link(self)))
 
     def confirm_waiting(self, key):
         # if a wrong key is supplied, we return invalid
@@ -415,17 +415,17 @@ class MemberWaitingList(Person):
         return self.registration_key == key and timezone.now() < self.registration_expire
 
     def invite_to_group(self):
-        send_mail("Gute Neuigkeiten von der JDAV",
-                  INVITE_TEXT.format(name=self.prename,
+        send_mail(_("Good news"),
+                  settings.INVITE_TEXT.format(name=self.prename,
                   link=get_registration_link(self)),
-                  mail_root,
+                  settings.DEFAULT_SENDING_MAIL,
                   [self.email, self.email_parents] if self.email_parents and self.cc_email_parents
                   else self.email)
 
 
 class MemberList(models.Model):
     """Lets the user create a list of members in pdf format.
-       
+
        DEPRECATED: Replaced by Freizeit and Notizliste
     """
 
@@ -866,59 +866,3 @@ def annotate_activity_score(queryset):
             + F('_jugendleiter_klettertreff_score') + 3 * F('_jugendleiter_freizeit_score'))
     )
     return queryset
-
-
-CONFIRM_MAIL_TEXT = """Hallo {name},
-
-du hast bei der JDAV Ludwigsburg eine E-Mail Adresse hinterlegt. Da bei uns alle Kommunikation
-per Email funktioniert, brauchen wir eine Bestätigung {whattoconfirm}. Dazu klicke bitte einfach auf
-folgenden Link:
-
-{link}
-
-Viele Grüße
-Deine JDAV Ludwigsburg"""
-
-NEW_UNCONFIRMED_REGISTRATION = """Hallo {name},
-
-für deine Gruppe {group} liegt eine neue unbestätigte Reservierung vor. Die Person hat bereits ihre
-E-Mailadressen bestätigt. Bitte prüfe die Registrierung eingehend und bestätige falls möglich. Zu
-der Registrierung kommst du hier:
-
-{link}
-
-Viele Grüße
-Dein KOMPASS"""
-
-INVITE_TEXT = """Hallo {name},
-
-wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe freigeworden. Wir brauchen
-jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
-Link erledigen:
-
-{link}
-
-Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste angegeben hast. Bitte
-überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
-
-Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
-
-Viele Grüße
-Deine JDAV Ludwigsburg"""
-
-
-WAIT_CONFIRMATION_TEXT = """Hallo {name},
-
-leider können wir dir zur Zeit noch keinen Platz in einer Jugendgruppe anbieten. Da wir
-sehr viele Interessenten haben und wir möglichst vielen die Möglichkeit bieten möchten, an
-einer Jugendgruppe teilhaben zu können, fragen wir regelmäßig alle Personen auf der
-Warteliste ab, ob sie noch Interesse haben.
-
-Wenn du weiterhin auf der Warteliste bleiben möchtest, klicke auf den folgenden Link:
-
-{link}
-
-Falls du nicht mehr auf der Warteliste bleiben möchtest, musst du nichts machen. Du wirst automatisch entfernt.
-
-Viele Grüße
-Deine JDAV Ludwigsburg"""

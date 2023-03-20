@@ -25,9 +25,10 @@
     </table>
     <p>
     <input type="checkbox" required>
-    {% trans "I am member of the DAV Ludwigsburg." %}<br>
+    {% blocktrans %}I am member of the DAV {{ sektion }}.{% endblocktrans %}<br>
     <input type="checkbox" required>
-    {% trans "I agree that my data is stored and processed on the server of the JDAV Ludwigsburg." %}</p>
+    {% blocktrans %}I agree that my data is stored and processed on the server of the JDAV {{ sektion }}.{% endblocktrans %}
+    </p>
     <input type="hidden" name="password" value="{{ pwd.password }}">
     <input type="hidden" name="waiter_key" value="{{ waiter_key }}">
     <input type="hidden" name="save">

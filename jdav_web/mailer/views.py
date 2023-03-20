@@ -3,7 +3,8 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.http import HttpResponseRedirect
-from .mailutils import send as send_mail, mail_root, get_unsubscribe_link
+from .mailutils import send as send_mail, get_unsubscribe_link
+from django.conf import settings
 
 from members.models import Member
 
@@ -46,11 +47,9 @@ def unsubscribe(request):
     except (KeyError, Member.DoesNotExist):
         return render_unsubscribe(request, _("Please fill in every field"))
     else:
-        send_mail("Abmeldebestätigung",
-                  "Klicke auf den Link, um dich vom Newsletter des JDAV "
-                  "Ludwigsburg "
-                  "abzumelden\n{}".format(get_unsubscribe_link(member)),
-                  mail_root, email)
+        send_mail(_("Unsubscription confirmation"),
+                  settings.UNSUBSCRIBE_CONFIRMATION_TEXT.format(link=get_unsubscribe_link(member)),
+                  settings.DEFAULT_SENDING_MAIL, email)
         return render_confirmation_sent(request, email)
 
 

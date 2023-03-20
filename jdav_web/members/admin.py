@@ -33,7 +33,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
 from finance.models import Statement, Bill
-from mailer.mailutils import send as send_mail, get_echo_link, mail_root
+from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
 #from easy_select2 import apply_select2
 
@@ -127,23 +127,9 @@ class MemberAdmin(admin.ModelAdmin):
         for member in queryset:
             if not member.gets_newsletter:
                 continue
-            send_mail("Wichtig: Rückmeldung erforderlich!",
-                      """Hallo {name},
-
-um unsere Daten auf dem aktuellen Stand zu halten, brauchen wir eine
-kurze Bestätigung von dir. Dafür besuche einfach diesen Link:
-
-{link}
-
-Dort kannst du deine Daten überprüfen und ändern. Falls du nicht innerhalb von
-30 Tagen deine Daten bestätigst, wirst du aus unserer Datenbank gelöscht und
-erhälst in Zukunft keine Mails mehr von uns.
-
-Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
-
-Viele Grüße
-Deine JDAV Ludwigsburg""".format(name=member.prename, link=get_echo_link(member)),
-                      mail_root,
+            send_mail(_("Echo required"),
+                      settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)),
+                      settings.DEFAULT_SENDING_MAIL,
                       [member.email, member.email_parents] if member.email_parents and member.cc_email_parents
                       else member.email)
         messages.success(request, _("Successfully requested echo from selected members."))

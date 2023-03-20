@@ -183,7 +183,7 @@ EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
 # Celery Email Setup
 
 CELERY_EMAIL_TASK_CONFIG = {
-    'rate_limit' : '1/m'  # * CELERY_EMAIL_CHUNK_SIZE (default: 10)
+    'rate_limit' : '10/m'  # * CELERY_EMAIL_CHUNK_SIZE (default: 10)
 }
 
 
@@ -262,3 +262,141 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.ScryptPasswordHasher',
 ]
+
+# mail texts
+
+CONFIRM_MAIL_TEXT = """Hallo {name},
+
+du hast bei der JDAV Ludwigsburg eine E-Mail Adresse hinterlegt. Da bei uns alle Kommunikation
+per Email funktioniert, brauchen wir eine Bestätigung {whattoconfirm}. Dazu klicke bitte einfach auf
+folgenden Link:
+
+{link}
+
+Viele Grüße
+Deine JDAV Ludwigsburg"""
+
+NEW_UNCONFIRMED_REGISTRATION = """Hallo {name},
+
+für deine Gruppe {group} liegt eine neue unbestätigte Reservierung vor. Die Person hat bereits ihre
+E-Mailadressen bestätigt. Bitte prüfe die Registrierung eingehend und bestätige falls möglich. Zu
+der Registrierung kommst du hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS"""
+
+INVITE_TEXT = """Hallo {name},
+
+wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe freigeworden. Wir brauchen
+jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
+Link erledigen:
+
+{link}
+
+Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste angegeben hast. Bitte
+überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
+
+Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
+
+Viele Grüße
+Deine JDAV Ludwigsburg"""
+
+
+WAIT_CONFIRMATION_TEXT = """Hallo {name},
+
+leider können wir dir zur Zeit noch keinen Platz in einer Jugendgruppe anbieten. Da wir
+sehr viele Interessenten haben und wir möglichst vielen die Möglichkeit bieten möchten, an
+einer Jugendgruppe teilhaben zu können, fragen wir regelmäßig alle Personen auf der
+Warteliste ab, ob sie noch Interesse haben.
+
+Wenn du weiterhin auf der Warteliste bleiben möchtest, klicke auf den folgenden Link:
+
+{link}
+
+Falls du nicht mehr auf der Warteliste bleiben möchtest, musst du nichts machen. Du wirst automatisch entfernt.
+
+Viele Grüße
+Deine JDAV Ludwigsburg"""
+
+UNSUBSCRIBE_CONFIRMATION_TEXT = """Klicke auf den Link, um dich vom Newsletter der JDAV Ludwigsburg abzumelden
+
+{link}"""
+
+NOTIFY_MOST_ACTIVE_TEXT = """Hallo {name}!
+
+Herzlichen Glückwunsch, du hast im letzten Jahr zu den {congratulate_max} aktivsten
+Mitgliedern der JDAV Ludwigsburg gehört! Um genau zu sein beträgt dein Aktivitäts Wert
+des letzten Jahres {score} Punkte. Das entspricht {level} Kletterer:innen. Damit warst du
+im letzten Jahr das {position}aktivste Mitglied der JDAV Ludwigsburg.
+
+
+Auf ein weiteres aktives Jahr in der JDAV Ludwigsburg
+
+Dein:e Jugendreferent:in"""
+
+ECHO_TEXT = """Hallo {name},
+
+um unsere Daten auf dem aktuellen Stand zu halten, brauchen wir eine
+kurze Bestätigung von dir. Dafür besuche einfach diesen Link:
+
+{link}
+
+Dort kannst du deine Daten überprüfen und ändern. Falls du nicht innerhalb von
+30 Tagen deine Daten bestätigst, wirst du aus unserer Datenbank gelöscht und
+erhälst in Zukunft keine Mails mehr von uns.
+
+Bei Fragen, wende dich gerne an jugendreferent@jdav-ludwigsburg.de.
+
+Viele Grüße
+Deine JDAV Ludwigsburg"""
+
+PREPEND_INCOMPLETE_REGISTRATION_TEXT = """WICHTIGE MITTEILUNG
+
+Deine Anmeldung ist aktuell nicht vollständig. Bitte fülle umgehend das
+Anmeldeformular aus und lasse es Deine*r Jugendleiter*in zukommen! Dieses
+kannst Du unter folgendem Link herunterladen:
+
+https://cloud.jdav-ludwigsburg.de/index.php/s/NQfRqA9MTKfPBkC
+
+****************
+
+"""
+
+MAIL_FOOTER = """
+
+
+****************
+
+Diese Email wurde über die Webseite der JDAV Ludwigsburg
+verschickt. Wenn Du in Zukunft keine Emails mehr erhalten möchtest,
+kannst Du hier den Newsletter deabonnieren:
+
+{link}"""
+
+# fixed email addresses
+
+RESPONSIBLE_MAIL = "jugendreferent@jdav-ludwigsburg.de"
+
+# contact data
+
+SEKTION = "Ludwigsburg"
+SEKTION_STREET = "Fuchshofstr. 66"
+SEKTION_TOWN = "71638 Ludwigsburg"
+SEKTION_TELEPHONE = "07141 927893"
+SEKTION_TELEFAX = "07141 924042"
+SEKTION_CONTACT_MAIL = "info@alpenverein-ludwigsburg.de"
+
+
+# mailutils
+
+HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
+PROTOCOL = os.environ.get('DJANGO_PROTOCOL', 'https')
+BASE_URL = os.environ.get('DJANGO_BASE_URL', HOST)
+
+DEFAULT_SENDING_MAIL = os.environ.get('EMAIL_SENDING_ADDRESS', 'christian@localhost')
+
+# misc
+
+CONGRATULATE_MEMBERS_MAX = 10

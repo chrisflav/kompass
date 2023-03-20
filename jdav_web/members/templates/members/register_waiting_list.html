@@ -25,7 +25,7 @@
     </table>
     <p>
     <input type="checkbox" required>
-    {% trans "I agree that my data is stored and processed on the server of the JDAV Ludwigsburg." %}</p>
+    {% blocktrans %}I agree that my data is stored and processed on the server of the JDAV {{ sektion }}.{% endblocktrans %}
     <input type="hidden" name="password" value="{{ pwd.password }}">
     <input type="hidden" name="save">
     <p><input type="submit" value="{% trans "submit" %}"/></p>

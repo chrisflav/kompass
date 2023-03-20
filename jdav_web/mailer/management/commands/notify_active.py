@@ -2,12 +2,11 @@ from django.core.management.base import BaseCommand
 from mailer.models import Message
 from members.models import Member, annotate_activity_score
 from django.db.models import Q
-from mailer.mailutils import mail_root, send
+from django.utils.translation import gettext_lazy as _
+from mailer.mailutils import send
+from django.conf import settings
 
 import re
-
-CONGRATULATE_MEMBERS_MAX = 10
-SENDING_ADDRESS = mail_root
 
 
 class Command(BaseCommand):
@@ -15,7 +14,7 @@ class Command(BaseCommand):
     requires_system_checks = False
 
     def handle(self, *args, **options):
-        qs = list(reversed(annotate_activity_score(Member.objects.all()).order_by('_activity_score')))[:CONGRATULATE_MEMBERS_MAX]
+        qs = list(reversed(annotate_activity_score(Member.objects.all()).order_by('_activity_score')))[:settings.CONGRATULATE_MEMBERS_MAX]
         for position, member in enumerate(qs):
             positiontext = "{}. ".format(position + 1) if position > 0 else ""
             score = member._activity_score
@@ -29,20 +28,11 @@ class Command(BaseCommand):
                 level = 4
             else:
                 level = 5
-            print("sent to ", member.prename)
-            content = "Hallo {}!\n\n"\
-                "Herzlichen Glückwunsch, du hast im letzten Jahr zu den {} aktivsten "\
-                "Mitgliedern der JDAV Ludwigsburg gehört! Um genau zu sein beträgt "\
-                "dein Aktivitäts Wert "\
-                "des letzten Jahres {} Punkte. Das entspricht {} Kletterer*innen. "\
-                "Damit warst du im letzten Jahr "\
-                "das {}aktivste Mitglied der JDAV Ludwigsburg.\n\n"\
-                "Auf ein weiteres aktives Jahr in der JDAV Ludwigsburg\n"\
-                "Dein*e Jugendreferent*in".format(member.prename,
-                                                  CONGRATULATE_MEMBERS_MAX,
-                                                  score,
-                                                  level,
-                                                  positiontext)
-            send("Herzlichen Glückwunsch {}".format(member.prename),
-                 content, SENDING_ADDRESS, [member.email],
-                 reply_to=["jugendreferent@jdav-ludwigsburg.de"])
+            content = settings.NOTIFY_MOST_ACTIVE_TEXT.format(name=member.prename,
+                                                     congratulate_max=CONGRATULATE_MEMBERS_MAX,
+                                                     score=score,
+                                                     level=level,
+                                                     position=positiontext)
+            send(_("Congratulation %(name)s") % { 'name': member.prename },
+                 content, settings.DEFAULT_SENDING_ADDRESS, [member.email],
+                 reply_to=[settings.RESPONSIBLE_MAIL])

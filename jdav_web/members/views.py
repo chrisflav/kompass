@@ -5,6 +5,7 @@ from django.forms import ModelForm, TextInput, DateInput
 from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy, MemberWaitingList, Group
 from django.urls import reverse
 from django.utils import timezone
+from django.conf import settings
 
 
 class MemberForm(ModelForm):
@@ -105,7 +106,8 @@ def echo(request):
 
 
 def render_register_password(request):
-    return render(request, 'members/register_password.html')
+    return render(request, 'members/register_password.html',
+                  context={'sektion': settings.SEKTION})
 
 
 def render_register_wrong_password(request):
@@ -131,6 +133,7 @@ def render_register(request, group, form=None, pwd=None, waiter_key=''):
                    'group': group,
                    'waiter_key': waiter_key,
                    'pwd': pwd,
+                   'sektion': settings.SEKTION,
                   })
 
 
@@ -225,7 +228,7 @@ def render_register_waiting_list(request, form=None):
         form = MemberRegistrationWaitingListForm()
     return render(request,
                   'members/register_waiting_list.html',
-                  {'form': form})
+                  {'form': form, 'sektion': settings.SEKTION })
 
 
 def render_register_waiting_list_success(request, membername):

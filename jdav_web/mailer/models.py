@@ -3,16 +3,13 @@ from django.core.exceptions import ValidationError
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext
-from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT, mail_root
+from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT
 from utils import RestrictedFileField
 from jdav_web.celery import app
 from django.core.validators import RegexValidator
+from django.conf import settings
 
 import os
-
-# this is the mail address that is used to send mails
-SENDING_ADDRESS = mail_root
-HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 
 alphanumeric = RegexValidator(r'^[0-9a-zA-Z]*$', _('Only alphanumeric characters are allowed'))
@@ -30,7 +27,7 @@ class EmailAddress(models.Model):
 
     @property
     def email(self):
-        return "{0}@{1}".format(self.name, HOST)
+        return "{0}@{1}".format(self.name, settings.HOST)
 
     @property
     def forwards(self):
@@ -150,16 +147,16 @@ class Message(models.Model):
         reply_to_unfiltered.extend([ml.email for ml in self.reply_to_email_address.all()])
         # remove sending address from reply-to field (probably unnecessary since it's removed by
         # the mail provider anyways)
-        reply_to = [mail for mail in reply_to_unfiltered if mail != SENDING_ADDRESS ]
+        reply_to = [mail for mail in reply_to_unfiltered if mail != settings.DEFAULT_SENDING_MAIL ]
         try:
             success1 = send(self.subject, get_content(self.content, registration_complete=False),
-                            SENDING_ADDRESS,
+                            settings.DEFAULT_SENDING_MAIL,
                             emails_rem,
                             message_id=message_id,
                             attachments=attach,
                             reply_to=reply_to)
             success2 = send(self.subject, get_content(self.content, registration_complete=True),
-                            SENDING_ADDRESS,
+                            settings.DEFAULT_SENDING_MAIL,
                             emails_no_rem,
                             message_id=message_id,
                             attachments=attach,

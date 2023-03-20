@@ -1,13 +1,10 @@
 from django.core import mail
 from django.core.mail import EmailMessage
+from django.conf import settings
 import os
 
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
-HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
-PROTOCOL = os.environ.get('DJANGO_PROTOCOL', 'https')
-BASE_URL = os.environ.get('DJANGO_BASE_URL', HOST)
-
 
 def send(subject, content, sender, recipients, message_id=None, reply_to=None,
          attachments=None):
@@ -49,16 +46,11 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
 
 def get_content(content, registration_complete=True):
     url = prepend_base_url("/newsletter/unsubscribe")
-    prepend = "WICHTIGE MITTEILUNG\n\n"\
-        "Deine Anmeldung ist aktuell nicht vollständig. Bitte fülle umgehend das"\
-        " Anmeldeformular aus und lasse es Deine*r Jugendleiter*in zukommen! Dieses"\
-        " kannst Du unter folgendem Link herunterladen:\n"\
-        "https://cloud.jdav-ludwigsburg.de/index.php/s/NQfRqA9MTKfPBkC"\
-        "\n\n****************\n\n".format(HOST)
-    text = "{}{}\n\n\n****************\n\nDiese Email wurde über die Webseite der JDAV Ludwigsburg"\
-        " verschickt. Wenn Du in Zukunft keine Emails mehr erhalten möchtest,"\
-        " kannst Du hier den Newsletter deabonnieren:\n{}"\
-        .format("" if registration_complete else prepend, content, url)
+    prepend = settings.PREPEND_INCOMPLETE_REGISTRATION_TEXT
+    footer = settings.MAIL_FOOTER.format(link=url)
+    text = "{prepend}{content}{footer}".format(prepend="" if registration_complete else prepend,
+                                                     content=content,
+                                                     footer=footer)
     return text
 
 
@@ -87,7 +79,4 @@ def get_mail_confirmation_link(key):
 
 
 def prepend_base_url(absolutelink):
-    return "{protocol}://{base}{link}".format(protocol=PROTOCOL, base=BASE_URL, link=absolutelink)
-
-
-mail_root = os.environ.get('EMAIL_SENDING_ADDRESS', 'christian@localhost')
+    return "{protocol}://{base}{link}".format(protocol=settings.PROTOCOL, base=settings.BASE_URL, link=absolutelink)

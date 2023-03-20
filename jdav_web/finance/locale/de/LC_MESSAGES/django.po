@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-17 23:19+0100\n"
+"POT-Creation-Date: 2023-03-20 18:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,12 +18,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin.py:69
+#: finance/admin.py:69
 #, python-format
 msgid "%(name)s is already submitted."
 msgstr "%(name)s ist bereits eingereicht."
 
-#: admin.py:75
+#: finance/admin.py:75
 #, python-format
 msgid ""
 "Successfully submited %(name)s. The finance department will notify the "
@@ -32,23 +32,23 @@ msgstr ""
 "Rechnung %(name)s erfolgreich eingereicht. Das Finanzreferat wird auf dich "
 "sobald wie möglich zukommen."
 
-#: admin.py:78
+#: finance/admin.py:78
 msgid "Submit statement"
 msgstr "Rechnung einreichen"
 
-#: admin.py:152
+#: finance/admin.py:152
 #, python-format
 msgid "%(name)s is not yet submitted."
 msgstr "%(name)s ist noch nicht eingereicht."
 
-#: admin.py:159
+#: finance/admin.py:159
 #, python-format
 msgid "An error occured while trying to confirm %(name)s. Please try again."
 msgstr ""
 "Beim Abwickeln von %(name)s ist ein Fehler aufgetreten. Bitte versuche es "
 "erneut."
 
-#: admin.py:163
+#: finance/admin.py:163
 #, python-format
 msgid ""
 "Successfully confirmed %(name)s. I hope you executed the associated "
@@ -57,11 +57,11 @@ msgstr ""
 "Erfolgreich %(name)s abgewickelt. Ich hoffe du hast die zugehörigen "
 "Überweisungen ausgeführt, ich werde dich nicht nochmal erinnern."
 
-#: admin.py:170
+#: finance/admin.py:170
 msgid "Statement confirmed"
 msgstr "Abrechnung abgewickelt"
 
-#: admin.py:176
+#: finance/admin.py:176
 msgid ""
 "Transactions do not match the covered expenses. Please correct the mistakes "
 "listed below."
@@ -69,19 +69,19 @@ msgstr ""
 "Überweisungen stimmen nicht mit den übernommenen Kosten überein. Bitte "
 "korrigiere die unten aufgeführten Fehler."
 
-#: admin.py:181
+#: finance/admin.py:181
 msgid "Some transactions have no ledger configured. Please fill in the gaps."
 msgstr ""
 "Manche Überweisungen haben kein Geldtopf eingestellt. Bitte trage das nach."
 
-#: admin.py:190
+#: finance/admin.py:190
 #, python-format
 msgid "Successfully rejected %(name)s. The requestor can reapply, when needed."
 msgstr ""
 "Die Rechnung %(name)s wurde abgelehnt. Die Person kann die Rechnung erneut "
 "einstellen, wenn es benötigt wird."
 
-#: admin.py:197
+#: finance/admin.py:197
 #, python-format
 msgid ""
 "%(name)s already has transactions. Please delete them first, if you want to "
@@ -90,194 +90,198 @@ msgstr ""
 "%(name)s hat bereits Überweisungen. Bitte lösche diese zunächst, bevor du "
 "neue generierst."
 
-#: admin.py:201
+#: finance/admin.py:201
 #, python-format
 msgid "Successfully generated transactions for %(name)s"
 msgstr "Automatisch Überweisungsträger für %(name)s generiert."
 
-#: admin.py:204
+#: finance/admin.py:204
 msgid "View submitted statement"
 msgstr "Eingereichte Abrechnung einsehen"
 
-#: admin.py:230
+#: finance/admin.py:230
 #, python-format
 msgid "Successfully reduced transactions for %(name)s."
 msgstr "Überweisungsträger für %(name)s minimiert."
 
-#: apps.py:8
+#: finance/apps.py:8
 msgid "Finance"
 msgstr "Finanzen"
 
-#: models.py:13
+#: finance/models.py:13
 msgid "Name"
 msgstr "Name"
 
-#: models.py:19 models.py:352 models.py:376
-#: templates/admin/confirmed_statement.html:38
-#: templates/admin/overview_submitted_statement.html:100
+#: finance/models.py:19 finance/models.py:372 finance/models.py:396
+#: finance/templates/admin/confirmed_statement.html:38
+#: finance/templates/admin/overview_submitted_statement.html:100
 msgid "Ledger"
 msgstr "Geldtopf"
 
-#: models.py:20
+#: finance/models.py:20
 msgid "Ledgers"
 msgstr "Geldtöpfe"
 
-#: models.py:42 models.py:323 models.py:375
+#: finance/models.py:42 finance/models.py:343 finance/models.py:395
 msgid "Short description"
 msgstr "Kurzbeschreibung"
 
-#: models.py:45 models.py:324
+#: finance/models.py:45 finance/models.py:344
 msgid "Explanation"
 msgstr "Erklärung"
 
-#: models.py:47
+#: finance/models.py:47
 msgid "Associated excursion"
 msgstr "Zugehörige Freizeit"
 
-#: models.py:52
+#: finance/models.py:52
 msgid "Price per night"
 msgstr "Preis pro Nacht"
 
-#: models.py:54
+#: finance/models.py:54
 msgid "Submitted"
 msgstr "Eingericht"
 
-#: models.py:55
+#: finance/models.py:55
 msgid "Submitted on"
 msgstr "Eingereicht am"
 
-#: models.py:56
+#: finance/models.py:56
 msgid "Confirmed"
 msgstr "Abgewickelt"
 
-#: models.py:57 models.py:359
+#: finance/models.py:57 finance/models.py:379
 msgid "Paid on"
 msgstr "Bezahlt am"
 
-#: models.py:59
+#: finance/models.py:59
 msgid "Submitted by"
 msgstr "Eingereicht bei"
 
-#: models.py:64 models.py:360
+#: finance/models.py:64 finance/models.py:380
 msgid "Authorized by"
 msgstr "Autorisiert von"
 
-#: models.py:71 models.py:322 models.py:355
+#: finance/models.py:71 finance/models.py:342 finance/models.py:375
 msgid "Statement"
 msgstr "Abrechnung"
 
-#: models.py:72
+#: finance/models.py:72
 msgid "Statements"
 msgstr "Abrechnungen"
 
-#: models.py:77
+#: finance/models.py:77
 #, python-format
 msgid "Statement: %(excursion)s"
 msgstr "Abrechnung: %(excursion)s"
 
-#: models.py:123
+#: finance/models.py:123
 msgid "Ready to confirm"
 msgstr "Bereit zur Abwicklung"
 
-#: models.py:162
+#: finance/models.py:162
 #, python-format
 msgid "Compensation for %(excu)s"
 msgstr "Entschädigung für %(excu)s"
 
-#: models.py:274 templates/admin/overview_submitted_statement.html:78
+#: finance/models.py:294
+#: finance/templates/admin/overview_submitted_statement.html:78
 msgid "Total"
 msgstr "Gesamtbetrag"
 
-#: models.py:287
+#: finance/models.py:307
 msgid "Statement in preparation"
 msgstr "Abrechnung in Vorbereitung"
 
-#: models.py:288
+#: finance/models.py:308
 msgid "Statements in preparation"
 msgstr "Abrechnungen in Vorbereitung"
 
-#: models.py:301
+#: finance/models.py:321
 msgid "Submitted statement"
 msgstr "Eingereichte Abrechnung"
 
-#: models.py:302
+#: finance/models.py:322
 msgid "Submitted statements"
 msgstr "Eingereichte Abrechnungen"
 
-#: models.py:316
+#: finance/models.py:336
 msgid "Paid statement"
 msgstr "Bezahlte Abrechnung"
 
-#: models.py:317
+#: finance/models.py:337
 msgid "Paid statements"
 msgstr "Bezahlte Abrechnungen"
 
-#: models.py:327
+#: finance/models.py:347
 msgid "Paid by"
 msgstr "Bezahlt von"
 
-#: models.py:329
+#: finance/models.py:349
 msgid "Covered"
 msgstr "Übernommen"
 
-#: models.py:330
+#: finance/models.py:350
 msgid "Refunded"
 msgstr "Ausgezahlt"
 
-#: models.py:332
+#: finance/models.py:352
 msgid "Proof"
 msgstr "Beleg"
 
-#: models.py:340 models.py:349 templates/admin/confirmed_statement.html:36
-#: templates/admin/overview_submitted_statement.html:31
-#: templates/admin/overview_submitted_statement.html:98
+#: finance/models.py:360 finance/models.py:369
+#: finance/templates/admin/confirmed_statement.html:36
+#: finance/templates/admin/overview_submitted_statement.html:31
+#: finance/templates/admin/overview_submitted_statement.html:98
 msgid "Amount"
 msgstr "Betrag"
 
-#: models.py:343
+#: finance/models.py:363
 msgid "Bill"
 msgstr "Quittung"
 
-#: models.py:344 templates/admin/overview_submitted_statement.html:26
+#: finance/models.py:364
+#: finance/templates/admin/overview_submitted_statement.html:26
 msgid "Bills"
 msgstr "Quittungen"
 
-#: models.py:348 templates/admin/confirmed_statement.html:37
-#: templates/admin/overview_submitted_statement.html:99
+#: finance/models.py:368 finance/templates/admin/confirmed_statement.html:37
+#: finance/templates/admin/overview_submitted_statement.html:99
 msgid "Reference"
 msgstr "Verwendungszweck"
 
-#: models.py:350
+#: finance/models.py:370
 msgid "Recipient"
 msgstr "Empfänger"
 
-#: models.py:358
+#: finance/models.py:378
 msgid "Paid"
 msgstr "Bezahlt"
 
-#: models.py:370
+#: finance/models.py:390
 msgid "Transaction"
 msgstr "Überweisung"
 
-#: models.py:371 templates/admin/overview_submitted_statement.html:84
+#: finance/models.py:391
+#: finance/templates/admin/overview_submitted_statement.html:84
 msgid "Transactions"
 msgstr "Überweisungen"
 
-#: templates/admin/confirmed_statement.html:17
-#: templates/admin/overview_submitted_statement.html:17
-#: templates/admin/submit_statement.html:17
+#: finance/templates/admin/confirmed_statement.html:17
+#: finance/templates/admin/overview_submitted_statement.html:17
+#: finance/templates/admin/submit_statement.html:17
 msgid "Home"
 msgstr "Start"
 
-#: templates/admin/confirmed_statement.html:21
+#: finance/templates/admin/confirmed_statement.html:21
 msgid "Paiment"
 msgstr "Bezahlung"
 
-#: templates/admin/confirmed_statement.html:26
+#: finance/templates/admin/confirmed_statement.html:26
 msgid "Paying statement"
 msgstr "Rechnung bezahlen"
 
-#: templates/admin/confirmed_statement.html:29
+#: finance/templates/admin/confirmed_statement.html:29
 msgid ""
 "The statement is valid. Please execute the following transactions and then "
 "proceed by finalizing the confirmation."
@@ -285,43 +289,43 @@ msgstr ""
 "Die Abrechnung ist gültig. Bitte führe die folgenden Überweisungen aus und "
 "fahre dann fort, indem du die Abwicklung bestätigst."
 
-#: templates/admin/confirmed_statement.html:35
+#: finance/templates/admin/confirmed_statement.html:35
 msgid "IBAN"
 msgstr "IBAN"
 
-#: templates/admin/confirmed_statement.html:66
+#: finance/templates/admin/confirmed_statement.html:66
 msgid "I did execute the listed transactions."
 msgstr "Ich habe die aufgeführten Überweisungen ausgeführt."
 
-#: templates/admin/confirmed_statement.html:68
+#: finance/templates/admin/confirmed_statement.html:68
 msgid "Confirm"
 msgstr "Bestätigen"
 
-#: templates/admin/overview_submitted_statement.html:21
+#: finance/templates/admin/overview_submitted_statement.html:21
 msgid "Overview"
 msgstr "Übersicht"
 
-#: templates/admin/overview_submitted_statement.html:32
+#: finance/templates/admin/overview_submitted_statement.html:32
 msgid "Covered by association"
 msgstr "Vom Verein übernommen"
 
-#: templates/admin/overview_submitted_statement.html:50
+#: finance/templates/admin/overview_submitted_statement.html:50
 #, python-format
 msgid "The total amount is %(total_bills)s €."
 msgstr "Der Gesamtbetrag beträgt %(total_bills)s €."
 
-#: templates/admin/overview_submitted_statement.html:54
+#: finance/templates/admin/overview_submitted_statement.html:54
 msgid "Excursion"
 msgstr "Freizeit"
 
-#: templates/admin/overview_submitted_statement.html:57
+#: finance/templates/admin/overview_submitted_statement.html:57
 #, python-format
 msgid "This excursion featured %(staff_count)s youth leader(s), each costing"
 msgstr ""
 "Diese Freizeit hatte %(staff_count)s Jugendleiter:innen. Auf jede:n "
 "entfallen die folgenden Kosten:"
 
-#: templates/admin/overview_submitted_statement.html:62
+#: finance/templates/admin/overview_submitted_statement.html:62
 #, python-format
 msgid ""
 "%(nights)s nights for %(price_per_night)s€ per night making a total of "
@@ -330,7 +334,7 @@ msgstr ""
 "%(nights)s Nächte zum Preis von %(price_per_night)s€ pro Nacht. Das ergibt "
 "eine Gesamtsumme von %(nights_per_yl)s€."
 
-#: templates/admin/overview_submitted_statement.html:65
+#: finance/templates/admin/overview_submitted_statement.html:65
 #, python-format
 msgid ""
 "%(duration)s days for %(allowance_per_day)s€ per day making a total of "
@@ -339,7 +343,7 @@ msgstr ""
 "%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
 "Gesamtsumme von %(allowance_per_yl)s€."
 
-#: templates/admin/overview_submitted_statement.html:68
+#: finance/templates/admin/overview_submitted_statement.html:68
 #, python-format
 msgid ""
 "%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
@@ -348,7 +352,7 @@ msgstr ""
 "%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
 "km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
 
-#: templates/admin/overview_submitted_statement.html:73
+#: finance/templates/admin/overview_submitted_statement.html:73
 #, python-format
 msgid ""
 "In total this is %(total_per_yl)s€ times %(staff_count)s, giving "
@@ -357,12 +361,12 @@ msgstr ""
 "Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
 "insgesamt also %(total_staff)s€."
 
-#: templates/admin/overview_submitted_statement.html:81
+#: finance/templates/admin/overview_submitted_statement.html:81
 #, python-format
 msgid "This results in a total amount of %(total)s€"
 msgstr "Das resultiert in einem Gesamtbetrag von %(total)s€"
 
-#: templates/admin/overview_submitted_statement.html:87
+#: finance/templates/admin/overview_submitted_statement.html:87
 msgid ""
 "Currently, no transactions are planned. You can auto generate them from the "
 "data, by clicking the following button."
@@ -370,19 +374,19 @@ msgstr ""
 "Aktuell sind keine Überweisungen vorgesehen. Du kannst die erforderlichen "
 "durch Klicken auf den folgenden Knopf generieren."
 
-#: templates/admin/overview_submitted_statement.html:90
+#: finance/templates/admin/overview_submitted_statement.html:90
 msgid "Generate transactions"
 msgstr "Erzeuge Überweisungsträger"
 
-#: templates/admin/overview_submitted_statement.html:94
+#: finance/templates/admin/overview_submitted_statement.html:94
 msgid "Currently the following transactions are planned."
 msgstr "Aktuell sind die folgenden Überweisungen vorgesehen."
 
-#: templates/admin/overview_submitted_statement.html:137
+#: finance/templates/admin/overview_submitted_statement.html:137
 msgid "These transactions match the calculated costs."
 msgstr "Diese Überweisungen stimmen mit den berechneten Kosten überein."
 
-#: templates/admin/overview_submitted_statement.html:140
+#: finance/templates/admin/overview_submitted_statement.html:140
 msgid ""
 "The current transactions do not reflect all costs in this statement. Please "
 "fix the following issues:"
@@ -390,41 +394,41 @@ msgstr ""
 "Die aktuell vorgesehenen Überweisungen stimmen nicht mit den berechneten "
 "Kosten überein. Bitte korrigiere die folgenden Fehler:"
 
-#: templates/admin/overview_submitted_statement.html:145
+#: finance/templates/admin/overview_submitted_statement.html:145
 msgid "Currently receiving"
 msgstr "Erhält aktuell"
 
-#: templates/admin/overview_submitted_statement.html:146
+#: finance/templates/admin/overview_submitted_statement.html:146
 msgid "Actual costs"
 msgstr "Tatsächliche Kosten"
 
-#: templates/admin/overview_submitted_statement.html:147
+#: finance/templates/admin/overview_submitted_statement.html:147
 msgid "Difference"
 msgstr "Differenz"
 
-#: templates/admin/overview_submitted_statement.html:174
+#: finance/templates/admin/overview_submitted_statement.html:174
 msgid "Accept"
 msgstr "Annehmen"
 
-#: templates/admin/overview_submitted_statement.html:175
+#: finance/templates/admin/overview_submitted_statement.html:175
 msgid "Reject"
 msgstr "Ablehnen"
 
-#: templates/admin/overview_submitted_statement.html:178
-#: templates/admin/submit_statement.html:35
+#: finance/templates/admin/overview_submitted_statement.html:178
+#: finance/templates/admin/submit_statement.html:35
 msgid "Cancel"
 msgstr "Abbruch"
 
-#: templates/admin/submit_statement.html:21
-#: templates/admin/submit_statement.html:34
+#: finance/templates/admin/submit_statement.html:21
+#: finance/templates/admin/submit_statement.html:34
 msgid "Submit"
 msgstr "Einreichen"
 
-#: templates/admin/submit_statement.html:26
+#: finance/templates/admin/submit_statement.html:26
 msgid "Submit to the finance department"
 msgstr "Beim Finanzreferat einreichen"
 
-#: templates/admin/submit_statement.html:28
+#: finance/templates/admin/submit_statement.html:28
 msgid ""
 "Do you want to submit the statement for further processing by the finance "
 "department? If you proceed, no further changes to the statement are possible."

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-01-12 17:38+0100\n"
+"POT-Creation-Date: 2023-03-20 18:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,6 +37,11 @@ msgstr "Email wurde erfolgreich verschickt"
 #: mailer/apps.py:7
 msgid "mailer"
 msgstr "Verteiler"
+
+#: mailer/management/commands/notify_active.py:38
+#, python-format
+msgid "Congratulation %(name)s"
+msgstr "Herzlichen Glückwunsch %(name)s"
 
 #: mailer/models.py:18
 msgid "Only alphanumeric characters are allowed"
@@ -112,26 +117,26 @@ msgstr "Andere Teilnehmer"
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:168
+#: mailer/models.py:182
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:169
+#: mailer/models.py:183
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:171
+#: mailer/models.py:185
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py:187
+#: mailer/models.py:201
 msgid ""
 "Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmerliste oder mindestens ein "
 "Teilnehmer als Empfänger ausgewählt werden."
 
-#: mailer/models.py:192
+#: mailer/models.py:206
 msgid ""
 "At least one reply-to recipient is required. Use the info mail if you really "
 "want no reply-to recipient."
@@ -139,19 +144,19 @@ msgstr ""
 "Es muss mindestens ein Antwort-An Empfänger angegeben werden. Nutze die info "
 "Email-Adresse falls du wirklich keinen Antwort-An Empfänger haben möchtest."
 
-#: mailer/models.py:199
+#: mailer/models.py:213
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py:205
+#: mailer/models.py:219
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py:208
+#: mailer/models.py:222
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py:209
+#: mailer/models.py:223
 msgid "attachments"
 msgstr "Anhänge"
 
@@ -232,7 +237,7 @@ msgstr "Vorname"
 msgid "Lastname"
 msgstr "Nachname"
 
-#: mailer/templates/mailer/subscribe.html:26 mailer/views.py:61
+#: mailer/templates/mailer/subscribe.html:26 mailer/views.py:59
 msgid "Birthdate"
 msgstr "Geburtsdatum"
 
@@ -265,31 +270,14 @@ msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"
 
-#: mailer/views.py:84
+#: mailer/views.py:49
+msgid "Unsubscription confirmation"
+msgstr "Abmeldebestätigung"
+
+#: mailer/views.py:82
 msgid "Please fill in every field!"
 msgstr "Bitte jedes Feld ausfüllen!"
 
-#: mailer/views.py:91
+#: mailer/views.py:89
 msgid "Member already exists"
 msgstr "Mitglied schon vorhanden"
-
-#~ msgid "reply to"
-#~ msgstr "Antwort an"
-
-#~ msgid "Message sent"
-#~ msgstr "Nachricht gesendet"
-
-#~ msgid "from email"
-#~ msgstr "Von Email"
-
-#~ msgid "Confirmation of unsubscription"
-#~ msgstr "Abmeldebestätigung"
-
-#~ msgid ""
-#~ "Click the link to unsubscribe to the newsletter of the JDAV\n"
-#~ "{}"
-#~ msgstr ""
-#~ "Klicke auf den Link um dich von Newsletter des JDAV Ludwigsburg abzumelden"
-
-#~ msgid "History"
-#~ msgstr "Geschichte"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-18 13:25+0100\n"
+"POT-Creation-Date: 2023-03-20 18:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,602 +18,613 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin.py:41 models.py:175
+#: members/admin.py:42 members/models.py:175
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
-#: admin.py:47
+#: members/admin.py:48
 msgid "True"
 msgstr "Ja"
 
-#: admin.py:48
+#: members/admin.py:49
 msgid "False"
 msgstr "Nein"
 
-#: admin.py:49
+#: members/admin.py:50
 msgid "All"
 msgstr "Alle"
 
-#: admin.py:123
+#: members/admin.py:124
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer verfassen"
 
-#: admin.py:148
+#: members/admin.py:130
+msgid "Echo required"
+msgstr "Rückmeldung erforderlich"
+
+#: members/admin.py:135
 msgid "Successfully requested echo from selected members."
 msgstr ""
 "Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer verschickt."
 
-#: admin.py:149
+#: members/admin.py:136
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer verschicken"
 
-#: admin.py:166
+#: members/admin.py:153
 msgid "activity"
 msgstr "Aktivität"
 
-#: admin.py:195
+#: members/admin.py:182
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 
-#: admin.py:196
+#: members/admin.py:183
 msgid "Request mail confirmation from selected registrations"
 msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
 
-#: admin.py:203 admin.py:241
+#: members/admin.py:190 members/admin.py:228
 #, python-format
 msgid "Successfully confirmed %(name)s."
 msgstr "Registrierung von %(name)s erfolgreich bestätigt."
 
-#: admin.py:207 admin.py:244
+#: members/admin.py:194 members/admin.py:231
 #, python-format
 msgid "Can't confirm. %(name)s has unconfirmed email addresses."
 msgstr "Bestätigung nicht möglich. %(name)s hat unbestätigte Emailadressen."
 
-#: admin.py:212
+#: members/admin.py:199
 msgid "Successfully confirmed multiple registrations."
 msgstr "Erfolgreich mehrere Registrierungen bestätigt."
 
-#: admin.py:214
+#: members/admin.py:201
 msgid ""
 "Failed to confirm some registrations because of unconfirmed email addresses."
 msgstr ""
 "Einige Bestätigungen fehlgeschlagen, weil Emailadressen noch nicht bestätigt "
 "sind."
 
-#: admin.py:215
+#: members/admin.py:202
 msgid "Confirm selected registrations"
 msgstr "Ausgewählte Registrierungen bestätigen"
 
-#: admin.py:235
+#: members/admin.py:222
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
 
-#: admin.py:236
+#: members/admin.py:223
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
-#: admin.py:251 models.py:270 models.py:690
+#: members/admin.py:238 members/models.py:270 members/models.py:690
 msgid "Group"
 msgstr "Gruppe"
 
-#: admin.py:271
+#: members/admin.py:258
 #, python-format
 msgid "Successfully asked %(name)s to confirm their waiting status."
 msgstr "Erfolgreich %(name)s aufgefordert den Wartelistenplatz zu bestätigen."
 
-#: admin.py:272
+#: members/admin.py:259
 msgid "Ask selected waiters to confirm their waiting status"
 msgstr "Wartende auffordern den Wartelistenplatz zu bestätigen"
 
-#: admin.py:281 admin.py:337
+#: members/admin.py:268 members/admin.py:324
 msgid ""
 "An error occurred while trying to invite said members. Please try again."
 msgstr ""
 "Beim Einladen dieser Personen ist ein Fehler aufgetreten. Bitte versuche es "
 "nochmal. "
 
-#: admin.py:289 admin.py:344
+#: members/admin.py:276 members/admin.py:331
 #, python-format
 msgid "Successfully invited %(name)s to %(group)s."
 msgstr "Erfolgreich %(name)s zu Gruppe %(group)s eingeladen."
 
-#: admin.py:293 admin.py:349
+#: members/admin.py:280 members/admin.py:336
 msgid "Select group for invitation"
 msgstr "Wähle Gruppe für Einladung aus"
 
-#: admin.py:300
+#: members/admin.py:287
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
 
-#: admin.py:388
+#: members/admin.py:375
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: admin.py:391
+#: members/admin.py:378
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: admin.py:394 models.py:551
+#: members/admin.py:381 members/models.py:551
 msgid "Means of transportation"
 msgstr "Verkehrsmittel"
 
-#: admin.py:617
+#: members/admin.py:605
 msgid "Generate crisis intervention list"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: admin.py:624
+#: members/admin.py:612
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: admin.py:631
+#: members/admin.py:619
 msgid "Generate seminar report"
 msgstr "Seminarbericht erstellen"
 
-#: apps.py:7 models.py:274
+#: members/apps.py:7 members/models.py:274
 msgid "members"
 msgstr "Teilnehmer"
 
-#: models.py:35
+#: members/models.py:35
 msgid "Name"
 msgstr "Name"
 
-#: models.py:36
+#: members/models.py:36
 msgid "Description"
 msgstr "Beschreibung"
 
-#: models.py:42 models.py:432 models.py:531
-#: templates/members/change_member.html:17
+#: members/models.py:42 members/models.py:432 members/models.py:531
+#: members/templates/members/change_member.html:17
 msgid "Activity"
 msgstr "Aktivität"
 
-#: models.py:43
+#: members/models.py:43
 msgid "Activities"
 msgstr "Aktivitäten"
 
-#: models.py:51
+#: members/models.py:51
 msgid "name"
 msgstr "Name"
 
-#: models.py:52
+#: members/models.py:52
 msgid "lowest year"
 msgstr "Ab Jahrgang"
 
-#: models.py:53
+#: members/models.py:53
 msgid "highest year"
 msgstr "Bis Jahrgang"
 
-#: models.py:54
+#: members/models.py:54
 msgid "youth leaders"
 msgstr "Jugendleiter"
 
-#: models.py:62 models.py:166
+#: members/models.py:62 members/models.py:166
 msgid "group"
 msgstr "Gruppe"
 
-#: models.py:63
+#: members/models.py:63
 msgid "groups"
 msgstr "Gruppen"
 
-#: models.py:75
+#: members/models.py:75
 msgid "prename"
 msgstr "Vorname"
 
-#: models.py:76
+#: members/models.py:76
 msgid "last name"
 msgstr "Nachname"
 
-#: models.py:79
+#: members/models.py:79
 msgid "Parents' Email"
 msgstr "Email der Eltern"
 
-#: models.py:80
+#: members/models.py:80
 msgid "Also send mails to parents"
 msgstr "Emails auch an Eltern schicken"
 
-#: models.py:82
+#: members/models.py:82
 msgid "birth date"
 msgstr "Geburtsdatum"
 
-#: models.py:84
+#: members/models.py:84
 msgid "comments"
 msgstr "Kommentare"
 
-#: models.py:86
+#: members/models.py:86
 msgid "Email confirmed"
 msgstr "Emailadresse bestätigt"
 
-#: models.py:87
+#: members/models.py:87
 msgid "Parents email confirmed"
 msgstr "Emailadresse der Eltern bestätigt"
 
-#: models.py:115 models.py:124
+#: members/models.py:115 members/models.py:124
 msgid "Email confirmation needed"
 msgstr "Email Bestätigung erforderlich"
 
-#: models.py:159
+#: members/models.py:159
 msgid "street and house number"
 msgstr "Straße und Hausnummer"
 
-#: models.py:160
+#: members/models.py:160
 msgid "Postcode"
 msgstr "PLZ"
 
-#: models.py:162
+#: members/models.py:162
 msgid "town"
 msgstr "Stadt"
 
-#: models.py:164
+#: members/models.py:164
 msgid "phone number"
 msgstr "Telefonnummer"
 
-#: models.py:165
+#: members/models.py:165
 msgid "parents phone number"
 msgstr "Telefonnummer der Eltern"
 
-#: models.py:170
+#: members/models.py:170
 msgid "receives newsletter"
 msgstr "Erhält den Newsletter"
 
-#: models.py:174
+#: members/models.py:174
 msgid "created"
 msgstr "erstellt"
 
-#: models.py:176
+#: members/models.py:176
 msgid "Active"
 msgstr "Aktiv"
 
-#: models.py:178
+#: members/models.py:178
 msgid "registration form"
 msgstr "Anmeldeformular"
 
-#: models.py:188
+#: members/models.py:188
 msgid "Echoed"
 msgstr "Rückgemeldet"
 
-#: models.py:189
+#: members/models.py:189
 msgid "Confirmed"
 msgstr "Bestätigt"
 
-#: models.py:273
+#: members/models.py:273
 msgid "member"
 msgstr "Teilnehmer"
 
-#: models.py:305
+#: members/models.py:305
 #, python-format
 msgid "New unconfirmed registration for group %(group)s"
 msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 
-#: models.py:323
+#: members/models.py:323
 msgid "Unconfirmed registration"
 msgstr "Unbestätigte Registrierung"
 
-#: models.py:324
+#: members/models.py:324
 msgid "Unconfirmed registrations"
 msgstr "Unbestätigte Registrierungen"
 
-#: models.py:340
+#: members/models.py:340
 msgid "Last wait confirmation"
 msgstr "Letzte Wartebestätigung"
 
-#: models.py:351
+#: members/models.py:351
 msgid "Invited for group"
 msgstr "Einladung zu Gruppe austehend"
 
-#: models.py:355
+#: members/models.py:355
 msgid "Waiter"
 msgstr "Wartende Person"
 
-#: models.py:356
+#: members/models.py:356
 msgid "Waiters"
 msgstr "Warteliste"
 
-#: models.py:373
+#: members/models.py:373
 msgid "Waiting status confirmed"
 msgstr "Wartelistenplatz bestätigt"
 
-#: models.py:377
+#: members/models.py:377
 msgid "Waiting confirmation needed"
 msgstr "Wartelistenplatzbestätigung erforderlich"
 
-#: models.py:434 models.py:533
+#: members/models.py:418
+msgid "Good news"
+msgstr "Gute Neuigkeiten"
+
+#: members/models.py:434 members/models.py:533
 msgid "Place"
 msgstr "Ort"
 
-#: models.py:435 models.py:534
+#: members/models.py:435 members/models.py:534
 msgid "Destination (optional)"
 msgstr "Ziel (optional)"
 
-#: models.py:437 models.py:668 models.py:686
+#: members/models.py:437 members/models.py:668 members/models.py:686
 msgid "Date"
 msgstr "Datum"
 
-#: models.py:438 models.py:537
+#: members/models.py:438 members/models.py:537
 msgid "End (optional)"
 msgstr "Ende"
 
-#: models.py:440 models.py:539
+#: members/models.py:440 members/models.py:539
 msgid "Groups"
 msgstr "Gruppen"
 
-#: models.py:448 models.py:555
+#: members/models.py:448 members/models.py:555
 msgid "Categories"
 msgstr "Kategorien"
 
-#: models.py:449 models.py:556
+#: members/models.py:449 members/models.py:556
 msgid "easy"
 msgstr "leicht"
 
-#: models.py:449 models.py:556
+#: members/models.py:449 members/models.py:556
 msgid "medium"
 msgstr "mittel"
 
-#: models.py:449 models.py:556
+#: members/models.py:449 members/models.py:556
 msgid "hard"
 msgstr "schwer"
 
-#: models.py:458
+#: members/models.py:458
 msgid "Memberlist"
 msgstr "Teilnehmerliste"
 
-#: models.py:459
+#: members/models.py:459
 msgid "Memberlists"
 msgstr "Teilnehmerlisten"
 
-#: models.py:477 models.py:485 models.py:493 models.py:504 models.py:721
-#: models.py:728
+#: members/models.py:477 members/models.py:485 members/models.py:493
+#: members/models.py:504 members/models.py:721 members/models.py:728
 msgid "Member"
 msgstr "Teilnehmer"
 
-#: models.py:479 models.py:498
+#: members/models.py:479 members/models.py:498
 msgid "Comment"
 msgstr "Kommentar"
 
-#: models.py:486 models.py:505 models.py:729
+#: members/models.py:486 members/models.py:505 members/models.py:729
 msgid "Members"
 msgstr "Teilnehmer"
 
-#: models.py:536
+#: members/models.py:536
 msgid "Begin"
 msgstr "Anfang"
 
-#: models.py:552
+#: members/models.py:552
 msgid "Kilometers traveled"
 msgstr "Fahrstrecke in Kilometer"
 
-#: models.py:667 models.py:743
+#: members/models.py:667 members/models.py:743
 msgid "Title"
 msgstr "Titel"
 
-#: models.py:687
+#: members/models.py:687
 msgid "Location"
 msgstr "Ort"
 
-#: models.py:688
+#: members/models.py:688
 msgid "Topic"
 msgstr "Thema"
 
-#: models.py:712
+#: members/models.py:712
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: models.py:715
+#: members/models.py:715
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: models.py:716
+#: members/models.py:716
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 
-#: models.py:734
+#: members/models.py:734
 msgid "Password"
 msgstr "Passwort"
 
-#: models.py:737
+#: members/models.py:737
 msgid "registration password"
 msgstr "Registrierungspassort"
 
-#: models.py:738
+#: members/models.py:738
 msgid "registration passwords"
 msgstr "Registrierungspasswörter"
 
-#: models.py:745
+#: members/models.py:745
 msgid "Alpinistic goals"
 msgstr "Alpintechnische Ziele"
 
-#: models.py:746
+#: members/models.py:746
 msgid "Pedagogic goals"
 msgstr "Pädagogische Ziele"
 
-#: models.py:747
+#: members/models.py:747
 msgid "Content and methods"
 msgstr "Inhalte und Methoden"
 
-#: models.py:748
+#: members/models.py:748
 msgid "Evaluation"
 msgstr "Wertung"
 
-#: models.py:749
+#: members/models.py:749
 msgid "Experiences and possible improvements"
 msgstr "Erfahrungen und Verbesserungsvorschläge"
 
-#: models.py:752
+#: members/models.py:752
 msgid "Excursion"
 msgstr "Freizeit"
 
-#: models.py:758 models.py:773
+#: members/models.py:758 members/models.py:773
 msgid "LJP Proposal"
 msgstr "Seminarbericht"
 
-#: models.py:759
+#: members/models.py:759
 msgid "LJP Proposals"
 msgstr "Seminarberichte"
 
-#: models.py:766
+#: members/models.py:766
 msgid "Starting time"
 msgstr "Zeitpunkt"
 
-#: models.py:767
+#: members/models.py:767
 msgid "Duration in hours"
 msgstr "Dauer in Stunden"
 
-#: models.py:770
+#: members/models.py:770
 msgid "Activity and method"
 msgstr "Art der Aktion inkl. Methode"
 
-#: models.py:778
+#: members/models.py:778
 msgid "Intervention"
 msgstr "Aktion"
 
-#: models.py:779
+#: members/models.py:779
 msgid "Interventions"
 msgstr "Aktionen"
 
-#: templates/admin/invite_for_group.html:17
-#: templates/admin/invite_selected_for_group.html:17
+#: members/templates/admin/invite_for_group.html:17
+#: members/templates/admin/invite_selected_for_group.html:17
 msgid "Home"
 msgstr "Start"
 
-#: templates/admin/invite_for_group.html:21
+#: members/templates/admin/invite_for_group.html:21
 msgid "Invite to group"
 msgstr "Zu Gruppe einladen"
 
-#: templates/admin/invite_for_group.html:26
-#: templates/admin/invite_selected_for_group.html:25
+#: members/templates/admin/invite_for_group.html:26
+#: members/templates/admin/invite_selected_for_group.html:25
 msgid "Invite to a group"
 msgstr "Zu einer Gruppe einladen"
 
-#: templates/admin/invite_for_group.html:28
+#: members/templates/admin/invite_for_group.html:28
 msgid "You are inviting:"
 msgstr "Du lädst die folgende Person ein:"
 
-#: templates/admin/invite_for_group.html:39
+#: members/templates/admin/invite_for_group.html:39
 #, python-format
 msgid "Please choose the group that you want to invite %(waiter)s to."
 msgstr "Bitte wähle die Gruppe aus zu der du %(waiter)s einladen möchtest."
 
-#: templates/admin/invite_for_group.html:51
-#: templates/admin/invite_selected_for_group.html:52
+#: members/templates/admin/invite_for_group.html:51
+#: members/templates/admin/invite_selected_for_group.html:52
 msgid "Invite"
 msgstr "Einladen"
 
-#: templates/admin/invite_for_group.html:52
-#: templates/admin/invite_selected_for_group.html:53
+#: members/templates/admin/invite_for_group.html:52
+#: members/templates/admin/invite_selected_for_group.html:53
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: templates/admin/invite_selected_for_group.html:20
+#: members/templates/admin/invite_selected_for_group.html:20
 msgid "Invite multiple waiters"
 msgstr "Mehrere Wartende einladen"
 
-#: templates/admin/invite_selected_for_group.html:27
+#: members/templates/admin/invite_selected_for_group.html:27
 msgid "You selected the following waiters:"
 msgstr "Du hast die folgenden Wartenden ausgewählt:"
 
-#: templates/admin/invite_selected_for_group.html:40
+#: members/templates/admin/invite_selected_for_group.html:40
 msgid "Please choose the group you want these waiters to be invited for."
 msgstr ""
 "Bitte wähle die Gruppe aus zu der du die obigen Wartenden einladen möchtest."
 
-#: templates/admin/klettertreff_overview.html:9
+#: members/templates/admin/klettertreff_overview.html:9
 msgid "date"
 msgstr "Datum"
 
-#: templates/members/change_member.html:6
+#: members/templates/members/change_member.html:6
 msgid "Participations:"
 msgstr "Freizeitteilnahmen:"
 
-#: templates/members/change_member.html:14
+#: members/templates/members/change_member.html:14
 msgid "Qualities:"
 msgstr "Fähigkeiten:"
 
-#: templates/members/change_member.html:18
+#: members/templates/members/change_member.html:18
 msgid "Skill level"
 msgstr "Fähigkeitsniveau"
 
-#: templates/members/change_member_unconfirmed.html:11
+#: members/templates/members/change_member_unconfirmed.html:11
 msgid "Save and confirm registration"
 msgstr "Speichern und Registrierung bestätigen"
 
-#: templates/members/echo.html:6 templates/members/echo.html:13
-#: templates/members/echo_failed.html:11 templates/members/echo_success.html:10
+#: members/templates/members/echo.html:6 members/templates/members/echo.html:13
+#: members/templates/members/echo_failed.html:11
+#: members/templates/members/echo_success.html:10
 msgid "Echo"
 msgstr "Rückmeldung"
 
-#: templates/members/echo.html:15
+#: members/templates/members/echo.html:15
 msgid "Thanks for echoing back. Here is your current data:"
 msgstr ""
 "Vielen Dank, dass du dich rückmeldest. Hier siehst du deine aktuellen Daten. "
 "Falls sich etwas geändert hat, trage das bitte hier ein."
 
-#: templates/members/echo.html:27 templates/members/register.html:34
-#: templates/members/register_password.html:22
-#: templates/members/register_waiting_list.html:31
+#: members/templates/members/echo.html:27
+#: members/templates/members/register.html:35
+#: members/templates/members/register_password.html:22
+#: members/templates/members/register_waiting_list.html:31
 msgid "submit"
 msgstr "Bestätigen"
 
-#: templates/members/echo_failed.html:6
+#: members/templates/members/echo_failed.html:6
 msgid "Echo failed"
 msgstr "Rückmeldung fehlgeschlagen"
 
-#: templates/members/echo_failed.html:13
-#: templates/members/invited_registration_failed.html:13
+#: members/templates/members/echo_failed.html:13
+#: members/templates/members/invited_registration_failed.html:13
 msgid "Something went wrong. The key you supplied is"
 msgstr "Etwas ist schief gegangen. Der verwendete Code ist"
 
-#: templates/members/echo_failed.html:15
-#: templates/members/invited_registration_failed.html:15
-#: templates/members/register_failed.html:15
+#: members/templates/members/echo_failed.html:15
+#: members/templates/members/invited_registration_failed.html:15
+#: members/templates/members/register_failed.html:15
 msgid "If you think this is a mistake, please"
 msgstr "Wenn du denkst, dass das ein Fehler ist, "
 
-#: templates/members/echo_failed.html:15
-#: templates/members/invited_registration_failed.html:15
-#: templates/members/register_failed.html:15
+#: members/templates/members/echo_failed.html:15
+#: members/templates/members/invited_registration_failed.html:15
+#: members/templates/members/register_failed.html:15
 msgid "contact us."
 msgstr "kontaktiere uns."
 
-#: templates/members/echo_success.html:5
+#: members/templates/members/echo_success.html:5
 msgid "Echo successful"
 msgstr "Rückmeldung erfolgreich"
 
-#: templates/members/echo_success.html:12
+#: members/templates/members/echo_success.html:12
 msgid "Thank you"
 msgstr "Danke"
 
-#: templates/members/echo_success.html:12
+#: members/templates/members/echo_success.html:12
 msgid "Your data was successfully updated."
 msgstr "Deine Daten wurden erfolgreich aktualisiert."
 
-#: templates/members/invited_registration_failed.html:6
-#: templates/members/register_failed.html:6
+#: members/templates/members/invited_registration_failed.html:6
+#: members/templates/members/register_failed.html:6
 msgid "Registration failed"
 msgstr "Registrierung fehlgeschlagen"
 
-#: templates/members/invited_registration_failed.html:11
-#: templates/members/register.html:6 templates/members/register_failed.html:11
-#: templates/members/register_password.html:6
-#: templates/members/register_success.html:6
-#: templates/members/register_wrong_password.html:6
+#: members/templates/members/invited_registration_failed.html:11
+#: members/templates/members/register.html:6
+#: members/templates/members/register_failed.html:11
+#: members/templates/members/register_password.html:6
+#: members/templates/members/register_success.html:6
+#: members/templates/members/register_wrong_password.html:6
 msgid "Registration"
 msgstr "Registrierung"
 
-#: templates/members/mail_confirmation_invalid.html:6
-#: templates/members/mail_confirmation_invalid.html:11
+#: members/templates/members/mail_confirmation_invalid.html:6
+#: members/templates/members/mail_confirmation_invalid.html:11
 msgid "Mail confirmation failed"
 msgstr "Emailbestätigung fehlgeschlagen"
 
-#: templates/members/mail_confirmation_invalid.html:13
-#: templates/members/waiting_confirmation_invalid.html:19
+#: members/templates/members/mail_confirmation_invalid.html:13
+#: members/templates/members/waiting_confirmation_invalid.html:19
 msgid "The supplied link is invalid."
 msgstr "Der verwendete Link ist ungültig."
 
-#: templates/members/mail_confirmation_success.html:6
-#: templates/members/mail_confirmation_success.html:11
+#: members/templates/members/mail_confirmation_success.html:6
+#: members/templates/members/mail_confirmation_success.html:11
 msgid "Mail confirmed"
 msgstr "Emailadresse bestätigt"
 
-#: templates/members/mail_confirmation_success.html:14
+#: members/templates/members/mail_confirmation_success.html:14
 #, python-format
 msgid ""
 "The email address %(email)s was successfully confirmed as parents email of "
@@ -622,7 +633,7 @@ msgstr ""
 "Die Emailadresse %(email)s wurde erfolgreich als Emailadresse der Eltern von "
 "%(name)s bestätigt."
 
-#: templates/members/mail_confirmation_success.html:17
+#: members/templates/members/mail_confirmation_success.html:17
 #, python-format
 msgid ""
 "The email address %(email)s was successfully confirmed as personal email of "
@@ -631,51 +642,54 @@ msgstr ""
 "Die Emailadresse %(email)s wurde erfolgreich als persönliche Emailadresse "
 "von %(name)s bestätigt."
 
-#: templates/members/register.html:13
-#: templates/members/register_password.html:11
-#: templates/members/register_success.html:11
-#: templates/members/register_wrong_password.html:11
+#: members/templates/members/register.html:13
+#: members/templates/members/register_password.html:11
+#: members/templates/members/register_success.html:11
+#: members/templates/members/register_wrong_password.html:11
 msgid "Register"
 msgstr "Registrieren"
 
-#: templates/members/register.html:15
+#: members/templates/members/register.html:15
 msgid "Here you can register for group"
 msgstr "Hier kannst du dich registrieren für die Gruppe"
 
-#: templates/members/register.html:28
-msgid "I am member of the DAV Ludwigsburg."
-msgstr "Ich bin Mitglied des DAV Ludwigsburg."
+#: members/templates/members/register.html:28
+#, python-format
+msgid "I am member of the DAV %(sektion)s."
+msgstr "Ich bin Mitglied des DAV %(sektion)s."
 
-#: templates/members/register.html:30
-#: templates/members/register_waiting_list.html:28
+#: members/templates/members/register.html:30
+#: members/templates/members/register_waiting_list.html:28
+#, python-format
 msgid ""
 "I agree that my data is stored and processed on the server of the JDAV "
-"Ludwigsburg."
+"%(sektion)s."
 msgstr ""
-"Ich bin einverstanden, dass meine Daten auf dem Server der JDAV Ludwigsburg "
+"Ich bin einverstanden, dass meine Daten auf dem Server der JDAV %(sektion)s "
 "gespeichert und verarbeitet werden."
 
-#: templates/members/register_failed.html:13
+#: members/templates/members/register_failed.html:13
 msgid "Something went wrong while processing your registration."
 msgstr "Etwas ist schief gelaufen, bei der Verarbeitung deiner Registrierung."
 
-#: templates/members/register_password.html:13
+#: members/templates/members/register_password.html:13
+#, python-format
 msgid ""
-"Thanks for your interest in participating. Please enter the registration "
-"password, your youth leader gave you."
+"Thanks for your interest in participating in the JDAV %(sektion)s. Please "
+"enter the registration password, your youth leader gave you."
 msgstr ""
-"Danke für dein Interesse bei der JDAV Ludwigsburg teilzunehmen. Bitte gib "
+"Danke für dein Interesse bei der JDAV %(sektion)s teilzunehmen. Bitte gib "
 "das Passwort ein, das du von deinem Jugendleiter erhalten hast."
 
-#: templates/members/register_success.html:13
+#: members/templates/members/register_success.html:13
 msgid "Your registration succeeded."
 msgstr "Deine Registrierung war erfolgreich."
 
-#: templates/members/register_success.html:16
+#: members/templates/members/register_success.html:16
 msgid "Please remember to confirm your email address."
 msgstr "Bitte denk daran, deine E-Mail Adresse(n) zu bestätigen."
 
-#: templates/members/register_success.html:17
+#: members/templates/members/register_success.html:17
 msgid ""
 "The coordinating team will process your registration when your email address "
 "is confirmed."
@@ -683,57 +697,57 @@ msgstr ""
 "Unser Jugendleiterteam wird deine Registrierung bearbeiten, wenn deine "
 "Emailadressen bestätigt sind."
 
-#: templates/members/register_success.html:19
+#: members/templates/members/register_success.html:19
 msgid ""
 "The coordinating team will process your registration as soon as possible."
 msgstr ""
 "Unser Jugendleiterteam wird deine Registrierung so schnell wie möglich "
 "bearbeiten."
 
-#: templates/members/register_waiting_list.html:6
+#: members/templates/members/register_waiting_list.html:6
 msgid "Registration for waiting list"
 msgstr "Registrierung für die Warteliste"
 
-#: templates/members/register_waiting_list.html:13
+#: members/templates/members/register_waiting_list.html:13
 msgid "Register for waiting list"
 msgstr "Für die Warteliste registrieren"
 
-#: templates/members/register_waiting_list.html:15
+#: members/templates/members/register_waiting_list.html:15
 msgid "Here you can register for the waiting list."
 msgstr "Hier kannst du dich auf die Warteliste eintragen."
 
-#: templates/members/register_waiting_list_success.html:6
-#: templates/members/register_waiting_list_success.html:11
+#: members/templates/members/register_waiting_list_success.html:6
+#: members/templates/members/register_waiting_list_success.html:11
 msgid "Registration for waiting list."
 msgstr "Registrierung für die Warteliste."
 
-#: templates/members/register_waiting_list_success.html:13
+#: members/templates/members/register_waiting_list_success.html:13
 msgid "Your registration for the waiting list was successful."
 msgstr "Du wurdest auf die Warteliste gesetzt."
 
-#: templates/members/register_waiting_list_success.html:14
+#: members/templates/members/register_waiting_list_success.html:14
 msgid "Please remember to confirm all email addresses that you entered."
 msgstr "Bitte denk daran, deine E-Mail Adresse(n) zu bestätigen."
 
-#: templates/members/register_waiting_list_success.html:15
+#: members/templates/members/register_waiting_list_success.html:15
 msgid "We will notify you if there is a vacant place in one of our groups."
 msgstr ""
 "Wir werden dich umgehend benachrichtigen, wenn es einen freien Platz in "
 "einer unserer Gruppen gibt."
 
-#: templates/members/register_wrong_password.html:13
+#: members/templates/members/register_wrong_password.html:13
 msgid ""
 "You entered a wrong password to often. Please ask your youth leader again."
 msgstr ""
 "Du hast zu oft ein falsches Passwort eingegeben. Bitte frage deinen "
 "Jugendleiter nach einem korrekten Passwort."
 
-#: templates/members/waiting_confirmation_invalid.html:6
-#: templates/members/waiting_confirmation_invalid.html:11
+#: members/templates/members/waiting_confirmation_invalid.html:6
+#: members/templates/members/waiting_confirmation_invalid.html:11
 msgid "Waiting confirmation failed"
 msgstr "Wartelistenplatzbestätigung fehlgeschlagen"
 
-#: templates/members/waiting_confirmation_invalid.html:15
+#: members/templates/members/waiting_confirmation_invalid.html:15
 msgid ""
 "Unfortunately, you did not confirm your intention to stay on the waiting "
 "list in time. You lost your spot on the list. You can"
@@ -741,16 +755,16 @@ msgstr ""
 "Leider hast du deinen Wartelistenplatz nicht rechtzeitig bestätigt und hast "
 "somit deinen Platz verloren. Du kannst"
 
-#: templates/members/waiting_confirmation_invalid.html:16
+#: members/templates/members/waiting_confirmation_invalid.html:16
 msgid "rejoin the waiting list"
 msgstr "der Warteliste erneut beitreten"
 
-#: templates/members/waiting_confirmation_success.html:6
-#: templates/members/waiting_confirmation_success.html:11
+#: members/templates/members/waiting_confirmation_success.html:6
+#: members/templates/members/waiting_confirmation_success.html:11
 msgid "Waiting confirmed"
 msgstr "Wartelistenplatz bestätigt"
 
-#: templates/members/waiting_confirmation_success.html:14
+#: members/templates/members/waiting_confirmation_success.html:14
 #, python-format
 msgid ""
 "Thank you %(prename)s for your interest in staying on the waiting list.\n"
@@ -759,7 +773,7 @@ msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz ist bereits bestätigt."
 
-#: templates/members/waiting_confirmation_success.html:18
+#: members/templates/members/waiting_confirmation_success.html:18
 #, python-format
 msgid ""
 "Thank you %(prename)s for your interest in staying on the waiting list.\n"
@@ -768,49 +782,14 @@ msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
 
-#: views.py:83 views.py:104 views.py:268
+#: members/views.py:84 members/views.py:105 members/views.py:270
 msgid "invalid"
 msgstr "ungültig"
 
-#: views.py:85 views.py:270
+#: members/views.py:86 members/views.py:272
 msgid "expired"
 msgstr "abgelaufen"
 
-#: views.py:114
+#: members/views.py:115
 msgid "The entered password is wrong."
 msgstr "Das eingegebene Passwort ist falsch."
-
-#~ msgid "Convert to PDF"
-#~ msgstr "Kriseninterventionsliste erstellen"
-
-#~ msgid "Generate list for LJP"
-#~ msgstr "LJP Liste erstellen"
-
-#, python-format
-#~ msgid "Can't invite %(name)s. No group was specified."
-#~ msgstr ""
-#~ "Einladen von %(name)s nicht möglich. Es wurde keine Gruppe angegeben."
-
-#~ msgid "Not waiting"
-#~ msgstr "NICHT Warteliste"
-
-#~ msgid "street"
-#~ msgstr "Straße"
-
-#~ msgid "Can't confirm. "
-#~ msgstr "Bestätigung nicht möglich. "
-
-#~ msgid "minimum age (years)"
-#~ msgstr "Mindestalter (Jahre)"
-
-#~ msgid "queue"
-#~ msgstr "Warteliste"
-
-#~ msgid "Art der Tour"
-#~ msgstr "Art der Tour"
-
-#~ msgid "Listname"
-#~ msgstr "Name der Liste"
-
-#~ msgid "Comments"
-#~ msgstr "Kommentare"
