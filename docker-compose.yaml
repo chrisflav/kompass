@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+    nginx:
+        build: ./nginx/
+        restart: always
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/var/www/jdav_web/assets/:ro
+        ports:
+          - "8888:80"
+        depends_on:
+          - django
+
+    django:
+        build: ./jdav_web/
+        env_file: docker.env
+        restart: always
+        command: >
+          sh -c "python manage.py collectstatic --noinput
+          && uwsgi --ini kompass.uwsgi.ini"
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/code/static/
+          - web_static:/var/www/jdav_web/assets/
+
+volumes:
+  uwsgi_data:
+  web_static:

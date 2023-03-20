@@ -110,10 +110,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
 	'NAME': os.environ.get('DJANGO_DATABASE_NAME', 'jdav_db'),
-	'OPTIONS': {
-		'read_default_file': os.environ.get('DJANGO_DATABASE_CONFIG',
-						    os.path.join(BASE_DIR, 'my.cnf'))
-	},
+        'USER': os.environ.get('DJANGO_DATABASE_USER', 'jdav_user'),
+        'PASSWORD': os.environ.get('DJANGO_DATABASE_PASSWORD', 'password'),
+        'HOST': os.environ.get('DJANGO_DATABASE_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DJANGO_DATABASE_PORT', '5432')
     }
 }
 
@@ -162,7 +162,7 @@ STATICFILES_DIRS = [
 # use python3 manage.py collectstatic to collect static files in the STATIC_ROOT
 # this is needed for deployment
 STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT',
-			     os.path.join((os.path.join(BASE_DIR, os.pardir)), "static"))
+			     '/var/www/jdav_web/assets')
 
 
 # Locale files (translations)
