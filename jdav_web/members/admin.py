@@ -8,6 +8,7 @@ import unicodedata
 import random
 import string
 from functools import partial, update_wrapper
+from django.forms.models import BaseInlineFormSet
 
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.template.loader import get_template
@@ -24,18 +25,68 @@ from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
+from django.core.exceptions import PermissionDenied
 from .pdf import render_tex
 
 import nested_admin
 
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
-                     MemberWaitingList, LJPProposal, Intervention,
+                     MemberWaitingList, LJPProposal, Intervention, PermissionMember,
+                     PermissionGroup,
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
 from finance.models import Statement, Bill
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
 #from easy_select2 import apply_select2
+
+
+class FilteredMemberFieldMixin:
+    def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
+        """
+        Override the queryset for member foreign key fields.
+        """
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.related_model != Member:
+            return field
+
+        if request is None:
+            field.queryset = Member.objects.none()
+        elif request.user.has_perm('members.may_list_everyone'):
+            field.queryset = Member.objects.all()
+        elif not hasattr(request.user, 'member'):
+            field.queryset = Member.objects.none()
+        else:
+            field.queryset = request.user.member.filter_queryset_by_permissions()
+        return field
+
+    def formfield_for_manytomany(self, db_field, request=None, **kwargs):
+        """
+        Override the queryset for member many to many fields.
+        """
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.related_model != Member:
+            return field
+
+        if request is None:
+            field.queryset = Member.objects.none()
+        elif request.user.has_perm('members.may_list_everyone'):
+            field.queryset = Member.objects.all()
+        elif not hasattr(request.user, 'member'):
+            field.queryset = Member.objects.none()
+        else:
+            field.queryset = request.user.member.filter_queryset_by_permissions()
+        return field
+
+
+class PermissionOnGroupInline(admin.StackedInline):
+    model = PermissionGroup
+    extra = 1
+
+
+class PermissionOnMemberInline(admin.StackedInline):
+    model = PermissionMember
+    extra = 1
 
 
 class RegistrationFilter(admin.SimpleListFilter):
@@ -82,10 +133,12 @@ class MemberAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
               'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group', 'iban',
               'gets_newsletter', 'registered', 'registration_form', 'active', 'echoed', 'comments']
-    list_display = ('name', 'birth_date', 'age', 'get_group', 'gets_newsletter',
+    list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group', 'gets_newsletter',
                     'registered', 'active', 'echoed', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active')
+    list_display_links = None
+    inlines = [PermissionOnMemberInline]
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -93,6 +146,32 @@ class MemberAdmin(admin.ModelAdmin):
     change_form_template = "members/change_member.html"
     #ordering = ('activity_score',)
     actions = ['send_mail_to', 'request_echo']
+
+    sensitive_fields = ['iban', 'registration_form', 'comments']
+
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if request.user.has_perm('members.may_view_everyone'):
+            return True
+
+        if not hasattr(user, 'member'):
+            return False
+
+        if obj is None:
+            return True
+        return request.user.member.may_view(obj)
+
+    def has_change_permission(self, request, obj=None):
+        user = request.user
+        if request.user.has_perm('members.may_change_everyone'):
+            return True
+
+        if not hasattr(user, 'member'):
+            return False
+
+        if obj is None:
+            return True
+        return request.user.member.may_change(obj)
 
     def get_fields(self, request, obj=None):
         if request.user.has_perm('members.may_set_auth_user'):
@@ -105,17 +184,32 @@ class MemberAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
+        if request.user.has_perm('members.may_list_everyone'):
+            return annotate_activity_score(queryset)
+
+        if not hasattr(request.user, 'member'):
+            return Member.objects.none()
+
+        queryset = request.user.member.filter_queryset_by_permissions(queryset, annotate=True)
         return annotate_activity_score(queryset)
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['qualities'] =\
-            Member.objects.get(pk=object_id).get_skills()
-        extra_context['activities'] =\
-            Member.objects.get(pk=object_id).get_activities()
-        return super(MemberAdmin, self).change_view(request, object_id,
-                                                    form_url=form_url,
-                                                    extra_context=extra_context)
+        try:
+            extra_context = extra_context or {}
+            extra_context['qualities'] =\
+                Member.objects.get(pk=object_id).get_skills()
+            extra_context['activities'] =\
+                Member.objects.get(pk=object_id).get_activities()
+            return super(MemberAdmin, self).change_view(request, object_id,
+                                                        form_url=form_url,
+                                                        extra_context=extra_context)
+        except Member.DoesNotExist:
+            return super().change_view(request, object_id)
+        except PermissionDenied:
+            member = Member.objects.get(pk=object_id)
+            messages.error(request,
+                    _("You are not allowed to view %(name)s.") % {'name': member.name})
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
     def send_mail_to(self, request, queryset):
         member_pks = [m.pk for m in queryset]
@@ -128,11 +222,11 @@ class MemberAdmin(admin.ModelAdmin):
             if not member.gets_newsletter:
                 continue
             send_mail(_("Echo required"),
-                      settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)),
-                      settings.DEFAULT_SENDING_MAIL,
-                      [member.email, member.email_parents] if member.email_parents and member.cc_email_parents
-                      else member.email)
-        messages.success(request, _("Successfully requested echo from selected members."))
+                    settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)),
+                    settings.DEFAULT_SENDING_MAIL,
+                    [member.email, member.email_parents] if member.email_parents and member.cc_email_parents
+                    else member.email)
+            messages.success(request, _("Successfully requested echo from selected members."))
     request_echo.short_description = _('Request echo from selected members')
 
     def activity_score(self, obj):
@@ -151,6 +245,16 @@ class MemberAdmin(admin.ModelAdmin):
         return format_html(level*'<img height=20px src="{}"/>&nbsp;'.format("/static/admin/images/climber.png"))
     activity_score.admin_order_field = '_activity_score'
     activity_score.short_description = _('activity')
+
+    def name_text_or_link(self, obj):
+        name = obj.name
+        if not hasattr(obj, '_viewable') or obj._viewable:
+            return format_html('<a href="{link}">{name}</a>'.format(
+                link=reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(obj.pk,)),
+                name=obj.name))
+        else:
+            return obj.name
+    name_text_or_link.short_description = _('Name')
 
 
 class MemberUnconfirmedAdmin(admin.ModelAdmin):
@@ -272,7 +376,7 @@ class MemberWaitingListAdmin(admin.ModelAdmin):
                 waiter.invited_for_group = group
                 waiter.save()
                 waiter.invite_to_group()
-                messages.success(request, 
+                messages.success(request,
                         _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
 
             return HttpResponseRedirect(request.get_full_path())
@@ -327,7 +431,7 @@ class MemberWaitingListAdmin(admin.ModelAdmin):
             waiter.invited_for_group = group
             waiter.save()
             waiter.invite_to_group()
-            messages.success(request, 
+            messages.success(request,
                     _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
 
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (waiter._meta.app_label, waiter._meta.model_name)))
@@ -355,14 +459,15 @@ class GroupAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(GroupAdminForm, self).__init__(*args, **kwargs)
-        self.fields['leiters'].queryset = Member.objects.filter(group__name='Jugendleiter')
+        if 'leiters' in self.fields:
+            self.fields['leiters'].queryset = Member.objects.filter(group__name='Jugendleiter')
 
 
 class GroupAdmin(admin.ModelAdmin):
     fields = ['name', 'year_from', 'year_to', 'leiters']
     form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')
-    inlines = [RegistrationPasswordInline]
+    inlines = [RegistrationPasswordInline, PermissionOnGroupInline]
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
@@ -386,11 +491,12 @@ class FreizeitAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(FreizeitAdminForm, self).__init__(*args, **kwargs)
-        self.fields['jugendleiter'].queryset = Member.objects.filter(group__name='Jugendleiter')
+        q = self.fields['jugendleiter'].queryset
+        self.fields['jugendleiter'].queryset = q.filter(group__name='Jugendleiter')
         #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
 
 
-class BillOnStatementInline(admin.TabularInline):
+class BillOnStatementInline(FilteredMemberFieldMixin, admin.TabularInline):
     model = Bill
     extra = 0
     sortable_options = []
@@ -434,7 +540,7 @@ class LJPOnListInline(nested_admin.NestedStackedInline):
     inlines = [InterventionOnLJPInline]
 
 
-class MemberOnListInline(GenericTabularInline):
+class MemberOnListInline(FilteredMemberFieldMixin, GenericTabularInline):
     model = NewMemberOnList
     extra = 0
     formfield_overrides = {
@@ -579,7 +685,8 @@ class MemberListAdmin(admin.ModelAdmin):
         messages.info(request, "Teilnehmerlist(en) erfolgreich erstellt.")
     migrate_to_notelist.short_description = "Aus Teilnehmerliste(n) Notizliste erstellen"
 
-class FreizeitAdmin(nested_admin.NestedModelAdmin):
+
+class FreizeitAdmin(FilteredMemberFieldMixin, nested_admin.NestedModelAdmin):
     inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ['__str__', 'date']
@@ -598,24 +705,56 @@ class FreizeitAdmin(nested_admin.NestedModelAdmin):
     def __init__(self, *args, **kwargs):
         super(FreizeitAdmin, self).__init__(*args, **kwargs)
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.has_perm('members.may_list_all_excursions'):
+            return queryset
+
+        if not hasattr(request.user, 'member'):
+            return Member.objects.none()
+
+        groups = request.user.member.leited_groups.all()
+        # one may view all leited groups and oneself
+        queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter__pk=request.user.member.pk)).distinct()
+        return queryset
+
+    def may_view_excursion(self, request, memberlist):
+        return request.user.has_perm('members.may_view_everyone') or \
+            ( hasattr(request.user, 'member') and \
+              all([request.user.member.may_view(m.member) for m in memberlist.membersonlist.all()]) )
+
+    def not_allowed_view(self, request, memberlist):
+        messages.error(request,
+                _("You are not allowed to view all members on excursion %(name)s.") % {'name': memberlist.name})
+        return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+
     def crisis_intervention_list(self, request, queryset):
-        for memberlist in queryset:
-            context = dict(memberlist=memberlist)
-            return render_tex(memberlist.name + "_Krisenliste", 'members/crisis_intervention_list.tex', context)
+        # this ensures legacy compatibilty
+        memberlist = queryset[0]
+        if not self.may_view_excursion(request, memberlist):
+            return self.not_allowed_view(request, memberlist)
+        context = dict(memberlist=memberlist, settings=settings)
+        return render_tex(memberlist.name + "_Krisenliste", 'members/crisis_intervention_list.tex', context)
     crisis_intervention_list.short_description = _('Generate crisis intervention list')
 
     def notes_list(self, request, queryset):
-        for memberlist in queryset:
-            people, skills = memberlist.skill_summary
-            context = dict(memberlist=memberlist, people=people, skills=skills)
-            return render_tex(memberlist.name + "_Notizen", 'members/notes_list.tex', context)
+        # this ensures legacy compatibilty
+        memberlist = queryset[0]
+        if not self.may_view_excursion(request, memberlist):
+            return self.not_allowed_view(request, memberlist)
+        people, skills = memberlist.skill_summary
+        context = dict(memberlist=memberlist, people=people, skills=skills, settings=settings)
+        return render_tex(memberlist.name + "_Notizen", 'members/notes_list.tex', context)
     notes_list.short_description = _('Generate overview')
 
     def seminar_report(self, request, queryset):
-        for memberlist in queryset:
-            context = dict(memberlist=memberlist)
-            title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
-            return render_tex(title + "_Seminarbericht", 'members/seminar_report.tex', context)
+        # this ensures legacy compatibilty
+        memberlist = queryset[0]
+        if not self.may_view_excursion(request, memberlist):
+            return self.not_allowed_view(request, memberlist)
+        context = dict(memberlist=memberlist, settings=settings)
+        title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
+        return render_tex(title + "_Seminarbericht", 'members/seminar_report.tex', context)
     seminar_report.short_description = _('Generate seminar report')
 
     def get_urls(self):

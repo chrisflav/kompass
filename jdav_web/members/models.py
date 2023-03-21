@@ -309,6 +309,104 @@ class Member(Person):
                       settings.DEFAULT_SENDING_MAIL,
                       jl.email)
 
+    def filter_queryset_by_permissions(self, queryset=None, annotate=False):
+        if queryset is None:
+            queryset = Member.objects.all()
+
+        # every member may list themself
+        pks = [self.pk]
+        view_pks = [self.pk]
+        if hasattr(self, 'permissions'):
+            pks += [ m.pk for m in self.permissions.list_members.all() ]
+            view_pks += [ m.pk for m in self.permissions.view_members.all() ]
+
+            for group in self.permissions.list_groups.all():
+                pks += [ m.pk for m in group.member_set.all() ]
+
+            for group in self.permissions.view_groups.all():
+                view_pks += [ m.pk for m in group.member_set.all() ]
+
+        for group in self.group.all():
+            if hasattr(group, 'permissions'):
+                pks += [ m.pk for m in group.permissions.list_members.all() ]
+                view_pks += [ m.pk for m in group.permissions.view_members.all() ]
+
+                for gr in group.permissions.list_groups.all():
+                    pks += [ m.pk for m in gr.member_set.all()]
+
+                for gr in group.permissions.view_groups.all():
+                    view_pks += [ m.pk for m in gr.member_set.all()]
+
+        filtered = queryset.filter(pk__in=pks)
+        if not annotate:
+            return filtered
+
+        return filtered.annotate(_viewable=Case(When(pk__in=view_pks, then=Value(True)), default=Value(False), output_field=models.BooleanField()))
+
+    def may_list(self, other):
+        if self.pk == other.pk:
+            return True
+
+        if hasattr(self, 'permissions'):
+            if other in self.permissions.list_members.all():
+                return True
+
+            if any([gr in other.group.all() for gr in self.permissions.list_groups.all()]):
+                return True
+
+        for group in self.group.all():
+            if hasattr(group, 'permissions'):
+                if other in group.permissions.list_members.all():
+                    return True
+
+                if any([gr in other.group.all() for gr in group.permissions.list_groups.all()]):
+                    return True
+
+        return False
+
+    def may_view(self, other):
+        if self.pk == other.pk:
+            return True
+
+        if hasattr(self, 'permissions'):
+            if other in self.permissions.view_members.all():
+                return True
+
+            if any([gr in other.group.all() for gr in self.permissions.view_groups.all()]):
+                return True
+
+        for group in self.group.all():
+            if hasattr(group, 'permissions'):
+                if other in group.permissions.view_members.all():
+                    return True
+
+                if any([gr in other.group.all() for gr in group.permissions.view_groups.all()]):
+                    return True
+
+        return False
+
+    def may_change(self, other):
+        if self.pk == other.pk:
+            return True
+
+        if hasattr(self, 'permissions'):
+            if other in self.permissions.change_members.all():
+                return True
+
+            if any([gr in other.group.all() for gr in self.permissions.change_groups.all()]):
+                return True
+
+        for group in self.group.all():
+            if hasattr(group, 'permissions'):
+                if other in group.permissions.change_members.all():
+                    return True
+
+                if any([gr in other.group.all() for gr in group.permissions.change_groups.all()]):
+                    return True
+
+        return False
+
+
 class MemberUnconfirmedManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(confirmed=False)
@@ -866,3 +964,33 @@ def annotate_activity_score(queryset):
             + F('_jugendleiter_klettertreff_score') + 3 * F('_jugendleiter_freizeit_score'))
     )
     return queryset
+
+
+class PermissionMember(models.Model):
+    member = models.OneToOneField(Member, on_delete=models.CASCADE, related_name='permissions')
+    # every member of view_members may view this member
+    list_members = models.ManyToManyField(Member, related_name='listable_by', blank=True)
+    view_members = models.ManyToManyField(Member, related_name='viewable_by', blank=True)
+    change_members = models.ManyToManyField(Member, related_name='changeable_by', blank=True)
+    delete_members = models.ManyToManyField(Member, related_name='deletable_by', blank=True)
+
+    # every member in any view_group may view this member
+    list_groups = models.ManyToManyField(Group, related_name='listable_by', blank=True)
+    view_groups = models.ManyToManyField(Group, related_name='viewable_by', blank=True)
+    change_groups = models.ManyToManyField(Group, related_name='changeable_by', blank=True)
+    delete_groups = models.ManyToManyField(Group, related_name='deletable_by', blank=True)
+
+
+class PermissionGroup(models.Model):
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name='permissions')
+    # every member of view_members may view all members of group
+    list_members = models.ManyToManyField(Member, related_name='group_members_listable_by', blank=True)
+    view_members = models.ManyToManyField(Member, related_name='group_members_viewable_by', blank=True)
+    change_members = models.ManyToManyField(Member, related_name='group_members_changeable_by_group', blank=True)
+    delete_members = models.ManyToManyField(Member, related_name='group_members_deletable_by', blank=True)
+
+    # every member in any view_group may view all members of group
+    list_groups = models.ManyToManyField(Group, related_name='group_members_listable_by', blank=True)
+    view_groups = models.ManyToManyField(Group, related_name='group_members_viewable_by', blank=True)
+    change_groups = models.ManyToManyField(Group, related_name='group_members_changeable_by', blank=True)
+    delete_groups = models.ManyToManyField(Group, related_name='group_members_deletable_by', blank=True)
