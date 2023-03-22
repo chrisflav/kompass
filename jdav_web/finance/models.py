@@ -55,6 +55,11 @@ class Statement(models.Model):
     confirmed = models.BooleanField(verbose_name=_('Confirmed'), default=False)
     confirmed_date = models.DateTimeField(verbose_name=_('Paid on'), default=None, null=True)
 
+    created_by = models.ForeignKey(Member, verbose_name=_('Created by'),
+                                   blank=True,
+                                   null=True,
+                                   on_delete=models.SET_NULL,
+                                   related_name='created_statements')
     submitted_by = models.ForeignKey(Member, verbose_name=_('Submitted by'),
                                      blank=True,
                                      null=True,

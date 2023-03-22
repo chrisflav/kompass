@@ -406,6 +406,27 @@ class Member(Person):
 
         return False
 
+    def may_delete(self, other):
+        if self.pk == other.pk:
+            return True
+
+        if hasattr(self, 'permissions'):
+            if other in self.permissions.delete_members.all():
+                return True
+
+            if any([gr in other.group.all() for gr in self.permissions.delete_groups.all()]):
+                return True
+
+        for group in self.group.all():
+            if hasattr(group, 'permissions'):
+                if other in group.permissions.delete_members.all():
+                    return True
+
+                if any([gr in other.group.all() for gr in group.permissions.delete_groups.all()]):
+                    return True
+
+        return False
+
 
 class MemberUnconfirmedManager(models.Manager):
     def get_queryset(self):
@@ -757,6 +778,16 @@ class Freizeit(models.Model):
             sks.append(dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max))
         return (people, sks)
 
+    @staticmethod
+    def filter_queryset_by_permissions(member, queryset=None):
+        if queryset is None:
+            queryset = Freizeit.objects.all()
+
+        groups = member.leited_groups.all()
+        # one may view all leited groups and oneself
+        queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter__pk=member.pk)).distinct()
+        return queryset
+
 
 class MemberNoteList(models.Model):
     """
@@ -969,28 +1000,58 @@ def annotate_activity_score(queryset):
 class PermissionMember(models.Model):
     member = models.OneToOneField(Member, on_delete=models.CASCADE, related_name='permissions')
     # every member of view_members may view this member
-    list_members = models.ManyToManyField(Member, related_name='listable_by', blank=True)
-    view_members = models.ManyToManyField(Member, related_name='viewable_by', blank=True)
-    change_members = models.ManyToManyField(Member, related_name='changeable_by', blank=True)
-    delete_members = models.ManyToManyField(Member, related_name='deletable_by', blank=True)
+    list_members = models.ManyToManyField(Member, related_name='listable_by', blank=True,
+                                          verbose_name=_('May list members'))
+    view_members = models.ManyToManyField(Member, related_name='viewable_by', blank=True,
+                                          verbose_name=_('May view members'))
+    change_members = models.ManyToManyField(Member, related_name='changeable_by', blank=True,
+                                            verbose_name=_('May change members'))
+    delete_members = models.ManyToManyField(Member, related_name='deletable_by', blank=True,
+                                            verbose_name=_('May delete members'))
 
     # every member in any view_group may view this member
-    list_groups = models.ManyToManyField(Group, related_name='listable_by', blank=True)
-    view_groups = models.ManyToManyField(Group, related_name='viewable_by', blank=True)
-    change_groups = models.ManyToManyField(Group, related_name='changeable_by', blank=True)
-    delete_groups = models.ManyToManyField(Group, related_name='deletable_by', blank=True)
+    list_groups = models.ManyToManyField(Group, related_name='listable_by', blank=True,
+                                         verbose_name=_('May list members of groups'))
+    view_groups = models.ManyToManyField(Group, related_name='viewable_by', blank=True,
+                                         verbose_name=_('May view members of groups'))
+    change_groups = models.ManyToManyField(Group, related_name='changeable_by', blank=True,
+                                           verbose_name=_('May change members of groups'))
+    delete_groups = models.ManyToManyField(Group, related_name='deletable_by', blank=True,
+                                           verbose_name=_('May delete members of groups'))
+
+    class Meta:
+        verbose_name = _('Permissions')
+        verbose_name_plural = _('Permissions')
+
+    def __str__(self):
+        return str(_('Permissions'))
 
 
 class PermissionGroup(models.Model):
     group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name='permissions')
     # every member of view_members may view all members of group
-    list_members = models.ManyToManyField(Member, related_name='group_members_listable_by', blank=True)
-    view_members = models.ManyToManyField(Member, related_name='group_members_viewable_by', blank=True)
-    change_members = models.ManyToManyField(Member, related_name='group_members_changeable_by_group', blank=True)
-    delete_members = models.ManyToManyField(Member, related_name='group_members_deletable_by', blank=True)
+    list_members = models.ManyToManyField(Member, related_name='group_members_listable_by', blank=True,
+                                          verbose_name=_('May list members'))
+    view_members = models.ManyToManyField(Member, related_name='group_members_viewable_by', blank=True,
+                                          verbose_name=_('May view members'))
+    change_members = models.ManyToManyField(Member, related_name='group_members_changeable_by_group', blank=True,
+                                            verbose_name=_('May change members'))
+    delete_members = models.ManyToManyField(Member, related_name='group_members_deletable_by', blank=True,
+                                            verbose_name=_('May delete members'))
 
     # every member in any view_group may view all members of group
-    list_groups = models.ManyToManyField(Group, related_name='group_members_listable_by', blank=True)
-    view_groups = models.ManyToManyField(Group, related_name='group_members_viewable_by', blank=True)
-    change_groups = models.ManyToManyField(Group, related_name='group_members_changeable_by', blank=True)
-    delete_groups = models.ManyToManyField(Group, related_name='group_members_deletable_by', blank=True)
+    list_groups = models.ManyToManyField(Group, related_name='group_members_listable_by', blank=True,
+                                         verbose_name=_('May list members of groups'))
+    view_groups = models.ManyToManyField(Group, related_name='group_members_viewable_by', blank=True,
+                                         verbose_name=_('May view members of groups'))
+    change_groups = models.ManyToManyField(Group, related_name='group_members_changeable_by', blank=True,
+                                           verbose_name=_('May change members of groups'))
+    delete_groups = models.ManyToManyField(Group, related_name='group_members_deletable_by', blank=True,
+                                           verbose_name=_('May delete members of groups'))
+
+    class Meta:
+        verbose_name = _('Group permissions')
+        verbose_name_plural = _('Group permissions')
+
+    def __str__(self):
+        return str(_('Group permissions'))

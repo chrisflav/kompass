@@ -82,11 +82,13 @@ class FilteredMemberFieldMixin:
 class PermissionOnGroupInline(admin.StackedInline):
     model = PermissionGroup
     extra = 1
+    can_delete = False
 
 
 class PermissionOnMemberInline(admin.StackedInline):
     model = PermissionMember
     extra = 1
+    can_delete = False
 
 
 class RegistrationFilter(admin.SimpleListFilter):
@@ -172,6 +174,18 @@ class MemberAdmin(admin.ModelAdmin):
         if obj is None:
             return True
         return request.user.member.may_change(obj)
+
+    def has_delete_permission(self, request, obj=None):
+        user = request.user
+        if request.user.has_perm('members.may_delete_everyone'):
+            return True
+
+        if not hasattr(user, 'member'):
+            return False
+
+        if obj is None:
+            return True
+        return request.user.member.may_delete(obj)
 
     def get_fields(self, request, obj=None):
         if request.user.has_perm('members.may_set_auth_user'):
@@ -523,6 +537,11 @@ class StatementOnListInline(nested_admin.NestedStackedInline):
             return self.fields
         return super(StatementOnListInline, self).get_readonly_fields(request, obj)
 
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and hasattr(obj, 'statement') and obj.statement.submitted:
+            return False
+        return True
+
 
 class InterventionOnLJPInline(admin.TabularInline):
     model = Intervention
@@ -705,6 +724,14 @@ class FreizeitAdmin(FilteredMemberFieldMixin, nested_admin.NestedModelAdmin):
     def __init__(self, *args, **kwargs):
         super(FreizeitAdmin, self).__init__(*args, **kwargs)
 
+    def save_model(self, request, obj, form, change):
+        print("saving model")
+        if not change and hasattr(request.user, 'member') and hasattr(obj, 'statement'):
+            print("setting obj statement created")
+            obj.statement.created_by = request.user.member
+            obj.statement.save()
+        super().save_model(request, obj, form, change)
+
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         if request.user.has_perm('members.may_list_all_excursions'):
@@ -713,10 +740,7 @@ class FreizeitAdmin(FilteredMemberFieldMixin, nested_admin.NestedModelAdmin):
         if not hasattr(request.user, 'member'):
             return Member.objects.none()
 
-        groups = request.user.member.leited_groups.all()
-        # one may view all leited groups and oneself
-        queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter__pk=request.user.member.pk)).distinct()
-        return queryset
+        return Freizeit.filter_queryset_by_permissions(request.user.member, queryset)
 
     def may_view_excursion(self, request, memberlist):
         return request.user.has_perm('members.may_view_everyone') or \

@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.forms import Textarea
 from django.http import HttpResponse, HttpResponseRedirect
-from django.db.models import TextField
+from django.db.models import TextField, Q
 from django.urls import path, reverse
 from functools import update_wrapper
 from django.utils.translation import gettext_lazy as _
@@ -35,7 +35,23 @@ class BillOnStatementInline(admin.TabularInline):
 @admin.register(StatementUnSubmitted)
 class StatementUnSubmittedAdmin(admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'submitted']
+    list_display = ['__str__', 'excursion']
     inlines = [BillOnStatementInline]
+
+    def save_model(self, request, obj, form, change):
+        if not change and hasattr(request.user, 'member'):
+            obj.created_by = request.user.member
+        super().save_model(request, obj, form, change)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.has_perm('members.may_list_all_statements'):
+            return queryset
+
+        if not hasattr(request.user, 'member'):
+            return Member.objects.none()
+
+        return queryset.filter(Q(created_by=request.user.member) | Q(excursion__jugendleiter=request.user.member))
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = ['submitted', 'excursion']
