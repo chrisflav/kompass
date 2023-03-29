@@ -113,3 +113,6 @@ config
 
 # celerybeat schedule database
 jdav_web/celerybeat-schedule.db
+
+# docker development database folder
+docker/development/db

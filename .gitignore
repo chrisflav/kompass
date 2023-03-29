@@ -114,3 +114,6 @@ jdav_web/celerybeat-schedule.db
 
 # docker environment variables
 docker.env
+
+# docker development database folder
+docker/development/db

@@ -2,7 +2,31 @@
 
 set -o errexit
 
-sleep 5
+mysql_ready() {
+cd /app/jdav_web
+python << END
+import sys
+
+from django.db import connections
+from django.db.utils import OperationalError
+
+db_conn = connections['default']
+
+try:
+    c = db_conn.cursor()
+except OperationalError:
+    sys.exit(-1)
+else:
+    sys.exit(0)
+
+END
+}
+
+until mysql_ready; do
+    >&2 echo 'Waiting for MySQL to become available...'
+    sleep 1
+done
+>&2 echo 'MySQL is available'
 
 cd /app
 
