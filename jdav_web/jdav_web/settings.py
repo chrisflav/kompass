@@ -113,7 +113,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
 	'NAME': os.environ.get('DJANGO_DATABASE_NAME', 'jdav_db'),
         'USER': os.environ.get('DJANGO_DATABASE_USER', 'jdav_user'),
-        'PASSWORD': os.environ.get('DJANGO_DATABASE_PASSWORD', 'password'),
+        'PASSWORD': os.environ.get('DJANGO_DATABASE_PASSWORD', 'jdav00jdav'),
         'HOST': os.environ.get('DJANGO_DATABASE_HOST', '127.0.0.1'),
         'PORT': os.environ.get('DJANGO_DATABASE_PORT', '5432')
     }
@@ -122,7 +122,7 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
-        'LOCATION': '127.0.0.1:11211',
+        'LOCATION': os.environ.get('MEMCACHED_URL', '127.0.0.1:11211'),
     }
 }
 

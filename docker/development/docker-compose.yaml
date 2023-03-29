@@ -1,0 +1,40 @@
+version: "3.9"
+
+x-kompass:
+    &kompass
+    image: kompass:development
+    build:
+        context: ./../../
+        dockerfile: docker/development/Dockerfile
+    env_file: docker.env
+    restart: always
+    depends_on:
+      - redis
+      - cache
+      - db
+
+services:
+    master:
+        <<: *kompass
+        entrypoint: /app/docker/development/entrypoint-master.sh
+        stdin_open: true # docker run -i
+        tty: true # docker run -t
+        volumes:
+          - ./../../jdav_web:/app/jdav_web
+        ports:
+          - "8000:8000"
+
+    cache:
+        restart: always
+        image: memcached:alpine
+
+    redis:
+        restart: always
+        image: redis:6-alpine
+
+    db:
+        restart: always
+        image: mariadb
+        volumes:
+          - /tmp/db:/var/lib/mysql
+        env_file: docker.env

@@ -1,0 +1,53 @@
+version: "3.9"
+
+x-kompass:
+    &kompass
+    image: kompass:production
+    build:
+        context: ./../../
+        dockerfile: docker/production/Dockerfile
+    env_file: docker.env
+    restart: always
+    depends_on:
+      - redis
+      - cache
+
+services:
+    master:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-master.sh
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/app/static/
+          - web_static:/var/www/jdav_web/assets/
+
+    nginx:
+        build: ./nginx/
+        restart: always
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/var/www/jdav_web/assets/:ro
+        ports:
+          - "3000:80"
+        depends_on:
+          - master
+
+    cache:
+        restart: always
+        image: memcached:alpine
+
+    redis:
+        restart: always
+        image: redis:6-alpine
+
+    celery_worker:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-celery-worker.sh
+
+    celery_beat:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-celery-beat.sh
+
+volumes:
+  uwsgi_data:
+  web_static:
