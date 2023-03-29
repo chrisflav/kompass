@@ -9,4 +9,12 @@ WORKDIR /app
 COPY ./requirements.txt /app/requirements.txt
 RUN pip install -r requirements.txt
 
+ARG GID
+ARG UID
+ARG USER
+
+RUN groupadd -g $GID $USER && useradd -g $GID -u $UID -m -d /app $USER
+
+USER $USER
+
 COPY ./docker /app/docker

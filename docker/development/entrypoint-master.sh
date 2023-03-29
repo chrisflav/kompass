@@ -30,7 +30,7 @@ done
 
 cd /app
 
-if ! [ -f completed_initial_run ]; then
+if ! [ -f /tmp/completed_initial_run ]; then
     echo 'Initialising kompass master container'
 
     python jdav_web/manage.py compilemessages --locale de
@@ -38,7 +38,7 @@ if ! [ -f completed_initial_run ]; then
     # python jdav_web/manage.py makemigrations
     python jdav_web/manage.py migrate
 
-    touch completed_initial_run
+    touch /tmp/completed_initial_run
 fi
 
 cd jdav_web

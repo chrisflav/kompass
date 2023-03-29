@@ -6,6 +6,10 @@ x-kompass:
     build:
         context: ./../../
         dockerfile: docker/development/Dockerfile
+        args:
+            UID: ${UID}
+            GID: ${UID}
+            USER: ${USER}
     env_file: docker.env
     restart: always
     depends_on:
