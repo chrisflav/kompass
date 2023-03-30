@@ -22,9 +22,6 @@ ENV PATH="/app/.local/bin:$PATH"
 
 # install requirements
 COPY --chown=app:app ./requirements.txt /app/requirements.txt
-RUN pip install -r requirements.txt
-
-# for production, install uwsgi
-RUN pip install uwsgi
+RUN pip install uwsgi -r requirements.txt
 
 COPY --chown=app:app . /app
