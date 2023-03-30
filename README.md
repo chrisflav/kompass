@@ -1,4 +1,4 @@
-# jdav_lb_webapp
+# kompass
 
 This repository has the purpose to develop a webapplication that can be used by
 JDAV to send newsletters, manage user lists and keep material lists up to date.
