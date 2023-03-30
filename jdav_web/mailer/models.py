@@ -141,7 +141,7 @@ class Message(models.Model):
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')
         # generate message id
-        message_id = "<{}@jdav-ludwigsburg.de>".format(self.pk)
+        message_id = "<{pk}@{domain}>".format(pk=self.pk, domain=settings.DOMAIN)
         # reply to addresses
         reply_to_unfiltered = [jl.association_email for jl in self.reply_to.all()]
         reply_to_unfiltered.extend([ml.email for ml in self.reply_to_email_address.all()])

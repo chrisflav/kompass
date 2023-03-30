@@ -26,7 +26,6 @@ def generate_random_key():
 GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = 0
 FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = 1
 AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = 2
-HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
 
 class ActivityCategory(models.Model):
     """
@@ -259,7 +258,7 @@ class Member(Person):
     @property
     def association_email(self):
         """Returning the association email of the member"""
-        raw = "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), HOST)
+        raw = "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), settings.DOMAIN)
         return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
 
     def get_group(self):

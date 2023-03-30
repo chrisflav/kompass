@@ -6,6 +6,7 @@ SEKTION_TOWN = "69124 Heidelberg"
 SEKTION_TELEPHONE = "06221 284076"
 SEKTION_TELEFAX = "06221 437338"
 SEKTION_CONTACT_MAIL = "geschaeftsstelle@alpenverein-heidelberg.de"
+SEKTION_BOARD_MAIL = "vorstand@alpenverein-heidelberg.de"
 
 RESPONSIBLE_MAIL = "jugendreferat@jdav-hd.de"
 
@@ -34,3 +35,7 @@ WAITING_CONFIRMATION_FREQUENCY = 90
 TEST_MAIL = "post@flavigny.de"
 
 REGISTRATION_FORM_DOWNLOAD_LINK = 'https://cloud.jdav-ludwigsburg.de/index.php/s/NQfRqA9MTKfPBkC'
+
+DOMAIN = 'jdav-hd.merten.dev'
+
+STARTPAGE_REDIRECT_URL = 'https://jdav-hd.de'
