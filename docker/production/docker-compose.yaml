@@ -3,9 +3,6 @@ version: "3.9"
 x-kompass:
     &kompass
     image: kompass:production
-    build:
-        context: ./../../
-        dockerfile: docker/production/Dockerfile
     env_file: docker.env
     restart: always
     depends_on:
@@ -15,11 +12,15 @@ x-kompass:
 services:
     master:
         <<: *kompass
+        build:
+            context: ./../../
+            dockerfile: docker/production/Dockerfile
         entrypoint: /app/docker/production/entrypoint-master.sh
         volumes:
           - uwsgi_data:/tmp/uwsgi/
           - web_static:/app/static/
           - web_static:/var/www/jdav_web/assets/
+          - ./media:/app/media/
 
     nginx:
         build: ./nginx/

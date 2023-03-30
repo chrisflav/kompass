@@ -25,6 +25,7 @@ services:
         tty: true
         volumes:
           - ./../../jdav_web:/app/jdav_web
+          - ./media:/app/media
         ports:
           - "8000:8000"
 

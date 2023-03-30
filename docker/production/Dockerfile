@@ -1,7 +1,7 @@
 FROM python:3.9-bullseye
 
 # install additional dependencies
-RUN apt-get update && apt-get install -y gettext
+RUN apt-get update && apt-get install -y gettext texlive texlive-fonts-extra
 
 # create user
 RUN groupadd -g 501 app && useradd -g 501 -u 501 -m -d /app app

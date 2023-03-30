@@ -1,7 +1,7 @@
 FROM python:3.9-bullseye
 
 # install additional dependencies
-RUN apt-get update && apt-get install -y gettext
+RUN apt-get update && apt-get install -y gettext texlive texlive-fonts-extra
 
 WORKDIR /app
 

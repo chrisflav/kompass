@@ -28,6 +28,10 @@ def render_tex(name, template_path, context):
 
     tmpl = get_template(template_path)
     res = tmpl.render(dict(context, creation_date=datetime.today().strftime('%d.%m.%Y')))
+
+    if not os.path.exists(media_dir()):
+        os.makedirs(media_dir())
+
     with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
         f.write(res)
 
