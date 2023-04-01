@@ -27,7 +27,7 @@ class EmailAddress(models.Model):
 
     @property
     def email(self):
-        return "{0}@{1}".format(self.name, settings.HOST)
+        return "{0}@{1}".format(self.name, settings.DOMAIN)
 
     @property
     def forwards(self):
