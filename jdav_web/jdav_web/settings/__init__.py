@@ -20,7 +20,8 @@ base_settings = [
     'components/cache.py',
     'components/jet.py',
     'components/emails.py',
-    'components/texts.py'
+    'components/texts.py',
+    'components/locale.py',
 ]
 
 include(*base_settings)
