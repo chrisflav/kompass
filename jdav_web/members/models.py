@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 import uuid
+import re
+import csv
 from django.db import models
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
@@ -47,7 +49,7 @@ class Group(models.Model):
     Represents one group of the association
     e.g: J1, J2, Jugendleiter, etc.
     """
-    name = models.CharField(max_length=20, verbose_name=_('name'))  # e.g: J1
+    name = models.CharField(max_length=50, verbose_name=_('name'))  # e.g: J1
     year_from = models.IntegerField(verbose_name=_('lowest year'), default=2010)
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
@@ -78,7 +80,7 @@ class Person(models.Model):
                                       verbose_name=_("Parents' Email"))
     cc_email_parents = models.BooleanField(default=True, verbose_name=_('Also send mails to parents'))
 
-    birth_date = models.DateField(_('birth date'))  # to determine the age
+    birth_date = models.DateField(_('birth date'), null=True)  # to determine the age
 
     comments = models.TextField(_('comments'), default='', blank=True)
 
@@ -159,13 +161,36 @@ class Member(Person):
     plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
                            default='', blank=True)
     town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
+    address_extra = models.CharField(max_length=100, verbose_name=_('Address extra'), default='', blank=True)
+    country = models.CharField(max_length=30, verbose_name=_('Country'), default='', blank=True)
 
-    phone_number = models.CharField(max_length=18, verbose_name=_('phone number'), default='', blank=True)
-    phone_number_parents = models.CharField(max_length=18, verbose_name=_('parents phone number'), default='', blank=True)
+    good_conduct_certificate_presentation_needed = models.BooleanField(_('Good conduct certificate presentation needed'), default=False)
+    good_conduct_certificate_presented_date = models.DateField(_('Good conduct certificate presented on'), default=None, blank=True, null=True)
+    gender = models.CharField(max_length=30, verbose_name=_('Gender'), default='', blank=True)
+    nationality = models.CharField(max_length=30, verbose_name=_('Nationality'), default='', blank=True)
+    join_date = models.DateField(_('Joined on'), default=None, blank=True, null=True)
+    leave_date = models.DateField(_('Left on'), default=None, blank=True, null=True)
+    civil_status = models.CharField(_('Civil status'), max_length=30, default='', blank=True)
+    has_key = models.BooleanField(_('Has key'), default=False)
+    has_free_ticket_gym = models.BooleanField(_('Has a free ticket for the climbing gym'), default=False)
+    dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='')
+    swimming_badge = models.CharField(max_length=20, verbose_name=_('Swimming badge'), default='')
+    climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='')
+    rock_experience = models.CharField(max_length=50, verbose_name=_('Rock experience'), default='')
+    allergies = models.CharField(max_length=100, verbose_name=_('Allergies'), default='')
+    medication = models.CharField(max_length=100, verbose_name=_('Medication'), default='')
+    tetanus_vaccination = models.CharField(max_length=50, verbose_name=_('Tetanus vaccination'), default='')
+    photos_may_be_taken = models.BooleanField(verbose_name=_('Photos may be taken'), default=False)
+    legal_guardians = models.CharField(max_length=100, verbose_name=_('Legal guardians'), default='')
+
+    phone_number_private = models.CharField(max_length=100, verbose_name=_('phone number private'), default='', blank=True)
+    phone_number_mobile = models.CharField(max_length=100, verbose_name=_('phone number mobile'), default='', blank=True)
+    phone_number_parents = models.CharField(max_length=200, verbose_name=_('parents phone number'), default='', blank=True)
     group = models.ManyToManyField(Group, verbose_name=_('group'))
 
     iban = models.CharField(max_length=30, blank=True, verbose_name='IBAN')
 
+    technical_comments = models.TextField(verbose_name=_('Technical comments'), default='', blank=True)
     gets_newsletter = models.BooleanField(_('receives newsletter'),
                                           default=True)
     unsubscribe_key = models.CharField(max_length=32, default="")
@@ -1054,3 +1079,97 @@ class PermissionGroup(models.Model):
 
     def __str__(self):
         return str(_('Group permissions'))
+
+
+def import_from_csv(path):
+    with open(path, encoding='ISO-8859-1') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        rows = list(reader)
+
+    def transform_field(key, value):
+        new_key = CLUBDESK_TO_KOMPASS[key]
+        if isinstance(new_key, str):
+            return (new_key, value)
+        else:
+            return (new_key[0], new_key[1](value))
+
+    def transform_row(row):
+        kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
+        kwargs_without_group = { k : v for k, v in kwargs.items() if k != 'group' }
+        mem = Member(**kwargs_without_group)
+        mem.save()
+        mem.group.set(kwargs['group'])
+
+    for row in rows:
+        transform_row(row)
+
+
+def parse_group(value):
+    groups_raw = re.split(',', value)
+    group_names = [ re.search('^(.*?)( \(.*\))?$', raw).group(1).strip() for raw in groups_raw if raw != '']
+    groups = []
+    for group_name in group_names:
+        try:
+            group = Group.objects.get(name=group_name)
+        except Group.DoesNotExist:
+            group = Group(name=group_name)
+            group.save()
+        groups.append(group)
+    return groups
+
+
+def parse_date(value):
+    if value == '':
+        return None
+    return datetime.strptime(value, '%d.%m.%Y').date()
+
+
+def parse_status(value):
+    return value != "Passivmitglied"
+
+
+def parse_boolean(value):
+    return value.lower() == "ja"
+
+
+CLUBDESK_TO_KOMPASS = {
+    'Nachname': 'lastname',
+    'Vorname': 'prename',
+    'Adresse': 'street',
+    'PLZ': 'plz',
+    'Ort': 'town',
+    'Telefon Privat': 'phone_number_private',
+    'Telefon Mobil': 'phone_number_mobile',
+    'Adress-Zusatz': 'address_extra',
+    'Land': 'country',
+    'Nationalität': 'nationality',
+    'E-Mail': 'email',
+    'E-Mail Alternativ': 'email_parents',
+    'Status': ('active', parse_status),
+    'Eintritt': ('join_date', parse_date),
+    'Austritt': ('leave_date', parse_date),
+    'Zivilstand': 'civil_status',
+    'Geschlecht': 'gender',
+    'Geburtsdatum': ('birth_date', parse_date),
+    'Bemerkungen': 'comments',
+    'IBAN': 'iban',
+    'Vorlage Führungszeugnis': ('good_conduct_certificate_presented_date', parse_date),
+    'Vorlage Führungszeugnis notwendig': ('good_conduct_certificate_presentation_needed', parse_boolean),
+#    'Letzte Fortbildung': '',
+#    'Grundausbildung': '',
+#    'Besondere Ausbildung': '',
+    '[Gruppen]' : ('group', parse_group),
+    'Schlüssel': ('has_key', parse_boolean),
+    'Freikarte': ('has_free_ticket_gym', parse_boolean),
+    'DAV Ausweis Nr.': 'dav_badge_no',
+    'Schwimmabzeichen': 'swimming_badge',
+    'Kletterschein': 'climbing_badge',
+    'Felserfahrung': 'rock_experience',
+    'Allergien': 'allergies',
+    'Medikamente': 'medication',
+    'Tetanusimpfung': 'tetanus_vaccination',
+    'Fotoerlaubnis': ('photos_may_be_taken', parse_boolean),
+    'Kommentar': 'technical_comments',
+    'Erziehungsberechtigte': 'legal_guardians',
+    'Mobil Eltern': 'phone_number_parents',
+}

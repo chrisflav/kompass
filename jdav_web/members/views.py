@@ -11,8 +11,8 @@ from django.conf import settings
 class MemberForm(ModelForm):
     class Meta:
         model = Member
-        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'phone_number',
-                  'phone_number_parents', 'birth_date']
+        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra', 'country',
+                  'phone_number_private', 'phone_number_mobile', 'phone_number_parents', 'birth_date']
         widgets = {
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
         }
@@ -28,8 +28,9 @@ class MemberRegistrationForm(ModelForm):
 
     class Meta:
         model = Member
-        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'phone_number',
-                  'phone_number_parents', 'birth_date', 'email', 'email_parents', 'cc_email_parents',
+        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra', 'country',
+                  'phone_number_private', 'phone_number_mobile', 'phone_number_parents',
+                  'birth_date', 'email', 'email_parents', 'cc_email_parents',
                   'registration_form']
         widgets = {
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
