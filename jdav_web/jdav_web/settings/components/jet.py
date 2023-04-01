@@ -38,6 +38,7 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'freizeit', 'permissions': ['members.view_freizeit']},
         {'name': 'klettertreff', 'permissions': ['members.view_klettertreff']},
         {'name': 'activitycategory', 'permissions': ['members.view_activitycategory']},
+        {'name': 'trainingcategory', 'permissions': ['members.view_trainingcategory']},
         {'name': 'memberunconfirmedproxy', 'permissions': ['members.view_memberunconfirmedproxy']},
         {'name': 'memberwaitinglist', 'permissions': ['members.view_memberwaitinglist']},
     ]},

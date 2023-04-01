@@ -80,7 +80,7 @@ class Person(models.Model):
                                       verbose_name=_("Parents' Email"))
     cc_email_parents = models.BooleanField(default=True, verbose_name=_('Also send mails to parents'))
 
-    birth_date = models.DateField(_('birth date'), null=True)  # to determine the age
+    birth_date = models.DateField(_('birth date'), null=True, blank=True)  # to determine the age
 
     comments = models.TextField(_('comments'), default='', blank=True)
 
@@ -173,15 +173,15 @@ class Member(Person):
     civil_status = models.CharField(_('Civil status'), max_length=30, default='', blank=True)
     has_key = models.BooleanField(_('Has key'), default=False)
     has_free_ticket_gym = models.BooleanField(_('Has a free ticket for the climbing gym'), default=False)
-    dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='')
-    swimming_badge = models.CharField(max_length=20, verbose_name=_('Swimming badge'), default='')
-    climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='')
-    rock_experience = models.CharField(max_length=50, verbose_name=_('Rock experience'), default='')
-    allergies = models.CharField(max_length=100, verbose_name=_('Allergies'), default='')
-    medication = models.CharField(max_length=100, verbose_name=_('Medication'), default='')
-    tetanus_vaccination = models.CharField(max_length=50, verbose_name=_('Tetanus vaccination'), default='')
+    dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='', blank=True)
+    swimming_badge = models.CharField(max_length=20, verbose_name=_('Swimming badge'), default='', blank=True)
+    climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='', blank=True)
+    rock_experience = models.CharField(max_length=50, verbose_name=_('Rock experience'), default='', blank=True)
+    allergies = models.CharField(max_length=100, verbose_name=_('Allergies'), default='', blank=True)
+    medication = models.CharField(max_length=100, verbose_name=_('Medication'), default='', blank=True)
+    tetanus_vaccination = models.CharField(max_length=50, verbose_name=_('Tetanus vaccination'), default='', blank=True)
     photos_may_be_taken = models.BooleanField(verbose_name=_('Photos may be taken'), default=False)
-    legal_guardians = models.CharField(max_length=100, verbose_name=_('Legal guardians'), default='')
+    legal_guardians = models.CharField(max_length=100, verbose_name=_('Legal guardians'), default='', blank=True)
 
     phone_number_private = models.CharField(max_length=100, verbose_name=_('phone number private'), default='', blank=True)
     phone_number_mobile = models.CharField(max_length=100, verbose_name=_('phone number mobile'), default='', blank=True)
@@ -492,8 +492,7 @@ class MemberWaitingList(Person):
                                           blank=True,
                                           default=None,
                                           verbose_name=_('Invited for group'),
-                                          on_delete=models.SET_NULL)
-
+                                          on_delete=models.SET_NULL) 
     class Meta:
         verbose_name = _('Waiter')
         verbose_name_plural = _('Waiters')
@@ -1081,6 +1080,34 @@ class PermissionGroup(models.Model):
         return str(_('Group permissions'))
 
 
+class TrainingCategory(models.Model):
+    """Represents a type of training, e.g. Grundausbildung, Fortbildung, Aufbaumodul, etc."""
+    name = models.CharField(verbose_name=_('Name'), max_length=50)
+    permission_needed = models.BooleanField(verbose_name=_('Permission needed'))
+
+    class Meta:
+        verbose_name = _('Training category')
+        verbose_name_plural = _('Training categories')
+
+    def __str__(self):
+        return self.name
+
+
+class MemberTraining(models.Model):
+    """Represents a training planned or attended by a member."""
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs')
+    title = models.CharField(verbose_name=_('Title'), max_length=30)
+    date = models.DateField(verbose_name=_('Date'), null=True, blank=True)
+    category = models.ForeignKey(TrainingCategory, on_delete=models.PROTECT, verbose_name=_('Category'))
+    comments = models.TextField(verbose_name=_('Comments'), blank=True)
+    participated = models.BooleanField(verbose_name=_('Participated'))
+    passed = models.BooleanField(verbose_name=_('Passed'))
+
+    class Meta:
+        verbose_name = _('Training')
+        verbose_name_plural = _('Trainings')
+
+
 def import_from_csv(path):
     with open(path, encoding='ISO-8859-1') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
@@ -1095,10 +1122,40 @@ def import_from_csv(path):
 
     def transform_row(row):
         kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
-        kwargs_without_group = { k : v for k, v in kwargs.items() if k != 'group' }
-        mem = Member(**kwargs_without_group)
+        kwargs_filtered = { k : v for k, v in kwargs.items() if k not in  ['group', 'last_training', 'has_fundamental_training', 'special_training'] }
+        mem = Member(**kwargs_filtered)
         mem.save()
         mem.group.set(kwargs['group'])
+
+        if kwargs['has_fundamental_training']:
+            try:
+                ga_cat = TrainingCategory.objects.get(name='Grundausbildung')
+            except TrainingCategory.DoesNotExist:
+                ga_cat = TrainingCategory(name='Grundausbildung', permission_needed=True)
+                ga_cat.save()
+            ga_training = MemberTraining(member=mem, title='Grundausbildung', date=None, category=ga_cat,
+                                         participated=True, passed=True)
+            ga_training.save()
+
+        if kwargs['last_training'] is not None:
+            try:
+                cat = TrainingCategory.objects.get(name='Fortbildung')
+            except TrainingCategory.DoesNotExist:
+                cat = TrainingCategory(name='Fortbildung', permission_needed=False)
+                cat.save()
+            training = MemberTraining(member=mem, title='Unbekannt', date=kwargs['last_training'], category=cat,
+                                      participated=True, passed=True)
+            training.save()
+
+        if kwargs['special_training'] != '':
+            try:
+                cat = TrainingCategory.objects.get(name='Sonstiges')
+            except TrainingCategory.DoesNotExist:
+                cat = TrainingCategory(name='Sonstiges', permission_needed=False)
+                cat.save()
+            training = MemberTraining(member=mem, title=kwargs['special_training'], date=None, category=cat,
+                                      participated=True, passed=True)
+            training.save()
 
     for row in rows:
         transform_row(row)
@@ -1155,9 +1212,9 @@ CLUBDESK_TO_KOMPASS = {
     'IBAN': 'iban',
     'Vorlage Führungszeugnis': ('good_conduct_certificate_presented_date', parse_date),
     'Vorlage Führungszeugnis notwendig': ('good_conduct_certificate_presentation_needed', parse_boolean),
-#    'Letzte Fortbildung': '',
-#    'Grundausbildung': '',
-#    'Besondere Ausbildung': '',
+    'Letzte Fortbildung': ('last_training', parse_date),
+    'Grundausbildung': ('has_fundamental_training', parse_boolean),
+    'Besondere Ausbildung': 'special_training',
     '[Gruppen]' : ('group', parse_group),
     'Schlüssel': ('has_key', parse_boolean),
     'Freikarte': ('has_free_ticket_gym', parse_boolean),

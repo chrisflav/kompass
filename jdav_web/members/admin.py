@@ -32,7 +32,7 @@ import nested_admin
 
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
                      MemberWaitingList, LJPProposal, Intervention, PermissionMember,
-                     PermissionGroup,
+                     PermissionGroup, MemberTraining, TrainingCategory,
                      KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
 from finance.models import Statement, Bill
@@ -89,6 +89,20 @@ class PermissionOnMemberInline(admin.StackedInline):
     model = PermissionMember
     extra = 1
     can_delete = False
+
+
+class TrainingOnMemberInline(admin.TabularInline):
+    model = MemberTraining
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+    }
+    ordering = ("date",)
+    extra = 0
+
+
+class TrainingCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'permission_needed')
+    ordering = ('name', )
 
 
 class RegistrationFilter(admin.SimpleListFilter):
@@ -148,7 +162,7 @@ class MemberAdmin(admin.ModelAdmin):
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active')
     list_display_links = None
-    inlines = [PermissionOnMemberInline]
+    inlines = [TrainingOnMemberInline, PermissionOnMemberInline]
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -892,6 +906,7 @@ admin.site.register(Freizeit, FreizeitAdmin)
 admin.site.register(MemberNoteList, MemberNoteListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
 admin.site.register(ActivityCategory, ActivityCategoryAdmin)
+admin.site.register(TrainingCategory, TrainingCategoryAdmin)
 
 
 def media_path(fp):
