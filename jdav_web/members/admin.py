@@ -168,7 +168,7 @@ class MemberAdmin(admin.ModelAdmin):
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
     change_form_template = "members/change_member.html"
-    #ordering = ('activity_score',)
+    ordering = ('lastname',)
     actions = ['send_mail_to', 'request_echo']
     list_per_page = 25
 
@@ -292,6 +292,7 @@ class MemberAdmin(admin.ModelAdmin):
         else:
             return obj.name
     name_text_or_link.short_description = _('Name')
+    name_text_or_link.admin_order_field = 'lastname'
 
 
 class MemberUnconfirmedAdmin(admin.ModelAdmin):
