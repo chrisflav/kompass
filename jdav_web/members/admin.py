@@ -170,6 +170,7 @@ class MemberAdmin(admin.ModelAdmin):
     change_form_template = "members/change_member.html"
     #ordering = ('activity_score',)
     actions = ['send_mail_to', 'request_echo']
+    list_per_page = 25
 
     sensitive_fields = ['iban', 'registration_form', 'comments']
 
