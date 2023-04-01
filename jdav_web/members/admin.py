@@ -221,13 +221,13 @@ class MemberAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         if request.user.has_perm('members.may_list_everyone'):
-            return annotate_activity_score(queryset)
+            return annotate_activity_score(queryset.prefetch_related('group'))
 
         if not hasattr(request.user, 'member'):
             return Member.objects.none()
 
         queryset = request.user.member.filter_queryset_by_permissions(queryset, annotate=True)
-        return annotate_activity_score(queryset)
+        return annotate_activity_score(queryset.prefetch_related('group'))
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         try:
