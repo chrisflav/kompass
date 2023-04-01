@@ -1163,7 +1163,19 @@ def import_from_csv(path):
 
 def parse_group(value):
     groups_raw = re.split(',', value)
-    group_names = [ re.search('^(.*?)( \(.*\))?$', raw).group(1).strip() for raw in groups_raw if raw != '']
+
+    # need to determine if member is youth leader
+    roles = set()
+    def extract_group_name_and_role(raw):
+        obj = re.search('^(.*?)(?: \((.*)\))?$', raw)
+        if obj.group(2) is not None:
+            roles.add(obj.group(2).strip())
+        return obj.group(1).strip()
+
+    group_names = [extract_group_name_and_role(raw) for raw in groups_raw if raw != '']
+
+    if "Jugendleiter" in roles:
+        group_names.append("Jugendleiter")
     groups = []
     for group_name in group_names:
         try:
