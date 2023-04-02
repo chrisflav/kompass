@@ -33,7 +33,7 @@ import nested_admin
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
                      MemberWaitingList, LJPProposal, Intervention, PermissionMember,
                      PermissionGroup, MemberTraining, TrainingCategory,
-                     KlettertreffAttendee, ActivityCategory, OldMemberOnList, MemberList,
+                     KlettertreffAttendee, ActivityCategory,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
 from finance.models import Statement, Bill
 from mailer.mailutils import send as send_mail, get_echo_link
@@ -592,11 +592,6 @@ class MemberOnListInline(FilteredMemberFieldMixin, GenericTabularInline):
     sortable_options = []
 
 
-class OldMemberOnListInline(admin.TabularInline):
-    model = OldMemberOnList
-    extra = 0
-
-
 class MemberNoteListAdmin(admin.ModelAdmin):
     inlines = [MemberOnListInline]
     list_display = ['__str__', 'date']
@@ -672,61 +667,6 @@ class MemberNoteListAdmin(admin.ModelAdmin):
 
             return response
     generate_summary.short_description = "PDF Übersicht erstellen"
-
-
-
-class MemberListAdmin(admin.ModelAdmin):
-    inlines = [OldMemberOnListInline]
-    form = FreizeitAdminForm
-    list_display = ['__str__', 'date']
-    search_fields = ('name',)
-    actions = ['migrate_to_freizeit', 'migrate_to_notelist']
-    #formfield_overrides = {
-    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-    #    ForeignKey: {'widget': apply_select2(forms.Select)}
-    #}
-
-    class Media:
-        css = {'all': ('admin/css/tabular_hide_original.css',)}
-
-    def __init__(self, *args, **kwargs):
-        super(MemberListAdmin, self).__init__(*args, **kwargs)
-
-    def migrate_to_freizeit(self, request, queryset):
-        """Creates 'Freizeiten' from the given memberlists """
-        for memberlist in queryset:
-            freizeit = Freizeit(name=memberlist.name,
-                                place=memberlist.place,
-                                destination=memberlist.destination,
-                                date=memberlist.date,
-                                end=memberlist.end,
-                                tour_type=memberlist.tour_type,
-                                difficulty=memberlist.difficulty)
-            freizeit.save()
-            freizeit.jugendleiter = memberlist.jugendleiter.all()
-            freizeit.groups = memberlist.groups.all()
-            freizeit.activity = memberlist.activity.all()
-            for memberonlist in memberlist.oldmemberonlist_set.all():
-                newonlist = NewMemberOnList(member=memberonlist.member,
-                                            comments=memberonlist.comments,
-                                            memberlist=freizeit)
-                newonlist.save()
-        messages.info(request, "Freizeit(en) erfolgreich erstellt.")
-    migrate_to_freizeit.short_description = "Aus Teilnehmerliste(n) Freizeit(en) erstellen"
-
-    def migrate_to_notelist(self, request, queryset):
-        """Creates 'MemberNoteList' from the given memberlists """
-        for memberlist in queryset:
-            notelist = MemberNoteList(title=memberlist.name,
-                                      date=memberlist.date)
-            notelist.save()
-            for memberonlist in memberlist.oldmemberonlist_set.all():
-                newonlist = NewMemberOnList(member=memberonlist.member,
-                                            comments=memberonlist.comments,
-                                            memberlist=notelist)
-                newonlist.save()
-        messages.info(request, "Teilnehmerlist(en) erfolgreich erstellt.")
-    migrate_to_notelist.short_description = "Aus Teilnehmerliste(n) Notizliste erstellen"
 
 
 class FreizeitAdmin(FilteredMemberFieldMixin, nested_admin.NestedModelAdmin):

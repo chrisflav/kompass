@@ -565,69 +565,6 @@ class MemberWaitingList(Person):
                   else self.email)
 
 
-class MemberList(models.Model):
-    """Lets the user create a list of members in pdf format.
-
-       DEPRECATED: Replaced by Freizeit and Notizliste
-    """
-
-    name = models.CharField(verbose_name=_('Activity'), default='',
-                            max_length=50)
-    place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
-    destination = models.CharField(verbose_name=_('Destination (optional)'),
-                                   default='', max_length=50, blank=True)
-    date = models.DateField(default=datetime.today, verbose_name=_('Date'))
-    end = models.DateField(verbose_name=_('End (optional)'), blank=True, default=datetime.today)
-    # comment = models.TextField(_('Comments'), default='', blank=True)
-    groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
-    jugendleiter = models.ManyToManyField(Member)
-    tour_type_choices = ((GEMEINSCHAFTS_TOUR, 'Gemeinschaftstour'),
-                         (FUEHRUNGS_TOUR, 'Führungstour'),
-                         (AUSBILDUNGS_TOUR, 'Ausbildung'))
-    # verbose_name is overriden by form, label is set in admin.py
-    tour_type = models.IntegerField(choices=tour_type_choices)
-    activity = models.ManyToManyField(ActivityCategory, default=None,
-                                      verbose_name=_('Categories'))
-    difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
-    # verbose_name is overriden by form, label is set in admin.py
-    difficulty = models.IntegerField(choices=difficulty_choices)
-
-    def __str__(self):
-        """String represenation"""
-        return self.name
-
-    class Meta:
-        verbose_name = _('Memberlist')
-        verbose_name_plural = _('Memberlists')
-
-    def get_tour_type(self):
-        if self.tour_type == FUEHRUNGS_TOUR:
-            return "Führungstour"
-        elif self.tour_type == AUSBILDUNGS_TOUR:
-            return "Ausbildung"
-        else:
-            return "Gemeinschaftstour"
-
-    def get_absolute_url(self):
-        return reverse('admin:members_memberlist_change', args=[str(self.id)])
-
-
-class OldMemberOnList(models.Model):
-    """
-    Connects members to a list of members.
-    """
-    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
-    memberlist = models.ForeignKey(MemberList, on_delete=models.CASCADE)
-    comments = models.TextField(_('Comment'), default='', blank=True)
-
-    def __str__(self):
-        return str(self.member)
-
-    class Meta:
-        verbose_name = _('Member')
-        verbose_name_plural = _('Members')
-
-
 class NewMemberOnList(models.Model):
     """
     Connects members to a list of members.
