@@ -71,19 +71,19 @@ class MemberTestCase(TestCase):
 
     def test_filter_queryset(self):
         # lise may only list herself
-        self.assertEqual(set(self.lise.filter_queryset_by_permissions()), set([self.lise]))
+        self.assertEqual(set(self.lise.filter_queryset_by_permissions(model=Member)), set([self.lise]))
 
         for member in Member.objects.all():
             # passing the empty queryset as starting queryset, should give the empty queryset back
-            self.assertEqual(member.filter_queryset_by_permissions(Member.objects.none()).count(), 0)
+            self.assertEqual(member.filter_queryset_by_permissions(Member.objects.none(), model=Member).count(), 0)
             # passing all objects as start queryset should give the same result as not giving any start queryset
-            self.assertEqual(set(member.filter_queryset_by_permissions(Member.objects.all())),
-                             set(member.filter_queryset_by_permissions()))
+            self.assertEqual(set(member.filter_queryset_by_permissions(Member.objects.all(), model=Member)),
+                             set(member.filter_queryset_by_permissions(model=Member)))
 
 
     def test_compare_filter_queryset_may_list(self):
         # filter_queryset and filtering manually by may_list should be the same
         for member in Member.objects.all():
-            s1 = set(member.filter_queryset_by_permissions())
+            s1 = set(member.filter_queryset_by_permissions(model=Member))
             s2 = set(other for other in Member.objects.all() if member.may_list(other))
             self.assertEqual(s1, s2)
