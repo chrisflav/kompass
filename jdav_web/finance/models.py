@@ -2,11 +2,16 @@ import math
 from itertools import groupby
 from decimal import Decimal, ROUND_HALF_DOWN
 from django.utils import timezone
+from .rules import is_creator, not_submitted, leads_excursion
+from members.rules import is_leader, statement_not_submitted
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from members.models import Member, Freizeit, OEFFENTLICHE_ANREISE, MUSKELKRAFT_ANREISE
 from django.conf import settings
+import rules
+from contrib.models import CommonModel
+from contrib.rules import has_global_perm
 
 # Create your models here.
 
@@ -35,7 +40,7 @@ class StatementManager(models.Manager):
         return super().get_queryset().filter(submitted=False, confirmed=False)
 
 
-class Statement(models.Model):
+class Statement(CommonModel):
     MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, VALID = 0, 1, 2
 
     short_description = models.CharField(verbose_name=_('Short description'),
@@ -71,10 +76,20 @@ class Statement(models.Model):
                                      on_delete=models.SET_NULL,
                                      related_name='confirmed_statements')
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Statement')
         verbose_name_plural = _('Statements')
-        permissions = [('may_edit_submitted_statements', 'Is allowed to edit submitted statements')]
+        permissions = [
+            ('may_edit_submitted_statements', 'Is allowed to edit submitted statements')
+        ]
+        rules_permissions = {
+            # this is suboptimal, but Statement is only ever used as an inline on Freizeit
+            # so we check for excursion permissions
+            'add_obj': is_leader,
+            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
+            'change_obj': is_leader & statement_not_submitted,
+            'delete_obj': is_leader & statement_not_submitted,
+        }
 
     def __str__(self):
         if self.excursion is not None:
@@ -306,10 +321,16 @@ class StatementUnSubmittedManager(models.Manager):
 class StatementUnSubmitted(Statement):
     objects = StatementUnSubmittedManager()
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         proxy = True
         verbose_name = _('Statement in preparation')
         verbose_name_plural = _('Statements in preparation')
+        rules_permissions = {
+            'add_obj': rules.is_staff,
+            'view_obj': is_creator | leads_excursion | has_global_perm('finance.view_global_statementunsubmitted'),
+            'change_obj': is_creator | leads_excursion,
+            'delete_obj': is_creator | leads_excursion,
+        }
 
 
 class StatementSubmittedManager(models.Manager):
@@ -320,11 +341,13 @@ class StatementSubmittedManager(models.Manager):
 class StatementSubmitted(Statement):
     objects = StatementSubmittedManager()
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         proxy = True
         verbose_name = _('Submitted statement')
         verbose_name_plural = _('Submitted statements')
-        permissions = (('may_manage_submitted_statements', 'Can view and manage submitted statements.'),)
+        permissions = [
+            ('process_statementsubmitted', 'Can manage submitted statements.'),
+        ]
 
 
 class StatementConfirmedManager(models.Manager):
@@ -335,14 +358,16 @@ class StatementConfirmedManager(models.Manager):
 class StatementConfirmed(Statement):
     objects = StatementConfirmedManager()
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         proxy = True
         verbose_name = _('Paid statement')
         verbose_name_plural = _('Paid statements')
-        permissions = (('may_manage_confirmed_statements', 'Can view and manage confirmed statements.'),)
+        permissions = [
+            ('may_manage_confirmed_statements', 'Can view and manage confirmed statements.'),
+        ]
 
 
-class Bill(models.Model):
+class Bill(CommonModel):
     statement = models.ForeignKey(Statement, verbose_name=_('Statement'), on_delete=models.CASCADE)
     short_description = models.CharField(verbose_name=_('Short description'), max_length=30)
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
@@ -363,9 +388,37 @@ class Bill(models.Model):
     pretty_amount.admin_order_field = 'amount'
     pretty_amount.short_description = _('Amount')
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Bill')
         verbose_name_plural = _('Bills')
+
+
+class BillOnExcursionProxy(Bill):
+    class Meta(CommonModel.Meta):
+        proxy = True
+        verbose_name = _('Bill')
+        verbose_name_plural = _('Bills')
+        rules_permissions = {
+            'add_obj': leads_excursion & not_submitted,
+            'view_obj': leads_excursion | has_global_perm('finance.view_global_billonexcursionproxy'),
+            'change_obj': (leads_excursion | has_global_perm('finance.change_global_billonexcursionproxy')) & not_submitted,
+            'delete_obj': (leads_excursion | has_global_perm('finance.delete_global_billonexcursionproxy')) & not_submitted,
+        }
+
+
+class BillOnStatementProxy(Bill):
+    class Meta(CommonModel.Meta):
+        proxy = True
+        verbose_name = _('Bill')
+        verbose_name_plural = _('Bills')
+        rules_permissions = {
+            'add_obj': (is_creator | leads_excursion) & not_submitted,
+            'view_obj': is_creator | leads_excursion | has_global_perm('finance.view_global_billonstatementproxy'),
+            'change_obj': (is_creator | leads_excursion | has_global_perm('finance.change_global_billonstatementproxy'))
+                     & (not_submitted | has_global_perm('finance.process_statementsubmitted')),
+            'delete_obj': (is_creator | leads_excursion | has_global_perm('finance.delete_global_billonstatementproxy'))
+                     & not_submitted,
+        }
 
 
 class Transaction(models.Model):

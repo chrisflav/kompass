@@ -7,12 +7,15 @@ from django import forms
 #from easy_select2 import apply_select2
 import json
 
+from rules.contrib.admin import ObjectPermissionsModelAdmin
+
 from .models import Message, Attachment, MessageForm, EmailAddress, EmailAddressForm
 from .mailutils import NOT_SENT, PARTLY_SENT
 from members.models import Member
+from contrib.admin import CommonAdminMixin, CommonAdminInlineMixin
 
 
-class AttachmentInline(admin.TabularInline):
+class AttachmentInline(CommonAdminInlineMixin, admin.TabularInline):
     model = Attachment
     extra = 0
 
@@ -27,8 +30,9 @@ class EmailAddressAdmin(admin.ModelAdmin):
     form = EmailAddressForm
 
 
-class MessageAdmin(admin.ModelAdmin):
+class MessageAdmin(CommonAdminMixin, ObjectPermissionsModelAdmin):
     """Message creation view"""
+    exclude = ('created_by',)
     list_display = ('subject', 'get_recipients', 'sent')
     search_fields = ('subject',)
     change_form_template = "mailer/change_form.html"
@@ -41,6 +45,11 @@ class MessageAdmin(admin.ModelAdmin):
     actions = ['send_message']
     form = MessageForm
     filter_horizontal = ('to_members','reply_to')
+
+    def save_model(self, request, obj, form, change):
+        if not change and hasattr(request.user, 'member'):
+            obj.created_by = request.user.member
+        super().save_model(request, obj, form, change)
 
     def send_message(self, request, queryset):
         if request.POST.get('confirmed'):

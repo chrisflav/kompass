@@ -9,6 +9,9 @@ from jdav_web.celery import app
 from django.core.validators import RegexValidator
 from django.conf import settings
 
+from contrib.models import CommonModel
+from .rules import is_creator
+
 import os
 
 
@@ -59,7 +62,7 @@ class EmailAddressForm(forms.ModelForm):
 
 
 # Create your models here.
-class Message(models.Model):
+class Message(CommonModel):
     """Represents a message that can be sent to some members"""
     subject = models.CharField(_('subject'), max_length=50)
     content = models.TextField(_('content'))
@@ -88,6 +91,11 @@ class Message(models.Model):
                                                     blank=True,
                                                     related_name='reply_to_email_addr')
     sent = models.BooleanField(_('sent'), default=False)
+    created_by = models.ForeignKey('members.Member', verbose_name=_('Created by'),
+                                   blank=True,
+                                   null=True,
+                                   on_delete=models.SET_NULL,
+                                   related_name='created_messages')
 
     def __str__(self):
         return self.subject
@@ -175,12 +183,17 @@ class Message(models.Model):
             self.save()
         return success
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('message')
         verbose_name_plural = _('messages')
         permissions = (
             ("submit_mails", _("Can submit mails")),
         )
+        rules_permissions = {
+            "view_obj": is_creator,
+            "change_obj": is_creator,
+            "delete_obj": is_creator,
+        }
 
 
 class MessageForm(forms.ModelForm):
@@ -203,7 +216,7 @@ class MessageForm(forms.ModelForm):
             raise ValidationError(_('At least one reply-to recipient is required. '
                                     'Use the info mail if you really want no reply-to recipient.'))
 
-class Attachment(models.Model):
+class Attachment(CommonModel):
     """Represents an attachment to an email"""
     msg = models.ForeignKey(Message, on_delete=models.CASCADE)
     # file (not naming it file because of builtin)
@@ -218,3 +231,10 @@ class Attachment(models.Model):
     class Meta:
         verbose_name = _('attachment')
         verbose_name_plural = _('attachments')
+        rules_permissions = {
+            "add_obj": is_creator,
+            "view_obj": is_creator,
+            "change_obj": is_creator,
+            "delete_obj": is_creator,
+        }
+

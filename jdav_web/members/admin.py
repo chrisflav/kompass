@@ -28,6 +28,8 @@ from django.shortcuts import render
 from django.core.exceptions import PermissionDenied
 from .pdf import render_tex
 
+from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
+
 import nested_admin
 
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
@@ -35,7 +37,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
                      PermissionGroup, MemberTraining, TrainingCategory,
                      KlettertreffAttendee, ActivityCategory,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
-from finance.models import Statement, Bill
+from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
 #from easy_select2 import apply_select2
@@ -57,7 +59,7 @@ class FilteredMemberFieldMixin:
         elif not hasattr(request.user, 'member'):
             field.queryset = Member.objects.none()
         else:
-            field.queryset = request.user.member.filter_queryset_by_permissions()
+            field.queryset = request.user.member.filter_queryset_by_permissions(model=Member)
         return field
 
     def formfield_for_manytomany(self, db_field, request=None, **kwargs):
@@ -75,7 +77,7 @@ class FilteredMemberFieldMixin:
         elif not hasattr(request.user, 'member'):
             field.queryset = Member.objects.none()
         else:
-            field.queryset = request.user.member.filter_queryset_by_permissions()
+            field.queryset = request.user.member.filter_queryset_by_permissions(model=Member)
         return field
 
 
@@ -91,7 +93,7 @@ class PermissionOnMemberInline(admin.StackedInline):
     can_delete = False
 
 
-class TrainingOnMemberInline(admin.TabularInline):
+class TrainingOnMemberInline(CommonAdminInlineMixin, admin.TabularInline):
     model = MemberTraining
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
@@ -145,7 +147,7 @@ class RegistrationFilter(admin.SimpleListFilter):
 
 
 # Register your models here.
-class MemberAdmin(admin.ModelAdmin):
+class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
               'town', 'address_extra', 'country', 'nationality',
               'phone_number_private', 'phone_number_mobile',
@@ -156,7 +158,8 @@ class MemberAdmin(admin.ModelAdmin):
               'medication', 'tetanus_vaccination', 'photos_may_be_taken', 'legal_guardians',
               'good_conduct_certificate_presented_date', 'good_conduct_certificate_presentation_needed',
               'iban', 'has_key', 'has_free_ticket_gym', 'gets_newsletter', 'registered', 'registration_form',
-              'active', 'echoed', 'join_date', 'leave_date', 'comments', 'technical_comments']
+              'active', 'echoed', 'join_date', 'leave_date', 'comments', 'technical_comments',
+              'user']
     list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group', 'gets_newsletter',
                     'registered', 'active', 'echoed', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
@@ -174,60 +177,13 @@ class MemberAdmin(admin.ModelAdmin):
 
     sensitive_fields = ['iban', 'registration_form', 'comments']
 
-    def has_view_permission(self, request, obj=None):
-        user = request.user
-        if request.user.has_perm('members.may_view_everyone'):
-            return True
-
-        if not hasattr(user, 'member'):
-            return False
-
-        if obj is None:
-            return True
-        return request.user.member.may_view(obj)
-
-    def has_change_permission(self, request, obj=None):
-        user = request.user
-        if request.user.has_perm('members.may_change_everyone'):
-            return True
-
-        if not hasattr(user, 'member'):
-            return False
-
-        if obj is None:
-            return True
-        return request.user.member.may_change(obj)
-
-    def has_delete_permission(self, request, obj=None):
-        user = request.user
-        if request.user.has_perm('members.may_delete_everyone'):
-            return True
-
-        if not hasattr(user, 'member'):
-            return False
-
-        if obj is None:
-            return True
-        return request.user.member.may_delete(obj)
-
-    def get_fields(self, request, obj=None):
-        if request.user.has_perm('members.may_set_auth_user'):
-            if 'user' not in self.fields:
-                self.fields.append('user')
-        else:
-            if 'user' in self.fields:
-                self.fields.remove('user')
-        return super(MemberAdmin, self).get_fields(request, obj)
+    field_permissions = {
+        'user': 'members.may_set_auth_user',
+        'group': 'members.may_change_group'
+    }
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        if request.user.has_perm('members.may_list_everyone'):
-            return annotate_activity_score(queryset.prefetch_related('group'))
-
-        if not hasattr(request.user, 'member'):
-            return Member.objects.none()
-
-        queryset = request.user.member.filter_queryset_by_permissions(queryset, annotate=True)
         return annotate_activity_score(queryset.prefetch_related('group'))
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
@@ -242,11 +198,6 @@ class MemberAdmin(admin.ModelAdmin):
                                                         extra_context=extra_context)
         except Member.DoesNotExist:
             return super().change_view(request, object_id)
-        except PermissionDenied:
-            member = Member.objects.get(pk=object_id)
-            messages.error(request,
-                    _("You are not allowed to view %(name)s.") % {'name': member.name})
-            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
     def send_mail_to(self, request, queryset):
         member_pks = [m.pk for m in queryset]
@@ -297,7 +248,7 @@ class MemberAdmin(admin.ModelAdmin):
 
 class MemberUnconfirmedAdmin(admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
-              'town', 'phone_number', 'phone_number_parents', 'birth_date', 'group',
+              'town', 'phone_number_mobile', 'phone_number_private','phone_number_parents', 'birth_date', 'group',
               'registered', 'registration_form', 'active', 'comments']
     list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_mail_parents')
     search_fields = ('prename', 'lastname', 'email')
@@ -380,7 +331,7 @@ class WaiterInviteForm(forms.Form):
                                    label=_('Group'))
 
 
-class MemberWaitingListAdmin(admin.ModelAdmin):
+class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'email_parents', 'birth_date',  'comments', 'invited_for_group']
     list_display = ('name', 'birth_date', 'age', 'confirmed_mail', 'confirmed_mail_parents',
                     'waiting_confirmed')
@@ -501,7 +452,7 @@ class GroupAdminForm(forms.ModelForm):
             self.fields['leiters'].queryset = Member.objects.filter(group__name='Jugendleiter')
 
 
-class GroupAdmin(admin.ModelAdmin):
+class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['name', 'year_from', 'year_to', 'leiters']
     form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')
@@ -529,13 +480,13 @@ class FreizeitAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(FreizeitAdminForm, self).__init__(*args, **kwargs)
-        q = self.fields['jugendleiter'].queryset
-        self.fields['jugendleiter'].queryset = q.filter(group__name='Jugendleiter')
-        #self.fields['add_member'].queryset = Member.objects.filter(prename__startswith='F')
+        if 'jugendleiter' in self.fields:
+            q = self.fields['jugendleiter'].queryset
+            self.fields['jugendleiter'].queryset = q.filter(group__name='Jugendleiter')
 
 
-class BillOnStatementInline(FilteredMemberFieldMixin, admin.TabularInline):
-    model = Bill
+class BillOnExcursionInline(FilteredMemberFieldMixin, CommonAdminInlineMixin, admin.TabularInline):
+    model = BillOnExcursionProxy
     extra = 0
     sortable_options = []
     fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
@@ -543,31 +494,16 @@ class BillOnStatementInline(FilteredMemberFieldMixin, admin.TabularInline):
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
 
-    def get_readonly_fields(self, request, obj=None):
-        if obj is not None and obj.submitted:
-            return self.fields
-        return super(BillOnStatementInline, self).get_readonly_fields(request, obj)
 
-
-class StatementOnListInline(nested_admin.NestedStackedInline):
+class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = Statement
     extra = 1
     sortable_options = []
     fields = ['night_cost']
-    inlines = [BillOnStatementInline]
-
-    def get_readonly_fields(self, request, obj=None):
-        if obj is not None and hasattr(obj, 'statement') and obj.statement.submitted:
-            return self.fields
-        return super(StatementOnListInline, self).get_readonly_fields(request, obj)
-
-    def has_delete_permission(self, request, obj=None):
-        if obj is not None and hasattr(obj, 'statement') and obj.statement.submitted:
-            return False
-        return True
+    inlines = [BillOnExcursionInline]
 
 
-class InterventionOnLJPInline(admin.TabularInline):
+class InterventionOnLJPInline(CommonAdminInlineMixin, admin.TabularInline):
     model = Intervention
     extra = 0
     sortable_options = []
@@ -576,14 +512,14 @@ class InterventionOnLJPInline(admin.TabularInline):
     }
 
 
-class LJPOnListInline(nested_admin.NestedStackedInline):
+class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = LJPProposal
     extra = 1
     sortable_options = []
     inlines = [InterventionOnLJPInline]
 
 
-class MemberOnListInline(FilteredMemberFieldMixin, GenericTabularInline):
+class MemberOnListInline(FilteredMemberFieldMixin, CommonAdminInlineMixin, GenericTabularInline):
     model = NewMemberOnList
     extra = 0
     formfield_overrides = {
@@ -669,8 +605,8 @@ class MemberNoteListAdmin(admin.ModelAdmin):
     generate_summary.short_description = "PDF Übersicht erstellen"
 
 
-class FreizeitAdmin(FilteredMemberFieldMixin, nested_admin.NestedModelAdmin):
-    inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
+class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
+    #inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ['__str__', 'date']
     search_fields = ('name',)
@@ -682,6 +618,12 @@ class FreizeitAdmin(FilteredMemberFieldMixin, nested_admin.NestedModelAdmin):
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
 
+    def get_inlines(self, request, obj=None):
+        if obj:
+            return [MemberOnListInline, LJPOnListInline, StatementOnListInline]
+        else:
+            return [MemberOnListInline]
+
     class Media:
         css = {'all': ('admin/css/tabular_hide_original.css',)}
 
@@ -689,22 +631,10 @@ class FreizeitAdmin(FilteredMemberFieldMixin, nested_admin.NestedModelAdmin):
         super(FreizeitAdmin, self).__init__(*args, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        print("saving model")
         if not change and hasattr(request.user, 'member') and hasattr(obj, 'statement'):
-            print("setting obj statement created")
             obj.statement.created_by = request.user.member
             obj.statement.save()
         super().save_model(request, obj, form, change)
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        if request.user.has_perm('members.may_list_all_excursions'):
-            return queryset
-
-        if not hasattr(request.user, 'member'):
-            return Member.objects.none()
-
-        return Freizeit.filter_queryset_by_permissions(request.user.member, queryset)
 
     def may_view_excursion(self, request, memberlist):
         return request.user.has_perm('members.may_view_everyone') or \

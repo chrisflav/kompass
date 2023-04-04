@@ -8,8 +8,12 @@ from django.utils.translation import gettext_lazy as _
 from django.shortcuts import render
 from django.conf import settings
 
+from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
+
+from rules.contrib.admin import ObjectPermissionsModelAdmin
+
 from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted, StatementConfirmed,\
-        StatementUnSubmitted
+        StatementUnSubmitted, BillOnStatementProxy
 
 
 @admin.register(Ledger)
@@ -17,8 +21,8 @@ class LedgerAdmin(admin.ModelAdmin):
     search_fields = ('name', )
 
 
-class BillOnStatementInline(admin.TabularInline):
-    model = Bill
+class BillOnStatementInline(CommonAdminInlineMixin, admin.TabularInline):
+    model = BillOnStatementProxy
     extra = 0
     sortable_options = []
     fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
@@ -26,32 +30,17 @@ class BillOnStatementInline(admin.TabularInline):
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
 
-    def get_readonly_fields(self, request, obj=None):
-        if obj is not None and obj.submitted:
-            return self.fields
-        return super(BillOnStatementInline, self).get_readonly_fields(request, obj)
-
 
 @admin.register(StatementUnSubmitted)
-class StatementUnSubmittedAdmin(admin.ModelAdmin):
+class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'submitted']
-    list_display = ['__str__', 'excursion']
+    list_display = ['__str__', 'excursion', 'created_by']
     inlines = [BillOnStatementInline]
 
     def save_model(self, request, obj, form, change):
         if not change and hasattr(request.user, 'member'):
             obj.created_by = request.user.member
         super().save_model(request, obj, form, change)
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        if request.user.has_perm('members.may_list_all_statements'):
-            return queryset
-
-        if not hasattr(request.user, 'member'):
-            return Member.objects.none()
-
-        return queryset.filter(Q(created_by=request.user.member) | Q(excursion__jugendleiter=request.user.member))
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = ['submitted', 'excursion']
@@ -109,7 +98,7 @@ class TransactionOnSubmittedStatementInline(admin.TabularInline):
 
 
 class BillOnSubmittedStatementInline(BillOnStatementInline):
-    model = Bill
+    model = BillOnStatementProxy
     extra = 0
     sortable_options = []
     fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof', 'costs_covered']

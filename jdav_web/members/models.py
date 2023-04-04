@@ -18,8 +18,12 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
 
-from dateutil.relativedelta import relativedelta
+from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion
+import rules
+from contrib.models import CommonModel
+from contrib.rules import memberize_user, has_global_perm
 
+from dateutil.relativedelta import relativedelta
 
 def generate_random_key():
     return uuid.uuid4().hex
@@ -28,6 +32,7 @@ def generate_random_key():
 GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = 0
 FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = 1
 AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = 2
+
 
 class ActivityCategory(models.Model):
     """
@@ -69,7 +74,7 @@ class MemberManager(models.Manager):
         return super().get_queryset().filter(confirmed=True)
 
 
-class Person(models.Model):
+class Person(CommonModel):
     """
     Represents an abstract person. Not necessarily a member of any group.
     """
@@ -89,7 +94,7 @@ class Person(models.Model):
     confirm_mail_key = models.CharField(max_length=32, default="")
     confirm_mail_parents_key = models.CharField(max_length=32, default="")
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         abstract = True
 
     def __str__(self):
@@ -123,9 +128,9 @@ class Person(models.Model):
             self.confirmed_mail_parents = False
             self.confirm_mail_parents_key = uuid.uuid4().hex
             send_mail(_('Email confirmation needed'),
-                      CONFIRM_MAIL_TEXT.format(name=self.prename,
-                                               link=get_mail_confirmation_link(self.confirm_mail_parents_key),
-                                               whattoconfirm='der Emailadresse deiner Eltern'),
+                      settings.CONFIRM_MAIL_TEXT.format(name=self.prename,
+                                                        link=get_mail_confirmation_link(self.confirm_mail_parents_key),
+                                                        whattoconfirm='der Emailadresse deiner Eltern'),
                       settings.DEFAULT_SENDING_MAIL,
                       self.email_parents)
         else:
@@ -293,11 +298,21 @@ class Member(Person):
         return groupstring
     get_group.short_description = _('Group')
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('member')
         verbose_name_plural = _('members')
-        permissions = (('may_see_qualities', 'Is allowed to see the quality overview'),
-                       ('may_set_auth_user', 'Is allowed to set auth user member connections.'))
+        permissions = (
+            ('may_see_qualities', 'Is allowed to see the quality overview'),
+            ('may_set_auth_user', 'Is allowed to set auth user member connections.'),
+            ('change_member_group', 'Can change the group field'),
+        )
+        rules_permissions = {
+            'members': rules.always_allow,
+            'add_obj': has_global_perm('members.add_global_member'),
+            'view_obj': may_view | has_global_perm('members.view_global_member'),
+            'change_obj': may_change | has_global_perm('members.change_global_member'),
+            'delete_obj': may_delete | has_global_perm('members.delete_global_member'),
+        }
 
     def get_skills(self):
         # get skills by summing up all the activities taken part in
@@ -333,13 +348,51 @@ class Member(Person):
                       settings.DEFAULT_SENDING_MAIL,
                       jl.email)
 
-    def filter_queryset_by_permissions(self, queryset=None, annotate=False):
+    def filter_queryset_by_permissions(self, queryset=None, annotate=False, model=None):
+        name = model._meta.object_name
         if queryset is None:
             queryset = Member.objects.all()
 
-        # every member may list themself
+        if name == "Message":
+            return self.filter_messages_by_permissions(queryset, annotate)
+        elif name == "Member":
+            return self.filter_members_by_permissions(queryset, annotate)
+        elif name == "StatementUnSubmitted":
+            return self.filter_statements_by_permissions(queryset, annotate)
+        elif name == "Freizeit":
+            return self.filter_excursions_by_permissions(queryset, annotate)
+        elif name == "LJPProposal":
+            return queryset
+        elif name == "MemberTraining":
+            return queryset
+        elif name == "NewMemberOnList":
+            return queryset
+        elif name == "Statement":
+            return queryset
+        elif name == "BillOnExcursionProxy":
+            return queryset
+        elif name == "Intervention":
+            return queryset
+        elif name == "BillOnStatementProxy":
+            return queryset
+        elif name == "Attachment":
+            return queryset
+        elif name == "Group":
+            return queryset
+        else:
+            raise ValueError(name)
+
+    def filter_members_by_permissions(self, queryset, annotate=False):
+        #mems = Member.objects.all().prefetch_related('group')
+
+        #list_pks = [ m.pk for m in mems if self.may_list(m) ]
+        #view_pks = [ m.pk for m in mems if self.may_view(m) ]
+
+        ## every member may list themself
         pks = [self.pk]
         view_pks = [self.pk]
+
+
         if hasattr(self, 'permissions'):
             pks += [ m.pk for m in self.permissions.list_members.all() ]
             view_pks += [ m.pk for m in self.permissions.view_members.all() ]
@@ -366,6 +419,21 @@ class Member(Person):
             return filtered
 
         return filtered.annotate(_viewable=Case(When(pk__in=view_pks, then=Value(True)), default=Value(False), output_field=models.BooleanField()))
+
+    def filter_messages_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
+        return queryset.filter(created_by=self)
+
+    def filter_statements_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
+        return queryset.filter(Q(created_by=self) | Q(excursion__jugendleiter=self))
+
+    def filter_excursions_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
+        groups = self.leited_groups.all()
+        # one may view all excursions by leited groups and leited excursions
+        queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter=self)).distinct()
+        return queryset
 
     def may_list(self, other):
         if self.pk == other.pk:
@@ -493,10 +561,16 @@ class MemberWaitingList(Person):
                                           default=None,
                                           verbose_name=_('Invited for group'),
                                           on_delete=models.SET_NULL) 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Waiter')
         verbose_name_plural = _('Waiters')
         permissions = (('may_manage_waiting_list', 'Can view and manage the waiting list.'),)
+        rules_permissions = {
+            'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
+            'view_obj': has_global_perm('members.view_global_memberwaitinglist'),
+            'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
+            'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
+        }
 
     @property
     def waiting_confirmation_needed(self):
@@ -565,7 +639,7 @@ class MemberWaitingList(Person):
                   else self.email)
 
 
-class NewMemberOnList(models.Model):
+class NewMemberOnList(CommonModel):
     """
     Connects members to a list of members.
     """
@@ -579,9 +653,15 @@ class NewMemberOnList(models.Model):
     def __str__(self):
         return str(self.member)
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Member')
         verbose_name_plural = _('Members')
+        rules_permissions = {
+            'add_obj': is_leader,
+            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
+            'change_obj': is_leader,
+            'delete_obj': is_leader,
+        }
 
     @property
     def comments_tex(self):
@@ -604,7 +684,7 @@ class NewMemberOnList(models.Model):
         return ", ".join(qualities)
 
 
-class Freizeit(models.Model):
+class Freizeit(CommonModel):
     """Lets the user create a 'Freizeit' and generate a members overview in pdf format. """
 
     name = models.CharField(verbose_name=_('Activity'), default='',
@@ -641,9 +721,15 @@ class Freizeit(models.Model):
         """String represenation"""
         return self.name
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = "Freizeit"
         verbose_name_plural = "Freizeiten"
+        rules_permissions = {
+            'add_obj': has_global_perm('members.add_global_freizeit'),
+            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
+            'change_obj': is_leader | has_global_perm('members.change_global_freizeit'),
+            'delete_obj': is_leader | has_global_perm('members.delete_global_freizeit'),
+        }
 
     def get_tour_type(self):
         if self.tour_type == FUEHRUNGS_TOUR:
@@ -827,7 +913,7 @@ class RegistrationPassword(models.Model):
         verbose_name_plural = _('registration passwords')
 
 
-class LJPProposal(models.Model):
+class LJPProposal(CommonModel):
     """A proposal for LJP"""
     title = models.CharField(verbose_name=_('Title'), max_length=30)
 
@@ -843,14 +929,20 @@ class LJPProposal(models.Model):
                                      null=True,
                                      on_delete=models.SET_NULL)
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('LJP Proposal')
         verbose_name_plural = _('LJP Proposals')
+        rules_permissions = {
+            'add_obj': is_leader,
+            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
+            'change_obj': is_leader,
+            'delete_obj': is_leader,
+        }
 
     def __str__(self):
         return self.title
 
-class Intervention(models.Model):
+class Intervention(CommonModel):
     """An intervention during a seminar as part of a LJP proposal"""
     date_start = models.DateTimeField(verbose_name=_('Starting time'))
     duration = models.DecimalField(verbose_name=_('Duration in hours'),
@@ -866,6 +958,12 @@ class Intervention(models.Model):
     class Meta:
         verbose_name = _('Intervention')
         verbose_name_plural = _('Interventions')
+        rules_permissions = {
+            'add_obj': is_leader_of_excursion,
+            'view_obj': is_leader_of_excursion | has_global_perm('members.view_global_freizeit'),
+            'change_obj': is_leader_of_excursion,
+            'delete_obj': is_leader_of_excursion,
+        }
 
 
 def annotate_activity_score(queryset):
@@ -1030,7 +1128,7 @@ class TrainingCategory(models.Model):
         return self.name
 
 
-class MemberTraining(models.Model):
+class MemberTraining(CommonModel):
     """Represents a training planned or attended by a member."""
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs')
     title = models.CharField(verbose_name=_('Title'), max_length=30)
@@ -1040,9 +1138,17 @@ class MemberTraining(models.Model):
     participated = models.BooleanField(verbose_name=_('Participated'))
     passed = models.BooleanField(verbose_name=_('Passed'))
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Training')
         verbose_name_plural = _('Trainings')
+        rules_permissions = {
+            # sine this is used in an inline, the member and not the training is passed
+            'add_obj': is_oneself | has_global_perm('members.add_global_membertraining'),
+            'view_obj': is_oneself | has_global_perm('members.view_global_membertraining'),
+            'change_obj': is_oneself | has_global_perm('members.change_global_membertraining'),
+            'delete_obj': is_oneself | has_global_perm('members.delete_global_membertraining'),
+        }
+
 
 
 def import_from_csv(path):
@@ -1179,3 +1285,4 @@ CLUBDESK_TO_KOMPASS = {
     'Erziehungsberechtigte': 'legal_guardians',
     'Mobil Eltern': 'phone_number_parents',
 }
+
