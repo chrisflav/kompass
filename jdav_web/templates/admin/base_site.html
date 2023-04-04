@@ -18,3 +18,9 @@
         </a>
     </h1>
 {% endblock %}
+
+{% block welcome-msg %}
+    <strong>
+        {% firstof user.member.name user.get_username %}
+    </strong>
+{% endblock %}
