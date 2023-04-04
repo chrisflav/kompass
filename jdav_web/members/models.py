@@ -113,6 +113,8 @@ class Person(CommonModel):
 
     @property
     def birth_date_str(self):
+        if self.birth_date is None:
+            return "---"
         return self.birth_date.strftime("%d.%m.%Y")
 
     def request_mail_confirmation(self):
@@ -272,8 +274,10 @@ class Member(Person):
         """Returning, if available phone number of parents, else member's phone number"""
         if self.phone_number_parents:
             return str(self.phone_number_parents)
-        elif self.phone_number:
-            return str(self.phone_number)
+        elif self.phone_number_mobile:
+            return str(self.phone_number_mobile)
+        elif self.phone_number_private:
+            return str(self.phone_number_private)
         else:
             return "---"
 
@@ -692,8 +696,8 @@ class Freizeit(CommonModel):
     place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
     destination = models.CharField(verbose_name=_('Destination (optional)'),
                                    default='', max_length=50, blank=True)
-    date = models.DateTimeField(default=datetime.today, verbose_name=_('Begin'))
-    end = models.DateTimeField(verbose_name=_('End (optional)'), default=datetime.today)
+    date = models.DateTimeField(default=timezone.now, verbose_name=_('Begin'))
+    end = models.DateTimeField(verbose_name=_('End (optional)'), default=timezone.now)
     # comment = models.TextField(_('Comments'), default='', blank=True)
     groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
     jugendleiter = models.ManyToManyField(Member)
