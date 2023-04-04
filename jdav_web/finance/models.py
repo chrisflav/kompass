@@ -111,14 +111,14 @@ class Statement(CommonModel):
             needed_paiments.extend([(yl, self.real_per_yl) for yl in self.excursion.jugendleiter.all()])
 
         needed_paiments = sorted(needed_paiments, key=lambda p: p[0].pk)
-        target = map(lambda p: (p[0], sum([x[1] for x in p[1]])), groupby(needed_paiments, lambda p: p[0]))
+        target = dict(map(lambda p: (p[0], sum([x[1] for x in p[1]])), groupby(needed_paiments, lambda p: p[0])))
 
         transactions = sorted(self.transaction_set.all(), key=lambda trans: trans.member.pk)
         current = dict(map(lambda p: (p[0], sum([t.amount for t in p[1]])), groupby(transactions, lambda trans: trans.member)))
 
         issues = []
-        for member, amount in target:
-            if amount == 0:
+        for member, amount in target.items():
+            if amount == 0 and member not in current:
                 continue
             elif member not in current:
                 issue = TransactionIssue(member=member, current=0, target=amount)
@@ -126,6 +126,12 @@ class Statement(CommonModel):
             elif current[member] != amount:
                 issue = TransactionIssue(member=member, current=current[member], target=amount)
                 issues.append(issue)
+
+        for member, amount in current.items():
+            if amount != 0 and member not in target:
+                issue = TransactionIssue(member=member, current=amount, target=0)
+                issues.append(issue)
+
         return issues
 
     @property
@@ -151,6 +157,9 @@ class Statement(CommonModel):
             return Statement.VALID
 
     def confirm(self, confirmer=None):
+        if not self.submitted:
+            return False
+
         if not self.validity == Statement.VALID:
             return False
 
