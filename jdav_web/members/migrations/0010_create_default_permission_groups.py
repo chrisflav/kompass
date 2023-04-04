@@ -2,6 +2,7 @@
 
 from django.utils.translation import gettext_lazy as _
 from django.db import migrations
+from django.contrib.auth.management import create_permissions
 
 STANDARD_PERMS = [
     ('members', 'view_member'),
@@ -19,8 +20,9 @@ FINANCE_PERMS = [
     ('finance', 'add_ledger'),
     ('finance', 'change_ledger'),
     ('finance', 'delete_ledger'),
-    ('finance', 'change_statementsubmitted'),
     ('finance', 'view_statementsubmitted'),
+    ('finance', 'view_global_statementsubmitted'),
+    ('finance', 'change_global_statementsubmitted'),
     ('finance', 'view_transaction'),
     ('finance', 'change_transaction'),
     ('finance', 'add_transaction'),
@@ -95,6 +97,10 @@ def try_create_group_with_perms(apps, schema_editor, name, perm_names):
 
 
 def create_default_permission_groups(apps, schema_editor):
+    for app_config in apps.get_app_configs():
+        app_config.models_module = True
+        create_permissions(app_config, verbosity=0)
+
     try_create_group_with_perms(apps, schema_editor, "Standard", STANDARD_PERMS)
     try_create_group_with_perms(apps, schema_editor, "Finance", FINANCE_PERMS)
     try_create_group_with_perms(apps, schema_editor, "Waitinglist", WAITINGLIST_PERMS)
