@@ -38,6 +38,7 @@ USE_X_FORWARDED_HOST = True
 # Application definition
 
 INSTALLED_APPS = [
+    'contrib.apps.ContribConfig',
     'startpage.apps.StartpageConfig',
     'material.apps.MaterialConfig',
     'members.apps.MembersConfig',
@@ -48,6 +49,7 @@ INSTALLED_APPS = [
     'djcelery_email',
     'nested_admin',
     'django_celery_beat',
+    'rules',
     'jet',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -90,6 +92,11 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'jdav_web.wsgi.application'
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'rules.permissions.ObjectPermissionBackend',
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
