@@ -127,7 +127,7 @@ STATICFILES_DIRS = [
 # use python3 manage.py collectstatic to collect static files in the STATIC_ROOT
 # this is needed for deployment
 STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT',
-			     '/var/www/jdav_web/assets')
+			     '/var/www/jdav_web/static')
 
 
 # Locale files (translations)

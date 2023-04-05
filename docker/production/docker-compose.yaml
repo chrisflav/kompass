@@ -19,15 +19,16 @@ services:
         volumes:
           - uwsgi_data:/tmp/uwsgi/
           - web_static:/app/static/
-          - web_static:/var/www/jdav_web/assets/
-          - ./media:/app/media/
+          - web_static:/var/www/jdav_web/static/
+          - ./media:/var/www/jdav_web/media/
 
     nginx:
         build: ./nginx/
         restart: always
         volumes:
           - uwsgi_data:/tmp/uwsgi/
-          - web_static:/var/www/jdav_web/assets/:ro
+          - web_static:/var/www/jdav_web/static/:ro
+          - ./media:/var/www/jdav_web/media/:ro
         ports:
           - "3000:80"
         depends_on:

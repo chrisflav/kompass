@@ -8,7 +8,7 @@ RUN groupadd -g 501 app && useradd -g 501 -u 501 -m -d /app app
 
 # create static directory and set permissions, when doing this before mounting a named volume
 # in docker-compose.yaml, the permissions are inherited during the mount.
-RUN mkdir -p /var/www/jdav_web/assets && chown -R app:app /var/www/jdav_web/assets
+RUN mkdir -p /var/www/jdav_web/static && chown -R app:app /var/www/jdav_web/static
 
 # create static directory and set permissions, when doing this before mounting a named volume
 # in docker-compose.yaml, the permissions are inherited during the mount.
