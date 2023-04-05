@@ -55,9 +55,6 @@ class MaterialAdmin(admin.ModelAdmin):
     #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     #}
 
-    #class Media:
-    #    css = {'all': ('admin/css/tabular_hide_original.css',)}
-
 
 admin.site.register(MaterialCategory, MaterialCategoryAdmin)
 admin.site.register(MaterialPart, MaterialAdmin)

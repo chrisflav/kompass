@@ -85,9 +85,6 @@ class MessageAdmin(CommonAdminMixin, ObjectPermissionsModelAdmin):
             form.base_fields['to_members'].initial = members
         return form
 
-    class Media:
-        css = {'all': ('admin/css/tabular_hide_original.css',)}
-
 
 def submit_message(msg, request):
     success = msg.submit()

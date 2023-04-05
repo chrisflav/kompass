@@ -624,9 +624,6 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         else:
             return [MemberOnListInline]
 
-    class Media:
-        css = {'all': ('admin/css/tabular_hide_original.css',)}
-
     def __init__(self, *args, **kwargs):
         super(FreizeitAdmin, self).__init__(*args, **kwargs)
 
@@ -765,9 +762,6 @@ class KlettertreffAdmin(admin.ModelAdmin):
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
-
-    class Media:
-        css = {'all': ('admin/css/tabular_hide_original.css',)}
 
 
 admin.site.register(Member, MemberAdmin)
