@@ -54,7 +54,7 @@ class FilteredMemberFieldMixin:
 
         if request is None:
             field.queryset = Member.objects.none()
-        elif request.user.has_perm('members.may_list_everyone'):
+        elif request.user.has_perm('members.list_global_member'):
             field.queryset = Member.objects.all()
         elif not hasattr(request.user, 'member'):
             field.queryset = Member.objects.none()
@@ -72,7 +72,7 @@ class FilteredMemberFieldMixin:
 
         if request is None:
             field.queryset = Member.objects.none()
-        elif request.user.has_perm('members.may_list_everyone'):
+        elif request.user.has_perm('members.list_global_member'):
             field.queryset = Member.objects.all()
         elif not hasattr(request.user, 'member'):
             field.queryset = Member.objects.none()
@@ -561,7 +561,7 @@ class MemberNoteListAdmin(admin.ModelAdmin):
                                             args=(object_id,)))
 
     def may_view_notelist(self, request, memberlist):
-        return request.user.has_perm('members.may_view_everyone') or \
+        return request.user.has_perm('members.view_global_member') or \
             ( hasattr(request.user, 'member') and \
               all([request.user.member.may_view(m.member) for m in memberlist.membersonlist.all()]) )
 
@@ -609,7 +609,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         super().save_model(request, obj, form, change)
 
     def may_view_excursion(self, request, memberlist):
-        return request.user.has_perm('members.may_view_everyone') or \
+        return request.user.has_perm('members.view_global_member') or \
             ( hasattr(request.user, 'member') and \
               all([request.user.member.may_view(m.member) for m in memberlist.membersonlist.all()]) )
 
