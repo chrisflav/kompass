@@ -148,17 +148,20 @@ class RegistrationFilter(admin.SimpleListFilter):
 
 # Register your models here.
 class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
-              'town', 'address_extra', 'country', 'nationality',
+    fields = ['prename', 'lastname', 'email',
+              ('email_parents', 'cc_email_parents'),
+              'street', 'plz', 'town', 'address_extra', 'country', 'nationality',
               'phone_number_private', 'phone_number_mobile',
               'phone_number_parents', 'birth_date', 'gender', 'civil_status',
               'dav_badge_no',
               'group',
               'swimming_badge', 'climbing_badge', 'rock_experience', 'allergies',
               'medication', 'tetanus_vaccination', 'photos_may_be_taken', 'legal_guardians',
-              'good_conduct_certificate_presented_date', 'good_conduct_certificate_presentation_needed',
+              ('good_conduct_certificate_presented_date', 'good_conduct_certificate_presentation_needed'),
               'iban', 'has_key', 'has_free_ticket_gym', 'gets_newsletter', 'registered', 'registration_form',
-              'active', 'echoed', 'join_date', 'leave_date', 'comments', 'technical_comments',
+              'active', 'echoed',
+              ('join_date', 'leave_date'),
+              'comments', 'technical_comments',
               'user']
     list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group', 'gets_newsletter',
                     'registered', 'active', 'echoed', 'comments', 'activity_score')
