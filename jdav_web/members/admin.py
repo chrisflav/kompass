@@ -583,7 +583,7 @@ class MemberNoteListAdmin(admin.ModelAdmin):
     summary.short_description = _('Generate PDF summary')
 
 
-class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
+class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.NestedModelAdmin):
     #inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ['__str__', 'date']
