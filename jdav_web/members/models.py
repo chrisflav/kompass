@@ -971,7 +971,7 @@ class Intervention(CommonModel):
 
 
 def annotate_activity_score(queryset):
-    one_year_ago = datetime.now() - timedelta(days=365)
+    one_year_ago = timezone.now() - timedelta(days=365)
     queryset = queryset.annotate(
         _jugendleiter_freizeit_score_calc=Subquery(
             Freizeit.objects.filter(jugendleiter=OuterRef('pk'),
