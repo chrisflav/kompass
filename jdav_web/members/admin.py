@@ -533,76 +533,51 @@ class MemberNoteListAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'date']
     search_fields = ('name',)
     ordering = ('-date',)
-    actions = ['generate_summary']
+    actions = ['summary']
 
-    def generate_summary(self, request, queryset):
-        """Generates a pdf summary of the given NoteMemberLists
-        """
-        for memberlist in queryset:
-            # unique filename
-            filename = memberlist.title + "_notes_" + datetime.today().strftime("%d_%m_%Y")
-            filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
-            # drop umlauts, accents etc.
-            filename = unicodedata.normalize('NFKD', filename).\
-                    encode('ASCII', 'ignore').decode()
-            filename_tex = filename + '.tex'
-            filename_pdf = filename + '.pdf'
+    def get_urls(self):
+        urls = super().get_urls()
 
-            # generate table
-            table = ""
-            for memberonlist in memberlist.membersonlist.all():
-                m = memberonlist.member
-                comment = ". ".join(c for c
-                        in (m.comments,
-                            memberonlist.comments) if
-                        c).replace("..", ".")
-                line = '{0} {1} & {2} \\\\'.format(
-                        esc_ampersand(m.prename), esc_ampersand(m.lastname),
-                        esc_ampersand(comment) or "---")
-                table += esc_underscore(line)
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
 
-            # copy template
-            shutil.copy(media_path('memberlistnote_template.tex'),
-                    media_path(filename_tex))
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
 
-            # read in template
-            with open(media_path(filename_tex), 'r', encoding='utf-8') as f:
-                template_content = f.read()
+        custom_urls = [
+            path(
+                "<path:object_id>/action/",
+                wrap(self.action_view),
+                name="%s_%s_action" % (self.opts.app_label, self.opts.model_name),
+            ),
+        ]
+        return custom_urls + urls
 
-            # adapt template
-            title = esc_all(memberlist.title)
-            template_content = template_content.replace('MEMBERLIST-TITLE', title)
-            template_content = template_content.replace('MEMBERLIST-DATE',
-                    datetime.today().strftime('%d.%m.%Y'))
-            template_content = template_content.replace('TABLE', table)
+    def action_view(self, request, object_id):
+        if "summary" in request.POST:
+            return self.summary(request, [MemberNoteList.objects.get(pk=object_id)])
+        return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                            args=(object_id,)))
 
-            # write adapted template to file
-            with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
-                f.write(template_content)
+    def may_view_notelist(self, request, memberlist):
+        return request.user.has_perm('members.may_view_everyone') or \
+            ( hasattr(request.user, 'member') and \
+              all([request.user.member.may_view(m.member) for m in memberlist.membersonlist.all()]) )
 
-            # compile using pdflatex
-            oldwd = os.getcwd()
-            os.chdir(media_dir())
-            subprocess.call(['pdflatex', filename_tex])
-            time.sleep(1)
+    def not_allowed_view(self, request, memberlist):
+        messages.error(request,
+                _("You are not allowed to view all members on note list %(name)s.") % {'name': memberlist.title})
+        return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
-            # do some cleanup
-            for f in glob.glob('*.log'):
-                os.remove(f)
-            for f in glob.glob('*.aux'):
-                os.remove(f)
-            os.remove(filename_tex)
-
-            os.chdir(oldwd)
-
-            # provide the user with the resulting pdf file
-            with open(media_path(filename_pdf), 'rb') as pdf:
-                response = HttpResponse(FileWrapper(pdf))
-                response['Content-Type'] = 'application/pdf'
-                response['Content-Disposition'] = 'attachment; filename=' + filename_pdf
-
-            return response
-    generate_summary.short_description = "PDF Übersicht erstellen"
+    def summary(self, request, queryset):
+        # this ensures legacy compatibilty
+        memberlist = queryset[0]
+        if not self.may_view_notelist(request, memberlist):
+            return self.not_allowed_view(request, memberlist)
+        context = dict(memberlist=memberlist, settings=settings)
+        return render_tex(memberlist.title + "_Zusammenfassung", 'members/notelist_summary.tex', context)
+    summary.short_description = _('Generate PDF summary')
 
 
 class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
@@ -773,23 +748,3 @@ admin.site.register(MemberNoteList, MemberNoteListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
 admin.site.register(ActivityCategory, ActivityCategoryAdmin)
 admin.site.register(TrainingCategory, TrainingCategoryAdmin)
-
-
-def media_path(fp):
-    return os.path.join(os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists"), fp)
-
-
-def media_dir():
-    return os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists")
-
-
-def esc_underscore(txt):
-    return txt.replace('_', '\_')
-
-
-def esc_ampersand(txt):
-    return txt.replace('&', '\&')
-
-
-def esc_all(txt):
-    return esc_underscore(esc_ampersand(txt))

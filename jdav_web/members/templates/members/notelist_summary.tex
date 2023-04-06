@@ -1,0 +1,38 @@
+{% load tex_extras %}
+
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\usepackage{amssymb}
+\usepackage{cmbright}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=1cm]{geometry}
+
+\renewcommand{\arraystretch}{1.5}
+
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\begin{document}
+
+% HEADLINE
+{\noindent\LARGE\textsc{ {{ memberlist.title|esc_all }} }}\\
+\textit{Erstellt: {{ creation_date }} }\\
+
+\begin{table}[H]
+    \begin{tabularx}{\textwidth}{@{} l l Y @{}}
+    \toprule
+    \textbf{Name} & \textbf{Kommentare} \\
+    \midrule
+    {% for m in memberlist.membersonlist.all %}
+        {{ m.member.name|esc_all }} & {{ m.comments_tex|esc_all }}  \\
+    {% endfor %}
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\end{document}
