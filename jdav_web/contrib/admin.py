@@ -51,9 +51,14 @@ class FilteredQuerysetAdminMixin:
         if ordering:
             qs = qs.order_by(*ordering)
         queryset = qs
-        perm = '%s.list_global_%s' % (self.opts.app_label, self.opts.model_name)
-        if request.user.has_perm(perm):
-            return queryset
+        list_global_perm = '%s.list_global_%s' % (self.opts.app_label, self.opts.model_name)
+        if request.user.has_perm(list_global_perm):
+            view_global_perm = '%s.view_global_%s' % (self.opts.app_label, self.opts.model_name)
+            if request.user.has_perm(view_global_perm):
+               return queryset
+            if hasattr(request.user, 'member'):
+                return request.user.member.annotate_view_permission(queryset, model=self.model)
+            return queryset.annotate(_viewable=models.Value(False))
 
         if not hasattr(request.user, 'member'):
             return self.model.objects.none()

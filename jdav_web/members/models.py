@@ -424,6 +424,28 @@ class Member(Person):
 
         return filtered.annotate(_viewable=Case(When(pk__in=view_pks, then=Value(True)), default=Value(False), output_field=models.BooleanField()))
 
+    def annotate_view_permission(self, queryset, model):
+        name = model._meta.object_name
+        if name != 'Member':
+            return queryset
+        view_pks = [self.pk]
+
+        if hasattr(self, 'permissions'):
+            view_pks += [ m.pk for m in self.permissions.view_members.all() ]
+
+            for group in self.permissions.view_groups.all():
+                view_pks += [ m.pk for m in group.member_set.all() ]
+
+        for group in self.group.all():
+            if hasattr(group, 'permissions'):
+                view_pks += [ m.pk for m in group.permissions.view_members.all() ]
+
+                for gr in group.permissions.view_groups.all():
+                    view_pks += [ m.pk for m in gr.member_set.all()]
+
+        return queryset.annotate(_viewable=Case(When(pk__in=view_pks, then=Value(True)), default=Value(False), output_field=models.BooleanField()))
+
+
     def filter_messages_by_permissions(self, queryset, annotate=False):
         # ignores annotate
         return queryset.filter(created_by=self)
