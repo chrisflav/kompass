@@ -1,0 +1,14 @@
+{% extends "startpage/base_subsite.html" %}
+
+{% block content %}
+<h1>{{ group.name }}</h1>
+
+<p>
+{{ group.description }}
+</p>
+
+<h2>Gruppenleitung</h2>
+
+{% include "startpage/people_grid.html" %}
+
+{% endblock %}

@@ -10,9 +10,17 @@
 
 <link rel="stylesheet" href="{% static "ludwigsburgalpin/termine.css" static %}">
 
-<h1>{% trans "Register for waiting list" %}</h1>
+<h1>Anmeldung</h1>
 
-<p>{% trans "Here you can register for the waiting list." %}</p>
+<p>
+Da wir durch das Engagment unserer ehrenamtlichen Jugendleitern, aber auch die Kletterhalle sowie Ausrüstung limitiert sind können wir nur eine begrenzte Anzahl an Plätzen in den Gruppen anbieten. Damit alle eine faire Changce auf einen Gruppenplatz bekommen, führen wir für die jüngeren Klettergruppen eine gemeinsame Liste. Soblad Plätze frei werden oder eine neue Gruppe gegründet wird seid ihr an der Reihe! Dennoch kann die Wartezeit leider zwischen wenigen Wochen und über einem Jahr variieren.
+</p>
+
+<p>
+Die Anmeldung für die Gruppen <a href="{% url 'startpage:gruppe_detail' group_name='JuMa' %}">JuMa</a>,
+<a href="{% url 'startpage:gruppe_detail' group_name='Kletterteff' %}">Klettertreff</a> und
+<a href="{% url 'startpage:gruppe_detail' group_name='Mountainbike' %}">Mountainbike</a> laufen separat.
+</p>
 
 {% if error_message %}
 	<p><b>{{ error_message }}</b></p>

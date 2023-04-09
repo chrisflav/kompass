@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'finance.apps.FinanceConfig',
     'ludwigsburgalpin.apps.LudwigsburgalpinConfig',
     #'easy_select2',
+    'markdownify.apps.MarkdownifyConfig',
+    'markdownx',
     'djcelery_email',
     'nested_admin',
     'django_celery_beat',
@@ -146,3 +148,43 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.ScryptPasswordHasher',
 ]
+
+MARKDOWNIFY = {
+    'default': {
+        "WHITELIST_TAGS": [
+            'img',
+            'abbr',
+            'acronym',
+            'a',
+            'b',
+            'blockquote',
+            'em',
+            'i',
+            'li',
+            'ol',
+            'p',
+            'strong',
+            'ul',
+            'br',
+            'code',
+            'span',
+            'div', 'class',
+            'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+        ],
+        "WHITELIST_ATTRS": [
+            'src',
+            'href',
+            'style',
+            'alt',
+            'class',
+        ],
+        "LINKIFY_TEXT": {
+            "PARSE_URLS": True,
+
+            # Next key/value-pairs only have effect if "PARSE_URLS" is True
+            "PARSE_EMAIL": True,
+            "CALLBACKS": [],
+            "SKIP_TAGS": [],
+        }
+    }
+}

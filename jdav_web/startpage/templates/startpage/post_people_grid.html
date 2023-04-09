@@ -1,0 +1,25 @@
+{% load static %}
+
+<div class="people">
+    <div class="grid-container">
+        {% for person in post.people.all %}
+        {% for member in person.members.all %}
+        <div class="grid-item">
+            <div class="portrait">
+                {% if member.image %}
+                <img src="{{ member.image.url }}">
+                {% else %}
+                <img src="{% static 'startpage/img/placeholder.jpg' %}">
+                {% endif %}
+                <div class="namebox">
+                    <div class="name">{{ member.name }}</div>
+                    {% if person.description %}
+                    <div class="extra">{{ person.description }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endfor %}
+    </div>
+</div>

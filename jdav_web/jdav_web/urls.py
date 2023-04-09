@@ -34,9 +34,16 @@ urlpatterns += i18n_patterns(
     re_path(r'^members/', include('members.urls', namespace="members")),
     re_path(r'^LBAlpin/Programm(/)?(20)?[0-9]{0,2}', include('ludwigsburgalpin.urls',
             namespace="ludwigsburgalpin")),
-    re_path(r'^$', include('startpage.urls', namespace="startpage")),
     re_path(r'^_nested_admin/', include('nested_admin.urls')),
+    re_path(r'^', include('startpage.urls', namespace="startpage")),
 )
+
+urlpatterns += [
+    re_path(r'^markdownx/', include('markdownx.urls')),
+]
+
+handler404 = 'startpage.views.handler404'
+handler500 = 'startpage.views.handler500'
 
 # TODO: django serving from MEDIA_URL should be disabled in production stage
 # see

@@ -1,0 +1,21 @@
+{% extends "startpage/base_subsite.html" %}
+{% load static %}
+{% load markdownify %}
+{% load markdown_extras %}
+
+{% block content %}
+<h1>Aktuelles</h1>
+
+{% for post in posts %}
+
+<div class="post-preview">
+    <a href="{% url 'startpage:post' post_name=post.urlname section_name='aktuelles' %}"><h3>{{ post.title }}</h3></a>
+    <p>
+    {{ post.website_text|markdownify|truncatechars:200 }}
+    <a href="{% url 'startpage:post' post_name=post.urlname section_name='aktuelles' %}">weiterlesen</a>
+    </p>
+</div>
+
+{% endfor %}
+
+{% endblock %}

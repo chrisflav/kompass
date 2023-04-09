@@ -1,0 +1,27 @@
+{% load static %} <!DOCTYPE html>
+<html>
+
+    <head>
+        <title>{% block title %}{% endblock %}</title>
+
+        <link rel="stylesheet" href="{% static 'startpage/css/base.css' %}">
+        <link rel="stylesheet" href="{% static 'startpage/css/fonts.css' %}">
+        <link rel="stylesheet" href="{% static 'startpage/css/people_grid.css' %}">
+    </head>
+
+    <body>
+        {% include "startpage/navigation.html" %}
+
+        <div class="main">
+            {% block header %}
+            {% include "startpage/header.html" %}
+            {% endblock %}
+
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+        </div>
+
+        {% include "startpage/footer.html" %}
+    </body>
+</html>

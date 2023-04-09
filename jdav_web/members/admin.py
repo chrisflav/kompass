@@ -159,6 +159,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
               'medication', 'tetanus_vaccination', 'photos_may_be_taken', 'legal_guardians',
               ('good_conduct_certificate_presented_date', 'good_conduct_certificate_presentation_needed'),
               'iban', 'has_key', 'has_free_ticket_gym', 'gets_newsletter', 'registered', 'registration_form',
+              'image',
               'active', 'echoed',
               ('join_date', 'leave_date'),
               'comments', 'technical_comments',
@@ -456,7 +457,7 @@ class GroupAdminForm(forms.ModelForm):
 
 
 class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['name', 'year_from', 'year_to', 'leiters']
+    fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'show_website']
     form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')
     inlines = [RegistrationPasswordInline, PermissionOnGroupInline]

@@ -1,0 +1,19 @@
+{% extends "startpage/base_subsite.html" %}
+{% load static markdown_extras markdownify %}
+
+{% block content %}
+<h1>{{ post.title }}</h1>
+
+{% render_as_template "post.website_text" as result %}
+
+{{ result|markdownify }}
+
+{% if post.detailed %}
+    {% include 'startpage/post_people_detail.html' %}
+{% else %}
+    {% include 'startpage/post_people_grid.html' %}
+{% endif %}
+
+{% include 'startpage/people_grid.html' %}
+
+{% endblock %}

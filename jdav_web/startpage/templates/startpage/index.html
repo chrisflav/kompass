@@ -1,2 +1,30 @@
-{% load i18n %}
-{% trans "Awesome JDAV website being able to do a lot!" %}
+{% extends "startpage/base.html" %}
+{% load static %}
+
+{% block title %}
+Startseite
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="column">
+        <h2>Herzlich Willkommen</h2>
+        <p>
+            Herzlich Willkommen auf unserer Webseite. Hier finden Sie alle
+            Informationen über die jdav Heidelberg. Viel Spaß beim Surfen!
+        </p>
+    </div>
+    <div class="column">
+        <h2>Aktuelles</h2>
+        <ul>
+        {% for post in posts %}
+        <li>
+            <a href="{% url 'startpage:post' section_name='aktuelles' post_name=post.urlname %}">{{ post.title }}</a> <i>vom {{ post.date }}</i>
+        </li>
+        {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{% endblock %}

@@ -55,6 +55,8 @@ class Group(models.Model):
     e.g: J1, J2, Jugendleiter, etc.
     """
     name = models.CharField(max_length=50, verbose_name=_('name'))  # e.g: J1
+    description = models.TextField(verbose_name=_('description'), default='', blank=True)
+    show_website = models.BooleanField(verbose_name=_('show on website'), default=False)
     year_from = models.IntegerField(verbose_name=_('lowest year'), default=2010)
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
@@ -214,6 +216,13 @@ class Member(Person):
                                                            'image/jpeg',
                                                            'image/png',
                                                            'image/gif'])
+    image = RestrictedFileField(verbose_name=_('image'),
+                                upload_to='people',
+                                blank=True,
+                                max_upload_size=5242880,
+                                content_types=['image/jpeg',
+                                               'image/png',
+                                               'image/gif'])
     echo_key = models.CharField(max_length=32, default="")
     echo_expire = models.DateTimeField(default=timezone.now)
     echoed = models.BooleanField(default=True, verbose_name=_('Echoed'))

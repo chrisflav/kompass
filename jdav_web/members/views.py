@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from startpage.views import render
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponseRedirect
 from django.forms import ModelForm, TextInput, DateInput

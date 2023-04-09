@@ -1,0 +1,342 @@
+html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+h5 {
+    color: white;
+    font-family: Oswald, sans-serif;
+    font-size: 120px;
+    font-weight: 700;
+    font-style: normal;
+    text-decoration: none;
+    overflow-wrap: break-word;
+    text-transform: none;
+    padding-top: 50px;
+    padding-left: 40px;
+    padding-right: 40px;
+    margin: 0;
+}
+
+h6 {
+    color: white;
+    font-family: Oswald, sans-serif;
+    font-size: 56px;
+    font-weight: 200;
+    font-style: normal;
+    text-decoration: none;
+    text-align: left;
+    line-height: 100px;
+    text-transform: none;
+    margin: 10px 0;
+    overflow-wrap: break-word;
+}
+
+.main {
+  margin-bottom: -50px;
+  box-sizing: border-box;
+  padding: 0 0 50px 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+.image {
+  position: absolute;
+  background-image: url('../img/background.jpeg');
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: block;
+  background-size: cover;
+  background-origin: margin-box;
+  z-index: -2;
+  background-position: center center;
+}
+
+.header {
+    position: relative;
+    width: 100%;
+}
+
+.header-extra {
+}
+
+
+.footer {
+  position: relative;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  clear: both;
+  /*
+  border-top: 1px solid #C2D1E1;
+  color: #a0acba;
+  background: #f5f9ff;*/
+  padding: 4px 0px;
+  height: 50px;
+  font-family: var(--sans);
+  font-size: 0.75em;
+  vertical-align: middle;
+  text-align: center;
+  line-height: 31px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.content {
+    width: 70%;
+    margin: 0 auto;
+    overflow: hidden;
+    position: relative;
+    padding-top: 40px;
+    padding-bottom: 40px;
+}
+
+.column {
+  float: left;
+  width: 50%;
+  padding: 0 20px;
+}
+
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  clear: both;
+}
+
+.footer a {
+    text-decoration: none;
+    color: rgba(87,171,39,1.0);
+}
+
+.footer a:hover {
+    text-decoration: underline;
+}
+
+.navigation {
+  position: fixed;
+  z-index: 1;
+  width: 100%;
+  left: 0;
+  top: 0;
+}
+
+ /* Navbar container */
+.navbar {
+  overflow: hidden;
+  font-family: Arial;
+  background-color: rgba(255, 255, 255, 0);
+  transition: background-color 0.15s linear;
+  padding-top: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-bottom: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.overlay {
+  background-color: rgba(255, 255, 255, 0.9);
+  transition: background-color 0.15s linear;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}
+
+/* Links inside the navbar */
+.navbar a.nav {
+  float: right;
+  font-size: 16px;
+  color: black;
+  text-align: center;
+  padding: 11px 17px;
+  text-decoration: none;
+  border: 1px solid black;
+  border-radius: 25px;
+  vertical-align: middle;
+  margin-left: auto;
+}
+
+/* The dropdown container */
+.dropdown {
+  float: left;
+  overflow: hidden;
+}
+
+/* Dropdown button */
+.dropbtn {
+  font-size: 19px;
+  border: none;
+  outline: none;
+  color: black;
+  padding: 14px 16px;
+  background-color: rgba(255, 255, 255, 0);
+  font: inherit; /* Important for vertical align on mobile phones */
+  margin: 0; /* Important for vertical align on mobile phones */
+  float: right;
+  cursor: pointer;
+}
+
+/* Add a red background color to navbar links on hover */
+.navbar a.nav:hover, .dropdown:hover .dropbtn {
+  background-color: rgba(87,171,39,1.0);
+  color: rgba(255,255,255,1.0);
+  border-color: white;
+}
+
+/* Dropdown content (hidden by default) */
+.dropdown-content {
+  display: block;
+  position: absolute;
+  background-color: #f9f9f9;
+  width: 100%;
+  left: 0;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.menu-level-1 {
+    float: right;
+}
+
+.dropdown-content ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+.dropdown-content .menu-level-1 > ul {
+  display: flex;
+  flex-flow: row;
+  flex-wrap: wrap;
+}
+
+.dropdown-content li {
+    display: block;
+}
+
+/* Create three equal columns that floats next to each other */
+.dropdown-content .column {
+  float: right;
+  max-width: 19%;
+  padding: 10px;
+  height: 250px;
+}
+
+.dropdown-content .menu-level-1 a {
+  font-family: Roboto, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  font-style: normal;
+  text-decoration: none;
+  text-align: left;
+  text-transform: none;
+  margin: 10px 20px;
+  overflow-wrap: break-word;
+  color: rgba(102,102,102,1.0);
+}
+
+.dropdown-content .menu-level-1 a, .menu-level-2 a {
+  display: inline-block;
+}
+
+a, a:visited {
+  text-transform: none;
+  text-decoration: none;
+}
+
+/* Style links inside the columns */
+.dropdown-content .menu-level-2 a {
+  font-family: Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  text-decoration: none;
+  text-align: left;
+  text-transform: none;
+  margin: 5px 20px;
+  overflow-wrap: break-word;
+  color: rgba(102,102,102,1.0);
+}
+
+.dropdown-content a:hover {
+  color: rgba(87,171,39,1.0);
+}
+
+.dropdown-content a.active {
+  color: rgba(87,171,39,1.0);
+}
+
+.show {
+    max-height: 1000px;
+    transition: max-height 0.4s ease-in;
+}
+
+p {
+  font-family: Open Sans, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  text-decoration: none;
+  text-align: left;
+  line-height: 1.4;
+  text-transform: none;
+  margin: 20px 0;
+  overflow-wrap: break-word;
+}
+
+h2 {
+  font-family: Roboto, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  font-style: normal;
+  text-decoration: none;
+  text-align: left;
+  text-transform: none;
+  margin: 20px 0 10px 0;
+  overflow-wrap: break-word;
+  color: rgba(51,51,51,1.0);
+}
+
+html, td, div {
+  font-family: Open Sans, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  text-align: left;
+  line-height: 1.4;
+  text-transform: none;
+  overflow-wrap: break-word;
+}
+
+*, ::before, ::after {
+  box-sizing: inherit;
+}
+
+h1 {
+  font-family: Roboto, sans-serif;
+  font-size: 52px;
+  font-weight: 700;
+  font-style: normal;
+  text-decoration: none;
+  text-align: left;
+  text-transform: none;
+  margin: 30px 0 30px 0;
+  overflow-wrap: break-word;
+}
+
+a, a:visited {
+    color: rgba(87,171,39,1.0);
+    text-transform: none;
+    text-decoration: none;
+}

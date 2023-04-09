@@ -1,0 +1,126 @@
+{% load static %}
+
+<script>
+window.onscroll = () => {
+    const navbar = document.getElementById('myNavbar');
+    const dropdown = document.getElementById("myDropdown");
+    if (window.scrollY > 0) {
+        navbar.classList.add('overlay');
+    } else if (!dropdown.classList.contains('show')) {
+        navbar.classList.remove('overlay');
+    }
+};
+
+function myFunction() {
+  document.getElementById("myDropdown").classList.toggle("show");
+  var navbar = document.getElementById("myNavbar");
+  if (navbar.classList.contains('overlay') && window.scrollY == 0) {
+    navbar.classList.remove('overlay');
+  } else {
+    navbar.classList.add('overlay');
+  }
+}
+
+// Close the dropdown menu if the user clicks outside of it
+window.onclick = function(event) {
+  if (!event.target.matches('.dropbtn')) {
+    var dropdown = document.getElementById("myDropdown");
+    var navbar = document.getElementById("myNavbar");
+    if (dropdown.classList.contains('show')) {
+      dropdown.classList.remove('show');
+      if (navbar.classList.contains('overlay') && window.scrollY == 0) {
+        navbar.classList.remove('overlay');
+      }
+    }
+  }
+}
+
+</script>
+
+<div class="navigation">
+    <div id="myNavbar" class="navbar">
+        <a href="/"><img style="margin: 0; padding: 0;"src="{% static 'startpage/img/jdav_logo.png' %}"></a>
+        <div>
+        <button onclick="myFunction()"class="dropbtn">Menü</button>
+        <a class="nav" href="/kompass">Login</a>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <div id="myDropdown" class="dropdown-content">
+            <div class="menu-level-1">
+                <ul>
+                    <li>
+                        <a href="{% url 'startpage:index' %}">jdav Heidelberg</a>
+                      <div class="menu-level-2">
+                      <ul>
+                          <li>
+                              <a href="{% url 'startpage:jugendleiterinnen' %}">Unsere Jugendleiter:innen</a>
+                          </li>
+                          <li>
+                              <a href="{% url 'startpage:aktuelles' %}">Aktuelles</a>
+                          </li>
+                      </ul>
+                      </div>
+                    </li>
+                    {% for section in sections %}
+                    <li>
+                    <a href="{% url 'startpage:section' section_name=section.urlname %}">{{ section.title }}</a>
+                      <div class="menu-level-2">
+                      <ul>
+                          {% for post in section.post_set.all %}
+                          <li>
+                              <a href="{% url 'startpage:post' post_name=post.urlname section_name=section.urlname %}">{{ post.title }}</a>
+                          </li>
+                          {% endfor %}
+                      </ul>
+                      </div>
+                    </li>
+                    {% endfor %}
+                    <li>
+                    <a href="{% url 'startpage:gruppen' %}">Gruppen</a>
+                      <div class="menu-level-2">
+                      <ul>
+                          {% for group in groups %}
+                          <li>
+                              <a href="{% url 'startpage:gruppe_detail' group_name=group.name %}">{{ group.name }}</a>
+                          </li>
+                          {% endfor %}
+                          <li>
+                              <a href="{% url 'members:register_waiting_list' %}">Anmeldung</a>
+                          </li>
+                          <li>
+                              <a href="{% url 'startpage:faq' %}">FAQ</a>
+                          </li>
+                      </ul>
+                      </div>
+                    </li>
+                    <li>
+                    <a href="{% url 'startpage:impressum' %}">Rechtliches</a>
+                      <div class="menu-level-2">
+                      <ul>
+                          <li>
+                              <a href="{% url 'startpage:impressum' %}#impressum">Impressum</a>
+                          </li>
+                          <li>
+                              <a href="{% url 'startpage:impressum' %}#datenschutz">Datenschutz</a>
+                          </li>
+                      </ul>
+                      </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var navMenu = document.getElementById("myDropdown");
+var links = navMenu.getElementsByTagName("a");
+
+for (var i=0; i<links.length; i++) {
+    if (links[i].href == window.location.href) {
+        links[i].classList.add("active");
+    }
+}
+</script>
