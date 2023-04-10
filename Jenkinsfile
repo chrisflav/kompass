@@ -1,6 +1,5 @@
 node {
     checkout scm 
-    /* .. snip .. */
 }
 
 pipeline {
@@ -9,8 +8,12 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh "cd docker/development; docker compose build"
-
+                sh "make build-test"
+            }
+        }
+        stage('Test') {
+            steps {
+                sh "make test"
             }
         }
     }
