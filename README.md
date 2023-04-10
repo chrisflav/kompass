@@ -1,5 +1,7 @@
 # kompass
 
+[![Build Status](https://jenkins.merten.dev/buildStatus/icon?job=gitea%2Fkompass%2Fmain)](https://jenkins.merten.dev/job/gitea/job/kompass/job/main/)
+
 This repository has the purpose to develop a webapplication that can be used by
 JDAV to send newsletters, manage user lists and keep material lists up to date.
 As this repository is also meant to be a base for exchange during development, feel free
