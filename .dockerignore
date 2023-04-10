@@ -113,7 +113,9 @@ jdav_web/celerybeat-schedule.db
 
 # docker development database folder
 docker/development/db
+docker/test/db
 
 # docker dev and production media folders
 docker/development/media
 docker/production/media
+docker/test/media

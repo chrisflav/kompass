@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+    master:
+        image: kompass:test
+        build:
+            context: ./../../
+            dockerfile: docker/test/Dockerfile
+        env_file: docker.env
+        depends_on:
+          - redis
+          - cache
+          - db
+        entrypoint: /app/docker/test/entrypoint-master.sh
+
+    cache:
+        restart: always
+        image: memcached:alpine
+
+    redis:
+        restart: always
+        image: redis:6-alpine
+
+    db:
+        restart: always
+        image: mariadb
+        volumes:
+          - ./db:/var/lib/mysql
+          - ./provision/mysql/init:/docker-entrypoint-initdb.d
+        env_file: docker.env
