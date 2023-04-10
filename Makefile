@@ -1,5 +1,5 @@
 build-test:
 	cd docker/test; docker compose build
 
-test: build-test
+test:
 	cd docker/test; docker compose up --abort-on-container-exit

@@ -12,6 +12,10 @@ services:
           - cache
           - db
         entrypoint: /app/docker/test/entrypoint-master.sh
+        volumes:
+          - type: bind
+            source: ./coverage.xml
+            target: /app/jdav_web/coverage.xml
 
     cache:
         restart: always
