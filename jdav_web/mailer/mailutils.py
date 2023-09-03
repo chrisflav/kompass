@@ -15,10 +15,10 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
         kwargs = {"reply_to": reply_to}
     else:
         kwargs = {}
+    url = prepend_base_url("/newsletter/unsubscribe")
+    headers = {'List-Unsubscribe': '<{unsubscribe_url}>'.format(unsubscribe_url=url)}
     if message_id is not None:
-        headers = {'Message-ID': message_id}
-    else:
-        headers = {}
+        headers['Message-ID'] = message_id
 
     # construct mails
     mails = []
