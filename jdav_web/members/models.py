@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import uuid
+import pytz
 import re
 import csv
 from django.db import models
@@ -582,6 +583,9 @@ class MemberWaitingList(Person):
     WAITING_CONFIRMATION_INVALID = 1
     WAITING_CONFIRMATION_EXPIRED = 1
     WAITING_CONFIRMED = 2
+
+    application_text = models.TextField(_('application text'), default='', blank=True)
+    application_date = models.DateTimeField(verbose_name=_('application date'), null=True, blank=True)
 
     last_wait_confirmation = models.DateField(auto_now=True, verbose_name=_('Last wait confirmation'))
     wait_confirmation_key = models.CharField(max_length=32, default="")
@@ -1271,6 +1275,13 @@ def parse_date(value):
     return datetime.strptime(value, '%d.%m.%Y').date()
 
 
+def parse_datetime(value):
+    tz = pytz.timezone('Europe/Berlin')
+    if value == '':
+        return None
+    return tz.localize(datetime.strptime(value, '%d.%m.%Y %H:%M:%S'))
+
+
 def parse_status(value):
     return value != "Passivmitglied"
 
@@ -1298,6 +1309,7 @@ CLUBDESK_TO_KOMPASS = {
     'Zivilstand': 'civil_status',
     'Geschlecht': 'gender',
     'Geburtsdatum': ('birth_date', parse_date),
+    'Geburtstag': ('birth_date', parse_date),
     'Bemerkungen': 'comments',
     'IBAN': 'iban',
     'Vorlage Führungszeugnis': ('good_conduct_certificate_presented_date', parse_date),
@@ -1319,5 +1331,35 @@ CLUBDESK_TO_KOMPASS = {
     'Kommentar': 'technical_comments',
     'Erziehungsberechtigte': 'legal_guardians',
     'Mobil Eltern': 'phone_number_parents',
+    'Sonstiges': 'application_text',
+    'Erhalten am': ('application_date', parse_datetime),
 }
 
+
+def import_from_csv_waitinglist(path):
+    with open(path, encoding='ISO-8859-1') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        rows = list(reader)
+
+    def transform_field(key, value):
+        new_key = CLUBDESK_TO_KOMPASS[key]
+        if isinstance(new_key, str):
+            return (new_key, value)
+        else:
+            return (new_key[0], new_key[1](value))
+
+    def transform_field(key, value):
+        new_key = CLUBDESK_TO_KOMPASS[key]
+        if isinstance(new_key, str):
+            return (new_key, value)
+        else:
+            return (new_key[0], new_key[1](value))
+
+    def transform_row(row):
+        kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
+        kwargs_filtered = { k : v for k, v in kwargs.items() if k in ['prename', 'lastname', 'email', 'birth_date', 'application_text', 'application_date'] }
+        mem = MemberWaitingList(**kwargs_filtered)
+        mem.save()
+
+    for row in rows:
+        transform_row(row)

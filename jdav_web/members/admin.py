@@ -336,8 +336,8 @@ class WaiterInviteForm(forms.Form):
 
 
 class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'email_parents', 'birth_date',  'comments', 'invited_for_group']
-    list_display = ('name', 'birth_date', 'age', 'confirmed_mail', 'confirmed_mail_parents',
+    fields = ['prename', 'lastname', 'email', 'email_parents', 'birth_date',  'application_text', 'application_date', 'comments', 'invited_for_group']
+    list_display = ('name', 'birth_date', 'age', 'application_date', 'confirmed_mail', 'confirmed_mail_parents',
                     'waiting_confirmed')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('confirmed_mail', 'confirmed_mail_parents')
