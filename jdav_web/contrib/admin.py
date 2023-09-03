@@ -136,12 +136,12 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
             # extra HTML -- the "add other" interface -- to the end of the
             # rendered output. formfield can be None if it came from a
             # OneToOneField with parent_link=True or a M2M intermediary.
-            if formfield and db_field.name not in self.raw_id_fields:
-                formfield.widget = widgets.RelatedFieldWidgetWrapper(
-                    formfield.widget,
-                    db_field.remote_field,
-                    self.admin_site,
-                )
+            #if formfield and db_field.name not in self.raw_id_fields:
+            #    formfield.widget = widgets.RelatedFieldWidgetWrapper(
+            #        formfield.widget,
+            #        db_field.remote_field,
+            #        self.admin_site,
+            #    )
 
             return formfield
 
