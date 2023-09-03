@@ -36,6 +36,7 @@ class MessageAdmin(CommonAdminMixin, ObjectPermissionsModelAdmin):
     list_display = ('subject', 'get_recipients', 'sent')
     search_fields = ('subject',)
     change_form_template = "mailer/change_form.html"
+    readonly_fields = ('sent',)
     #formfield_overrides = {
     #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
