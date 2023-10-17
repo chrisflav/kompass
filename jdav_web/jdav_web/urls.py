@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.urls import re_path, include
 from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.conf.urls.static import static
 from django.conf.urls.i18n import i18n_patterns
 from django.conf import settings
@@ -25,6 +26,14 @@ urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.index_title = _('Startpage')
 admin.site.site_header = 'Kompass'
+
+if settings.OIDC_ENABLED:
+    admin.site.login = staff_member_required(
+        admin.site.login, login_url=settings.LOGIN_URL
+    )
+    urlpatterns += i18n_patterns(
+        re_path(r'^oidc/', include('mozilla_django_oidc.urls')),
+    )
 
 urlpatterns += i18n_patterns(
     re_path(r'^kompass/?', admin.site.urls),

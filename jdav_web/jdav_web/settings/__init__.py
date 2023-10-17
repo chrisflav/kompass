@@ -16,6 +16,7 @@ import os
 base_settings = [
     'local.py',
     'components/base.py',
+    'components/authentication.py',
     'components/database.py',
     'components/cache.py',
     'components/jet.py',
