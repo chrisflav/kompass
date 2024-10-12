@@ -120,6 +120,9 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
     def has_add_permission(self, request, obj=None):
         return False
 
+    def has_change_permission(self, request, obj=None):
+        return True
+
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = ['submitted']
         if obj is not None and obj.submitted:
