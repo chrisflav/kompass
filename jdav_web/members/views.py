@@ -2,7 +2,8 @@ from startpage.views import render
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponseRedirect
 from django.forms import ModelForm, TextInput, DateInput
-from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy, MemberWaitingList, Group
+from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy, MemberWaitingList, Group,\
+    confirm_mail_by_key
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -12,7 +13,7 @@ class MemberForm(ModelForm):
     class Meta:
         model = Member
         fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra', 'country',
-                  'phone_number_private', 'phone_number_mobile', 'phone_number_parents', 'birth_date']
+                  'phone_number', 'birth_date']
         widgets = {
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
         }
@@ -24,13 +25,10 @@ class MemberRegistrationForm(ModelForm):
         for field in self.Meta.required:
             self.fields[field].required = True
 
-        self.fields['cc_email_parents'].initial = False
-
     class Meta:
         model = Member
         fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra', 'country',
-                  'phone_number_private', 'phone_number_mobile', 'phone_number_parents',
-                  'birth_date', 'email', 'email_parents', 'cc_email_parents',
+                  'phone_number', 'birth_date', 'gender', 'email', 'alternative_email',
                   'registration_form']
         widgets = {
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
@@ -45,11 +43,9 @@ class MemberRegistrationWaitingListForm(ModelForm):
         for field in self.Meta.required:
             self.fields[field].required = True
 
-        self.fields['cc_email_parents'].initial = False
-
     class Meta:
         model = MemberWaitingList
-        fields = ['prename', 'lastname', 'birth_date', 'email', 'email_parents', 'cc_email_parents']
+        fields = ['prename', 'lastname', 'birth_date', 'gender', 'email', 'application_text']
         widgets = {
             'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
         }
@@ -162,7 +158,7 @@ def register(request):
             group = pwd.group
         except RegistrationPassword.DoesNotExist:
             return render_register_wrong_password(request)
-    elif waiter_key: 
+    elif waiter_key:
         try:
             waiter = MemberWaitingList.objects.get(registration_key=waiter_key)
             group = waiter.invited_for_group
@@ -178,20 +174,7 @@ def register(request):
         form = MemberRegistrationForm(request.POST, request.FILES)
         try:
             new_member = form.save()
-            new_member.group.add(group)
-            new_member.confirmed = False
-            needs_mail_confirmation = True
-            if waiter:
-                if new_member.email == waiter.email and new_member.email_parents == waiter.email_parents:
-                    new_member.confirmed_mail = True
-                    new_member.confirmed_mail_parents = True
-                    needs_mail_confirmation = False
-                    new_member.notify_jugendleiters_about_confirmed_mail()
-                waiter.delete()
-
-            new_member.save()
-            if needs_mail_confirmation:
-                new_member.request_mail_confirmation()
+            needs_mail_confirmation = new_member.create_from_registration(waiter, group)
             return render_register_success(request, group.name, new_member.prename, needs_mail_confirmation)
         except ValueError:
             # when input is invalid
@@ -202,16 +185,11 @@ def register(request):
 
 def confirm_mail(request):
     if request.method == 'GET' and 'key' in request.GET:
-        key = request.GET['key']
-        matching_unconfirmed = MemberUnconfirmedProxy.objects.filter(confirm_mail_key=key) \
-                             | MemberUnconfirmedProxy.objects.filter(confirm_mail_parents_key=key)
-        matching_waiter = MemberWaitingList.objects.filter(confirm_mail_key=key) \
-                        | MemberWaitingList.objects.filter(confirm_mail_parents_key=key)
-        if len(matching_unconfirmed) + len(matching_waiter) != 1:
+        res = confirm_mail_by_key(request.GET['key'])
+        if res:
+            return render_mail_confirmation_success(request, res[1], res[0].prename, False)
+        else:
             return render_mail_confirmation_invalid(request)
-        person = matching_unconfirmed[0] if len(matching_unconfirmed) == 1 else matching_waiter[0]
-        email, parents = person.confirm_mail(key)
-        return render_mail_confirmation_success(request, email, person.prename, parents)
     return HttpResponseRedirect(reverse('startpage:index'))
 
 
@@ -272,7 +250,7 @@ def invited_registration(request):
             return render_invited_registration_failed(request, _("invalid"))
         except KeyError:
             return render_invited_registration_failed(request, _("expired"))
-    
+
     # if its a POST request
     return register(request)
 

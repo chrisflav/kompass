@@ -140,11 +140,11 @@ class Message(CommonModel):
         recipients_without_reminder = [m for m in filtered if m.registered]
 
         emails_rem = [member.email for member in recipients_with_reminder]
-        emails_rem.extend([member.email_parents for member in recipients_with_reminder
-                       if member.email_parents and member.cc_email_parents])
+        emails_rem.extend([member.alternative_email for member in recipients_with_reminder
+                       if member.alternative_email])
         emails_no_rem = [member.email for member in recipients_without_reminder]
-        emails_no_rem.extend([member.email_parents for member in recipients_without_reminder
-                       if member.email_parents and member.cc_email_parents])
+        emails_no_rem.extend([member.alternative_email for member in recipients_without_reminder
+                       if member.alternative_email])
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')

@@ -35,7 +35,7 @@ import nested_admin
 from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, Klettertreff,
                      MemberWaitingList, LJPProposal, Intervention, PermissionMember,
                      PermissionGroup, MemberTraining, TrainingCategory,
-                     KlettertreffAttendee, ActivityCategory,
+                     KlettertreffAttendee, ActivityCategory, EmergencyContact,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
 from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
@@ -102,6 +102,15 @@ class TrainingOnMemberInline(CommonAdminInlineMixin, admin.TabularInline):
     extra = 0
 
 
+class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
+    model = EmergencyContact
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+    }
+    fields = ['prename', 'lastname', 'email', 'phone_number']
+    extra = 0
+
+
 class TrainingCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'permission_needed')
     ordering = ('name', )
@@ -109,7 +118,7 @@ class TrainingCategoryAdmin(admin.ModelAdmin):
 
 class RegistrationFilter(admin.SimpleListFilter):
     title = _('Registration complete')
-    parameter_name = 'registered'
+    parameter_name = 'registration_complete'
     default_value = ('All', None)
 
     def lookups(self, request, model_admin):
@@ -121,14 +130,14 @@ class RegistrationFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value() == 'True':
-            return queryset.filter(registered=True)
+            return queryset.filter(registration_complete=True)
         elif self.value() == 'False':
-            return queryset.filter(registered=False)
+            return queryset.filter(registration_complete=False)
         elif self.value() is None:
             if self.default_value[1] is None:
                 return queryset
             else:
-                return queryset.filter(registered=self.default_value[1])
+                return queryset.filter(registration_complete=self.default_value[1])
         elif self.value() == 'All':
             return queryset
 
@@ -149,27 +158,25 @@ class RegistrationFilter(admin.SimpleListFilter):
 # Register your models here.
 class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email',
-              ('email_parents', 'cc_email_parents'),
-              'street', 'plz', 'town', 'address_extra', 'country', 'nationality',
-              'phone_number_private', 'phone_number_mobile',
-              'phone_number_parents', 'birth_date', 'gender', 'civil_status',
+              'alternative_email',
+              'street', 'plz', 'town', 'address_extra', 'country',
+              'phone_number', 'birth_date', 'gender',
               'dav_badge_no',
               'group',
-              'swimming_badge', 'climbing_badge', 'rock_experience', 'allergies',
+              'swimming_badge', 'climbing_badge', 'alpine_experience', 'allergies',
               'medication', 'tetanus_vaccination', 'photos_may_be_taken', 'legal_guardians',
               ('good_conduct_certificate_presented_date', 'good_conduct_certificate_presentation_needed'),
-              'iban', 'has_key', 'has_free_ticket_gym', 'gets_newsletter', 'registered', 'registration_form',
-              'image',
+              'iban', 'has_key', 'has_free_ticket_gym', 'gets_newsletter',
+              'registration_form', 'image',
               'active', 'echoed',
               ('join_date', 'leave_date'),
-              'comments', 'technical_comments',
-              'user']
+              'comments', 'user']
     list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group', 'gets_newsletter',
-                    'registered', 'active', 'echoed', 'comments', 'activity_score')
+                    'registration_complete', 'active', 'echoed', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active')
     list_display_links = None
-    inlines = [TrainingOnMemberInline, PermissionOnMemberInline]
+    inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -213,11 +220,8 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         for member in queryset:
             if not member.gets_newsletter:
                 continue
-            send_mail(_("Echo required"),
-                    settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)),
-                    settings.DEFAULT_SENDING_MAIL,
-                    [member.email, member.email_parents] if member.email_parents and member.cc_email_parents
-                    else member.email)
+            member.send_mail(_("Echo required"),
+                settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)))
             messages.success(request, _("Successfully requested echo from selected members."))
     request_echo.short_description = _('Request echo from selected members')
 
@@ -251,12 +255,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
 
 class MemberUnconfirmedAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'email_parents', 'cc_email_parents', 'street', 'plz',
-              'town', 'phone_number_mobile', 'phone_number_private','phone_number_parents', 'birth_date', 'group',
-              'registered', 'registration_form', 'active', 'comments']
-    list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_mail_parents')
+    fields = ['prename', 'lastname', 'email', 'alternative_email', 'street', 'plz',
+              'town', 'phone_number', 'birth_date', 'gender', 'group',
+              'registration_form', 'comments']
+    list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail')
     search_fields = ('prename', 'lastname', 'email')
-    list_filter = ('group', 'confirmed_mail', 'confirmed_mail_parents')
+    list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
     actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter']
     change_form_template = "members/change_member_unconfirmed.html"
 
@@ -306,14 +310,10 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
             waiter = MemberWaitingList(prename=member.prename,
                                        lastname=member.lastname,
                                        email=member.email,
-                                       email_parents=member.email_parents,
-                                       cc_email_parents=member.cc_email_parents,
                                        birth_date=member.birth_date,
                                        comments=member.comments,
                                        confirmed_mail=member.confirmed_mail,
-                                       confirmed_mail_parents=member.confirmed_mail_parents,
-                                       confirm_mail_key=member.confirm_mail_key,
-                                       confirm_mail_parents_key=member.confirm_mail_parents_key)
+                                       confirm_mail_key=member.confirm_mail_key)
             waiter.save()
             member.delete()
             messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': waiter.name})
@@ -336,13 +336,14 @@ class WaiterInviteForm(forms.Form):
 
 
 class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'email_parents', 'birth_date',  'application_text', 'application_date', 'comments', 'invited_for_group']
-    list_display = ('name', 'birth_date', 'age', 'application_date', 'confirmed_mail', 'confirmed_mail_parents',
+    fields = ['prename', 'lastname', 'email', 'birth_date', 'gender', 'application_text',
+        'application_date', 'comments', 'invited_for_group']
+    list_display = ('name', 'birth_date', 'age', 'application_date', 'confirmed_mail',
                     'waiting_confirmed')
     search_fields = ('prename', 'lastname', 'email')
-    list_filter = ('confirmed_mail', 'confirmed_mail_parents')
+    list_filter = ('confirmed_mail',)
     actions = ['ask_for_registration', 'ask_for_wait_confirmation']
-    readonly_fields= ('invited_for_group',)
+    readonly_fields= ('invited_for_group', 'application_date')
 
     def has_add_permission(self, request, obj=None):
         return False

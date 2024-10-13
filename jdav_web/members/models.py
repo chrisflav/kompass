@@ -30,9 +30,9 @@ def generate_random_key():
     return uuid.uuid4().hex
 
 
-GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = 0
-FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = 1
-AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = 2
+GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = MALE = 0
+FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = FEMALE = 1
+AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = DIVERSE = 2
 
 
 class ActivityCategory(models.Model):
@@ -77,25 +77,16 @@ class MemberManager(models.Manager):
         return super().get_queryset().filter(confirmed=True)
 
 
-class Person(CommonModel):
+class Contact(CommonModel):
     """
-    Represents an abstract person. Not necessarily a member of any group.
+    Represents an abstract person with only absolutely necessary contact information.
     """
     prename = models.CharField(max_length=20, verbose_name=_('prename'))
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
+
     email = models.EmailField(max_length=100, default="")
-    email_parents = models.EmailField(max_length=100, default="", blank=True,
-                                      verbose_name=_("Parents' Email"))
-    cc_email_parents = models.BooleanField(default=True, verbose_name=_('Also send mails to parents'))
-
-    birth_date = models.DateField(_('birth date'), null=True, blank=True)  # to determine the age
-
-    comments = models.TextField(_('comments'), default='', blank=True)
-
     confirmed_mail = models.BooleanField(default=True, verbose_name=_('Email confirmed'))
-    confirmed_mail_parents = models.BooleanField(default=True, verbose_name=_('Parents email confirmed'))
     confirm_mail_key = models.CharField(max_length=32, default="")
-    confirm_mail_parents_key = models.CharField(max_length=32, default="")
 
     class Meta(CommonModel.Meta):
         abstract = True
@@ -110,6 +101,85 @@ class Person(CommonModel):
         return "{0} {1}".format(self.prename, self.lastname)
 
     @property
+    def email_fields(self):
+        """Returns all tuples of emails and confirmation data related to this contact.
+        By default, this is only the principal email field, but extending classes can add
+        more email fields and then override this method."""
+        return [('email', 'confirmed_mail', 'confirm_mail_key')]
+
+    def request_mail_confirmation(self, rerequest=True):
+        """Request mail confirmation for every mail field. If `rerequest` is false, then only
+        confirmation is requested for currently unconfirmed emails.
+
+        Returns true if any mail confirmation was requested, false otherwise."""
+        requested_confirmation = False
+        for email_fd, confirmed_email_fd, confirm_mail_key_fd in self.email_fields:
+            if getattr(self, confirmed_email_fd) and not rerequest:
+                continue
+            requested_confirmation = True
+            setattr(self, confirmed_email_fd, False)
+            confirm_mail_key = uuid.uuid4().hex
+            setattr(self, confirm_mail_key_fd, confirm_mail_key)
+            send_mail(_('Email confirmation needed'),
+                      settings.CONFIRM_MAIL_TEXT.format(name=self.prename,
+                                                        link=get_mail_confirmation_link(confirm_mail_key),
+                                                        whattoconfirm='deiner Emailadresse'),
+                      settings.DEFAULT_SENDING_MAIL,
+                      getattr(self, email_fd))
+        self.save()
+        return requested_confirmation
+
+    def confirm_mail(self, key):
+        for email_fd, confirmed_email_fd, confirm_mail_key_fd in self.email_fields:
+            if getattr(self, confirm_mail_key_fd) == key:
+                setattr(self, confirmed_email_fd, True)
+                setattr(self, confirm_mail_key_fd, "")
+                self.save()
+                return getattr(self, email_fd)
+        return None
+
+    def send_mail(self, subject, content):
+        send_mail(subject, content, settings.DEFAULT_SENDING_MAIL,
+            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields])
+
+
+def confirm_mail_by_key(key):
+    matching_unconfirmed = MemberUnconfirmedProxy.objects.filter(confirm_mail_key=key) \
+                         | MemberUnconfirmedProxy.objects.filter(confirm_alternative_mail_key=key)
+    matching_waiter = MemberWaitingList.objects.filter(confirm_mail_key=key)
+    if len(matching_unconfirmed) + len(matching_waiter) != 1:
+        return None
+    person = matching_unconfirmed[0] if len(matching_unconfirmed) == 1 else matching_waiter[0]
+    return person, person.confirm_mail(key)
+
+
+class ContactWithPhoneNumber(Contact):
+    """
+    A contact with a phone number.
+    """
+    phone_number = models.CharField(max_length=100, verbose_name=_('phone number'))
+
+    class Meta(CommonModel.Meta):
+        abstract = True
+
+
+class Person(Contact):
+    """
+    Represents an abstract person. Not necessarily a member of any group.
+    """
+    birth_date = models.DateField(_('birth date'), null=True, blank=True)  # to determine the age
+    gender_choices = ((MALE, 'Männlich'),
+                      (FEMALE, 'Weiblich'),
+                      (DIVERSE, 'Divers'))
+    gender = models.IntegerField(choices=gender_choices,
+                                 default=DIVERSE,
+                                 verbose_name=_('Gender'))
+    comments = models.TextField(_('comments'), default='', blank=True)
+
+    class Meta(CommonModel.Meta):
+        abstract = True
+
+    @property
     def age(self):
         """Age of member"""
         return relativedelta(datetime.today(), self.birth_date).years
@@ -120,53 +190,18 @@ class Person(CommonModel):
             return "---"
         return self.birth_date.strftime("%d.%m.%Y")
 
-    def request_mail_confirmation(self):
-        self.confirmed_mail = False
-        self.confirm_mail_key = uuid.uuid4().hex
-        send_mail(_('Email confirmation needed'),
-                  settings.CONFIRM_MAIL_TEXT.format(name=self.prename,
-                                                    link=get_mail_confirmation_link(self.confirm_mail_key),
-                                                    whattoconfirm='deiner Emailadresse'),
-                  settings.DEFAULT_SENDING_MAIL,
-                  self.email)
-        if self.email_parents:
-            self.confirmed_mail_parents = False
-            self.confirm_mail_parents_key = uuid.uuid4().hex
-            send_mail(_('Email confirmation needed'),
-                      settings.CONFIRM_MAIL_TEXT.format(name=self.prename,
-                                                        link=get_mail_confirmation_link(self.confirm_mail_parents_key),
-                                                        whattoconfirm='der Emailadresse deiner Eltern'),
-                      settings.DEFAULT_SENDING_MAIL,
-                      self.email_parents)
-        else:
-            self.confirmed_mail_parents = True
-        self.save()
-
-    def confirm_mail(self, key):
-        parents = False
-        email = None
-        if self.confirm_mail_key == key:
-            self.confirm_mail_key, self.confirmed_mail = "", True
-            email, parents = self.email, False
-        elif self.confirm_mail_parents_key == key:
-            self.confirm_mail_parents_key, self.confirmed_mail_parents = "", True
-            email, parents = self.email_parents, True
-        self.save()
-        return (email, parents)
-
-    def send_mail(self, subject, content):
-        send_mail(subject,
-                  content,
-                  settings.DEFAULT_SENDING_MAIL,
-                  [self.email, self.email_parents] if self.email_parents and self.cc_email_parents
-                  else self.email)
-
 
 class Member(Person):
     """
     Represents a member of the association
     Might be a member of different groups: e.g. J1, J2, Jugendleiter, etc.
     """
+    alternative_email = models.EmailField(max_length=100, default=None, blank=True)
+    confirmed_alternative_mail = models.BooleanField(default=True,
+        verbose_name=_('Alternative email confirmed'))
+    confirm_alternative_mail_key = models.CharField(max_length=32, default="")
+
+    phone_number = models.CharField(max_length=100, verbose_name=_('phone number'))
     street = models.CharField(max_length=30, verbose_name=_('street and house number'), default='', blank=True)
     plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
                            default='', blank=True)
@@ -176,39 +211,30 @@ class Member(Person):
 
     good_conduct_certificate_presentation_needed = models.BooleanField(_('Good conduct certificate presentation needed'), default=False)
     good_conduct_certificate_presented_date = models.DateField(_('Good conduct certificate presented on'), default=None, blank=True, null=True)
-    gender = models.CharField(max_length=30, verbose_name=_('Gender'), default='', blank=True)
-    nationality = models.CharField(max_length=30, verbose_name=_('Nationality'), default='', blank=True)
     join_date = models.DateField(_('Joined on'), default=None, blank=True, null=True)
     leave_date = models.DateField(_('Left on'), default=None, blank=True, null=True)
-    civil_status = models.CharField(_('Civil status'), max_length=30, default='', blank=True)
     has_key = models.BooleanField(_('Has key'), default=False)
     has_free_ticket_gym = models.BooleanField(_('Has a free ticket for the climbing gym'), default=False)
     dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='', blank=True)
-    swimming_badge = models.CharField(max_length=20, verbose_name=_('Swimming badge'), default='', blank=True)
+    swimming_badge = models.BooleanField(verbose_name=_('Knows how to swim'), default=False)
     climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='', blank=True)
-    rock_experience = models.CharField(max_length=50, verbose_name=_('Rock experience'), default='', blank=True)
+    alpine_experience = models.TextField(verbose_name=_('Alpine experience'), default='', blank=True)
     allergies = models.CharField(max_length=100, verbose_name=_('Allergies'), default='', blank=True)
     medication = models.CharField(max_length=100, verbose_name=_('Medication'), default='', blank=True)
     tetanus_vaccination = models.CharField(max_length=50, verbose_name=_('Tetanus vaccination'), default='', blank=True)
     photos_may_be_taken = models.BooleanField(verbose_name=_('Photos may be taken'), default=False)
     legal_guardians = models.CharField(max_length=100, verbose_name=_('Legal guardians'), default='', blank=True)
 
-    phone_number_private = models.CharField(max_length=100, verbose_name=_('phone number private'), default='', blank=True)
-    phone_number_mobile = models.CharField(max_length=100, verbose_name=_('phone number mobile'), default='', blank=True)
-    phone_number_parents = models.CharField(max_length=200, verbose_name=_('parents phone number'), default='', blank=True)
     group = models.ManyToManyField(Group, verbose_name=_('group'))
 
     iban = models.CharField(max_length=30, blank=True, verbose_name='IBAN')
 
-    technical_comments = models.TextField(verbose_name=_('Technical comments'), default='', blank=True)
     gets_newsletter = models.BooleanField(_('receives newsletter'),
                                           default=True)
     unsubscribe_key = models.CharField(max_length=32, default="")
     unsubscribe_expire = models.DateTimeField(default=timezone.now)
     created = models.DateField(auto_now=True, verbose_name=_('created'))
-    registered = models.BooleanField(default=False, verbose_name=_('Registration complete'))
     active = models.BooleanField(default=True, verbose_name=_('Active'))
-    #not_waiting = models.BooleanField(default=True, verbose_name=_('Not waiting'))
     registration_form = RestrictedFileField(verbose_name=_('registration form'),
                                             upload_to='registration_forms',
                                             blank=True,
@@ -231,6 +257,11 @@ class Member(Person):
     user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL)
 
     objects = MemberManager()
+
+    @property
+    def email_fields(self):
+        return [('email', 'confirmed_mail', 'confirm_mail_key'),
+                ('alternative_email', 'confirmed_alternative_mail', 'confirm_alternative_mail_key')]
 
     @property
     def place(self):
@@ -259,7 +290,7 @@ class Member(Person):
         return self.echo_key
 
     def confirm(self):
-        if not self.confirmed_mail or not self.confirmed_mail_parents:
+        if not self.confirmed_mail or not self.confirmed_alternative_mail:
             return False
         self.confirmed = True
         self.save()
@@ -281,29 +312,29 @@ class Member(Person):
 
     @property
     def contact_phone_number(self):
-        """Returning, if available phone number of parents, else member's phone number"""
-        if self.phone_number_parents:
-            return str(self.phone_number_parents)
-        elif self.phone_number_mobile:
-            return str(self.phone_number_mobile)
-        elif self.phone_number_private:
-            return str(self.phone_number_private)
+        """Synonym for phone number field."""
+        if self.phone_number:
+            return str(self.phone_number)
         else:
             return "---"
 
     @property
     def contact_email(self):
-        """Returning, if available email of parents, else member's email"""
-        if self.email_parents:
-            return self.email_parents
-        else:
-            return self.email
+        """A synonym for the email field."""
+        return self.email
 
     @property
     def association_email(self):
         """Returning the association email of the member"""
         raw = "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), settings.DOMAIN)
         return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
+
+    def registration_complete(self):
+        """Check if all necessary fields are set."""
+        # TODO: implement a proper predicate here
+        return True
+    registration_complete.boolean = True
+    registration_complete.short_description = _('Registration complete')
 
     def get_group(self):
         """Returns a string of groups in which the member is."""
@@ -342,9 +373,29 @@ class Member(Person):
         # get activity overview
         return Freizeit.objects.filter(membersonlist__member=self)
 
+    def create_from_registration(self, waiter, group):
+        """Given a member, a corresponding waiting-list object and a group, this completes
+        the registration and requests email confirmations if necessary.
+        Returns if any mail confirmation requests have been sent out."""
+        self.group.add(group)
+        self.confirmed = False
+        if waiter:
+            if self.email == waiter.email:
+                self.confirmed_mail = waiter.confirmed_mail
+                self.confirm_mail_key = waiter.confirm_mail_key
+        if self.alternative_email:
+            self.confirmed_alternative_mail = False
+        self.save()
+
+        if self.confirmed_alternative_mail and self.confirmed_mail and not self.confirmed:
+            self.notify_jugendleiters_about_confirmed_mail()
+        if waiter:
+            waiter.delete()
+        return self.request_mail_confirmation(rerequest=False)
+
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
-        if self.confirmed_mail_parents and self.confirmed_mail and not self.confirmed:
+        if self.confirmed_alternative_mail and self.confirmed_mail and not self.confirmed:
             self.notify_jugendleiters_about_confirmed_mail()
         return ret
 
@@ -556,6 +607,26 @@ class Member(Person):
         return False
 
 
+class EmergencyContact(ContactWithPhoneNumber):
+    """
+    Emergency contact of a member
+    """
+    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(self.member)
+
+    class Meta(CommonModel.Meta):
+        verbose_name = _('Emergency contact')
+        verbose_name_plural = _('Emergency contacts')
+        rules_permissions = {
+            'add_obj': may_change | has_global_perm('members.change_global_member'),
+            'view_obj': may_view | has_global_perm('members.view_global_member'),
+            'change_obj': may_change | has_global_perm('members.change_global_member'),
+            'delete_obj': may_delete | has_global_perm('members.delete_global_member'),
+        }
+
+
 class MemberUnconfirmedManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(confirmed=False)
@@ -584,8 +655,8 @@ class MemberWaitingList(Person):
     WAITING_CONFIRMATION_EXPIRED = 1
     WAITING_CONFIRMED = 2
 
-    application_text = models.TextField(_('application text'), default='', blank=True)
-    application_date = models.DateTimeField(verbose_name=_('application date'), null=True, blank=True)
+    application_text = models.TextField(_('Do you want to tell us something else?'), default='', blank=True)
+    application_date = models.DateTimeField(verbose_name=_('application date'), auto_now=True)
 
     last_wait_confirmation = models.DateField(auto_now=True, verbose_name=_('Last wait confirmation'))
     wait_confirmation_key = models.CharField(max_length=32, default="")
@@ -599,7 +670,7 @@ class MemberWaitingList(Person):
                                           blank=True,
                                           default=None,
                                           verbose_name=_('Invited for group'),
-                                          on_delete=models.SET_NULL) 
+                                          on_delete=models.SET_NULL)
     class Meta(CommonModel.Meta):
         verbose_name = _('Waiter')
         verbose_name_plural = _('Waiters')
@@ -670,12 +741,9 @@ class MemberWaitingList(Person):
         return self.registration_key == key and timezone.now() < self.registration_expire
 
     def invite_to_group(self):
-        send_mail(_("Good news"),
-                  settings.INVITE_TEXT.format(name=self.prename,
-                  link=get_registration_link(self)),
-                  settings.DEFAULT_SENDING_MAIL,
-                  [self.email, self.email_parents] if self.email_parents and self.cc_email_parents
-                  else self.email)
+        self.send_mail(_("Invitation to trial group meeting"),
+            settings.INVITE_TEXT.format(name=self.prename,
+            link=get_registration_link(self)))
 
 
 class NewMemberOnList(CommonModel):
@@ -1302,12 +1370,10 @@ CLUBDESK_TO_KOMPASS = {
     'Land': 'country',
     'Nationalität': 'nationality',
     'E-Mail': 'email',
-    'E-Mail Alternativ': 'email_parents',
+    'E-Mail Alternativ': 'alternative_email',
     'Status': ('active', parse_status),
     'Eintritt': ('join_date', parse_date),
     'Austritt': ('leave_date', parse_date),
-    'Zivilstand': 'civil_status',
-    'Geschlecht': 'gender',
     'Geburtsdatum': ('birth_date', parse_date),
     'Geburtstag': ('birth_date', parse_date),
     'Bemerkungen': 'comments',
@@ -1323,12 +1389,11 @@ CLUBDESK_TO_KOMPASS = {
     'DAV Ausweis Nr.': 'dav_badge_no',
     'Schwimmabzeichen': 'swimming_badge',
     'Kletterschein': 'climbing_badge',
-    'Felserfahrung': 'rock_experience',
+    'Felserfahrung': 'alpine_experience',
     'Allergien': 'allergies',
     'Medikamente': 'medication',
     'Tetanusimpfung': 'tetanus_vaccination',
     'Fotoerlaubnis': ('photos_may_be_taken', parse_boolean),
-    'Kommentar': 'technical_comments',
     'Erziehungsberechtigte': 'legal_guardians',
     'Mobil Eltern': 'phone_number_parents',
     'Sonstiges': 'application_text',
