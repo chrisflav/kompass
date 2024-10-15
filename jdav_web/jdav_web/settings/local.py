@@ -10,6 +10,10 @@ SEKTION_BOARD_MAIL = "vorstand@alpenverein-heidelberg.de"
 
 RESPONSIBLE_MAIL = "jugendreferat@jdav-hd.de"
 
+# echo
+
+ECHO_PASSWORD_BIRTHDATE_FORMAT = '%d.%m.%Y'
+
 # misc
 
 CONGRATULATE_MEMBERS_MAX = 10

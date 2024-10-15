@@ -18,13 +18,6 @@
 	<p><b>{{ error_message }}</b></p>
 {% endif %}
 
-<form action="" method="post">
-    <table class="termine">
-    {% csrf_token %}
-    {{form}}
-    </table>
-    <input type="hidden" name="key" value="{{ key }}">
-    <p><input type="submit" value="{% trans "submit" %}"/></p>
-</form>
+{% include "members/member_form.html" %}
 
 {% endblock %}

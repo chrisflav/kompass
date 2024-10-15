@@ -85,7 +85,7 @@ class Contact(CommonModel):
     lastname = models.CharField(max_length=20, verbose_name=_('last name'))
 
     email = models.EmailField(max_length=100, default="")
-    confirmed_mail = models.BooleanField(default=True, verbose_name=_('Email confirmed'))
+    confirmed_mail = models.BooleanField(default=False, verbose_name=_('Email confirmed'))
     confirm_mail_key = models.CharField(max_length=32, default="")
 
     class Meta(CommonModel.Meta):
@@ -147,9 +147,12 @@ def confirm_mail_by_key(key):
     matching_unconfirmed = MemberUnconfirmedProxy.objects.filter(confirm_mail_key=key) \
                          | MemberUnconfirmedProxy.objects.filter(confirm_alternative_mail_key=key)
     matching_waiter = MemberWaitingList.objects.filter(confirm_mail_key=key)
-    if len(matching_unconfirmed) + len(matching_waiter) != 1:
+    matching_emergency_contact = EmergencyContact.objects.filter(confirm_mail_key=key)
+    matches = list(matching_unconfirmed) + list(matching_waiter) + list(matching_emergency_contact)
+    # if not exactly one match, return None. The case > 1 match should not occur!
+    if len(matches) != 1:
         return None
-    person = matching_unconfirmed[0] if len(matching_unconfirmed) == 1 else matching_waiter[0]
+    person = matches[0]
     return person, person.confirm_mail(key)
 
 
@@ -311,6 +314,10 @@ class Member(Person):
         return self.echo_key == key and timezone.now() < self.echo_expire
 
     @property
+    def echo_password(self):
+        return self.birth_date.strftime(settings.ECHO_PASSWORD_BIRTHDATE_FORMAT)
+
+    @property
     def contact_phone_number(self):
         """Synonym for phone number field."""
         if self.phone_number:
@@ -387,15 +394,26 @@ class Member(Person):
             self.confirmed_alternative_mail = False
         self.save()
 
-        if self.confirmed_alternative_mail and self.confirmed_mail and not self.confirmed:
+        if self.registration_ready():
             self.notify_jugendleiters_about_confirmed_mail()
         if waiter:
             waiter.delete()
         return self.request_mail_confirmation(rerequest=False)
 
+    def registration_ready(self):
+        """Returns if the member is currently unconfirmed and all email addresses
+        are confirmed."""
+        return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail and\
+            all([emc.confirmed_mail for emc in self.emergencycontact_set.all()])
+
+    def request_mail_confirmation(self, rerequest=False):
+        ret = super().request_mail_confirmation(rerequest)
+        rets = [emc.request_mail_confirmation(rerequest) for emc in self.emergencycontact_set.all()]
+        return ret or any(rets)
+
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
-        if self.confirmed_alternative_mail and self.confirmed_mail and not self.confirmed:
+        if self.registration_ready():
             self.notify_jugendleiters_about_confirmed_mail()
         return ret
 

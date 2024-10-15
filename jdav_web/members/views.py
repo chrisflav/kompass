@@ -1,9 +1,10 @@
 from startpage.views import render
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponseRedirect
-from django.forms import ModelForm, TextInput, DateInput
+from django.forms import ModelForm, TextInput, DateInput, BaseInlineFormSet,\
+    inlineformset_factory, HiddenInput
 from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy, MemberWaitingList, Group,\
-    confirm_mail_by_key
+    confirm_mail_by_key, EmergencyContact
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -13,10 +14,7 @@ class MemberForm(ModelForm):
     class Meta:
         model = Member
         fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra', 'country',
-                  'phone_number', 'birth_date']
-        widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
-        }
+                  'phone_number']
 
 class MemberRegistrationForm(ModelForm):
     def __init__(self, *args, **kwargs):
@@ -52,6 +50,42 @@ class MemberRegistrationWaitingListForm(ModelForm):
         required = []
 
 
+class EmergencyContactForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(EmergencyContactForm, self).__init__(*args, **kwargs)
+
+        for field in self.Meta.required:
+            self.fields[field].widget.attrs['required'] = 'required'
+
+    class Meta:
+        model = EmergencyContact
+        fields = ['prename', 'lastname', 'email', 'phone_number']
+        required = ['prename', 'lastname', 'email', 'phone_number']
+
+
+class BaseEmergencyContactsFormSet(BaseInlineFormSet):
+    deletion_widget = HiddenInput
+
+
+EmergencyContactsFormSet = inlineformset_factory(Member, EmergencyContact,
+    form=EmergencyContactForm, fields=['prename', 'lastname', 'email', 'phone_number'],
+    extra=0, min_num=1,
+    can_delete=True, can_delete_extra=True, validate_min=True,
+    formset=BaseEmergencyContactsFormSet)
+
+
+def render_echo_password(request, key):
+    return render(request, 'members/echo_password.html',
+                  context={'key': key})
+
+
+def render_echo_wrong_password(request, key):
+    return render(request,
+                  'members/echo_password.html',
+                  {'error_message': _("The entered password is wrong."),
+                   'key': key})
+
+
 def render_echo_failed(request, reason=""):
     context = {}
     if reason:
@@ -59,9 +93,13 @@ def render_echo_failed(request, reason=""):
     return render(request, 'members/echo_failed.html', context)
 
 
-def render_echo(request, key, form):
-    return render(request, 'members/echo.html', {'form': form.as_table(),
-                                                 'key' : key})
+def render_echo(request, key, password, form, emergency_contacts_formset):
+    return render(request, 'members/echo.html',
+            {'form': form.as_table(),
+             'emergency_contacts_formset': emergency_contacts_formset,
+             'key' : key,
+             'registration': False,
+             'password': password})
 
 
 def render_echo_success(request, name):
@@ -69,37 +107,51 @@ def render_echo_success(request, name):
 
 
 def echo(request):
-    if request.method == 'GET' and 'key' in request.GET:
+    if request.method == 'GET' and 'key' not in request.GET:
+        # invalid
+        return HttpResponseRedirect(reverse('startpage:index'))
+
+    if request.method == 'GET':
+        # show password
+        return render_echo_password(request, request.GET['key'])
+
+    if 'password' not in request.POST or 'key' not in request.POST:
+        return render_echo_failed(request, _("invalid"))
+
+    key = request.POST['key']
+    password = request.POST['password']
+    # try to get a member from the supplied echo key
+    try:
+        member = Member.objects.get(echo_key=key)
+    except Member.DoesNotExist:
+        return render_echo_failed(request, _("invalid"))
+    # check if echo key is not expired
+    if not member.may_echo(key):
+        return render_echo_failed(request, _("expired"))
+    # check password
+    if password != member.echo_password:
+        return render_echo_wrong_password(request, key)
+    if "save" in request.POST:
+        form = MemberForm(request.POST, instance=member)
+        emergency_contacts_formset = EmergencyContactsFormSet(request.POST, instance=member)
         try:
-            key = request.GET['key']
-            member = Member.objects.get(echo_key=key)
-            if not member.may_echo(key):
-                raise KeyError
-            form = MemberForm(instance=member)
-            return render_echo(request, key, form)
-        except Member.DoesNotExist:
-            return render_echo_failed(request, _("invalid"))
-        except KeyError:
-            return render_echo_failed(request, _("expired"))
-    elif request.method == 'POST':
-        try:
-            key = request.POST['key']
-            member = Member.objects.get(echo_key=key)
-            if not member.may_echo(key):
-                raise KeyError
-            form = MemberForm(request.POST, instance=member)
-            try:
-                form.save()
-                member.echo_key, member.echo_expire = "", timezone.now()
-                member.echoed = True
-                member.save()
-                return render_echo_success(request, member.prename)
-            except ValueError:
-                # when input is invalid
-                form = MemberForm(request.POST)
-                return render_echo(request, key, form)
-        except (Member.DoesNotExist, KeyError):
-            return render_echo_failed(request, _("invalid"))
+            if not emergency_contacts_formset.is_valid():
+                raise ValueError(_("Invalid emergency contacts"))
+            form.save()
+            emergency_contacts_formset.save()
+            member.echo_key, member.echo_expire = "", timezone.now()
+            member.echoed = True
+            member.save()
+            return render_echo_success(request, member.prename)
+        except ValueError:
+            # when input is invalid
+            form = MemberForm(request.POST)
+            emergency_contacts_formset = EmergencyContactsFormSet(request.POST)
+            return render_echo(request, key, password, form, emergency_contacts_formset)
+    else:
+        form = MemberForm(instance=member)
+        emergency_contacts_formset = EmergencyContactsFormSet(instance=member)
+        return render_echo(request, key, password, form, emergency_contacts_formset)
 
 
 def render_register_password(request):
@@ -121,16 +173,21 @@ def render_register_success(request, groupname, membername, needs_mail_confirmat
                    'needs_mail_confirmation': needs_mail_confirmation})
 
 
-def render_register(request, group, form=None, pwd=None, waiter_key=''):
+def render_register(request, group, form=None, emergency_contacts_formset=None,
+        pwd=None, waiter_key=''):
     if form is None:
         form = MemberRegistrationForm()
+    if emergency_contacts_formset is None:
+        emergency_contacts_formset = EmergencyContactsFormSet()
     return render(request,
                   'members/register.html',
                   {'form': form,
+                   'emergency_contacts_formset': emergency_contacts_formset,
                    'group': group,
                    'waiter_key': waiter_key,
                    'pwd': pwd,
                    'sektion': settings.SEKTION,
+                   'registration': True
                   })
 
 
@@ -172,15 +229,27 @@ def register(request):
     if "save" in request.POST:
         # process registration
         form = MemberRegistrationForm(request.POST, request.FILES)
+        emergency_contacts_formset = EmergencyContactsFormSet(request.POST)
         try:
-            new_member = form.save()
+            # first try to save member
+            new_member = form.save(commit=False)
+            # then instantiate emergency contacts with this member
+            emergency_contacts_formset.instance = new_member
+            if emergency_contacts_formset.is_valid():
+                # if emergency contacts are valid, save new_member and save emergency contacts
+                new_member.save()
+                emergency_contacts_formset.save()
+            else:
+                raise ValueError
             needs_mail_confirmation = new_member.create_from_registration(waiter, group)
             return render_register_success(request, group.name, new_member.prename, needs_mail_confirmation)
-        except ValueError:
+        except ValueError as e:
+            print("value error", e)
             # when input is invalid
-            return render_register(request, group, form, pwd=pwd, waiter_key=waiter_key)
+            return render_register(request, group, form, emergency_contacts_formset, pwd=pwd.password,
+                    waiter_key=waiter_key)
     # we are not saving yet
-    return render_register(request, group, form=None, pwd=pwd, waiter_key=waiter_key)
+    return render_register(request, group, form=None, pwd=pwd.password, waiter_key=waiter_key)
 
 
 def confirm_mail(request):

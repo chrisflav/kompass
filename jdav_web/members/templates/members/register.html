@@ -14,25 +14,6 @@
 
 <p>{% trans "Here you can register for group" %} {{ pwd.group.name }}.</p>
 
-{% if error_message %}
-	<p><b>{{ error_message }}</b></p>
-{% endif %}
-
-<form action="" method="post" enctype="multipart/form-data">
-    <table class="termine">
-    {% csrf_token %}
-    {{form}}
-    </table>
-    <p>
-    <input type="checkbox" required>
-    {% blocktrans %}I am member of the DAV {{ sektion }}.{% endblocktrans %}<br>
-    <input type="checkbox" required>
-    {% blocktrans %}I agree that my data is stored and processed on the server of the JDAV {{ sektion }}.{% endblocktrans %}
-    </p>
-    <input type="hidden" name="password" value="{{ pwd.password }}">
-    <input type="hidden" name="waiter_key" value="{{ waiter_key }}">
-    <input type="hidden" name="save">
-    <p><input type="submit" value="{% trans "submit" %}"/></p>
-</form>
+{% include "members/member_form.html" %}
 
 {% endblock %}

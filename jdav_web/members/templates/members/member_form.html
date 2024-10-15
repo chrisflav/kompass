@@ -1,0 +1,97 @@
+{% load i18n %}
+{% load static %}
+
+{% if error_message %}
+	<p><b>{{ error_message }}</b></p>
+{% endif %}
+
+<form action="" method="post" enctype="multipart/form-data">
+    <table class="termine">
+    {% csrf_token %}
+    {{form}}
+    </table>
+    <p><b>{% trans "Emergency contacts:" %}</b></p>
+    {{emergency_contacts_formset.non_form_errors}}
+    {{emergency_contacts_formset.management_form}}
+    <div id="formset-container">
+        {% for form in emergency_contacts_formset.forms %}
+        <div class="form-row" {% if form.DELETE.value %}style="display:none"{% endif %}>
+            {{form}}
+            <button type="button" class="remove-form-button" onclick="setHidden(this)">Remove</button>
+        </div>
+        {% endfor %}
+    </div>
+    <button type="button" id="add-form-button">Add More</button>
+    {% if registration %}
+    <p>
+    <input type="checkbox" required>
+    {% blocktrans %}I am already or will become a member of the DAV {{ sektion }} soon.{% endblocktrans %}<br>
+    <input type="checkbox" required>
+    {% blocktrans %}I agree that my data is stored and processed on the server of the JDAV {{ sektion }}.{% endblocktrans %}
+    </p>
+    {% endif %}
+    <input type="hidden" name="password" value="{{ password }}">
+    <input type="hidden" name="waiter_key" value="{{ waiter_key }}">
+    <input type="hidden" name="save">
+    <input type="hidden" name="key" value="{{ key }}">
+    <p><input type="submit" value="{% trans "submit" %}"/></p>
+</form>
+
+<div id="empty_form" class="form-row" style="display:none">
+    {{ emergency_contacts_formset.empty_form }}
+    <button type="button" id="empty_remove_form_button" class="remove-form-button"
+        onclick="setHidden(this)">Remove</button>
+</div>
+
+<script>
+  function addRequired(element) {
+    var inputs = element.getElementsByTagName('input');
+    for (var i = 0; i < inputs.length; i++) {
+      inputs[i].setAttribute('required', 'required');
+    }
+  }
+  function removeRequired(element) {
+    var inputs = element.getElementsByTagName('input');
+    for (var i = 0; i < inputs.length; i++) {
+      inputs[i].removeAttribute('required');
+    }
+  }
+
+  var divs = document.getElementsByClassName('form-row');
+  for (var i = 0; i < divs.length; i++) {
+    if (divs[i].getAttribute('style') == 'display:none') {
+      removeRequired(divs[i]);
+    }
+  }
+
+  function setHidden(element) {
+    element.parentElement.setAttribute('style', 'display:none');
+    var deleteInput = element.parentElement.querySelector(':scope > [id*=DELETE]');
+    deleteInput.value = "on";
+    removeRequired(element.parentElement);
+  }
+  var form_count = {{emergency_contacts_formset.total_form_count}};
+  const addFormButton = document.getElementById('add-form-button');
+  const formsetContainer = document.getElementById('formset-container');
+  const emptyForm = document.getElementById('empty_form');
+  // add required flags to emptyForm
+  addRequired(emptyForm);
+
+  addFormButton.addEventListener('click', () => {
+    form_count++;
+    // Clone the template node
+    const newForm = emptyForm.cloneNode(true);
+    newForm.removeAttribute('style');
+    newForm.removeAttribute('id');
+    // replace the __prefix__ placeholder by the correct number
+    var res = newForm.innerHTML.replace(/__prefix__/g, form_count - 1);
+    newForm.innerHTML = res;
+
+    // Append the new form
+    formsetContainer.appendChild(newForm);
+
+    // Update total_forms
+    const totalFormsInput = document.getElementById('id_emergencycontact_set-TOTAL_FORMS');
+    totalFormsInput.value = parseInt(form_count);
+  });
+</script>

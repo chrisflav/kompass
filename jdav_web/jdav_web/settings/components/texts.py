@@ -81,7 +81,11 @@ kurze Bestätigung von dir. Dafür besuche einfach diesen Link:
 
 {link}
 
-Dort kannst du deine Daten überprüfen und ändern. Falls du nicht innerhalb von
+Dort kannst du deine Daten nach Eingabe eines Passworts überprüfen und ändern. Dein
+Passwort ist dein Geburtsdatum. Ist dein Geburtsdatum zum Beispiel der 4. Januar 1942,
+so ist dein Passwort: 04.01.1942
+
+Falls du nicht innerhalb von
 30 Tagen deine Daten bestätigst, wirst du aus unserer Datenbank gelöscht und
 erhälst in Zukunft keine Mails mehr von uns.
 

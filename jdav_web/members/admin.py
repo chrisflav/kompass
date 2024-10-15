@@ -107,7 +107,8 @@ class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
-    fields = ['prename', 'lastname', 'email', 'phone_number']
+    fields = ['prename', 'lastname', 'email', 'phone_number', 'confirmed_mail']
+    readonly_fields = ['confirmed_mail']
     extra = 0
 
 
@@ -255,13 +256,18 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
 
 class MemberUnconfirmedAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email', 'alternative_email', 'street', 'plz',
+    fields = ['prename', 'lastname',
+              ('email', 'confirmed_mail'),
+              ('alternative_email', 'confirmed_alternative_mail'),
+              'street', 'plz',
               'town', 'phone_number', 'birth_date', 'gender', 'group',
               'registration_form', 'comments']
     list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
+    readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail']
     actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter']
+    inlines = [EmergencyContactInline]
     change_form_template = "members/change_member_unconfirmed.html"
 
     def has_add_permission(self, request, obj=None):
