@@ -7,7 +7,7 @@ from django.utils import timezone, translation
 from django.conf import settings
 from django.urls import reverse
 from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE,\
-        MemberNoteList, NewMemberOnList
+        MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
@@ -30,7 +30,7 @@ def create_custom_user(username, groups, prename, lastname):
     return user
 
 
-class MemberTestCase(TestCase):
+class BasicMemberTestCase(TestCase):
     def setUp(self):
         self.jl = Group.objects.create(name="Jugendleiter")
         self.alp = Group.objects.create(name="Alpenfuechse")
@@ -53,6 +53,11 @@ class MemberTestCase(TestCase):
 
         self.lise = Member.objects.create(prename="Lise", lastname="Lotte", birth_date=timezone.now().date(),
                               email=settings.TEST_MAIL)
+
+
+class MemberTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
 
         p1 = PermissionMember.objects.create(member=self.fritz)
         p1.view_members.add(self.lara)
@@ -439,3 +444,51 @@ class FreizeitAdminTestCase(AdminTestCase):
 
         queryset = self.admin.formfield_for_manytomany(field, None).queryset
         self.assertQuerysetEqual(queryset, Member.objects.none())
+
+
+class MailConfirmationTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.father = EmergencyContact.objects.create(prename='Olaf', lastname='Old',
+                email=settings.TEST_MAIL, member=self.fritz)
+        self.father.save()
+
+    def test_contact_confirmation(self):
+        # request mail confirmation of father
+        requested_confirmation = self.father.request_mail_confirmation()
+        self.assertTrue(requested_confirmation,
+                        msg='Requesting mail confirmation should return true, if rerequest is false.')
+        # father's mail should not be confirmed
+        self.assertFalse(self.father.confirmed_mail,
+                         msg='Mail should not be confirmed after requesting confirmation.')
+
+        key = self.father.confirm_mail_key
+        # key should not be empty
+        self.assertFalse(key == "", msg='Mail confirmation key should not be blank after requesting confirmation.')
+
+        # now confirm mail by using the generated key
+        res = self.father.confirm_mail(key)
+
+        # father's mail should now be confirmed
+        self.assertTrue(self.father.confirmed_mail, msg='After confirming by key, the mail should be confirmed.')
+
+    def test_emergency_contact_confirmation(self):
+        # request mail confirmation of fritz, should also ask for confirmation of father
+        requested_confirmation = self.fritz.request_mail_confirmation()
+        self.assertTrue(requested_confirmation,
+                        msg='Requesting mail confirmation should return true, if rerequest is false.')
+
+        for em in self.fritz.emergencycontact_set.all():
+            # emergency contact mail should not be confirmed
+            self.assertFalse(em.confirmed_mail,
+                             msg='Mail should not be confirmed after requesting confirmation.')
+            key = em.confirm_mail_key
+            self.assertFalse(key == "",
+                             msg='Mail confirmation key should not be blank after requesting confirmation.')
+
+            # now confirm mail by using the generated key
+            res = confirm_mail_by_key(key)
+
+        for em in self.fritz.emergencycontact_set.all():
+            self.assertTrue(em.confirmed_mail,
+                            msg='Mail of every emergency contact should be confirmed after manually confirming.')

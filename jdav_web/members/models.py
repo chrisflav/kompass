@@ -199,7 +199,7 @@ class Member(Person):
     Represents a member of the association
     Might be a member of different groups: e.g. J1, J2, Jugendleiter, etc.
     """
-    alternative_email = models.EmailField(max_length=100, default=None, blank=True)
+    alternative_email = models.EmailField(max_length=100, default=None, blank=True, null=True)
     confirmed_alternative_mail = models.BooleanField(default=True,
         verbose_name=_('Alternative email confirmed'))
     confirm_alternative_mail_key = models.CharField(max_length=32, default="")
@@ -461,6 +461,8 @@ class Member(Person):
         elif name == "Attachment":
             return queryset
         elif name == "Group":
+            return queryset
+        elif name == "EmergencyContact":
             return queryset
         else:
             raise ValueError(name)
