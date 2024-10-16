@@ -279,6 +279,15 @@ class Member(Person):
         else:
             return "{0}, {1}".format(self.street, self.place)
 
+    def good_conduct_certificate_valid(self):
+        """Returns if a good conduct certificate is still valid, depending on the last presentation."""
+        if not self.good_conduct_certificate_presented_date:
+            return False
+        delta = datetime.now().date() - self.good_conduct_certificate_presented_date
+        return delta.days // 30 <= settings.MAX_AGE_GOOD_CONDUCT_CERTIFICATE_MONTHS
+    good_conduct_certificate_valid.boolean = True
+    good_conduct_certificate_valid.short_description = _('Good conduct certificate valid')
+
     def generate_key(self):
         self.unsubscribe_key = uuid.uuid4().hex
         self.unsubscribe_expire = timezone.now() + timezone.timedelta(days=1)

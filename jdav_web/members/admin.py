@@ -193,7 +193,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
          {
              'fields': [
                  ('good_conduct_certificate_presented_date',
-                  'good_conduct_certificate_presentation_needed'),
+                  'good_conduct_certificate_valid'),
                  'has_key', 'has_free_ticket_gym']
          }
         ),
@@ -203,7 +203,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active')
     list_display_links = None
-    readonly_fields = ['echoed']
+    readonly_fields = ['echoed', 'good_conduct_certificate_valid']
     inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
