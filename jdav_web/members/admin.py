@@ -216,9 +216,19 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     sensitive_fields = ['iban', 'registration_form', 'comments']
 
-    field_permissions = {
+    field_view_permissions = {
         'user': 'members.may_set_auth_user',
-        'group': 'members.may_change_group'
+        'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
+        'has_key': 'members.may_change_organizationals',
+        'has_free_ticket_gym': 'members.may_change_organizationals',
+    }
+
+    field_change_permissions = {
+        'user': 'members.may_set_auth_user',
+        'group': 'members.may_change_group',
+        'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
+        'has_key': 'members.may_change_organizationals',
+        'has_free_ticket_gym': 'members.may_change_organizationals',
     }
 
     def get_queryset(self, request):
@@ -410,7 +420,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('confirmed_mail',)
     actions = ['ask_for_registration', 'ask_for_wait_confirmation']
-    readonly_fields= ('invited_for_group', 'application_date')
+    readonly_fields= ['invited_for_group', 'application_date']
 
     def has_add_permission(self, request, obj=None):
         return False

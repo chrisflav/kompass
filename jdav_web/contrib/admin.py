@@ -13,17 +13,37 @@ from rules.permissions import perm_exists
 
 
 class FieldPermissionsAdminMixin:
-    field_permissions = {}
+    field_change_permissions = {}
+    field_view_permissions = {}
+
+    def may_view_field(self, field_desc, request, obj=None):
+        if not type(field_desc) is tuple:
+            field_desc = (field_desc,)
+        for fd in field_desc:
+            if fd not in self.field_view_permissions:
+                continue
+            if not request.user.has_perm(self.field_view_permissions[fd], obj):
+                return False
+        return True
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super(FieldPermissionsAdminMixin, self).get_fieldsets(request, obj)
+        d = []
+        for title, attrs in fieldsets:
+            allowed = [f for f in attrs['fields'] if self.may_view_field(f, request, obj)]
+            if len(allowed) == 0:
+                continue
+            d.append((title, dict(attrs, **{'fields': allowed})))
+        return d
 
     def get_fields(self, request, obj=None):
         fields = super(FieldPermissionsAdminMixin, self).get_fields(request, obj)
+        return [fd for fd in fields if self.may_view_field(fd, request, obj)]
 
-        def may_field(field):
-            if field not in self.field_permissions:
-                return True
-            return request.user.has_perm(self.field_permissions[field], obj)
-
-        return list(filter(may_field, fields))
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super(FieldPermissionsAdminMixin, self).get_readonly_fields(request, obj)
+        return list(readonly_fields) +\
+            [fd for fd, perm in self.field_change_permissions.items() if not request.user.has_perm(perm, obj)]
 
 
 class ChangeViewAdminMixin:
