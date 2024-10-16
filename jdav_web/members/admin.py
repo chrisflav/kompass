@@ -158,25 +158,52 @@ class RegistrationFilter(admin.SimpleListFilter):
 
 # Register your models here.
 class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['prename', 'lastname', 'email',
-              'alternative_email',
-              'street', 'plz', 'town', 'address_extra', 'country',
-              'phone_number', 'birth_date', 'gender',
-              'dav_badge_no',
-              'group',
-              'swimming_badge', 'climbing_badge', 'alpine_experience', 'allergies',
-              'medication', 'tetanus_vaccination', 'photos_may_be_taken', 'legal_guardians',
-              ('good_conduct_certificate_presented_date', 'good_conduct_certificate_presentation_needed'),
-              'iban', 'has_key', 'has_free_ticket_gym', 'gets_newsletter',
-              'registration_form', 'image',
-              'active', 'echoed',
-              ('join_date', 'leave_date'),
-              'comments', 'user']
+    fieldsets = [
+        (None,
+         {
+             'fields': [('prename', 'lastname'),
+                ('email', 'alternative_email'),
+                'phone_number',
+                'group', 'registration_form', 'image',
+                ('join_date', 'leave_date'),
+                'comments',
+                'legal_guardians',
+                'dav_badge_no',
+                'active', 'echoed', 'gets_newsletter',
+                'user',
+             ]
+         }
+        ),
+        (_("Contact information"),
+         {
+             'fields': ['street', 'plz', 'town', 'address_extra', 'country', 'iban']
+         }
+        ),
+        (_("Skills"),
+         {
+             'fields': ['swimming_badge', 'climbing_badge', 'alpine_experience']
+         }
+        ),
+        (_("Others"),
+         {
+             'fields': ['allergies', 'tetanus_vaccination', 'medication', 'photos_may_be_taken']
+         }
+        ),
+        (_("Organizational"),
+         {
+             'fields': [
+                 ('good_conduct_certificate_presented_date',
+                  'good_conduct_certificate_presentation_needed'),
+                 'has_key', 'has_free_ticket_gym']
+         }
+        ),
+    ]
     list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group', 'gets_newsletter',
                     'registration_complete', 'active', 'echoed', 'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active')
     list_display_links = None
+    readonly_fields = ['echoed']
     inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
@@ -256,12 +283,46 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
 
 class MemberUnconfirmedAdmin(admin.ModelAdmin):
-    fields = ['prename', 'lastname',
-              ('email', 'confirmed_mail'),
-              ('alternative_email', 'confirmed_alternative_mail'),
-              'street', 'plz',
-              'town', 'phone_number', 'birth_date', 'gender', 'group',
-              'registration_form', 'comments']
+    fieldsets = [
+        (None,
+         {
+             'fields': [('prename', 'lastname'),
+                ('email', 'alternative_email'),
+                'phone_number',
+                'group', 'registration_form', 'image',
+                ('join_date', 'leave_date'),
+                'comments',
+                'legal_guardians',
+                'dav_badge_no',
+                'active', 'echoed', 'gets_newsletter',
+                'user',
+             ]
+         }
+        ),
+        (_("Contact information"),
+         {
+             'fields': ['street', 'plz', 'town', 'address_extra', 'country', 'iban']
+         }
+        ),
+        (_("Skills"),
+         {
+             'fields': ['swimming_badge', 'climbing_badge', 'alpine_experience']
+         }
+        ),
+        (_("Others"),
+         {
+             'fields': ['allergies', 'tetanus_vaccination', 'medication', 'photos_may_be_taken']
+         }
+        ),
+        (_("Organizational"),
+         {
+             'fields': [
+                 ('good_conduct_certificate_presented_date',
+                  'good_conduct_certificate_presentation_needed'),
+                 'has_key', 'has_free_ticket_gym']
+         }
+        ),
+    ]
     list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
