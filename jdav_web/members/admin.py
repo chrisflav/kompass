@@ -535,7 +535,8 @@ class GroupAdminForm(forms.ModelForm):
 
 
 class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'show_website']
+    fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'show_website',
+        'weekday', ('start_time', 'end_time')]
     form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')
     inlines = [RegistrationPasswordInline, PermissionOnGroupInline]

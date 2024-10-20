@@ -34,6 +34,16 @@ GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = MALE = 0
 FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = FEMALE = 1
 AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = DIVERSE = 2
 
+WEEKDAYS = (
+    (0, _('Monday')),
+    (1, _('Tuesday')),
+    (2, _('Wednesday')),
+    (3, _('Thursday')),
+    (4, _('Friday')),
+    (5, _('Saturday')),
+    (6, _('Sunday')),
+)
+
 
 class ActivityCategory(models.Model):
     """
@@ -62,6 +72,9 @@ class Group(models.Model):
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
                                      related_name='leited_groups', blank=True)
+    weekday = models.IntegerField(choices=WEEKDAYS, null=True, blank=True)
+    start_time = models.TimeField(verbose_name=_('Starting time'), null=True, blank=True)
+    end_time = models.TimeField(verbose_name=_('Ending time'), null=True, blank=True)
 
     def __str__(self):
         """String representation"""
