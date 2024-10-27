@@ -259,6 +259,48 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
         # To preserve integrity, no one is allowed to change confirmed statements
         return False
 
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = [
+            path(
+                "<path:object_id>/unconfirm/",
+                wrap(self.unconfirm_view),
+                name="%s_%s_unconfirm" % (self.opts.app_label, self.opts.model_name),
+            ),
+        ]
+        return custom_urls + urls
+
+    def unconfirm_view(self, request, object_id):
+        statement = StatementConfirmed.objects.get(pk=object_id)
+        if not statement.confirmed:
+            messages.error(request,
+                    _("%(name)s is not yet confirmed.") % {'name': str(statement)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+        if "unconfirm" in request.POST:
+            statement.confirmed = False
+            statement.confirmed_date = None
+            statement.confired_by = None
+            statement.save()
+
+            messages.success(request,
+                    _("Successfully unconfirmed %(name)s. I hope you know what you are doing.")
+                    % {'name': str(statement)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Unconfirm statement'),
+                       opts=self.opts,
+                       statement=statement)
+
+        return render(request, 'admin/unconfirm_statement.html', context=context)
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
