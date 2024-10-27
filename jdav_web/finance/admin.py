@@ -249,8 +249,14 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
     #readonly_fields = fields
     list_display = ['__str__', 'total_pretty', 'confirmed_date', 'confirmed_by']
     ordering = ('-confirmed_date',)
+    inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
     def has_add_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to add confirmed statements
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to change confirmed statements
         return False
 
 
