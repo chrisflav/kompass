@@ -52,7 +52,8 @@ Wenn du weiterhin auf der Warteliste bleiben möchtest, klicke auf den folgenden
 
 {link}
 
-Falls du nicht mehr auf der Warteliste bleiben möchtest, musst du nichts machen. Du wirst automatisch entfernt.
+Das ist Erinnerung Nummer {reminder} von {max_reminder_count}. Nach Erinnerung Nummer {max_reminder_count} wirst
+du automatisch entfernt.
 
 Viele Grüße
 Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION }

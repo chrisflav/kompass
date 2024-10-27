@@ -704,6 +704,9 @@ class MemberWaitingList(Person):
     wait_confirmation_key = models.CharField(max_length=32, default="")
     wait_confirmation_key_expire = models.DateTimeField(default=timezone.now)
 
+    last_reminder = models.DateTimeField(auto_now=True, verbose_name=_('Last reminder'))
+    sent_reminders = models.IntegerField(default=0, verbose_name=_('Missed reminders'))
+
     registration_key = models.CharField(max_length=32, default="")
     registration_expire = models.DateTimeField(default=timezone.now)
 
@@ -728,7 +731,8 @@ class MemberWaitingList(Person):
     def waiting_confirmation_needed(self):
         """Returns if person should be asked to confirm waiting status."""
         return wait_confirmation_key is None \
-            and last_wait_confirmation < timezone.now() - timezone.timedelta(days=90)
+            and last_wait_confirmation < timezone.now() -\
+                timezone.timedelta(days=settings.WAITING_CONFIRMATION_FREQUENCY)
 
     def waiting_confirmed(self):
         """Returns if the persons waiting status is considered to be confirmed."""
@@ -742,9 +746,14 @@ class MemberWaitingList(Person):
 
     def ask_for_wait_confirmation(self):
         """Sends an email to the person asking them to confirm their intention to wait."""
+        self.last_reminder = datetime.now()
+        self.sent_reminders += 1
+        self.save()
         self.send_mail(_('Waiting confirmation needed'),
                        settings.WAIT_CONFIRMATION_TEXT.format(name=self.prename,
-                                                              link=get_wait_confirmation_link(self)))
+                                                              link=get_wait_confirmation_link(self),
+                                                              reminder=self.sent_reminders,
+                                                              max_reminder_count=settings.MAX_REMINDER_COUNT))
 
     def confirm_waiting(self, key):
         # if a wrong key is supplied, we return invalid
@@ -755,6 +764,7 @@ class MemberWaitingList(Person):
         if timezone.now() < self.wait_confirmation_key_expire:
             self.last_wait_confirmation = timezone.now()
             self.wait_confirmation_key_expire = timezone.now()
+            self.sent_reminders = 0
             self.save()
             return self.WAITING_CONFIRMATION_SUCCESS
 

@@ -414,13 +414,14 @@ class WaiterInviteForm(forms.Form):
 
 class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'birth_date', 'gender', 'application_text',
-        'application_date', 'comments', 'invited_for_group']
+        'application_date', 'comments', 'invited_for_group',
+        'sent_reminders']
     list_display = ('name', 'birth_date', 'age', 'application_date', 'confirmed_mail',
-                    'waiting_confirmed')
+                    'waiting_confirmed', 'sent_reminders')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('confirmed_mail',)
     actions = ['ask_for_registration', 'ask_for_wait_confirmation']
-    readonly_fields= ['invited_for_group', 'application_date']
+    readonly_fields= ['invited_for_group', 'application_date', 'sent_reminders']
 
     def has_add_permission(self, request, obj=None):
         return False
