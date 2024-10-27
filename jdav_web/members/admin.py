@@ -26,7 +26,7 @@ from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
 from django.forms import Textarea, RadioSelect, TypedChoiceField
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied
-from .pdf import render_tex
+from .pdf import render_tex, fill_pdf_form
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 
@@ -669,7 +669,7 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
     list_display = ['__str__', 'date']
     search_fields = ('name',)
     ordering = ('-date',)
-    actions = ['crisis_intervention_list', 'notes_list', 'seminar_report']
+    actions = ['crisis_intervention_list', 'notes_list', 'seminar_report', 'sjr_application']
     view_on_site = False
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
@@ -730,6 +730,17 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
         return render_tex(title + "_Seminarbericht", 'members/seminar_report.tex', context)
     seminar_report.short_description = _('Generate seminar report')
 
+    def sjr_application(self, request, queryset):
+        # this ensures legacy compatibilty
+        memberlist = queryset[0]
+        if not self.may_view_excursion(request, memberlist):
+            return self.not_allowed_view(request, memberlist)
+        context = memberlist.sjr_application_fields()
+        attachments = [b.proof.path for b in memberlist.statement.bill_set.all()]
+        title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
+        return fill_pdf_form(title + "_SJR_Antrag", 'members/sjr_template.pdf', context, attachments)
+    sjr_application.short_description = _('Generate SJR application')
+
     def get_urls(self):
         urls = super().get_urls()
 
@@ -750,6 +761,8 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
         return custom_urls + urls
 
     def action_view(self, request, object_id):
+        if "sjr_application" in request.POST:
+            return self.sjr_application(request, [Freizeit.objects.get(pk=object_id)])
         if "seminar_report" in request.POST:
             return self.seminar_report(request, [Freizeit.objects.get(pk=object_id)])
         if "notes_list" in request.POST:

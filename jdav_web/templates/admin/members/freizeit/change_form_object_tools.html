@@ -13,6 +13,13 @@
 <li>
     <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}">
         {% csrf_token %}
+        <input type="submit" name="sjr_application" value="{% trans 'Generate SJR application' %}">
+    </form>
+</li>
+
+<li>
+    <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}">
+        {% csrf_token %}
         <input type="submit" name="notes_list" value="{% trans 'Generate overview' %}">
     </form>
 </li>

@@ -973,6 +973,41 @@ class Freizeit(CommonModel):
             sks.append(dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max))
         return (people, sks)
 
+    def sjr_application_fields(self):
+        members = set(map(lambda x: x.member, self.membersonlist.distinct()))
+        total = len(members)
+        total_b27_local = len([m for m in members
+                               if m.age <= 27 and settings.SEKTION in m.town])
+        total_b27_non_local = len([m for m in members
+                                   if m.age <= 27 and not settings.SEKTION in m.town])
+        jls = self.jugendleiter.distinct()
+        title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
+        base = {'Haushaltsjahr': str(datetime.now().year),
+                'Art / Thema / Titel': title,
+                'Ort': self.place,
+                'Datum von': self.date.strftime('%d.%m.%Y'),
+                'Datum bis': self.end.strftime('%d.%m.%Y'),
+                'Dauer': str(self.duration).replace('.', ','),
+                'Teilnehmenden gesamt': str(total),
+                'bis 27 aus HD': str(total_b27_local),
+                'bis 27 nicht aus HD': str(total_b27_non_local),
+                'Verpflegungstage': str(self.duration * self.participant_count).replace('.', ','),
+                'Betreuer/in': str(len(jls)),
+                'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
+        print(members)
+        for i, m in enumerate(members):
+            suffix = str(' {}'.format(i + 1))
+            # indexing starts at zero, but the listing in the pdf starts at 1
+            if i + 1 == 1:
+                suffix = ''
+            elif i + 1 == 12:
+                suffix = '12'
+            base['Vor- und Nachname' + suffix] = m.name
+            base['Anschrift' + suffix] = m.address
+            base['Alter' + suffix] = str(m.age)
+            base['Status' + suffix] = str(2)
+        return base
+
     @staticmethod
     def filter_queryset_by_permissions(member, queryset=None):
         if queryset is None:
