@@ -782,9 +782,22 @@ class MemberWaitingList(Person):
     def may_register(self, key):
         return self.registration_key == key and timezone.now() < self.registration_expire
 
-    def invite_to_group(self):
+    def invite_to_group(self, group):
+        if group.show_website:
+            group_link = '({url}) '.format(url=prepend_base_url(reverse('startpage:gruppe_detail', args=[group.name])))
+        else:
+            group_link = ''
+        # TODO: inform the user that the group has no configured weekday, start_time or end_time
+        weekday = WEEKDAYS[group.weekday][1] if group.weekday != None else WEEKDAYS[0][1]
+        start_time = group.start_time.strftime('%H:%M') if group.start_time != None else "14:00"
+        end_time = group.end_time.strftime('%H:%M') if group.end_time != None else "16:00"
         self.send_mail(_("Invitation to trial group meeting"),
             settings.INVITE_TEXT.format(name=self.prename,
+            weekday=weekday,
+            start_time=start_time,
+            end_time=end_time,
+            group_name=group.name,
+            group_link=group_link,
             link=get_registration_link(self)))
 
 

@@ -24,8 +24,10 @@ Dein KOMPASS"""
 
 INVITE_TEXT = """Hallo {name},
 
-wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe freigeworden. Wir brauchen
-jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
+wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe {group_name} {group_link}freigeworden.
+Wir treffen uns jeden {weekday} von {start_time} bis {end_time} Uhr.
+
+Wir brauchen jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
 Link erledigen:
 
 {link}

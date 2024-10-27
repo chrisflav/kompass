@@ -446,7 +446,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             for waiter in queryset:
                 waiter.invited_for_group = group
                 waiter.save()
-                waiter.invite_to_group()
+                waiter.invite_to_group(group)
                 messages.success(request,
                         _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
 
@@ -501,7 +501,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
 
             waiter.invited_for_group = group
             waiter.save()
-            waiter.invite_to_group()
+            waiter.invite_to_group(group)
             messages.success(request,
                     _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
 
