@@ -7,6 +7,7 @@ SEKTION_TELEPHONE = "06221 284076"
 SEKTION_TELEFAX = "06221 437338"
 SEKTION_CONTACT_MAIL = "geschaeftsstelle@alpenverein-heidelberg.de"
 SEKTION_BOARD_MAIL = "vorstand@alpenverein-heidelberg.de"
+SEKTION_CRISIS_INTERVENTION_MAIL = "krisenmanagement@alpenverein-heidelberg.de"
 
 RESPONSIBLE_MAIL = "jugendreferat@jdav-hd.de"
 

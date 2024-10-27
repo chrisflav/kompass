@@ -13,6 +13,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{array}
 \usepackage{tabularx}
+\usepackage{ltablex}
 
 \newcommand{\picpos}[4]{
   \begin{textblock*}{#1}(#2, #3)
@@ -42,7 +43,7 @@
 }
 \begin{document}
 % HEADER RIGHT
-\picpos{4.5cm}{11.5cm}{0cm}{/app/jdav_web/static/general/img/dav_logo.png}
+\picpos{4.5cm}{11.5cm}{0cm}{/app/jdav_web/static/general/img/dav_logo_hd.png}
 \begin{textblock*}{5cm}(11.5cm, 2.3cm)
     \begin{flushright}
         \small
@@ -78,22 +79,26 @@
     \end{tabular}
 \end{table}
 
-\begin{table}[H]
-    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLlL}
-    \toprule
-    \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{E-Mail} \\
-    \midrule
-    {% for m in memberlist.membersonlist.all %}
-        {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.contact_phone_number|esc_all }} & \Email{ {{ m.member.contact_email }} } \\
-    {% endfor %}
-    \bottomrule
-  \end{tabularx}
-\end{table}
+\begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLlLL}
+\toprule
+\textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{Notfallkontakte} \\
+\midrule
+{% for m in memberlist.membersonlist.all %}
+    {{ m.member.name|esc_all }} &
+    {{ m.member.address|esc_all }} &
+    {{ m.member.contact_phone_number|esc_all }} &
+    {% for c in m.member.emergencycontact_set.all %}
+        {{ c.name }} \newline
+        Tel.: {{ c.phone_number }} \newline
+        Email: \href{mailto:{{ c.email }}}{ {{c.email}}}
+    {% endfor %} \\
+{% endfor %}
+\bottomrule
+\end{tabularx}
 
 \vspace{1cm}
 
 \noindent Bitte die ausgefüllte Teilnehmerliste vor Antritt der Aktivität per E-Mail an
-\href{mailto:{{ settings.SEKTION_CONTACT_MAIL }} }{ {{ settings.SEKTION_CONTACT_MAIL }} } und
-\href{mailto:{{ settings.SEKTION_BOARD_MAIL }} }{ {{ settings.SEKTION_BOARD_MAIL }} } senden.
+\href{mailto:{{ settings.SEKTION_CRISIS_INTERVENTION_MAIL }}}{ {{ settings.SEKTION_CRISIS_INTERVENTION_MAIL }} } senden.
 
 \end{document}
