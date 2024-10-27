@@ -136,15 +136,9 @@ class Message(CommonModel):
 
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
-        recipients_with_reminder = [m for m in filtered if not m.registered]
-        recipients_without_reminder = [m for m in filtered if m.registered]
 
-        emails_rem = [member.email for member in recipients_with_reminder]
-        emails_rem.extend([member.alternative_email for member in recipients_with_reminder
-                       if member.alternative_email])
-        emails_no_rem = [member.email for member in recipients_without_reminder]
-        emails_no_rem.extend([member.alternative_email for member in recipients_without_reminder
-                       if member.alternative_email])
+        emails = [member.email for member in filtered]
+        emails.extend([member.alternative_email for member in filtered if member.alternative_email])
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')
@@ -157,19 +151,13 @@ class Message(CommonModel):
         # the mail provider anyways)
         reply_to = [mail for mail in reply_to_unfiltered if mail != settings.DEFAULT_SENDING_MAIL ]
         try:
-            success1 = send(self.subject, get_content(self.content, registration_complete=False),
-                            settings.DEFAULT_SENDING_MAIL,
-                            emails_rem,
-                            message_id=message_id,
-                            attachments=attach,
-                            reply_to=reply_to)
-            success2 = send(self.subject, get_content(self.content, registration_complete=True),
-                            settings.DEFAULT_SENDING_MAIL,
-                            emails_no_rem,
-                            message_id=message_id,
-                            attachments=attach,
-                            reply_to=reply_to)
-            if (success1 == SENT or success1 == PARTLY_SENT) and (success2 == SENT or success2 == PARTLY_SENT):
+            success = send(self.subject, get_content(self.content, registration_complete=True),
+                           settings.DEFAULT_SENDING_MAIL,
+                           emails,
+                           message_id=message_id,
+                           attachments=attach,
+                           reply_to=reply_to)
+            if success == SENT or success == PARTLY_SENT:
                 self.sent = True
             for a in Attachment.objects.filter(msg__id=self.pk):
                 if a.f.name:
