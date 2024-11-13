@@ -13,7 +13,7 @@ from django.conf import settings
 class MemberForm(ModelForm):
     class Meta:
         model = Member
-        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra', 'country',
+        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra',
                   'phone_number']
 
 class MemberRegistrationForm(ModelForm):
@@ -25,7 +25,7 @@ class MemberRegistrationForm(ModelForm):
 
     class Meta:
         model = Member
-        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra', 'country',
+        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra',
                   'phone_number', 'birth_date', 'gender', 'email', 'alternative_email',
                   'registration_form']
         widgets = {

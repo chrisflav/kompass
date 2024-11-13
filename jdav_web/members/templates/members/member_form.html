@@ -17,11 +17,11 @@
         {% for form in emergency_contacts_formset.forms %}
         <div class="form-row" {% if form.DELETE.value %}style="display:none"{% endif %}>
             {{form}}
-            <button type="button" class="remove-form-button" onclick="setHidden(this)">Remove</button>
+            <button type="button" class="remove-form-button" onclick="setHidden(this)">{% trans "Remove" %}</button>
         </div>
         {% endfor %}
     </div>
-    <button type="button" id="add-form-button">Add More</button>
+    <button type="button" id="add-form-button">{% trans "Add more" %}</button>
     {% if registration %}
     <p>
     <input type="checkbox" required>
@@ -40,7 +40,7 @@
 <div id="empty_form" class="form-row" style="display:none">
     {{ emergency_contacts_formset.empty_form }}
     <button type="button" id="empty_remove_form_button" class="remove-form-button"
-        onclick="setHidden(this)">Remove</button>
+        onclick="setHidden(this)">{% trans "Remove" %}</button>
 </div>
 
 <script>

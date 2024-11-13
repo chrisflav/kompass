@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-13 23:36+0100\n"
+"POT-Creation-Date: 2024-11-14 00:45+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -163,6 +163,7 @@ msgid "Means of transportation"
 msgstr "Verkehrsmittel"
 
 #: members/admin.py:656
+#, python-format
 msgid "You are not allowed to view all members on note list %(name)s."
 msgstr ""
 "Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Notizliste "
@@ -822,8 +823,8 @@ msgid ""
 "Thanks for echoing back. Please enter the password, which you can find in "
 "the email we sent you.\n"
 msgstr ""
-"Danke für die Rückmeldung. Bitte gebe das Passwort ein, welches du in der "
-"E-Mail findest.\n"
+"Danke für die Rückmeldung. Bitte gebe das Passwort ein, welches du in der E-"
+"Mail findest.\n"
 
 #: members/templates/members/echo_password.html:24
 #: members/templates/members/member_form.html:37
@@ -901,9 +902,21 @@ msgstr ""
 msgid "Emergency contacts:"
 msgstr "Notfallkontakte:"
 
+#: members/templates/members/member_form.html:20
+#: members/templates/members/member_form.html:43
+msgid "Remove"
+msgstr "Entfernen"
+
+#: members/templates/members/member_form.html:24
+msgid "Add more"
+msgstr "Weiteren hinzufügen"
+
 #: members/templates/members/member_form.html:28
+#, python-format
 msgid "I am already or will become a member of the DAV %(sektion)s soon."
-msgstr "Ich bin bereits Mitglied der DAV %(sektion)s, oder beantrage die Mitgliedschaft zeitnah."
+msgstr ""
+"Ich bin bereits Mitglied der DAV %(sektion)s, oder beantrage die "
+"Mitgliedschaft zeitnah."
 
 #: members/templates/members/member_form.html:30
 #: members/templates/members/register_waiting_list.html:36
