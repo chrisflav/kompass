@@ -145,8 +145,8 @@ class Message(CommonModel):
         # generate message id
         message_id = "<{pk}@{domain}>".format(pk=self.pk, domain=settings.DOMAIN)
         # reply to addresses
-        reply_to_unfiltered = [jl.association_email for jl in self.reply_to.all()]
-        reply_to_unfiltered.extend([ml.email for ml in self.reply_to_email_address.all()])
+        reply_to = [jl.association_email for jl in self.reply_to.all()]
+        reply_to.extend([ml.email for ml in self.reply_to_email_address.all()])
         # set correct from address
         if sender is None:
             from_addr = settings.DEFAULT_SENDING_MAIL
@@ -200,11 +200,6 @@ class MessageForm(forms.ModelForm):
         if not group and freizeit is None and not members and notelist is None:
             raise ValidationError(_('Either a group, a memberlist or at least'
                                     ' one member is required as recipient'))
-        reply_to = self.cleaned_data.get('reply_to')
-        reply_to_email_address = self.cleaned_data.get('reply_to_email_address')
-        if not reply_to and not reply_to_email_address:
-            raise ValidationError(_('At least one reply-to recipient is required. '
-                                    'Use the info mail if you really want no reply-to recipient.'))
 
 class Attachment(CommonModel):
     """Represents an attachment to an email"""
