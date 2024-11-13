@@ -113,7 +113,7 @@ class Message(CommonModel):
         return ", ".join(recipients)
     get_recipients.short_description = _('recipients')
 
-    def submit(self):
+    def submit(self, sender=None):
         """Sends the mail to the specified group of members"""
         # recipients
         members = set()
@@ -147,12 +147,14 @@ class Message(CommonModel):
         # reply to addresses
         reply_to_unfiltered = [jl.association_email for jl in self.reply_to.all()]
         reply_to_unfiltered.extend([ml.email for ml in self.reply_to_email_address.all()])
-        # remove sending address from reply-to field (probably unnecessary since it's removed by
-        # the mail provider anyways)
-        reply_to = [mail for mail in reply_to_unfiltered if mail != settings.DEFAULT_SENDING_MAIL ]
+        # set correct from address
+        if sender is None:
+            from_addr = settings.DEFAULT_SENDING_MAIL
+        else:
+            from_addr = sender.association_email
         try:
             success = send(self.subject, get_content(self.content, registration_complete=True),
-                           settings.DEFAULT_SENDING_MAIL,
+                           from_addr,
                            emails,
                            message_id=message_id,
                            attachments=attach,

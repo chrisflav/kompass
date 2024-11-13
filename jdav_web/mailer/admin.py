@@ -12,6 +12,7 @@ from rules.contrib.admin import ObjectPermissionsModelAdmin
 from .models import Message, Attachment, MessageForm, EmailAddress, EmailAddressForm
 from .mailutils import NOT_SENT, PARTLY_SENT
 from members.models import Member
+from members.admin import FilteredMemberFieldMixin
 from contrib.admin import CommonAdminMixin, CommonAdminInlineMixin
 
 
@@ -20,7 +21,7 @@ class AttachmentInline(CommonAdminInlineMixin, admin.TabularInline):
     extra = 0
 
 
-class EmailAddressAdmin(admin.ModelAdmin):
+class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
     list_display = ('email', )
     #formfield_overrides = {
     #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
@@ -30,7 +31,7 @@ class EmailAddressAdmin(admin.ModelAdmin):
     form = EmailAddressForm
 
 
-class MessageAdmin(CommonAdminMixin, ObjectPermissionsModelAdmin):
+class MessageAdmin(FilteredMemberFieldMixin, CommonAdminMixin, ObjectPermissionsModelAdmin):
     """Message creation view"""
     exclude = ('created_by',)
     list_display = ('subject', 'get_recipients', 'sent')
@@ -88,7 +89,10 @@ class MessageAdmin(CommonAdminMixin, ObjectPermissionsModelAdmin):
 
 
 def submit_message(msg, request):
-    success = msg.submit()
+    sender = None
+    if hasattr(request.user, 'member'):
+        sender = request.user.member
+    success = msg.submit(sender)
     if success == NOT_SENT:
         messages.error(request, _("Failed to send message"))
     elif success == PARTLY_SENT:
