@@ -25,7 +25,7 @@ MAX_AGE_GOOD_CONDUCT_CERTIFICATE_MONTHS = 24
 ALLOWANCE_PER_DAY = 10
 MAX_NIGHT_COST = 11
 
-CLOUD_LINK = 'https://cloud.jdav-ludwigsburg.de/index.php/s/qxQCTR8JqYSXXCQ'
+CLOUD_LINK = 'https://nc.cloud-jdav-hd.de'
 
 # Admin setup
 
@@ -42,7 +42,7 @@ MAX_REMINDER_COUNT = 3
 
 TEST_MAIL = "post@flavigny.de"
 
-REGISTRATION_FORM_DOWNLOAD_LINK = 'https://cloud.jdav-ludwigsburg.de/index.php/s/NQfRqA9MTKfPBkC'
+REGISTRATION_FORM_DOWNLOAD_LINK = 'https://nc.cloud-jdav-hd.de'
 
 DOMAIN = 'jdav-hd.merten.dev'
 

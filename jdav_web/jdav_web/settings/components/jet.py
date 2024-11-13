@@ -47,6 +47,6 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'materialpart', 'permissions': ['material.view_materialpart']},
     ]},
     {'label': 'Externe Links', 'items' : [
-        { 'label': 'Packlisten und Co.', 'url': CLOUD_LINK }
+        { 'label': 'Nextcloud', 'url': CLOUD_LINK }
     ]},
 ]
