@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-20 18:48+0100\n"
+"POT-Creation-Date: 2024-11-13 23:36+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,19 +18,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: mailer/admin.py:56
+#: mailer/admin.py:67
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: mailer/admin.py:86
+#: mailer/admin.py:97
 msgid "Failed to send message"
 msgstr "Fehler beim Senden der Email"
 
-#: mailer/admin.py:88
+#: mailer/admin.py:99
 msgid "Failed to send some messages"
 msgstr "Fehler beim Senden der Emails"
 
-#: mailer/admin.py:90
+#: mailer/admin.py:101
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
@@ -38,7 +38,7 @@ msgstr "Email wurde erfolgreich verschickt"
 msgid "mailer"
 msgstr "Verteiler"
 
-#: mailer/management/commands/notify_active.py:38
+#: mailer/management/commands/notify_active.py:36
 #, python-format
 msgid "Congratulation %(name)s"
 msgstr "Herzlichen Glückwunsch %(name)s"
@@ -109,23 +109,27 @@ msgstr "Antwort an Email-Adresse"
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py:107
+#: mailer/models.py:94
+msgid "Created by"
+msgstr "Erstellt von"
+
+#: mailer/models.py:112
 msgid "Some other members"
 msgstr "Andere Teilnehmer"
 
-#: mailer/models.py:109
+#: mailer/models.py:114
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:182
+#: mailer/models.py:177
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:183
+#: mailer/models.py:178
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:185
+#: mailer/models.py:180
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
@@ -136,27 +140,19 @@ msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmerliste oder mindestens ein "
 "Teilnehmer als Empfänger ausgewählt werden."
 
-#: mailer/models.py:206
-msgid ""
-"At least one reply-to recipient is required. Use the info mail if you really "
-"want no reply-to recipient."
-msgstr ""
-"Es muss mindestens ein Antwort-An Empfänger angegeben werden. Nutze die info "
-"Email-Adresse falls du wirklich keinen Antwort-An Empfänger haben möchtest."
-
-#: mailer/models.py:213
+#: mailer/models.py:208
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py:219
+#: mailer/models.py:214
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py:222
+#: mailer/models.py:217
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py:223
+#: mailer/models.py:218
 msgid "attachments"
 msgstr "Anhänge"
 
@@ -237,7 +233,7 @@ msgstr "Vorname"
 msgid "Lastname"
 msgstr "Nachname"
 
-#: mailer/templates/mailer/subscribe.html:26 mailer/views.py:59
+#: mailer/templates/mailer/subscribe.html:26 mailer/views.py:60
 msgid "Birthdate"
 msgstr "Geburtsdatum"
 
@@ -262,22 +258,30 @@ msgstr "Hier kannst du dich vom Newsletter abmelden"
 msgid "Successfully unsubscribed from the newsletter for "
 msgstr "Newsletter erfolgreich abbestellt für "
 
-#: mailer/views.py:35
+#: mailer/views.py:36
 msgid "Can't verify this link. Try again!"
 msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 
-#: mailer/views.py:47
+#: mailer/views.py:48
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"
 
-#: mailer/views.py:49
+#: mailer/views.py:50
 msgid "Unsubscription confirmation"
 msgstr "Abmeldebestätigung"
 
-#: mailer/views.py:82
+#: mailer/views.py:83
 msgid "Please fill in every field!"
 msgstr "Bitte jedes Feld ausfüllen!"
 
-#: mailer/views.py:89
+#: mailer/views.py:90
 msgid "Member already exists"
 msgstr "Mitglied schon vorhanden"
+
+#~ msgid ""
+#~ "At least one reply-to recipient is required. Use the info mail if you "
+#~ "really want no reply-to recipient."
+#~ msgstr ""
+#~ "Es muss mindestens ein Antwort-An Empfänger angegeben werden. Nutze die "
+#~ "info Email-Adresse falls du wirklich keinen Antwort-An Empfänger haben "
+#~ "möchtest."

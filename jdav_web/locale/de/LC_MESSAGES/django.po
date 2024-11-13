@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-20 18:48+0100\n"
+"POT-Creation-Date: 2024-11-13 23:36+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,11 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: contrib/admin.py:59
+#, python-format
+msgid "You are not allowed to view %(name)s."
+msgstr "Du hast nicht die notwendigen Berechtigungen um %(name)s zu sehen."
 
 #: jdav_web/urls.py:26
 msgid "Startpage"
@@ -43,14 +48,18 @@ msgid "Generate crisis intervention list"
 msgstr "Kriseninterventionsliste erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:16
+msgid "Generate SJR application"
+msgstr "SJR Antrag erstellen"
+
+#: templates/admin/members/freizeit/change_form_object_tools.html:23
 msgid "Generate overview"
 msgstr "Übersicht erstellen"
 
-#: templates/admin/members/freizeit/change_form_object_tools.html:23
+#: templates/admin/members/freizeit/change_form_object_tools.html:30
 msgid "Generate seminar report"
 msgstr "Seminarbericht erstellen"
 
-#: templates/admin/members/freizeit/change_form_object_tools.html:29
+#: templates/admin/members/freizeit/change_form_object_tools.html:36
 msgid "Submit statement"
 msgstr "Abrechnung einreichen"
 
