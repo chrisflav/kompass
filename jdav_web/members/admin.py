@@ -739,7 +739,10 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
         context = memberlist.sjr_application_fields()
-        attachments = [b.proof.path for b in memberlist.statement.bill_set.all()]
+        if hasattr(memberlist, 'statement'):
+            attachments = [b.proof.path for b in memberlist.statement.bill_set.all()]
+        else:
+            attachments = []
         title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
         return fill_pdf_form(title + "_SJR_Antrag", 'members/sjr_template.pdf', context, attachments)
     sjr_application.short_description = _('Generate SJR application')
