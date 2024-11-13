@@ -246,8 +246,11 @@ def register(request):
         except ValueError as e:
             print("value error", e)
             # when input is invalid
-            return render_register(request, group, form, emergency_contacts_formset, pwd=pwd.password,
+            if pwd:
+                return render_register(request, group, form, emergency_contacts_formset, pwd=pwd.password,
                     waiter_key=waiter_key)
+            else:
+                return render_register(request, group, form, emergency_contacts_formset, waiter_key=waiter_key)
     # we are not saving yet
     return render_register(request, group, form=None, pwd=pwd.password, waiter_key=waiter_key)
 
