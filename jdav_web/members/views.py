@@ -185,7 +185,7 @@ def render_register_success(request, groupname, membername, needs_mail_confirmat
 
 
 def render_register(request, group, form=None, emergency_contacts_formset=None,
-        pwd=None, waiter_key=''):
+        pwd='', waiter_key=''):
     if form is None:
         form = MemberRegistrationForm()
     if emergency_contacts_formset is None:
