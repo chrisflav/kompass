@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-17 14:17+0100\n"
+"POT-Creation-Date: 2024-11-17 16:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -148,7 +148,7 @@ msgstr "Erklärung"
 
 #: finance/models.py:51
 msgid "Associated excursion"
-msgstr "Zugehörige Freizeit"
+msgstr "Zugehörige Ausfahrt"
 
 #: finance/models.py:56
 msgid "Price per night"
@@ -337,13 +337,13 @@ msgstr "Der Gesamtbetrag beträgt %(total_bills)s €."
 
 #: finance/templates/admin/overview_submitted_statement.html:54
 msgid "Excursion"
-msgstr "Freizeit"
+msgstr "Ausfahrt"
 
 #: finance/templates/admin/overview_submitted_statement.html:57
 #, python-format
 msgid "This excursion featured %(staff_count)s youth leader(s), each costing"
 msgstr ""
-"Diese Freizeit hatte %(staff_count)s Jugendleiter:innen. Auf jede:n "
+"Diese Ausfahrt hatte %(staff_count)s Jugendleiter:innen. Auf jede:n "
 "entfallen die folgenden Kosten:"
 
 #: finance/templates/admin/overview_submitted_statement.html:62

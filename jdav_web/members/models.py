@@ -894,8 +894,8 @@ class Freizeit(CommonModel):
         return self.name
 
     class Meta(CommonModel.Meta):
-        verbose_name = "Freizeit"
-        verbose_name_plural = "Freizeiten"
+        verbose_name = _('Excursion')
+        verbose_name_plural = _('Excursions')
         rules_permissions = {
             'add_obj': has_global_perm('members.add_global_freizeit'),
             'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),

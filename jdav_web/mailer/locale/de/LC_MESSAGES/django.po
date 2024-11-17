@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-13 23:36+0100\n"
+"POT-Creation-Date: 2024-11-17 16:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,7 +87,7 @@ msgstr "An Gruppe"
 
 #: mailer/models.py:73
 msgid "to freizeit"
-msgstr "An Freizeit"
+msgstr "An Ausfahrt"
 
 #: mailer/models.py:78
 msgid "to notes list"

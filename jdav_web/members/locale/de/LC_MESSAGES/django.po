@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-17 16:11+0100\n"
+"POT-Creation-Date: 2024-11-17 16:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -177,7 +177,7 @@ msgstr "Übersicht erstellen"
 #, python-format
 msgid "You are not allowed to view all members on excursion %(name)s."
 msgstr ""
-"Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Freizeit "
+"Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Ausfahrt "
 "%(name)s anzusehen."
 
 #: members/admin.py:714
@@ -551,6 +551,14 @@ msgstr "mittel"
 msgid "hard"
 msgstr "schwer"
 
+#: members/models.py:897 members/models.py:1134
+msgid "Excursion"
+msgstr "Ausfahrt"
+
+#: members/models.py:898
+msgid "Excursions"
+msgstr "Ausfahrten"
+
 #: members/models.py:1049 members/models.py:1125 members/models.py:1341
 msgid "Title"
 msgstr "Titel"
@@ -610,10 +618,6 @@ msgstr "Wertung"
 #: members/models.py:1131
 msgid "Experiences and possible improvements"
 msgstr "Erfahrungen und Verbesserungsvorschläge"
-
-#: members/models.py:1134
-msgid "Excursion"
-msgstr "Freizeit"
 
 #: members/models.py:1140 members/models.py:1161
 msgid "LJP Proposal"
@@ -767,7 +771,7 @@ msgstr "Datum"
 
 #: members/templates/members/change_member.html:7
 msgid "Participations:"
-msgstr "Freizeitteilnahmen:"
+msgstr "Ausfahrtteilnahmen:"
 
 #: members/templates/members/change_member.html:15
 msgid "Qualities:"
@@ -823,8 +827,8 @@ msgid ""
 "Thanks for echoing back. Please enter the password, which you can find in "
 "the email we sent you.\n"
 msgstr ""
-"Bitte gib dein Passwort ein. Weitere Informationen"
-"zur Rückmeldung findest du in der E-Mail.\n"
+"Bitte gib dein Passwort ein. Weitere Informationenzur Rückmeldung findest du "
+"in der E-Mail.\n"
 
 #: members/templates/members/echo_password.html:24
 #: members/templates/members/member_form.html:37
