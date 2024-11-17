@@ -1050,8 +1050,8 @@ msgid "Prename of the member."
 msgstr "Vorname des Teilnehmenden"
 
 #: members/views.py:36 members/views.py:59
-msgid "Nachname des Teilnehmenden"
-msgstr ""
+msgid "Lastname of the member."
+msgstr "Nachname des Teilnehmenden"
 
 #: members/views.py:37
 msgid "phone number of child or parent"
