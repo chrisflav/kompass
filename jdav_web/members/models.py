@@ -254,7 +254,7 @@ class Member(Person):
     registration_form = RestrictedFileField(verbose_name=_('registration form'),
                                             upload_to='registration_forms',
                                             blank=True,
-                                            max_upload_size=5242880,
+                                            max_upload_size=5,
                                             content_types=['application/pdf',
                                                            'image/jpeg',
                                                            'image/png',
@@ -262,7 +262,7 @@ class Member(Person):
     image = RestrictedFileField(verbose_name=_('image'),
                                 upload_to='people',
                                 blank=True,
-                                max_upload_size=5242880,
+                                max_upload_size=5,
                                 content_types=['image/jpeg',
                                                'image/png',
                                                'image/gif'])

@@ -185,7 +185,7 @@ def render_register(request, group, form=None, emergency_contacts_formset=None,
                    'emergency_contacts_formset': emergency_contacts_formset,
                    'group': group,
                    'waiter_key': waiter_key,
-                   'pwd': pwd,
+                   'password': pwd,
                    'sektion': settings.SEKTION,
                    'registration': True
                   })

@@ -208,7 +208,7 @@ class Attachment(CommonModel):
     f = RestrictedFileField(_('file'),
                             upload_to='attachments',
                             blank=True,
-                            max_upload_size=10485760)
+                            max_upload_size=10)
 
     def __str__(self):
         return os.path.basename(self.f.name) if self.f.name else _("Empty")

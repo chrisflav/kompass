@@ -3,6 +3,21 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 
+def file_size_validator(max_upload_size):
+    """
+    Returns a function checking if the supplied file has file size less or equal
+    than `max_upload_size` in MB.
+    """
+    def check_file_size(value):
+        limit = max_upload_size * 1024 * 1024
+        if value.size > limit:
+            raise ValidationError(_('Please keep filesize under {} MiB. '
+                                    'Current filesize: '
+                                    '{:10.2f} MiB.').format(max_upload_size,
+                                                        value.size / 1024 / 1024))
+    return check_file_size
+
+
 class RestrictedFileField(models.FileField):
 
     def __init__(self, *args, **kwargs):
@@ -16,6 +31,7 @@ class RestrictedFileField(models.FileField):
             self.content_types = None
 
         super(RestrictedFileField, self).__init__(*args, **kwargs)
+        self.validators = [file_size_validator(self.max_upload_size)]
 
     def clean(self, *args, **kwargs):
         data = super(RestrictedFileField, self).clean(*args, **kwargs)
