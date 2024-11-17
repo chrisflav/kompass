@@ -14,7 +14,8 @@ from django.contrib.contenttypes.models import ContentType
 from utils import RestrictedFileField
 import os
 from mailer.mailutils import send as send_mail, get_mail_confirmation_link,\
-    prepend_base_url, get_registration_link, get_wait_confirmation_link
+    prepend_base_url, get_registration_link, get_wait_confirmation_link,\
+    get_invitation_reject_link
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -689,6 +690,35 @@ class MemberUnconfirmedProxy(Member):
         return self.name
 
 
+def gen_key():
+    return uuid.uuid4().hex
+
+
+class InvitationToGroup(models.Model):
+    """An invitation of a waiter to a group."""
+    waiter = models.ForeignKey('MemberWaitingList', verbose_name=_('Waiter'), on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, verbose_name=_('Group'), on_delete=models.CASCADE)
+    date = models.DateField(auto_now=True, verbose_name=_('Invitation date'))
+    rejected = models.BooleanField(verbose_name=_('Invitation rejected'), default=False)
+    key = models.CharField(max_length=32, default=gen_key)
+
+    class Meta:
+        verbose_name = _('Invitation to group')
+        verbose_name_plural = _('Invitations to groups')
+
+    def is_expired(self):
+        return self.date < (timezone.now() - timezone.timedelta(days=30)).date()
+
+    def status(self):
+        if self.rejected:
+            return _('Rejected')
+        elif self.is_expired():
+            return _('Expired')
+        else:
+            return _('Undecided')
+    status.short_description = _('Status')
+
+
 class MemberWaitingList(Person):
     """A participant on the waiting list"""
 
@@ -710,12 +740,6 @@ class MemberWaitingList(Person):
     registration_key = models.CharField(max_length=32, default="")
     registration_expire = models.DateTimeField(default=timezone.now)
 
-    invited_for_group = models.ForeignKey(Group,
-                                          null=True,
-                                          blank=True,
-                                          default=None,
-                                          verbose_name=_('Invited for group'),
-                                          on_delete=models.SET_NULL)
     class Meta(CommonModel.Meta):
         verbose_name = _('Waiter')
         verbose_name_plural = _('Waiters')
@@ -783,14 +807,13 @@ class MemberWaitingList(Person):
         self.save()
         return self.wait_confirmation_key
 
-    def generate_registration_key(self):
-        self.registration_key = uuid.uuid4().hex
-        self.registration_expire = timezone.now() + timezone.timedelta(days=30)
-        self.save()
-        return self.registration_key
-
     def may_register(self, key):
-        return self.registration_key == key and timezone.now() < self.registration_expire
+        print("may_register", key)
+        try:
+            invitation = InvitationToGroup.objects.get(key=key)
+            return self.pk == invitation.waiter.pk and timezone.now() < invitation.date + timezone.timedelta(days=30)
+        except InvitationToGroup.DoesNotExist:
+            return False
 
     def invite_to_group(self, group):
         if group.show_website:
@@ -801,6 +824,8 @@ class MemberWaitingList(Person):
         weekday = WEEKDAYS[group.weekday][1] if group.weekday != None else WEEKDAYS[0][1]
         start_time = group.start_time.strftime('%H:%M') if group.start_time != None else "14:00"
         end_time = group.end_time.strftime('%H:%M') if group.end_time != None else "16:00"
+        invitation = InvitationToGroup(group=group, waiter=self)
+        invitation.save()
         self.send_mail(_("Invitation to trial group meeting"),
             settings.INVITE_TEXT.format(name=self.prename,
             weekday=weekday,
@@ -808,7 +833,14 @@ class MemberWaitingList(Person):
             end_time=end_time,
             group_name=group.name,
             group_link=group_link,
-            link=get_registration_link(self)))
+            link=get_registration_link(invitation.key),
+            invitation_reject_link=get_invitation_reject_link(invitation.key)))
+
+    def unregister(self):
+        """Delete the waiter and inform them about the deletion via email."""
+        self.send_mail(_("Unregistered from waiting list"),
+                       settings.LEAVE_WAITINGLIST_TEXT.format(name=self.prename))
+        self.delete()
 
 
 class NewMemberOnList(CommonModel):

@@ -36,7 +36,8 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
                      MemberWaitingList, LJPProposal, Intervention, PermissionMember,
                      PermissionGroup, MemberTraining, TrainingCategory,
                      KlettertreffAttendee, ActivityCategory, EmergencyContact,
-                     annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy)
+                     annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy,
+                     InvitationToGroup)
 from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
@@ -414,16 +415,28 @@ class WaiterInviteForm(forms.Form):
                                    label=_('Group'))
 
 
+class InvitationToGroupAdmin(CommonAdminInlineMixin, admin.TabularInline):
+    model = InvitationToGroup
+    fields = ['group', 'date', 'status']
+    readonly_fields = ['group', 'date', 'status']
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'birth_date', 'gender', 'application_text',
-        'application_date', 'comments', 'invited_for_group',
+        'application_date', 'comments',
         'sent_reminders']
     list_display = ('name', 'birth_date', 'age', 'application_date', 'confirmed_mail',
                     'waiting_confirmed', 'sent_reminders')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('confirmed_mail',)
     actions = ['ask_for_registration', 'ask_for_wait_confirmation']
-    readonly_fields= ['invited_for_group', 'application_date', 'sent_reminders']
+    inlines = [InvitationToGroupAdmin]
+    readonly_fields= ['application_date', 'sent_reminders']
 
     def has_add_permission(self, request, obj=None):
         return False

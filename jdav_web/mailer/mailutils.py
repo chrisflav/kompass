@@ -64,9 +64,12 @@ def get_echo_link(member):
     return prepend_base_url("/members/echo?key={}".format(key))
 
 
-def get_registration_link(waiter):
-    key = waiter.generate_registration_key()
+def get_registration_link(key):
     return prepend_base_url("/members/registration?key={}".format(key))
+
+
+def get_invitation_reject_link(key):
+    return prepend_base_url("/members/waitinglist/invitation/reject?key={}".format(key))
 
 
 def get_wait_confirmation_link(waiter):

@@ -4,7 +4,7 @@ from django.http import HttpResponseRedirect
 from django.forms import ModelForm, TextInput, DateInput, BaseInlineFormSet,\
     inlineformset_factory, HiddenInput, FileInput
 from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy, MemberWaitingList, Group,\
-    confirm_mail_by_key, EmergencyContact
+    confirm_mail_by_key, EmergencyContact, InvitationToGroup
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -229,9 +229,10 @@ def register(request):
             return render_register_wrong_password(request)
     elif waiter_key:
         try:
-            waiter = MemberWaitingList.objects.get(registration_key=waiter_key)
-            group = waiter.invited_for_group
-        except MemberWaitingList.DoesNotExist:
+            invitation = InvitationToGroup.objects.get(key=waiter_key)
+            waiter = invitation.waiter
+            group = invitation.group
+        except InvitationToGroup.DoesNotExist:
             return render_register_failed(request)
 
     # group must not be None
@@ -323,14 +324,13 @@ def invited_registration(request):
     if request.method == 'GET' and 'key' in request.GET:
         try:
             key = request.GET['key']
-            waiter = MemberWaitingList.objects.get(registration_key=key)
-            if not waiter.may_register(key):
-                raise KeyError
-            if not waiter.invited_for_group:
+            invitation = InvitationToGroup.objects.get(key=key)
+            waiter = invitation.waiter
+            if invitation.is_expired() or invitation.rejected:
                 raise KeyError
             form = MemberRegistrationForm(instance=waiter)
-            return render_register(request, group=waiter.invited_for_group, form=form, waiter_key=key)
-        except MemberWaitingList.DoesNotExist:
+            return render_register(request, group=invitation.group, form=form, waiter_key=key)
+        except InvitationToGroup.DoesNotExist:
             return render_invited_registration_failed(request, _("invalid"))
         except KeyError:
             return render_invited_registration_failed(request, _("expired"))
@@ -344,6 +344,50 @@ def render_invited_registration_failed(request, reason=""):
     if reason:
         context['reason'] = reason
     return render(request, 'members/invited_registration_failed.html', context)
+
+
+def render_reject_invitation(request, invitation):
+    return render(request, 'members/reject_invitation.html',
+                  {'invitation': invitation,
+                   'groupname': invitation.group.name})
+
+
+def render_reject_invalid(request):
+    return render(request, 'members/reject_invalid.html')
+
+
+def render_reject_success(request, invitation, leave_waitinglist=False):
+    return render(request, 'members/reject_success.html',
+                  {'invitation': invitation,
+                   'leave_waitinglist': leave_waitinglist,
+                   'groupname': invitation.group.name})
+
+
+def reject_invitation(request):
+    if request.method == 'GET' and 'key' in request.GET:
+        key = request.GET['key']
+        try:
+            invitation = InvitationToGroup.objects.get(key=key)
+            if invitation.rejected or invitation.is_expired():
+                raise ValueError
+            return render_reject_invitation(request, invitation)
+        except (ValueError, InvitationToGroup.DoesNotExist):
+            return render_reject_invalid(request)
+    if request.method != 'POST' or 'key' not in request.POST:
+        return render_reject_invalid(request)
+    key = request.POST['key']
+    try:
+        invitation = InvitationToGroup.objects.get(key=key)
+    except InvitationToGroup.DoesNotExist:
+        return render_reject_invalid(request)
+    if 'reject_invitation' in request.POST:
+        invitation.rejected = True
+        invitation.save()
+        return render_reject_success(request, invitation)
+    elif 'leave_waitinglist' in request.POST:
+        invitation.waiter.unregister()
+        return render_reject_success(request, invitation, leave_waitinglist=True)
+    return render_reject_invalid(request)
 
 
 def confirm_waiting(request):

@@ -27,15 +27,32 @@ INVITE_TEXT = """Hallo {name},
 wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe {group_name} {group_link}freigeworden.
 Wir treffen uns jeden {weekday} von {start_time} bis {end_time} Uhr.
 
-Wir brauchen jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Das kannst du alles über folgenden
-Link erledigen:
+Wir brauchen jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Die lädst du hier herunter,
+lässt es von deinen Eltern ausfüllen, unterschreiben und lädst ein Foto davon in unserem Anmeldeformular hoch.
+Das kannst du alles über folgenden Link erledigen:
 
 {link}
 
 Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste angegeben hast. Bitte
 überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
 
+Falls du zu dem obigen Termin keine Zeit hast oder dich ganz von der Warteliste abmelden möchtest,
+lehne bitte diese Einladung unter folgendem Link ab:
+
+{invitation_reject_link}
+
 Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
+
+Viele Grüße
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
+
+
+LEAVE_WAITINGLIST_TEXT = """Hallo {name},
+
+du hast dich erfolgreich von der Warteliste abgemeldet. Falls du zu einem späteren
+Zeitpunkt wieder der Warteliste beitreten möchtest, kannst du das über unsere Webseite machen.
+
+Falls du dich nicht selbst abgemeldet hast, wende dich bitte umgehend an %(RESPONSIBLE_MAIL)s.
 
 Viele Grüße
 Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
