@@ -94,4 +94,13 @@
     const totalFormsInput = document.getElementById('id_emergencycontact_set-TOTAL_FORMS');
     totalFormsInput.value = parseInt(form_count);
   });
+
+  const uploadField = document.getElementById("id_registration_form");
+  uploadField.onchange = function() {
+      if(this.files[0].size > 5 * 1024 * 1024) {
+         alert('{% trans "This file is bigger than the maximal allowed file size of 5 MiB." %}');
+         this.value = "";
+      }
+  };
+
 </script>

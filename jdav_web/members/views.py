@@ -2,7 +2,7 @@ from startpage.views import render
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponseRedirect
 from django.forms import ModelForm, TextInput, DateInput, BaseInlineFormSet,\
-    inlineformset_factory, HiddenInput
+    inlineformset_factory, HiddenInput, FileInput
 from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy, MemberWaitingList, Group,\
     confirm_mail_by_key, EmergencyContact
 from django.urls import reverse
@@ -29,7 +29,8 @@ class MemberRegistrationForm(ModelForm):
                   'phone_number', 'birth_date', 'gender', 'email', 'alternative_email',
                   'registration_form']
         widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'})
+            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'}),
+            'registration_form': FileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'}),
         }
         help_texts = {
             'prename': _('Prename of the member.'),

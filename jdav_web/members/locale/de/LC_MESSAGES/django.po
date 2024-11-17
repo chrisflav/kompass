@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-17 14:58+0100\n"
+"POT-Creation-Date: 2024-11-17 16:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -928,6 +928,10 @@ msgstr ""
 "Ich bin einverstanden, dass meine Daten auf dem Server der JDAV %(sektion)s "
 "gespeichert und verarbeitet werden."
 
+#: members/templates/members/member_form.html:101
+msgid "This file is bigger than the maximal allowed file size of 5 MiB."
+msgstr "Diese Datei ist größer als die maximal erlaubte Dateigröße von 5 MiB."
+
 #: members/templates/members/register.html:13
 #: members/templates/members/register_password.html:11
 #: members/templates/members/register_success.html:11
@@ -1045,39 +1049,40 @@ msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
 
-#: members/views.py:35 members/views.py:58
+#: members/views.py:36 members/views.py:59
 msgid "Prename of the member."
 msgstr "Vorname des Teilnehmenden"
 
-#: members/views.py:36 members/views.py:59
+#: members/views.py:37 members/views.py:60
 msgid "Lastname of the member."
 msgstr "Nachname des Teilnehmenden"
 
-#: members/views.py:37
+#: members/views.py:38
 msgid "phone number of child or parent"
 msgstr "Telefonnummer des Teilnehmenden oder einer Kontaktperson"
 
-#: members/views.py:38
-msgid "email of child if available, otherwise parental email address"
-msgstr "Falls verfügbar, E-Mailadresse des Teilnehmenden, sonst einer Kontaktperson"
-
 #: members/views.py:39
+msgid "email of child if available, otherwise parental email address"
+msgstr ""
+"Falls verfügbar, E-Mailadresse des Teilnehmenden, sonst einer Kontaktperson"
+
+#: members/views.py:40
 msgid "optional additional email address"
 msgstr "Optionale zusätzliche E-Mailadresse"
 
-#: members/views.py:96 members/views.py:176
+#: members/views.py:97 members/views.py:177
 msgid "The entered password is wrong."
 msgstr "Das eingegebene Passwort ist falsch."
 
-#: members/views.py:130 members/views.py:138 members/views.py:333
+#: members/views.py:131 members/views.py:139 members/views.py:334
 msgid "invalid"
 msgstr "ungültig"
 
-#: members/views.py:141 members/views.py:335
+#: members/views.py:142 members/views.py:336
 msgid "expired"
 msgstr "abgelaufen"
 
-#: members/views.py:150
+#: members/views.py:151
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
 
