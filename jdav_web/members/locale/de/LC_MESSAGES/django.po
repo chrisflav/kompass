@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-14 00:45+0100\n"
+"POT-Creation-Date: 2024-11-17 14:58+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1045,19 +1045,39 @@ msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
 
-#: members/views.py:85 members/views.py:165
+#: members/views.py:35 members/views.py:58
+msgid "Prename of the member."
+msgstr "Vorname des Teilnehmenden"
+
+#: members/views.py:36 members/views.py:59
+msgid "Nachname des Teilnehmenden"
+msgstr ""
+
+#: members/views.py:37
+msgid "phone number of child or parent"
+msgstr "Telefonnummer des Teilnehmenden oder einer Kontaktperson"
+
+#: members/views.py:38
+msgid "email of child if available, otherwise parental email address"
+msgstr "Falls verfügbar, E-Mailadresse des Teilnehmenden, sonst einer Kontaktperson"
+
+#: members/views.py:39
+msgid "optional additional email address"
+msgstr "Optionale zusätzliche E-Mailadresse"
+
+#: members/views.py:96 members/views.py:176
 msgid "The entered password is wrong."
 msgstr "Das eingegebene Passwort ist falsch."
 
-#: members/views.py:119 members/views.py:127 members/views.py:322
+#: members/views.py:130 members/views.py:138 members/views.py:333
 msgid "invalid"
 msgstr "ungültig"
 
-#: members/views.py:130 members/views.py:324
+#: members/views.py:141 members/views.py:335
 msgid "expired"
 msgstr "abgelaufen"
 
-#: members/views.py:139
+#: members/views.py:150
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
 
@@ -1079,9 +1099,6 @@ msgstr "Ungültige Notfallkontakte"
 
 #~ msgid "Swimming badge"
 #~ msgstr "Schwimmabzeichen"
-
-#~ msgid "phone number private"
-#~ msgstr "Telefonnummer (privat)"
 
 #~ msgid "parents phone number"
 #~ msgstr "Telefonnummer der Eltern"

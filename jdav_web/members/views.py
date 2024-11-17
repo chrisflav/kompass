@@ -29,7 +29,14 @@ class MemberRegistrationForm(ModelForm):
                   'phone_number', 'birth_date', 'gender', 'email', 'alternative_email',
                   'registration_form']
         widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
+            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'})
+        }
+        help_texts = {
+            'prename': _('Prename of the member.'),
+            'lastname': _('Lastname of the member.'),
+            'phone_number': _('phone number of child or parent'),
+            'email': _('email of child if available, otherwise parental email address'),
+            'alternative_email': _('optional additional email address'),
         }
         required = ['registration_form', 'street', 'plz', 'town']
 
@@ -45,7 +52,11 @@ class MemberRegistrationWaitingListForm(ModelForm):
         model = MemberWaitingList
         fields = ['prename', 'lastname', 'birth_date', 'gender', 'email', 'application_text']
         widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'class': 'datepicker'})
+            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'})
+        }
+        help_texts = {
+            'prename': _('Prename of the member.'),
+            'lastname': _('Lastname of the member.'),
         }
         required = []
 

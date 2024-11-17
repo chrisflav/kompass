@@ -340,3 +340,12 @@ a, a:visited {
     text-transform: none;
     text-decoration: none;
 }
+
+.helptext {
+    font-size: 9pt;
+}
+
+table.termine {
+    border-collapse:separate;
+    border-spacing: 0 4pt;
+}
