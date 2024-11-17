@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-17 17:00+0100\n"
+"POT-Creation-Date: 2024-11-17 17:30+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -196,9 +196,9 @@ msgstr "Seminarbericht erstellen"
 msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
 
-#: members/apps.py:7 members/models.py:377
-msgid "members"
-msgstr "Teilnehmer"
+#: members/apps.py:7
+msgid "member administration"
+msgstr "Meine Jugendgruppe"
 
 #: members/models.py:38
 msgid "Monday"
@@ -431,6 +431,10 @@ msgstr "Führungszeugnis gültig"
 
 #: members/models.py:376
 msgid "member"
+msgstr "Teilnehmer"
+
+#: members/models.py:377
+msgid "members"
 msgstr "Teilnehmer"
 
 #: members/models.py:449
