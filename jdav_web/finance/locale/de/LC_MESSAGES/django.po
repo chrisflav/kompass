@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-13 23:36+0100\n"
+"POT-Creation-Date: 2024-11-17 14:17+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,10 +105,12 @@ msgid "Successfully reduced transactions for %(name)s."
 msgstr "Überweisungsträger für %(name)s minimiert."
 
 #: finance/admin.py:285
+#, python-format
 msgid "%(name)s is not yet confirmed."
 msgstr "%(name)s ist noch nicht bestätigt."
 
 #: finance/admin.py:294
+#, python-format
 msgid "Successfully unconfirmed %(name)s. I hope you know what you are doing."
 msgstr ""
 "Erfolgreich die Bestätigung von %(name)s zurückgenommen. Ich hoffe du weißt "
@@ -465,12 +467,14 @@ msgstr "Bestätigung zurücknehmen"
 msgid ""
 "You are entering risk zone! Do you really want to manually set this "
 "statement back to unconfirmed?"
-msgstr "Du bewegst dich in einer Risiko Zone! Möchtest du wirklich manuell "
-"die Bestätigung dieser Abrechnung zurücknehmen?"
+msgstr ""
+"Du bewegst dich in einer Risiko Zone! Möchtest du wirklich manuell die "
+"Bestätigung dieser Abrechnung zurücknehmen?"
 
 #: finance/templates/admin/unconfirm_statement.html:36
 msgid ""
 "I am aware that this is not a standard procedure and this might cause data "
 "integrity issues."
-msgstr "Mir ist bewusst, dass das keine Standardprozedur ist und das dies "
-"die Integrität der Daten zerstören kann."
+msgstr ""
+"Mir ist bewusst, dass das keine Standardprozedur ist und das dies die "
+"Integrität der Daten zerstören kann."
