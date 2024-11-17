@@ -823,8 +823,8 @@ msgid ""
 "Thanks for echoing back. Please enter the password, which you can find in "
 "the email we sent you.\n"
 msgstr ""
-"Danke für die Rückmeldung. Bitte gebe das Passwort ein, welches du in der E-"
-"Mail findest.\n"
+"Bitte gib dein Passwort ein. Weitere Informationen"
+"zur Rückmeldung findest du in der E-Mail.\n"
 
 #: members/templates/members/echo_password.html:24
 #: members/templates/members/member_form.html:37

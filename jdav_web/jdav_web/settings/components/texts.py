@@ -79,18 +79,19 @@ Dein:e Jugendreferent:in""" % { 'SEKTION': SEKTION }
 
 ECHO_TEXT = """Hallo {name},
 
-um unsere Daten auf dem aktuellen Stand zu halten, brauchen wir eine
+um unsere Daten auf dem aktuellen Stand zu halten und sicherzugehen, dass du
+weiterhin ein Teil unserer Jugendarbeit bleiben möchtest, brauchen wir eine
 kurze Bestätigung von dir. Dafür besuche einfach diesen Link:
 
 {link}
 
-Dort kannst du deine Daten nach Eingabe eines Passworts überprüfen und ändern. Dein
-Passwort ist dein Geburtsdatum. Ist dein Geburtsdatum zum Beispiel der 4. Januar 1942,
-so ist dein Passwort: 04.01.1942
+Dort kannst du deine Daten nach Eingabe eines Passworts überprüfen und ggf. ändern. Dein
+Passwort ist dein Geburtsdatum. Wäre dein Geburtsdatum zum Beispiel der 4. Januar 1942,
+so wäre dein Passwort: 04.01.1942
 
-Falls du nicht innerhalb von
-30 Tagen deine Daten bestätigst, wirst du aus unserer Datenbank gelöscht und
-erhälst in Zukunft keine Mails mehr von uns.
+Falls du nicht innerhalb von 30 Tagen deine Daten bestätigst, gehen wir davon aus, dass du nicht mehr Teil
+unserer Jugendarbeit sein möchtest. Dein Platz wird dann weitervergeben, deine Daten aus unserer Datenbank
+gelöscht und du erhälst in Zukunft keine Mails mehr von uns.
 
 Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 
