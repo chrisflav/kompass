@@ -72,8 +72,8 @@
     \begin{tabular}{ll}
         \large Kursname: & {% if not memberlist.ljpproposal %}{{ memberlist.name|esc_all }}{% else %}{{ memberlist.ljpproposal.title }} {% endif %} \\
         \large Gruppe: & {{ memberlist.groups_str|esc_all }} \\
-        \large Ziel: & {{ memberlist.place|esc_all }} \\
-        \large Stützpunkt: & {{ memberlist.destination|esc_all }} \\
+        \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }} \\
+        \large ggf. Ziel: & {{ memberlist.destination|esc_all }} \\
         \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
         \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }} \\
     \end{tabular}

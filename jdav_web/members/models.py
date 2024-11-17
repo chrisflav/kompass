@@ -863,7 +863,8 @@ class Freizeit(CommonModel):
                             max_length=50)
     place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
     destination = models.CharField(verbose_name=_('Destination (optional)'),
-                                   default='', max_length=50, blank=True)
+                                   default='', max_length=50, blank=True,
+                                   help_text=_('e.g. a peak'))
     date = models.DateTimeField(default=timezone.now, verbose_name=_('Begin'))
     end = models.DateTimeField(verbose_name=_('End (optional)'), default=timezone.now)
     # comment = models.TextField(_('Comments'), default='', blank=True)

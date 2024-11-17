@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-17 16:46+0100\n"
+"POT-Creation-Date: 2024-11-17 16:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,7 +71,7 @@ msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer verschicken"
 msgid "activity"
 msgstr "Aktivität"
 
-#: members/admin.py:292 members/models.py:52 members/models.py:1327
+#: members/admin.py:292 members/models.py:52 members/models.py:1328
 msgid "Name"
 msgstr "Name"
 
@@ -117,7 +117,7 @@ msgstr "%(name)s zurück auf die Warteliste gesetzt."
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
-#: members/admin.py:414 members/models.py:373 members/models.py:1072
+#: members/admin.py:414 members/models.py:373 members/models.py:1073
 msgid "Group"
 msgstr "Gruppe"
 
@@ -158,7 +158,7 @@ msgstr "Schwierigkeit"
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: members/admin.py:561 members/models.py:882
+#: members/admin.py:561 members/models.py:883
 msgid "Means of transportation"
 msgstr "Verkehrsmittel"
 
@@ -265,7 +265,7 @@ msgstr "Bis Jahrgang"
 msgid "youth leaders"
 msgstr "Jugendleiter"
 
-#: members/models.py:76 members/models.py:1154
+#: members/models.py:76 members/models.py:1155
 msgid "Starting time"
 msgstr "Zeitpunkt"
 
@@ -439,7 +439,7 @@ msgid "New unconfirmed registration for group %(group)s"
 msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 
 #: members/models.py:656 members/models.py:818 members/models.py:829
-#: members/models.py:1103 members/models.py:1110
+#: members/models.py:1104 members/models.py:1111
 msgid "Member"
 msgstr "Teilnehmer"
 
@@ -507,215 +507,219 @@ msgstr "Einladung zu Schnupperstunde"
 msgid "Comment"
 msgstr "Kommentar"
 
-#: members/models.py:830 members/models.py:1111
+#: members/models.py:830 members/models.py:1112
 msgid "Members"
 msgstr "Teilnehmer"
 
 #: members/models.py:864
 msgid "Place"
-msgstr "Ort"
+msgstr "Stützpunkt / Ort"
 
 #: members/models.py:865
 msgid "Destination (optional)"
-msgstr "Ziel (optional)"
+msgstr "ggf. Ziel"
 
 #: members/models.py:867
+msgid "e.g. a peak"
+msgstr "z.B. ein Gipfel"
+
+#: members/models.py:868
 msgid "Begin"
 msgstr "Anfang"
 
-#: members/models.py:868
+#: members/models.py:869
 msgid "End (optional)"
 msgstr "Ende"
 
-#: members/models.py:870
+#: members/models.py:871
 msgid "Groups"
 msgstr "Gruppen"
 
-#: members/models.py:883
+#: members/models.py:884
 msgid "Kilometers traveled"
 msgstr "Fahrstrecke in Kilometer"
 
-#: members/models.py:886
+#: members/models.py:887
 msgid "Categories"
 msgstr "Kategorien"
 
-#: members/models.py:887
+#: members/models.py:888
 msgid "easy"
 msgstr "leicht"
 
-#: members/models.py:887
+#: members/models.py:888
 msgid "medium"
 msgstr "mittel"
 
-#: members/models.py:887
+#: members/models.py:888
 msgid "hard"
 msgstr "schwer"
 
-#: members/models.py:897 members/models.py:1134
+#: members/models.py:898 members/models.py:1135
 msgid "Excursion"
 msgstr "Ausfahrt"
 
-#: members/models.py:898
+#: members/models.py:899
 msgid "Excursions"
 msgstr "Ausfahrten"
 
-#: members/models.py:1049 members/models.py:1125 members/models.py:1341
+#: members/models.py:1050 members/models.py:1126 members/models.py:1342
 msgid "Title"
 msgstr "Titel"
 
-#: members/models.py:1050 members/models.py:1068 members/models.py:1342
+#: members/models.py:1051 members/models.py:1069 members/models.py:1343
 msgid "Date"
 msgstr "Datum"
 
-#: members/models.py:1069
+#: members/models.py:1070
 msgid "Location"
 msgstr "Ort"
 
-#: members/models.py:1070
+#: members/models.py:1071
 msgid "Topic"
 msgstr "Thema"
 
-#: members/models.py:1094
+#: members/models.py:1095
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: members/models.py:1097
+#: members/models.py:1098
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: members/models.py:1098
+#: members/models.py:1099
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 
-#: members/models.py:1116
+#: members/models.py:1117
 msgid "Password"
 msgstr "Passwort"
 
-#: members/models.py:1119
+#: members/models.py:1120
 msgid "registration password"
 msgstr "Registrierungspassort"
 
-#: members/models.py:1120
+#: members/models.py:1121
 msgid "registration passwords"
 msgstr "Registrierungspasswörter"
 
-#: members/models.py:1127
+#: members/models.py:1128
 msgid "Alpinistic goals"
 msgstr "Alpintechnische Ziele"
 
-#: members/models.py:1128
+#: members/models.py:1129
 msgid "Pedagogic goals"
 msgstr "Pädagogische Ziele"
 
-#: members/models.py:1129
+#: members/models.py:1130
 msgid "Content and methods"
 msgstr "Inhalte und Methoden"
 
-#: members/models.py:1130
+#: members/models.py:1131
 msgid "Evaluation"
 msgstr "Wertung"
 
-#: members/models.py:1131
+#: members/models.py:1132
 msgid "Experiences and possible improvements"
 msgstr "Erfahrungen und Verbesserungsvorschläge"
 
-#: members/models.py:1140 members/models.py:1161
+#: members/models.py:1141 members/models.py:1162
 msgid "LJP Proposal"
 msgstr "Seminarbericht"
 
-#: members/models.py:1141
+#: members/models.py:1142
 msgid "LJP Proposals"
 msgstr "Seminarberichte"
 
-#: members/models.py:1155
+#: members/models.py:1156
 msgid "Duration in hours"
 msgstr "Dauer in Stunden"
 
-#: members/models.py:1158
+#: members/models.py:1159
 msgid "Activity and method"
 msgstr "Art der Aktion inkl. Methode"
 
-#: members/models.py:1166
+#: members/models.py:1167
 msgid "Intervention"
 msgstr "Aktion"
 
-#: members/models.py:1167
+#: members/models.py:1168
 msgid "Interventions"
 msgstr "Aktionen"
 
-#: members/models.py:1269 members/models.py:1299
+#: members/models.py:1270 members/models.py:1300
 msgid "May list members"
 msgstr "Darf folgende Teilnehmer:innen listen"
 
-#: members/models.py:1271 members/models.py:1301
+#: members/models.py:1272 members/models.py:1302
 msgid "May view members"
 msgstr "Darf folgende Teilnehmer:innen anzeigen"
 
-#: members/models.py:1273 members/models.py:1303
+#: members/models.py:1274 members/models.py:1304
 msgid "May change members"
 msgstr "Darf folgende Teilnehmer:innen ändern"
 
-#: members/models.py:1275 members/models.py:1305
+#: members/models.py:1276 members/models.py:1306
 msgid "May delete members"
 msgstr "Darf folgende Teilnehmer:innen löschen"
 
-#: members/models.py:1279 members/models.py:1309
+#: members/models.py:1280 members/models.py:1310
 msgid "May list members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen listen"
 
-#: members/models.py:1281 members/models.py:1311
+#: members/models.py:1282 members/models.py:1312
 msgid "May view members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen anzeigen"
 
-#: members/models.py:1283 members/models.py:1313
+#: members/models.py:1284 members/models.py:1314
 msgid "May change members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen ändern"
 
-#: members/models.py:1285 members/models.py:1315
+#: members/models.py:1286 members/models.py:1316
 msgid "May delete members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen löschen"
 
-#: members/models.py:1288 members/models.py:1289 members/models.py:1292
+#: members/models.py:1289 members/models.py:1290 members/models.py:1293
 msgid "Permissions"
 msgstr "Berechtigungen"
 
-#: members/models.py:1318 members/models.py:1319 members/models.py:1322
+#: members/models.py:1319 members/models.py:1320 members/models.py:1323
 msgid "Group permissions"
 msgstr "Gruppenberechtigungen"
 
-#: members/models.py:1328
+#: members/models.py:1329
 msgid "Permission needed"
 msgstr "Freigabe erforderlich"
 
-#: members/models.py:1331
+#: members/models.py:1332
 msgid "Training category"
 msgstr "Fortbildungstyp"
 
-#: members/models.py:1332
+#: members/models.py:1333
 msgid "Training categories"
 msgstr "Fortbildungstypen"
 
-#: members/models.py:1343
+#: members/models.py:1344
 msgid "Category"
 msgstr "Kategorien"
 
-#: members/models.py:1344
+#: members/models.py:1345
 msgid "Comments"
 msgstr "Kommentar"
 
-#: members/models.py:1345
+#: members/models.py:1346
 msgid "Participated"
 msgstr "Teilgenommmen"
 
-#: members/models.py:1346
+#: members/models.py:1347
 msgid "Passed"
 msgstr "Bestanden"
 
-#: members/models.py:1349
+#: members/models.py:1350
 msgid "Training"
 msgstr "Fortbildung"
 
-#: members/models.py:1350
+#: members/models.py:1351
 msgid "Trainings"
 msgstr "Fortbildungen"
 
