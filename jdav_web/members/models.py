@@ -867,6 +867,7 @@ class Freizeit(CommonModel):
                                    help_text=_('e.g. a peak'))
     date = models.DateTimeField(default=timezone.now, verbose_name=_('Begin'))
     end = models.DateTimeField(verbose_name=_('End (optional)'), default=timezone.now)
+    description = models.TextField(verbose_name=_('Description'), blank=True, default='')
     # comment = models.TextField(_('Comments'), default='', blank=True)
     groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
     jugendleiter = models.ManyToManyField(Member)
