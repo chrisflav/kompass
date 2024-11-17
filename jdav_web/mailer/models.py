@@ -207,7 +207,6 @@ class Attachment(CommonModel):
     # file (not naming it file because of builtin)
     f = RestrictedFileField(_('file'),
                             upload_to='attachments',
-                            blank=True,
                             max_upload_size=10)
 
     def __str__(self):
