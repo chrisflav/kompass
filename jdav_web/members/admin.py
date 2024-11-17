@@ -740,7 +740,7 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
             return self.not_allowed_view(request, memberlist)
         context = memberlist.sjr_application_fields()
         if hasattr(memberlist, 'statement'):
-            attachments = [b.proof.path for b in memberlist.statement.bill_set.all()]
+            attachments = [b.proof.path for b in memberlist.statement.bill_set.all() if b.proof]
         else:
             attachments = []
         title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
