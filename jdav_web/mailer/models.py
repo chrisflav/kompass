@@ -15,7 +15,8 @@ from .rules import is_creator
 import os
 
 
-alphanumeric = RegexValidator(r'^[0-9a-zA-Z]*$', _('Only alphanumeric characters are allowed'))
+alphanumeric = RegexValidator(r'^[0-9a-zA-Z._-]*$',
+                              _('Only alphanumeric characters, ., - and _ are allowed'))
 
 
 class EmailAddress(models.Model):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-17 16:46+0100\n"
+"POT-Creation-Date: 2024-11-18 21:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -43,104 +43,104 @@ msgstr "Verteiler"
 msgid "Congratulation %(name)s"
 msgstr "Herzlichen Glückwunsch %(name)s"
 
-#: mailer/models.py:18
-msgid "Only alphanumeric characters are allowed"
-msgstr "Nur Buchstaben und Zahlen erlaubt"
+#: mailer/models.py:19
+msgid "Only alphanumeric characters, ., - and _ are allowed"
+msgstr "Nur Buchstaben, Zahlen, ., . und _ sind erlaubt"
 
-#: mailer/models.py:23
+#: mailer/models.py:24
 msgid "name"
 msgstr "Name"
 
-#: mailer/models.py:25
+#: mailer/models.py:26
 msgid "Forward to participants"
 msgstr "Weiterleitung an Teilnehmer"
 
-#: mailer/models.py:28
+#: mailer/models.py:29
 msgid "Forward to group"
 msgstr "Weiterleitung an Gruppe"
 
-#: mailer/models.py:45
+#: mailer/models.py:46
 msgid "email address"
 msgstr "Email-Adresse"
 
-#: mailer/models.py:46
+#: mailer/models.py:47
 msgid "email addresses"
 msgstr "Email-Adressen"
 
-#: mailer/models.py:59
+#: mailer/models.py:60
 msgid "Either a group or at least one member is required as forward recipient."
 msgstr ""
 "Es muss entweder eine Gruppe oder mindestens ein Teilnehmer als Empfänger "
 "ausgewählt werden."
 
-#: mailer/models.py:67
+#: mailer/models.py:68
 msgid "subject"
 msgstr "Betreff"
 
-#: mailer/models.py:68
+#: mailer/models.py:69
 msgid "content"
 msgstr "Inhalt"
 
-#: mailer/models.py:70
+#: mailer/models.py:71
 msgid "to group"
 msgstr "An Gruppe"
 
-#: mailer/models.py:73
+#: mailer/models.py:74
 msgid "to freizeit"
 msgstr "An Ausfahrt"
 
-#: mailer/models.py:78
+#: mailer/models.py:79
 msgid "to notes list"
 msgstr "An Notizliste"
 
-#: mailer/models.py:83
+#: mailer/models.py:84
 msgid "to member"
 msgstr "An Teilnehmer"
 
-#: mailer/models.py:86
+#: mailer/models.py:87
 msgid "reply to participant"
 msgstr "Antwort an Teilnehmer"
 
-#: mailer/models.py:90
+#: mailer/models.py:91
 msgid "reply to custom email address"
 msgstr "Antwort an Email-Adresse"
 
-#: mailer/models.py:93
+#: mailer/models.py:94
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py:94
+#: mailer/models.py:95
 msgid "Created by"
 msgstr "Erstellt von"
 
-#: mailer/models.py:112
+#: mailer/models.py:113
 msgid "Some other members"
 msgstr "Andere Teilnehmer"
 
-#: mailer/models.py:114
+#: mailer/models.py:115
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:177
+#: mailer/models.py:178
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:178
+#: mailer/models.py:179
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:180
+#: mailer/models.py:181
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py:201
+#: mailer/models.py:202
 msgid ""
 "Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmerliste oder mindestens ein "
 "Teilnehmer als Empfänger ausgewählt werden."
 
-#: mailer/models.py:208
+#: mailer/models.py:209
 msgid "file"
 msgstr "Datei"
 
