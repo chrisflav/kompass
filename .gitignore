@@ -124,3 +124,5 @@ docker/test/db
 docker/development/media
 docker/production/media
 docker/test/media
+
+*.csv

@@ -218,7 +218,7 @@ class Member(Person):
         verbose_name=_('Alternative email confirmed'))
     confirm_alternative_mail_key = models.CharField(max_length=32, default="")
 
-    phone_number = models.CharField(max_length=100, verbose_name=_('phone number'))
+    phone_number = models.CharField(max_length=100, verbose_name=_('phone number'), default='', blank=True)
     street = models.CharField(max_length=30, verbose_name=_('street and house number'), default='', blank=True)
     plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
                            default='', blank=True)
@@ -226,7 +226,6 @@ class Member(Person):
     address_extra = models.CharField(max_length=100, verbose_name=_('Address extra'), default='', blank=True)
     country = models.CharField(max_length=30, verbose_name=_('Country'), default='', blank=True)
 
-    good_conduct_certificate_presentation_needed = models.BooleanField(_('Good conduct certificate presentation needed'), default=False)
     good_conduct_certificate_presented_date = models.DateField(_('Good conduct certificate presented on'), default=None, blank=True, null=True)
     join_date = models.DateField(_('Joined on'), default=None, blank=True, null=True)
     leave_date = models.DateField(_('Left on'), default=None, blank=True, null=True)
@@ -236,11 +235,14 @@ class Member(Person):
     swimming_badge = models.BooleanField(verbose_name=_('Knows how to swim'), default=False)
     climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='', blank=True)
     alpine_experience = models.TextField(verbose_name=_('Alpine experience'), default='', blank=True)
-    allergies = models.CharField(max_length=100, verbose_name=_('Allergies'), default='', blank=True)
-    medication = models.CharField(max_length=100, verbose_name=_('Medication'), default='', blank=True)
+    allergies = models.TextField(verbose_name=_('Allergies'), default='', blank=True)
+    medication = models.TextField(verbose_name=_('Medication'), default='', blank=True)
     tetanus_vaccination = models.CharField(max_length=50, verbose_name=_('Tetanus vaccination'), default='', blank=True)
     photos_may_be_taken = models.BooleanField(verbose_name=_('Photos may be taken'), default=False)
     legal_guardians = models.CharField(max_length=100, verbose_name=_('Legal guardians'), default='', blank=True)
+    may_cancel_appointment_independently =\
+        models.BooleanField(verbose_name=_('May cancel a group appointment independently'), null=True,
+                            blank=True, default=None)
 
     group = models.ManyToManyField(Group, verbose_name=_('group'))
 
@@ -728,7 +730,7 @@ class MemberWaitingList(Person):
     WAITING_CONFIRMED = 2
 
     application_text = models.TextField(_('Do you want to tell us something else?'), default='', blank=True)
-    application_date = models.DateTimeField(verbose_name=_('application date'), auto_now=True)
+    application_date = models.DateTimeField(verbose_name=_('application date'), default=timezone.now)
 
     last_wait_confirmation = models.DateField(auto_now=True, verbose_name=_('Last wait confirmation'))
     wait_confirmation_key = models.CharField(max_length=32, default="")
@@ -1391,7 +1393,6 @@ class MemberTraining(CommonModel):
         }
 
 
-
 def import_from_csv(path):
     with open(path, encoding='ISO-8859-1') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
@@ -1406,7 +1407,7 @@ def import_from_csv(path):
 
     def transform_row(row):
         kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
-        kwargs_filtered = { k : v for k, v in kwargs.items() if k not in  ['group', 'last_training', 'has_fundamental_training', 'special_training'] }
+        kwargs_filtered = { k : v for k, v in kwargs.items() if k not in  ['group', 'last_training', 'has_fundamental_training', 'special_training', 'phone_number_private', 'phone_number_parents'] }
         mem = Member(**kwargs_filtered)
         mem.save()
         mem.group.set(kwargs['group'])
@@ -1440,6 +1441,16 @@ def import_from_csv(path):
             training = MemberTraining(member=mem, title=kwargs['special_training'], date=None, category=cat,
                                       participated=True, passed=True)
             training.save()
+
+        if kwargs['phone_number_private'] != '':
+            prefix = '\n' if mem.comments else ''
+            mem.comments += prefix + 'Telefon (Privat): ' + kwargs['phone_number_private']
+            mem.save()
+
+        if kwargs['phone_number_parents'] != '':
+            prefix = '\n' if mem.comments else ''
+            mem.comments += prefix + 'Telefon (Eltern): ' + kwargs['phone_number_parents']
+            mem.save()
 
     for row in rows:
         transform_row(row)
@@ -1492,6 +1503,26 @@ def parse_boolean(value):
     return value.lower() == "ja"
 
 
+def parse_nullable_boolean(value):
+    if value == '':
+        return None
+    else:
+        return value.lower() == "ja"
+
+
+def parse_gender(value):
+    if value == 'männlich':
+        return MALE
+    elif value == 'weiblich':
+        return FEMALE
+    else:
+        return DIVERSE
+
+
+def parse_can_swim(value):
+    return True if len(value) > 0 else False
+
+
 CLUBDESK_TO_KOMPASS = {
     'Nachname': 'lastname',
     'Vorname': 'prename',
@@ -1499,10 +1530,9 @@ CLUBDESK_TO_KOMPASS = {
     'PLZ': 'plz',
     'Ort': 'town',
     'Telefon Privat': 'phone_number_private',
-    'Telefon Mobil': 'phone_number_mobile',
+    'Telefon Mobil': 'phone_number',
     'Adress-Zusatz': 'address_extra',
     'Land': 'country',
-    'Nationalität': 'nationality',
     'E-Mail': 'email',
     'E-Mail Alternativ': 'alternative_email',
     'Status': ('active', parse_status),
@@ -1510,10 +1540,10 @@ CLUBDESK_TO_KOMPASS = {
     'Austritt': ('leave_date', parse_date),
     'Geburtsdatum': ('birth_date', parse_date),
     'Geburtstag': ('birth_date', parse_date),
+    'Geschlecht': ('gender', parse_gender),
     'Bemerkungen': 'comments',
     'IBAN': 'iban',
     'Vorlage Führungszeugnis': ('good_conduct_certificate_presented_date', parse_date),
-    'Vorlage Führungszeugnis notwendig': ('good_conduct_certificate_presentation_needed', parse_boolean),
     'Letzte Fortbildung': ('last_training', parse_date),
     'Grundausbildung': ('has_fundamental_training', parse_boolean),
     'Besondere Ausbildung': 'special_training',
@@ -1521,7 +1551,7 @@ CLUBDESK_TO_KOMPASS = {
     'Schlüssel': ('has_key', parse_boolean),
     'Freikarte': ('has_free_ticket_gym', parse_boolean),
     'DAV Ausweis Nr.': 'dav_badge_no',
-    'Schwimmabzeichen': 'swimming_badge',
+    'Schwimmabzeichen': ('swimming_badge', parse_can_swim),
     'Kletterschein': 'climbing_badge',
     'Felserfahrung': 'alpine_experience',
     'Allergien': 'allergies',
@@ -1529,9 +1559,13 @@ CLUBDESK_TO_KOMPASS = {
     'Tetanusimpfung': 'tetanus_vaccination',
     'Fotoerlaubnis': ('photos_may_be_taken', parse_boolean),
     'Erziehungsberechtigte': 'legal_guardians',
+    'Darf sich allein von der Gruppenstunde abmelden':
+        ('may_cancel_appointment_independently', parse_nullable_boolean),
     'Mobil Eltern': 'phone_number_parents',
     'Sonstiges': 'application_text',
     'Erhalten am': ('application_date', parse_datetime),
+    'Angeschrieben von': 'contacted_by',
+    'Angeschrieben von ': 'contacted_by',
 }
 
 
@@ -1557,8 +1591,18 @@ def import_from_csv_waitinglist(path):
     def transform_row(row):
         kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
         kwargs_filtered = { k : v for k, v in kwargs.items() if k in ['prename', 'lastname', 'email', 'birth_date', 'application_text', 'application_date'] }
+
         mem = MemberWaitingList(**kwargs_filtered)
         mem.save()
+
+        if kwargs['contacted_by']:
+            group_name = kwargs['contacted_by']
+            try:
+                group = Group.objects.get(name=group_name)
+                invitation = InvitationToGroup(group=group, waiter=mem)
+                invitation.save()
+            except Group.DoesNotExist:
+                pass
 
     for row in rows:
         transform_row(row)

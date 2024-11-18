@@ -188,7 +188,8 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         ),
         (_("Others"),
          {
-             'fields': ['allergies', 'tetanus_vaccination', 'medication', 'photos_may_be_taken']
+             'fields': ['allergies', 'tetanus_vaccination', 'medication', 'photos_may_be_taken',
+                        'may_cancel_appointment_independently']
          }
         ),
         (_("Organizational"),
@@ -331,7 +332,7 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
          {
              'fields': [
                  ('good_conduct_certificate_presented_date',
-                  'good_conduct_certificate_presentation_needed'),
+                  'good_conduct_certificate_valid'),
                  'has_key', 'has_free_ticket_gym']
          }
         ),
@@ -339,7 +340,8 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
     list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
-    readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail']
+    readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail',
+                       'good_conduct_certificate_valid']
     actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter']
     inlines = [EmergencyContactInline]
     change_form_template = "members/change_member_unconfirmed.html"
