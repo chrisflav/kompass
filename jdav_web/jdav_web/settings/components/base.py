@@ -38,6 +38,7 @@ USE_X_FORWARDED_HOST = True
 # Application definition
 
 INSTALLED_APPS = [
+    'logindata.apps.LoginDataConfig',
     'contrib.apps.ContribConfig',
     'startpage.apps.StartpageConfig',
     'material.apps.MaterialConfig',

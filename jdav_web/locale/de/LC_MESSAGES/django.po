@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-17 14:17+0100\n"
+"POT-Creation-Date: 2024-11-19 01:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,6 +26,30 @@ msgstr "Du hast nicht die notwendigen Berechtigungen um %(name)s zu sehen."
 #: jdav_web/urls.py:26
 msgid "Startpage"
 msgstr "Startseite"
+
+#: logindata/admin.py:25
+msgid "Permissions"
+msgstr "Berechtigungen"
+
+#: logindata/admin.py:36
+msgid "Important dates"
+msgstr "Wichtigen Daten"
+
+#: logindata/models.py:10
+msgid "Permission group"
+msgstr "Berechtigungsgruppe"
+
+#: logindata/models.py:11
+msgid "Permission groups"
+msgstr "Berechtigungsgruppen"
+
+#: logindata/models.py:18
+msgid "Login Datum"
+msgstr "Zugangsdaten"
+
+#: logindata/models.py:19
+msgid "Login Data"
+msgstr "Zugangsdaten"
 
 #: templates/admin/finance/statementconfirmed/change_form_object_tools.html:8
 msgid "Unconfirm"

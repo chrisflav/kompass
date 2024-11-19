@@ -6,8 +6,8 @@ JET_CHANGE_FORM_SIBLING_LINKS = False
 
 JET_SIDE_MENU_ITEMS = [
     {'app_label': 'auth', 'permissions': ['auth'], 'items': [
-        {'name': 'group', 'permissions': ['auth.group'] },
-        {'name': 'user', 'permissions': ['auth.user']},
+        {'name': 'authgroup', 'permissions': ['auth.group'] },
+        {'name': 'logindatum', 'permissions': ['auth.user']},
     ]},
     {'app_label': 'django_celery_beat', 'permissions': ['django_celery_beat'], 'items': [
         {'name': 'crontabschedule'},

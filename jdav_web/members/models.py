@@ -273,7 +273,8 @@ class Member(Person):
     echo_expire = models.DateTimeField(default=timezone.now)
     echoed = models.BooleanField(default=True, verbose_name=_('Echoed'))
     confirmed = models.BooleanField(default=True, verbose_name=_('Confirmed'))
-    user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL)
+    user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL,
+                                verbose_name=_('Login data'))
 
     objects = MemberManager()
 
