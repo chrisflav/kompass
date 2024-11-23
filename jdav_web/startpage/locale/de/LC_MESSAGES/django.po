@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-13 23:36+0100\n"
+"POT-Creation-Date: 2024-11-23 19:12+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,83 +18,87 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: startpage/models.py:17 startpage/models.py:38
+#: startpage/models.py:17 startpage/models.py:39
 msgid "Title"
 msgstr "Titel"
 
-#: startpage/models.py:18 startpage/models.py:39
+#: startpage/models.py:18 startpage/models.py:40
 msgid "URL"
 msgstr "URL"
 
-#: startpage/models.py:19 startpage/models.py:41
+#: startpage/models.py:19 startpage/models.py:42
 msgid "website text"
 msgstr "Webseitentext"
 
-#: startpage/models.py:22 startpage/models.py:62
+#: startpage/models.py:20
+msgid "Show in navigation"
+msgstr "In Navigation anzeigen"
+
+#: startpage/models.py:23 startpage/models.py:63
 msgid "Section"
 msgstr "Abschnitt"
 
-#: startpage/models.py:23
+#: startpage/models.py:24
 msgid "Sections"
 msgstr "Abschnitte"
 
-#: startpage/models.py:40
+#: startpage/models.py:41
 msgid "Date"
 msgstr "Datum"
 
-#: startpage/models.py:43
+#: startpage/models.py:44
 msgid "Groups"
 msgstr "Gruppen"
 
-#: startpage/models.py:44
+#: startpage/models.py:45
 msgid "detailed"
 msgstr "detailliert"
 
-#: startpage/models.py:46
+#: startpage/models.py:47
 msgid "section"
 msgstr "Abschnitt"
 
-#: startpage/models.py:53
+#: startpage/models.py:54
 msgid "Post"
 msgstr "Eintrag"
 
-#: startpage/models.py:54
+#: startpage/models.py:55
 msgid "Posts"
 msgstr "Einträge"
 
-#: startpage/models.py:78
+#: startpage/models.py:79
 msgid "file"
 msgstr "Datei"
 
-#: startpage/models.py:84
+#: startpage/models.py:85
 msgid "Empty"
 msgstr "Leer"
 
-#: startpage/models.py:87
+#: startpage/models.py:88
 msgid "image"
 msgstr "Bild"
 
-#: startpage/models.py:88
+#: startpage/models.py:89
 msgid "images"
 msgstr "Bilder"
 
-#: startpage/models.py:95 startpage/models.py:96
+#: startpage/models.py:96 startpage/models.py:97
 msgid "Member"
 msgstr "Mitglied"
 
-#: startpage/models.py:97
+#: startpage/models.py:98
 msgid "Description"
 msgstr "Beschreibung"
 
-#: startpage/models.py:98
+#: startpage/models.py:99
 msgid "Tag"
 msgstr "Tag"
 
-#: startpage/models.py:101
+#: startpage/models.py:102
 msgid "Person"
 msgstr "Person"
 
-#: startpage/models.py:102
+#: startpage/models.py:103
 msgid "Persons"
 msgstr "Personen"
 

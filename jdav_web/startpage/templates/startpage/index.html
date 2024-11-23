@@ -18,12 +18,25 @@ Startseite
     <div class="column">
         <h2>Aktuelles</h2>
         <ul>
-        {% for post in posts %}
+        {% for post in recent_posts %}
         <li>
             <a href="{% url 'startpage:post' section_name='aktuelles' post_name=post.urlname %}">{{ post.title }}</a> <i>vom {{ post.date }}</i>
         </li>
         {% endfor %}
         </ul>
+    </div>
+</div>
+
+<div class="row">
+    <div class="column" style="width: 100%">
+    <h2>Berichte</h2>
+    <ul>
+    {% for post in reports %}
+    <li>
+        <a href="{% url 'startpage:post' section_name='berichte' post_name=post.urlname %}">{{ post.title }}</a> <i>vom {{ post.date }}</i>
+    </li>
+    {% endfor %}
+    </ul>
     </div>
 </div>
 

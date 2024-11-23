@@ -22,7 +22,8 @@ def render(request, template_path, context={}):
 
 def index(request):
     context = {
-        'posts': Post.objects.filter(section=None)
+        'recent_posts': Post.objects.filter(section__urlname=settings.RECENT_SECTION),
+        'reports': Post.objects.filter(section__urlname=settings.REPORTS_SECTION),
     }
     return render(request, 'startpage/index.html', context)
 
