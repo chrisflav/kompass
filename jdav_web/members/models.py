@@ -15,7 +15,7 @@ from utils import RestrictedFileField
 import os
 from mailer.mailutils import send as send_mail, get_mail_confirmation_link,\
     prepend_base_url, get_registration_link, get_wait_confirmation_link,\
-    get_invitation_reject_link
+    get_invitation_reject_link, get_invite_as_user_key
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -275,6 +275,7 @@ class Member(Person):
     confirmed = models.BooleanField(default=True, verbose_name=_('Confirmed'))
     user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL,
                                 verbose_name=_('Login data'))
+    invite_as_user_key = models.CharField(max_length=32, default="")
 
     objects = MemberManager()
 
@@ -651,6 +652,14 @@ class Member(Person):
                     return True
 
         return False
+
+    def invite_as_user(self):
+        """Invites the member to join Kompass as a user."""
+        self.invite_as_user_key = uuid.uuid4().hex
+        self.save()
+        self.send_mail(_('Set login data for Kompass'),
+                       settings.INVITE_AS_USER_TEXT.format(name=self.prename,
+                                                           link=get_invite_as_user_key(self.invite_as_user_key)))
 
 
 class EmergencyContact(ContactWithPhoneNumber):

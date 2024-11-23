@@ -140,3 +140,18 @@ verschickt. Wenn Du in Zukunft keine Emails mehr erhalten möchtest,
 kannst Du hier den Newsletter deabonnieren:
 
 {link}""" % { 'SEKTION': SEKTION }
+
+
+INVITE_AS_USER_TEXT = """Hallo {name},
+
+du bist Jugendleiter:in in der Sektion %(SEKTION)s. Die Verwaltung unserer Jugendgruppen,
+Ausfahrten und Finanzen erfolgt in unserer Online Plattform Kompass. Deine Stammdaten sind
+dort bereits hinterlegt. Damit du dich auch anmelden kannst, folge bitte dem folgenden Link
+und wähle ein Passwort.
+
+{link}
+
+Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
+
+Viele Grüße
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }

@@ -81,5 +81,9 @@ def get_mail_confirmation_link(key):
     return prepend_base_url("/members/mail/confirm?key={}".format(key))
 
 
+def get_invite_as_user_key(key):
+    return prepend_base_url("/login/register?key={}".format(key))
+
+
 def prepend_base_url(absolutelink):
     return "{protocol}://{base}{link}".format(protocol=settings.PROTOCOL, base=settings.BASE_URL, link=absolutelink)

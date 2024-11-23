@@ -214,7 +214,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     #}
     change_form_template = "members/change_member.html"
     ordering = ('lastname',)
-    actions = ['send_mail_to', 'request_echo']
+    actions = ['request_echo', 'invite_as_user']
     list_per_page = 25
 
     sensitive_fields = ['iban', 'registration_form', 'comments']
@@ -233,6 +233,24 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         'has_key': 'members.may_change_organizationals',
         'has_free_ticket_gym': 'members.may_change_organizationals',
     }
+
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = [
+            path(
+                "<path:object_id>/inviteasuser/", wrap(self.invite_as_user_view),
+                name="%s_%s_inviteasuser" % (self.opts.app_label, self.opts.model_name),
+            ),
+        ]
+        return custom_urls + urls
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -263,8 +281,27 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 continue
             member.send_mail(_("Echo required"),
                 settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)))
-            messages.success(request, _("Successfully requested echo from selected members."))
+        messages.success(request, _("Successfully requested echo from selected members."))
     request_echo.short_description = _('Request echo from selected members')
+
+    def invite_as_user(self, request, queryset):
+        for member in queryset:
+            member.invite_as_user()
+        if queryset.count() == 1:
+            messages.success(request, _('Successfully invited %(name)s as user.') % {'name': queryset[0].name})
+        else:
+            messages.success(request, _('Successfully invited selected members to join as users.'))
+    invite_as_user.short_description = _('Invite selected members to join Kompass as users.')
+
+    def invite_as_user_view(self, request, object_id):
+        try:
+            m = Member.objects.get(pk=object_id)
+        except Member.DoesNotExist:
+            messages.error(request, _("Member not found."))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+        self.invite_as_user(request, Member.objects.filter(pk=object_id))
+        return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                            args=(object_id,)))
 
     def activity_score(self, obj):
         score = obj._activity_score

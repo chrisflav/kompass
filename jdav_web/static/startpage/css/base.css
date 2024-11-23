@@ -349,3 +349,8 @@ table.termine {
     border-collapse:separate;
     border-spacing: 0 4pt;
 }
+
+.errorlist {
+    font-size: 9pt;
+    color: darkred;
+}

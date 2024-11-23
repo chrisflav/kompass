@@ -5,9 +5,10 @@ JET_DEFAULT_THEME = 'jdav-green'
 JET_CHANGE_FORM_SIBLING_LINKS = False
 
 JET_SIDE_MENU_ITEMS = [
-    {'app_label': 'auth', 'permissions': ['auth'], 'items': [
+    {'app_label': 'logindata', 'permissions': ['auth'], 'items': [
         {'name': 'authgroup', 'permissions': ['auth.group'] },
         {'name': 'logindatum', 'permissions': ['auth.user']},
+        {'name': 'registrationpassword', 'permissions': ['auth.user']},
     ]},
     {'app_label': 'django_celery_beat', 'permissions': ['django_celery_beat'], 'items': [
         {'name': 'crontabschedule'},

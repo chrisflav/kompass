@@ -27,11 +27,12 @@ admin.site.index_title = _('Startpage')
 admin.site.site_header = 'Kompass'
 
 urlpatterns += i18n_patterns(
-    re_path(r'^kompass/?', admin.site.urls),
+    re_path(r'^kompass/?', admin.site.urls, name='kompass'),
     re_path(r'^jet/', include('jet.urls', 'jet')), # Django JET URLS
     re_path(r'^admin/?', RedirectView.as_view(url='/kompass')),
     re_path(r'^newsletter/', include('mailer.urls', namespace="mailer")),
     re_path(r'^members/', include('members.urls', namespace="members")),
+    re_path(r'^login/', include('logindata.urls', namespace="logindata")),
     re_path(r'^LBAlpin/Programm(/)?(20)?[0-9]{0,2}', include('ludwigsburgalpin.urls',
             namespace="ludwigsburgalpin")),
     re_path(r'^_nested_admin/', include('nested_admin.urls')),
