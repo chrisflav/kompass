@@ -17,6 +17,7 @@ class Section(models.Model):
     title = models.CharField(verbose_name=_('Title'), max_length=50)
     urlname = models.CharField(verbose_name=_('URL'), max_length=25)
     website_text = MarkdownxField(verbose_name=_('website text'), default='', blank=True)
+    show_in_navigation = models.BooleanField(verbose_name=_('Show in navigation'), default=True)
 
     class Meta:
         verbose_name = _('Section')
@@ -43,7 +44,7 @@ class Post(models.Model):
     groups = models.ManyToManyField(Group, verbose_name=_('Groups'), blank=True)
     detailed = models.BooleanField(verbose_name=_('detailed'), default=False)
 
-    section = models.ForeignKey(Section, verbose_name=_('section'), on_delete=models.SET_NULL, null=True, blank=True)
+    section = models.ForeignKey(Section, verbose_name=_('section'), on_delete=models.CASCADE, null=True, blank=False)
 
     def __str__(self):
         """String represenation"""

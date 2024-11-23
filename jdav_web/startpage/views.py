@@ -13,6 +13,10 @@ from .models import Post, Section
 def render(request, template_path, context={}):
     context['groups'] = Group.objects.filter(show_website=True)
     context['sections'] = Section.objects.all()
+    try:
+        context['root_section'] = Section.objects.get(urlname=settings.ROOT_SECTION)
+    except Section.DoesNotExist:
+        pass
     return shortcuts.render(request, template_path, context)
 
 
@@ -28,15 +32,6 @@ def static_view(template_path):
     def view(request):
         return render(request, template_path)
     return view
-
-
-def jugendleiterinnen(request):
-    group = get_object_or_404(Group, name='Jugendleiter')
-    people = group.member_set.all()
-    context = {
-        'people': people
-    }
-    return render(request, 'startpage/jugendleiterinnen.html', context)
 
 
 def gruppe_detail(request, group_name):
@@ -55,18 +50,25 @@ def gruppe_detail(request, group_name):
 
 
 def aktuelles(request):
-    posts = Post.objects.filter(section=None)
+    section = get_object_or_404(Section, urlname=settings.RECENT_SECTION)
+    posts = Post.objects.filter(section=section)
     context = {
         'posts': posts,
     }
     return render(request, 'startpage/aktuelles.html', context)
 
 
+def berichte(request):
+    section = get_object_or_404(Section, urlname=settings.REPORTS_SECTION)
+    posts = Post.objects.filter(section=section)
+    context = {
+        'posts': posts,
+    }
+    return render(request, 'startpage/berichte.html', context)
+
+
 def post(request, section_name, post_name):
-    if section_name == 'aktuelles':
-        section = None
-    else:
-        section = get_object_or_404(Section, urlname=section_name)
+    section = get_object_or_404(Section, urlname=section_name)
     post = get_object_or_404(Post, section=section, urlname=post_name)
     context = {
         'post': post,
@@ -78,6 +80,7 @@ def post(request, section_name, post_name):
 
 def section(request, section_name):
     assert section_name != 'aktuelles'
+    assert section_name != 'berichte'
     section = get_object_or_404(Section, urlname=section_name)
     context = {
         'section': section,

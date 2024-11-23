@@ -55,15 +55,21 @@ window.onclick = function(event) {
                       <div class="menu-level-2">
                       <ul>
                           <li>
-                              <a href="{% url 'startpage:jugendleiterinnen' %}">Unsere Jugendleiter:innen</a>
-                          </li>
-                          <li>
                               <a href="{% url 'startpage:aktuelles' %}">Aktuelles</a>
                           </li>
+                          <li>
+                              <a href="{% url 'startpage:berichte' %}">Berichte</a>
+                          </li>
+                          {% for post in root_section.post_set.all %}
+                          <li>
+                              <a href="{% url 'startpage:post' post_name=post.urlname section_name=root_section.urlname %}">{{ post.title }}</a>
+                          </li>
+                          {% endfor %}
                       </ul>
                       </div>
                     </li>
                     {% for section in sections %}
+                    {% if section.show_in_navigation %}
                     <li>
                     <a href="{% url 'startpage:section' section_name=section.urlname %}">{{ section.title }}</a>
                       <div class="menu-level-2">
@@ -76,6 +82,7 @@ window.onclick = function(event) {
                       </ul>
                       </div>
                     </li>
+                    {% endif %}
                     {% endfor %}
                     <li>
                     <a href="{% url 'startpage:gruppen' %}">Gruppen</a>

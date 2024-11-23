@@ -47,3 +47,6 @@ REGISTRATION_FORM_DOWNLOAD_LINK = 'https://nc.cloud-jdav-hd.de'
 DOMAIN = 'jdav-hd.merten.dev'
 
 STARTPAGE_REDIRECT_URL = 'https://jdav-hd.de'
+ROOT_SECTION = 'jdav_heidelberg'
+RECENT_SECTION = 'aktuelles'
+REPORTS_SECTION = 'berichte'
