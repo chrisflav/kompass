@@ -1470,7 +1470,7 @@ def parse_group(value):
 
     group_names = [extract_group_name_and_role(raw) for raw in groups_raw if raw != '']
 
-    if "Jugendleiter" in roles:
+    if "Jugendleiter*in" in roles:
         group_names.append("Jugendleiter")
     groups = []
     for group_name in group_names:
