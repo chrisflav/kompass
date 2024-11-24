@@ -283,7 +283,7 @@ class Statement(CommonModel):
         if self.excursion is None:
             return 0
 
-        return self.total_staff / self.excursion.staff_count
+        return cvt_to_decimal(self.total_staff / self.excursion.staff_count)
 
     @property
     def total_staff(self):
