@@ -1417,7 +1417,7 @@ class MemberTraining(CommonModel):
         }
 
 
-def import_from_csv(path):
+def import_from_csv(path, omit_groupless=True):
     with open(path, encoding='ISO-8859-1') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
         rows = list(reader)
@@ -1432,9 +1432,15 @@ def import_from_csv(path):
     def transform_row(row):
         kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
         kwargs_filtered = { k : v for k, v in kwargs.items() if k not in  ['group', 'last_training', 'has_fundamental_training', 'special_training', 'phone_number_private', 'phone_number_parents'] }
+        if not kwargs['group'] and omit_groupless:
+            # if member does not have a group, skip them
+            return
         mem = Member(**kwargs_filtered)
         mem.save()
-        mem.group.set(kwargs['group'])
+        mem.group.set([group for group, is_jl in kwargs['group']])
+        for group, is_jl in kwargs['group']:
+            if is_jl:
+                group.leiters.add(mem)
 
         if kwargs['has_fundamental_training']:
             try:
@@ -1487,22 +1493,25 @@ def parse_group(value):
     roles = set()
     def extract_group_name_and_role(raw):
         obj = re.search('^(.*?)(?: \((.*)\))?$', raw)
+        is_jl = False
         if obj.group(2) is not None:
             roles.add(obj.group(2).strip())
-        return obj.group(1).strip()
+            if obj.group(2) == 'Jugendleiter*in':
+                is_jl = True
+        return (obj.group(1).strip(), is_jl)
 
     group_names = [extract_group_name_and_role(raw) for raw in groups_raw if raw != '']
 
     if "Jugendleiter*in" in roles:
-        group_names.append("Jugendleiter")
+        group_names.append(('Jugendleiter', False))
     groups = []
-    for group_name in group_names:
+    for group_name, is_jl in group_names:
         try:
             group = Group.objects.get(name=group_name)
         except Group.DoesNotExist:
             group = Group(name=group_name)
             group.save()
-        groups.append(group)
+        groups.append((group, is_jl))
     return groups
 
 
