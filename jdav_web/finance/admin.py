@@ -205,9 +205,13 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                 messages.error(request,
                         _("%(name)s already has transactions. Please delete them first, if you want to generate new ones") % {'name': str(statement)})
             else:
-                statement.generate_transactions()
-                messages.success(request,
-                        _("Successfully generated transactions for %(name)s") % {'name': str(statement)})
+                success = statement.generate_transactions()
+                if success:
+                    messages.success(request,
+                            _("Successfully generated transactions for %(name)s") % {'name': str(statement)})
+                else:
+                    messages.error(request,
+                            _("Error while generating transactions for %(name)s. Do all bills have a payer?") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
         context = dict(self.admin_site.each_context(request),
                        title=_('View submitted statement'),

@@ -28,7 +28,7 @@ class Ledger(models.Model):
 
 class TransactionIssue:
     def __init__(self, member, current, target):
-        self.member, self.current, self. target = member, current, target
+        self.member, self.current, self.target = member, current, target
 
     @property
     def difference(self):
@@ -105,7 +105,7 @@ class Statement(CommonModel):
 
     @property
     def transaction_issues(self):
-        needed_paiments = [(b.paid_by, b.amount) for b in self.bill_set.all() if b.costs_covered]
+        needed_paiments = [(b.paid_by, b.amount) for b in self.bill_set.all() if b.costs_covered and b.paid_by]
 
         if self.excursion is not None:
             needed_paiments.extend([(yl, self.real_per_yl) for yl in self.excursion.jugendleiter.all()])
@@ -179,6 +179,8 @@ class Statement(CommonModel):
         for bill in self.bill_set.all():
             if not bill.costs_covered:
                 continue
+            if not bill.paid_by:
+                return False
             ref = "{}: {}".format(str(self), bill.short_description)
             Transaction(statement=self, member=bill.paid_by, amount=bill.amount, confirmed=False, reference=ref).save()
 
@@ -189,6 +191,7 @@ class Statement(CommonModel):
         for yl in self.excursion.jugendleiter.all():
             ref = _("Compensation for %(excu)s") % {'excu': self.excursion.name}
             Transaction(statement=self, member=yl, amount=self.real_per_yl, confirmed=False, reference=ref).save()
+        return True
 
     def reduce_transactions(self):
         # to minimize the number of needed bank transactions, we bundle transactions from same ledger to
