@@ -34,12 +34,16 @@ JET_SIDE_MENU_ITEMS = [
     ]},
     {'app_label': 'members', 'items': [
         {'name': 'member', 'permissions': ['members.view_member']},
-        {'name': 'group', 'permissions': ['members.view_group']},
         {'name': 'membernotelist', 'permissions': ['members.view_membernotelist']},
         {'name': 'freizeit', 'permissions': ['members.view_freizeit']},
         {'name': 'klettertreff', 'permissions': ['members.view_klettertreff']},
+    ]},
+    {'label': 'Gruppenverwaltung', 'app_label': 'members', 'permissions': ['members.view_group'], 'items': [
+        {'name': 'group', 'permissions': ['members.view_group']},
         {'name': 'activitycategory', 'permissions': ['members.view_activitycategory']},
         {'name': 'trainingcategory', 'permissions': ['members.view_trainingcategory']},
+    ]},
+    {'label': 'Neue Mitglieder', 'app_label': 'members', 'permissions': ['members.view_memberunconfirmedproxy'], 'items': [
         {'name': 'memberunconfirmedproxy', 'permissions': ['members.view_memberunconfirmedproxy']},
         {'name': 'memberwaitinglist', 'permissions': ['members.view_memberwaitinglist']},
     ]},
@@ -48,6 +52,8 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'materialpart', 'permissions': ['material.view_materialpart']},
     ]},
     {'label': 'Externe Links', 'items' : [
-        { 'label': 'Nextcloud', 'url': CLOUD_LINK }
+        { 'label': 'Nextcloud', 'url': CLOUD_LINK },
+        { 'label': 'DAV 360', 'url': DAV_360_LINK },
+        { 'label': 'Julei-Wiki', 'url': WIKI_LINK },
     ]},
 ]

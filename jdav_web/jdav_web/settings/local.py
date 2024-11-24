@@ -26,6 +26,8 @@ ALLOWANCE_PER_DAY = 10
 MAX_NIGHT_COST = 11
 
 CLOUD_LINK = 'https://nc.cloud-jdav-hd.de'
+DAV_360_LINK = 'https://dav360.de'
+WIKI_LINK = 'https://davbgs.sharepoint.com/sites/S-114-O-JDAV-Jugendreferat'
 
 # Admin setup
 

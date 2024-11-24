@@ -1,0 +1,106 @@
+{% extends "admin/app_index.html" %}
+
+{% block content %}
+<div id="content-main">
+<div class="app-members module current-app">
+<h2>Meine Jugendgruppen</h2>
+<p>
+Hier siehst du alle Teilnehmer:innen deiner Jugendgruppen und alle von dir geleiteten Ausfahrten.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_member_changelist' %}">Teilnehmer:innen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_freizeit_changelist' %}">Ausfahrten</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+<table>
+{% if perms.members.change_waitinglist %}
+<br>
+<div class="app-members module current-app">
+<h2>Neue Mitglieder</h2>
+<p>
+Hier werden neue Mitglieder verwaltet. Um ein neues Mitglied anzulegen, muss sich die Person
+<a href="{% url 'members:register_waiting_list' %}">anmelden</a>. Daraufhin landet
+sie auf der <a href="{% url 'admin:members_memberwaitinglist_changelist' %}">Warteliste</a>. Eine
+Person auf der Warteliste kannst du dann zu einer Schnupperstunde einer gewählten Gruppe einladen.
+Diese Einladung enthält einen Registrierungslink zu einem Formular in dem die Person alle ihre
+Stammdaten eingbit. Diese Daten landen dann unter
+<a href="{% url 'admin:members_memberunconfirmedproxy_changelist' %}">Unbestätigte Registrierungen</a>.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_memberwaitinglist_changelist' %}">Warteliste</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_memberunconfirmedproxy_changelist' %}">Unbestätigte Registrierungen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+</div>
+{% endif %}
+
+{% if perms.members.change_group %}
+<br>
+<div class="app-members module current-app">
+<h2>Gruppenverwaltung</h2>
+<p>
+Hier kannst du Gruppen anlegen und ändern.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_group_changelist' %}">Gruppen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+    </div>
+{% endif %}
+
+{% if perms.members.change_activitycategory %}
+<br>
+<div class="app-members module current-app">
+<h2>Sonstiges</h2>
+<p>
+Hier kannst du mögliche Aktivitäten und Fortbildungstypen festlegen. Diese bestimmen, welche
+Aktivitäten bzw. Fortbildungen Nutzer:innen auswählen können.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_activitycategory_changelist' %}">Aktivitäten</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_trainingcategory_changelist' %}">Fortbildungstypen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+    </div>
+{% endif %}
+
+</div>
+{% endblock %}

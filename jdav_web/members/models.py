@@ -667,6 +667,14 @@ class Member(Person):
                        settings.INVITE_AS_USER_TEXT.format(name=self.prename,
                                                            link=get_invite_as_user_key(self.invite_as_user_key)))
 
+    def led_groups(self):
+        """Returns a queryset of groups that this member is a youth leader of."""
+        return Group.objects.filter(leiters__pk=self.pk)
+
+    def led_freizeiten(self, limit=5):
+        """Returns a queryset of freizeiten that this member is a youth leader of."""
+        return Freizeit.objects.filter(jugendleiter__pk=self.pk)[:limit]
+
 
 class EmergencyContact(ContactWithPhoneNumber):
     """
