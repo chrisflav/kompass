@@ -639,6 +639,7 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
     form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')
     inlines = [RegistrationPasswordInline, PermissionOnGroupInline]
+    search_fields = ('name',)
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):

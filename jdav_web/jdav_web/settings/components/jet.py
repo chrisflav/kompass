@@ -51,6 +51,10 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'materialcategory', 'permissions': ['material.view_materialcategory']},
         {'name': 'materialpart', 'permissions': ['material.view_materialpart']},
     ]},
+    {'app_label': 'startpage', 'permissions': ['startpage'], 'items': [
+        {'name': 'section', 'permissions': ['startpage.view_section']},
+        {'name': 'post', 'permissions': ['startpage.view_post']},
+    ]},
     {'label': 'Externe Links', 'items' : [
         { 'label': 'Nextcloud', 'url': CLOUD_LINK },
         { 'label': 'DAV 360', 'url': DAV_360_LINK },
