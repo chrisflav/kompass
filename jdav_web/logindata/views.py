@@ -70,7 +70,6 @@ def register(request):
         else:
             return render_register_failed(request)
     else:
-        prefill = {
-            'username': '{prename}.{lastname}'.format(prename=member.prename.lower(), lastname=member.lastname.lower())        }
+        prefill = {'username': member.suggested_username()}
         form = UserCreationForm(initial=prefill)
         return render_register_form(request, key, password, member, form)
