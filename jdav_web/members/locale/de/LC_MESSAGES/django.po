@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-24 01:14+0100\n"
+"POT-Creation-Date: 2024-11-24 02:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -212,26 +212,50 @@ msgstr ""
 msgid "Generate PDF summary"
 msgstr "Übersicht erstellen"
 
-#: members/admin.py:800
+#: members/admin.py:766
+msgid "Full report"
+msgstr "Vollständiger Seminarbericht"
+
+#: members/admin.py:767
+msgid "Costs and participants only"
+msgstr "Nur Kosten und Teilnehmende"
+
+#: members/admin.py:768
+msgid "Mode"
+msgstr "Modus"
+
+#: members/admin.py:805
 #, python-format
 msgid "You are not allowed to view all members on excursion %(name)s."
 msgstr ""
 "Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Ausfahrt "
 "%(name)s anzusehen."
 
-#: members/admin.py:810
+#: members/admin.py:813
 msgid "Generate crisis intervention list"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: members/admin.py:820
+#: members/admin.py:821
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: members/admin.py:830
+#: members/admin.py:825 members/admin.py:848
+#: members/templates/admin/generate_seminar_report.html:21
 msgid "Generate seminar report"
 msgstr "Seminarbericht erstellen"
 
-#: members/admin.py:844
+#: members/admin.py:838
+msgid "Please select a mode."
+msgstr "Bitte wähle einen Modus aus."
+
+#: members/admin.py:842
+msgid ""
+"Full mode is only available, if the seminar report section is filled out."
+msgstr ""
+"Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
+"ausgefüllt ist. "
+
+#: members/admin.py:860
 msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
 
@@ -807,12 +831,57 @@ msgstr "Fortbildung"
 msgid "Trainings"
 msgstr "Fortbildungen"
 
+#: members/templates/admin/generate_seminar_report.html:17
 #: members/templates/admin/invite_as_user.html:17
 #: members/templates/admin/invite_for_group.html:17
 #: members/templates/admin/invite_selected_as_user.html:17
 #: members/templates/admin/invite_selected_for_group.html:17
 msgid "Home"
 msgstr "Start"
+
+#: members/templates/admin/generate_seminar_report.html:27
+msgid ""
+"Here you can generate a seminar report suitable for the LJP. A report\n"
+"always contains a head page with the basic information on the seminar."
+msgstr ""
+"Hier kannst du einen Seminarbericht für den Landesjugendplan erstellen. "
+"Ein Bericht enthält immer einen Kopf mit den Stammdaten des Seminars."
+
+#: members/templates/admin/generate_seminar_report.html:32
+msgid ""
+"Full report: Include learning goals and a detailed, tabularized time "
+"schedule. This requires\n"
+"the seminar report section to be filled out."
+msgstr ""
+"Vollständiger Bericht: Stelle Lernziele und einen detaillierte, "
+"tabellierten Zeitplan dar. Dies benötigt, dass der Seminarbericht "
+"in der Ausfahrt ausgefüllt ist."
+
+#: members/templates/admin/generate_seminar_report.html:36
+msgid ""
+"Costs and participants only: Only show a list of participants and costs. In "
+"this case you\n"
+"have to add learning goals and a time schedule manually."
+msgstr ""
+"Nur Kosten und Teilnehmende: Zeige nur eine Liste von Teilnehmenden und "
+"Kosten an. In diesem Fall musst du Lernziele und einen Zeitplan manuell "
+"hinzufügen."
+
+#: members/templates/admin/generate_seminar_report.html:42
+msgid "Please choose one of the listed modes."
+msgstr "Bitte wähle einen der obigen Modi."
+
+#: members/templates/admin/generate_seminar_report.html:53
+msgid "Generate"
+msgstr "Erstellen"
+
+#: members/templates/admin/generate_seminar_report.html:54
+#: members/templates/admin/invite_as_user.html:37
+#: members/templates/admin/invite_for_group.html:52
+#: members/templates/admin/invite_selected_as_user.html:49
+#: members/templates/admin/invite_selected_for_group.html:53
+msgid "Cancel"
+msgstr "Abbrechen"
 
 #: members/templates/admin/invite_as_user.html:27
 #, python-format
@@ -833,13 +902,6 @@ msgstr ""
 #: members/templates/admin/invite_selected_for_group.html:52
 msgid "Invite"
 msgstr "Einladen"
-
-#: members/templates/admin/invite_as_user.html:37
-#: members/templates/admin/invite_for_group.html:52
-#: members/templates/admin/invite_selected_as_user.html:49
-#: members/templates/admin/invite_selected_for_group.html:53
-msgid "Cancel"
-msgstr "Abbrechen"
 
 #: members/templates/admin/invite_for_group.html:21
 msgid "Invite to group"

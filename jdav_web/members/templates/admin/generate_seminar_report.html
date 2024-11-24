@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
+&rsaquo; {% translate 'Generate seminar report' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<p>
+{% blocktrans %}Here you can generate a seminar report suitable for the LJP. A report
+always contains a head page with the basic information on the seminar.{% endblocktrans %}
+</p>
+<ul>
+    <li>
+{% blocktrans %}Full report: Include learning goals and a detailed, tabularized time schedule. This requires
+the seminar report section to be filled out.{% endblocktrans %}
+    </li>
+    <li>
+{% blocktrans %}Costs and participants only: Only show a list of participants and costs. In this case you
+have to add learning goals and a time schedule manually.{% endblocktrans %}
+    </li>
+</ul>
+
+<br>
+<p>{% blocktrans %}Please choose one of the listed modes.{% endblocktrans %}</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <p>
+    {{form}}
+    </p>
+    <br>
+    <input type="hidden" name="action" value="seminar_report">
+    <input type="hidden" name="seminar_report">
+    <input class="default" style="color: $default-link-color" type="submit" name="apply"
+        value="{% translate 'Generate' %}">
+    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+</form>
+
+{% endblock %}

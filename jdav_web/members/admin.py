@@ -762,13 +762,18 @@ class MemberNoteListAdmin(admin.ModelAdmin):
     summary.short_description = _('Generate PDF summary')
 
 
+class GenerateSeminarReportForm(forms.Form):
+    modes = (('full', _('Full report')),
+             ('basic', _('Costs and participants only')))
+    mode = forms.ChoiceField(choices=modes, label=_('Mode'))
+
+
 class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.NestedModelAdmin):
     #inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ['__str__', 'date']
     search_fields = ('name',)
     ordering = ('-date',)
-    actions = ['crisis_intervention_list', 'notes_list', 'seminar_report', 'sjr_application']
     view_on_site = False
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
@@ -800,18 +805,14 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
                 _("You are not allowed to view all members on excursion %(name)s.") % {'name': memberlist.name})
         return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
-    def crisis_intervention_list(self, request, queryset):
-        # this ensures legacy compatibilty
-        memberlist = queryset[0]
+    def crisis_intervention_list(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
         context = dict(memberlist=memberlist, settings=settings)
         return render_tex(memberlist.name + "_Krisenliste", 'members/crisis_intervention_list.tex', context)
     crisis_intervention_list.short_description = _('Generate crisis intervention list')
 
-    def notes_list(self, request, queryset):
-        # this ensures legacy compatibilty
-        memberlist = queryset[0]
+    def notes_list(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
         people, skills = memberlist.skill_summary
@@ -819,19 +820,34 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
         return render_tex(memberlist.name + "_Notizen", 'members/notes_list.tex', context)
     notes_list.short_description = _('Generate overview')
 
-    def seminar_report(self, request, queryset):
-        # this ensures legacy compatibilty
-        memberlist = queryset[0]
+    def render_seminar_report_options(self, request, memberlist, form):
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Generate seminar report'),
+                       opts=self.opts,
+                       memberlist=memberlist,
+                       form=form,
+                       object=memberlist)
+        return render(request, 'admin/generate_seminar_report.html', context=context)
+
+    def seminar_report(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
-        context = dict(memberlist=memberlist, settings=settings)
-        title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
-        return render_tex(title + "_Seminarbericht", 'members/seminar_report.tex', context)
+        if "apply" in request.POST:
+            form = GenerateSeminarReportForm(request.POST)
+            if not form.is_valid():
+                messages.error(request, _('Please select a mode.'))
+                return self.render_seminar_report_options(request, memberlist, form)
+            mode = form.cleaned_data['mode']
+            if mode == 'full' and not hasattr(memberlist, 'ljpproposal'):
+                messages.error(request, _('Full mode is only available, if the seminar report section is filled out.'))
+                return self.render_seminar_report_options(request, memberlist, form)
+            context = dict(memberlist=memberlist, settings=settings, mode=mode)
+            title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
+            return render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context)
+        return self.render_seminar_report_options(request, memberlist, GenerateSeminarReportForm())
     seminar_report.short_description = _('Generate seminar report')
 
-    def sjr_application(self, request, queryset):
-        # this ensures legacy compatibilty
-        memberlist = queryset[0]
+    def sjr_application(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
         context = memberlist.sjr_application_fields()
@@ -864,13 +880,13 @@ class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.Nes
 
     def action_view(self, request, object_id):
         if "sjr_application" in request.POST:
-            return self.sjr_application(request, [Freizeit.objects.get(pk=object_id)])
+            return self.sjr_application(request, Freizeit.objects.get(pk=object_id))
         if "seminar_report" in request.POST:
-            return self.seminar_report(request, [Freizeit.objects.get(pk=object_id)])
+            return self.seminar_report(request, Freizeit.objects.get(pk=object_id))
         if "notes_list" in request.POST:
-            return self.notes_list(request, [Freizeit.objects.get(pk=object_id)])
+            return self.notes_list(request, Freizeit.objects.get(pk=object_id))
         if "crisis_intervention_list" in request.POST:
-            return self.crisis_intervention_list(request, [Freizeit.objects.get(pk=object_id)])
+            return self.crisis_intervention_list(request, Freizeit.objects.get(pk=object_id))
         return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
                                             args=(object_id,)))
 
