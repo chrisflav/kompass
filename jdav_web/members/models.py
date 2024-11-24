@@ -130,6 +130,8 @@ class Contact(CommonModel):
         for email_fd, confirmed_email_fd, confirm_mail_key_fd in self.email_fields:
             if getattr(self, confirmed_email_fd) and not rerequest:
                 continue
+            if not getattr(self, email_fd):
+                continue
             requested_confirmation = True
             setattr(self, confirmed_email_fd, False)
             confirm_mail_key = uuid.uuid4().hex
