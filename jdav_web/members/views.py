@@ -72,7 +72,7 @@ class EmergencyContactForm(ModelForm):
     class Meta:
         model = EmergencyContact
         fields = ['prename', 'lastname', 'email', 'phone_number']
-        required = ['prename', 'lastname', 'email', 'phone_number']
+        required = ['prename', 'lastname', 'phone_number']
 
 
 class BaseEmergencyContactsFormSet(BaseInlineFormSet):

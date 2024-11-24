@@ -47,7 +47,9 @@
   function addRequired(element) {
     var inputs = element.getElementsByTagName('input');
     for (var i = 0; i < inputs.length; i++) {
-      inputs[i].setAttribute('required', 'required');
+      if (inputs[i].getAttribute('type') != 'email') {
+          inputs[i].setAttribute('required', 'required');
+      }
     }
   }
   function removeRequired(element) {
