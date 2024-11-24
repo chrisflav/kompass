@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-24 01:14+0100\n"
+"POT-Creation-Date: 2024-11-24 18:18+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -134,6 +134,81 @@ msgstr ""
 #: logindata/views.py:59
 msgid "You entered a wrong password."
 msgstr "Das eingegebene Passwort ist falsch."
+
+#: templates/admin/delete_confirmation.html:7
+#, python-format
+msgid ""
+"Deleting the %(object_name)s '%(escaped_object)s' would result in deleting "
+"related objects, but your account doesn't have permission to delete the "
+"following types of objects:"
+msgstr ""
+"Löschen von %(object_name)s '%(escaped_object)s' würde zur Löschung der folgenden "
+"verknüpften Objekte führen, aber du hast nicht die Berechtigung die folgenden Typen "
+"von Objekten zu löschen:"
+
+#: templates/admin/delete_confirmation.html:12
+#, python-format
+msgid ""
+"Deleting the %(object_name)s '%(escaped_object)s' would require deleting the "
+"following protected related objects:"
+msgstr ""
+"Löschen von %(object_name)s '%(escaped_object)s' würde zur Löschung der folgenden "
+"geschützten verknüpften Objekte führen:"
+
+#: templates/admin/delete_confirmation.html:17
+#, python-format
+msgid ""
+"Are you sure you want to delete the %(object_name)s \"%(escaped_object)s\"?"
+msgstr ""
+"Bist du sicher, dass du %(object_name)s \"%(escaped_object)s\" und alle davon abhängigen "
+"Objekte löschen möchtest? "
+
+#: templates/admin/delete_confirmation.html:29
+#: templates/admin/delete_selected_confirmation.html:34
+msgid "Yes, I’m sure"
+msgstr "Ja, ich bin sicher"
+
+#: templates/admin/delete_confirmation.html:30
+#: templates/admin/delete_selected_confirmation.html:35
+msgid "No, take me back"
+msgstr "Nein, bitte abbrechen"
+
+#: templates/admin/delete_selected_confirmation.html:6
+#, python-format
+msgid ""
+"Deleting the selected %(objects_name)s would result in deleting related "
+"objects, but your account doesn't have permission to delete the following "
+"types of objects:"
+msgstr ""
+"Löschen der ausgewählten %(objects_name)s würde zur Löschung der folgenden "
+"verknüpften Objekte führen, aber du hast nicht die Berechtigung die folgenden Typen "
+"von Objekten zu löschen:"
+
+#: templates/admin/delete_selected_confirmation.html:9
+#, python-format
+msgid ""
+"Deleting the selected %(objects_name)s would require deleting the following "
+"protected related objects:"
+msgstr ""
+"Löschen der ausgewählten %(objects_name)s würde zur Löschung der folgenden "
+"geschützten verknüpften Objekte führen:"
+
+#: templates/admin/delete_selected_confirmation.html:12
+#, python-format
+msgid ""
+"Are you sure you want to delete the selected %(objects_name)s? All of the "
+"following objects and their related items will be deleted:"
+msgstr ""
+"Bist du sicher, dass du die ausgewählten %(objects_name)s löschen möchtest? "
+"Alle folgenden Objekte und alle davon abhängigen Objekte werden gelöscht:"
+
+#: templates/admin/delete_selected_confirmation.html:14
+msgid "Summary"
+msgstr "Zusammenfassung"
+
+#: templates/admin/delete_selected_confirmation.html:18
+msgid "Objects"
+msgstr "Objekte"
 
 #: templates/admin/finance/statementconfirmed/change_form_object_tools.html:8
 msgid "Unconfirm"
