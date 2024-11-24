@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-19 01:19+0100\n"
+"POT-Creation-Date: 2024-11-24 01:14+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,182 +18,220 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: members/admin.py:124 members/models.py:370
+#: members/admin.py:126 members/models.py:371
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
-#: members/admin.py:130
+#: members/admin.py:132
 msgid "True"
 msgstr "Ja"
 
-#: members/admin.py:131
+#: members/admin.py:133
 msgid "False"
 msgstr "Nein"
 
-#: members/admin.py:132
+#: members/admin.py:134
 msgid "All"
 msgstr "Alle"
 
-#: members/admin.py:181 members/admin.py:318
+#: members/admin.py:183 members/admin.py:395
 msgid "Contact information"
 msgstr "Kontaktinformationen"
 
-#: members/admin.py:186 members/admin.py:323
+#: members/admin.py:188 members/admin.py:400
 msgid "Skills"
 msgstr "Fähigkeiten"
 
-#: members/admin.py:191 members/admin.py:328
+#: members/admin.py:193 members/admin.py:405
 msgid "Others"
 msgstr "Sonstiges"
 
-#: members/admin.py:197 members/admin.py:333
+#: members/admin.py:199 members/admin.py:410
 msgid "Organizational"
 msgstr "Organisatorisches"
 
-#: members/admin.py:260
+#: members/admin.py:280
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer verfassen"
 
-#: members/admin.py:266
+#: members/admin.py:286
 msgid "Echo required"
 msgstr "Rückmeldung erforderlich"
 
-#: members/admin.py:268
+#: members/admin.py:288
 msgid "Successfully requested echo from selected members."
 msgstr ""
 "Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer verschickt."
 
-#: members/admin.py:269
+#: members/admin.py:289
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer verschicken"
 
-#: members/admin.py:286
+#: members/admin.py:295
+#, python-format
+msgid "Successfully invited %(name)s as user."
+msgstr "Erfolgreich %(name)s aufgefordert Zugangsdaten zu wählen."
+
+#: members/admin.py:297
+msgid "Successfully invited selected members to join as users."
+msgstr ""
+"Erfolgreich ausgewählte Teilnehmer:innen aufgefordert Zugangsdaten zu wählen."
+
+#: members/admin.py:304 members/admin.py:321
+msgid "Permission denied."
+msgstr "Fehlende Berechtigungen."
+
+#: members/admin.py:311 members/admin.py:340
+#: members/templates/admin/invite_as_user.html:21
+msgid "Invite as user"
+msgstr "Kompass Zugangsdaten wählen lassen"
+
+#: members/admin.py:316
+msgid "Invite selected members to join Kompass as users."
+msgstr "Ausgewählte Teilnehmer:innen Kompass Zugangsdaten wählen lassen."
+
+#: members/admin.py:327
+msgid "Member not found."
+msgstr "Teilnehmer:in nicht gefunden."
+
+#: members/admin.py:331
+#, python-format
+msgid "%(name)s already has login data."
+msgstr "%(name)s hat schon Zugangsdaten."
+
+#: members/admin.py:345
+#, python-format
+msgid "%(name)s already has a pending invitation as user."
+msgstr ""
+"%(name)s hat bereits eine ausstehende Aufforderung Zugangsdaten zu wählen."
+
+#: members/admin.py:363
 msgid "activity"
 msgstr "Aktivität"
 
-#: members/admin.py:296 members/models.py:53 members/models.py:1364
+#: members/admin.py:373 members/models.py:53 members/models.py:1379
 msgid "Name"
 msgstr "Name"
 
-#: members/admin.py:367
+#: members/admin.py:444
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 
-#: members/admin.py:368
+#: members/admin.py:445
 msgid "Request mail confirmation from selected registrations"
 msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
 
-#: members/admin.py:375 members/admin.py:409
+#: members/admin.py:452 members/admin.py:486
 #, python-format
 msgid "Successfully confirmed %(name)s."
 msgstr "Registrierung von %(name)s erfolgreich bestätigt."
 
-#: members/admin.py:379 members/admin.py:412
+#: members/admin.py:456 members/admin.py:489
 #, python-format
 msgid "Can't confirm. %(name)s has unconfirmed email addresses."
 msgstr "Bestätigung nicht möglich. %(name)s hat unbestätigte Emailadressen."
 
-#: members/admin.py:384
+#: members/admin.py:461
 msgid "Successfully confirmed multiple registrations."
 msgstr "Erfolgreich mehrere Registrierungen bestätigt."
 
-#: members/admin.py:386
+#: members/admin.py:463
 msgid ""
 "Failed to confirm some registrations because of unconfirmed email addresses."
 msgstr ""
 "Einige Bestätigungen fehlgeschlagen, weil Emailadressen noch nicht bestätigt "
 "sind."
 
-#: members/admin.py:387
+#: members/admin.py:464
 msgid "Confirm selected registrations"
 msgstr "Ausgewählte Registrierungen bestätigen"
 
-#: members/admin.py:403
+#: members/admin.py:480
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
 
-#: members/admin.py:404
+#: members/admin.py:481
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
-#: members/admin.py:419 members/models.py:377 members/models.py:703
-#: members/models.py:1109
+#: members/admin.py:496 members/models.py:378 members/models.py:718
+#: members/models.py:1124
 msgid "Group"
 msgstr "Gruppe"
 
-#: members/admin.py:453
+#: members/admin.py:530
 #, python-format
 msgid "Successfully asked %(name)s to confirm their waiting status."
 msgstr "Erfolgreich %(name)s aufgefordert den Wartelistenplatz zu bestätigen."
 
-#: members/admin.py:454
+#: members/admin.py:531
 msgid "Ask selected waiters to confirm their waiting status"
 msgstr "Wartende auffordern den Wartelistenplatz zu bestätigen"
 
-#: members/admin.py:463 members/admin.py:519
+#: members/admin.py:540 members/admin.py:596
 msgid ""
 "An error occurred while trying to invite said members. Please try again."
 msgstr ""
 "Beim Einladen dieser Personen ist ein Fehler aufgetreten. Bitte versuche es "
 "nochmal. "
 
-#: members/admin.py:471 members/admin.py:526
+#: members/admin.py:548 members/admin.py:603
 #, python-format
 msgid "Successfully invited %(name)s to %(group)s."
 msgstr "Erfolgreich %(name)s zu Gruppe %(group)s eingeladen."
 
-#: members/admin.py:475 members/admin.py:531
+#: members/admin.py:552 members/admin.py:609
 msgid "Select group for invitation"
 msgstr "Wähle Gruppe für Einladung aus"
 
-#: members/admin.py:482
+#: members/admin.py:559
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
 
-#: members/admin.py:572
+#: members/admin.py:651
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: members/admin.py:575
+#: members/admin.py:654
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: members/admin.py:578 members/models.py:919
+#: members/admin.py:657 members/models.py:934
 msgid "Means of transportation"
 msgstr "Verkehrsmittel"
 
-#: members/admin.py:673
+#: members/admin.py:752
 #, python-format
 msgid "You are not allowed to view all members on note list %(name)s."
 msgstr ""
 "Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Notizliste "
 "%(name)s anzusehen."
 
-#: members/admin.py:683
+#: members/admin.py:762
 msgid "Generate PDF summary"
 msgstr "Übersicht erstellen"
 
-#: members/admin.py:721
+#: members/admin.py:800
 #, python-format
 msgid "You are not allowed to view all members on excursion %(name)s."
 msgstr ""
 "Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Ausfahrt "
 "%(name)s anzusehen."
 
-#: members/admin.py:731
+#: members/admin.py:810
 msgid "Generate crisis intervention list"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: members/admin.py:741
+#: members/admin.py:820
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: members/admin.py:751
+#: members/admin.py:830
 msgid "Generate seminar report"
 msgstr "Seminarbericht erstellen"
 
-#: members/admin.py:765
+#: members/admin.py:844
 msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
 
@@ -229,11 +267,11 @@ msgstr "Samstag"
 msgid "Sunday"
 msgstr "Sonntag"
 
-#: members/models.py:54 members/models.py:905
+#: members/models.py:54 members/models.py:920
 msgid "Description"
 msgstr "Beschreibung"
 
-#: members/models.py:60 members/models.py:897
+#: members/models.py:60 members/models.py:912
 #: members/templates/members/change_member.html:18
 msgid "Activity"
 msgstr "Aktivität"
@@ -266,7 +304,7 @@ msgstr "Bis Jahrgang"
 msgid "youth leaders"
 msgstr "Jugendleiter"
 
-#: members/models.py:77 members/models.py:1191
+#: members/models.py:77 members/models.py:1206
 msgid "Starting time"
 msgstr "Zeitpunkt"
 
@@ -430,345 +468,378 @@ msgstr "Bestätigt"
 msgid "Login data"
 msgstr "Zugangsdaten"
 
-#: members/models.py:306
+#: members/models.py:307
 msgid "Good conduct certificate valid"
 msgstr "Führungszeugnis gültig"
 
-#: members/models.py:380
+#: members/models.py:381
 msgid "member"
 msgstr "Teilnehmer"
 
-#: members/models.py:381
+#: members/models.py:382
 msgid "members"
 msgstr "Teilnehmer"
 
-#: members/models.py:453
+#: members/models.py:455
 #, python-format
 msgid "New unconfirmed registration for group %(group)s"
 msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 
-#: members/models.py:660 members/models.py:853 members/models.py:864
-#: members/models.py:1140 members/models.py:1147
+#: members/models.py:666
+msgid "Set login data for Kompass"
+msgstr "Zugangsdaten für Kompass wählen"
+
+#: members/models.py:675 members/models.py:868 members/models.py:879
+#: members/models.py:1155 members/models.py:1162
 msgid "Member"
 msgstr "Teilnehmer"
 
-#: members/models.py:666
+#: members/models.py:681
 msgid "Emergency contact"
 msgstr "Notfallkontakt"
 
-#: members/models.py:667
+#: members/models.py:682
 msgid "Emergency contacts"
 msgstr "Notfallkontakte"
 
-#: members/models.py:687
+#: members/models.py:702
 msgid "Unconfirmed registration"
 msgstr "Unbestätigte Registrierung"
 
-#: members/models.py:688
+#: members/models.py:703
 msgid "Unconfirmed registrations"
 msgstr "Unbestätigte Registrierungen"
 
-#: members/models.py:702 members/models.py:747
+#: members/models.py:717 members/models.py:762
 msgid "Waiter"
 msgstr "Wartende Person"
 
-#: members/models.py:704
+#: members/models.py:719
 msgid "Invitation date"
 msgstr "Einladungsdatum"
 
-#: members/models.py:705 members/templates/members/reject_success.html:6
+#: members/models.py:720 members/templates/members/reject_success.html:6
 #: members/templates/members/reject_success.html:11
 msgid "Invitation rejected"
 msgstr "Einladung abgelehnt"
 
-#: members/models.py:709
+#: members/models.py:724
 msgid "Invitation to group"
 msgstr "Gruppeneinladung"
 
-#: members/models.py:710
+#: members/models.py:725
 msgid "Invitations to groups"
 msgstr "Gruppeneinladungen"
 
-#: members/models.py:717
+#: members/models.py:732
 msgid "Rejected"
 msgstr "Abgelehnt"
 
-#: members/models.py:719
+#: members/models.py:734
 msgid "Expired"
 msgstr "Abgelaufen"
 
-#: members/models.py:721
+#: members/models.py:736
 msgid "Undecided"
 msgstr "Ausstehend"
 
-#: members/models.py:722
+#: members/models.py:737
 msgid "Status"
 msgstr "Status"
 
-#: members/models.py:733
+#: members/models.py:748
 msgid "Do you want to tell us something else?"
 msgstr "Möchtest du uns noch etwas mitteilen?"
 
-#: members/models.py:734
+#: members/models.py:749
 msgid "application date"
 msgstr "Bewerbungsdatum"
 
-#: members/models.py:736
+#: members/models.py:751
 msgid "Last wait confirmation"
 msgstr "Letzte Wartebestätigung"
 
-#: members/models.py:740
+#: members/models.py:755
 msgid "Last reminder"
 msgstr "Letzte Erinnerung"
 
-#: members/models.py:741
+#: members/models.py:756
 msgid "Missed reminders"
 msgstr "Verpasste Erinnerungen"
 
-#: members/models.py:748
+#: members/models.py:763
 msgid "Waiters"
 msgstr "Warteliste"
 
-#: members/models.py:772
+#: members/models.py:787
 msgid "Waiting status confirmed"
 msgstr "Wartelistenplatz bestätigt"
 
-#: members/models.py:779
+#: members/models.py:794
 msgid "Waiting confirmation needed"
 msgstr "Wartelistenplatzbestätigung erforderlich"
 
-#: members/models.py:832
+#: members/models.py:847
 msgid "Invitation to trial group meeting"
 msgstr "Einladung zu Schnupperstunde"
 
-#: members/models.py:844
+#: members/models.py:859
 msgid "Unregistered from waiting list"
 msgstr "Von der Warteliste abgemeldet"
 
-#: members/models.py:858
+#: members/models.py:873
 msgid "Comment"
 msgstr "Kommentar"
 
-#: members/models.py:865 members/models.py:1148
+#: members/models.py:880 members/models.py:1163
 msgid "Members"
 msgstr "Teilnehmer"
 
-#: members/models.py:899
+#: members/models.py:914
 msgid "Place"
 msgstr "Stützpunkt / Ort"
 
-#: members/models.py:900
+#: members/models.py:915
 msgid "Destination (optional)"
 msgstr "ggf. Ziel"
 
-#: members/models.py:902
+#: members/models.py:917
 msgid "e.g. a peak"
 msgstr "z.B. ein Gipfel"
 
-#: members/models.py:903
+#: members/models.py:918
 msgid "Begin"
 msgstr "Anfang"
 
-#: members/models.py:904
+#: members/models.py:919
 msgid "End (optional)"
 msgstr "Ende"
 
-#: members/models.py:907
+#: members/models.py:922
 msgid "Groups"
 msgstr "Gruppen"
 
-#: members/models.py:920
+#: members/models.py:935
 msgid "Kilometers traveled"
 msgstr "Fahrstrecke in Kilometer"
 
-#: members/models.py:923
+#: members/models.py:938
 msgid "Categories"
 msgstr "Kategorien"
 
-#: members/models.py:924
+#: members/models.py:939
 msgid "easy"
 msgstr "leicht"
 
-#: members/models.py:924
+#: members/models.py:939
 msgid "medium"
 msgstr "mittel"
 
-#: members/models.py:924
+#: members/models.py:939
 msgid "hard"
 msgstr "schwer"
 
-#: members/models.py:934 members/models.py:1171
+#: members/models.py:949 members/models.py:1186
 msgid "Excursion"
 msgstr "Ausfahrt"
 
-#: members/models.py:935
+#: members/models.py:950
 msgid "Excursions"
 msgstr "Ausfahrten"
 
-#: members/models.py:1086 members/models.py:1162 members/models.py:1378
+#: members/models.py:1101 members/models.py:1177 members/models.py:1393
 msgid "Title"
 msgstr "Titel"
 
-#: members/models.py:1087 members/models.py:1105 members/models.py:1379
+#: members/models.py:1102 members/models.py:1120 members/models.py:1394
 msgid "Date"
 msgstr "Datum"
 
-#: members/models.py:1106
+#: members/models.py:1121
 msgid "Location"
 msgstr "Ort"
 
-#: members/models.py:1107
+#: members/models.py:1122
 msgid "Topic"
 msgstr "Thema"
 
-#: members/models.py:1131
+#: members/models.py:1146
 msgid "Jugendleiter"
 msgstr "Jugendleiter"
 
-#: members/models.py:1134
+#: members/models.py:1149
 msgid "Klettertreff"
 msgstr "Klettertreff"
 
-#: members/models.py:1135
+#: members/models.py:1150
 msgid "Klettertreffs"
 msgstr "Klettertreffs"
 
-#: members/models.py:1153
+#: members/models.py:1168
 msgid "Password"
 msgstr "Passwort"
 
-#: members/models.py:1156
+#: members/models.py:1171
 msgid "registration password"
 msgstr "Registrierungspassort"
 
-#: members/models.py:1157
+#: members/models.py:1172
 msgid "registration passwords"
 msgstr "Registrierungspasswörter"
 
-#: members/models.py:1164
+#: members/models.py:1179
 msgid "Alpinistic goals"
 msgstr "Alpintechnische Ziele"
 
-#: members/models.py:1165
+#: members/models.py:1180
 msgid "Pedagogic goals"
 msgstr "Pädagogische Ziele"
 
-#: members/models.py:1166
+#: members/models.py:1181
 msgid "Content and methods"
 msgstr "Inhalte und Methoden"
 
-#: members/models.py:1167
+#: members/models.py:1182
 msgid "Evaluation"
 msgstr "Wertung"
 
-#: members/models.py:1168
+#: members/models.py:1183
 msgid "Experiences and possible improvements"
 msgstr "Erfahrungen und Verbesserungsvorschläge"
 
-#: members/models.py:1177 members/models.py:1198
+#: members/models.py:1192 members/models.py:1213
 msgid "LJP Proposal"
 msgstr "Seminarbericht"
 
-#: members/models.py:1178
+#: members/models.py:1193
 msgid "LJP Proposals"
 msgstr "Seminarberichte"
 
-#: members/models.py:1192
+#: members/models.py:1207
 msgid "Duration in hours"
 msgstr "Dauer in Stunden"
 
-#: members/models.py:1195
+#: members/models.py:1210
 msgid "Activity and method"
 msgstr "Art der Aktion inkl. Methode"
 
-#: members/models.py:1203
+#: members/models.py:1218
 msgid "Intervention"
 msgstr "Aktion"
 
-#: members/models.py:1204
+#: members/models.py:1219
 msgid "Interventions"
 msgstr "Aktionen"
 
-#: members/models.py:1306 members/models.py:1336
+#: members/models.py:1321 members/models.py:1351
 msgid "May list members"
 msgstr "Darf folgende Teilnehmer:innen listen"
 
-#: members/models.py:1308 members/models.py:1338
+#: members/models.py:1323 members/models.py:1353
 msgid "May view members"
 msgstr "Darf folgende Teilnehmer:innen anzeigen"
 
-#: members/models.py:1310 members/models.py:1340
+#: members/models.py:1325 members/models.py:1355
 msgid "May change members"
 msgstr "Darf folgende Teilnehmer:innen ändern"
 
-#: members/models.py:1312 members/models.py:1342
+#: members/models.py:1327 members/models.py:1357
 msgid "May delete members"
 msgstr "Darf folgende Teilnehmer:innen löschen"
 
-#: members/models.py:1316 members/models.py:1346
+#: members/models.py:1331 members/models.py:1361
 msgid "May list members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen listen"
 
-#: members/models.py:1318 members/models.py:1348
+#: members/models.py:1333 members/models.py:1363
 msgid "May view members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen anzeigen"
 
-#: members/models.py:1320 members/models.py:1350
+#: members/models.py:1335 members/models.py:1365
 msgid "May change members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen ändern"
 
-#: members/models.py:1322 members/models.py:1352
+#: members/models.py:1337 members/models.py:1367
 msgid "May delete members of groups"
 msgstr "Darf Teilnehmer:innen folgender Gruppen löschen"
 
-#: members/models.py:1325 members/models.py:1326 members/models.py:1329
+#: members/models.py:1340 members/models.py:1341 members/models.py:1344
 msgid "Permissions"
 msgstr "Berechtigungen"
 
-#: members/models.py:1355 members/models.py:1356 members/models.py:1359
+#: members/models.py:1370 members/models.py:1371 members/models.py:1374
 msgid "Group permissions"
 msgstr "Gruppenberechtigungen"
 
-#: members/models.py:1365
+#: members/models.py:1380
 msgid "Permission needed"
 msgstr "Freigabe erforderlich"
 
-#: members/models.py:1368
+#: members/models.py:1383
 msgid "Training category"
 msgstr "Fortbildungstyp"
 
-#: members/models.py:1369
+#: members/models.py:1384
 msgid "Training categories"
 msgstr "Fortbildungstypen"
 
-#: members/models.py:1380
+#: members/models.py:1395
 msgid "Category"
 msgstr "Kategorien"
 
-#: members/models.py:1381
+#: members/models.py:1396
 msgid "Comments"
 msgstr "Kommentar"
 
-#: members/models.py:1382
+#: members/models.py:1397
 msgid "Participated"
 msgstr "Teilgenommmen"
 
-#: members/models.py:1383
+#: members/models.py:1398
 msgid "Passed"
 msgstr "Bestanden"
 
-#: members/models.py:1386
+#: members/models.py:1401
 msgid "Training"
 msgstr "Fortbildung"
 
-#: members/models.py:1387
+#: members/models.py:1402
 msgid "Trainings"
 msgstr "Fortbildungen"
 
+#: members/templates/admin/invite_as_user.html:17
 #: members/templates/admin/invite_for_group.html:17
+#: members/templates/admin/invite_selected_as_user.html:17
 #: members/templates/admin/invite_selected_for_group.html:17
 msgid "Home"
 msgstr "Start"
+
+#: members/templates/admin/invite_as_user.html:27
+#, python-format
+msgid ""
+"Do you want to invite %(member)s to set their login data for Kompass? They "
+"will\n"
+"receive an email with a link to set their username and password after "
+"entering one of the current\n"
+"active registration passwords."
+msgstr ""
+"Möchtest du %(member)s auffordern Zugangsdaten für den Kompass zu wählen? "
+"%(member)s wird eine E-Mail mit einem Link erhalten, um, nach Eingabe eines "
+"der aktiven Registrierungspasswörter, Benutzername und Passwort zu setzen."
+
+#: members/templates/admin/invite_as_user.html:36
+#: members/templates/admin/invite_for_group.html:51
+#: members/templates/admin/invite_selected_as_user.html:48
+#: members/templates/admin/invite_selected_for_group.html:52
+msgid "Invite"
+msgstr "Einladen"
+
+#: members/templates/admin/invite_as_user.html:37
+#: members/templates/admin/invite_for_group.html:52
+#: members/templates/admin/invite_selected_as_user.html:49
+#: members/templates/admin/invite_selected_for_group.html:53
+msgid "Cancel"
+msgstr "Abbrechen"
 
 #: members/templates/admin/invite_for_group.html:21
 msgid "Invite to group"
@@ -788,15 +859,26 @@ msgstr "Du lädst die folgende Person ein:"
 msgid "Please choose the group that you want to invite %(waiter)s to."
 msgstr "Bitte wähle die Gruppe aus zu der du %(waiter)s einladen möchtest."
 
-#: members/templates/admin/invite_for_group.html:51
-#: members/templates/admin/invite_selected_for_group.html:52
-msgid "Invite"
-msgstr "Einladen"
+#: members/templates/admin/invite_selected_as_user.html:20
+msgid "Invite multiple members as users"
+msgstr "Mehrere Teilnehmer:innen Zugangsdaten wählen lassen"
 
-#: members/templates/admin/invite_for_group.html:52
-#: members/templates/admin/invite_selected_for_group.html:53
-msgid "Cancel"
-msgstr "Abbrechen"
+#: members/templates/admin/invite_selected_as_user.html:26
+msgid "You selected the following members:"
+msgstr "Du hast die folgenden Teilnehmer:innen ausgewählt:"
+
+#: members/templates/admin/invite_selected_as_user.html:38
+msgid ""
+"Do you want to invite these members to set their login data for Kompass? "
+"They will\n"
+"receive an email with a link to set their username and password after "
+"entering one of the current\n"
+"active registration passwords."
+msgstr ""
+"Möchtest du diese Teilnehmer:innen auffordern Zugangsdaten für den Kompass "
+"zu wählen?Sie werden eine E-Mail mit einem Link erhalten, um, nach Eingabe "
+"eines der aktiven Registrierungspasswörter, Benutzername und Passwort zu "
+"setzen."
 
 #: members/templates/admin/invite_selected_for_group.html:20
 msgid "Invite multiple waiters"

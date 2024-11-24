@@ -82,6 +82,10 @@ class FilteredMemberFieldMixin:
         return field
 
 
+class InviteAsUserForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+
+
 class PermissionOnGroupInline(admin.StackedInline):
     model = PermissionGroup
     extra = 1
@@ -214,7 +218,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     #}
     change_form_template = "members/change_member.html"
     ordering = ('lastname',)
-    actions = ['request_echo', 'invite_as_user']
+    actions = ['request_echo', 'invite_as_user_action']
     list_per_page = 25
 
     sensitive_fields = ['iban', 'registration_form', 'comments']
@@ -291,17 +295,55 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.success(request, _('Successfully invited %(name)s as user.') % {'name': queryset[0].name})
         else:
             messages.success(request, _('Successfully invited selected members to join as users.'))
-    invite_as_user.short_description = _('Invite selected members to join Kompass as users.')
+
+    def has_may_invite_as_user_permission(self, request):
+        return request.user.has_perm('%s.%s' % (self.opts.app_label, 'may_invite_as_user'))
+
+    def invite_as_user_action(self, request, queryset):
+        if not request.user.has_perm('members.may_invite_as_user'):
+            messages.error(request, _('Permission denied.'))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+        if "apply" in request.POST:
+            self.invite_as_user(request, queryset)
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Invite as user'),
+                       opts=self.opts,
+                       members=queryset,
+                       form=InviteAsUserForm(initial={'_selected_action': queryset.values_list('id', flat=True)}))
+        return render(request, 'admin/invite_selected_as_user.html', context=context)
+    invite_as_user_action.short_description = _('Invite selected members to join Kompass as users.')
+    invite_as_user_action.allowed_permissions = ('may_invite_as_user',)
 
     def invite_as_user_view(self, request, object_id):
+        if not request.user.has_perm('members.may_invite_as_user'):
+            messages.error(request, _('Permission denied.'))
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                args=(object_id,)))
         try:
             m = Member.objects.get(pk=object_id)
         except Member.DoesNotExist:
             messages.error(request, _("Member not found."))
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
-        self.invite_as_user(request, Member.objects.filter(pk=object_id))
-        return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
-                                            args=(object_id,)))
+        if m.user:
+            messages.error(request,
+                _("%(name)s already has login data.") % {'name': str(m)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                args=(object_id,)))
+        if "apply" in request.POST:
+            self.invite_as_user(request, Member.objects.filter(pk=object_id))
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                args=(object_id,)))
+
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Invite as user'),
+                       opts=self.opts,
+                       member=m,
+                       object=m)
+        if m.invite_as_user_key:
+            messages.warning(request, _('%(name)s already has a pending invitation as user.' % {'name': str(m)}))
+        return render(request, 'admin/invite_as_user.html', context=context)
 
     def activity_score(self, obj):
         score = obj._activity_score
@@ -560,7 +602,8 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.success(request,
                     _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
 
-            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (waiter._meta.app_label, waiter._meta.model_name)))
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (waiter._meta.app_label, waiter._meta.model_name),
+                                                args=(object_id,)))
 
         context = dict(self.admin_site.each_context(request),
                        title=_('Select group for invitation'),
@@ -571,6 +614,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
         return render(request,
                       'admin/invite_for_group.html',
                       context=context)
+
 
 class RegistrationPasswordInline(admin.TabularInline):
     model = RegistrationPassword

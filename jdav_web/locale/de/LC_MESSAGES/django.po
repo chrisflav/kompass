@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-19 01:19+0100\n"
+"POT-Creation-Date: 2024-11-24 01:14+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,6 +35,10 @@ msgstr "Berechtigungen"
 msgid "Important dates"
 msgstr "Wichtigen Daten"
 
+#: logindata/apps.py:8
+msgid "Authentication"
+msgstr "Authentifizierung"
+
 #: logindata/models.py:10
 msgid "Permission group"
 msgstr "Berechtigungsgruppe"
@@ -43,13 +47,93 @@ msgstr "Berechtigungsgruppe"
 msgid "Permission groups"
 msgstr "Berechtigungsgruppen"
 
-#: logindata/models.py:18
+#: logindata/models.py:17
 msgid "Login Datum"
 msgstr "Zugangsdaten"
 
-#: logindata/models.py:19
+#: logindata/models.py:18
 msgid "Login Data"
 msgstr "Zugangsdaten"
+
+#: logindata/models.py:25
+msgid "Password"
+msgstr "Passwort"
+
+#: logindata/models.py:31
+msgid "Active registration password"
+msgstr "Aktives Registrierungspasswort"
+
+#: logindata/models.py:32
+msgid "Active registration passwords"
+msgstr "Aktive Registrierungspasswörter"
+
+#: logindata/templates/logindata/register_failed.html:6
+msgid "Registration"
+msgstr "Registrierung"
+
+#: logindata/templates/logindata/register_failed.html:11
+#: logindata/templates/logindata/register_form.html:13
+#: logindata/templates/logindata/register_password.html:11
+#: logindata/templates/logindata/register_success.html:10
+msgid "Set login data"
+msgstr "Zugangsdaten wählen"
+
+#: logindata/templates/logindata/register_failed.html:13
+msgid "Something went wrong. The registration key is invalid or has expired."
+msgstr ""
+"Etwas ist schief gegangen. Der Registrierungscode ist ungültig oder ist "
+"abgelaufen."
+
+#: logindata/templates/logindata/register_failed.html:15
+msgid "If you think this is a mistake, please"
+msgstr "Falls du denkst, dass das ein Fehler ist, bitte"
+
+#: logindata/templates/logindata/register_failed.html:15
+msgid "contact us."
+msgstr "kontaktiere uns."
+
+#: logindata/templates/logindata/register_form.html:6
+#: logindata/templates/logindata/register_password.html:6
+msgid "Register"
+msgstr "Registrieren"
+
+#: logindata/templates/logindata/register_form.html:15
+#: logindata/templates/logindata/register_password.html:13
+msgid "Welcome, "
+msgstr "Willkommen, "
+
+#: logindata/templates/logindata/register_form.html:16
+msgid ""
+"To set your personal login data, please enter the password that you received."
+msgstr ""
+"Um deine persönlichen Zugansdaten festzulegen, gib bitte das Passwort ein, "
+"das du erhalten hast."
+
+#: logindata/templates/logindata/register_form.html:30
+#: logindata/templates/logindata/register_password.html:23
+msgid "submit"
+msgstr "Einreichen"
+
+#: logindata/templates/logindata/register_password.html:13
+msgid ""
+"To set your personal login data for Kompass, please enter the password that "
+"you received."
+msgstr ""
+"Um deine persönlichen Zugangsdaten festzulegen, gib bitte das Passwort ein, "
+"das du erhalten hast."
+
+#: logindata/templates/logindata/register_success.html:5
+msgid "Registration successful"
+msgstr "Zugangsdaten erfolgreich festgelegt"
+
+#: logindata/templates/logindata/register_success.html:12
+msgid "You successfully set your login data. You can now proceed to"
+msgstr ""
+"Du hast deine Zugangsdaten erfolgreich festgelegt. Du kannst nun weiter zum"
+
+#: logindata/views.py:59
+msgid "You entered a wrong password."
+msgstr "Das eingegebene Passwort ist falsch."
 
 #: templates/admin/finance/statementconfirmed/change_form_object_tools.html:8
 msgid "Unconfirm"
@@ -86,6 +170,10 @@ msgstr "Seminarbericht erstellen"
 #: templates/admin/members/freizeit/change_form_object_tools.html:36
 msgid "Submit statement"
 msgstr "Abrechnung einreichen"
+
+#: templates/admin/members/member/change_form_object_tools.html:8
+msgid "Invite as user"
+msgstr "Als Kompassbenutzer:in einladen"
 
 #: templates/admin/members/memberwaitinglist/change_form_object_tools.html:8
 #: templates/admin/members/memberwaitinglist/submit_line.html:9

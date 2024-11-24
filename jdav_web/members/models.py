@@ -384,6 +384,7 @@ class Member(Person):
             ('may_see_qualities', 'Is allowed to see the quality overview'),
             ('may_set_auth_user', 'Is allowed to set auth user member connections.'),
             ('change_member_group', 'Can change the group field'),
+            ('may_invite_as_user', 'Is allowed to invite a member to set login data.'),
         )
         rules_permissions = {
             'members': rules.always_allow,
@@ -652,6 +653,11 @@ class Member(Person):
                     return True
 
         return False
+
+    def suggested_username(self):
+        """Returns a suggested username given by {prename}.{lastname}."""
+        raw = "{0}.{1}".format(self.prename.lower(), self.lastname.lower())
+        return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
 
     def invite_as_user(self):
         """Invites the member to join Kompass as a user."""
