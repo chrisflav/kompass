@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-24 18:18+0100\n"
+"POT-Creation-Date: 2024-11-24 22:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -142,9 +142,9 @@ msgid ""
 "related objects, but your account doesn't have permission to delete the "
 "following types of objects:"
 msgstr ""
-"Löschen von %(object_name)s '%(escaped_object)s' würde zur Löschung der folgenden "
-"verknüpften Objekte führen, aber du hast nicht die Berechtigung die folgenden Typen "
-"von Objekten zu löschen:"
+"Löschen von %(object_name)s '%(escaped_object)s' würde zur Löschung der "
+"folgenden verknüpften Objekte führen, aber du hast nicht die Berechtigung "
+"die folgenden Typen von Objekten zu löschen:"
 
 #: templates/admin/delete_confirmation.html:12
 #, python-format
@@ -152,16 +152,16 @@ msgid ""
 "Deleting the %(object_name)s '%(escaped_object)s' would require deleting the "
 "following protected related objects:"
 msgstr ""
-"Löschen von %(object_name)s '%(escaped_object)s' würde zur Löschung der folgenden "
-"geschützten verknüpften Objekte führen:"
+"Löschen von %(object_name)s '%(escaped_object)s' würde zur Löschung der "
+"folgenden geschützten verknüpften Objekte führen:"
 
 #: templates/admin/delete_confirmation.html:17
 #, python-format
 msgid ""
 "Are you sure you want to delete the %(object_name)s \"%(escaped_object)s\"?"
 msgstr ""
-"Bist du sicher, dass du %(object_name)s \"%(escaped_object)s\" und alle davon abhängigen "
-"Objekte löschen möchtest? "
+"Bist du sicher, dass du %(object_name)s \"%(escaped_object)s\" und alle "
+"davon abhängigen Objekte löschen möchtest? "
 
 #: templates/admin/delete_confirmation.html:29
 #: templates/admin/delete_selected_confirmation.html:34
@@ -181,8 +181,8 @@ msgid ""
 "types of objects:"
 msgstr ""
 "Löschen der ausgewählten %(objects_name)s würde zur Löschung der folgenden "
-"verknüpften Objekte führen, aber du hast nicht die Berechtigung die folgenden Typen "
-"von Objekten zu löschen:"
+"verknüpften Objekte führen, aber du hast nicht die Berechtigung die "
+"folgenden Typen von Objekten zu löschen:"
 
 #: templates/admin/delete_selected_confirmation.html:9
 #, python-format
@@ -209,6 +209,25 @@ msgstr "Zusammenfassung"
 #: templates/admin/delete_selected_confirmation.html:18
 msgid "Objects"
 msgstr "Objekte"
+
+#: templates/admin/edit_inline/tabular.html:33
+msgid "Delete?"
+msgstr "Löschen?"
+
+#: templates/admin/edit_inline/tabular.html:47
+#: templates/nesting/admin/inlines/stacked.html:42
+msgid "Change"
+msgstr "Ändern"
+
+#: templates/admin/edit_inline/tabular.html:47
+#: templates/nesting/admin/inlines/stacked.html:42
+msgid "View"
+msgstr "Anzeigen"
+
+#: templates/admin/edit_inline/tabular.html:49
+#: templates/nesting/admin/inlines/stacked.html:44
+msgid "View on site"
+msgstr "Auf der Website anzeigen"
 
 #: templates/admin/finance/statementconfirmed/change_form_object_tools.html:8
 msgid "Unconfirm"
@@ -254,6 +273,11 @@ msgstr "Als Kompassbenutzer:in einladen"
 #: templates/admin/members/memberwaitinglist/submit_line.html:9
 msgid "Invite to group"
 msgstr "Zu Gruppe einladen"
+
+#: templates/nesting/admin/inlines/stacked.html:87
+#, python-format
+msgid "Add another %(verbose_name)s"
+msgstr "Weiteren %(verbose_name)s hinzufügen"
 
 #: utils.py:14
 msgid "Please keep filesize under {} MiB. Current filesize: {:10.2f} MiB."

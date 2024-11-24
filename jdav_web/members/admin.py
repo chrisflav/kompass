@@ -681,6 +681,7 @@ class BillOnExcursionInline(CommonAdminInlineMixin, admin.TabularInline):
 class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = Statement
     extra = 1
+    description = _('Please list here all expenses in relation with this excursion and upload relevant bills. These have to be permanently stored for the application of LJP contributions. The short descriptions are used in the seminar report cost overview (possible descriptions are e.g. food, material, etc.).')
     sortable_options = []
     fields = ['night_cost']
     inlines = [BillOnExcursionInline]
@@ -698,6 +699,7 @@ class InterventionOnLJPInline(CommonAdminInlineMixin, admin.TabularInline):
 class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = LJPProposal
     extra = 1
+    description = _('Here you can work on a seminar report for applying for financial contributions from Landesjugendplan (LJP). More information on creating a seminar report can be found in the wiki. The seminar report or only a participant list and cost overview can be consequently downloaded.')
     sortable_options = []
     inlines = [InterventionOnLJPInline]
 
@@ -705,6 +707,7 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
 class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     model = NewMemberOnList
     extra = 0
+    description = _('Please list all participants (also youth leaders) of this excursion. Here you can still make changes just before departure and hence generate the latest participant list for crisis intervention at all times.')
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
@@ -776,6 +779,13 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     search_fields = ('name',)
     ordering = ('-date',)
     view_on_site = False
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'place', 'destination', 'date', 'end', 'description', 'groups', 'jugendleiter',
+                       'tour_type', 'tour_approach', 'kilometers_traveled', 'activity', 'difficulty'),
+            'description': _('General information on your excursion. These are partly relevant for the amount of financial compensation (means of transport, travel distance, etc.).')
+        }),
+    )
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
