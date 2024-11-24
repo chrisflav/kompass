@@ -667,7 +667,7 @@ class FreizeitAdminForm(forms.ModelForm):
             self.fields['jugendleiter'].queryset = q.filter(group__name='Jugendleiter')
 
 
-class BillOnExcursionInline(FilteredMemberFieldMixin, CommonAdminInlineMixin, admin.TabularInline):
+class BillOnExcursionInline(CommonAdminInlineMixin, admin.TabularInline):
     model = BillOnExcursionProxy
     extra = 0
     sortable_options = []
@@ -701,7 +701,7 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     inlines = [InterventionOnLJPInline]
 
 
-class MemberOnListInline(FilteredMemberFieldMixin, CommonAdminInlineMixin, GenericTabularInline):
+class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     model = NewMemberOnList
     extra = 0
     formfield_overrides = {
@@ -768,7 +768,7 @@ class GenerateSeminarReportForm(forms.Form):
     mode = forms.ChoiceField(choices=modes, label=_('Mode'))
 
 
-class FreizeitAdmin(FilteredMemberFieldMixin, CommonAdminMixin, nested_admin.NestedModelAdmin):
+class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     #inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ['__str__', 'date']
