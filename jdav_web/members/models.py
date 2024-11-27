@@ -73,9 +73,14 @@ class Group(models.Model):
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
                                      related_name='leited_groups', blank=True)
-    weekday = models.IntegerField(choices=WEEKDAYS, null=True, blank=True)
+    weekday = models.IntegerField(verbose_name=_('week day'), choices=WEEKDAYS, null=True, blank=True)
     start_time = models.TimeField(verbose_name=_('Starting time'), null=True, blank=True)
     end_time = models.TimeField(verbose_name=_('Ending time'), null=True, blank=True)
+    contact_email = models.ForeignKey('mailer.EmailAddress',
+                                      verbose_name=_('Contact email'),
+                                      null=True,
+                                      blank=True,
+                                      on_delete=models.SET_NULL)
 
     def __str__(self):
         """String representation"""
@@ -84,6 +89,10 @@ class Group(models.Model):
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
+
+    def has_time_info(self):
+        # return if the group has all relevant time slot information filled
+        return self.weekday and self.start_time and self.end_time
 
 
 class MemberManager(models.Manager):
@@ -154,9 +163,9 @@ class Contact(CommonModel):
                 return getattr(self, email_fd)
         return None
 
-    def send_mail(self, subject, content):
+    def send_mail(self, subject, content, cc=None):
         send_mail(subject, content, settings.DEFAULT_SENDING_MAIL,
-            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields])
+            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields], cc=cc)
 
 
 def confirm_mail_by_key(key):
@@ -849,21 +858,23 @@ class MemberWaitingList(Person):
             group_link = '({url}) '.format(url=prepend_base_url(reverse('startpage:gruppe_detail', args=[group.name])))
         else:
             group_link = ''
-        # TODO: inform the user that the group has no configured weekday, start_time or end_time
-        weekday = WEEKDAYS[group.weekday][1] if group.weekday != None else WEEKDAYS[0][1]
-        start_time = group.start_time.strftime('%H:%M') if group.start_time != None else "14:00"
-        end_time = group.end_time.strftime('%H:%M') if group.end_time != None else "16:00"
+        if group.has_time_info():
+            group_time = settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[group.weekday][1],
+                                                          start_time=group.start_time.strftime('%H:%M'),
+                                                          end_time=group.end_time.strftime('%H:%M'))
+        else:
+            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=group.contact_email)
         invitation = InvitationToGroup(group=group, waiter=self)
         invitation.save()
         self.send_mail(_("Invitation to trial group meeting"),
             settings.INVITE_TEXT.format(name=self.prename,
-            weekday=weekday,
-            start_time=start_time,
-            end_time=end_time,
-            group_name=group.name,
-            group_link=group_link,
-            link=get_registration_link(invitation.key),
-            invitation_reject_link=get_invitation_reject_link(invitation.key)))
+                group_time=group_time,
+                group_name=group.name,
+                group_link=group_link,
+                contact_email=group.contact_email,
+                link=get_registration_link(invitation.key),
+                invitation_reject_link=get_invitation_reject_link(invitation.key)),
+            cc=group.contact_email.email)
 
     def unregister(self):
         """Delete the waiter and inform them about the deletion via email."""

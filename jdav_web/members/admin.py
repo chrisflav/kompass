@@ -170,6 +170,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 ('email', 'alternative_email'),
                 'phone_number',
                 'birth_date',
+                'gender',
                 'group', 'registration_form', 'image',
                 ('join_date', 'leave_date'),
                 'comments',
@@ -382,6 +383,7 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
                 ('email', 'alternative_email'),
                 'phone_number',
                 'birth_date',
+                'gender',
                 'group', 'registration_form', 'image',
                 ('join_date', 'leave_date'),
                 'comments',
@@ -539,6 +541,10 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                 messages.error(request,
                                _("An error occurred while trying to invite said members. Please try again."))
                 return HttpResponseRedirect(request.get_full_path())
+            if not group.contact_email:
+                messages.error(request,
+                               _('The selected group does not have a contact email. Please first set a contact email and then try again.'))
+                return HttpResponseRedirect(request.get_full_path())
 
             for waiter in queryset:
                 waiter.invited_for_group = group
@@ -596,6 +602,11 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                                _("An error occurred while trying to invite said members. Please try again."))
                 return HttpResponseRedirect(request.get_full_path())
 
+            if not group.contact_email:
+                messages.error(request,
+                               _('The selected group does not have a contact email. Please first set a contact email and then try again.'))
+                return HttpResponseRedirect(request.get_full_path())
+
             waiter.invited_for_group = group
             waiter.save()
             waiter.invite_to_group(group)
@@ -634,7 +645,7 @@ class GroupAdminForm(forms.ModelForm):
 
 
 class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'show_website',
+    fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'contact_email', 'show_website',
         'weekday', ('start_time', 'end_time')]
     form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')

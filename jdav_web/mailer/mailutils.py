@@ -7,10 +7,14 @@ import os
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 
 def send(subject, content, sender, recipients, message_id=None, reply_to=None,
-         attachments=None):
+         attachments=None, cc=None):
     failed, succeeded = False, False
     if type(recipients) != list:
         recipients = [recipients]
+    if not cc:
+        cc = []
+    elif type(cc) != list:
+        cc = [cc]
     if reply_to is not None:
         kwargs = {"reply_to": reply_to}
     else:
@@ -23,7 +27,7 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
     # construct mails
     mails = []
     for recipient in set(recipients):
-        email = EmailMessage(subject, content, sender, [recipient],
+        email = EmailMessage(subject, content, sender, [recipient], cc=cc,
                              headers=headers, **kwargs)
         if attachments is not None:
             for attach in attachments:
