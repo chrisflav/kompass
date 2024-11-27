@@ -445,11 +445,6 @@ class Member(Person):
         return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail and\
             all([emc.confirmed_mail for emc in self.emergencycontact_set.all()])
 
-    def request_mail_confirmation(self, rerequest=False):
-        ret = super().request_mail_confirmation(rerequest)
-        rets = [emc.request_mail_confirmation(rerequest) for emc in self.emergencycontact_set.all()]
-        return ret or any(rets)
-
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
         if self.registration_ready():

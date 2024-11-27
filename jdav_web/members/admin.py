@@ -112,8 +112,7 @@ class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
-    fields = ['prename', 'lastname', 'email', 'phone_number', 'confirmed_mail']
-    readonly_fields = ['confirmed_mail']
+    fields = ['prename', 'lastname', 'email', 'phone_number']
     extra = 0
 
 
