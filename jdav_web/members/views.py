@@ -29,7 +29,7 @@ class MemberRegistrationForm(ModelForm):
                   'phone_number', 'birth_date', 'gender', 'email', 'alternative_email',
                   'registration_form']
         widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'}),
+            'birth_date': DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
             'registration_form': FileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'}),
         }
         help_texts = {
@@ -53,7 +53,7 @@ class MemberRegistrationWaitingListForm(ModelForm):
         model = MemberWaitingList
         fields = ['prename', 'lastname', 'birth_date', 'gender', 'email', 'application_text']
         widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'})
+            'birth_date': DateInput(format='%Y-%m-%d', attrs={'type': 'date'})
         }
         help_texts = {
             'prename': _('Prename of the member.'),
