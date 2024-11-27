@@ -1,5 +1,5 @@
 {% extends "admin/index.html" %}
-{% load i18n static %}
+{% load i18n static common %}
 
 {% block content %}
 
@@ -67,7 +67,7 @@ Hier siehst du alle von dir geleiteten Ausfahrten.
 <table>
     <tr>
         <td>
-            <a href="https://nc.cloud-jdav-hd.de/">Nextcloud</a>
+            <a href="{% settings_value 'CLOUD_LINK' %}">Nextcloud</a>
         </td>
         <td>
             Hier liegen Vorlagen für Formulare und nützliche Handbücher.
@@ -75,7 +75,7 @@ Hier siehst du alle von dir geleiteten Ausfahrten.
     </tr>
     <tr>
         <td>
-            <a href="https://dav360.de">DAV 360</a>
+            <a href="{% settings_value 'DAV_360_LINK' %}">DAV 360</a>
         </td>
         <td>
             Zugriff zu Online Office, Teams und deinem DAV Mailaccount.
@@ -83,7 +83,7 @@ Hier siehst du alle von dir geleiteten Ausfahrten.
     </tr>
     <tr>
         <td>
-            <a href="https://davbgs.sharepoint.com/sites/S-114-O-JDAV-Jugendreferat">Julei-Wiki</a>
+            <a href="{% settings_value 'WIKI_LINK' %}">Julei-Wiki</a>
         </td>
         <td>
             Informationen zum Jugendleiter:in-sein.

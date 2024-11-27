@@ -1,6 +1,5 @@
 {% extends "members/base.html" %}
-{% load i18n %}
-{% load static %}
+{% load i18n static common %}
 
 {% block title %}
 {% trans "Echo failed" %}
@@ -12,6 +11,7 @@
 
 <p><b>{% trans "Something went wrong. The key you supplied is" %} {{ reason }}.</b></p>
 
-<p>{% trans "If you think this is a mistake, please" %} <a href="mailto:jugendreferent@jdav-hd.de">{% trans "contact us." %}</a></p>
+<p>{% trans "If you think this is a mistake, please" %}
+<a href="mailto:{% settings_value 'RESPONSIBLE_MAIL' %}">{% trans "contact us." %}</a></p>
 
 {% endblock %}
