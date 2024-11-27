@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-24 22:24+0100\n"
+"POT-Creation-Date: 2024-11-27 23:16+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -67,28 +67,28 @@ msgstr "Aktives Registrierungspasswort"
 msgid "Active registration passwords"
 msgstr "Aktive Registrierungspasswörter"
 
-#: logindata/templates/logindata/register_failed.html:6
+#: logindata/templates/logindata/register_failed.html:5
 msgid "Registration"
 msgstr "Registrierung"
 
-#: logindata/templates/logindata/register_failed.html:11
+#: logindata/templates/logindata/register_failed.html:10
 #: logindata/templates/logindata/register_form.html:13
 #: logindata/templates/logindata/register_password.html:11
 #: logindata/templates/logindata/register_success.html:10
 msgid "Set login data"
 msgstr "Zugangsdaten wählen"
 
-#: logindata/templates/logindata/register_failed.html:13
+#: logindata/templates/logindata/register_failed.html:12
 msgid "Something went wrong. The registration key is invalid or has expired."
 msgstr ""
 "Etwas ist schief gegangen. Der Registrierungscode ist ungültig oder ist "
 "abgelaufen."
 
-#: logindata/templates/logindata/register_failed.html:15
+#: logindata/templates/logindata/register_failed.html:14
 msgid "If you think this is a mistake, please"
 msgstr "Falls du denkst, dass das ein Fehler ist, bitte"
 
-#: logindata/templates/logindata/register_failed.html:15
+#: logindata/templates/logindata/register_failed.html:14
 msgid "contact us."
 msgstr "kontaktiere uns."
 
@@ -210,24 +210,27 @@ msgstr "Zusammenfassung"
 msgid "Objects"
 msgstr "Objekte"
 
-#: templates/admin/edit_inline/tabular.html:33
-msgid "Delete?"
-msgstr "Löschen?"
-
+#: templates/admin/edit_inline/stacked.html:20
 #: templates/admin/edit_inline/tabular.html:47
 #: templates/nesting/admin/inlines/stacked.html:42
 msgid "Change"
 msgstr "Ändern"
 
+#: templates/admin/edit_inline/stacked.html:20
 #: templates/admin/edit_inline/tabular.html:47
 #: templates/nesting/admin/inlines/stacked.html:42
 msgid "View"
 msgstr "Anzeigen"
 
+#: templates/admin/edit_inline/stacked.html:22
 #: templates/admin/edit_inline/tabular.html:49
 #: templates/nesting/admin/inlines/stacked.html:44
 msgid "View on site"
 msgstr "Auf der Website anzeigen"
+
+#: templates/admin/edit_inline/tabular.html:33
+msgid "Delete?"
+msgstr "Löschen?"
 
 #: templates/admin/finance/statementconfirmed/change_form_object_tools.html:8
 msgid "Unconfirm"
