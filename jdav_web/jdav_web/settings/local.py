@@ -10,6 +10,7 @@ SEKTION_BOARD_MAIL = "vorstand@alpenverein-heidelberg.de"
 SEKTION_CRISIS_INTERVENTION_MAIL = "krisenmanagement@alpenverein-heidelberg.de"
 
 RESPONSIBLE_MAIL = "jugendreferat@jdav-hd.de"
+DIGITAL_MAIL = "digitales@jdav-hd.de"
 
 # echo
 

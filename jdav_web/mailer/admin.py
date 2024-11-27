@@ -36,6 +36,7 @@ class MessageAdmin(FilteredMemberFieldMixin, CommonAdminMixin, ObjectPermissions
     exclude = ('created_by',)
     list_display = ('subject', 'get_recipients', 'sent')
     search_fields = ('subject',)
+    list_filter = ('sent',)
     change_form_template = "mailer/change_form.html"
     readonly_fields = ('sent',)
     #formfield_overrides = {

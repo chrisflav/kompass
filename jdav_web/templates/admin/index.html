@@ -19,44 +19,80 @@ auf deine
 
 {% if user.member %}
 
-<div>
-<p>
+<div class="module">
 <h3>Deine Jugendgruppen</h3>
+<p>
 Hier siehst du alle von dir geleiteten Jugendgruppen.
 </p>
 <p>
 <table>
     {% for group in user.member.led_groups %}
     <tr>
-        <td>
-        <a href='{% url 'admin:members_member_changelist' %}?group__id__exact={{group.pk}}'>{{ group.name }}</a>
-        </td>
+        <th scope="row">
+            <a href='{% url 'admin:members_member_changelist' %}?group__id__exact={{group.pk}}'>{{ group.name }}</a>
+        </th>
+        <td></td>
+        <td></td>
     </tr>
     {% endfor %}
 </table>
 </p>
 </div>
 
-<div>
-<p>
+<div class="module">
 <h3>Deine letzten Ausfahrten</h3>
+<p>
 Hier siehst du alle von dir geleiteten Ausfahrten.
 </p>
 <p>
 <table>
     {% for freizeit in user.member.led_freizeiten %}
     <tr>
-        <td>
+        <th scope="row">
             <a href='{% url 'admin:members_freizeit_change' freizeit.pk %}'>{{freizeit.name}}</a>
-        </td>
+        </th>
+        <td></td>
+        <td></td>
     </tr>
     {% endfor %}
 </table>
 </p>
 </div>
-</div>
 
 {% endif %}
+
+<div class="module current-app">
+
+<h3>E-Mail Verteiler</h3>
+<p>
+Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV Heidelberg schicken.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_add' %}'>Verfassen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_changelist' %}?sent__exact=1'>Gesendet</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_changelist' %}?sent__exact=0'>Entwürfe</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+
+</div>
+</div>
 
 {% endblock %}
 
@@ -103,7 +139,7 @@ weiterweißt oder sonst der Schuh drückt, schreibe eine E-Mail an eine der folg
             Jugendreferat
         </td>
         <td>
-             <a href="mailto:jugendreferat@jdav-hd.de">jugendreferat@jdav-hd.de</a>
+            <a href="mailto:{% settings_value 'RESPONSIBLE_MAIL' %}">jugendreferat@jdav-hd.de</a>
         </td>
     </tr>
     <tr>
@@ -111,7 +147,7 @@ weiterweißt oder sonst der Schuh drückt, schreibe eine E-Mail an eine der folg
             Fragen zum Kompass
         </td>
         <td>
-             <a href="mailto:digitales@jdav-hd.de">digitales@jdav-hd.de</a>
+             <a href="mailto:{% settings_value 'DIGITAL_MAIL' %}">digitales@jdav-hd.de</a>
         </td>
     </tr>
 </table>

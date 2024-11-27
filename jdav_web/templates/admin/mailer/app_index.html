@@ -1,0 +1,55 @@
+{% extends "admin/app_index.html" %}
+
+{% block content %}
+<div id="content-main">
+<div class="app-mailer module current-app">
+<h2>E-Mail Verteiler</h2>
+<p>
+Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV Heidelberg schicken.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_add' %}'>Verfassen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_changelist' %}?sent__exact=1'>Gesendet</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_changelist' %}?sent__exact=0'>Entwürfe</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+
+{% if perms.mailer.change_emailaddress %}
+<br>
+<div class="app-mailer module current-app">
+<h2>Weiterleitungen</h2>
+<p>
+Hier kannst du E-Mail Adressen, also Weiterleitungen, konfigurieren.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_emailaddress_changelist' %}'>E-Mail Adressen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+
+</div>
+</div>
+{% endif %}
+
+{% endblock %}
