@@ -200,7 +200,6 @@ class Person(Contact):
                       (FEMALE, 'Weiblich'),
                       (DIVERSE, 'Divers'))
     gender = models.IntegerField(choices=gender_choices,
-                                 default=DIVERSE,
                                  verbose_name=_('Gender'))
     comments = models.TextField(_('comments'), default='', blank=True)
 
