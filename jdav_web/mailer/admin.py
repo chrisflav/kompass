@@ -33,7 +33,7 @@ class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
 
 class MessageAdmin(FilteredMemberFieldMixin, CommonAdminMixin, ObjectPermissionsModelAdmin):
     """Message creation view"""
-    exclude = ('created_by',)
+    exclude = ('created_by', 'to_notelist')
     list_display = ('subject', 'get_recipients', 'sent')
     search_fields = ('subject',)
     list_filter = ('sent',)
