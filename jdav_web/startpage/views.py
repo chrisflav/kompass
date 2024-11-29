@@ -22,8 +22,8 @@ def render(request, template_path, context={}):
 
 def index(request):
     context = {
-        'recent_posts': Post.objects.filter(section__urlname=settings.RECENT_SECTION),
-        'reports': Post.objects.filter(section__urlname=settings.REPORTS_SECTION),
+        'recent_posts': Post.objects.filter(section__urlname=settings.RECENT_SECTION).order_by('-date'),
+        'reports': Post.objects.filter(section__urlname=settings.REPORTS_SECTION).order_by('-date'),
     }
     return render(request, 'startpage/index.html', context)
 
