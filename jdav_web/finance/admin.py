@@ -307,6 +307,6 @@ class TransactionAdmin(admin.ModelAdmin):
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'statement', 'short_description', 'pretty_amount', 'paid_by', 'refunded']
+    list_display = ['__str__', 'statement', 'explanation', 'pretty_amount', 'paid_by', 'refunded']
     list_filter = ('statement', 'paid_by', 'refunded')
     search_fields = ('reference', 'statement')

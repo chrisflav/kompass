@@ -266,12 +266,12 @@ msgstr "Beleg"
 
 #: finance/models.py:429 finance/models.py:436 finance/models.py:449
 msgid "Bill"
-msgstr "Quittung"
+msgstr "Ausgabe"
 
 #: finance/models.py:430 finance/models.py:437 finance/models.py:450
 #: finance/templates/admin/overview_submitted_statement.html:26
 msgid "Bills"
-msgstr "Quittungen"
+msgstr "Ausgaben"
 
 #: finance/models.py:462 finance/templates/admin/confirmed_statement.html:37
 #: finance/templates/admin/overview_submitted_statement.html:99
