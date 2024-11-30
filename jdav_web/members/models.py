@@ -1612,7 +1612,7 @@ def parse_date(value):
 def parse_datetime(value):
     tz = pytz.timezone('Europe/Berlin')
     if value == '':
-        return None
+        return timezone.now()
     return tz.localize(datetime.strptime(value, '%d.%m.%Y %H:%M:%S'))
 
 
@@ -1713,7 +1713,7 @@ def import_from_csv_waitinglist(path):
         kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
         kwargs_filtered = { k : v for k, v in kwargs.items() if k in ['prename', 'lastname', 'email', 'birth_date', 'application_text', 'application_date'] }
 
-        mem = MemberWaitingList(**kwargs_filtered)
+        mem = MemberWaitingList(gender=DIVERSE, **kwargs_filtered)
         mem.save()
 
         if kwargs['contacted_by']:
