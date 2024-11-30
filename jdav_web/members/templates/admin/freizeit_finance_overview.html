@@ -36,6 +36,7 @@ cost plan!
 <p>
 <table>
     <th>
+        <td>{% trans "Explanation" %}</td>
         <td>{% trans "Amount" %}</td>
     </th>
     {% for bill in memberlist.statement.bill_set.all %}
@@ -47,7 +48,7 @@ cost plan!
             {{bill.explanation}}
             </td>
             <td>
-            {{ bill.amount }}€.
+            {{ bill.amount }}€
             </td>
         </tr>
     {% endfor %}

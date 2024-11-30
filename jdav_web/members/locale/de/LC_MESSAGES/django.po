@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-30 03:54+0100\n"
+"POT-Creation-Date: 2024-11-30 04:20+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -942,8 +942,8 @@ msgid "Demote"
 msgstr "Zurück auf die Warteliste setzen"
 
 #: members/templates/admin/demote_to_waiter.html:46
-#: members/templates/admin/freizeit_finance_overview.html:153
-#: members/templates/admin/generate_seminar_report.html:54
+#: members/templates/admin/freizeit_finance_overview.html:154
+#: members/templates/admin/generate_seminar_report.html:58
 #: members/templates/admin/invite_as_user.html:37
 #: members/templates/admin/invite_for_group.html:52
 #: members/templates/admin/invite_selected_as_user.html:49
@@ -963,7 +963,7 @@ msgstr ""
 "kein garantierter Kostenplan.\n"
 
 #: members/templates/admin/freizeit_finance_overview.html:34
-#: members/templates/admin/freizeit_finance_overview.html:99
+#: members/templates/admin/freizeit_finance_overview.html:100
 msgid "Expenses"
 msgstr "Ausgaben"
 
@@ -972,22 +972,28 @@ msgid "You listed the following expenses:"
 msgstr "Du hast die folgenden Ausgaben angegeben:"
 
 #: members/templates/admin/freizeit_finance_overview.html:39
+#, fuzzy
+#| msgid "Evaluation"
+msgid "Explanation"
+msgstr "Wertung"
+
+#: members/templates/admin/freizeit_finance_overview.html:40
 msgid "Amount"
 msgstr "Betrag"
 
-#: members/templates/admin/freizeit_finance_overview.html:57
+#: members/templates/admin/freizeit_finance_overview.html:58
 #, python-format
 msgid "The total expected expenses are %(total_bills_theoretic)s €."
 msgstr ""
 "Insgesamt belaufen sich die geschätzten Ausgaben auf "
 "%(total_bills_theoretic)s €."
 
-#: members/templates/admin/freizeit_finance_overview.html:59
-#: members/templates/admin/freizeit_finance_overview.html:107
+#: members/templates/admin/freizeit_finance_overview.html:60
+#: members/templates/admin/freizeit_finance_overview.html:108
 msgid "Contributions by the association"
 msgstr "Sektionszuschüsse"
 
-#: members/templates/admin/freizeit_finance_overview.html:62
+#: members/templates/admin/freizeit_finance_overview.html:63
 #, python-format
 msgid ""
 "According to the contribution guidelines,\n"
@@ -996,7 +1002,7 @@ msgstr ""
 "Gemäß den Zuschussrichtlinien erhalten %(staff_count)s Jugendleiter:innen "
 "Zuschüsse. Jeweils sind das"
 
-#: members/templates/admin/freizeit_finance_overview.html:68
+#: members/templates/admin/freizeit_finance_overview.html:69
 #, python-format
 msgid ""
 "%(nights)s nights for %(price_per_night)s€ per night making a total of "
@@ -1005,7 +1011,7 @@ msgstr ""
 "%(nights)s Nächte zum Preis von %(price_per_night)s€ pro Nacht. Das ergibt "
 "eine Gesamtsumme von %(nights_per_yl)s€."
 
-#: members/templates/admin/freizeit_finance_overview.html:71
+#: members/templates/admin/freizeit_finance_overview.html:72
 #, python-format
 msgid ""
 "%(duration)s days for %(allowance_per_day)s€ per day making a total of "
@@ -1014,7 +1020,7 @@ msgstr ""
 "%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
 "Gesamtsumme von %(allowance_per_yl)s€."
 
-#: members/templates/admin/freizeit_finance_overview.html:74
+#: members/templates/admin/freizeit_finance_overview.html:75
 #, python-format
 msgid ""
 "%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
@@ -1023,7 +1029,7 @@ msgstr ""
 "%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
 "km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
 
-#: members/templates/admin/freizeit_finance_overview.html:79
+#: members/templates/admin/freizeit_finance_overview.html:80
 #, python-format
 msgid ""
 "In total these are contributions of %(total_per_yl)s€ times %(staff_count)s, "
@@ -1032,11 +1038,11 @@ msgstr ""
 "Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
 "insgesamt also %(total_staff)s€."
 
-#: members/templates/admin/freizeit_finance_overview.html:82
+#: members/templates/admin/freizeit_finance_overview.html:83
 msgid "LJP contributions"
 msgstr "LJP Zuschüsse"
 
-#: members/templates/admin/freizeit_finance_overview.html:85
+#: members/templates/admin/freizeit_finance_overview.html:86
 #, python-format
 msgid ""
 "By submitting a seminar report, you may apply for LJP contributions. In this "
@@ -1051,23 +1057,23 @@ msgstr ""
 "Gesamtausgaben erhalten. Das resultiert in einem Gesamtzuschuss von "
 "%(ljp_contributions)s€."
 
-#: members/templates/admin/freizeit_finance_overview.html:90
+#: members/templates/admin/freizeit_finance_overview.html:91
 msgid "Summary"
 msgstr "Zusammenfassung"
 
-#: members/templates/admin/freizeit_finance_overview.html:93
+#: members/templates/admin/freizeit_finance_overview.html:94
 msgid "This is the estimated cost and contribution summary:"
 msgstr "Das ist die geschätzte Kosten- und Zuschussübersicht."
 
-#: members/templates/admin/freizeit_finance_overview.html:115
+#: members/templates/admin/freizeit_finance_overview.html:116
 msgid "Potential LJP contributions"
 msgstr "Mögliche LJP Zuschüsse"
 
-#: members/templates/admin/freizeit_finance_overview.html:123
+#: members/templates/admin/freizeit_finance_overview.html:124
 msgid "Remaining costs"
 msgstr "Verbleibende Kosten"
 
-#: members/templates/admin/freizeit_finance_overview.html:132
+#: members/templates/admin/freizeit_finance_overview.html:133
 msgid ""
 "Positive remaining costs indicate that the estimated costs exceed the "
 "estimated contributions, while negative\n"
@@ -1078,7 +1084,7 @@ msgstr ""
 "geschätzten Zuschüsse übersteigen, während negative Kosten\n"
 " bedeuten, dass die geschätzten Zuschüsse die geschätzten Kosten übersteigen."
 
-#: members/templates/admin/freizeit_finance_overview.html:136
+#: members/templates/admin/freizeit_finance_overview.html:137
 msgid ""
 "Note that this cost calculation expects you to apply for LJP contributions. "
 "On the\n"
@@ -1088,11 +1094,11 @@ msgstr ""
 "beantragst. Auf der Hauptseite dieser Ausfahrt kannst du dir eine Vorlage "
 "und alle Formblätter für einen solchen Antrag erstellen lassen."
 
-#: members/templates/admin/freizeit_finance_overview.html:141
+#: members/templates/admin/freizeit_finance_overview.html:142
 msgid "Submit statement"
 msgstr "Abrechnung einreichen"
 
-#: members/templates/admin/freizeit_finance_overview.html:143
+#: members/templates/admin/freizeit_finance_overview.html:144
 msgid ""
 "Did you already complete this excursion? If yes, please check if all listed "
 "expenses are correct\n"
@@ -1105,15 +1111,15 @@ msgstr ""
 "Finanzreferat ein. Wenn du fortschreitest sind keine weiteren Änderungen an "
 "der Abrechnung mehr möglich."
 
-#: members/templates/admin/freizeit_finance_overview.html:152
+#: members/templates/admin/freizeit_finance_overview.html:153
 msgid "Submit"
 msgstr "Einreichen"
 
-#: members/templates/admin/freizeit_finance_overview.html:157
+#: members/templates/admin/freizeit_finance_overview.html:158
 msgid "Statement submitted"
 msgstr "Abrechnung eingereicht"
 
-#: members/templates/admin/freizeit_finance_overview.html:159
+#: members/templates/admin/freizeit_finance_overview.html:160
 msgid ""
 "The statement for this excursion was already submitted. The finance "
 "department is currently processing your\n"
@@ -1123,7 +1129,7 @@ msgstr ""
 "Finanzreferat bearbeitet deine Abrechnung zur Zeit und kommt "
 "schnellstmöglich auf dich zurück."
 
-#: members/templates/admin/freizeit_finance_overview.html:162
+#: members/templates/admin/freizeit_finance_overview.html:163
 msgid "Back"
 msgstr "Zurück"
 
@@ -1135,7 +1141,16 @@ msgstr ""
 "Hier kannst du einen Seminarbericht für den Landesjugendplan erstellen. Ein "
 "Bericht enthält immer einen Kopf mit den Stammdaten des Seminars."
 
-#: members/templates/admin/generate_seminar_report.html:32
+#: members/templates/admin/generate_seminar_report.html:31
+msgid ""
+"Expenses with same short description are automatically summed up and shown "
+"as one expense in the\n"
+"expense overview."
+msgstr ""
+"Ausgaben mit der gleichen Kurzbeschreibung werden automatisch aufsummiert "
+"und zu einer Ausgabe zusammengefasst."
+
+#: members/templates/admin/generate_seminar_report.html:36
 msgid ""
 "Full report: Include learning goals and a detailed, tabularized time "
 "schedule. This requires\n"
@@ -1145,7 +1160,7 @@ msgstr ""
 "Zeitplan dar. Dies benötigt, dass der Seminarbericht in der Ausfahrt "
 "ausgefüllt ist."
 
-#: members/templates/admin/generate_seminar_report.html:36
+#: members/templates/admin/generate_seminar_report.html:40
 msgid ""
 "Costs and participants only: Only show a list of participants and costs. In "
 "this case you\n"
@@ -1155,11 +1170,11 @@ msgstr ""
 "Kosten an. In diesem Fall musst du Lernziele und einen Zeitplan manuell "
 "hinzufügen."
 
-#: members/templates/admin/generate_seminar_report.html:42
+#: members/templates/admin/generate_seminar_report.html:46
 msgid "Please choose one of the listed modes."
 msgstr "Bitte wähle einen der obigen Modi."
 
-#: members/templates/admin/generate_seminar_report.html:53
+#: members/templates/admin/generate_seminar_report.html:57
 msgid "Generate"
 msgstr "Erstellen"
 

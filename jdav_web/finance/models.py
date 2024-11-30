@@ -6,6 +6,7 @@ from .rules import is_creator, not_submitted, leads_excursion
 from members.rules import is_leader, statement_not_submitted
 
 from django.db import models
+from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
 from members.models import Member, Freizeit, OEFFENTLICHE_ANREISE, MUSKELKRAFT_ANREISE
 from django.conf import settings
@@ -348,6 +349,11 @@ class Statement(CommonModel):
                 'total_staff': self.total_staff,
             }
         return dict(context, **excursion_context)
+
+    def grouped_bills(self):
+        return self.bill_set.values('short_description')\
+                            .order_by('short_description')\
+                            .annotate(amount=Sum('amount'))
 
 
 class StatementUnSubmittedManager(models.Manager):
