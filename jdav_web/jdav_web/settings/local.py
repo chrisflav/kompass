@@ -60,7 +60,7 @@ TEST_MAIL = "post@flavigny.de"
 
 REGISTRATION_FORM_DOWNLOAD_LINK = 'https://nc.cloud-jdav-hd.de'
 
-DOMAIN = 'jdav-hd.merten.dev'
+DOMAIN = os.environ.get('DOMAIN', 'example.com')
 
 STARTPAGE_REDIRECT_URL = 'https://jdav-hd.de'
 ROOT_SECTION = 'jdav_heidelberg'
