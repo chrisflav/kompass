@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from decimal import Decimal, ROUND_HALF_DOWN
 
 
 def file_size_validator(max_upload_size):
@@ -48,3 +49,14 @@ class RestrictedFileField(models.FileField):
         except AttributeError as e:
             print(e)
         return data
+
+
+def cvt_to_decimal(f):
+    return Decimal(f).quantize(Decimal('.01'), rounding=ROUND_HALF_DOWN)
+
+
+def get_member(request):
+    if not hasattr(request.user, 'member'):
+        return None
+    else:
+        return request.user.member

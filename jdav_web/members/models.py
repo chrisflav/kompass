@@ -24,6 +24,7 @@ from .rules import may_view, may_change, may_delete, is_own_training, is_oneself
 import rules
 from contrib.models import CommonModel
 from contrib.rules import memberize_user, has_global_perm
+from utils import cvt_to_decimal
 
 from dateutil.relativedelta import relativedelta
 
@@ -1022,6 +1023,19 @@ class Freizeit(CommonModel):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         return len(ps - jls)
+
+    @property
+    def potential_ljp_contributions(self):
+        return cvt_to_decimal(min(25 * self.participant_count * self.duration,
+                                  0.9 * float(self.statement.total_bills_theoretic) + float(self.statement.total_staff)))
+
+    @property
+    def total_relative_costs(self):
+        if not self.statement:
+            return 0
+        total_costs = self.statement.total_bills_theoretic
+        total_contributions = self.statement.total_staff + self.potential_ljp_contributions
+        return total_costs - total_contributions
 
     @property
     def time_period_str(self):

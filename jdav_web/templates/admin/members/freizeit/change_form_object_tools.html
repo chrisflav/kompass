@@ -31,9 +31,12 @@
     </form>
 </li>
 
-{% if original.statement and not original.statement.submitted %}
+{% if original.statement %}
 <li>
-<a class="historylink" href="{% url 'admin:finance_statementunsubmitted_submit' original.statement.pk %}">{% trans 'Submit statement' %}</a>
+<form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}">
+    {% csrf_token %}
+    <input type="submit" name="finance_overview" value="{% trans 'Finance overview' %}">
+</form>
 </li>
 {% endif %}
 {{block.super}}

@@ -41,6 +41,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
 from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
+from utils import get_member
 #from easy_select2 import apply_select2
 
 
@@ -924,6 +925,25 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         return fill_pdf_form(title + "_SJR_Antrag", 'members/sjr_template.pdf', context, attachments)
     sjr_application.short_description = _('Generate SJR application')
 
+    def finance_overview(self, request, memberlist):
+        if not memberlist.statement:
+            messages.error(request, _("No statement found. Please add a statement and then retry."))
+        if "apply" in request.POST:
+            memberlist.statement.submit(get_member(request))
+            messages.success(request,
+                             _("Successfully submited statement. The finance department will notify you as soon as possible."))
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(memberlist.pk,)))
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Finance overview'),
+                       opts=self.opts,
+                       memberlist=memberlist,
+                       object=memberlist,
+                       participant_count=memberlist.participant_count,
+                       ljp_contributions=memberlist.potential_ljp_contributions,
+                       total_relative_costs=memberlist.total_relative_costs,
+                       **memberlist.statement.template_context())
+        return render(request, 'admin/freizeit_finance_overview.html', context=context)
+
     def get_urls(self):
         urls = super().get_urls()
 
@@ -952,6 +972,8 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             return self.notes_list(request, Freizeit.objects.get(pk=object_id))
         if "crisis_intervention_list" in request.POST:
             return self.crisis_intervention_list(request, Freizeit.objects.get(pk=object_id))
+        if "finance_overview" in request.POST:
+            return self.finance_overview(request, Freizeit.objects.get(pk=object_id))
         return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
                                             args=(object_id,)))
 

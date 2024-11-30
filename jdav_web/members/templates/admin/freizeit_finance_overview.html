@@ -1,0 +1,166 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
+&rsaquo; {% translate 'Finance overview' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h2>{% trans 'Excursion' %}: {{ memberlist.name }}</h2>
+
+<p>
+{% blocktrans %}
+Here you see an estimate on the expected costs and contributions by the association. This is not a guaranteed
+cost plan!
+{% endblocktrans %}
+</p>
+<h3>{% translate "Expenses" %}</h3>
+{% blocktrans %}You listed the following expenses:{% endblocktrans %}
+<p>
+<table>
+    <th>
+        <td>{% trans "Amount" %}</td>
+    </th>
+    {% for bill in memberlist.statement.bill_set.all %}
+        <tr>
+            <td>
+            {{bill.short_description}}
+            </td>
+            <td>
+            {{bill.explanation}}
+            </td>
+            <td>
+            {{ bill.amount }}€.
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+</p>
+
+<p>{% blocktrans %}The total expected expenses are {{ total_bills_theoretic }} €.{% endblocktrans %}</p>
+
+<h3>{% trans "Contributions by the association" %}</h3>
+
+<p>
+{% blocktrans %}According to the contribution guidelines,
+{{ staff_count }} youth leader(s) receive contributions. Each of them receives{% endblocktrans %}
+</p>
+<p>
+<ul>
+    <li>
+        {% blocktrans %}{{ nights }} nights for {{ price_per_night }}€ per night making a total of {{ nights_per_yl }}€.{% endblocktrans %}
+    </li>
+    <li>
+        {% blocktrans %}{{ duration }} days for {{ allowance_per_day }}€ per day making a total of {{ allowance_per_yl }}€.{% endblocktrans %}
+    </li>
+    <li>
+        {% blocktrans %}{{ kilometers_traveled }} km by {{ means_of_transport }} ({{euro_per_km}} € / km) making a total of {{ transportation_per_yl }}€.{% endblocktrans %}
+    </li>
+</ul>
+</p>
+<p>
+{% blocktrans %}In total these are contributions of {{ total_per_yl }}€ times {{ staff_count }}, giving {{ total_staff }}€.{% endblocktrans %}
+</p>
+
+<h3>{% trans "LJP contributions" %}</h3>
+
+<p>
+{% blocktrans %}By submitting a seminar report, you may apply for LJP contributions. In this case,
+you may obtain up to 25€ times {{ duration }} days for {{ participant_count }} participants but only up to
+90% of the total costs. This results in a total of {{ ljp_contributions }}€.{% endblocktrans %}
+</p>
+
+<h3>{% trans "Summary" %}</h3>
+
+<p>
+{% blocktrans %}This is the estimated cost and contribution summary:{% endblocktrans %}
+</p>
+
+<table>
+    <tr>
+        <td>
+            {% trans "Expenses" %}
+        </td>
+        <td>
+            {{ total_bills_theoretic }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Contributions by the association" %}
+        </td>
+        <td>
+            -{{ total_staff }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Potential LJP contributions" %}
+        </td>
+        <td>
+            -{{ ljp_contributions }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Remaining costs" %}
+        </td>
+        <td>
+            {{ total_relative_costs }}€
+        </td>
+    </tr>
+</table>
+<br>
+<p>
+{% blocktrans %}Positive remaining costs indicate that the estimated costs exceed the estimated contributions, while negative
+remaining costs indicate that the estimated contributions exceed the estimated costs.{% endblocktrans %}
+</p>
+<p>
+{% blocktrans %}Note that this cost calculation expects you to apply for LJP contributions. On the
+excursions main page, you can generate a template for a seminar report.{% endblocktrans %}
+</p>
+
+{% if not memberlist.statement.submitted %}
+<h3>{% trans "Submit statement" %}</h3>
+<p>
+{% blocktrans %}Did you already complete this excursion? If yes, please check if all listed expenses are correct
+and then submit the statement for processing by the finance department. If you proceed,
+no further changes to the statement are possible.{% endblocktrans %}
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="finance_overview">
+    <input type="hidden" name="finance_overview">
+    <input class="default" style="color: $default-link-color" type="submit" name="apply" value="{% translate 'Submit' %}">
+    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+</form>
+{% else %}
+<br>
+<h3>{% trans "Statement submitted" %}</h3>
+<p>
+{% blocktrans %}The statement for this excursion was already submitted. The finance department is currently processing your
+data and you will receive a response shortly.{% endblocktrans %}
+</p>
+<a href="#" class="button cancel-link">{% translate "Back" %}</a>
+
+{% endif %}
+
+{% endblock %}

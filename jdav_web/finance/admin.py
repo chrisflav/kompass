@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.conf import settings
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
+from utils import get_member
 
 from rules.contrib.admin import ObjectPermissionsModelAdmin
 
@@ -218,23 +219,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                        opts=self.opts,
                        statement=statement,
                        transaction_issues=statement.transaction_issues,
-                       total_bills=statement.total_bills,
-                       total=statement.total)
-        if statement.excursion is not None:
-            context = dict(context,
-                           nights=statement.excursion.night_count,
-                           price_per_night=statement.real_night_cost,
-                           duration=statement.excursion.duration,
-                           staff_count=statement.real_staff_count,
-                           kilometers_traveled=statement.excursion.kilometers_traveled,
-                           means_of_transport=statement.excursion.get_tour_approach(),
-                           euro_per_km=statement.euro_per_km,
-                           allowance_per_day=settings.ALLOWANCE_PER_DAY,
-                           nights_per_yl=statement.nights_per_yl,
-                           allowance_per_yl=statement.allowance_per_yl,
-                           transportation_per_yl=statement.transportation_per_yl,
-                           total_per_yl=statement.total_per_yl,
-                           total_staff=statement.total_staff)
+                       **statement.template_context())
 
         return render(request, 'admin/overview_submitted_statement.html', context=context)
 
@@ -325,10 +310,3 @@ class BillAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'statement', 'short_description', 'pretty_amount', 'paid_by', 'refunded']
     list_filter = ('statement', 'paid_by', 'refunded')
     search_fields = ('reference', 'statement')
-
-
-def get_member(request):
-    if not hasattr(request.user, 'member'):
-        return None
-    else:
-        return request.user.member
