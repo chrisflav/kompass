@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-30 03:54+0100\n"
+"POT-Creation-Date: 2024-11-30 15:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -132,165 +132,165 @@ msgstr "Bestätigung zurücknehmen"
 msgid "Finance"
 msgstr "Finanzen"
 
-#: finance/models.py:20
+#: finance/models.py:21
 msgid "Name"
 msgstr "Name"
 
-#: finance/models.py:26 finance/models.py:466 finance/models.py:490
+#: finance/models.py:27 finance/models.py:472 finance/models.py:496
 #: finance/templates/admin/confirmed_statement.html:38
 #: finance/templates/admin/overview_submitted_statement.html:100
 msgid "Ledger"
 msgstr "Geldtopf"
 
-#: finance/models.py:27
+#: finance/models.py:28
 msgid "Ledgers"
 msgstr "Geldtöpfe"
 
-#: finance/models.py:47 finance/models.py:409 finance/models.py:489
+#: finance/models.py:48 finance/models.py:415 finance/models.py:495
 msgid "Short description"
 msgstr "Kurzbeschreibung"
 
-#: finance/models.py:50 finance/models.py:410
+#: finance/models.py:51 finance/models.py:416
 msgid "Explanation"
 msgstr "Erklärung"
 
-#: finance/models.py:52
+#: finance/models.py:53
 msgid "Associated excursion"
 msgstr "Zugehörige Ausfahrt"
 
-#: finance/models.py:57
+#: finance/models.py:58
 msgid "Price per night"
 msgstr "Preis pro Nacht"
 
-#: finance/models.py:59
+#: finance/models.py:60
 msgid "Submitted"
 msgstr "Eingericht"
 
-#: finance/models.py:60
+#: finance/models.py:61
 msgid "Submitted on"
 msgstr "Eingereicht am"
 
-#: finance/models.py:61
+#: finance/models.py:62
 msgid "Confirmed"
 msgstr "Abgewickelt"
 
-#: finance/models.py:62 finance/models.py:473
+#: finance/models.py:63 finance/models.py:479
 msgid "Paid on"
 msgstr "Bezahlt am"
 
-#: finance/models.py:64
+#: finance/models.py:65
 msgid "Created by"
 msgstr "Erstellt von"
 
-#: finance/models.py:69
+#: finance/models.py:70
 msgid "Submitted by"
 msgstr "Eingereicht bei"
 
-#: finance/models.py:74 finance/models.py:474
+#: finance/models.py:75 finance/models.py:480
 msgid "Authorized by"
 msgstr "Autorisiert von"
 
-#: finance/models.py:81 finance/models.py:408 finance/models.py:469
+#: finance/models.py:82 finance/models.py:414 finance/models.py:475
 msgid "Statement"
 msgstr "Abrechnung"
 
-#: finance/models.py:82
+#: finance/models.py:83
 msgid "Statements"
 msgstr "Abrechnungen"
 
-#: finance/models.py:97
+#: finance/models.py:98
 #, python-format
 msgid "Statement: %(excursion)s"
 msgstr "Abrechnung: %(excursion)s"
 
-#: finance/models.py:149
+#: finance/models.py:150
 msgid "Ready to confirm"
 msgstr "Bereit zur Abwicklung"
 
-#: finance/models.py:193
+#: finance/models.py:194
 #, python-format
 msgid "Compensation for %(excu)s"
 msgstr "Entschädigung für %(excu)s"
 
-#: finance/models.py:326
+#: finance/models.py:327
 #: finance/templates/admin/overview_submitted_statement.html:78
 msgid "Total"
 msgstr "Gesamtbetrag"
 
-#: finance/models.py:363
+#: finance/models.py:369
 msgid "Statement in preparation"
 msgstr "Abrechnung in Vorbereitung"
 
-#: finance/models.py:364
+#: finance/models.py:370
 msgid "Statements in preparation"
 msgstr "Abrechnungen in Vorbereitung"
 
-#: finance/models.py:383
+#: finance/models.py:389
 msgid "Submitted statement"
 msgstr "Eingereichte Abrechnung"
 
-#: finance/models.py:384
+#: finance/models.py:390
 msgid "Submitted statements"
 msgstr "Eingereichte Abrechnungen"
 
-#: finance/models.py:400
+#: finance/models.py:406
 msgid "Paid statement"
 msgstr "Bezahlte Abrechnung"
 
-#: finance/models.py:401
+#: finance/models.py:407
 msgid "Paid statements"
 msgstr "Bezahlte Abrechnungen"
 
-#: finance/models.py:412 finance/models.py:426 finance/models.py:463
+#: finance/models.py:418 finance/models.py:432 finance/models.py:469
 #: finance/templates/admin/confirmed_statement.html:36
 #: finance/templates/admin/overview_submitted_statement.html:31
 #: finance/templates/admin/overview_submitted_statement.html:98
 msgid "Amount"
 msgstr "Betrag"
 
-#: finance/models.py:413
+#: finance/models.py:419
 msgid "Paid by"
 msgstr "Bezahlt von"
 
-#: finance/models.py:415
+#: finance/models.py:421
 msgid "Covered"
 msgstr "Übernommen"
 
-#: finance/models.py:416
+#: finance/models.py:422
 msgid "Refunded"
 msgstr "Ausgezahlt"
 
-#: finance/models.py:418
+#: finance/models.py:424
 msgid "Proof"
 msgstr "Beleg"
 
-#: finance/models.py:429 finance/models.py:436 finance/models.py:449
+#: finance/models.py:435 finance/models.py:442 finance/models.py:455
 msgid "Bill"
 msgstr "Ausgabe"
 
-#: finance/models.py:430 finance/models.py:437 finance/models.py:450
+#: finance/models.py:436 finance/models.py:443 finance/models.py:456
 #: finance/templates/admin/overview_submitted_statement.html:26
 msgid "Bills"
 msgstr "Ausgaben"
 
-#: finance/models.py:462 finance/templates/admin/confirmed_statement.html:37
+#: finance/models.py:468 finance/templates/admin/confirmed_statement.html:37
 #: finance/templates/admin/overview_submitted_statement.html:99
 msgid "Reference"
 msgstr "Verwendungszweck"
 
-#: finance/models.py:464
+#: finance/models.py:470
 msgid "Recipient"
 msgstr "Empfänger"
 
-#: finance/models.py:472
+#: finance/models.py:478
 msgid "Paid"
 msgstr "Bezahlt"
 
-#: finance/models.py:484
+#: finance/models.py:490
 msgid "Transaction"
 msgstr "Überweisung"
 
-#: finance/models.py:485
+#: finance/models.py:491
 #: finance/templates/admin/overview_submitted_statement.html:84
 msgid "Transactions"
 msgstr "Überweisungen"

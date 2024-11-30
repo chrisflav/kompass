@@ -1025,8 +1025,20 @@ class Freizeit(CommonModel):
         return len(ps - jls)
 
     @property
+    def ljp_participant_count(self):
+        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
+        jls = set(self.jugendleiter.distinct())
+        count = len(ps.union(jls))
+        return count
+        #return count if count >= 5 else 0
+
+    @property
+    def maximal_ljp_contributions(self):
+        return cvt_to_decimal(settings.LJP_CONTRIBUTION_PER_DAY * self.ljp_participant_count * self.duration)
+
+    @property
     def potential_ljp_contributions(self):
-        return cvt_to_decimal(min(25 * self.participant_count * self.duration,
+        return cvt_to_decimal(min(self.maximal_ljp_contributions,
                                   0.9 * float(self.statement.total_bills_theoretic) + float(self.statement.total_staff)))
 
     @property
@@ -1111,6 +1123,60 @@ class Freizeit(CommonModel):
             base['Anschrift' + suffix] = m.address
             base['Alter' + suffix] = str(m.age)
             base['Status' + suffix] = str(2)
+        return base
+
+    def v32_fields(self):
+        title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
+        base = {
+            # AntragstellerIn
+            'Textfeld 2':  settings.ADDRESS,
+            # Dachorganisation
+            'Textfeld 3':  settings.V32_HEAD_ORGANISATION,
+            # Datum der Maßnahme am/vom
+            'Textfeld 20': self.date.strftime('%d.%m.%Y'),
+            # bis
+            'Textfeld 28': self.end.strftime('%d.%m.%Y'),
+            # Thema der Maßnahme
+            'Textfeld 22': title,
+            # IBAN
+            'Textfeld 36': settings.SEKTION_IBAN,
+            # Kontoinhaber
+            'Textfeld 37': settings.SEKTION_ACCOUNT_HOLDER,
+            # Zahl der zuwendungsfähigen Teilnehemr
+            'Textfeld 43': str(self.ljp_participant_count),
+            # Teilnahmetage
+            'Textfeld 46': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            # Euro Tagessatz
+            'Textfeld 48': str(settings.LJP_CONTRIBUTION_PER_DAY),
+            # Erbetener Zuschuss
+            'Textfeld 50': str(self.maximal_ljp_contributions).replace('.', ','),
+            # Stunden Bildungsprogramm
+            'Textfeld 52': '??',
+            # Tage
+            'Textfeld 53': str(round(self.duration, 1)).replace('.', ','),
+            # Haushaltsjahr
+            'Textfeld 54': str(datetime.now().year),
+            # nicht anrechenbare Teilnahmetage
+            'Textfeld 55': '0',
+            # Gesamt-Teilnahmetage
+            'Textfeld 56': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            # Ort, Datum
+            'DatumOrt 2': 'Heidelberg, ' + datetime.now().strftime('%d.%m.%Y')
+        }
+        if self.statement:
+            possible_contributions = self.maximal_ljp_contributions
+            total_contributions = min(self.statement.total_theoretic, possible_contributions)
+            self_participation = max(cvt_to_decimal(0), self.statement.total_theoretic - possible_contributions)
+            # Gesamtkosten von
+            base['Textfeld 62'] = str(self.statement.total_theoretic).replace('.', ',')
+            # Eigenmittel und Teilnahmebeiträge
+            base['Textfeld 59'] = str(self_participation).replace('.', ',')
+            # Drittmittel
+            base['Textfeld 60'] = '0,00'
+            # Erbetener Zuschuss
+            base['Textfeld 61'] = str(total_contributions).replace('.', ',')
+            # Ergibt wieder
+            base['Textfeld 58'] = base['Textfeld 62']
         return base
 
     @staticmethod

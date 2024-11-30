@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-30 03:54+0100\n"
+"POT-Creation-Date: 2024-11-30 15:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -258,17 +258,15 @@ msgstr "SJR Antrag erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:23
 msgid "Generate overview"
-msgstr "Übersicht erstellen"
+msgstr "Hinweise für Jugendleiter:innen erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:30
 msgid "Generate seminar report"
-msgstr "Seminarbericht erstellen"
+msgstr "Landesjugendplan Antrag erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:38
-#, fuzzy
-#| msgid "Generate overview"
 msgid "Finance overview"
-msgstr "Übersicht erstellen"
+msgstr "Kostenübersicht"
 
 #: templates/admin/members/member/change_form_object_tools.html:8
 msgid "Invite as user"

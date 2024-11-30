@@ -23,10 +23,10 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
-from django.forms import Textarea, RadioSelect, TypedChoiceField
+from django.forms import Textarea, RadioSelect, TypedChoiceField, CheckboxInput
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied
-from .pdf import render_tex, fill_pdf_form
+from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 
@@ -825,6 +825,9 @@ class GenerateSeminarReportForm(forms.Form):
     modes = (('full', _('Full report')),
              ('basic', _('Costs and participants only')))
     mode = forms.ChoiceField(choices=modes, label=_('Mode'))
+    prepend_v32 = forms.BooleanField(label=_('Prepend V32'), initial=True,
+                                     widget=CheckboxInput(attrs={'style': 'display: inherit'}),
+                                     required=False)
 
 
 class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
@@ -904,12 +907,21 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
                 messages.error(request, _('Please select a mode.'))
                 return self.render_seminar_report_options(request, memberlist, form)
             mode = form.cleaned_data['mode']
+            prepend_v32 = form.cleaned_data['prepend_v32']
             if mode == 'full' and not hasattr(memberlist, 'ljpproposal'):
                 messages.error(request, _('Full mode is only available, if the seminar report section is filled out.'))
                 return self.render_seminar_report_options(request, memberlist, form)
-            context = dict(memberlist=memberlist, settings=settings, mode=mode)
             title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
-            return render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context)
+            context = dict(memberlist=memberlist, settings=settings, mode=mode)
+            fp = render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context, save_only=True)
+            if prepend_v32:
+                context = memberlist.v32_fields()
+                v32_fp = fill_pdf_form(title + "_LJP_V32",
+                                       'members/V32-1_Themenorientierte_Bildungsmassnahmen.pdf',
+                                       context,
+                                       save_only=True)
+                return merge_pdfs(title + 'LJP_Antrag', [v32_fp, fp])
+            return serve_pdf(fp)
         return self.render_seminar_report_options(request, memberlist, GenerateSeminarReportForm())
     seminar_report.short_description = _('Generate seminar report')
 

@@ -8,9 +8,22 @@ SEKTION_TELEFAX = "06221 437338"
 SEKTION_CONTACT_MAIL = "geschaeftsstelle@alpenverein-heidelberg.de"
 SEKTION_BOARD_MAIL = "vorstand@alpenverein-heidelberg.de"
 SEKTION_CRISIS_INTERVENTION_MAIL = "krisenmanagement@alpenverein-heidelberg.de"
+SEKTION_IBAN = "DE22 6729 0000 0000 1019 40"
+SEKTION_ACCOUNT_HOLDER = "Deutscher Alpenverein Sektion Heidelberg 1869"
 
 RESPONSIBLE_MAIL = "jugendreferat@jdav-hd.de"
 DIGITAL_MAIL = "digitales@jdav-hd.de"
+
+# LJP
+
+V32_HEAD_ORGANISATION = """JDAV Baden-Württemberg
+Rotebühlstraße 59A
+70178 Stuttgart
+
+info@jdav-bw.de
+0711 - 49 09 46 00"""
+
+LJP_CONTRIBUTION_PER_DAY = 25
 
 # echo
 

@@ -43,12 +43,14 @@ have to add learning goals and a time schedule manually.{% endblocktrans %}
 </ul>
 
 <br>
-<p>{% blocktrans %}Please choose one of the listed modes.{% endblocktrans %}</p>
+<p>{% blocktrans %}You may also choose to include the V32 attachment.{% endblocktrans %}</p>
 
 <form action="" method="post">
     {% csrf_token %}
     <p>
-    {{form}}
+    <table>
+    {{ form }}
+    </table>
     </p>
     <br>
     <input type="hidden" name="action" value="seminar_report">

@@ -20,14 +20,14 @@
 <li>
     <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}">
         {% csrf_token %}
-        <input type="submit" name="notes_list" value="{% trans 'Generate overview' %}">
+        <input type="submit" name="seminar_report" value="{% trans 'Generate seminar report' %}">
     </form>
 </li>
 
 <li>
     <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}">
         {% csrf_token %}
-        <input type="submit" name="seminar_report" value="{% trans 'Generate seminar report' %}">
+        <input type="submit" name="notes_list" value="{% trans 'Generate overview' %}">
     </form>
 </li>
 

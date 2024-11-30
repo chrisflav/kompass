@@ -31,7 +31,17 @@ def media_dir():
     return os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists")
 
 
-def render_tex(name, template_path, context):
+def serve_pdf(filename_pdf):
+    # provide the user with the resulting pdf file
+    with open(media_path(filename_pdf), 'rb') as pdf:
+        response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
+        response['Content-Type'] = 'application/pdf'
+        response['Content-Disposition'] = 'attachment; filename='+filename_pdf
+
+    return response
+
+
+def render_tex(name, template_path, context, save_only=False):
     filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
     filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
     # drop umlauts, accents etc.
@@ -64,16 +74,12 @@ def render_tex(name, template_path, context):
 
     os.chdir(oldwd)
 
-    # provide the user with the resulting pdf file
-    with open(media_path(filename_pdf), 'rb') as pdf:
-        response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
-        response['Content-Type'] = 'application/pdf'
-        response['Content-Disposition'] = 'attachment; filename='+filename_pdf
-
-    return response
+    if save_only:
+        return filename_pdf
+    return serve_pdf(filename_pdf)
 
 
-def fill_pdf_form(name, template_path, fields, attachments=[]):
+def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
     filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
     filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
     # drop umlauts, accents etc.
@@ -104,10 +110,22 @@ def fill_pdf_form(name, template_path, fields, attachments=[]):
     with open(media_path(filename_pdf), 'wb') as output_stream:
         writer.write(output_stream)
 
-    # provide the user with the resulting pdf file
-    with open(media_path(filename_pdf), 'rb') as pdf:
-        response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
-        response['Content-Type'] = 'application/pdf'
-        response['Content-Disposition'] = 'attachment; filename='+filename_pdf
+    if save_only:
+        return filename_pdf
+    return serve_pdf(filename_pdf)
 
-    return response
+
+def merge_pdfs(name, filenames, save_only=False):
+    merger = PdfWriter()
+
+    for pdf in filenames:
+        merger.append(media_path(pdf))
+
+    filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
+    filename_pdf = filename + ".pdf"
+    merger.write(media_path(filename_pdf))
+    merger.close()
+
+    if save_only:
+        return filename_pdf
+    return serve_pdf(filename_pdf)
