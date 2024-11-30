@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% translate 'Demote to waiter' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h2>{% translate "Demote to waiter" %}</h2>
+<p>
+{% trans "Do you want to demote the following unconfirmed registrations to waiters?" %}
+</p>
+<p>
+<ul>
+    {% for member in queryset %}
+    <li>
+    <a href="{% url 'admin:members_memberunconfirmedproxy_change' 3 %}">{{ member }}</a>
+    </li>
+    {% endfor %}
+</ul>
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    {% if form %}
+    {{form}}
+    {% endif %}
+    <input type="hidden" name="action" value="demote_to_waiter_action">
+    <input class="default" style="color: $default-link-color" type="submit" name="apply" value="{% translate 'Demote' %}">
+    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+</form>
+{% endblock %}

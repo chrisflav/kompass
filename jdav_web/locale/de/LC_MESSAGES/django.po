@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-27 23:16+0100\n"
+"POT-Creation-Date: 2024-11-30 01:22+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -271,6 +271,10 @@ msgstr "Abrechnung einreichen"
 #: templates/admin/members/member/change_form_object_tools.html:8
 msgid "Invite as user"
 msgstr "Als Kompassbenutzer:in einladen"
+
+#: templates/admin/members/memberunconfirmedproxy/change_form_object_tools.html:8
+msgid "Demote to waiter"
+msgstr "Zurück auf die Warteliste setzen"
 
 #: templates/admin/members/memberwaitinglist/change_form_object_tools.html:8
 #: templates/admin/members/memberwaitinglist/submit_line.html:9

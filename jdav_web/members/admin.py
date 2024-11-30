@@ -374,7 +374,11 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     name_text_or_link.admin_order_field = 'lastname'
 
 
-class MemberUnconfirmedAdmin(admin.ModelAdmin):
+class DemoteToWaiterForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+
+
+class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
     fieldsets = [
         (None,
          {
@@ -422,7 +426,7 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
     readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail',
                        'good_conduct_certificate_valid']
-    actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter']
+    actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter_action']
     inlines = [EmergencyContactInline]
     change_form_template = "members/change_member_unconfirmed.html"
 
@@ -464,22 +468,62 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
             messages.error(request, _("Failed to confirm some registrations because of unconfirmed email addresses."))
     confirm.short_description = _('Confirm selected registrations')
 
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = [
+            path(
+                "<path:object_id>/demote/",
+                wrap(self.demote_to_waiter_view),
+                name="%s_%s_demote" % (self.opts.app_label, self.opts.model_name),
+            ),
+        ]
+        return custom_urls + urls
+
+    def demote_to_waiter_action(self, request, queryset):
+        return self.demote_to_waiter_view(request, queryset)
+    demote_to_waiter_action.short_description = _('Demote selected registrations to waiters.')
+
+    def demote_to_waiter_view(self, request, object_id):
+        if type(object_id) == str:
+            member = MemberUnconfirmedProxy.objects.get(pk=object_id)
+            queryset = [member]
+            form = None
+        else:
+            queryset = object_id
+            form = DemoteToWaiterForm(initial={'_selected_action': queryset.values_list('id', flat=True)})
+
+        if "apply" in request.POST:
+            self.demote_to_waiter(request, queryset)
+            return HttpResponseRedirect(reverse('admin:members_memberunconfirmedproxy_changelist'))
+
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Demote member to waiter'),
+                       opts=self.opts,
+                       queryset=queryset,
+                       form=form)
+        return render(request, 'admin/demote_to_waiter.html', context=context)
+
     def demote_to_waiter(self, request, queryset):
         for member in queryset:
-            #mem_as_dict = member.__dict__
-            #del mem_as_dict['_state']
-            #del mem_as_dict['id']
             waiter = MemberWaitingList(prename=member.prename,
                                        lastname=member.lastname,
                                        email=member.email,
                                        birth_date=member.birth_date,
+                                       gender=member.gender,
                                        comments=member.comments,
                                        confirmed_mail=member.confirmed_mail,
                                        confirm_mail_key=member.confirm_mail_key)
             waiter.save()
             member.delete()
             messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': waiter.name})
-    demote_to_waiter.short_description = _('Demote selected registrations to waiters.')
 
     def response_change(self, request, member):
         if "_confirm" in request.POST:
