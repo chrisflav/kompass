@@ -63,6 +63,6 @@ REGISTRATION_FORM_DOWNLOAD_LINK = 'https://nc.cloud-jdav-hd.de'
 DOMAIN = os.environ.get('DOMAIN', 'example.com')
 
 STARTPAGE_REDIRECT_URL = 'https://jdav-hd.de'
-ROOT_SECTION = 'jdav_heidelberg'
+ROOT_SECTION = os.environ.get('ROOT_SECTION', 'wir')
 RECENT_SECTION = 'aktuelles'
 REPORTS_SECTION = 'berichte'
