@@ -1177,7 +1177,7 @@ class Freizeit(CommonModel):
             # Ort, Datum
             'DatumOrt 2': 'Heidelberg, ' + datetime.now().strftime('%d.%m.%Y')
         }
-        if self.statement:
+        if hasattr(self, 'statement'):
             possible_contributions = self.maximal_ljp_contributions
             total_contributions = min(self.statement.total_theoretic, possible_contributions)
             self_participation = max(cvt_to_decimal(0), self.statement.total_theoretic - possible_contributions)
