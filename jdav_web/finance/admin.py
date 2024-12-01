@@ -119,6 +119,16 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
     inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
     def has_add_permission(self, request, obj=None):
+        # Submitted statements should not be added directly, but instead be created
+        # as unsubmitted statements and then submitted.
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.has_perm('finance.process_statementsubmitted')
+
+    def has_delete_permission(self, request, obj=None):
+        # Submitted statements should not be deleted. Instead they can be rejected
+        # and then deleted as unsubmitted statements.
         return False
 
     def get_readonly_fields(self, request, obj=None):
@@ -245,6 +255,10 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
         # To preserve integrity, no one is allowed to change confirmed statements
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to delete confirmed statements
+        return False
+
     def get_urls(self):
         urls = super().get_urls()
 
@@ -290,6 +304,9 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
+    """The transaction admin site. This is only used to display transactions. All editing
+    is disabled on this site. All transactions should be changed on the respective statement
+    at the correct stage of the approval chain."""
     list_display = ['member', 'ledger', 'amount', 'reference', 'statement', 'confirmed',
             'confirmed_date', 'confirmed_by']
     list_filter = ('ledger', 'member', 'statement', 'confirmed')
@@ -300,6 +317,18 @@ class TransactionAdmin(admin.ModelAdmin):
         if obj is not None and obj.confirmed:
             return self.fields
         return super(TransactionAdmin, self).get_readonly_fields(request, obj)
+
+    def has_add_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to add transactions
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to change transactions
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to delete transactions
+        return False
 
 
 @admin.register(Bill)
