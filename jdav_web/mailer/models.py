@@ -28,6 +28,11 @@ class EmailAddress(models.Model):
     to_groups = models.ManyToManyField('members.Group',
                                        verbose_name=_('Forward to group'),
                                        blank=True)
+    allowed_senders = models.ManyToManyField('members.Group',
+                                             verbose_name=_('Allowed sender'),
+                                             help_text=_('Only forward e-mails of members of selected groups. Leave empty to allow all senders.'),
+                                             blank=True,
+                                             related_name='allowed_sender_on_emailaddresses')
 
     @property
     def email(self):
