@@ -28,6 +28,9 @@ class EmailAddress(models.Model):
     to_groups = models.ManyToManyField('members.Group',
                                        verbose_name=_('Forward to group'),
                                        blank=True)
+    internal_only = models.BooleanField(verbose_name=_('Restrict to internal email addresses'),
+                                        help_text=_('Only allow forwarding to this e-mail address from the internal domain.'),
+                                        default=False)
     allowed_senders = models.ManyToManyField('members.Group',
                                              verbose_name=_('Allowed sender'),
                                              help_text=_('Only forward e-mails of members of selected groups. Leave empty to allow all senders.'),

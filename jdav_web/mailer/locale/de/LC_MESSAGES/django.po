@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-01 16:56+0100\n"
+"POT-Creation-Date: 2024-12-01 18:49+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,19 +18,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: mailer/admin.py:68
+#: mailer/admin.py:69
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: mailer/admin.py:98
+#: mailer/admin.py:99
 msgid "Failed to send message"
 msgstr "Fehler beim Senden der Email"
 
-#: mailer/admin.py:100
+#: mailer/admin.py:101
 msgid "Failed to send some messages"
 msgstr "Fehler beim Senden der Emails"
 
-#: mailer/admin.py:102
+#: mailer/admin.py:103
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
@@ -59,11 +59,21 @@ msgstr "Weiterleitung an Teilnehmer*innen"
 msgid "Forward to group"
 msgstr "Weiterleitung an Gruppe"
 
+#: mailer/models.py:31
+msgid "Restrict to internal email addresses"
+msgstr "Weiterleitung nur von internen E-Mail Adressen erlaubt"
+
 #: mailer/models.py:32
+msgid "Only allow forwarding to this e-mail address from the internal domain."
+msgstr ""
+"Leite nur E-Mails weiter, die von ...@alpenverein-heidelberg.de verschickt "
+"wurden. "
+
+#: mailer/models.py:35
 msgid "Allowed sender"
 msgstr "Erlaubte Absender:innen"
 
-#: mailer/models.py:33
+#: mailer/models.py:36
 msgid ""
 "Only forward e-mails of members of selected groups. Leave empty to allow all "
 "senders."
@@ -71,100 +81,100 @@ msgstr ""
 "Leite nur E-Mails von Mitgliedern dieser Gruppen weiter. Lasse dieses Feld "
 "frei, um alle Absender*innen zu erlauben."
 
-#: mailer/models.py:51
+#: mailer/models.py:54
 msgid "email address"
 msgstr "Email-Adresse"
 
-#: mailer/models.py:52
+#: mailer/models.py:55
 msgid "email addresses"
 msgstr "Email-Adressen"
 
-#: mailer/models.py:65
+#: mailer/models.py:68
 msgid "Either a group or at least one member is required as forward recipient."
 msgstr ""
 "Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
 "Empfänger*in ausgewählt werden."
 
-#: mailer/models.py:73
+#: mailer/models.py:76
 msgid "subject"
 msgstr "Betreff"
 
-#: mailer/models.py:74
+#: mailer/models.py:77
 msgid "content"
 msgstr "Inhalt"
 
-#: mailer/models.py:76
+#: mailer/models.py:79
 msgid "to group"
 msgstr "An Gruppe"
 
-#: mailer/models.py:79
+#: mailer/models.py:82
 msgid "to freizeit"
 msgstr "An Ausfahrt"
 
-#: mailer/models.py:84
+#: mailer/models.py:87
 msgid "to notes list"
 msgstr "An Notizliste"
 
-#: mailer/models.py:89
+#: mailer/models.py:92
 msgid "to member"
 msgstr "An Teilnehmer*innen"
 
-#: mailer/models.py:92
+#: mailer/models.py:95
 msgid "reply to participant"
 msgstr "Antwort an Teilnehmer*innen"
 
-#: mailer/models.py:96
+#: mailer/models.py:99
 msgid "reply to custom email address"
 msgstr "Antwort an Email-Adresse"
 
-#: mailer/models.py:99
+#: mailer/models.py:102
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py:100
+#: mailer/models.py:103
 msgid "Created by"
 msgstr "Erstellt von"
 
-#: mailer/models.py:118
+#: mailer/models.py:121
 msgid "Some other members"
 msgstr "Andere Teilnehmer*innen"
 
-#: mailer/models.py:120
+#: mailer/models.py:123
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py:183
+#: mailer/models.py:186
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py:184
+#: mailer/models.py:187
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py:186
+#: mailer/models.py:189
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py:207
+#: mailer/models.py:210
 msgid ""
 "Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
 "ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
 
-#: mailer/models.py:214
+#: mailer/models.py:217
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py:219
+#: mailer/models.py:222
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py:222
+#: mailer/models.py:225
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py:223
+#: mailer/models.py:226
 msgid "attachments"
 msgstr "Anhänge"
 

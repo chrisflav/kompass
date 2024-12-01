@@ -22,7 +22,8 @@ class AttachmentInline(CommonAdminInlineMixin, admin.TabularInline):
 
 
 class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
-    list_display = ('email', )
+    list_display = ('email', 'internal_only')
+    fields = ('name', 'to_members', 'to_groups', 'internal_only')
     #formfield_overrides = {
     #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
