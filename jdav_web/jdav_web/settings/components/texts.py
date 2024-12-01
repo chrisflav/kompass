@@ -151,7 +151,7 @@ kannst Du hier den Newsletter deabonnieren:
 
 INVITE_AS_USER_TEXT = """Hallo {name},
 
-du bist Jugendleiter:in in der Sektion %(SEKTION)s. Die Verwaltung unserer Jugendgruppen,
+du bist Jugendleiter*in in der Sektion %(SEKTION)s. Die Verwaltung unserer Jugendgruppen,
 Ausfahrten und Finanzen erfolgt in unserer Online Plattform Kompass. Deine Stammdaten sind
 dort bereits hinterlegt. Damit du dich auch anmelden kannst, folge bitte dem folgenden Link
 und wähle ein Passwort.

@@ -262,7 +262,7 @@ msgstr "Landesjugendplan Antrag erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:30
 msgid "Generate overview"
-msgstr "Hinweise für Jugendleiter:innen erstellen"
+msgstr "Hinweise für Jugendleiter*innen erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:38
 msgid "Finance overview"

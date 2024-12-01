@@ -1018,7 +1018,7 @@ msgid ""
 "According to the contribution guidelines,\n"
 "%(staff_count)s youth leader(s) receive contributions. Each of them receives"
 msgstr ""
-"Gemäß den Zuschussrichtlinien erhalten %(staff_count)s Jugendleiter:innen "
+"Gemäß den Zuschussrichtlinien erhalten %(staff_count)s Jugendleiter*innen "
 "Zuschüsse. Jeweils sind das"
 
 #: members/templates/admin/freizeit_finance_overview.html:69
