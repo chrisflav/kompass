@@ -24,7 +24,7 @@ Hier siehst du alle Teilnehmer*innen deiner Jugendgruppen und alle von dir gelei
     </tr>
 </table>
 <table>
-{% if perms.members.change_waitinglist %}
+{% if perms.members.may_manage_waiting_list %}
 <br>
 <div class="app-members module current-app">
 <h2>Neue Mitglieder</h2>

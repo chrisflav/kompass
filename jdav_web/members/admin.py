@@ -443,6 +443,20 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
     inlines = [EmergencyContactInline]
     change_form_template = "members/change_member_unconfirmed.html"
 
+    field_view_permissions = {
+        'user': 'members.may_set_auth_user',
+        'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
+        'has_key': 'members.may_change_organizationals',
+        'has_free_ticket_gym': 'members.may_change_organizationals',
+    }
+
+    field_change_permissions = {
+        'user': 'members.may_set_auth_user',
+        'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
+        'has_key': 'members.may_change_organizationals',
+        'has_free_ticket_gym': 'members.may_change_organizationals',
+    }
+
     def has_add_permission(self, request, obj=None):
         return False
 
@@ -554,7 +568,7 @@ class WaiterInviteForm(forms.Form):
                                    label=_('Group'))
 
 
-class InvitationToGroupAdmin(CommonAdminInlineMixin, admin.TabularInline):
+class InvitationToGroupAdmin(admin.TabularInline):
     model = InvitationToGroup
     fields = ['group', 'date', 'status']
     readonly_fields = ['group', 'date', 'status']
