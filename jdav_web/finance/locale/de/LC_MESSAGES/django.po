@@ -184,7 +184,7 @@ msgstr "Erstellt von"
 
 #: finance/models.py:70
 msgid "Submitted by"
-msgstr "Eingereicht bei"
+msgstr "Eingereicht von"
 
 #: finance/models.py:75 finance/models.py:480
 msgid "Authorized by"
