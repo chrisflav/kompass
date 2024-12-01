@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-30 15:59+0100\n"
+"POT-Creation-Date: 2024-12-01 16:23+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -52,7 +52,7 @@ msgstr "Organisatorisches"
 
 #: members/admin.py:281
 msgid "Compose new mail to selected members"
-msgstr "Neue Nachricht an ausgewählte Teilnehmer verfassen"
+msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
 
 #: members/admin.py:287
 msgid "Echo required"
@@ -61,11 +61,12 @@ msgstr "Rückmeldung erforderlich"
 #: members/admin.py:289
 msgid "Successfully requested echo from selected members."
 msgstr ""
-"Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer verschickt."
+"Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer*innen "
+"verschickt."
 
 #: members/admin.py:290
 msgid "Request echo from selected members"
-msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer verschicken"
+msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
 
 #: members/admin.py:296
 #, python-format
@@ -75,7 +76,7 @@ msgstr "Erfolgreich %(name)s aufgefordert Zugangsdaten zu wählen."
 #: members/admin.py:298
 msgid "Successfully invited selected members to join as users."
 msgstr ""
-"Erfolgreich ausgewählte Teilnehmer:innen aufgefordert Zugangsdaten zu wählen."
+"Erfolgreich ausgewählte Teilnehmer*innen aufgefordert Zugangsdaten zu wählen."
 
 #: members/admin.py:305 members/admin.py:322
 msgid "Permission denied."
@@ -88,11 +89,11 @@ msgstr "Kompass Zugangsdaten wählen lassen"
 
 #: members/admin.py:317
 msgid "Invite selected members to join Kompass as users."
-msgstr "Ausgewählte Teilnehmer:innen Kompass Zugangsdaten wählen lassen."
+msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
 
 #: members/admin.py:328
 msgid "Member not found."
-msgstr "Teilnehmer:in nicht gefunden."
+msgstr "Teilnehmer*in nicht gefunden."
 
 #: members/admin.py:332
 #, python-format
@@ -247,14 +248,14 @@ msgid ""
 msgstr ""
 "Gib hier bitte alle Personen an, die bei der Ausfahrt dabei sind (auch JL). "
 "Hier kannst du auch spontan kurz vor Abfahrt noch Änderungen machen und so "
-"jederzeit die aktuelle Teilnehmer:innenliste für die Krisenintervention "
+"jederzeit die aktuelle Teilnehmer*innenliste für die Krisenintervention "
 "generieren."
 
 #: members/admin.py:811
 #, python-format
 msgid "You are not allowed to view all members on note list %(name)s."
 msgstr ""
-"Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Notizliste "
+"Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Notizliste "
 "%(name)s anzusehen."
 
 #: members/admin.py:821
@@ -290,7 +291,7 @@ msgstr ""
 #, python-format
 msgid "You are not allowed to view all members on excursion %(name)s."
 msgstr ""
-"Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Ausfahrt "
+"Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Ausfahrt "
 "%(name)s anzusehen."
 
 #: members/admin.py:882
@@ -587,11 +588,11 @@ msgstr "Führungszeugnis gültig"
 
 #: members/models.py:392
 msgid "member"
-msgstr "Teilnehmer"
+msgstr "Teilnehmer*in"
 
 #: members/models.py:393
 msgid "members"
-msgstr "Teilnehmer"
+msgstr "Teilnehmer*innen"
 
 #: members/models.py:461
 #, python-format
@@ -605,7 +606,7 @@ msgstr "Zugangsdaten für Kompass wählen"
 #: members/models.py:689 members/models.py:885 members/models.py:896
 #: members/models.py:1251 members/models.py:1258
 msgid "Member"
-msgstr "Teilnehmer"
+msgstr "Teilnehmer*in"
 
 #: members/models.py:696
 msgid "Emergency contact"
@@ -706,7 +707,7 @@ msgstr "Kommentar"
 
 #: members/models.py:897 members/models.py:1259
 msgid "Members"
-msgstr "Teilnehmer"
+msgstr "Teilnehmer*innen"
 
 #: members/models.py:931
 msgid "Place"
@@ -847,35 +848,35 @@ msgstr "Aktionen"
 
 #: members/models.py:1417 members/models.py:1447
 msgid "May list members"
-msgstr "Darf folgende Teilnehmer:innen listen"
+msgstr "Darf folgende Teilnehmer*innen listen"
 
 #: members/models.py:1419 members/models.py:1449
 msgid "May view members"
-msgstr "Darf folgende Teilnehmer:innen anzeigen"
+msgstr "Darf folgende Teilnehmer*innen anzeigen"
 
 #: members/models.py:1421 members/models.py:1451
 msgid "May change members"
-msgstr "Darf folgende Teilnehmer:innen ändern"
+msgstr "Darf folgende Teilnehmer*innen ändern"
 
 #: members/models.py:1423 members/models.py:1453
 msgid "May delete members"
-msgstr "Darf folgende Teilnehmer:innen löschen"
+msgstr "Darf folgende Teilnehmer*innen löschen"
 
 #: members/models.py:1427 members/models.py:1457
 msgid "May list members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen listen"
+msgstr "Darf Teilnehmer*innen folgender Gruppen listen"
 
 #: members/models.py:1429 members/models.py:1459
 msgid "May view members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen anzeigen"
+msgstr "Darf Teilnehmer*innen folgender Gruppen anzeigen"
 
 #: members/models.py:1431 members/models.py:1461
 msgid "May change members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen ändern"
+msgstr "Darf Teilnehmer*innen folgender Gruppen ändern"
 
 #: members/models.py:1433 members/models.py:1463
 msgid "May delete members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen löschen"
+msgstr "Darf Teilnehmer*innen folgender Gruppen löschen"
 
 #: members/models.py:1436 members/models.py:1437 members/models.py:1440
 msgid "Permissions"
@@ -1162,9 +1163,9 @@ msgid ""
 "schedule. This requires\n"
 "the seminar report section to be filled out."
 msgstr ""
-"Vollständiger Bericht: Stelle Lernziele und einen detaillierten, tabellierten "
-"Zeitplan dar. Dies benötigt, dass der Seminarbericht in der Ausfahrt "
-"ausgefüllt ist."
+"Vollständiger Bericht: Stelle Lernziele und einen detaillierten, "
+"tabellierten Zeitplan dar. Dies benötigt, dass der Seminarbericht in der "
+"Ausfahrt ausgefüllt ist."
 
 #: members/templates/admin/generate_seminar_report.html:40
 msgid ""
@@ -1181,9 +1182,8 @@ msgid "You may also choose to include the V32 attachment."
 msgstr ""
 "Ein LJP Antrag benötigt immer ein Formblatt (in unserem Fall V32-1 "
 "Themenorientierte Bildungsmaßnahmen). Dieses kannst du automatisch "
-"vorausfüllen lassen und dem Antrag hinzufügen. "
-"Bitte fülle die verbleibenden Felder im Formblatt selbst aus und "
-"unterschreibe das PDF."
+"vorausfüllen lassen und dem Antrag hinzufügen. Bitte fülle die verbleibenden "
+"Felder im Formblatt selbst aus und unterschreibe das PDF."
 
 #: members/templates/admin/generate_seminar_report.html:59
 msgid "Generate"
@@ -1229,11 +1229,11 @@ msgstr "Bitte wähle die Gruppe aus zu der du %(waiter)s einladen möchtest."
 
 #: members/templates/admin/invite_selected_as_user.html:20
 msgid "Invite multiple members as users"
-msgstr "Mehrere Teilnehmer:innen Zugangsdaten wählen lassen"
+msgstr "Mehrere Teilnehmer*innen Zugangsdaten wählen lassen"
 
 #: members/templates/admin/invite_selected_as_user.html:26
 msgid "You selected the following members:"
-msgstr "Du hast die folgenden Teilnehmer:innen ausgewählt:"
+msgstr "Du hast die folgenden Teilnehmer*innen ausgewählt:"
 
 #: members/templates/admin/invite_selected_as_user.html:38
 msgid ""
@@ -1243,7 +1243,7 @@ msgid ""
 "entering one of the current\n"
 "active registration passwords."
 msgstr ""
-"Möchtest du diese Teilnehmer:innen auffordern Zugangsdaten für den Kompass "
+"Möchtest du diese Teilnehmer*innen auffordern Zugangsdaten für den Kompass "
 "zu wählen?Sie werden eine E-Mail mit einem Link erhalten, um, nach Eingabe "
 "eines der aktiven Registrierungspasswörter, Benutzername und Passwort zu "
 "setzen."

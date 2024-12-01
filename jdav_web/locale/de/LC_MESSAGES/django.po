@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-30 15:59+0100\n"
+"POT-Creation-Date: 2024-12-01 16:23+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -257,12 +257,12 @@ msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:23
-msgid "Generate overview"
-msgstr "Hinweise für Jugendleiter:innen erstellen"
-
-#: templates/admin/members/freizeit/change_form_object_tools.html:30
 msgid "Generate seminar report"
 msgstr "Landesjugendplan Antrag erstellen"
+
+#: templates/admin/members/freizeit/change_form_object_tools.html:30
+msgid "Generate overview"
+msgstr "Hinweise für Jugendleiter:innen erstellen"
 
 #: templates/admin/members/freizeit/change_form_object_tools.html:38
 msgid "Finance overview"
@@ -270,7 +270,7 @@ msgstr "Kostenübersicht"
 
 #: templates/admin/members/member/change_form_object_tools.html:8
 msgid "Invite as user"
-msgstr "Als Kompassbenutzer:in einladen"
+msgstr "Als Kompassbenutzer*in einladen"
 
 #: templates/admin/members/memberunconfirmedproxy/change_form_object_tools.html:8
 msgid "Demote to waiter"
