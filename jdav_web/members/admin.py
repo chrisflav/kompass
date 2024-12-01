@@ -290,12 +290,19 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     request_echo.short_description = _('Request echo from selected members')
 
     def invite_as_user(self, request, queryset):
+        failures = []
         for member in queryset:
-            member.invite_as_user()
-        if queryset.count() == 1:
+            success = member.invite_as_user()
+            if not success:
+                failures.append(member)
+                messages.error(request,
+                               _('%(name)s does not have a DAV360 email address or is already registered.') % {'name': member.name})
+        if queryset.count() == 1 and len(failures) == 0:
             messages.success(request, _('Successfully invited %(name)s as user.') % {'name': queryset[0].name})
-        else:
+        elif len(failures) == 0:
             messages.success(request, _('Successfully invited selected members to join as users.'))
+        else:
+            messages.warning(request, _('Some members have been invited, others could not be invited.'))
 
     def has_may_invite_as_user_permission(self, request):
         return request.user.has_perm('%s.%s' % (self.opts.app_label, 'may_invite_as_user'))
@@ -330,6 +337,11 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         if m.user:
             messages.error(request,
                 _("%(name)s already has login data.") % {'name': str(m)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                args=(object_id,)))
+        if not m.has_internal_email():
+            messages.error(request,
+                _("The configured email address for %(name)s is not an internal one.") % {'name': str(m)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
                                                 args=(object_id,)))
         if "apply" in request.POST:

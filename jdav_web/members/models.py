@@ -665,13 +665,27 @@ class Member(Person):
         raw = "{0}.{1}".format(self.prename.lower(), self.lastname.lower())
         return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
 
+    def has_internal_email(self):
+        """Returns if the configured e-mail address is a DAV360 email address."""
+        match = re.match('(^[^@]*)@(.*)$', self.email)
+        if not match:
+            return False
+        return match.group(2) in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
+
     def invite_as_user(self):
         """Invites the member to join Kompass as a user."""
+        if not self.has_internal_email():
+            # dont invite if the email address is not an internal one
+            return False
+        if self.user:
+            # don't reinvite if there is already userdata attached
+            return False
         self.invite_as_user_key = uuid.uuid4().hex
         self.save()
         self.send_mail(_('Set login data for Kompass'),
                        settings.INVITE_AS_USER_TEXT.format(name=self.prename,
                                                            link=get_invite_as_user_key(self.invite_as_user_key)))
+        return True
 
     def led_groups(self):
         """Returns a queryset of groups that this member is a youth leader of."""
