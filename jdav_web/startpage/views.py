@@ -11,7 +11,7 @@ from .models import Post, Section
 
 # render shortcut adding additional context variables, needed for navbar
 def render(request, template_path, context={}):
-    context['groups'] = Group.objects.filter(show_website=True)
+    context['groups'] = Group.objects.filter(show_website=True).order_by('name')
     context['sections'] = Section.objects.all()
     try:
         context['root_section'] = Section.objects.get(urlname=settings.ROOT_SECTION)
