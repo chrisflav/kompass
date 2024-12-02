@@ -124,6 +124,13 @@ def echo(request):
         return HttpResponseRedirect(reverse('startpage:index'))
 
     if request.method == 'GET':
+        key = request.GET['key']
+        # try to get a member from the supplied echo key
+        try:
+            member = Member.objects.get(echo_key=key)
+        except Member.DoesNotExist:
+            return render_echo_failed(request, _("invalid"))
+
         # show password
         return render_echo_password(request, request.GET['key'])
 
