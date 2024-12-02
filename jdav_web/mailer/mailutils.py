@@ -19,6 +19,8 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
         kwargs = {"reply_to": reply_to}
     else:
         kwargs = {}
+    if sender == settings.DEFAULT_SENDING_MAIL:
+        sender = addr_with_name(settings.DEFAULT_SENDING_MAIL, settings.DEFAULT_SENDING_NAME)
     url = prepend_base_url("/newsletter/unsubscribe")
     headers = {'List-Unsubscribe': '<{unsubscribe_url}>'.format(unsubscribe_url=url)}
     if message_id is not None:
@@ -89,3 +91,7 @@ def get_invite_as_user_key(key):
 
 def prepend_base_url(absolutelink):
     return "{protocol}://{base}{link}".format(protocol=settings.PROTOCOL, base=settings.BASE_URL, link=absolutelink)
+
+
+def addr_with_name(addr, name):
+    return "{name} <{addr}>".format(name=name, addr=addr)

@@ -3,7 +3,8 @@ from django.core.exceptions import ValidationError
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext
-from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT
+from .mailutils import send, get_content, NOT_SENT, SENT, PARTLY_SENT,\
+        addr_with_name
 from utils import RestrictedFileField
 from jdav_web.celery import app
 from django.core.validators import RegexValidator
@@ -159,15 +160,17 @@ class Message(CommonModel):
         # set correct from address
         # if the sender is none or if sending from association emails has been
         # disabled, use the default sending mail
-        if sender is None or not settings.SEND_FROM_ASSOCIATION_EMAIL:
-            from_addr = settings.DEFAULT_SENDING_MAIL
+        if sender is None:
+            from_addr = addr_with_name(settings.DEFAULT_SENDING_MAIL, settings.DEFAULT_SENDING_NAME)
+        elif sender and settings.SEND_FROM_ASSOCIATION_EMAIL:
+            from_addr = addr_with_name(sender.association_email, sender.name)
         else:
-            from_addr = sender.association_email
+            from_addr = addr_with_name(settings.DEFAULT_SENDING_MAIL, sender.name)
         # if sending from the association email has been disabled,
         # a sender was supplied and the reply to is empty, add the sender's
         # DAV360 email as reply to
         if sender and not settings.SEND_FROM_ASSOCIATION_EMAIL and sender.has_internal_email() and reply_to == []:
-            reply_to.append(sender.email)
+            reply_to.append(addr_with_name(sender.email, sender.name))
         try:
             success = send(self.subject, get_content(self.content, registration_complete=True),
                            from_addr,
