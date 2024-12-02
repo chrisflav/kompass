@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import uuid
 import pytz
+import unicodedata
 import re
 import csv
 from django.db import models
@@ -369,10 +370,18 @@ class Member(Person):
         return self.email
 
     @property
+    def username(self):
+        """Return the username. Either this the name of the linked user, or
+        it is the suggested username."""
+        if not self.user:
+            return self.suggested_username()
+        else:
+            return self.user.username
+
+    @property
     def association_email(self):
         """Returning the association email of the member"""
-        raw = "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), settings.DOMAIN)
-        return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
+        return "{username}@{domain}".format(username=self.username, domain=settings.DOMAIN)
 
     def registration_complete(self):
         """Check if all necessary fields are set."""
@@ -666,7 +675,7 @@ class Member(Person):
     def suggested_username(self):
         """Returns a suggested username given by {prename}.{lastname}."""
         raw = "{0}.{1}".format(self.prename.lower(), self.lastname.lower())
-        return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
+        return normalize_name(raw)
 
     def has_internal_email(self):
         """Returns if the configured e-mail address is a DAV360 email address."""
@@ -1749,3 +1758,8 @@ def import_from_csv_waitinglist(path):
 
     for row in rows:
         transform_row(row)
+
+
+def normalize_name(raw):
+    noumlaut = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue').replace(' ', '_')
+    return unicodedata.normalize('NFKD', noumlaut).encode('ascii', 'ignore').decode('ascii')
