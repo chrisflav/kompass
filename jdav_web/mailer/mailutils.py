@@ -51,10 +51,8 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
 def get_content(content, registration_complete=True):
     url = prepend_base_url("/newsletter/unsubscribe")
     prepend = settings.PREPEND_INCOMPLETE_REGISTRATION_TEXT
-    footer = settings.MAIL_FOOTER.format(link=url)
-    text = "{prepend}{content}{footer}".format(prepend="" if registration_complete else prepend,
-                                                     content=content,
-                                                     footer=footer)
+    text = "{prepend}{content}".format(prepend="" if registration_complete else prepend,
+                                       content=content)
     return text
 
 
