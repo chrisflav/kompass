@@ -158,7 +158,9 @@ def echo(request):
                 raise ValueError(_("Invalid emergency contacts"))
             form.save()
             emergency_contacts_formset.save()
-            member.echo_key, member.echo_expire = "", timezone.now()
+            # We don't invalidate the echo key, so the user
+            # can echo again if wanted.
+            # member.echo_key, member.echo_expire = "", timezone.now()
             member.echoed = True
             member.save()
             return render_echo_success(request, member.prename)

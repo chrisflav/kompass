@@ -326,7 +326,7 @@ class Member(Person):
 
     def generate_echo_key(self):
         self.echo_key = uuid.uuid4().hex
-        self.echo_expire = timezone.now() + timezone.timedelta(days=30)
+        self.echo_expire = timezone.now() + timezone.timedelta(days=settings.ECHO_GRACE_PERIOD)
         self.echoed = False
         self.save()
         return self.echo_key
