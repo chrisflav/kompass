@@ -92,24 +92,28 @@ h6 {
 }
 
 .content {
-    width: 55%;
+    max-width: 100%;
+    width: 1000px;
     margin: 0 auto;
+    padding-left: 20px;
+    padding-right: 20px;
     overflow: hidden;
     position: relative;
     padding-top: 40px;
     padding-bottom: 40px;
 }
 
-.column {
-  float: left;
-  width: 50%;
-  padding: 0 20px;
-}
+@media only screen and (min-width: 1024px) {
+    .column {
+      float: left;
+      width: 50%;
+    }
 
-/* Clear floats after the columns */
-.row:after {
-  content: "";
-  clear: both;
+    /* Clear floats after the columns */
+    .row:after {
+      content: "";
+      clear: both;
+    }
 }
 
 .footer a {
