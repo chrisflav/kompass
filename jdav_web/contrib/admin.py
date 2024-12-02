@@ -22,7 +22,7 @@ class FieldPermissionsAdminMixin:
         for fd in field_desc:
             if fd not in self.field_view_permissions:
                 continue
-            if not request.user.has_perm(self.field_view_permissions[fd], obj):
+            if not request.user.has_perm(self.field_view_permissions[fd]):
                 return False
         return True
 
@@ -43,7 +43,7 @@ class FieldPermissionsAdminMixin:
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = super(FieldPermissionsAdminMixin, self).get_readonly_fields(request, obj)
         return list(readonly_fields) +\
-            [fd for fd, perm in self.field_change_permissions.items() if not request.user.has_perm(perm, obj)]
+            [fd for fd, perm in self.field_change_permissions.items() if not request.user.has_perm(perm)]
 
 
 class ChangeViewAdminMixin:

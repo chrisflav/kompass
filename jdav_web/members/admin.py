@@ -233,7 +233,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     field_change_permissions = {
         'user': 'members.may_set_auth_user',
-        'group': 'members.may_change_group',
+        'group': 'members.may_change_member_group',
         'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
         'has_key': 'members.may_change_organizationals',
         'has_free_ticket_gym': 'members.may_change_organizationals',
