@@ -188,7 +188,7 @@ class Statement(CommonModel):
 
         # excursion specific
         if self.excursion is None:
-            return
+            return True
 
         for yl in self.excursion.jugendleiter.all():
             ref = _("Compensation for %(excu)s") % {'excu': self.excursion.name}
@@ -348,7 +348,9 @@ class Statement(CommonModel):
                 'total_per_yl': self.total_per_yl,
                 'total_staff': self.total_staff,
             }
-        return dict(context, **excursion_context)
+            return dict(context, **excursion_context)
+        else:
+            return context
 
     def grouped_bills(self):
         return self.bill_set.values('short_description')\
