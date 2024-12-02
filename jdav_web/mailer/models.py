@@ -155,10 +155,17 @@ class Message(CommonModel):
         reply_to = [jl.association_email for jl in self.reply_to.all()]
         reply_to.extend([ml.email for ml in self.reply_to_email_address.all()])
         # set correct from address
-        if sender is None:
+        # if the sender is none or if sending from association emails has been
+        # disabled, use the default sending mail
+        if sender is None or not settings.SEND_FROM_ASSOCIATION_EMAIL:
             from_addr = settings.DEFAULT_SENDING_MAIL
         else:
             from_addr = sender.association_email
+        # if sending from the association email has been disabled,
+        # a sender was supplied and the reply to is empty, add the sender's
+        # DAV360 email as reply to
+        if sender and not settings.SEND_FROM_ASSOCIATION_EMAIL and sender.has_internal_email() and reply_to == []:
+            reply_to.append(sender.email)
         try:
             success = send(self.subject, get_content(self.content, registration_complete=True),
                            from_addr,

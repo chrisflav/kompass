@@ -92,8 +92,13 @@ class MessageAdmin(FilteredMemberFieldMixin, CommonAdminMixin, ObjectPermissions
 
 def submit_message(msg, request):
     sender = None
-    if hasattr(request.user, 'member'):
-        sender = request.user.member
+    if not hasattr(request.user, 'member'):
+        messages.error(request, _("Your account is not connected to a member. Please contact your system administrator."))
+        return
+    sender = request.user.member
+    if not sender.has_internal_email():
+        messages.error(request, _("Your email address is not an internal email address. Please change your email address and try again."))
+        return
     success = msg.submit(sender)
     if success == NOT_SENT:
         messages.error(request, _("Failed to send message"))
