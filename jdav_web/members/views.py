@@ -13,8 +13,8 @@ from django.conf import settings
 class MemberForm(ModelForm):
     class Meta:
         model = Member
-        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra',
-                  'phone_number', 'dav_badge_no']
+        fields = ['prename', 'lastname', 'gender', 'street', 'plz', 'town',
+                  'address_extra', 'phone_number', 'dav_badge_no']
 
 class MemberRegistrationForm(ModelForm):
     def __init__(self, *args, **kwargs):
