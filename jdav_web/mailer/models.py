@@ -151,6 +151,8 @@ class Message(CommonModel):
         # remove any underscores from subject to prevent Arne from using
         # terrible looking underscores in subjects
         self.subject = self.subject.replace('_', ' ')
+        # generate message id
+        message_id = "<{pk}@{domain}>".format(pk=self.pk, domain=settings.DOMAIN)
         # reply to addresses
         reply_to = [jl.association_email for jl in self.reply_to.all()]
         reply_to.extend([ml.email for ml in self.reply_to_email_address.all()])
@@ -170,6 +172,7 @@ class Message(CommonModel):
             success = send(self.subject, get_content(self.content, registration_complete=True),
                            from_addr,
                            emails,
+                           message_id=message_id,
                            attachments=attach,
                            reply_to=reply_to)
             if success == SENT or success == PARTLY_SENT:
