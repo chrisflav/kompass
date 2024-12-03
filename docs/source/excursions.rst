@@ -49,5 +49,5 @@ Abrechnung
 Im Nachhinein trägst du deine Ausgaben ein, lädst Belege hoch und reichst deine Abrechnung per Knopfdruck ein.
 
 .. _anlegen: https://jdav-hd.de/kompassmembers/freizeit/add/
-.. _Teilnehmer:innen: https://jdav-hd.de/kompassmembers/member/
+.. _Teilnehmer\*innen: https://jdav-hd.de/kompassmembers/member/
 

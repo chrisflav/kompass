@@ -1,7 +1,7 @@
 .. _members:
 
-Jugendgruppenverwaltung
-=======================
+Teilnehmer\*innenverwaltung
+===========================
 
 Das wichtigste Objekt im Kompass ist ein\*e Teilnehmer\*in. Hier meint ein\*e Teilnehmer\*in ein im
 Kompass hinterlegtes Mitglied der JDAV deiner Sektion, das heißt ob 5-jähriges Jugendgruppenkind,
@@ -9,13 +9,12 @@ langgediente\*r Jugendleiter\*in oder frischgebackene\*r Jugendreferent\*in, all
 einen Eintrag als Teilnehmer\*in im Kompass. Insbesondere heißt das, dass auch du selbst hier einen
 Eintrag hast.
 
-Der Startpunkt der Teilnehmer\*innenverwaltung ist der Abschnitt `Meine Jugendgruppe`_. Hier siehst du
-in der Regel zwei Menüpunkte:
+In der Teilnehmer\*innenverwaltung siehst du in der Regel zwei Menüpunkte:
 
-- Teilnehmer\*innen
-- Ausfahrten
+- Meine Jugendgruppen: eine Auflistung der von dir geleiteten Jugendgruppen.
+- Teilnehmer\*innenverwaltung: Ausfahrten und *Alle Teilnehmer\*innen*.
 
-In diesem Abschnitt geht es nur um den ersten Menüpunkt. Falls du etwas über den zweiten Menüpunkt
+In diesem Abschnitt geht es nur um die Teilnehmer\*innen selbst. Wenn du etwas zum Punkt Ausfahrten
 lernen möchtest, kannst du zu :ref:`excursions` springen.
 
 .. note::
@@ -23,10 +22,14 @@ lernen möchtest, kannst du zu :ref:`excursions` springen.
    oder die Verwaltung der Warteliste zuständig ist, siehst du hier noch mehr Punkte. Mehr
    Informationen dazu findest du unter :ref:`waitinglist`.
 
+Falls du direkt zu einer von dir geleiteten Jugendgruppe gehen möchtest, findest
+du unter `Teilnehmer*innenverwaltung`_ oder auf der `Startseite`_
+auch direkte Links zu den Teilnehmer\*innen deiner Gruppe.
+
 Teilnehmer\*innen Übersicht
 ---------------------------
 
-Um eine Übersicht über alle Teilnehmer\*innen zu bekommen, klicke auf `Teilnehmer\*innen`_. Hier siehst du
+Um eine Übersicht über alle Teilnehmer\*innen zu bekommen, klicke auf `Alle Teilnehmer\*innen`_. Hier siehst du
 nun alle Mitglieder, für die du die einfachen Anzeigeberechtigungen hast, das heißt deren Namen du sehen darfst.
 Typischerweise sind das die Gruppenkinder deiner Jugendgruppe, aber vielleicht noch zusätzlich alle Mitglieder
 des Jugendausschuss.
@@ -41,6 +44,10 @@ filtern.
 .. image:: images/members_changelist_group_filter.png
 
 In der selben Zeile siehst du noch weitere Filtermöglichkeiten.
+
+.. note::
+   Du kannst auch aus der Seitenleiste oder von der `Startseite`_ direkt zu den Gruppenkindern
+   einer von dir geleiteten Gruppe springen.
 
 Ich möchte nach Alter sortieren, wie geht das?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -62,9 +69,6 @@ In diesem Fall kannst du unten Rechts auf der Seite zwischen den verschiedenen S
 alle auf einmal anzeigen lassen:
 
 .. image:: images/members_changelist_pages.png
-
-.. _Meine Jugendgruppe: https://jdav-hd.de/kompassmembers
-.. _Teilnehmer\*innen: https://jdav-hd.de/kompassmembers/member/
 
 
 Teilnehmer\*in Detailansicht
@@ -130,7 +134,7 @@ aus. Um die Aufforderungen zu verschicken, musst du dann nur noch auf *Ausführe
 Was passiert nach der Aufforderung zur Rückmeldung?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Der\*die ausgewählte Teilnehmer\*in erhält eine E-Mail mit einem Link. Dieser Link führt auf eine 
+Der\*die ausgewählte Teilnehmer\*in erhält eine E-Mail mit einem Link. Dieser Link führt auf eine
 Seite auf der die Person ihr Geburtsdatum eingeben muss.
 
 .. note::
@@ -168,3 +172,7 @@ Passiert ein Notfall auf einer Ausfahrt, wirst du natürlich nicht immer die Mö
 haben im Kompass die Notfallkontakte herauszusuchen. Daher kannst du dir zu jeder Ausfahrt
 eine :ref:`crisis-intervention-list` generieren lassen, die zu allen Teilnehmer\*innen deiner Ausfahrt
 auch alle Notfallkontakte auflistet.
+
+.. _Startseite: https://jdav-hd.de/kompass
+.. _Teilnehmer*innenverwaltung: https://jdav-hd.de/kompassmembers
+.. _Alle Teilnehmer\*innen: https://jdav-hd.de/kompassmembers/member/

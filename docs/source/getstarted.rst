@@ -20,8 +20,8 @@ Fritz hat die Gruppe *Kletterfüchse* ausgewählt, wie du oben rechts sehen kann
 Versuche einmal dort bei dir eine andere Gruppe auszuwählen. Falls dir keine Teilnehmer\*innen
 angezeigt werden liegt das daran, dass deine *Zugriffsrechte* nicht ausreichen.
 
-Wie ändere ich eine\*n Teilnehmer\*in meiner Jugendgruppe?
-----------------------------------------------------------
+Wie ändere ich Daten meiner Jugendgruppen Teilnehmer\*innen?
+------------------------------------------------------------
 
 Fritz möchte das eingetragene Geburtsdatum von *Lisa Lotte* ändern. Dazu klickt
 er auf den entsprechenden Eintrag, ändert das Geburtsdatum und klickt auf *Speichern*.
@@ -29,10 +29,11 @@ er auf den entsprechenden Eintrag, ändert das Geburtsdatum und klickt auf *Spei
 .. note::
    Nicht alle Einträge in der `Teilnehmer\*innenanzeige`_ sind klickbar. Das liegt daran,
    dass du manche Teilnehmer\*innen zwar sehen, aber nicht ihre Details einsehen kannst.
-   Manche Einträge wiederum kannst du einsehen, aber nicht bearbeiten.
+   Manche Einträge wiederum kannst du einsehen, aber nicht bearbeiten. Für mehr Details siehe :ref:`Teilnehmer\*innenverwaltung <members>`
 
 Probier doch einmal aus deinen eigenen Eintrag zu ändern. Sicherlich gibt es einige
-Felder, die nicht ausgefüllt oder nicht mehr aktuell sind.
+Felder, die nicht ausgefüllt oder nicht mehr aktuell sind. Lade z.B. ein Bild von dir hoch, 
+damit unsere Website schöner wird.
 
 Wie schicke ich eine E-Mail an meine Gruppe?
 --------------------------------------------
