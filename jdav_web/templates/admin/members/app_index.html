@@ -5,25 +5,46 @@
 <div class="app-members module current-app">
 <h2>Meine Jugendgruppen</h2>
 <p>
-Hier siehst du alle Teilnehmer*innen deiner Jugendgruppen und alle von dir geleiteten Ausfahrten.
+Hier siehst du alle von dir geleiteten Jugendgruppen.
 </p>
+<p>
+<table>
+    {% for group in user.member.led_groups %}
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:members_member_changelist' %}?group__id__exact={{group.pk}}'>{{ group.name }}</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    {% endfor %}
+</table>
+</p>
+
+<br>
+<h2>Teilnehmer*innenverwaltung</h2>
+
+<p>
+Hier siehst du alle von dir geleiteten Ausfahrten und für dich sichtbare Teilnehmer*innen
+(diese sind nicht zwingend in einer deiner Jugendgruppen).
+</p>
+
 <table>
     <tr>
         <th scope="row">
-            <a href="{% url 'admin:members_member_changelist' %}">Teilnehmer*innen</a>
+            <a href='{% url 'admin:members_freizeit_changelist' %}'>Ausfahrten</a>
         </th>
         <td></td>
         <td></td>
     </tr>
     <tr>
         <th scope="row">
-            <a href="{% url 'admin:members_freizeit_changelist' %}">Ausfahrten</a>
+            <a href='{% url 'admin:members_member_changelist' %}'>Alle Teilnehmer*innen</a>
         </th>
         <td></td>
         <td></td>
     </tr>
 </table>
-<table>
 {% if perms.members.may_manage_waiting_list %}
 <br>
 <div class="app-members module current-app">

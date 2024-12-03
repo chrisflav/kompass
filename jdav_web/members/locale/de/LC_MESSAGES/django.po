@@ -359,7 +359,7 @@ msgstr "Kostenübersicht"
 
 #: members/apps.py:7
 msgid "member administration"
-msgstr "Meine Jugendgruppe"
+msgstr "Teilnehmer*innenverwaltung"
 
 #: members/models.py:41
 msgid "Monday"
