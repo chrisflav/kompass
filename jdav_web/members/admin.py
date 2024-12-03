@@ -176,7 +176,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 'comments',
                 'legal_guardians',
                 'dav_badge_no',
-                'active', 'echoed', 'gets_newsletter',
+                'active', 'echoed',
                 'user',
              ]
          }
@@ -206,10 +206,11 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
          }
         ),
     ]
-    list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group', 'gets_newsletter',
-                    'registration_complete', 'active', 'echoed', 'comments', 'activity_score')
+    list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group',
+                    'email', 'phone_number',
+                    'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
-    list_filter = ('group', 'gets_newsletter', RegistrationFilter, 'active')
+    list_filter = ('group', )
     list_display_links = None
     readonly_fields = ['echoed', 'good_conduct_certificate_valid']
     inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
@@ -405,7 +406,7 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
                 'comments',
                 'legal_guardians',
                 'dav_badge_no',
-                'active', 'echoed', 'gets_newsletter',
+                'active', 'echoed',
                 'user',
              ]
          }
