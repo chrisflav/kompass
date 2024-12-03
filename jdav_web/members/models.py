@@ -9,6 +9,7 @@ from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.utils.html import format_html
 from django.urls import reverse
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
@@ -124,6 +125,18 @@ class Contact(CommonModel):
     def name(self):
         """Returning whole name (prename + lastname)"""
         return "{0} {1}".format(self.prename, self.lastname)
+
+    def phone_number_tel_link(self):
+        """Returns the phone number as tel link."""
+        return format_html('<a href="tel:{tel}">{tel}</a>'.format(tel=self.phone_number))
+    phone_number_tel_link.short_description = _('phone number')
+    phone_number_tel_link.admin_order_field = 'phone_number'
+
+    def email_mailto_link(self):
+        """Returns the emails as a mailto link."""
+        return format_html('<a href="mailto:{email}">{email}</a>'.format(email=self.email))
+    email_mailto_link.short_description = 'Email'
+    email_mailto_link.admin_order_field = 'email'
 
     @property
     def email_fields(self):

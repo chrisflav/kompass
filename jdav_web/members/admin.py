@@ -207,7 +207,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         ),
     ]
     list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group',
-                    'email', 'phone_number',
+                    'email_mailto_link', 'phone_number_tel_link',
                     'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', )
