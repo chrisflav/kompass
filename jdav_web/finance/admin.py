@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.conf import settings
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
+from utils import get_member
 
 from rules.contrib.admin import ObjectPermissionsModelAdmin
 
@@ -118,10 +119,17 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
     inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
     def has_add_permission(self, request, obj=None):
+        # Submitted statements should not be added directly, but instead be created
+        # as unsubmitted statements and then submitted.
         return False
 
     def has_change_permission(self, request, obj=None):
-        return True
+        return request.user.has_perm('finance.process_statementsubmitted')
+
+    def has_delete_permission(self, request, obj=None):
+        # Submitted statements should not be deleted. Instead they can be rejected
+        # and then deleted as unsubmitted statements.
+        return False
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = ['submitted']
@@ -218,23 +226,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                        opts=self.opts,
                        statement=statement,
                        transaction_issues=statement.transaction_issues,
-                       total_bills=statement.total_bills,
-                       total=statement.total)
-        if statement.excursion is not None:
-            context = dict(context,
-                           nights=statement.excursion.night_count,
-                           price_per_night=statement.real_night_cost,
-                           duration=statement.excursion.duration,
-                           staff_count=statement.real_staff_count,
-                           kilometers_traveled=statement.excursion.kilometers_traveled,
-                           means_of_transport=statement.excursion.get_tour_approach(),
-                           euro_per_km=statement.euro_per_km,
-                           allowance_per_day=settings.ALLOWANCE_PER_DAY,
-                           nights_per_yl=statement.nights_per_yl,
-                           allowance_per_yl=statement.allowance_per_yl,
-                           transportation_per_yl=statement.transportation_per_yl,
-                           total_per_yl=statement.total_per_yl,
-                           total_staff=statement.total_staff)
+                       **statement.template_context())
 
         return render(request, 'admin/overview_submitted_statement.html', context=context)
 
@@ -261,6 +253,10 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         # To preserve integrity, no one is allowed to change confirmed statements
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to delete confirmed statements
         return False
 
     def get_urls(self):
@@ -308,6 +304,9 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
+    """The transaction admin site. This is only used to display transactions. All editing
+    is disabled on this site. All transactions should be changed on the respective statement
+    at the correct stage of the approval chain."""
     list_display = ['member', 'ledger', 'amount', 'reference', 'statement', 'confirmed',
             'confirmed_date', 'confirmed_by']
     list_filter = ('ledger', 'member', 'statement', 'confirmed')
@@ -319,16 +318,21 @@ class TransactionAdmin(admin.ModelAdmin):
             return self.fields
         return super(TransactionAdmin, self).get_readonly_fields(request, obj)
 
+    def has_add_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to add transactions
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to change transactions
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # To preserve integrity, no one is allowed to delete transactions
+        return False
+
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'statement', 'short_description', 'pretty_amount', 'paid_by', 'refunded']
+    list_display = ['__str__', 'statement', 'explanation', 'pretty_amount', 'paid_by', 'refunded']
     list_filter = ('statement', 'paid_by', 'refunded')
     search_fields = ('reference', 'statement')
-
-
-def get_member(request):
-    if not hasattr(request.user, 'member'):
-        return None
-    else:
-        return request.user.member

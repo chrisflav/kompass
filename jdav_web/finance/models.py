@@ -6,12 +6,14 @@ from .rules import is_creator, not_submitted, leads_excursion
 from members.rules import is_leader, statement_not_submitted
 
 from django.db import models
+from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
 from members.models import Member, Freizeit, OEFFENTLICHE_ANREISE, MUSKELKRAFT_ANREISE
 from django.conf import settings
 import rules
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
+from utils import cvt_to_decimal
 
 # Create your models here.
 
@@ -186,7 +188,7 @@ class Statement(CommonModel):
 
         # excursion specific
         if self.excursion is None:
-            return
+            return True
 
         for yl in self.excursion.jugendleiter.all():
             ref = _("Compensation for %(excu)s") % {'excu': self.excursion.name}
@@ -283,7 +285,7 @@ class Statement(CommonModel):
         if self.excursion is None:
             return 0
 
-        return self.total_staff / self.excursion.staff_count
+        return cvt_to_decimal(self.total_staff / self.excursion.staff_count)
 
     @property
     def total_staff(self):
@@ -323,6 +325,37 @@ class Statement(CommonModel):
     def total_pretty(self):
         return "{}€".format(self.total)
     total_pretty.short_description = _('Total')
+
+    def template_context(self):
+        context = {
+            'total_bills': self.total_bills,
+            'total_bills_theoretic': self.total_bills_theoretic,
+            'total': self.total,
+        }
+        if self.excursion:
+            excursion_context = {
+                'nights': self.excursion.night_count,
+                'price_per_night': self.real_night_cost,
+                'duration': self.excursion.duration,
+                'staff_count': self.real_staff_count,
+                'kilometers_traveled': self.excursion.kilometers_traveled,
+                'means_of_transport': self.excursion.get_tour_approach(),
+                'euro_per_km': self.euro_per_km,
+                'allowance_per_day': settings.ALLOWANCE_PER_DAY,
+                'nights_per_yl': self.nights_per_yl,
+                'allowance_per_yl': self.allowance_per_yl,
+                'transportation_per_yl': self.transportation_per_yl,
+                'total_per_yl': self.total_per_yl,
+                'total_staff': self.total_staff,
+            }
+            return dict(context, **excursion_context)
+        else:
+            return context
+
+    def grouped_bills(self):
+        return self.bill_set.values('short_description')\
+                            .order_by('short_description')\
+                            .annotate(amount=Sum('amount'))
 
 
 class StatementUnSubmittedManager(models.Manager):
@@ -384,7 +417,7 @@ class Bill(CommonModel):
     short_description = models.CharField(verbose_name=_('Short description'), max_length=30)
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
 
-    amount = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    amount = models.DecimalField(verbose_name=_('Amount'), max_digits=6, decimal_places=2, default=0)
     paid_by = models.ForeignKey(Member, verbose_name=_('Paid by'), null=True,
                                 on_delete=models.SET_NULL)
     costs_covered = models.BooleanField(verbose_name=_('Covered'), default=False)
@@ -466,7 +499,3 @@ class Receipt(models.Model):
                                on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=6, decimal_places=2)
     comments = models.TextField()
-
-
-def cvt_to_decimal(f):
-    return Decimal(f).quantize(Decimal('.01'), rounding=ROUND_HALF_DOWN)

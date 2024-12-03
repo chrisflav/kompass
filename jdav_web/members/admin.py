@@ -23,10 +23,10 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
-from django.forms import Textarea, RadioSelect, TypedChoiceField
+from django.forms import Textarea, RadioSelect, TypedChoiceField, CheckboxInput
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied
-from .pdf import render_tex, fill_pdf_form
+from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 
@@ -41,6 +41,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
 from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
+from utils import get_member
 #from easy_select2 import apply_select2
 
 
@@ -112,8 +113,7 @@ class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
-    fields = ['prename', 'lastname', 'email', 'phone_number', 'confirmed_mail']
-    readonly_fields = ['confirmed_mail']
+    fields = ['prename', 'lastname', 'email', 'phone_number']
     extra = 0
 
 
@@ -170,6 +170,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 ('email', 'alternative_email'),
                 'phone_number',
                 'birth_date',
+                'gender',
                 'group', 'registration_form', 'image',
                 ('join_date', 'leave_date'),
                 'comments',
@@ -232,7 +233,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     field_change_permissions = {
         'user': 'members.may_set_auth_user',
-        'group': 'members.may_change_group',
+        'group': 'members.may_change_member_group',
         'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
         'has_key': 'members.may_change_organizationals',
         'has_free_ticket_gym': 'members.may_change_organizationals',
@@ -289,12 +290,19 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     request_echo.short_description = _('Request echo from selected members')
 
     def invite_as_user(self, request, queryset):
+        failures = []
         for member in queryset:
-            member.invite_as_user()
-        if queryset.count() == 1:
+            success = member.invite_as_user()
+            if not success:
+                failures.append(member)
+                messages.error(request,
+                               _('%(name)s does not have a DAV360 email address or is already registered.') % {'name': member.name})
+        if queryset.count() == 1 and len(failures) == 0:
             messages.success(request, _('Successfully invited %(name)s as user.') % {'name': queryset[0].name})
-        else:
+        elif len(failures) == 0:
             messages.success(request, _('Successfully invited selected members to join as users.'))
+        else:
+            messages.warning(request, _('Some members have been invited, others could not be invited.'))
 
     def has_may_invite_as_user_permission(self, request):
         return request.user.has_perm('%s.%s' % (self.opts.app_label, 'may_invite_as_user'))
@@ -329,6 +337,11 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         if m.user:
             messages.error(request,
                 _("%(name)s already has login data.") % {'name': str(m)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                args=(object_id,)))
+        if not m.has_internal_email():
+            messages.error(request,
+                _("The configured email address for %(name)s is not an internal one.") % {'name': str(m)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
                                                 args=(object_id,)))
         if "apply" in request.POST:
@@ -374,7 +387,11 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     name_text_or_link.admin_order_field = 'lastname'
 
 
-class MemberUnconfirmedAdmin(admin.ModelAdmin):
+class DemoteToWaiterForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+
+
+class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
     fieldsets = [
         (None,
          {
@@ -382,6 +399,7 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
                 ('email', 'alternative_email'),
                 'phone_number',
                 'birth_date',
+                'gender',
                 'group', 'registration_form', 'image',
                 ('join_date', 'leave_date'),
                 'comments',
@@ -421,9 +439,23 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
     readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail',
                        'good_conduct_certificate_valid']
-    actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter']
+    actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter_action']
     inlines = [EmergencyContactInline]
     change_form_template = "members/change_member_unconfirmed.html"
+
+    field_view_permissions = {
+        'user': 'members.may_set_auth_user',
+        'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
+        'has_key': 'members.may_change_organizationals',
+        'has_free_ticket_gym': 'members.may_change_organizationals',
+    }
+
+    field_change_permissions = {
+        'user': 'members.may_set_auth_user',
+        'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
+        'has_key': 'members.may_change_organizationals',
+        'has_free_ticket_gym': 'members.may_change_organizationals',
+    }
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -463,22 +495,62 @@ class MemberUnconfirmedAdmin(admin.ModelAdmin):
             messages.error(request, _("Failed to confirm some registrations because of unconfirmed email addresses."))
     confirm.short_description = _('Confirm selected registrations')
 
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = [
+            path(
+                "<path:object_id>/demote/",
+                wrap(self.demote_to_waiter_view),
+                name="%s_%s_demote" % (self.opts.app_label, self.opts.model_name),
+            ),
+        ]
+        return custom_urls + urls
+
+    def demote_to_waiter_action(self, request, queryset):
+        return self.demote_to_waiter_view(request, queryset)
+    demote_to_waiter_action.short_description = _('Demote selected registrations to waiters.')
+
+    def demote_to_waiter_view(self, request, object_id):
+        if type(object_id) == str:
+            member = MemberUnconfirmedProxy.objects.get(pk=object_id)
+            queryset = [member]
+            form = None
+        else:
+            queryset = object_id
+            form = DemoteToWaiterForm(initial={'_selected_action': queryset.values_list('id', flat=True)})
+
+        if "apply" in request.POST:
+            self.demote_to_waiter(request, queryset)
+            return HttpResponseRedirect(reverse('admin:members_memberunconfirmedproxy_changelist'))
+
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Demote member to waiter'),
+                       opts=self.opts,
+                       queryset=queryset,
+                       form=form)
+        return render(request, 'admin/demote_to_waiter.html', context=context)
+
     def demote_to_waiter(self, request, queryset):
         for member in queryset:
-            #mem_as_dict = member.__dict__
-            #del mem_as_dict['_state']
-            #del mem_as_dict['id']
             waiter = MemberWaitingList(prename=member.prename,
                                        lastname=member.lastname,
                                        email=member.email,
                                        birth_date=member.birth_date,
+                                       gender=member.gender,
                                        comments=member.comments,
                                        confirmed_mail=member.confirmed_mail,
                                        confirm_mail_key=member.confirm_mail_key)
             waiter.save()
             member.delete()
             messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': waiter.name})
-    demote_to_waiter.short_description = _('Demote selected registrations to waiters.')
 
     def response_change(self, request, member):
         if "_confirm" in request.POST:
@@ -496,7 +568,7 @@ class WaiterInviteForm(forms.Form):
                                    label=_('Group'))
 
 
-class InvitationToGroupAdmin(CommonAdminInlineMixin, admin.TabularInline):
+class InvitationToGroupAdmin(admin.TabularInline):
     model = InvitationToGroup
     fields = ['group', 'date', 'status']
     readonly_fields = ['group', 'date', 'status']
@@ -538,6 +610,10 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             except Group.DoesNotExist:
                 messages.error(request,
                                _("An error occurred while trying to invite said members. Please try again."))
+                return HttpResponseRedirect(request.get_full_path())
+            if not group.contact_email:
+                messages.error(request,
+                               _('The selected group does not have a contact email. Please first set a contact email and then try again.'))
                 return HttpResponseRedirect(request.get_full_path())
 
             for waiter in queryset:
@@ -596,6 +672,11 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                                _("An error occurred while trying to invite said members. Please try again."))
                 return HttpResponseRedirect(request.get_full_path())
 
+            if not group.contact_email:
+                messages.error(request,
+                               _('The selected group does not have a contact email. Please first set a contact email and then try again.'))
+                return HttpResponseRedirect(request.get_full_path())
+
             waiter.invited_for_group = group
             waiter.save()
             waiter.invite_to_group(group)
@@ -634,7 +715,7 @@ class GroupAdminForm(forms.ModelForm):
 
 
 class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'show_website',
+    fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'contact_email', 'show_website',
         'weekday', ('start_time', 'end_time')]
     form = GroupAdminForm
     list_display = ('name', 'year_from', 'year_to')
@@ -681,6 +762,7 @@ class BillOnExcursionInline(CommonAdminInlineMixin, admin.TabularInline):
 class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = Statement
     extra = 1
+    description = _('Please list here all expenses in relation with this excursion and upload relevant bills. These have to be permanently stored for the application of LJP contributions. The short descriptions are used in the seminar report cost overview (possible descriptions are e.g. food, material, etc.).')
     sortable_options = []
     fields = ['night_cost']
     inlines = [BillOnExcursionInline]
@@ -698,6 +780,7 @@ class InterventionOnLJPInline(CommonAdminInlineMixin, admin.TabularInline):
 class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = LJPProposal
     extra = 1
+    description = _('Here you can work on a seminar report for applying for financial contributions from Landesjugendplan (LJP). More information on creating a seminar report can be found in the wiki. The seminar report or only a participant list and cost overview can be consequently downloaded.')
     sortable_options = []
     inlines = [InterventionOnLJPInline]
 
@@ -705,6 +788,7 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
 class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     model = NewMemberOnList
     extra = 0
+    description = _('Please list all participants (also youth leaders) of this excursion. Here you can still make changes just before departure and hence generate the latest participant list for crisis intervention at all times.')
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
@@ -767,6 +851,9 @@ class GenerateSeminarReportForm(forms.Form):
     modes = (('full', _('Full report')),
              ('basic', _('Costs and participants only')))
     mode = forms.ChoiceField(choices=modes, label=_('Mode'))
+    prepend_v32 = forms.BooleanField(label=_('Prepend V32'), initial=True,
+                                     widget=CheckboxInput(attrs={'style': 'display: inherit'}),
+                                     required=False)
 
 
 class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
@@ -776,6 +863,13 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     search_fields = ('name',)
     ordering = ('-date',)
     view_on_site = False
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'place', 'destination', 'date', 'end', 'description', 'groups', 'jugendleiter',
+                       'tour_type', 'tour_approach', 'kilometers_traveled', 'activity', 'difficulty'),
+            'description': _('General information on your excursion. These are partly relevant for the amount of financial compensation (means of transport, travel distance, etc.).')
+        }),
+    )
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -839,12 +933,21 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
                 messages.error(request, _('Please select a mode.'))
                 return self.render_seminar_report_options(request, memberlist, form)
             mode = form.cleaned_data['mode']
+            prepend_v32 = form.cleaned_data['prepend_v32']
             if mode == 'full' and not hasattr(memberlist, 'ljpproposal'):
                 messages.error(request, _('Full mode is only available, if the seminar report section is filled out.'))
                 return self.render_seminar_report_options(request, memberlist, form)
-            context = dict(memberlist=memberlist, settings=settings, mode=mode)
             title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
-            return render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context)
+            context = dict(memberlist=memberlist, settings=settings, mode=mode)
+            fp = render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context, save_only=True)
+            if prepend_v32:
+                context = memberlist.v32_fields()
+                v32_fp = fill_pdf_form(title + "_LJP_V32",
+                                       'members/V32-1_Themenorientierte_Bildungsmassnahmen.pdf',
+                                       context,
+                                       save_only=True)
+                return merge_pdfs(title + 'LJP_Antrag', [v32_fp, fp])
+            return serve_pdf(fp)
         return self.render_seminar_report_options(request, memberlist, GenerateSeminarReportForm())
     seminar_report.short_description = _('Generate seminar report')
 
@@ -859,6 +962,25 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
         return fill_pdf_form(title + "_SJR_Antrag", 'members/sjr_template.pdf', context, attachments)
     sjr_application.short_description = _('Generate SJR application')
+
+    def finance_overview(self, request, memberlist):
+        if not memberlist.statement:
+            messages.error(request, _("No statement found. Please add a statement and then retry."))
+        if "apply" in request.POST:
+            memberlist.statement.submit(get_member(request))
+            messages.success(request,
+                             _("Successfully submited statement. The finance department will notify you as soon as possible."))
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(memberlist.pk,)))
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Finance overview'),
+                       opts=self.opts,
+                       memberlist=memberlist,
+                       object=memberlist,
+                       participant_count=memberlist.participant_count,
+                       ljp_contributions=memberlist.potential_ljp_contributions,
+                       total_relative_costs=memberlist.total_relative_costs,
+                       **memberlist.statement.template_context())
+        return render(request, 'admin/freizeit_finance_overview.html', context=context)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -888,6 +1010,8 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             return self.notes_list(request, Freizeit.objects.get(pk=object_id))
         if "crisis_intervention_list" in request.POST:
             return self.crisis_intervention_list(request, Freizeit.objects.get(pk=object_id))
+        if "finance_overview" in request.POST:
+            return self.finance_overview(request, Freizeit.objects.get(pk=object_id))
         return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
                                             args=(object_id,)))
 

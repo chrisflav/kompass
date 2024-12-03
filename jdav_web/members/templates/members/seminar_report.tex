@@ -1,6 +1,6 @@
 {% load tex_extras %}
 
-\documentclass{article}
+\documentclass[a4paper]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage{booktabs}
@@ -119,7 +119,7 @@
 {% endif %}
 {% endif %}
 
-\section{Teilnehmer:innenliste}
+\section{Teilnehmer*innenliste}
 
 \begin{table}[H]
     \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLl|c|c|c}
@@ -148,7 +148,7 @@
     Aufwandsentschädigung & {{ memberlist.statement.total_allowance }} € \\
     Fahrtkosten & {{ memberlist.statement.total_transportation }} € \\
     Übernachtungskosten & {{ memberlist.statement.total_nights }} € \\
-    {% for bill in memberlist.statement.bill_set.all %}
+    {% for bill in memberlist.statement.grouped_bills %}
         {{ bill.short_description|esc_all }} & {{ bill.amount }} € \\
     {% endfor %}
     \bottomrule

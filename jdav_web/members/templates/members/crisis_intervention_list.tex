@@ -1,6 +1,6 @@
 {% load tex_extras %}
 
-\documentclass{article}
+\documentclass[a4paper]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage{booktabs}
@@ -58,7 +58,7 @@
 \end{textblock*}
 
 % HEADLINE
-{\noindent\LARGE{Teilnehmer:innenliste\\[2mm]Sektionsveranstaltung}}\\[1mm]
+{\noindent\LARGE{Teilnehmer*innenliste\\[2mm]Sektionsveranstaltung}}\\[1mm]
 \textit{Erstellt: {{ creation_date }} }\\
 
 % DESCRIPTION TABLE
@@ -89,8 +89,7 @@
     {{ m.member.contact_phone_number|esc_all }} &
     {% for c in m.member.emergencycontact_set.all %}
         {{ c.name }} \newline
-        Tel.: {{ c.phone_number }} \newline
-        Email: \href{mailto:{{ c.email }}}{ {{c.email}}}
+        Tel.: {{ c.phone_number }}
     {% endfor %} \\
 {% endfor %}
 \bottomrule

@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-kompass:
     &kompass
     image: kompass:production

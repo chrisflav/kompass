@@ -13,8 +13,8 @@ from django.conf import settings
 class MemberForm(ModelForm):
     class Meta:
         model = Member
-        fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra',
-                  'phone_number', 'dav_badge_no']
+        fields = ['prename', 'lastname', 'gender', 'street', 'plz', 'town',
+                  'address_extra', 'phone_number', 'dav_badge_no']
 
 class MemberRegistrationForm(ModelForm):
     def __init__(self, *args, **kwargs):
@@ -29,7 +29,7 @@ class MemberRegistrationForm(ModelForm):
                   'phone_number', 'birth_date', 'gender', 'email', 'alternative_email',
                   'registration_form']
         widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'}),
+            'birth_date': DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
             'registration_form': FileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'}),
         }
         help_texts = {
@@ -53,7 +53,7 @@ class MemberRegistrationWaitingListForm(ModelForm):
         model = MemberWaitingList
         fields = ['prename', 'lastname', 'birth_date', 'gender', 'email', 'application_text']
         widgets = {
-            'birth_date': DateInput(format='%d.%m.%Y', attrs={'type': 'date'})
+            'birth_date': DateInput(format='%Y-%m-%d', attrs={'type': 'date'})
         }
         help_texts = {
             'prename': _('Prename of the member.'),
@@ -72,7 +72,7 @@ class EmergencyContactForm(ModelForm):
     class Meta:
         model = EmergencyContact
         fields = ['prename', 'lastname', 'email', 'phone_number']
-        required = ['prename', 'lastname', 'email', 'phone_number']
+        required = ['prename', 'lastname', 'phone_number']
 
 
 class BaseEmergencyContactsFormSet(BaseInlineFormSet):
@@ -124,6 +124,13 @@ def echo(request):
         return HttpResponseRedirect(reverse('startpage:index'))
 
     if request.method == 'GET':
+        key = request.GET['key']
+        # try to get a member from the supplied echo key
+        try:
+            member = Member.objects.get(echo_key=key)
+        except Member.DoesNotExist:
+            return render_echo_failed(request, _("invalid"))
+
         # show password
         return render_echo_password(request, request.GET['key'])
 
@@ -151,7 +158,9 @@ def echo(request):
                 raise ValueError(_("Invalid emergency contacts"))
             form.save()
             emergency_contacts_formset.save()
-            member.echo_key, member.echo_expire = "", timezone.now()
+            # We don't invalidate the echo key, so the user
+            # can echo again if wanted.
+            # member.echo_key, member.echo_expire = "", timezone.now()
             member.echoed = True
             member.save()
             return render_echo_success(request, member.prename)

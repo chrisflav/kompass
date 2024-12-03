@@ -22,7 +22,8 @@ class AttachmentInline(CommonAdminInlineMixin, admin.TabularInline):
 
 
 class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
-    list_display = ('email', )
+    list_display = ('email', 'internal_only')
+    fields = ('name', 'to_members', 'to_groups', 'internal_only')
     #formfield_overrides = {
     #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
@@ -33,9 +34,10 @@ class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
 
 class MessageAdmin(FilteredMemberFieldMixin, CommonAdminMixin, ObjectPermissionsModelAdmin):
     """Message creation view"""
-    exclude = ('created_by',)
+    exclude = ('created_by', 'to_notelist')
     list_display = ('subject', 'get_recipients', 'sent')
     search_fields = ('subject',)
+    list_filter = ('sent',)
     change_form_template = "mailer/change_form.html"
     readonly_fields = ('sent',)
     #formfield_overrides = {
@@ -90,8 +92,13 @@ class MessageAdmin(FilteredMemberFieldMixin, CommonAdminMixin, ObjectPermissions
 
 def submit_message(msg, request):
     sender = None
-    if hasattr(request.user, 'member'):
-        sender = request.user.member
+    if not hasattr(request.user, 'member'):
+        messages.error(request, _("Your account is not connected to a member. Please contact your system administrator."))
+        return
+    sender = request.user.member
+    if not sender.has_internal_email():
+        messages.error(request, _("Your email address is not an internal email address. Please change your email address and try again."))
+        return
     success = msg.submit(sender)
     if success == NOT_SENT:
         messages.error(request, _("Failed to send message"))

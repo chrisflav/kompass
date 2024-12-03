@@ -22,12 +22,19 @@ der Registrierung kommst du hier:
 Viele Grüße
 Dein KOMPASS"""
 
+GROUP_TIME_AVAILABLE_TEXT = """Die Gruppenstunde findet jeden {weekday} von {start_time} bis {end_time} Uhr statt."""
+
+GROUP_TIME_UNAVAILABLE_TEXT = """Bitte erfrage die Gruppenzeiten bei der Gruppenleitung ({contact_email})."""
+
 INVITE_TEXT = """Hallo {name},
 
 wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe {group_name} {group_link}freigeworden.
-Wir treffen uns jeden {weekday} von {start_time} bis {end_time} Uhr.
+{group_time}
 
-Wir brauchen jetzt noch ein paar Informationen von dir und deine Anmeldebestätigung. Die lädst du herunter
+Bitte kontaktiere die Gruppenleitung ({contact_email}) für alle weiteren Absprachen.
+
+Wenn du nach der Schnupperstunde beschließt der Gruppe beizutreten, benötigen wir noch ein paar
+Informationen und deine Anmeldebestätigung von dir. Die lädst du herunter
 (siehe %(REGISTRATION_FORM_DOWNLOAD_LINK)s), lässt sie von deinen Eltern ausfüllen, unterschreiben
 und lädst ein Foto davon in unserem Anmeldeformular hoch. Das kannst du alles über folgenden Link erledigen:
 
@@ -144,7 +151,7 @@ kannst Du hier den Newsletter deabonnieren:
 
 INVITE_AS_USER_TEXT = """Hallo {name},
 
-du bist Jugendleiter:in in der Sektion %(SEKTION)s. Die Verwaltung unserer Jugendgruppen,
+du bist Jugendleiter*in in der Sektion %(SEKTION)s. Die Verwaltung unserer Jugendgruppen,
 Ausfahrten und Finanzen erfolgt in unserer Online Plattform Kompass. Deine Stammdaten sind
 dort bereits hinterlegt. Damit du dich auch anmelden kannst, folge bitte dem folgenden Link
 und wähle ein Passwort.
@@ -155,3 +162,8 @@ Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 
 Viele Grüße
 Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
+
+
+ADDRESS = """JDAV %(SEKTION)s
+%(STREET)s
+%(PLACE)s""" % { 'SEKTION': SEKTION, 'STREET': SEKTION_STREET, 'PLACE': SEKTION_TOWN }

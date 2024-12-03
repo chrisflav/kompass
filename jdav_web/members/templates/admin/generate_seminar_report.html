@@ -27,6 +27,10 @@
 {% blocktrans %}Here you can generate a seminar report suitable for the LJP. A report
 always contains a head page with the basic information on the seminar.{% endblocktrans %}
 </p>
+<p>
+{% blocktrans %}Expenses with same short description are automatically summed up and shown as one expense in the
+expense overview.{% endblocktrans %}
+</p>
 <ul>
     <li>
 {% blocktrans %}Full report: Include learning goals and a detailed, tabularized time schedule. This requires
@@ -39,12 +43,14 @@ have to add learning goals and a time schedule manually.{% endblocktrans %}
 </ul>
 
 <br>
-<p>{% blocktrans %}Please choose one of the listed modes.{% endblocktrans %}</p>
+<p>{% blocktrans %}You may also choose to include the V32 attachment.{% endblocktrans %}</p>
 
 <form action="" method="post">
     {% csrf_token %}
     <p>
-    {{form}}
+    <table>
+    {{ form }}
+    </table>
     </p>
     <br>
     <input type="hidden" name="action" value="seminar_report">

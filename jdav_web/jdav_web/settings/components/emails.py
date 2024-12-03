@@ -14,3 +14,4 @@ CELERY_EMAIL_TASK_CONFIG = {
 }
 
 DEFAULT_SENDING_MAIL = os.environ.get('EMAIL_SENDING_ADDRESS', 'django@localhost')
+DEFAULT_SENDING_NAME = os.environ.get('EMAIL_SENDING_NAME', 'Kompass')

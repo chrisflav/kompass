@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import uuid
 import pytz
+import unicodedata
 import re
 import csv
 from django.db import models
@@ -24,6 +25,7 @@ from .rules import may_view, may_change, may_delete, is_own_training, is_oneself
 import rules
 from contrib.models import CommonModel
 from contrib.rules import memberize_user, has_global_perm
+from utils import cvt_to_decimal
 
 from dateutil.relativedelta import relativedelta
 
@@ -73,9 +75,14 @@ class Group(models.Model):
     year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
     leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
                                      related_name='leited_groups', blank=True)
-    weekday = models.IntegerField(choices=WEEKDAYS, null=True, blank=True)
+    weekday = models.IntegerField(verbose_name=_('week day'), choices=WEEKDAYS, null=True, blank=True)
     start_time = models.TimeField(verbose_name=_('Starting time'), null=True, blank=True)
     end_time = models.TimeField(verbose_name=_('Ending time'), null=True, blank=True)
+    contact_email = models.ForeignKey('mailer.EmailAddress',
+                                      verbose_name=_('Contact email'),
+                                      null=True,
+                                      blank=True,
+                                      on_delete=models.SET_NULL)
 
     def __str__(self):
         """String representation"""
@@ -84,6 +91,10 @@ class Group(models.Model):
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
+
+    def has_time_info(self):
+        # return if the group has all relevant time slot information filled
+        return self.weekday and self.start_time and self.end_time
 
 
 class MemberManager(models.Manager):
@@ -130,6 +141,8 @@ class Contact(CommonModel):
         for email_fd, confirmed_email_fd, confirm_mail_key_fd in self.email_fields:
             if getattr(self, confirmed_email_fd) and not rerequest:
                 continue
+            if not getattr(self, email_fd):
+                continue
             requested_confirmation = True
             setattr(self, confirmed_email_fd, False)
             confirm_mail_key = uuid.uuid4().hex
@@ -152,9 +165,9 @@ class Contact(CommonModel):
                 return getattr(self, email_fd)
         return None
 
-    def send_mail(self, subject, content):
+    def send_mail(self, subject, content, cc=None):
         send_mail(subject, content, settings.DEFAULT_SENDING_MAIL,
-            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields])
+            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields], cc=cc)
 
 
 def confirm_mail_by_key(key):
@@ -189,7 +202,6 @@ class Person(Contact):
                       (FEMALE, 'Weiblich'),
                       (DIVERSE, 'Divers'))
     gender = models.IntegerField(choices=gender_choices,
-                                 default=DIVERSE,
                                  verbose_name=_('Gender'))
     comments = models.TextField(_('comments'), default='', blank=True)
 
@@ -314,7 +326,7 @@ class Member(Person):
 
     def generate_echo_key(self):
         self.echo_key = uuid.uuid4().hex
-        self.echo_expire = timezone.now() + timezone.timedelta(days=30)
+        self.echo_expire = timezone.now() + timezone.timedelta(days=settings.ECHO_GRACE_PERIOD)
         self.echoed = False
         self.save()
         return self.echo_key
@@ -358,10 +370,18 @@ class Member(Person):
         return self.email
 
     @property
+    def username(self):
+        """Return the username. Either this the name of the linked user, or
+        it is the suggested username."""
+        if not self.user:
+            return self.suggested_username()
+        else:
+            return self.user.username
+
+    @property
     def association_email(self):
         """Returning the association email of the member"""
-        raw = "{0}.{1}@{2}".format(self.prename.lower(), self.lastname.lower(), settings.DOMAIN)
-        return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
+        return "{username}@{domain}".format(username=self.username, domain=settings.DOMAIN)
 
     def registration_complete(self):
         """Check if all necessary fields are set."""
@@ -383,8 +403,9 @@ class Member(Person):
         permissions = (
             ('may_see_qualities', 'Is allowed to see the quality overview'),
             ('may_set_auth_user', 'Is allowed to set auth user member connections.'),
-            ('change_member_group', 'Can change the group field'),
+            ('may_change_member_group', 'Can change the group field'),
             ('may_invite_as_user', 'Is allowed to invite a member to set login data.'),
+            ('may_change_organizationals', 'Is allowed to set organizational settings on members.'),
         )
         rules_permissions = {
             'members': rules.always_allow,
@@ -433,11 +454,6 @@ class Member(Person):
         are confirmed."""
         return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail and\
             all([emc.confirmed_mail for emc in self.emergencycontact_set.all()])
-
-    def request_mail_confirmation(self, rerequest=False):
-        ret = super().request_mail_confirmation(rerequest)
-        rets = [emc.request_mail_confirmation(rerequest) for emc in self.emergencycontact_set.all()]
-        return ret or any(rets)
 
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
@@ -491,6 +507,8 @@ class Member(Person):
         elif name == "Group":
             return queryset
         elif name == "EmergencyContact":
+            return queryset
+        elif name == "MemberUnconfirmedProxy":
             return queryset
         else:
             raise ValueError(name)
@@ -657,15 +675,29 @@ class Member(Person):
     def suggested_username(self):
         """Returns a suggested username given by {prename}.{lastname}."""
         raw = "{0}.{1}".format(self.prename.lower(), self.lastname.lower())
-        return raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
+        return normalize_name(raw)
+
+    def has_internal_email(self):
+        """Returns if the configured e-mail address is a DAV360 email address."""
+        match = re.match('(^[^@]*)@(.*)$', self.email)
+        if not match:
+            return False
+        return match.group(2) in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
 
     def invite_as_user(self):
         """Invites the member to join Kompass as a user."""
+        if not self.has_internal_email():
+            # dont invite if the email address is not an internal one
+            return False
+        if self.user:
+            # don't reinvite if there is already userdata attached
+            return False
         self.invite_as_user_key = uuid.uuid4().hex
         self.save()
         self.send_mail(_('Set login data for Kompass'),
                        settings.INVITE_AS_USER_TEXT.format(name=self.prename,
                                                            link=get_invite_as_user_key(self.invite_as_user_key)))
+        return True
 
     def led_groups(self):
         """Returns a queryset of groups that this member is a youth leader of."""
@@ -681,6 +713,7 @@ class EmergencyContact(ContactWithPhoneNumber):
     Emergency contact of a member
     """
     member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
+    email = models.EmailField(max_length=100, default='', blank=True)
 
     def __str__(self):
         return str(self.member)
@@ -710,6 +743,11 @@ class MemberUnconfirmedProxy(Member):
         verbose_name = _('Unconfirmed registration')
         verbose_name_plural = _('Unconfirmed registrations')
         permissions = (('may_manage_all_registrations', 'Can view and manage all unconfirmed registrations.'),)
+        rules_permissions = {
+            'view_obj': may_view | has_global_perm('members.may_manage_all_registrations'),
+            'change_obj': may_change | has_global_perm('members.may_manage_all_registrations'),
+            'delete_obj': may_delete | has_global_perm('members.may_manage_all_registrations'),
+        }
 
     def __str__(self):
         """String representation"""
@@ -846,21 +884,23 @@ class MemberWaitingList(Person):
             group_link = '({url}) '.format(url=prepend_base_url(reverse('startpage:gruppe_detail', args=[group.name])))
         else:
             group_link = ''
-        # TODO: inform the user that the group has no configured weekday, start_time or end_time
-        weekday = WEEKDAYS[group.weekday][1] if group.weekday != None else WEEKDAYS[0][1]
-        start_time = group.start_time.strftime('%H:%M') if group.start_time != None else "14:00"
-        end_time = group.end_time.strftime('%H:%M') if group.end_time != None else "16:00"
+        if group.has_time_info():
+            group_time = settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[group.weekday][1],
+                                                          start_time=group.start_time.strftime('%H:%M'),
+                                                          end_time=group.end_time.strftime('%H:%M'))
+        else:
+            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=group.contact_email)
         invitation = InvitationToGroup(group=group, waiter=self)
         invitation.save()
         self.send_mail(_("Invitation to trial group meeting"),
             settings.INVITE_TEXT.format(name=self.prename,
-            weekday=weekday,
-            start_time=start_time,
-            end_time=end_time,
-            group_name=group.name,
-            group_link=group_link,
-            link=get_registration_link(invitation.key),
-            invitation_reject_link=get_invitation_reject_link(invitation.key)))
+                group_time=group_time,
+                group_name=group.name,
+                group_link=group_link,
+                contact_email=group.contact_email,
+                link=get_registration_link(invitation.key),
+                invitation_reject_link=get_invitation_reject_link(invitation.key)),
+            cc=group.contact_email.email)
 
     def unregister(self):
         """Delete the waiter and inform them about the deletion via email."""
@@ -1016,6 +1056,31 @@ class Freizeit(CommonModel):
         return len(ps - jls)
 
     @property
+    def ljp_participant_count(self):
+        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
+        jls = set(self.jugendleiter.distinct())
+        count = len(ps.union(jls))
+        return count
+        #return count if count >= 5 else 0
+
+    @property
+    def maximal_ljp_contributions(self):
+        return cvt_to_decimal(settings.LJP_CONTRIBUTION_PER_DAY * self.ljp_participant_count * self.duration)
+
+    @property
+    def potential_ljp_contributions(self):
+        return cvt_to_decimal(min(self.maximal_ljp_contributions,
+                                  0.9 * float(self.statement.total_bills_theoretic) + float(self.statement.total_staff)))
+
+    @property
+    def total_relative_costs(self):
+        if not self.statement:
+            return 0
+        total_costs = self.statement.total_bills_theoretic
+        total_contributions = self.statement.total_staff + self.potential_ljp_contributions
+        return total_costs - total_contributions
+
+    @property
     def time_period_str(self):
         time_period = self.date.strftime('%d.%m.%Y')
         if self.end != self.date:
@@ -1089,6 +1154,60 @@ class Freizeit(CommonModel):
             base['Anschrift' + suffix] = m.address
             base['Alter' + suffix] = str(m.age)
             base['Status' + suffix] = str(2)
+        return base
+
+    def v32_fields(self):
+        title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
+        base = {
+            # AntragstellerIn
+            'Textfeld 2':  settings.ADDRESS,
+            # Dachorganisation
+            'Textfeld 3':  settings.V32_HEAD_ORGANISATION,
+            # Datum der Maßnahme am/vom
+            'Textfeld 20': self.date.strftime('%d.%m.%Y'),
+            # bis
+            'Textfeld 28': self.end.strftime('%d.%m.%Y'),
+            # Thema der Maßnahme
+            'Textfeld 22': title,
+            # IBAN
+            'Textfeld 36': settings.SEKTION_IBAN,
+            # Kontoinhaber
+            'Textfeld 37': settings.SEKTION_ACCOUNT_HOLDER,
+            # Zahl der zuwendungsfähigen Teilnehemr
+            'Textfeld 43': str(self.ljp_participant_count),
+            # Teilnahmetage
+            'Textfeld 46': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            # Euro Tagessatz
+            'Textfeld 48': str(settings.LJP_CONTRIBUTION_PER_DAY),
+            # Erbetener Zuschuss
+            'Textfeld 50': str(self.maximal_ljp_contributions).replace('.', ','),
+            # Stunden Bildungsprogramm
+            'Textfeld 52': '??',
+            # Tage
+            'Textfeld 53': str(round(self.duration, 1)).replace('.', ','),
+            # Haushaltsjahr
+            'Textfeld 54': str(datetime.now().year),
+            # nicht anrechenbare Teilnahmetage
+            'Textfeld 55': '0',
+            # Gesamt-Teilnahmetage
+            'Textfeld 56': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            # Ort, Datum
+            'DatumOrt 2': 'Heidelberg, ' + datetime.now().strftime('%d.%m.%Y')
+        }
+        if hasattr(self, 'statement'):
+            possible_contributions = self.maximal_ljp_contributions
+            total_contributions = min(self.statement.total_theoretic, possible_contributions)
+            self_participation = max(cvt_to_decimal(0), self.statement.total_theoretic - possible_contributions)
+            # Gesamtkosten von
+            base['Textfeld 62'] = str(self.statement.total_theoretic).replace('.', ',')
+            # Eigenmittel und Teilnahmebeiträge
+            base['Textfeld 59'] = str(self_participation).replace('.', ',')
+            # Drittmittel
+            base['Textfeld 60'] = '0,00'
+            # Erbetener Zuschuss
+            base['Textfeld 61'] = str(total_contributions).replace('.', ',')
+            # Ergibt wieder
+            base['Textfeld 58'] = base['Textfeld 62']
         return base
 
     @staticmethod
@@ -1524,7 +1643,7 @@ def parse_date(value):
 def parse_datetime(value):
     tz = pytz.timezone('Europe/Berlin')
     if value == '':
-        return None
+        return timezone.now()
     return tz.localize(datetime.strptime(value, '%d.%m.%Y %H:%M:%S'))
 
 
@@ -1625,7 +1744,7 @@ def import_from_csv_waitinglist(path):
         kwargs = dict([ transform_field(k, v) for k, v in row.items() if k in CLUBDESK_TO_KOMPASS ])
         kwargs_filtered = { k : v for k, v in kwargs.items() if k in ['prename', 'lastname', 'email', 'birth_date', 'application_text', 'application_date'] }
 
-        mem = MemberWaitingList(**kwargs_filtered)
+        mem = MemberWaitingList(gender=DIVERSE, **kwargs_filtered)
         mem.save()
 
         if kwargs['contacted_by']:
@@ -1639,3 +1758,8 @@ def import_from_csv_waitinglist(path):
 
     for row in rows:
         transform_row(row)
+
+
+def normalize_name(raw):
+    noumlaut = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue').replace(' ', '_')
+    return unicodedata.normalize('NFKD', noumlaut).encode('ascii', 'ignore').decode('ascii')

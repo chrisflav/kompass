@@ -7,14 +7,20 @@ import os
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 
 def send(subject, content, sender, recipients, message_id=None, reply_to=None,
-         attachments=None):
+         attachments=None, cc=None):
     failed, succeeded = False, False
     if type(recipients) != list:
         recipients = [recipients]
+    if not cc:
+        cc = []
+    elif type(cc) != list:
+        cc = [cc]
     if reply_to is not None:
         kwargs = {"reply_to": reply_to}
     else:
         kwargs = {}
+    if sender == settings.DEFAULT_SENDING_MAIL:
+        sender = addr_with_name(settings.DEFAULT_SENDING_MAIL, settings.DEFAULT_SENDING_NAME)
     url = prepend_base_url("/newsletter/unsubscribe")
     headers = {'List-Unsubscribe': '<{unsubscribe_url}>'.format(unsubscribe_url=url)}
     if message_id is not None:
@@ -23,7 +29,7 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
     # construct mails
     mails = []
     for recipient in set(recipients):
-        email = EmailMessage(subject, content, sender, [recipient],
+        email = EmailMessage(subject, content, sender, [recipient], cc=cc,
                              headers=headers, **kwargs)
         if attachments is not None:
             for attach in attachments:
@@ -47,10 +53,8 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
 def get_content(content, registration_complete=True):
     url = prepend_base_url("/newsletter/unsubscribe")
     prepend = settings.PREPEND_INCOMPLETE_REGISTRATION_TEXT
-    footer = settings.MAIL_FOOTER.format(link=url)
-    text = "{prepend}{content}{footer}".format(prepend="" if registration_complete else prepend,
-                                                     content=content,
-                                                     footer=footer)
+    text = "{prepend}{content}".format(prepend="" if registration_complete else prepend,
+                                       content=content)
     return text
 
 
@@ -87,3 +91,7 @@ def get_invite_as_user_key(key):
 
 def prepend_base_url(absolutelink):
     return "{protocol}://{base}{link}".format(protocol=settings.PROTOCOL, base=settings.BASE_URL, link=absolutelink)
+
+
+def addr_with_name(addr, name):
+    return "{name} <{addr}>".format(name=name, addr=addr)
