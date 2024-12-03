@@ -32,14 +32,14 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'bill', 'permissions': ['finance.view_bill', 'finance.view_bill_admin']},
         {'name': 'transaction', 'permissions': ['finance.view_transaction']},
     ]},
-    {'label': 'Teilnehmer*innenverwaltung', 'app_label': 'members', 'permissions': ['members.view_group'], 'items': [
-        {'name': 'member', 'permissions': ['members.view_member']},
+    {'label': 'Teilnehmer*innenverwaltung', 'app_label': 'members', 'items': [
+        {'name': 'member', 'label': 'Alle Teilnehmer*innen', 'permissions': ['members.view_member']},
         {'name': 'freizeit', 'permissions': ['members.view_freizeit']},
         {'name': 'group', 'permissions': ['members.view_group']},
         {'name': 'membernotelist', 'permissions': ['members.view_membernotelist']},
         {'name': 'klettertreff', 'permissions': ['members.view_klettertreff']},
-        {'name': 'activitycategory', 'permissions': ['members.view_activitycategory']},
-        {'name': 'trainingcategory', 'permissions': ['members.view_trainingcategory']},
+        {'name': 'activitycategory', 'permissions': ['members.view_group']},
+        {'name': 'trainingcategory', 'permissions': ['members.view_group']},
     ]},
     {'label': 'Neue Mitglieder', 'app_label': 'members', 'permissions': ['members.view_memberunconfirmedproxy'], 'items': [
         {'name': 'memberunconfirmedproxy', 'permissions': ['members.view_memberunconfirmedproxy']},
