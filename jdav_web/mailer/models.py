@@ -22,7 +22,8 @@ alphanumeric = RegexValidator(r'^[0-9a-zA-Z._-]*$',
 
 class EmailAddress(models.Model):
     """Represents an email address, that is forwarded to specific members"""
-    name = models.CharField(_('name'), max_length=50, validators=[alphanumeric])
+    name = models.CharField(_('name'), max_length=50, validators=[alphanumeric],
+                            unique=True)
     to_members = models.ManyToManyField('members.Member',
                                         verbose_name=_('Forward to participants'),
                                         blank=True)
@@ -63,6 +64,7 @@ class EmailAddressForm(forms.ModelForm):
         exclude = []
 
     def clean(self):
+        super(EmailAddressForm, self).clean()
         group = self.cleaned_data.get('to_groups')
         members = self.cleaned_data.get('to_members')
         if not group and not members:
