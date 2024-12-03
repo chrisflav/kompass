@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-01 16:23+0100\n"
+"POT-Creation-Date: 2024-12-04 00:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,13 +18,20 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: startpage/admin.py:21 startpage/admin.py:36 startpage/models.py:18
+#: startpage/models.py:40
+msgid "URL"
+msgstr "URL"
+
+#: startpage/admin.py:22 startpage/admin.py:37
+msgid "The url may only consist of letters, numerals, _, -, :, * and spaces."
+msgstr ""
+"Die URL darf nur aus Buchstaben, Zahlen, _, -, :, * oder Leerzeichen "
+"bestehen."
+
 #: startpage/models.py:17 startpage/models.py:39
 msgid "Title"
 msgstr "Titel"
-
-#: startpage/models.py:18 startpage/models.py:40
-msgid "URL"
-msgstr "URL"
 
 #: startpage/models.py:19 startpage/models.py:42
 msgid "website text"

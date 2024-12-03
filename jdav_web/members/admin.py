@@ -704,6 +704,10 @@ class RegistrationPasswordInline(admin.TabularInline):
 
 
 class GroupAdminForm(forms.ModelForm):
+    name = forms.RegexField(regex=r'^{pattern}+$'.format(pattern=settings.STARTPAGE_URL_NAME_PATTERN),
+                            label=_('name'),
+                            error_messages={'invalid': _('The group name may only consist of letters, numerals, _, -, :, * and spaces.')})
+
     class Meta:
         model = Freizeit
         exclude = ['add_member']

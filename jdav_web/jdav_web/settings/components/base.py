@@ -191,3 +191,6 @@ MARKDOWNIFY = {
         }
     }
 }
+
+# allowed characters in names appearing in urls on the website
+STARTPAGE_URL_NAME_PATTERN = "[\w\-: *]"
