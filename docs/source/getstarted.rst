@@ -71,7 +71,7 @@ Wie geht es weiter?
 Nun hat Fritz den Bürokratiekram für heute erledigt. Du willst noch mehr wissen? Dann
 geh zurück zum :ref:`index`.
 
-.. _Startseite: https://startpage.com
-.. _Teilnehmer:innenanzeige: https://startpage.com
-.. _Nachricht verfassen: https://startpage.com
-.. _Ausfahrten: https://startpage.com
+.. _Startseite: https://jdav-hd.de/kompass
+.. _Teilnehmer:innenanzeige: https://jdav-hd.de/kompassmembers/member/
+.. _Nachricht verfassen: https://jdav-hd.de/kompassmailer/message/add/
+.. _Ausfahrten: https://jdav-hd.de/kompassmembers/freizeit/
