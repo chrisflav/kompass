@@ -16,7 +16,7 @@ Was ist der Kompass?
 Der Kompass ist eine Verwaltungsplattform für die tägliche Jugendarbeit in der JDAV.
 Die wichtigsten Funktionen sind
 
-- Verwaltung von Teilnehmer:innen von Jugendgruppen
+- Verwaltung von Teilnehmer\*innen von Jugendgruppen
 - Organisation von Ausfahrten
 - Abwicklung von Abrechnungen
 - Senden von E-Mails
