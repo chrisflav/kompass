@@ -126,3 +126,5 @@ docker/production/media
 docker/test/media
 
 *.csv
+
+jdav_web/static/docs

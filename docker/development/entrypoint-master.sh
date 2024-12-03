@@ -33,6 +33,10 @@ cd /app
 if ! [ -f /tmp/completed_initial_run ]; then
     echo 'Initialising kompass master container'
 
+    cd docs
+    make html
+    cd /app
+
     python jdav_web/manage.py compilemessages --locale de
 
     # python jdav_web/manage.py makemigrations
