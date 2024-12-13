@@ -45,9 +45,9 @@ SEND_FROM_ASSOCIATION_EMAIL = os.environ.get('SEND_FROM_ASSOCIATION_EMAIL', '0')
 ALLOWANCE_PER_DAY = 22
 MAX_NIGHT_COST = 11
 
-CLOUD_LINK = 'https://nc.cloud-jdav-hd.de'
-DAV_360_LINK = 'https://dav360.de'
-WIKI_LINK = 'https://davbgs.sharepoint.com/sites/S-114-O-JDAV-Jugendreferat'
+CLOUD_LINK = os.environ.get('CLOUD_LINK', 'https://startpage.com')
+DAV_360_LINK = os.environ.get('DAV_360_LINK', 'https://dav360.de')
+WIKI_LINK = os.environ.get('WIKI_LINK', 'https://wikipedia.org')
 DOCS_LINK = os.environ.get('DOCS_LINK', 'https://jdav-hd.de/static/docs/')
 
 # Admin setup
@@ -65,7 +65,7 @@ MAX_REMINDER_COUNT = 3
 
 TEST_MAIL = "post@flavigny.de"
 
-REGISTRATION_FORM_DOWNLOAD_LINK = 'https://nc.cloud-jdav-hd.de'
+REGISTRATION_FORM_DOWNLOAD_LINK = os.environ.get('REGISTRATION_FORM_DOWNLOAD_LINK', 'https://startpage.com')
 
 DOMAIN = os.environ.get('DOMAIN', 'example.com')
 
