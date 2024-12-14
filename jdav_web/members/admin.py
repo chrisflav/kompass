@@ -677,6 +677,10 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
         ]
         return custom_urls + urls
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.prefetch_related('invitationtogroup_set')
+
     def invite_view(self, request, object_id):
         waiter = MemberWaitingList.objects.get(pk=object_id)
 
