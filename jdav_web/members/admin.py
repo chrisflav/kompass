@@ -407,7 +407,7 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
                 'comments',
                 'legal_guardians',
                 'dav_badge_no',
-                'active', 'echoed',
+                'echoed',
                 'user',
              ]
          }
@@ -440,7 +440,7 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
     readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail',
-                       'good_conduct_certificate_valid']
+                       'good_conduct_certificate_valid', 'echoed']
     actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter_action']
     inlines = [EmergencyContactInline]
     change_form_template = "members/change_member_unconfirmed.html"
@@ -454,6 +454,7 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     field_change_permissions = {
         'user': 'members.may_set_auth_user',
+        'group': 'members.may_change_member_group',
         'good_conduct_certificate_presented_date': 'members.may_change_organizationals',
         'has_key': 'members.may_change_organizationals',
         'has_free_ticket_gym': 'members.may_change_organizationals',

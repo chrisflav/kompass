@@ -465,8 +465,7 @@ class Member(Person):
     def registration_ready(self):
         """Returns if the member is currently unconfirmed and all email addresses
         are confirmed."""
-        return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail and\
-            all([emc.confirmed_mail for emc in self.emergencycontact_set.all()])
+        return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail
 
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
