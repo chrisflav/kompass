@@ -15,6 +15,7 @@ from django.template.loader import get_template
 from django.urls import path, reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
+from django.utils import timezone
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import DateFieldListFilter
@@ -580,14 +581,28 @@ class InvitationToGroupAdmin(admin.TabularInline):
         return False
 
 
+class InvitedToGroupFilter(admin.SimpleListFilter):
+    title = _('Pending group invitation for group')
+    parameter_name = 'pending_group_invitation'
+
+    def lookups(self, request, model_admin):
+        return [(g.pk, g.name) for g in Group.objects.all()]
+
+    def queryset(self, request, queryset):
+        pk = self.value()
+        if not pk:
+            return queryset
+        return queryset.filter(invitationtogroup__group__pk=pk, invitationtogroup__rejected=False,
+                               invitationtogroup__date__gt=(timezone.now() - timezone.timedelta(days=30)).date()).distinct()
+
+
 class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['prename', 'lastname', 'email', 'birth_date', 'gender', 'application_text',
-        'application_date', 'comments',
-        'sent_reminders']
-    list_display = ('name', 'birth_date', 'age', 'application_date', 'confirmed_mail',
-                    'waiting_confirmed', 'sent_reminders')
+        'application_date', 'comments', 'sent_reminders']
+    list_display = ('name', 'birth_date', 'age', 'gender', 'application_date', 'latest_group_invitation',
+                    'confirmed_mail', 'waiting_confirmed', 'sent_reminders')
     search_fields = ('prename', 'lastname', 'email')
-    list_filter = ('confirmed_mail',)
+    list_filter = ['confirmed_mail', 'gender', InvitedToGroupFilter]
     actions = ['ask_for_registration', 'ask_for_wait_confirmation']
     inlines = [InvitationToGroupAdmin]
     readonly_fields= ['application_date', 'sent_reminders']

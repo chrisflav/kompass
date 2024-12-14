@@ -828,6 +828,14 @@ class MemberWaitingList(Person):
             'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
         }
 
+    def latest_group_invitation(self):
+        gi = self.invitationtogroup_set.order_by('-pk').first()
+        if gi:
+            return "{group}: {status}".format(group=gi.group.name, status=gi.status())
+        else:
+            return "-"
+    latest_group_invitation.short_description = _('Latest group invitation')
+
     @property
     def waiting_confirmation_needed(self):
         """Returns if person should be asked to confirm waiting status."""
