@@ -51,7 +51,7 @@ Hier siehst du alle von dir geleiteten Ausfahrten und für dich sichtbare Teilne
 <h2>Neue Mitglieder</h2>
 <p>
 {% if perms.member.may_manage_waiting_list %}
-Hier werden neue Mitglieder verwaltet. Um ein neues Mitglied anzulegen, muss sich die Person
+Um ein neues Mitglied anzulegen, muss sich die Person
 <a href="{% url 'members:register_waiting_list' %}">anmelden</a>. Daraufhin landet
 sie auf der <a href="{% url 'admin:members_memberwaitinglist_changelist' %}">Warteliste</a>. Eine
 Person auf der Warteliste kannst du dann zu einer Schnupperstunde einer gewählten Gruppe einladen.
@@ -59,7 +59,7 @@ Diese Einladung enthält einen Registrierungslink zu einem Formular in dem die P
 Stammdaten eingbit. Diese Daten landen dann unter
 <a href="{% url 'admin:members_memberunconfirmedproxy_changelist' %}">Unbestätigte Registrierungen</a>.
 {% else %}
-Hier werden neue Mitglieder verwaltet. Ob über die Warteliste oder über ein Registrierungspasswort,
+Ob über die Warteliste oder über ein Registrierungspasswort,
 liegt eine neue Registrierung für eine von dir geleitete Jugendgruppe vor, kannst du die hier einsehen
 und die Daten prüfen. Falls die Daten vollständig sind, bestätige die Registrierung um die Person in deine
 Jugendgruppe aufzunehmen.
