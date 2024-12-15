@@ -301,6 +301,9 @@ class Member(Person):
     user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL,
                                 verbose_name=_('Login data'))
     invite_as_user_key = models.CharField(max_length=32, default="")
+    waitinglist_application_date = models.DateTimeField(verbose_name=_('waitinglist application date'),
+                                                        null=True, blank=True,
+                                                        help_text=_('If the person registered from the waitinglist, this is their application date.'))
 
     objects = MemberManager()
 
@@ -452,6 +455,9 @@ class Member(Person):
             if self.email == waiter.email:
                 self.confirmed_mail = waiter.confirmed_mail
                 self.confirm_mail_key = waiter.confirm_mail_key
+            # store waitinglist application date in member, this will be used
+            # if the member is later demoted to waiter again
+            self.waitinglist_application_date = waiter.application_date
         if self.alternative_email:
             self.confirmed_alternative_mail = False
         self.save()
@@ -718,6 +724,23 @@ class Member(Person):
     def led_freizeiten(self, limit=5):
         """Returns a queryset of freizeiten that this member is a youth leader of."""
         return Freizeit.objects.filter(jugendleiter__pk=self.pk)[:limit]
+
+    def demote_to_waiter(self):
+        """Demote this member to a waiter by creating a waiter from the data and removing
+        this member."""
+        waiter = MemberWaitingList(prename=self.prename,
+                                   lastname=self.lastname,
+                                   email=self.email,
+                                   birth_date=self.birth_date,
+                                   gender=self.gender,
+                                   comments=self.comments,
+                                   confirmed_mail=self.confirmed_mail,
+                                   confirm_mail_key=self.confirm_mail_key)
+        # if this member was created from the waitinglist, keep the original application date
+        if self.waitinglist_application_date:
+            waiter.application_date = self.waitinglist_application_date
+        waiter.save()
+        self.delete()
 
 
 class EmergencyContact(ContactWithPhoneNumber):

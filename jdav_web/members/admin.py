@@ -543,17 +543,8 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     def demote_to_waiter(self, request, queryset):
         for member in queryset:
-            waiter = MemberWaitingList(prename=member.prename,
-                                       lastname=member.lastname,
-                                       email=member.email,
-                                       birth_date=member.birth_date,
-                                       gender=member.gender,
-                                       comments=member.comments,
-                                       confirmed_mail=member.confirmed_mail,
-                                       confirm_mail_key=member.confirm_mail_key)
-            waiter.save()
-            member.delete()
-            messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': waiter.name})
+            member.demote_to_waiter()
+            messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': member.name})
 
     def response_change(self, request, member):
         if "_confirm" in request.POST:
