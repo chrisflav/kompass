@@ -1,0 +1,16 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Registration" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Register" %}</h1>
+
+<p>{% blocktrans %}The supplied key for uploading a registration form is invalid.{% endblocktrans %}
+</p>
+
+{% endblock %}

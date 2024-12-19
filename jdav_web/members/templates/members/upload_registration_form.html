@@ -1,0 +1,33 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Registration" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Register" %}</h1>
+
+{% url 'members:download_registration_form' as download_url %}
+<p>{% blocktrans %}We summarized your registration in our registration
+form. Please <a href="{{ download_url }}?key={{ key }}">download</a> it,
+fill in the remaining fields and read the general conditions. If you agree,
+please sign the document and upload a scan or image here.{% endblocktrans %}
+</p>
+<p>{% blocktrans %}If you are not an adult yet, please let someone responsible for you sign the agreement.{% endblocktrans %}
+</p>
+
+<form action="" method="post" enctype="multipart/form-data">
+    <p>
+    <table class="termine">
+    {% csrf_token %}
+    {{form}}
+    </table>
+    </p>
+    <input type="hidden" name="key" value="{{ key }}">
+    <input type="submit" value="{% trans "Upload" %}"/>
+</form>
+
+{% endblock %}

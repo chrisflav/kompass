@@ -1,6 +1,7 @@
 from startpage.views import render
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponseRedirect
+from django import forms
 from django.forms import ModelForm, TextInput, DateInput, BaseInlineFormSet,\
     inlineformset_factory, HiddenInput, FileInput
 from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy, MemberWaitingList, Group,\
@@ -8,6 +9,7 @@ from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy,
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
+from .pdf import render_tex, media_path
 
 
 class MemberForm(ModelForm):
@@ -15,6 +17,7 @@ class MemberForm(ModelForm):
         model = Member
         fields = ['prename', 'lastname', 'gender', 'street', 'plz', 'town',
                   'address_extra', 'phone_number', 'dav_badge_no']
+
 
 class MemberRegistrationForm(ModelForm):
     def __init__(self, *args, **kwargs):
@@ -26,11 +29,9 @@ class MemberRegistrationForm(ModelForm):
     class Meta:
         model = Member
         fields = ['prename', 'lastname', 'street', 'plz', 'town', 'address_extra',
-                  'phone_number', 'birth_date', 'gender', 'email', 'alternative_email',
-                  'registration_form']
+                  'phone_number', 'birth_date', 'gender', 'email', 'alternative_email']
         widgets = {
             'birth_date': DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
-            'registration_form': FileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'}),
         }
         help_texts = {
             'prename': _('Prename of the member.'),
@@ -39,7 +40,23 @@ class MemberRegistrationForm(ModelForm):
             'email': _('email of child if available, otherwise parental email address'),
             'alternative_email': _('optional additional email address'),
         }
-        required = ['registration_form', 'street', 'plz', 'town']
+        required = ['street', 'plz', 'town']
+
+
+class UploadRegistrationForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(UploadRegistrationForm, self).__init__(*args, **kwargs)
+
+        for field in self.Meta.required:
+            self.fields[field].required = True
+
+    class Meta:
+        model = Member
+        fields = ['registration_form']
+        widgets = {
+            'registration_form': FileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'}),
+        }
+        required = ['registration_form']
 
 
 class MemberRegistrationWaitingListForm(ModelForm):
@@ -264,7 +281,8 @@ def register(request):
             else:
                 raise ValueError
             needs_mail_confirmation = new_member.create_from_registration(waiter, group)
-            return render_register_success(request, group.name, new_member.prename, needs_mail_confirmation)
+            new_member.send_upload_registration_form_link()
+            return HttpResponseRedirect(reverse('members:upload_registration_form') + "?key=" + new_member.upload_registration_form_key)
         except ValueError as e:
             print("value error", e)
             # when input is invalid
@@ -275,6 +293,68 @@ def register(request):
                 return render_register(request, group, form, emergency_contacts_formset, waiter_key=waiter_key)
     # we are not saving yet
     return render_register(request, group, form=None, pwd=pwd.password, waiter_key=waiter_key)
+
+
+def render_download_registration_form(request, member):
+    context = dict(member=member, settings=settings)
+    return render_tex('Anmeldeformular_' + member.name, 'members/registration_form.tex', context)
+
+
+def download_registration_form(request):
+    if request.method != 'GET' or 'key' not in request.GET:
+        return render_upload_registration_form_invalid(request)
+    key = request.GET['key']
+    try:
+        member = MemberUnconfirmedProxy.objects.get(upload_registration_form_key=key)
+        return render_download_registration_form(request, member)
+    except Member.DoesNotExist:
+        return render_upload_registration_form_invalid(request)
+    return render_upload_registration_form_invalid(request)
+
+
+def render_upload_registration_form_invalid(request):
+    return render(request, 'members/upload_registration_form_invalid.html')
+
+
+def render_upload_registration_form_success(request, member):
+    return render(request, 'members/upload_registration_form_success.html',
+                  context={'member': member})
+
+
+def render_upload_registration_form(request, member, form, key):
+    return render(request, 'members/upload_registration_form.html',
+                  context={'form': form, 'member': member, 'key': key})
+
+
+def upload_registration_form(request):
+    if request.method == 'GET':
+        if not 'key' in request.GET:
+            return render_upload_registration_form_invalid(request)
+        key = request.GET['key']
+        try:
+            member = MemberUnconfirmedProxy.objects.get(upload_registration_form_key=key)
+        except Member.DoesNotExist:
+            return render_upload_registration_form_invalid(request)
+        form = UploadRegistrationForm(instance=member)
+        return render_upload_registration_form(request, member, form, key)
+    if not 'key' in request.POST:
+        return render_upload_registration_form_invalid(request)
+    key = request.POST['key']
+    try:
+        member = MemberUnconfirmedProxy.objects.get(upload_registration_form_key=key)
+    except Member.DoesNotExist:
+        return render_upload_registration_form_invalid(request)
+
+    form = UploadRegistrationForm(request.POST, request.FILES, instance=member)
+    if not form.is_valid():
+        return render_upload_registration_form(request, member, form, key)
+    try:
+        form.save()
+        member.validate_registration_form()
+        return render_upload_registration_form_success(request, member)
+    except ValueError as e:
+        return render_upload_registration_form(request, member, form, key)
+    return render_upload_registration_form_invalid(request)
 
 
 def confirm_mail(request):

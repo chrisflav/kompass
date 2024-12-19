@@ -128,3 +128,6 @@ docker/test/media
 *.csv
 
 jdav_web/static/docs
+
+# mac files
+.DS_Store

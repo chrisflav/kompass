@@ -14,8 +14,8 @@ Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION }
 NEW_UNCONFIRMED_REGISTRATION = """Hallo {name},
 
 für deine Gruppe {group} liegt eine neue unbestätigte Reservierung vor. Die Person hat bereits ihre
-E-Mailadressen bestätigt. Bitte prüfe die Registrierung eingehend und bestätige falls möglich. Zu
-der Registrierung kommst du hier:
+E-Mailadressen bestätigt und ihr Anmeldeformular hochgeladen. Bitte prüfe die Registrierung eingehend und
+bestätige falls möglich. Zu der Registrierung kommst du hier:
 
 {link}
 
@@ -157,6 +157,24 @@ dort bereits hinterlegt. Damit du dich auch anmelden kannst, folge bitte dem fol
 und wähle ein Passwort.
 
 {link}
+
+Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
+
+Viele Grüße
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
+
+
+UPLOAD_REGISTRATION_FORM_TEXT = """Hallo {name},
+
+vielen Dank für deine Anmeldung in der JDAV %(SEKTION)s. Bevor es richtig losgehen kann, brauchen
+wir noch die Bestätigung deiner Daten und die Zustimmung zu unseren Teilnahmebedingungen.
+
+Dafür kannst du das für dich vorausgefüllte Anmeldeformular unter folgendem Link herunterladen,
+durchlesen und, falls du zustimmst, das unterschriebene Formular wieder dort hochladen.
+
+{link}
+
+Bist du noch nicht volljährig? Dann muss eine erziehungsberechtigte Person das Formular unterschreiben.
 
 Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 

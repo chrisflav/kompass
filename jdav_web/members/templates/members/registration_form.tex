@@ -1,0 +1,406 @@
+{% load tex_extras %}
+
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{cmbright}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks, breaklinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ltablex}
+
+\usepackage{tikz}
+\usepackage{setspace}
+\usepackage{pbox}
+
+\newcommand{\picpos}[4]{
+  \begin{textblock*}{#1}(#2, #3)
+    \includegraphics[width=\textwidth]{#4}
+  \end{textblock*}
+}
+
+% set formatting
+\setlength\parindent{0pt}
+\setlength\parskip{0.6em plus 0.1em minus 0.1em}
+
+% custom url command for properly formatting emails
+\DeclareUrlCommand\Email{\urlstyle{same}}
+% allow linebreak after every character
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
+\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
+\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
+\do\w\do\x\do\y\do\z
+\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
+\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
+\do\W\do\X\do\Y\do\Z}
+
+\renewcommand{\arraystretch}{1}
+
+\newcolumntype{L}{>{\hspace{0pt}}X}
+\newcommand{\tickedbox}{
+    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
+}
+\newcommand{\checkbox}{
+    \makebox[0pt][l]{$\square$}
+}
+
+% algemeines Layout Formular-Elemente
+\renewcommand*{\DefaultOptionsofRadio}{print,radio, radiosymbol=6, width=\baselineskip, bordercolor={black}, borderwidth=0pt}
+\renewcommand*{\DefaultOptionsofText}{print,bordercolor={black}, backgroundcolor=white, borderwidth=0pt}
+
+\renewcommand{\LayoutTextField}[2]{% label, field
+\setbox0=\hbox{#1\unskip}\ifdim\wd0=0pt
+\setbox1=\hbox{#2\unskip}\ifdim\ht1>3ex
+% Multiline
+\begin{tikzpicture}[every node/.style={inner sep=0,outer sep=0}]
+  \node[anchor=west] (TextFieldNode) at (0cm,0cm) {#2};
+  \draw [thick] (current bounding box.south west) rectangle (current bounding box.north east);
+\end{tikzpicture}%
+\else
+% Inline field, lowered a little bit to be better integrated into the text
+\raisebox{-3.2pt}{\begin{tikzpicture}[every node/.style={inner sep=0,outer sep=0}]
+  \node[anchor=west] (TextFieldNode) at (0cm,0cm) {#2};
+  \draw[thick] ([yshift=-0.3ex]TextFieldNode.south west) -- ([yshift=-0.3ex]TextFieldNode.south east);
+\end{tikzpicture}}%
+\fi
+\else
+% Field with label below it
+\begin{tikzpicture}[every node/.style={inner sep=0,outer sep=0}]
+    \node[anchor=west] (TextFieldNode) at (0cm,2ex) {#2};
+    \draw[thick] ([yshift=-0.3ex]TextFieldNode.south west) -- ([yshift=-0.3ex]TextFieldNode.south east);
+    \node[anchor=west,font=\small] at (0cm,-0.9ex) {#1};
+\end{tikzpicture}%
+\fi
+}
+
+\newcommand{\radiosize}{0.33cm}
+\newcommand{\yesnoticks}[1]{%
+\raisebox{-3.2pt}{\begin{tikzpicture}[every node/.style={inner sep=0,outer sep=0}]
+  \node[anchor=west,style={inner sep=2px}] (FieldYes) at (0cm,0cm) {\ChoiceMenu[radio=true,name=#1,width=\radiosize,height=\radiosize]{}{=Yes}};
+  \node[anchor=west] (LabelYes) at ([xshift=0.7ex]FieldYes.east) {Ja};
+  \node[anchor=west,style={inner sep=2px}] (FieldNo) at ([xshift=1ex]LabelYes.east) {\ChoiceMenu[radio=true,name=#1,width=\radiosize,height=\radiosize]{}{=No}};
+  \node[anchor=west] (LabelNo) at ([xshift=0.7ex]FieldNo.east) {Nein};
+  \draw [thick] ([xshift=-(\radiosize+0.15cm),yshift=-(\radiosize+0.15cm)]FieldYes.north east) rectangle (FieldYes.north east);
+  \draw [thick] ([xshift=-(\radiosize+0.15cm),yshift=-(\radiosize+0.15cm)]FieldNo.north east) rectangle (FieldNo.north east);
+\end{tikzpicture}}%
+}
+
+% Formularfeld, leer, editierbar
+\newcommand{\field}[2]{\TextField[width=#2]{#1}}
+
+% Formularfeld, vorbefüllt, editierbar
+\newcommand{\fieldpf}[3]{\TextField[width=#2,value=#3]{#1}}
+
+% Formularfeld, vorbefüllt, nicht editierbar
+\newcommand{\fieldpfro}[3]{\TextField[width=#2,value=#3,readonly]{#1}}
+
+% Formularfeld, in den Fließtext integriert
+\newcommand{\fieldinline}[2]{\TextField[width=#2,name=#1]{}}
+
+% Ja-Nein Antwort
+\newcommand{\yesno}[2]{\pbox{0.8\textwidth}{\setstretch{1}#1}\hfill\yesnoticks{#2}}
+
+% Dummy-Formularfeld: Sieht genauso aus, ist aber statisch, vorbefüllt, nicht editierbar.
+\newcommand{\fieldd}[3]{% Label, width, prefilled text
+\begin{tikzpicture}[every node/.style={inner sep=0,outer sep=0}]
+    % Draw the static field rectangle
+    \node[anchor=west] (DummyFieldNode) at (0cm,2ex) {\strut #3}; % Prefilled text
+    \draw[thick] ([xshift=0cm,yshift=-0.3ex]DummyFieldNode.south west) -- ([xshift=#2,yshift=-0.3ex]DummyFieldNode.south west);
+
+    % Label underneath
+    \node[anchor=west,font=\small] at (0cm,-1.2ex) {#1};
+\end{tikzpicture}%
+}
+
+
+\begin{document}
+% HEADER RIGHT
+\picpos{4.5cm}{11.5cm}{0cm}{/app/jdav_web/static/general/img/dav_logo_hd.png}
+\begin{textblock*}{5cm}(11.5cm, 2.3cm)
+    \begin{flushright}
+        \small
+        \noindent Deutscher Alpenverein e. V. \\
+        Sektion {{ settings.SEKTION }} \\
+        {{ settings.SEKTION_STREET }} \\
+        {{ settings.SEKTION_TOWN }} \\
+        Tel.: {{ settings.SEKTION_TELEPHONE }} \\
+        Fax: {{ settings.SEKTION_TELEFAX }} \\
+        {{ settings.SEKTION_CONTACT_MAIL }} \\
+    \end{flushright}
+\end{textblock*}
+
+% HEADLINE
+
+
+\textbf{\LARGE Anmeldung und Einverständniserklärung}
+
+\textbf{Wir melden unser Kind verbindlich zur Jugendgruppe an:}
+
+\begin{Form}
+    \fieldd{Vor- und Nachname des Kindes}{0.65\linewidth}{ {{ member.name|esc_all }} }
+
+    \fieldd{Geburtsdatum}{0.3\linewidth}{ {{ member.birth_date_str|esc_all }} }  \hfill
+    \fieldd{Gender}{0.3\linewidth}{ {{ member.gender_str|esc_all }} }   \hspace{0.35\linewidth}
+
+    \fieldpf{DAV-Mitglieds-Nr.}{0.3\linewidth}{ {{ member.dav_badge_no|esc_all }} }   \hfill
+    \fieldd{Telefon (mobil)*}{0.3\linewidth}{ {{ member.phone_number }} }   \hspace{0.35\linewidth}
+
+    \fieldd{Adresse}{0.65\linewidth}{ {{ member.street }}, {{ member.plz }} {{ member.town }} }
+
+    \fieldd{E-Mail}{0.65\linewidth}{ {{ member.email|esc_all }} }
+
+{\small *wenn vorhanden, Kontaktdaten des Kindes, ansonsten einer Kontaktperson}
+
+\textbf{Notfallkontakte:}
+
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lll}
+    Vollständiger Name & E-Mail & Telefon (mobil) \\
+    \midrule
+{% for c in member.emergencycontact_set.all %}
+{{ c.name }} & {{ c.email }} & {{ c.phone_number }} \\
+{% endfor %}
+\bottomrule
+\end{tabular*}
+
+\textbf{Medizinische Informationen:}
+
+Gemäß den Teilnahmebedingungen verpflichten wir uns, vollständige
+Angaben zu etwaigen gesundheitlichen Einschränkungen oder Erkrankungen unseres
+Kindes zu machen:
+
+\field{Allergien}{\linewidth}
+
+\field{Medikamenten-Einnahmen}{\linewidth}
+
+\field{Weitere Informationen zu Einschränkungen}{\linewidth}
+
+\yesno{Unser Kind hat eine aktuelle Tetanus-Schutzimpfung}{tetanus}
+
+\yesno{Unser Kind hat sichere Schwimmkenntnisse}{schwimmen}
+
+\textbf{Einwilligung zu den Teilnahmebedingungen}
+
+Mit unserer Unterschrift bestätigen wird, dass wir die beigelegten
+Teilnahmebedingungen (Stand 06.12.2024) gelesen und verstanden haben. Diesen Bedingungen
+stimmen wir zu. Wir versichern, jegliche Änderungen an oben angegebenen
+Daten umgehend den Jugendleiter*innen mitzuteilen.
+
+
+\yesno{Wir stimmen der Bildnutzung in den Sektionsmedien gemäß
+Teilnahmebedingungen zu}{bildnutzung}
+\yesno{Unser Kind darf sich selbstständig von der Gruppenstunde abmelden.}{abmelden}
+
+\vspace{10pt}
+\vfill
+
+\field{Ort, Datum}{0.28\linewidth}{}\hfill
+\fieldd{Unterschrift Kind}{0.28\linewidth}{}\hfill
+\fieldd{Unterschrift des/der Erziehungsberechtigten}{0.4\linewidth}{}
+
+Bitte diese Seite ausgefüllt und unterschrieben im Registrierungsformular hochladen.
+\end{Form}
+
+\newpage
+
+\textbf{\large  Informationen und Bedingungen zur Teilnahme an den
+JDAV-Jugendgruppen der DAV-Sektion Heidelberg}
+
+{\small Stand: 06.12.2024}
+
+
+Liebes neues Jugendgruppenmitglied,
+
+herzlich willkommen als neues aktives Mitglied unserer Sektionsjugend!
+Das Zentrum unserer Jugendarbeit sind die wöchentlichen Gruppenstunden,
+in denen wir in einer festen Gruppe gemeinsam Klettern oder Fahrrad fahren, Spiele spielen
+und Spaß haben. Uns ist wichtig, dass du regelmäßig dabei bist und
+deinen Jugendleiter*innen immer bescheid gibst, wenn du mal nicht kommen
+kannst.
+
+Zu unserer Jugendarbeit gehören aber auch regelmäßig Ausfahrten und
+Veranstaltungen rund um die Kletterhalle. Ausfahrten können ein- oder
+mehrtägige Ausflüge zum Klettern in der Region, aber auch in die
+Mittelgebirge oder Alpen sein, wo wir gemeinsam Wandern, Bergsteigen,
+Klettern... Veranstaltungen in der Kletterhalle können zum Beispiel
+gemeinsame Übernachtungen in der Gruppe oder größere Aktivitäten mit der
+ganzen Sektionsjugend sein, z.B. unsere jährliche Jugendvollversammlung.
+Hier treffen wir basisdemokratisch Entscheidungen über die Zukunft der
+Jugendarbeit und wählen Stellvertreter*innen, die die Jugendarbeit
+organisieren. Auch du hast hier eine Stimme! Wir freuen uns, wenn du bei
+möglichst vielen Aktivitäten dabei sein kannst.
+
+Deine Jugendleiter*innen
+\\[3mm]
+\_\_
+\\[3mm]
+Liebe Eltern,
+
+Bitte lesen Sie diese Teilnahmebedingungen für unsere Jugendarbeit genau
+und bestätigen Ihr Einverständnis mit Ihrer Unterschrift auf unserer
+Einverständniserklärung.
+
+\textbf{Durchgeführte Aktivitäten}
+
+In unserer Jugendgruppe bieten wir im weitesten Sinne verschiedene
+Aktivitäten und Aktionen an, zu denen wir die Jugendlichen vorher
+entsprechend einweisen, dazu gehören u.a.:
+
+\begin{itemize}
+    \setlength\itemsep{1pt}
+\item
+  Jugendgruppenstunden mit Spielen, Übungen usw.
+\item
+  Outdoorspiele in verschiedenen Formen
+\item
+  Klettern an künstlichen Anlagen und natürlichen Felsen
+\item
+  Wanderungen, Bachwanderungen oder Klettersteigbegehungen
+\item Fahrradtouren z.B. mit dem Mountainbike
+\item
+  natursportliche Aktivität mit den dort typischen Bedingungen und
+  Risiken
+\item
+  Gruppenübergreifende Ausfahrten und Veranstaltungen der JDAV
+  Heidelberg.
+\end{itemize}
+
+Während aller Aktivitäten werden die Jugendlichen von unseren
+Jugendleiter*innen, die eine entsprechende Qualifizierung (DAV
+Jugendleiterausbildung / DAV Fachübungsleiter usw.) vorweisen können,
+betreut und beaufsichtigt.
+
+Um teilnehmen zu können, müssen die Jugendlichen Mitglied in der Sektion
+Heidelberg des DAV sein und eine von den Erziehungsberechtigten
+unterschriebene Einverständniserklärung abgeben. Wir erwarten eine
+möglichst regelmäßige Teilnahme an den Gruppenstunden. Bei wiederholt
+unentschuldigtem Fehlen (ab 3 mal) kann es zum Ausschluss aus der Gruppe
+kommen.
+
+Mit Ihrer Unterschrift wird außerdem die aktuelle Fassung der
+\textbf{Benutzer- und Hallenordnung der Kletterhalle} der Sektion
+Heidelberg (Harbigweg 20, 69124 Heidelberg), anerkannt. Die Benutzer-
+und Hallenordnung hängt ständig in der Kletterhalle aus. Den Anweisungen
+des Personals ist Folge zu leisten. Die Gruppenstunden finden
+gelegentlich auch \textbf{außerhalb des Vereinszentrums} im Harbigweg
+20, 69124 Heidelberg, statt. Mit Ihrer Unterschrift wird auch
+zugestimmt, dass diese Gruppenstunden zu anderen Zeiten und an anderen
+Orten durchgeführt werden können.
+
+\textbf{Haftung}
+
+Mit Ihrer Unterschrift erklären Sie sich damit einverstanden, dass Ihr
+Kind an den oben genannten
+Aktivitäten im weitesten Sinne teilnehmen darf. Sie sind sich bewusst,
+dass natursportliche und vor allem klettersportliche Aktivitäten mit
+Risiken verbunden sind, die sich nicht vollständig ausschließen lassen.
+Sie erkennen damit an, dass die Sektion Heidelberg und ihre
+verantwortlichen ehrenamtlichen
+Jugendleiter*innen - soweit gesetzlich zulässig - von jeglicher Haftung
+sowohl im Grunde als auch
+der Höhe nach freigestellt werden, die über den im Rahmen der
+Mitgliedschaft im DAV,
+sowie für die ehrenamtliche Tätigkeit bestehenden Versicherungsschutz
+hinausgehen. Dies
+gilt nicht für die Verursachung von Unfällen durch Vorsatz oder grobe
+Fahrlässigkeit.
+
+Weitere Informationen zum DAV und dessen Jugendarbeit aber auch z.B. zu
+den
+Versicherungsbedingungen oder aktuellen Informationen finden Sie unter
+\href{http://www.alpenverein.de}{www.alpenverein.de}
+
+\textbf{Weitere Informationen zu Ihrem Kind}
+
+Sie verpflichten sich, die Jugendleiter*innen insbesondere über folgende
+persönliche Einschränkungen und zu informieren (über die angehängte
+Einverständniserklärung):
+
+\begin{itemize}
+    \setlength\itemsep{1pt}
+\item
+  relevante allergische Reaktionen
+\item
+  relevante asthmatische Erkrankungen oder Beschwerden
+\item
+  relevante Herzkreislauferkrankungen oder Beschwerden
+\item
+  Diabetes
+\item
+  Epilepsie oder relevante Nervenerkrankungen
+\item
+  relevante orthopädische Probleme (Bandscheibenvorfall, Verrenkungen,
+  Knochenbrüche\ldots)
+\item
+  relevante Infektionskrankheiten
+\item
+  ADHS oder sonstige Aufmerksamkeitsstörungen
+\item
+  Einnahme von dringend notwendigen Medikamenten
+\item
+  relevante Suchterkrankungen, psychische Erkrankungen oder
+  Einschränkungen
+\item
+  sonstige relevante Beeinträchtigungen oder Erkrankungen (Bspw.
+  Inkontinenz)
+\end{itemize}
+
+Die JDAV weist darauf hin, dass durchgeführte Aktivitäten auch im Freien
+in Risikogebieten für
+von Zecken übertragene FSME oder Borreliose stattfinden können
+(Rhein-Neckar Kreis gehört zu den Risikogebieten). Eine Impfung wird
+empfohlen.
+
+Ergeben sich Veränderungen bei den angegebenen Informationen, dann
+müssen die Jugendleiter*innen umgehend darüber informiert werden.
+
+\textbf{Datenschutz}
+
+Sie sind damit einverstanden, dass die JDAV Heidelberg die von Ihnen
+angegebenen Daten elektronisch erfasst, verarbeitet und speichert. Diese
+Datenverarbeitung erfolgt in Rechenzentren in der Schweiz oder Staaten
+des Europäischen Wirtschaftsraums (EWR). Nach einer Beendigung der
+Mitgliedschaft werden Ihre personenbezogenen Daten gelöscht, soweit sie
+nicht, entsprechend den steuerrechtlichen Vorgaben, aufbewahrt werden
+müssen. Die Datenverarbeitung erfolgt auf Grundlage des Art. 6 Abs. 1 S.
+1 lit. b DSGVO. Die jeweils aktuelle Datenschutzerklärung kann jederzeit
+auf der Website unter \href{https://www.jdav-hd.de/datenschutz}{www.jdav-hd.de/datenschutz} abgerufen
+werden.
+
+Die Jugendleiter*innen sind im Rahmen ihrer Tätigkeiten über
+Sektions-E-Mailadressen nach dem Schema
+vorname.nachname@alpenverein-heidelberg.de erreichbar, die Jugendleiter*innen einer Gruppe über
+Adressen nach dem Schema leitung.gruppenname@jdav-hd.de. Bitte nutzen Sie
+für die Kontaktaufnahme vorrangig diese E-Mailadressen.
+
+Zur Weitergabe der Daten im Rahmen einer Mitgliedschaft im Alpenverein
+Heidelberg beachten Sie bitte auch die Datenschutzerklärung der Sektion
+unter \href{https://www.alpenverein-heidelberg.de/datenschutz}{www.alpenverein-heidelberg.de/datenschutz}.
+
+\textbf{Abbildungen in Sektionsmedien:}
+
+Selbstverständlich gehören auf eine lebendig gestaltete Homepage sowie
+andere Medien der Sektion (Aushänge im Vereinsheim, Sektionsnachrichten,
+etc.) auch Berichte und Fotos von Veranstaltungen der Jugend, bei denen
+vielleicht auch Ihr Kind dabei ist. Da gemäß § 22 KunstUrhG, Bilder
+jedoch nur mit Einwilligung des Abgebildeten bzw. seiner gesetzlichen
+Vertreter verbreitet oder öffentlich zur Schau gestellt werden dürfen,
+bitten wir Sie um Erlaubnis. Mit Ihrer Einverständniserklärung
+erleichtern Sie uns wesentlich die Arbeit und wir können so unseren
+lebendigen Verein gut nach außen darstellen.
+
+Wenn sie in der Einverständniserklärung ihre Einwilligung geben,
+erklären Sie sich damit einverstanden, dass von den Jugendleiter*innen
+ausgewählte Fotos und Aufnahmen, auf denen Ihr Kind zu sehen ist, mit
+den anderen Kindern geteilt werden, auf der Homepage, sowie im
+Sektionsheft der DAV-Sektion Heidelberg und allen anderen Vereinsmedien
+erscheinen und veröffentlicht werden dürfen. Diese Einwilligung kann
+jederzeit widerrufen werden.
+
+
+\end{document}

@@ -232,6 +232,10 @@ class Person(Contact):
             return "---"
         return self.birth_date.strftime("%d.%m.%Y")
 
+    @property
+    def gender_str(self):
+        return self.gender_choices[self.gender][1]
+
 
 class Member(Person):
     """
@@ -287,6 +291,7 @@ class Member(Person):
                                                            'image/jpeg',
                                                            'image/png',
                                                            'image/gif'])
+    upload_registration_form_key = models.CharField(max_length=32, default="")
     image = RestrictedFileField(verbose_name=_('image'),
                                 upload_to='people',
                                 blank=True,
@@ -460,6 +465,7 @@ class Member(Person):
             self.waitinglist_application_date = waiter.application_date
         if self.alternative_email:
             self.confirmed_alternative_mail = False
+        self.upload_registration_form_key = uuid.uuid4().hex
         self.save()
 
         if self.registration_ready():
@@ -471,13 +477,30 @@ class Member(Person):
     def registration_ready(self):
         """Returns if the member is currently unconfirmed and all email addresses
         are confirmed."""
-        return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail
+        return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail\
+                and self.registration_form
 
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
         if self.registration_ready():
             self.notify_jugendleiters_about_confirmed_mail()
         return ret
+
+    def validate_registration_form(self):
+        self.upload_registration_form_key = ''
+        self.save()
+        if self.registration_ready():
+            self.notify_jugendleiters_about_confirmed_mail()
+
+    def send_upload_registration_form_link(self):
+        if not self.upload_registration_form_key:
+            return
+        print(self.name, self.upload_registration_form_key)
+        link = prepend_base_url(reverse('members:upload_registration_form') + "?key="\
+                + self.upload_registration_form_key)
+        self.send_mail(_('Upload registration form'),
+                       settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
+                                                                     link=link))
 
     def notify_jugendleiters_about_confirmed_mail(self):
         group = ", ".join([g.name for g in self.group.all()])

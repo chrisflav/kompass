@@ -10,7 +10,9 @@
 
 <h1>{% trans "Register" %}</h1>
 
-<p>{% trans "Your registration succeeded." %}
+<p>{% blocktrans %}Your registration succeeded. We summarized your registration in this registration
+form. Please download it, fill in the remaining fields and read the general conditions. If you agree,
+please sign the document and upload a scan or image here.{% endblocktrans %}
 
 {% if needs_mail_confirmation %}
     {% trans "Please remember to confirm your email address." %}
