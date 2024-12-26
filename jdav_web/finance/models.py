@@ -13,7 +13,7 @@ from django.conf import settings
 import rules
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
-from utils import cvt_to_decimal
+from utils import cvt_to_decimal, RestrictedFileField
 
 # Create your models here.
 
@@ -423,7 +423,14 @@ class Bill(CommonModel):
     costs_covered = models.BooleanField(verbose_name=_('Covered'), default=False)
     refunded = models.BooleanField(verbose_name=_('Refunded'), default=False)
 
-    proof = models.ImageField(_('Proof'), upload_to='bill_images', blank=True)
+    proof = RestrictedFileField(verbose_name=_('Proof'),
+                                upload_to='bill_images',
+                                blank=True,
+                                max_upload_size=5,
+                                content_types=['application/pdf',
+                                                    'image/jpeg',
+                                                    'image/png',
+                                                    'image/gif'])
 
     def __str__(self):
         return "{} ({}€)".format(self.short_description, self.amount)

@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
-from django.forms import Textarea
+from django import forms
+from django.forms import Textarea, ClearableFileInput
 from django.http import HttpResponse, HttpResponseRedirect
 from django.db.models import TextField, Q
 from django.urls import path, reverse
@@ -9,7 +10,7 @@ from django.shortcuts import render
 from django.conf import settings
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
-from utils import get_member
+from utils import get_member, RestrictedFileField
 
 from rules.contrib.admin import ObjectPermissionsModelAdmin
 
@@ -22,14 +23,21 @@ class LedgerAdmin(admin.ModelAdmin):
     search_fields = ('name', )
 
 
+class BillOnStatementInlineForm(forms.ModelForm):
+    class Meta:
+        model = BillOnStatementProxy
+        fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
+        widgets = {
+            'proof': ClearableFileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'}),
+            'explanation': Textarea(attrs={'rows': 1, 'cols': 40})
+        }
+
+
 class BillOnStatementInline(CommonAdminInlineMixin, admin.TabularInline):
     model = BillOnStatementProxy
     extra = 0
     sortable_options = []
-    fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
-    formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
-    }
+    form = BillOnStatementInlineForm
 
 
 @admin.register(StatementUnSubmitted)

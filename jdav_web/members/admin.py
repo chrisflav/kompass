@@ -42,7 +42,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
 from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
-from utils import get_member
+from utils import get_member, RestrictedFileField
 #from easy_select2 import apply_select2
 
 
@@ -215,10 +215,9 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     list_display_links = None
     readonly_fields = ['echoed', 'good_conduct_certificate_valid']
     inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
-    #formfield_overrides = {
-    #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
-    #    ForeignKey: {'widget': apply_select2(forms.Select)}
-    #}
+    formfield_overrides = {
+        RestrictedFileField: {'widget': forms.ClearableFileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'})},
+    }
     change_form_template = "members/change_member.html"
     ordering = ('lastname',)
     actions = ['request_echo', 'invite_as_user_action']
@@ -771,7 +770,8 @@ class BillOnExcursionInline(CommonAdminInlineMixin, admin.TabularInline):
     sortable_options = []
     fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
     formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})},
+        RestrictedFileField: {'widget': forms.ClearableFileInput(attrs={'accept': 'application/pdf,image/jpeg,image/png'})},
     }
 
 
