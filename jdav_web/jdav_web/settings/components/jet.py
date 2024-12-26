@@ -54,9 +54,9 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'post', 'permissions': ['startpage.view_post']},
     ]},
     {'label': 'Externe Links', 'items' : [
-        { 'label': 'Nextcloud', 'url': CLOUD_LINK },
-        { 'label': 'DAV 360', 'url': DAV_360_LINK },
-        { 'label': 'Julei-Wiki', 'url': WIKI_LINK },
-        { 'label': 'Kompass Dokumentation', 'url': DOCS_LINK },
+        { 'label': 'Nextcloud', 'url': CLOUD_LINK, 'url_blank': True },
+        { 'label': 'DAV 360', 'url': DAV_360_LINK, 'url_blank': True },
+        { 'label': 'Julei-Wiki', 'url': WIKI_LINK, 'url_blank': True },
+        { 'label': 'Kompass Dokumentation', 'url': DOCS_LINK, 'url_blank': True },
     ]},
 ]
