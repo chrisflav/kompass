@@ -34,9 +34,7 @@ wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe {grou
 Bitte kontaktiere die Gruppenleitung ({contact_email}) für alle weiteren Absprachen.
 
 Wenn du nach der Schnupperstunde beschließt der Gruppe beizutreten, benötigen wir noch ein paar
-Informationen und deine Anmeldebestätigung von dir. Die lädst du herunter
-(siehe %(REGISTRATION_FORM_DOWNLOAD_LINK)s ), lässt sie von deinen Eltern ausfüllen, unterschreiben
-und lädst ein Foto davon in unserem Anmeldeformular hoch. Das kannst du alles über folgenden Link erledigen:
+Informationen und eine schriftliche Anmeldebestätigung von dir. Das kannst du alles über folgenden Link erledigen:
 
 {{link}}
 
