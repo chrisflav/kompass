@@ -561,6 +561,12 @@ class WaiterInviteForm(forms.Form):
                                    label=_('Group'))
 
 
+class WaiterInviteTextForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+    text_template = forms.CharField(label=_('Invitation text'),
+            widget=forms.Textarea(attrs={'rows': 30, 'cols': 100}))
+
+
 class InvitationToGroupAdmin(admin.TabularInline):
     model = InvitationToGroup
     fields = ['group', 'date', 'status']
@@ -594,7 +600,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                     'confirmed_mail', 'waiting_confirmed', 'sent_reminders')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ['confirmed_mail', 'gender', InvitedToGroupFilter]
-    actions = ['ask_for_registration', 'ask_for_wait_confirmation']
+    actions = ['ask_for_registration_action', 'ask_for_wait_confirmation']
     inlines = [InvitationToGroupAdmin]
     readonly_fields= ['application_date', 'sent_reminders']
 
@@ -608,38 +614,6 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.success(request,
                     _("Successfully asked %(name)s to confirm their waiting status.") % {'name': waiter.name})
     ask_for_wait_confirmation.short_description = _('Ask selected waiters to confirm their waiting status')
-
-    def ask_for_registration(self, request, queryset):
-        """Asks the waiting person to register with all required data."""
-        if "apply" in request.POST:
-            try:
-                group = Group.objects.get(pk=request.POST['group'])
-            except Group.DoesNotExist:
-                messages.error(request,
-                               _("An error occurred while trying to invite said members. Please try again."))
-                return HttpResponseRedirect(request.get_full_path())
-            if not group.contact_email:
-                messages.error(request,
-                               _('The selected group does not have a contact email. Please first set a contact email and then try again.'))
-                return HttpResponseRedirect(request.get_full_path())
-
-            for waiter in queryset:
-                waiter.invited_for_group = group
-                waiter.save()
-                waiter.invite_to_group(group)
-                messages.success(request,
-                        _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
-
-            return HttpResponseRedirect(request.get_full_path())
-        context = dict(self.admin_site.each_context(request),
-                       title=_('Select group for invitation'),
-                       opts=self.opts,
-                       waiters=queryset.all(),
-                       form=WaiterInviteForm(initial={'_selected_action': queryset.values_list('id', flat=True)}))
-        return render(request,
-                      'admin/invite_selected_for_group.html',
-                      context=context)
-    ask_for_registration.short_description = _('Offer waiter a place in a group.')
 
     def response_change(self, request, waiter):
         ret = super(MemberWaitingListAdmin, self).response_change(request, waiter)
@@ -672,8 +646,19 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
         queryset = super().get_queryset(request)
         return queryset.prefetch_related('invitationtogroup_set')
 
+    def ask_for_registration_action(self, request, queryset):
+        return self.invite_view(request, queryset)
+    ask_for_registration_action.short_description = _('Offer waiter a place in a group.')
+
     def invite_view(self, request, object_id):
-        waiter = MemberWaitingList.objects.get(pk=object_id)
+        if type(object_id) == str:
+            waiter = MemberWaitingList.objects.get(pk=object_id)
+            queryset = [waiter]
+            id_list = [waiter.pk]
+        else:
+            waiter = None
+            queryset = object_id
+            id_list = queryset.values_list('id', flat=True)
 
         if "apply" in request.POST:
             try:
@@ -687,22 +672,49 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                 messages.error(request,
                                _('The selected group does not have a contact email. Please first set a contact email and then try again.'))
                 return HttpResponseRedirect(request.get_full_path())
+            context = dict(self.admin_site.each_context(request),
+                           title=_('Select group for invitation'),
+                           opts=self.opts,
+                           group=group,
+                           queryset=queryset,
+                           form=WaiterInviteTextForm(initial={
+                               '_selected_action': id_list,
+                               'text_template': group.get_invitation_text_template()
+                            }))
+            if waiter:
+               context = dict(context, object=waiter, waiter=waiter)
+            return render(request,
+                          'admin/invite_for_group_text.html',
+                          context=context)
 
-            waiter.invited_for_group = group
-            waiter.save()
-            waiter.invite_to_group(group)
-            messages.success(request,
-                    _("Successfully invited %(name)s to %(group)s.") % {'name': waiter.name, 'group': waiter.invited_for_group.name})
+        if "send" in request.POST:
+            try:
+                group = Group.objects.get(pk=request.POST['group'])
+                text_template = request.POST['text_template']
+            except (Group.DoesNotExist, KeyError):
+                messages.error(request,
+                               _("An error occurred while trying to invite said members. Please try again."))
+                return HttpResponseRedirect(request.get_full_path())
+            for w in queryset:
+                w.invite_to_group(group, text_template=text_template)
+                messages.success(request,
+                        _("Successfully invited %(name)s to %(group)s.") % {'name': w.name, 'group': w.invited_for_group.name})
 
-            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (waiter._meta.app_label, waiter._meta.model_name),
-                                                args=(object_id,)))
+            if waiter:
+                return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                    args=(object_id,)))
+            else:
+                return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         context = dict(self.admin_site.each_context(request),
                        title=_('Select group for invitation'),
                        opts=self.opts,
-                       object=waiter,
-                       waiter=waiter,
-                       form=WaiterInviteForm(initial={'_selected_action': [waiter.pk]}))
+                       queryset=queryset,
+                       form=WaiterInviteForm(initial={
+                           '_selected_action': id_list
+                        }))
+        if waiter:
+           context = dict(context, object=waiter, waiter=waiter)
         return render(request,
                       'admin/invite_for_group.html',
                       context=context)

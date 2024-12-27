@@ -97,6 +97,24 @@ class Group(models.Model):
         # return if the group has all relevant time slot information filled
         return self.weekday and self.start_time and self.end_time
 
+    def get_invitation_text_template(self):
+        """The text template used to invite waiters to this group. This contains
+        placeholders for the name of the waiter and personalized links."""
+        if self.show_website:
+            group_link = '({url}) '.format(url=prepend_base_url(reverse('startpage:gruppe_detail', args=[self.name])))
+        else:
+            group_link = ''
+        if self.has_time_info():
+            group_time = settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[self.weekday][1],
+                                                                   start_time=self.start_time.strftime('%H:%M'),
+                                                                   end_time=self.end_time.strftime('%H:%M'))
+        else:
+            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=self.contact_email)
+        return settings.INVITE_TEXT.format(group_time=group_time,
+                                           group_name=self.name,
+                                           group_link=group_link,
+                                           contact_email=self.contact_email)
+
 
 class MemberManager(models.Manager):
     def get_queryset(self):
@@ -945,27 +963,21 @@ class MemberWaitingList(Person):
         except InvitationToGroup.DoesNotExist:
             return False
 
-    def invite_to_group(self, group):
-        if group.show_website:
-            group_link = '({url}) '.format(url=prepend_base_url(reverse('startpage:gruppe_detail', args=[group.name])))
-        else:
-            group_link = ''
-        if group.has_time_info():
-            group_time = settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[group.weekday][1],
-                                                          start_time=group.start_time.strftime('%H:%M'),
-                                                          end_time=group.end_time.strftime('%H:%M'))
-        else:
-            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=group.contact_email)
+    def invite_to_group(self, group, text_template=None):
+        """
+        Invite waiter to given group. Stores a new group invitation
+        and sends a personalized e-mail based on the passed template.
+        """
+        self.invited_for_group = group
+        self.save()
+        if not text_template:
+            text_template = group.get_invitation_text_template()
         invitation = InvitationToGroup(group=group, waiter=self)
         invitation.save()
         self.send_mail(_("Invitation to trial group meeting"),
-            settings.INVITE_TEXT.format(name=self.prename,
-                group_time=group_time,
-                group_name=group.name,
-                group_link=group_link,
-                contact_email=group.contact_email,
-                link=get_registration_link(invitation.key),
-                invitation_reject_link=get_invitation_reject_link(invitation.key)),
+            text_template.format(name=self.prename,
+                                 link=get_registration_link(invitation.key),
+                                 invitation_reject_link=get_invitation_reject_link(invitation.key)),
             cc=group.contact_email.email)
 
     def unregister(self):

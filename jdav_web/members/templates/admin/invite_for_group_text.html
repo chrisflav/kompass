@@ -28,9 +28,9 @@
 <h2>{% translate "Invite to a group" %}</h2>
 <p>
 {% if waiter %}
-{% trans "You are inviting:" %}
+{% blocktrans %}You are inviting the following waiter for registration in group {{ group }}.{% endblocktrans %}
 {% else %}
-{% trans "You are inviting the following waiters for registration:" %}
+{% blocktrans %}You are inviting the following waiters for registration in group {{ group }}.{% endblocktrans %}
 {% endif %}
 </p>
 <p>
@@ -44,11 +44,9 @@
 </p>
 
 <p>
-{% if waiter %}
-{% blocktrans %}Please choose the group that you want to invite {{ waiter }} to.{% endblocktrans %}
-{% else %}
-{% blocktrans %}To which group do you want to invite these waiters?{% endblocktrans %}
-{% endif %}
+{% blocktrans %}The following text will be sent as an invitation email. The patterns
+{name}, {link} and {invitation_reject_link} will be automatically replaced by personalized
+data upon sending. Please adapt if needed and confirm.{% endblocktrans %}
 </p>
 
 <form action="" method="post">
@@ -59,10 +57,12 @@
     <br>
     <div>
     <p>
+    <input type="hidden" name="group" value="{{ group.pk }}">
     <input type="hidden" name="action" value="ask_for_registration_action">
-    <input class="default" style="color: $default-link-color" type="submit" name="apply" value="{% translate 'Invite' %}">
-    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+    <input class="default" style="color: $default-link-color" type="submit" name="send" value="{% translate 'Send' %}">
+    <a href="#" class="button cancel-link">{% translate "Back" %}</a>
     </p>
     </div>
 </form>
+
 {% endblock %}

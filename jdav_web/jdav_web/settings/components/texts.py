@@ -26,7 +26,7 @@ GROUP_TIME_AVAILABLE_TEXT = """Die Gruppenstunde findet jeden {weekday} von {sta
 
 GROUP_TIME_UNAVAILABLE_TEXT = """Bitte erfrage die Gruppenzeiten bei der Gruppenleitung ({contact_email})."""
 
-INVITE_TEXT = """Hallo {name},
+INVITE_TEXT = """Hallo {{name}},
 
 wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe {group_name} {group_link}freigeworden.
 {group_time}
@@ -38,7 +38,7 @@ Informationen und deine Anmeldebestätigung von dir. Die lädst du herunter
 (siehe %(REGISTRATION_FORM_DOWNLOAD_LINK)s ), lässt sie von deinen Eltern ausfüllen, unterschreiben
 und lädst ein Foto davon in unserem Anmeldeformular hoch. Das kannst du alles über folgenden Link erledigen:
 
-{link}
+{{link}}
 
 Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste angegeben hast. Bitte
 überprüfe, ob die Daten noch stimmen und ändere sie bei Bedarf ab.
@@ -46,7 +46,7 @@ Du siehst dort auch die Daten, die du bei deiner Eintragung auf die Warteliste a
 Falls du zu dem obigen Termin keine Zeit hast oder dich ganz von der Warteliste abmelden möchtest,
 lehne bitte diese Einladung unter folgendem Link ab:
 
-{invitation_reject_link}
+{{invitation_reject_link}}
 
 Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 
