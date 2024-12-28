@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.conf import settings
 from .models import Statement, StatementUnSubmitted, StatementSubmitted, Bill, Ledger, Transaction
 from members.models import Member, Group, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE, NewMemberOnList,\
-        FAHRGEMEINSCHAFT_ANREISE
+        FAHRGEMEINSCHAFT_ANREISE, MALE, FEMALE, DIVERSE
 
 # Create your tests here.
 class StatementTestCase(TestCase):
@@ -11,11 +11,11 @@ class StatementTestCase(TestCase):
     kilometers_traveled = 512
     participant_count = 10
     staff_count = 5
-    
+
     def setUp(self):
         self.jl = Group.objects.create(name="Jugendleiter")
         self.fritz = Member.objects.create(prename="Fritz", lastname="Wulter", birth_date=timezone.now().date(),
-                              email=settings.TEST_MAIL)
+                              email=settings.TEST_MAIL, gender=MALE)
         self.fritz.group.add(self.jl)
         self.fritz.save()
 
@@ -39,12 +39,12 @@ class StatementTestCase(TestCase):
         self.st3 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
         for i in range(self.participant_count):
             m = Member.objects.create(prename='Fritz {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
-                                      email=settings.TEST_MAIL)
+                                      email=settings.TEST_MAIL, gender=MALE)
             mol = NewMemberOnList.objects.create(member=m, memberlist=ex)
             ex.membersonlist.add(mol)
         for i in range(self.staff_count):
             m = Member.objects.create(prename='Fritz {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
-                                      email=settings.TEST_MAIL)
+                                      email=settings.TEST_MAIL, gender=MALE)
             Bill.objects.create(statement=self.st3, short_description='food', explanation='i was hungry',
                                 amount=42.69, costs_covered=True, paid_by=m)
             m.group.add(self.jl)
@@ -57,7 +57,7 @@ class StatementTestCase(TestCase):
         self.st4 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
         for i in range(2):
             m = Member.objects.create(prename='Peter {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
-                                      email=settings.TEST_MAIL)
+                                      email=settings.TEST_MAIL, gender=DIVERSE)
             mol = NewMemberOnList.objects.create(member=m, memberlist=ex)
             ex.membersonlist.add(mol)
 
@@ -66,7 +66,7 @@ class StatementTestCase(TestCase):
                          'Admissible staff count is not 0, although not enough participants.')
         for i in range(2):
             m = Member.objects.create(prename='Peter {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
-                                      email=settings.TEST_MAIL)
+                                      email=settings.TEST_MAIL, gender=DIVERSE)
             mol = NewMemberOnList.objects.create(member=m, memberlist=self.st4.excursion)
             self.st4.excursion.membersonlist.add(mol)
         self.assertEqual(self.st4.admissible_staff_count, 2,

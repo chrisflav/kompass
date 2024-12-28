@@ -38,5 +38,5 @@ fi
 
 cd jdav_web
 
-coverage run manage.py test startpage finance members -v 2
-coverage xml
+coverage run manage.py test startpage finance members contrib logindata mailer material -v 2 --noinput
+coverage html
