@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-27 18:18+0100\n"
+"POT-Creation-Date: 2024-12-28 22:56+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,198 +18,202 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: members/admin.py:127 members/models.py:430
+#: members/admin.py:129 members/models.py:430
 msgid "Registration complete"
 msgstr "Anmeldung vollständig"
 
-#: members/admin.py:133
+#: members/admin.py:135
 msgid "True"
 msgstr "Ja"
 
-#: members/admin.py:134
+#: members/admin.py:136
 msgid "False"
 msgstr "Nein"
 
-#: members/admin.py:135
+#: members/admin.py:137
 msgid "All"
 msgstr "Alle"
 
-#: members/admin.py:185 members/admin.py:414
+#: members/admin.py:178
+msgid "The entered IBAN is not valid."
+msgstr "Die eingegebene IBAN ist ungültig."
+
+#: members/admin.py:201 members/admin.py:432
 msgid "Contact information"
 msgstr "Kontaktinformationen"
 
-#: members/admin.py:190 members/admin.py:419
+#: members/admin.py:206 members/admin.py:437
 msgid "Skills"
 msgstr "Fähigkeiten"
 
-#: members/admin.py:195 members/admin.py:424
+#: members/admin.py:211 members/admin.py:442
 msgid "Others"
 msgstr "Sonstiges"
 
-#: members/admin.py:201 members/admin.py:429
+#: members/admin.py:217 members/admin.py:447
 msgid "Organizational"
 msgstr "Organisatorisches"
 
-#: members/admin.py:282
+#: members/admin.py:300
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
 
-#: members/admin.py:288
+#: members/admin.py:306
 msgid "Echo required"
 msgstr "Rückmeldung erforderlich"
 
-#: members/admin.py:290
+#: members/admin.py:308
 msgid "Successfully requested echo from selected members."
 msgstr ""
 "Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer*innen "
 "verschickt."
 
-#: members/admin.py:291
+#: members/admin.py:309
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
 
-#: members/admin.py:300
+#: members/admin.py:318
 #, python-format
 msgid "%(name)s does not have a DAV360 email address or is already registered."
 msgstr "%(name)s hat keine DAV360 E-Mail Adresse oder ist bereits registriert."
 
-#: members/admin.py:302
+#: members/admin.py:320
 #, python-format
 msgid "Successfully invited %(name)s as user."
 msgstr "Erfolgreich %(name)s aufgefordert Zugangsdaten zu wählen."
 
-#: members/admin.py:304
+#: members/admin.py:322
 msgid "Successfully invited selected members to join as users."
 msgstr ""
 "Erfolgreich ausgewählte Teilnehmer*innen aufgefordert Zugangsdaten zu wählen."
 
-#: members/admin.py:306
+#: members/admin.py:324
 msgid "Some members have been invited, others could not be invited."
 msgstr ""
 "Manche Teilnehmer*innen wurden eingeladen, andere konnten nicht eingeladen "
 "werden."
 
-#: members/admin.py:313 members/admin.py:330
+#: members/admin.py:331 members/admin.py:348
 msgid "Permission denied."
 msgstr "Fehlende Berechtigungen."
 
-#: members/admin.py:320 members/admin.py:354
+#: members/admin.py:338 members/admin.py:372
 #: members/templates/admin/invite_as_user.html:21
 msgid "Invite as user"
 msgstr "Kompass Zugangsdaten wählen lassen"
 
-#: members/admin.py:325
+#: members/admin.py:343
 msgid "Invite selected members to join Kompass as users."
 msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
 
-#: members/admin.py:336
+#: members/admin.py:354
 msgid "Member not found."
 msgstr "Teilnehmer*in nicht gefunden."
 
-#: members/admin.py:340
+#: members/admin.py:358
 #, python-format
 msgid "%(name)s already has login data."
 msgstr "%(name)s hat schon Zugangsdaten."
 
-#: members/admin.py:345
+#: members/admin.py:363
 #, python-format
 msgid "The configured email address for %(name)s is not an internal one."
 msgstr "Die für %(name)s eingestellte E-Mail Adresse ist keine DAV360 Adresse."
 
-#: members/admin.py:359
+#: members/admin.py:377
 #, python-format
 msgid "%(name)s already has a pending invitation as user."
 msgstr ""
 "%(name)s hat bereits eine ausstehende Aufforderung Zugangsdaten zu wählen."
 
-#: members/admin.py:377
+#: members/admin.py:395
 msgid "activity"
 msgstr "Aktivität"
 
-#: members/admin.py:387 members/models.py:56 members/models.py:1584
+#: members/admin.py:405 members/models.py:56 members/models.py:1584
 msgid "Name"
 msgstr "Name"
 
-#: members/admin.py:478
+#: members/admin.py:496
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 
-#: members/admin.py:479
+#: members/admin.py:497
 msgid "Request mail confirmation from selected registrations"
 msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
 
-#: members/admin.py:486 members/admin.py:551
+#: members/admin.py:504 members/admin.py:569
 #, python-format
 msgid "Successfully confirmed %(name)s."
 msgstr "Registrierung von %(name)s erfolgreich bestätigt."
 
-#: members/admin.py:490 members/admin.py:554
+#: members/admin.py:508 members/admin.py:572
 #, python-format
 msgid "Can't confirm. %(name)s has unconfirmed email addresses."
 msgstr "Bestätigung nicht möglich. %(name)s hat unbestätigte Emailadressen."
 
-#: members/admin.py:495
+#: members/admin.py:513
 msgid "Successfully confirmed multiple registrations."
 msgstr "Erfolgreich mehrere Registrierungen bestätigt."
 
-#: members/admin.py:497
+#: members/admin.py:515
 msgid ""
 "Failed to confirm some registrations because of unconfirmed email addresses."
 msgstr ""
 "Einige Bestätigungen fehlgeschlagen, weil Emailadressen noch nicht bestätigt "
 "sind."
 
-#: members/admin.py:498
+#: members/admin.py:516
 msgid "Confirm selected registrations"
 msgstr "Ausgewählte Registrierungen bestätigen"
 
-#: members/admin.py:521
+#: members/admin.py:539
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
-#: members/admin.py:537
+#: members/admin.py:555
 msgid "Demote member to waiter"
 msgstr "Ausgewählte Registrierung zurück auf die Warteliste setzen."
 
-#: members/admin.py:546
+#: members/admin.py:564
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
 
-#: members/admin.py:561 members/models.py:437 members/models.py:840
+#: members/admin.py:579 members/models.py:437 members/models.py:840
 #: members/models.py:1329
 msgid "Group"
 msgstr "Gruppe"
 
-#: members/admin.py:566
+#: members/admin.py:584
 msgid "Invitation text"
 msgstr "Einladungstext"
 
-#: members/admin.py:582
+#: members/admin.py:600
 msgid "Pending group invitation for group"
 msgstr "Ausstehende Gruppeneinladung für Gruppe"
 
-#: members/admin.py:615
+#: members/admin.py:633
 #, python-format
 msgid "Successfully asked %(name)s to confirm their waiting status."
 msgstr "Erfolgreich %(name)s aufgefordert den Wartelistenplatz zu bestätigen."
 
-#: members/admin.py:616
+#: members/admin.py:634
 msgid "Ask selected waiters to confirm their waiting status"
 msgstr "Wartende auffordern den Wartelistenplatz zu bestätigen"
 
-#: members/admin.py:651 members/admin.py:681
+#: members/admin.py:669
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
 
-#: members/admin.py:660 members/admin.py:698 members/admin.py:726
+#: members/admin.py:686 members/admin.py:714
 msgid ""
 "An error occurred while trying to invite said members. Please try again."
 msgstr ""
 "Beim Einladen dieser Personen ist ein Fehler aufgetreten. Bitte versuche es "
 "nochmal. "
 
-#: members/admin.py:664 members/admin.py:703
+#: members/admin.py:691
 msgid ""
 "The selected group does not have a contact email. Please first set a contact "
 "email and then try again."
@@ -217,39 +221,39 @@ msgstr ""
 "Die ausgewählte Gruppe hat keine Kontakt E-Mail Adresse. Bitte stelle eine "
 "Kontakt E-Mail Adresse ein und versuche es erneut."
 
-#: members/admin.py:670 members/admin.py:731
+#: members/admin.py:694 members/admin.py:728
+msgid "Select group for invitation"
+msgstr "Wähle Gruppe für Einladung aus"
+
+#: members/admin.py:719
 #, python-format
 msgid "Successfully invited %(name)s to %(group)s."
 msgstr "Erfolgreich %(name)s zu Gruppe %(group)s eingeladen."
 
-#: members/admin.py:674 members/admin.py:706 members/admin.py:740
-msgid "Select group for invitation"
-msgstr "Wähle Gruppe für Einladung aus"
-
-#: members/admin.py:760 members/models.py:72
+#: members/admin.py:748 members/models.py:72
 msgid "name"
 msgstr "Name"
 
-#: members/admin.py:761
+#: members/admin.py:749
 msgid ""
 "The group name may only consist of letters, numerals, _, -, :, * and spaces."
 msgstr ""
 "Der Gruppenname darf nur aus Buchstaben, Zahlen, _, -, :, * oder Leerzeichen "
 "bestehen."
 
-#: members/admin.py:790
+#: members/admin.py:778
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
-#: members/admin.py:793
+#: members/admin.py:781
 msgid "Tour type"
 msgstr "Art der Tour"
 
-#: members/admin.py:796 members/models.py:1060
+#: members/admin.py:784 members/models.py:1060
 msgid "Means of transportation"
 msgstr "Verkehrsmittel"
 
-#: members/admin.py:823
+#: members/admin.py:811
 msgid ""
 "Please list here all expenses in relation with this excursion and upload "
 "relevant bills. These have to be permanently stored for the application of "
@@ -262,7 +266,7 @@ msgstr ""
 "einzelnen Posten wird dabei auf der LJP-Kostenübersicht angezeigt (sinnvoll "
 "wären z.B. Anreise, Verpflegung, Material etc.)."
 
-#: members/admin.py:841
+#: members/admin.py:829
 msgid ""
 "Here you can work on a seminar report for applying for financial "
 "contributions from Landesjugendplan (LJP). More information on creating a "
@@ -275,7 +279,7 @@ msgstr ""
 "wahlweise nur TN-Liste und Kostenübersicht kannst du anschließend "
 "herunterladen."
 
-#: members/admin.py:849
+#: members/admin.py:837
 msgid ""
 "Please list all participants (also youth leaders) of this excursion. Here "
 "you can still make changes just before departure and hence generate the "
@@ -286,34 +290,34 @@ msgstr ""
 "jederzeit die aktuelle Teilnehmer*innenliste für die Krisenintervention "
 "generieren."
 
-#: members/admin.py:895
+#: members/admin.py:883
 #, python-format
 msgid "You are not allowed to view all members on note list %(name)s."
 msgstr ""
 "Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Notizliste "
 "%(name)s anzusehen."
 
-#: members/admin.py:905
+#: members/admin.py:893
 msgid "Generate PDF summary"
 msgstr "Übersicht erstellen"
 
-#: members/admin.py:909
+#: members/admin.py:897
 msgid "Full report"
 msgstr "Vollständiger Seminarbericht"
 
-#: members/admin.py:910
+#: members/admin.py:898
 msgid "Costs and participants only"
 msgstr "Nur Kosten und Teilnehmende"
 
-#: members/admin.py:911
+#: members/admin.py:899
 msgid "Mode"
 msgstr "Modus"
 
-#: members/admin.py:912
+#: members/admin.py:900
 msgid "Prepend V32"
 msgstr "V32 Formblatt einfügen"
 
-#: members/admin.py:928
+#: members/admin.py:916
 msgid ""
 "General information on your excursion. These are partly relevant for the "
 "amount of financial compensation (means of transport, travel distance, etc.)."
@@ -322,48 +326,48 @@ msgstr ""
 "teilweise relevant für die Zuschüsse aus dem Jugendetat (Verkehrsmittel, "
 "Fahrstrecke in km)."
 
-#: members/admin.py:958
+#: members/admin.py:946
 #, python-format
 msgid "You are not allowed to view all members on excursion %(name)s."
 msgstr ""
 "Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Ausfahrt "
 "%(name)s anzusehen."
 
-#: members/admin.py:966
+#: members/admin.py:954
 msgid "Generate crisis intervention list"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: members/admin.py:974
+#: members/admin.py:962
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
-#: members/admin.py:978 members/admin.py:1010
+#: members/admin.py:966 members/admin.py:998
 #: members/templates/admin/generate_seminar_report.html:21
 msgid "Generate seminar report"
 msgstr "Landesjugendplan Antrag erstellen"
 
-#: members/admin.py:991
+#: members/admin.py:979
 msgid "Please select a mode."
 msgstr "Bitte wähle einen Modus aus."
 
-#: members/admin.py:996
+#: members/admin.py:984
 msgid ""
 "Full mode is only available, if the seminar report section is filled out."
 msgstr ""
 "Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
 "ausgefüllt ist. "
 
-#: members/admin.py:1022
+#: members/admin.py:1010
 msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
 
-#: members/admin.py:1026
+#: members/admin.py:1014
 msgid "No statement found. Please add a statement and then retry."
 msgstr ""
 "Keine Abrechnung angelegt. Bitte lege eine Abrechnung and und versuche es "
 "erneut."
 
-#: members/admin.py:1030
+#: members/admin.py:1018
 msgid ""
 "Successfully submited statement. The finance department will notify you as "
 "soon as possible."
@@ -371,7 +375,7 @@ msgstr ""
 "Abrechnung erfolgreich eingericht. Die Finanzabteilung wird sich bei dir so "
 "schnell wie möglich melden."
 
-#: members/admin.py:1033
+#: members/admin.py:1021
 #: members/templates/admin/freizeit_finance_overview.html:21
 msgid "Finance overview"
 msgstr "Kostenübersicht"
@@ -1316,8 +1320,8 @@ msgid ""
 msgstr ""
 "Der folgende Text wird in der Einladungsmail verschickt. Die Platzhalter "
 "{name}, {link} und {invitation_reject_link} werden beim Senden automatisch "
-"durch personalisierte Daten ersetzt. Bitte passe den Text falls nötig an "
-"und schicke die Einladung anschließend ab."
+"durch personalisierte Daten ersetzt. Bitte passe den Text falls nötig an und "
+"schicke die Einladung anschließend ab."
 
 #: members/templates/admin/invite_for_group_text.html:62
 msgid "Send"

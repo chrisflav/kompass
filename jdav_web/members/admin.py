@@ -26,7 +26,7 @@ from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
 from django.forms import Textarea, RadioSelect, TypedChoiceField, CheckboxInput
 from django.shortcuts import render
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
@@ -43,6 +43,8 @@ from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
 from utils import get_member, RestrictedFileField
+from schwifty import IBAN
+
 #from easy_select2 import apply_select2
 
 
@@ -161,6 +163,20 @@ class RegistrationFilter(admin.SimpleListFilter):
                 'display': title
             }
 
+class MemberAdminForm(forms.ModelForm):
+
+    class Meta:
+        model = Member
+        fields = '__all__'
+
+    # check iban validity using schwifty package
+    def clean_iban(self):
+        iban_str = self.cleaned_data.get('iban')
+        if len(iban_str) > 0:
+            iban = IBAN(iban_str, allow_invalid=True)
+            if not iban.is_valid:
+                raise ValidationError(_("The entered IBAN is not valid."))
+        return iban_str
 
 # Register your models here.
 class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
@@ -222,6 +238,8 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     ordering = ('lastname',)
     actions = ['request_echo', 'invite_as_user_action']
     list_per_page = 25
+
+    form = MemberAdminForm
 
     sensitive_fields = ['iban', 'registration_form', 'comments']
 

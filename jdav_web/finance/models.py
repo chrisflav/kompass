@@ -15,6 +15,9 @@ from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from utils import cvt_to_decimal, RestrictedFileField
 
+from schwifty import IBAN
+import re
+
 # Create your models here.
 
 class Ledger(models.Model):
@@ -494,6 +497,45 @@ class Transaction(models.Model):
 
     def __str__(self):
         return "T#{}".format(self.pk)
+
+    @staticmethod
+    def escape_reference(reference):
+        umlaut_map = {
+            'ä': 'ae', 'ö': 'oe', 'ü': 'ue',
+            'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue',
+            'ß': 'ss'
+        }
+        pattern = re.compile('|'.join(umlaut_map.keys()))
+        int_reference = pattern.sub(lambda x: umlaut_map[x.group()], reference)
+        allowed_chars = r"[^a-z0-9 /?: .,'+-]"
+        clean_reference = re.sub(allowed_chars, '', int_reference, flags=re.IGNORECASE)
+        return clean_reference
+
+    def code(self):
+
+        if self.amount == 0:
+            return ""
+
+        iban = IBAN(self.member.iban, allow_invalid=True)
+        if not iban.is_valid:
+            return ""
+        bic = iban.bic
+
+        reference = self.escape_reference(self.reference)
+        
+        # also escaping receiver as umlaute are also not allowed here
+        receiver = self.escape_reference(f"{self.member.prename} {self.member.lastname}")
+        return f"""BCD
+001
+1
+SCT
+{bic}
+{receiver}
+{iban}
+EUR{self.amount}
+
+
+{reference}"""
 
     class Meta:
         verbose_name = _('Transaction')

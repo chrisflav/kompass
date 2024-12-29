@@ -7,6 +7,8 @@
     <script src="{% static 'admin/js/cancel.js' %}" async></script>
     <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
     <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+    <script type="text/javascript" src="{% static "js/qrcode.js" %}"></script>
+
 {% endblock %}
 
 {% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} admin-view
@@ -36,6 +38,7 @@
         <td>{% trans "Amount" %}</td>
         <td>{% trans "Reference" %}</td>
         <td>{% trans "Ledger" %}</td>
+        <td>{% trans "QR Code" %}</td>
     </th>
     {% for transaction in statement.transaction_set.all %}
     <tr>
@@ -54,10 +57,52 @@
     <td>
         {{ transaction.ledger }}
     </td>
+    <td>
+        <a href="#" data-text="{{ transaction.code }}">{% trans "Show" %}</a>
+    </td>
     </tr>
     {% endfor %}
 </table>
 </p>
+
+
+<div id="qr_code" style="display: none;"></div>
+
+<script type="text/javascript">
+const links = document.querySelectorAll('td a');
+const imageContainer = document.getElementById('qr_code');
+
+// Add click event listeners to all links
+links.forEach(link => {
+    link.addEventListener('click', function (event) {
+        event.preventDefault(); // Prevent default link behavior
+
+        const imageText = this.getAttribute('data-text'); // Get the image path from the data attribute
+
+        imageContainer.innerHTML = '';
+        // Update the image element
+        
+        if(imageText == "") {
+            imageContainer.innerHTML = '{% trans "No QR code can be displayed." %}';
+        } else {
+            var qrcode = new QRCode(imageContainer, {
+                text: imageText,
+                width: 128,
+                height: 128,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+        }
+        imageContainer.style.display = 'block'; // Show the image if hidden
+        links.forEach(link => {link.text = '{% trans "Show" %}'});
+        link.text = '{% trans "Showing" %}';
+    });
+});
+    
+</script>
+
+
 
 <form action="" method="post">
     {% csrf_token %}
