@@ -239,10 +239,11 @@ class Person(Contact):
     class Meta(CommonModel.Meta):
         abstract = True
 
-    @property
     def age(self):
         """Age of member"""
         return relativedelta(datetime.today(), self.birth_date).years
+    age.admin_order_field = 'birth_date'
+    age.short_description = _('age')
 
     @property
     def birth_date_str(self):
@@ -1203,9 +1204,9 @@ class Freizeit(CommonModel):
         members = set(map(lambda x: x.member, self.membersonlist.distinct()))
         total = len(members)
         total_b27_local = len([m for m in members
-                               if m.age <= 27 and settings.SEKTION in m.town])
+                               if m.age() <= 27 and settings.SEKTION in m.town])
         total_b27_non_local = len([m for m in members
-                                   if m.age <= 27 and not settings.SEKTION in m.town])
+                                   if m.age() <= 27 and not settings.SEKTION in m.town])
         jls = self.jugendleiter.distinct()
         title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
         base = {'Haushaltsjahr': str(datetime.now().year),
@@ -1230,7 +1231,7 @@ class Freizeit(CommonModel):
                 suffix = '12'
             base['Vor- und Nachname' + suffix] = m.name
             base['Anschrift' + suffix] = m.address
-            base['Alter' + suffix] = str(m.age)
+            base['Alter' + suffix] = str(m.age())
             base['Status' + suffix] = str(2)
         return base
 
