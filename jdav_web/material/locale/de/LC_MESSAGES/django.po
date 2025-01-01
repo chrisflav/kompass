@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-01 16:23+0100\n"
+"POT-Creation-Date: 2025-01-01 21:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,95 +18,95 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: material/admin.py:29
+#: material/admin.py
 msgid "Age"
 msgstr "Alter"
 
-#: material/admin.py:34
+#: material/admin.py
 msgid "Not too old"
 msgstr "Nicht zu alt"
 
-#: material/admin.py:35
+#: material/admin.py
 msgid "Too old"
 msgstr "Zu alt"
 
-#: material/apps.py:7
+#: material/apps.py
 msgid "material"
 msgstr "Material"
 
-#: material/models.py:16
+#: material/models.py
 msgid "Name"
 msgstr "Name"
 
-#: material/models.py:22 material/models.py:39
+#: material/models.py
 msgid "Material category"
 msgstr "Materialtyp"
 
-#: material/models.py:23
+#: material/models.py
 msgid "Material categories"
 msgstr "Materialtypen"
 
-#: material/models.py:32
+#: material/models.py
 msgid "name"
 msgstr "Name"
 
-#: material/models.py:33
+#: material/models.py
 msgid "description"
 msgstr "Beschreibung"
 
-#: material/models.py:34
+#: material/models.py
 msgid "quantity"
 msgstr "Anzahl"
 
-#: material/models.py:35
+#: material/models.py
 msgid "purchase date"
 msgstr "Kaufdatum"
 
-#: material/models.py:36
+#: material/models.py
 msgid "lifetime (years)"
 msgstr "Lebenszeit (Jahre)"
 
-#: material/models.py:37
+#: material/models.py
 msgid "photo"
 msgstr "Bild"
 
-#: material/models.py:50
+#: material/models.py
 msgid "Quantity"
 msgstr "Anzahl"
 
-#: material/models.py:57
+#: material/models.py
 msgid "Thumbnail"
 msgstr "Bild"
 
-#: material/models.py:64
+#: material/models.py
 msgid "Owners"
 msgstr "Verantwortliche"
 
-#: material/models.py:74
+#: material/models.py
 msgid "Not too old?"
 msgstr "Nicht zu alt?"
 
-#: material/models.py:77
+#: material/models.py
 msgid "material part"
 msgstr "Materialteil"
 
-#: material/models.py:78
+#: material/models.py
 msgid "material parts"
 msgstr "Materialteile"
 
-#: material/models.py:84
+#: material/models.py
 msgid "owner"
 msgstr "Besitzer"
 
-#: material/models.py:85
+#: material/models.py
 msgid "count"
 msgstr "Anzahl"
 
-#: material/models.py:92
+#: material/models.py
 msgid "ownership"
 msgstr "Besitzer"
 
-#: material/models.py:93
+#: material/models.py
 msgid "ownerships"
 msgstr "Verantwortliche"
 
