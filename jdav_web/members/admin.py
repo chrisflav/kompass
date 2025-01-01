@@ -23,7 +23,7 @@ from django.contrib.contenttypes.admin import GenericTabularInline
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
-    Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
+    Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef, ExpressionWrapper
 from django.forms import Textarea, RadioSelect, TypedChoiceField, CheckboxInput
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -625,6 +625,11 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     def has_add_permission(self, request, obj=None):
         return False
 
+    def age(self, obj):
+        return obj.birth_date_delta
+    age.short_description=_('age')
+    age.admin_order_field = 'birth_date_delta'
+
     def ask_for_wait_confirmation(self, request, queryset):
         """Asks the waiting person to confirm their waiting status."""
         for waiter in queryset:
@@ -661,7 +666,15 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
         return custom_urls + urls
 
     def get_queryset(self, request):
-        queryset = super().get_queryset(request)
+        now = timezone.now()
+        age_expr = ExpressionWrapper(
+            Case(
+                When(birth_date__month__gte=now.month, birth_date__day__gt=now.day, then=now.year - F('birth_date__year') - 1),
+                default=now.year - F('birth_date__year'),
+            ),
+            output_field=IntegerField()
+        )
+        queryset = super().get_queryset(request).annotate(birth_date_delta=age_expr)
         return queryset.prefetch_related('invitationtogroup_set')
 
     def ask_for_registration_action(self, request, queryset):
