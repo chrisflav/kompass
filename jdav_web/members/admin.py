@@ -596,6 +596,20 @@ class InvitationToGroupAdmin(admin.TabularInline):
         return False
 
 
+class AgeFilter(admin.SimpleListFilter):
+    title = _('Age')
+    parameter_name = 'age'
+
+    def lookups(self, request, model_admin):
+        return [(n, str(n)) for n in range(101)]
+
+    def queryset(self, request, queryset):
+        age = self.value()
+        if not age:
+            return queryset
+        return queryset.filter(birth_date_delta=age)
+
+
 class InvitedToGroupFilter(admin.SimpleListFilter):
     title = _('Pending group invitation for group')
     parameter_name = 'pending_group_invitation'
@@ -617,7 +631,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     list_display = ('name', 'birth_date', 'age', 'gender', 'application_date', 'latest_group_invitation',
                     'confirmed_mail', 'waiting_confirmed', 'sent_reminders')
     search_fields = ('prename', 'lastname', 'email')
-    list_filter = ['confirmed_mail', 'gender', InvitedToGroupFilter]
+    list_filter = ['confirmed_mail', InvitedToGroupFilter, AgeFilter, 'gender']
     actions = ['ask_for_registration_action', 'ask_for_wait_confirmation']
     inlines = [InvitationToGroupAdmin]
     readonly_fields= ['application_date', 'sent_reminders']
