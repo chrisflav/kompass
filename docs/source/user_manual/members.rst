@@ -1,4 +1,4 @@
-.. _members:
+.. _user_manual/members:
 
 Teilnehmer\*innenverwaltung
 ===========================
@@ -15,12 +15,12 @@ In der Teilnehmer\*innenverwaltung siehst du in der Regel zwei Menüpunkte:
 - Teilnehmer\*innenverwaltung: Ausfahrten und *Alle Teilnehmer\*innen*.
 
 In diesem Abschnitt geht es nur um die Teilnehmer\*innen selbst. Wenn du etwas zum Punkt Ausfahrten
-lernen möchtest, kannst du zu :ref:`excursions` springen.
+lernen möchtest, kannst du zu :ref:`user_manual/excursions` springen.
 
 .. note::
    Falls du ein Amt in deiner Sektion ausübst und zum Beispiel für Jugendgruppenkoordination
    oder die Verwaltung der Warteliste zuständig ist, siehst du hier noch mehr Punkte. Mehr
-   Informationen dazu findest du unter :ref:`waitinglist`.
+   Informationen dazu findest du unter :ref:`user_manual/waitinglist`.
 
 Falls du direkt zu einer von dir geleiteten Jugendgruppe gehen möchtest, findest
 du unter `Teilnehmer*innenverwaltung`_ oder auf der `Startseite`_
@@ -138,14 +138,14 @@ Der\*die ausgewählte Teilnehmer\*in erhält eine E-Mail mit einem Link. Dieser 
 Seite auf der die Person ihr Geburtsdatum eingeben muss.
 
 .. note::
-   Das Geburtsdatumsformat ist TT.MM.JJJJ, also wenn Peter am
-   1.4.1999 geboren ist, müsste er *01.04.1999* eingeben.
+   Das Geburtsdatumsformat ist ``TT.MM.JJJJ``, also wenn Peter am
+   1.4.1999 geboren ist, muss er *01.04.1999* eingeben.
 
 Nach erfolgreich eingegebenem Geburtsdatum, wird die Person auf ein Formular mit ihren Daten weitergeleitet.
-Dann einfach prüfen, gegebenenfalls aktualisieren und schließlich speichern. Der Link ist
+Dann prüfen, gegebenenfalls aktualisieren und schließlich speichern. Der Link ist
 immer 30 Tage lang gültig und kann in dieser Zeit auch beliebig oft benutzt werden.
 
-Klingt alles noch abstrakt? Dann fordere doch mal dich selbst zur Rückmeldung auf und probiere es aus.
+Klingt alles noch abstrakt? Dann fordere dich doch mal selbst zur Rückmeldung auf und probiere es aus.
 
 .. _emergency-contacts:
 
@@ -159,7 +159,7 @@ mindestens einen Notfallkontakt angeben.
 
 .. note::
    Bei vielen Teilnehmer\*innen sind keine Notfallkontakte eingetragen. Das liegt dann vermutlich daran,
-   dass die aus einem anderen System migriert wurden und daher nicht verfügbar sind.
+   dass sie aus einem anderen System migriert wurden und daher nicht verfügbar sind.
 
 Bei der regelmäßigen :ref:`echo` werden die Notfallkontakte ebenfalls abgefragt. Falls
 du bei einem deiner Gruppenkinder feststellst, dass die Notfallkontakte fehlen

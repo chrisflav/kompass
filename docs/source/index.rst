@@ -2,42 +2,41 @@
    sphinx-quickstart on Sun Nov 24 18:37:20 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
-
-=======
-Kompass
-=======
-
-Der Kompass ist dein Kompass in der Jugendarbeit in deiner JDAV Sektion. Wenn du das
-erste mal hier bist, schau doch mal :ref:`first-steps` an.
-
-Was ist der Kompass?
---------------------
-
-Der Kompass ist eine Verwaltungsplattform für die tägliche Jugendarbeit in der JDAV.
-Die wichtigsten Funktionen sind
-
-- Verwaltung von Teilnehmer\*innen von Jugendgruppen
-- Organisation von Ausfahrten
-- Abwicklung von Abrechnungen
-- Senden von E-Mails
-
-Neben diesen Funktionen für die tägliche Arbeit, automatisiert der Kompass die
-Aufnahme von neuen Mitgliedern und die Pflege der Daten durch
-
-- Wartelistenverwaltung
-- Registrierung neuer Mitglieder
-- Rückmeldeverfahren
-
 .. _index:
 
-Inhaltsverzeichnis
-------------------
+############
+jdav Kompass
+############
+
+Der Kompass ist dein Kompass in der Jugendarbeit in deiner JDAV Sektion. Wenn du das
+erste mal hier bist, schau doch mal :ref:`user_manual/getstarted` an.
+
+.. attention:: 
+   Die Dokumentation befindet sich noch im Aufbau.  --  The documentation is still under construction.
+
+   (Stand: 08.01.2025)
+
+
+Nutzer Dokumentation 
+--------------------
+
+- auf deutsch
+- Hier findest Du als Nutzer alles was Du wissen musst um den Kompass bedienen zu können.
 
 .. toctree::
-   :maxdepth: 2
+   :titlesonly:
 
-   getstarted
-   members
-   excursions
-   waitinglist
-   finance
+   user_manual/index
+
+
+Development Documentation 
+-------------------------
+
+- auf englisch
+- Hier findest Du als Entwickler alles was Du wissen musst um den Kompass entwickeln und zu pflegen.
+
+.. toctree::
+   :titlesonly:
+
+   development_manual/index
+

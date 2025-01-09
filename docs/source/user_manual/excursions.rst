@@ -1,9 +1,9 @@
-.. _excursions:
+.. _user_manual/excursions:
 
 Ausfahrten
 ==========
 
-Neben der :ref:`Teilnehmer\*innenverwaltung <members>` ist das Abwickeln von Ausfahrten
+Neben der :ref:`Teilnehmer\*innenverwaltung <user_manual/members>` ist das Abwickeln von Ausfahrten
 die zweite wichtige Aufgabe des Kompass. Eine Ausfahrt für die eigene Jugendgruppe
 anbieten ist neben der ganzen inhaltlichen Arbeit auch jede Menge bürokratischer Aufwand. Der Kompass
 versucht dir von diesem Aufwand so viel wie möglich abzunehmen.
@@ -42,6 +42,8 @@ Seminarbericht direkt ein und lass dir den Papierkram vom Kompass erledigen.
 
 SJR Antrag
 ----------
+
+tbd
 
 Abrechnung
 ----------

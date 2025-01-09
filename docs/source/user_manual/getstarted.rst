@@ -1,4 +1,4 @@
-.. _first-steps:
+.. _user_manual/getstarted:
 
 Erste Schritte
 ==============
@@ -29,7 +29,7 @@ er auf den entsprechenden Eintrag, ändert das Geburtsdatum und klickt auf *Spei
 .. note::
    Nicht alle Einträge in der `Teilnehmer\*innenanzeige`_ sind klickbar. Das liegt daran,
    dass du manche Teilnehmer\*innen zwar sehen, aber nicht ihre Details einsehen kannst.
-   Manche Einträge wiederum kannst du einsehen, aber nicht bearbeiten. Für mehr Details siehe :ref:`Teilnehmer\*innenverwaltung <members>`
+   Manche Einträge wiederum kannst du einsehen, aber nicht bearbeiten. Für mehr Details siehe :ref:`Teilnehmer\*innenverwaltung <user_manual/members>`
 
 Probier doch einmal aus deinen eigenen Eintrag zu ändern. Sicherlich gibt es einige
 Felder, die nicht ausgefüllt oder nicht mehr aktuell sind. Lade z.B. ein Bild von dir hoch, 
@@ -70,7 +70,7 @@ Wie geht es weiter?
 -------------------
 
 Nun hat Fritz den Bürokratiekram für heute erledigt. Du willst noch mehr wissen? Dann
-geh zurück zum :ref:`index`.
+geh zurück zur :ref:`user_manual/index`.
 
 .. _Startseite: https://jdav-hd.de/kompass
 .. _Teilnehmer\*innenanzeige: https://jdav-hd.de/kompassmembers/member/

@@ -1,4 +1,4 @@
-.. _waitinglist:
+.. _user_manual/waitinglist:
 
 Warteliste und neue Mitglieder
 ==============================
@@ -65,7 +65,7 @@ Neues Mitglied in euerer Gruppe
 Nach dem ihr ein neues Mitglied in eurer Gruppe habt seid ihr auch vorrangig für die Datenpflege
 zuständig. Bitte ruft die Detailansicht des\*der Teilnehmer\*in auf. Öffnet das Anmeldeformular und
 Übertragt die Infos in die zugehörigen Felder. Weiteres dazu findet ihr in der
-:ref:`Teilnehmer\*innenverwaltung <members>`
+:ref:`Teilnehmer\*innenverwaltung <user_manual/members>`
 
 .. _group-registration-password:
 
