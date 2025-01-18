@@ -61,6 +61,7 @@ class Statement(CommonModel):
 
     allowance_to = models.ManyToManyField(Member, verbose_name=_('Pay allowance to'),
                                           related_name='receives_allowance_for_statements',
+                                          blank=True,
                                           help_text=_('The youth leaders to which an allowance should be paid. The count must match the number of permitted youth leaders.'))
     subsidy_to = models.ForeignKey(Member, verbose_name=_('Pay subsidy to'),
                                    null=True,
