@@ -1094,6 +1094,10 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         if not memberlist.statement:
             messages.error(request, _("No statement found. Please add a statement and then retry."))
         if "apply" in request.POST:
+            if not memberlist.statement.allowance_to_valid:
+                messages.error(request,
+                               _("The configured recipients of the allowance don't match the regulations. Please correct this and try again."))
+                return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(memberlist.pk,)))
             memberlist.statement.submit(get_member(request))
             messages.success(request,
                              _("Successfully submited statement. The finance department will notify you as soon as possible."))

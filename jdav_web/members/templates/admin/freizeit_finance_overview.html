@@ -77,8 +77,28 @@ cost plan!
 </ul>
 </p>
 <p>
-{% blocktrans %}In total these are contributions of {{ total_per_yl }}€ times {{ staff_count }}, giving {{ total_staff }}€.{% endblocktrans %}
+{% blocktrans %}The allowance of {{ allowance_per_yl }}€ per person is configured to be paid to:{% endblocktrans %}
+<ul>
+    {% for member in memberlist.statement.allowance_to.all %}
+        <li>
+            {{ member.name }}
+        </li>
+    {% endfor %}
+</ul>
 </p>
+<p>
+{% blocktrans %}The subsidies for night and transportation costs of {{ total_subsidies }}€ is configured to be paid to:{% endblocktrans %}
+<ul>
+    <li>
+        {{ memberlist.statement.subsidy_to.name }}
+    </li>
+</ul>
+</p>
+{% if not memberlist.statement.allowance_to_valid %}
+<p>
+{% blocktrans %}Warning: The configured recipients of the allowance don't match the regulations. This might be because the number of recipients is bigger then the number of admissable youth leaders for this excursion.{% endblocktrans %}
+</p>
+{% endif %}
 
 <h3>{% trans "LJP contributions" %}</h3>
 

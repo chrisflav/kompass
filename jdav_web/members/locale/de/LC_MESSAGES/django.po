@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-18 20:19+0100\n"
+"POT-Creation-Date: 2025-01-18 23:22+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -389,6 +389,14 @@ msgid "No statement found. Please add a statement and then retry."
 msgstr ""
 "Keine Abrechnung angelegt. Bitte lege eine Abrechnung and und versuche es "
 "erneut."
+
+#: members/admin.py
+msgid ""
+"The configured recipients of the allowance don't match the regulations. "
+"Please correct this and try again."
+msgstr ""
+"Die ausgewählten Empfänger*innen der Aufwandsentschädigung stimmen nicht mit "
+"den Richtlinien überein. Bitte korrigiere das und versuche es erneut. "
 
 #: members/admin.py
 msgid ""
@@ -1121,11 +1129,31 @@ msgstr ""
 #: members/templates/admin/freizeit_finance_overview.html
 #, python-format
 msgid ""
-"In total these are contributions of %(total_per_yl)s€ times %(staff_count)s, "
-"giving %(total_staff)s€."
+"The allowance of %(allowance_per_yl)s€ per person is configured to be paid "
+"to:"
 msgstr ""
-"Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
-"insgesamt also %(total_staff)s€."
+"Die Aufwandsentschädigung von %(allowance_per_yl)s€ pro Person wird "
+"ausgezahlt an:"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"The subsidies for night and transportation costs of %(total_subsidies)s€ is "
+"configured to be paid to:"
+msgstr ""
+"Die Zuschüsse für Übernachtungs- und Fahrtkosten von %(total_subsidies)s€ "
+"werden ausgezahlt an:"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"Warning: The configured recipients of the allowance don't match the "
+"regulations. This might be because the number of recipients is bigger then "
+"the number of admissable youth leaders for this excursion."
+msgstr ""
+"Warnung: Die ausgewählten Empfänger*innen der Aufwandsentschädigung stimmen "
+"nicht mit den Richtlinien überein. Das kann daran liegen, dass die Anzahl "
+"der ausgewählten Empfänger*innen die Anzahl genehmigter Jugendleiter*innen "
+"übersteigt."
 
 #: members/templates/admin/freizeit_finance_overview.html
 msgid "LJP contributions"
@@ -1823,6 +1851,14 @@ msgstr "abgelaufen"
 #: members/views.py
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
+
+#, python-format
+#~ msgid ""
+#~ "In total these are contributions of %(total_per_yl)s€ times "
+#~ "%(staff_count)s, giving %(total_staff)s€."
+#~ msgstr ""
+#~ "Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
+#~ "insgesamt also %(total_staff)s€."
 
 #~ msgid "Your registration succeeded."
 #~ msgstr "Deine Registrierung war erfolgreich."
