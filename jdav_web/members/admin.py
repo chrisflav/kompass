@@ -683,7 +683,11 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
         now = timezone.now()
         age_expr = ExpressionWrapper(
             Case(
-                When(birth_date__month__gte=now.month, birth_date__day__gt=now.day, then=now.year - F('birth_date__year') - 1),
+                # if the month of the birth date has not yet passed, subtract one year
+                When(birth_date__month__gt=now.month, then=now.year - F('birth_date__year') - 1),
+                # if it is the month of the birth date but the day has not yet passed, subtract one year
+                When(birth_date__month=now.month, birth_date__day__gt=now.day, then=now.year - F('birth_date__year') - 1),
+                # otherwise return the difference in years
                 default=now.year - F('birth_date__year'),
             ),
             output_field=IntegerField()

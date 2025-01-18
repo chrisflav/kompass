@@ -6,14 +6,15 @@ from django.test import TestCase, Client, RequestFactory
 from django.utils import timezone, translation
 from django.conf import settings
 from django.urls import reverse
-from unittest import skip
+from unittest import skip, mock
 from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE,\
-        MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact,\
+        MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         DIVERSE, MALE, FEMALE
+from .admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-
-from .admin import FreizeitAdmin
+import random
+import datetime
 
 
 def create_custom_user(username, groups, prename, lastname):
@@ -183,12 +184,12 @@ class PDFTestCase(TestCase):
 
 
 class AdminTestCase(TestCase):
-    def setUp(self, model):
+    def setUp(self, model, admin):
         self.factory = RequestFactory()
         self.model = model
-        if model is not None:
-            self.admin = FreizeitAdmin(model, AdminSite())
-        User.objects.create_superuser(
+        if model is not None and admin is not None:
+            self.admin = admin(model, AdminSite())
+        superuser = User.objects.create_superuser(
             username='superuser', password='secret'
         )
         standard = create_custom_user('standard', ['Standard'], 'Paul', 'Wulter')
@@ -237,7 +238,7 @@ class AdminTestCase(TestCase):
 
 class PermissionTestCase(AdminTestCase):
     def setUp(self):
-        super().setUp(model=None)
+        super().setUp(model=None, admin=None)
 
     def test_standard_permissions(self):
         u = User.objects.get(username='standard')
@@ -258,7 +259,7 @@ class PermissionTestCase(AdminTestCase):
 
 class MemberAdminTestCase(AdminTestCase):
     def setUp(self):
-        super().setUp(model=Member)
+        super().setUp(model=Member, admin=MemberAdmin)
         cool_kids = Group.objects.get(name='cool kids')
         super_kids = Group.objects.get(name='super kids')
         mega_kids = Group.objects.create(name='mega kids')
@@ -384,7 +385,7 @@ class MemberAdminTestCase(AdminTestCase):
 
 class FreizeitAdminTestCase(AdminTestCase):
     def setUp(self):
-        super().setUp(model=Freizeit)
+        super().setUp(model=Freizeit, admin=FreizeitAdmin)
         ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
                 tour_type=GEMEINSCHAFTS_TOUR,
                 tour_approach=MUSKELKRAFT_ANREISE,
@@ -459,6 +460,32 @@ class FreizeitAdminTestCase(AdminTestCase):
 
         queryset = self.admin.formfield_for_manytomany(field, None).queryset
         self.assertQuerysetEqual(queryset, Member.objects.none())
+
+
+class MemberWaitingListAdminTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=MemberWaitingList, admin=MemberWaitingListAdmin)
+        for i in range(10):
+            day = random.randint(1, 28)
+            month = random.randint(1, 12)
+            year = random.randint(1900, timezone.now().year)
+            ex = MemberWaitingList.objects.create(prename='Peter {}'.format(i),
+                                                  lastname='Puter',
+                                                  birth_date=datetime.date(year, month, day),
+                                                  email=settings.TEST_MAIL,
+                                                  gender=FEMALE)
+
+    def test_age_eq_birth_date_delta(self):
+        u = User.objects.get(username='superuser')
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        request = self.factory.get(url)
+        request.user = u
+        queryset = self.admin.get_queryset(request)
+        today = timezone.now().date()
+
+        for m in queryset:
+            self.assertEqual(m.birth_date_delta, m.age(),
+                             msg='Queryset based age calculation differs from python based age calculation for birth date {birth_date} compared to {today}.'.format(birth_date=m.birth_date, today=today))
 
 
 class MailConfirmationTestCase(BasicMemberTestCase):
