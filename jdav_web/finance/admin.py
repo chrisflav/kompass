@@ -206,6 +206,14 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                         _("Some transactions have no ledger configured. Please fill in the gaps.")
                         % {'name': str(statement)})
                 return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+            elif res == Statement.INVALID_ALLOWANCE_TO:
+                messages.error(request,
+                               _("The configured recipients for the allowance don't match the regulations. Please correct this on the excursion."))
+                return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+            elif res == Statement.INVALID_TOTAL:
+                messages.error(request,
+                               _("The calculated total amount does not match the sum of all transactions. This is most likely a bug."))
+                return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         if "reject" in request.POST:

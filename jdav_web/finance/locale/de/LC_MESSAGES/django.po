@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-18 20:19+0100\n"
+"POT-Creation-Date: 2025-01-18 22:42+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -73,6 +73,22 @@ msgstr ""
 msgid "Some transactions have no ledger configured. Please fill in the gaps."
 msgstr ""
 "Manche Überweisungen haben kein Geldtopf eingestellt. Bitte trage das nach."
+
+#: finance/admin.py
+msgid ""
+"The configured recipients for the allowance don't match the regulations. "
+"Please correct this on the excursion."
+msgstr ""
+"Die ausgewählten Empfänger*innen der Aufwandsentschädigungen entsprechen "
+"nicht den Regularien. Bitte korrigiere das in der Ausfahrt."
+
+#: finance/admin.py
+msgid ""
+"The calculated total amount does not match the sum of all transactions. This "
+"is most likely a bug."
+msgstr ""
+"Der berechnete Gesamtbetrag stimmt nicht mit der Summe aller Überweisungen "
+"überein. Das ist höchstwahrscheinlich ein Fehler in der Implementierung."
 
 #: finance/admin.py
 #, python-format
@@ -233,8 +249,13 @@ msgstr "Bereit zur Abwicklung"
 
 #: finance/models.py
 #, python-format
-msgid "Compensation for %(excu)s"
-msgstr "Entschädigung für %(excu)s"
+msgid "Allowance for %(excu)s"
+msgstr "Aufwandsentschädigung für %(excu)s"
+
+#: finance/models.py
+#, python-format
+msgid "Night and travel costs for %(excu)s"
+msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
 
 #: finance/models.py finance/templates/admin/overview_submitted_statement.html
 msgid "Total"
@@ -386,8 +407,8 @@ msgstr "Ausfahrt"
 #, python-format
 msgid "This excursion featured %(staff_count)s youth leader(s), each costing"
 msgstr ""
-"Diese Ausfahrt hatte %(staff_count)s Jugendleiter*innen. Auf jede*n "
-"entfallen die folgenden Kosten:"
+"Diese Ausfahrt hatte %(staff_count)s genehmigte Jugendleiter*innen. Auf "
+"jede*n entfallen die folgenden Kosten:"
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
@@ -424,6 +445,22 @@ msgid ""
 msgstr ""
 "Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
 "insgesamt also %(total_staff)s€."
+
+#: finance/templates/admin/overview_submitted_statement.html
+#, python-format
+msgid "The allowance of %(allowance_per_yl)s€ per person should be paid to:"
+msgstr ""
+"Die Aufwandsentschädigung von %(allowance_per_yl)s€ pro Person soll "
+"ausgezahlt werden an:"
+
+#: finance/templates/admin/overview_submitted_statement.html
+#, python-format
+msgid ""
+"The subsidies for night and transportation costs of %(total_subsidies)s€ "
+"should be paid to:"
+msgstr ""
+"Die Zuschüsse für Übernachtungs- und Fahrtkosten von %(total_subsidies)s€ "
+"sollen ausgezahlt werden an:"
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format

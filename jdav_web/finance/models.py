@@ -47,7 +47,7 @@ class StatementManager(models.Manager):
 
 
 class Statement(CommonModel):
-    MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, VALID = 0, 1, 2
+    MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, INVALID_ALLOWANCE_TO, INVALID_TOTAL, VALID = 0, 1, 2, 3, 4
 
     short_description = models.CharField(verbose_name=_('Short description'),
                                          max_length=30,
@@ -123,7 +123,9 @@ class Statement(CommonModel):
         needed_paiments = [(b.paid_by, b.amount) for b in self.bill_set.all() if b.costs_covered and b.paid_by]
 
         if self.excursion is not None:
-            needed_paiments.extend([(yl, self.real_per_yl) for yl in self.excursion.jugendleiter.all()])
+            needed_paiments.extend([(yl, self.allowance_per_yl) for yl in self.allowance_to.all()])
+        if self.subsidy_to:
+            needed_paiments.append((self.subsidy_to, self.total_subsidies))
 
         needed_paiments = sorted(needed_paiments, key=lambda p: p[0].pk)
         target = dict(map(lambda p: (p[0], sum([x[1] for x in p[1]])), groupby(needed_paiments, lambda p: p[0])))
@@ -157,10 +159,25 @@ class Statement(CommonModel):
     def transactions_match_expenses(self):
         return len(self.transaction_issues) == 0
 
-    def is_valid(self):
-        return self.ledgers_configured and self.transactions_match_expenses
-    is_valid.boolean = True
-    is_valid.short_description = _('Ready to confirm')
+    @property
+    def allowance_to_valid(self):
+        """Checks if the configured `allowance_to` field matches the regulations."""
+        if self.allowance_to.count() != self.real_staff_count:
+            return False
+        if self.excursion is not None:
+            yls = self.excursion.jugendleiter.all()
+            for yl in self.allowance_to.all():
+                if yl not in yls:
+                    return False
+        return True
+
+    @property
+    def total_valid(self):
+        """Checks if the calculated total agrees with the total amount of all transactions."""
+        total_transactions = 0
+        for transaction in self.transaction_set.all():
+            total_transactions += transaction.amount
+        return self.total == total_transactions
 
     @property
     def validity(self):
@@ -168,8 +185,17 @@ class Statement(CommonModel):
             return Statement.NON_MATCHING_TRANSACTIONS
         if not self.ledgers_configured:
             return Statement.MISSING_LEDGER
+        if not self.allowance_to_valid:
+            return Statement.INVALID_ALLOWANCE_TO
+        if not self.total_valid:
+            return Statement.INVALID_TOTAL
         else:
             return Statement.VALID
+
+    def is_valid(self):
+        return self.validity == Statement.VALID
+    is_valid.boolean = True
+    is_valid.short_description = _('Ready to confirm')
 
     def confirm(self, confirmer=None):
         if not self.submitted:
@@ -203,9 +229,14 @@ class Statement(CommonModel):
         if self.excursion is None:
             return True
 
-        for yl in self.excursion.jugendleiter.all():
-            ref = _("Compensation for %(excu)s") % {'excu': self.excursion.name}
-            Transaction(statement=self, member=yl, amount=self.real_per_yl, confirmed=False, reference=ref).save()
+        # allowance
+        for yl in self.allowance_to.all():
+            ref = _("Allowance for %(excu)s") % {'excu': self.excursion.name}
+            Transaction(statement=self, member=yl, amount=self.allowance_per_yl, confirmed=False, reference=ref).save()
+
+        # subsidies (i.e. night and transportation costs)
+        ref = _("Night and travel costs for %(excu)s") % {'excu': self.excursion.name}
+        Transaction(statement=self, member=self.subsidy_to, amount=self.total_subsidies, confirmed=False, reference=ref).save()
         return True
 
     def reduce_transactions(self):
@@ -301,6 +332,14 @@ class Statement(CommonModel):
         return cvt_to_decimal(self.total_staff / self.excursion.staff_count)
 
     @property
+    def total_subsidies(self):
+        """
+        The total amount of subsidies excluding the allowance, i.e. the transportation
+        and night costs per youth leader multiplied with the real number of youth leaders.
+        """
+        return (self.transportation_per_yl + self.nights_per_yl) * self.real_staff_count
+
+    @property
     def total_staff(self):
         return self.total_per_yl * self.real_staff_count
 
@@ -353,6 +392,7 @@ class Statement(CommonModel):
                 'transportation_per_yl': self.transportation_per_yl,
                 'total_per_yl': self.total_per_yl,
                 'total_staff': self.total_staff,
+                'total_subsidies': self.total_subsidies,
             }
             return dict(context, **excursion_context)
         else:

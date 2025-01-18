@@ -73,6 +73,25 @@
 {% blocktrans %}In total this is {{ total_per_yl }}€ times {{ staff_count }}, giving {{ total_staff }}€.{% endblocktrans %}
 </p>
 
+<p>
+{% blocktrans %}The allowance of {{ allowance_per_yl }}€ per person should be paid to:{% endblocktrans %}
+<ul>
+    {% for member in statement.allowance_to.all %}
+        <li>
+            {{ member.name }}
+        </li>
+    {% endfor %}
+</ul>
+</p>
+<p>
+{% blocktrans %}The subsidies for night and transportation costs of {{ total_subsidies }}€ should be paid to:{% endblocktrans %}
+<ul>
+    <li>
+        {{ statement.subsidy_to.name }}
+    </li>
+</ul>
+</p>
+
 {% endif %}
 
 <h2>{% trans "Total" %}</h2>
