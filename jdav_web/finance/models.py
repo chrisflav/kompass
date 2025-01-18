@@ -5,6 +5,7 @@ from django.utils import timezone
 from .rules import is_creator, not_submitted, leads_excursion
 from members.rules import is_leader, statement_not_submitted
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
@@ -57,6 +58,15 @@ class Statement(CommonModel):
                                      blank=True,
                                      null=True,
                                      on_delete=models.SET_NULL)
+
+    allowance_to = models.ManyToManyField(Member, verbose_name=_('Pay allowance to'),
+                                          related_name='receives_allowance_for_statements',
+                                          help_text=_('The youth leaders to which an allowance should be paid. The count must match the number of permitted youth leaders.'))
+    subsidy_to = models.ForeignKey(Member, verbose_name=_('Pay subsidy to'),
+                                   null=True,
+                                   on_delete=models.SET_NULL,
+                                   related_name='receives_subsidy_for_statements',
+                                   help_text=_('The person that should receive the subsidy for night and travel costs. Typically the person who paid for them.'))
 
     night_cost = models.DecimalField(verbose_name=_('Price per night'), default=0, decimal_places=2, max_digits=5)
 
@@ -307,15 +317,8 @@ class Statement(CommonModel):
         are refinanced though."""
         if self.excursion is None:
             return 0
-
-        #raw_staff_count = self.excursion.jugendleiter.count()
-        participant_count = self.excursion.participant_count
-        if participant_count < 4:
-            return 0
-        elif 4 <= participant_count <= 7:
-            return 2
         else:
-            return 2 + math.ceil((participant_count - 7) / 7)
+            return self.excursion.approved_staff_count
 
     @property
     def total(self):

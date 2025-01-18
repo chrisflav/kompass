@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-01 21:39+0100\n"
+"POT-Creation-Date: 2025-01-18 20:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -188,8 +188,16 @@ msgid "Invitation text"
 msgstr "Einladungstext"
 
 #: members/admin.py
+msgid "Age"
+msgstr "Alter"
+
+#: members/admin.py
 msgid "Pending group invitation for group"
 msgstr "Ausstehende Gruppeneinladung für Gruppe"
+
+#: members/admin.py members/models.py
+msgid "age"
+msgstr "Alter"
 
 #: members/admin.py
 #, python-format
@@ -250,6 +258,24 @@ msgstr "Art der Tour"
 #: members/admin.py members/models.py
 msgid "Means of transportation"
 msgstr "Verkehrsmittel"
+
+#: members/admin.py
+#, python-format
+msgid ""
+"This excursion only has up to %(approved_count)s approved youth leaders, but "
+"you listed %(entered_count)s."
+msgstr ""
+"Diese Ausfahrt hat nur bis zu %(approved_count)s zugelassene "
+"Jugendleiter*innen, aber du hast %(entered_count)s eingetragen."
+
+#: members/admin.py
+#, python-format
+msgid ""
+"This excursion has %(approved_count)s approved youth leaders, but you listed "
+"only %(entered_count)s."
+msgstr ""
+"Diese Ausfahrt hat %(approved_count)s zugelassene Jugendleiter*innen, aber "
+"du hast nur %(entered_count)s eingetragen."
 
 #: members/admin.py
 msgid ""
@@ -495,10 +521,6 @@ msgstr "Gender"
 #: members/models.py
 msgid "comments"
 msgstr "Kommentare"
-
-#: members/models.py
-msgid "age"
-msgstr "Alter"
 
 #: members/models.py
 msgid "Alternative email confirmed"
@@ -784,6 +806,21 @@ msgstr "Ende"
 #: members/models.py
 msgid "Groups"
 msgstr "Gruppen"
+
+#: members/models.py
+msgid "Number of additional approved youth leaders"
+msgstr "Anzahl zusätzlich genehmigter Jugendleiter*innen"
+
+#: members/models.py
+msgid ""
+"The number of approved youth leaders per excursion is determined by the "
+"number of participants. In special circumstances, e.g. in case of a "
+"technically demanding excursion, more youth leaders may be approved."
+msgstr ""
+"Die Anzahl der genehmigten Jugendleiter*innen pro Ausfahrt wird "
+"grundsätzlich durch die Anzahl der Teilnehmer*innen festgelegt. In "
+"besonderen Fällen, zum Beispiel bei einer fachlich herausfordernden "
+"Ausfahrt, können zusätzliche Jugendleiter*innen genehmigt werden."
 
 #: members/models.py
 msgid "Kilometers traveled"

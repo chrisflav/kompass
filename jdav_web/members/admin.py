@@ -836,13 +836,62 @@ class BillOnExcursionInline(CommonAdminInlineMixin, admin.TabularInline):
     }
 
 
+class StatementOnListForm(forms.ModelForm):
+    """
+    Form to edit a statement attached to an excursion. This is used in an inline on
+    the excursion admin.
+    """
+    def __init__(self, *args, **kwargs):
+        excursion = kwargs.pop('parent_obj')
+        super(StatementOnListForm, self).__init__(*args, **kwargs)
+        # only allow youth leaders of this excursion to be selected as recipients
+        # of subsidies and allowance
+        self.fields['allowance_to'].queryset = excursion.jugendleiter.all()
+        self.fields['subsidy_to'].queryset = excursion.jugendleiter.all()
+
+    class Meta:
+        model = Statement
+        fields = ['night_cost', 'allowance_to', 'subsidy_to']
+
+    def clean(self):
+        """Check if the `allowance_to` and `subsidy_to` fields are compatible with
+        the total number of approved youth leaders."""
+        allowance_to = self.cleaned_data.get('allowance_to')
+        excursion = self.cleaned_data.get('excursion')
+        if allowance_to is None:
+            return
+        if allowance_to.count() > excursion.approved_staff_count:
+            raise ValidationError({
+                'allowance_to': _("This excursion only has up to %(approved_count)s approved youth leaders, but you listed %(entered_count)s." % {'approved_count': str(excursion.approved_staff_count),
+                           'entered_count': str(allowance_to.count())}),
+        })
+        if allowance_to.count() < min(excursion.approved_staff_count, excursion.jugendleiter.count()):
+            raise ValidationError({
+                'allowance_to': _("This excursion has %(approved_count)s approved youth leaders, but you listed only %(entered_count)s." % {'approved_count': str(excursion.approved_staff_count),
+                     'entered_count': str(allowance_to.count())})
+            })
+
+
 class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = Statement
     extra = 1
     description = _('Please list here all expenses in relation with this excursion and upload relevant bills. These have to be permanently stored for the application of LJP contributions. The short descriptions are used in the seminar report cost overview (possible descriptions are e.g. food, material, etc.).')
     sortable_options = []
-    fields = ['night_cost']
+    fields = ['night_cost', 'allowance_to', 'subsidy_to']
     inlines = [BillOnExcursionInline]
+    form = StatementOnListForm
+
+    def get_formset(self, request, obj=None, **kwargs):
+        BaseFormSet = kwargs.pop('formset', self.formset)
+
+        class CustomFormSet(BaseFormSet):
+            def get_form_kwargs(self, index):
+                kwargs = super().get_form_kwargs(index)
+                kwargs['parent_obj'] = obj
+                return kwargs
+
+        kwargs['formset'] = CustomFormSet
+        return super().get_formset(request, obj, **kwargs)
 
 
 class InterventionOnLJPInline(CommonAdminInlineMixin, admin.TabularInline):
@@ -943,6 +992,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     fieldsets = (
         (None, {
             'fields': ('name', 'place', 'destination', 'date', 'end', 'description', 'groups', 'jugendleiter',
+                       'approved_extra_youth_leader_count',
                        'tour_type', 'tour_approach', 'kilometers_traveled', 'activity', 'difficulty'),
             'description': _('General information on your excursion. These are partly relevant for the amount of financial compensation (means of transport, travel distance, etc.).')
         }),

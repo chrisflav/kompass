@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-01 21:48+0100\n"
+"POT-Creation-Date: 2025-01-18 20:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -156,6 +156,31 @@ msgstr "Erklärung"
 #: finance/models.py
 msgid "Associated excursion"
 msgstr "Zugehörige Ausfahrt"
+
+#: finance/models.py
+msgid "Pay allowance to"
+msgstr "Aufwandsentschädigung auszahlen an"
+
+#: finance/models.py
+msgid ""
+"The youth leaders to which an allowance should be paid. The count must match "
+"the number of permitted youth leaders."
+msgstr ""
+"Die Jugendleiter*innen an die eine Aufwandsentschädigung ausgezahlt werden "
+"soll. Die Anzahl muss mit der Anzahl an zugelassenen Jugendleiter*innen "
+"übereinstimmen. "
+
+#: finance/models.py
+msgid "Pay subsidy to"
+msgstr "Übernachtungs- und Fahrtkostenzuschüsse auszahlen an"
+
+#: finance/models.py
+msgid ""
+"The person that should receive the subsidy for night and travel costs. "
+"Typically the person who paid for them."
+msgstr ""
+"Die Person, die die Übernachtungs- und Fahrtkostenzuschüsse erhalten soll. "
+"Dies ist in der Regel die Person, die sie bezahlt hat."
 
 #: finance/models.py
 msgid "Price per night"

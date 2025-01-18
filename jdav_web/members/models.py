@@ -1048,6 +1048,9 @@ class Freizeit(CommonModel):
     # comment = models.TextField(_('Comments'), default='', blank=True)
     groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
     jugendleiter = models.ManyToManyField(Member)
+    approved_extra_youth_leader_count = models.PositiveIntegerField(verbose_name=_('Number of additional approved youth leaders'),
+                                                                    default=0,
+                                                                    help_text=_('The number of approved youth leaders per excursion is determined by the number of participants. In special circumstances, e.g. in case of a technically demanding excursion, more youth leaders may be approved.'))
     tour_type_choices = ((GEMEINSCHAFTS_TOUR, 'Gemeinschaftstour'),
                          (FUEHRUNGS_TOUR, 'Führungstour'),
                          (AUSBILDUNGS_TOUR, 'Ausbildung'))
@@ -1133,6 +1136,19 @@ class Freizeit(CommonModel):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         return len(ps - jls)
+
+    @property
+    def approved_staff_count(self):
+        """Number of approved youth leaders for this excursion. The base number is calculated
+        from the participant count. To this, the number of additional approved youth leaders is added."""
+        participant_count = self.participant_count
+        if participant_count < 4:
+            base_count = 0
+        elif 4 <= participant_count <= 7:
+            base_count = 2
+        else:
+            base_count = 2 + math.ceil((participant_count - 7) / 7)
+        return base_count + self.approved_extra_youth_leader_count
 
     @property
     def ljp_participant_count(self):
