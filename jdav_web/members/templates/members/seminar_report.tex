@@ -146,8 +146,6 @@
     \textbf{Beschreibung} & \textbf{Betrag} \\
     \midrule
     Aufwandsentschädigung & {{ memberlist.statement.total_allowance }} € \\
-    Fahrtkosten & {{ memberlist.statement.total_transportation }} € \\
-    Übernachtungskosten & {{ memberlist.statement.total_nights }} € \\
     {% for bill in memberlist.statement.grouped_bills %}
         {{ bill.short_description|esc_all }} & {{ bill.amount }} € \\
     {% endfor %}

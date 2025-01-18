@@ -366,7 +366,13 @@ class Statement(CommonModel):
 
     @property
     def total_theoretic(self):
-        return self.total_bills_theoretic + self.total_staff
+        """
+        The theoretic total used in SJR and LJP applications. This is the sum of all
+        bills (ignoring whether they are paid by the association or not) plus the
+        total allowance. This does not include the subsidies for night and travel costs,
+        since they are expected to be included in the bills.
+        """
+        return self.total_bills_theoretic + self.total_allowance
 
     def total_pretty(self):
         return "{}€".format(self.total)
