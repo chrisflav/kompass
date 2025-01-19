@@ -7,6 +7,8 @@ services:
             context: ./../../
             dockerfile: docker/test/Dockerfile
         env_file: docker.env
+        environment:
+          - DJANGO_TEST_KEEPDB=$DJANGO_TEST_KEEPDB
         depends_on:
           - redis
           - cache

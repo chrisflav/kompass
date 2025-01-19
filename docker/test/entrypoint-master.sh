@@ -38,5 +38,9 @@ fi
 
 cd jdav_web
 
-coverage run manage.py test startpage finance members contrib logindata mailer material -v 2 --noinput
+if [[ "$DJANGO_TEST_KEEPDB" == 1 ]]; then
+    coverage run manage.py test startpage finance members contrib logindata mailer material -v 2 --noinput --keepdb
+else
+    coverage run manage.py test startpage finance members contrib logindata mailer material -v 2 --noinput
+fi
 coverage html

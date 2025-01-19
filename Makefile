@@ -1,8 +1,12 @@
 build-test:
 	cd docker/test; docker compose build
 
-test:
-	touch docker/test/coverage.xml
-	chmod 666 docker/test/coverage.xml
+test: build-test
+	mkdir -p docker/test/htmlcov
+	chmod 777 docker/test/htmlcov
+ifeq ($(keepdb), true)
+	cd docker/test; DJANGO_TEST_KEEPDB=1 docker compose up --abort-on-container-exit
+else
 	cd docker/test; docker compose up --abort-on-container-exit
-	sed -i 's/\/app\/jdav_web/jdav_web/g' docker/test/coverage.xml
+endif
+	echo "Generated coverage report. To read it, point your browser to:\n\nfile://$$(pwd)/docker/test/htmlcov/index.html"
