@@ -558,7 +558,7 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
         for i in range(10):
             day = random.randint(1, 28)
             month = random.randint(1, 12)
-            year = random.randint(1900, timezone.now().year)
+            year = random.randint(1900, timezone.now().year - 1)
             ex = MemberWaitingList.objects.create(prename='Peter {}'.format(i),
                                                   lastname='Puter',
                                                   birth_date=datetime.date(year, month, day),
