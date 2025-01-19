@@ -235,7 +235,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                             _("Successfully generated transactions for %(name)s") % {'name': str(statement)})
                 else:
                     messages.error(request,
-                            _("Error while generating transactions for %(name)s. Do all bills have a payer?") % {'name': str(statement)})
+                            _("Error while generating transactions for %(name)s. Do all bills have a payer and, if this statement is attached to an excursion, was a person selected that receives the subsidies?") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
         context = dict(self.admin_site.each_context(request),
                        title=_('View submitted statement'),

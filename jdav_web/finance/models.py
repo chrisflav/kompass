@@ -236,8 +236,11 @@ class Statement(CommonModel):
             Transaction(statement=self, member=yl, amount=self.allowance_per_yl, confirmed=False, reference=ref).save()
 
         # subsidies (i.e. night and transportation costs)
-        ref = _("Night and travel costs for %(excu)s") % {'excu': self.excursion.name}
-        Transaction(statement=self, member=self.subsidy_to, amount=self.total_subsidies, confirmed=False, reference=ref).save()
+        if self.subsidy_to:
+            ref = _("Night and travel costs for %(excu)s") % {'excu': self.excursion.name}
+            Transaction(statement=self, member=self.subsidy_to, amount=self.total_subsidies, confirmed=False, reference=ref).save()
+        else:
+            return False
         return True
 
     def reduce_transactions(self):

@@ -36,7 +36,7 @@ class StatementTestCase(TestCase):
                                      tour_type=GEMEINSCHAFTS_TOUR,
                                      tour_approach=MUSKELKRAFT_ANREISE,
                                      difficulty=1)
-        self.st3 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
+        self.st3 = Statement.objects.create(night_cost=self.night_cost, excursion=ex, subsidy_to=self.fritz)
         for i in range(self.participant_count):
             m = Member.objects.create(prename='Fritz {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
                                       email=settings.TEST_MAIL, gender=MALE)
@@ -49,12 +49,14 @@ class StatementTestCase(TestCase):
                                 amount=42.69, costs_covered=True, paid_by=m)
             m.group.add(self.jl)
             ex.jugendleiter.add(m)
+            if i < 3:
+                self.st3.allowance_to.add(m)
 
         ex = Freizeit.objects.create(name='Wild trip 2', kilometers_traveled=self.kilometers_traveled,
                                      tour_type=GEMEINSCHAFTS_TOUR,
                                      tour_approach=MUSKELKRAFT_ANREISE,
                                      difficulty=2)
-        self.st4 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
+        self.st4 = Statement.objects.create(night_cost=self.night_cost, excursion=ex, subsidy_to=self.fritz)
         for i in range(2):
             m = Member.objects.create(prename='Peter {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
                                       email=settings.TEST_MAIL, gender=DIVERSE)
@@ -74,19 +76,24 @@ class StatementTestCase(TestCase):
 
     def test_reduce_transactions(self):
         self.st3.generate_transactions()
-        self.assertEqual(self.st3.transaction_set.count(), self.staff_count * 2,
+        self.assertTrue(self.st3.allowance_to_valid, 'Configured `allowance_to` field is invalid.')
+        # every youth leader on `st3` paid one bill, the first three receive the allowance
+        # and one receives the subsidies
+        self.assertEqual(self.st3.transaction_set.count(), self.st3.real_staff_count + self.staff_count + 1,
                          'Transaction count is not twice the staff count.')
         self.st3.reduce_transactions()
-        self.assertEqual(self.st3.transaction_set.count(), self.staff_count * 2,
+        self.assertEqual(self.st3.transaction_set.count(), self.st3.real_staff_count + self.staff_count + 1,
                          'Transaction count after reduction is not the same as before, although no ledgers are configured.')
         for trans in self.st3.transaction_set.all():
             trans.ledger = self.personal_account
             trans.save()
         self.st3.reduce_transactions()
-        self.assertEqual(self.st3.transaction_set.count(), self.staff_count,
-                         'Transaction count after setting ledgers and reduction is not halved.')
+        # the three yls that receive an allowance should only receive one transaction after reducing,
+        # the additional one is the one for the subsidies
+        self.assertEqual(self.st3.transaction_set.count(), self.staff_count + 1,
+                         'Transaction count after setting ledgers and reduction is incorrect.')
         self.st3.reduce_transactions()
-        self.assertEqual(self.st3.transaction_set.count(), self.staff_count,
+        self.assertEqual(self.st3.transaction_set.count(), self.staff_count + 1,
                          'Transaction count did change after reducing a second time.')
 
     def test_confirm_statement(self):
@@ -101,6 +108,8 @@ class StatementTestCase(TestCase):
         for trans in self.st3.transaction_set.all():
             trans.ledger = self.personal_account
             trans.save()
+        self.assertEqual(self.st3.validity, Statement.VALID,
+                         'Statement is not valid, although it was setup to be so.')
         self.assertTrue(self.st3.confirm(confirmer=self.fritz),
                         'Statement was not confirmed, although it submitted and valid.')
         self.assertEqual(self.st3.confirmed_by, self.fritz, 'Statement not confirmed by fritz.')
