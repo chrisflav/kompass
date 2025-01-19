@@ -512,12 +512,15 @@ class Member(Person):
         if self.registration_ready():
             self.notify_jugendleiters_about_confirmed_mail()
 
+    def get_upload_registration_form_link(self):
+        return prepend_base_url(reverse('members:upload_registration_form') + "?key="\
+            + self.upload_registration_form_key)
+
     def send_upload_registration_form_link(self):
         if not self.upload_registration_form_key:
             return
         print(self.name, self.upload_registration_form_key)
-        link = prepend_base_url(reverse('members:upload_registration_form') + "?key="\
-                + self.upload_registration_form_key)
+        link = self.get_upload_registration_form_link()
         self.send_mail(_('Upload registration form'),
                        settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
                                                                      link=link))
