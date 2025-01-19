@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-18 23:22+0100\n"
+"POT-Creation-Date: 2025-01-19 10:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -342,6 +342,10 @@ msgid "Prepend V32"
 msgstr "V32 Formblatt einfügen"
 
 #: members/admin.py
+msgid "Invoice"
+msgstr "Beleg"
+
+#: members/admin.py
 msgid ""
 "General information on your excursion. These are partly relevant for the "
 "amount of financial compensation (means of transport, travel distance, etc.)."
@@ -380,9 +384,13 @@ msgstr ""
 "Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
 "ausgefüllt ist. "
 
-#: members/admin.py
+#: members/admin.py members/templates/admin/generate_sjr_application.html
 msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
+
+#: members/admin.py
+msgid "Please select an invoice."
+msgstr "Bitte wähle einen Beleg aus."
 
 #: members/admin.py
 msgid "No statement found. Please add a statement and then retry."
@@ -1021,6 +1029,7 @@ msgstr "Fortbildungen"
 #: members/templates/admin/demote_to_waiter.html
 #: members/templates/admin/freizeit_finance_overview.html
 #: members/templates/admin/generate_seminar_report.html
+#: members/templates/admin/generate_sjr_application.html
 #: members/templates/admin/invite_as_user.html
 #: members/templates/admin/invite_for_group.html
 #: members/templates/admin/invite_for_group_text.html
@@ -1045,6 +1054,7 @@ msgstr "Zurück auf die Warteliste setzen"
 #: members/templates/admin/demote_to_waiter.html
 #: members/templates/admin/freizeit_finance_overview.html
 #: members/templates/admin/generate_seminar_report.html
+#: members/templates/admin/generate_sjr_application.html
 #: members/templates/admin/invite_as_user.html
 #: members/templates/admin/invite_for_group.html
 #: members/templates/admin/invite_selected_as_user.html
@@ -1301,8 +1311,26 @@ msgstr ""
 "Felder im Formblatt selbst aus und unterschreibe das PDF."
 
 #: members/templates/admin/generate_seminar_report.html
+#: members/templates/admin/generate_sjr_application.html
 msgid "Generate"
 msgstr "Erstellen"
+
+#: members/templates/admin/generate_sjr_application.html
+msgid "Here you can generate an allowance application for the SJR."
+msgstr "Hier kannst du einen SJR-Zuschussantrag erstellen."
+
+#: members/templates/admin/generate_sjr_application.html
+msgid ""
+"The application needs to be complemented with an invoice from the trip as "
+"proof."
+msgstr ""
+"An den Antrag muss ein Ausgabenbeleg angehängt werden, der beweist, dass die "
+"Aktivität stattgefunden hat."
+
+#: members/templates/admin/generate_sjr_application.html
+msgid ""
+"Please send this application form to the jdav finance officer via email."
+msgstr "Bitte sende diesen Antrag an den/die JDAV-Finanzwart*in per E-Mail."
 
 #: members/templates/admin/invite_as_user.html
 #, python-format

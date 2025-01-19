@@ -100,12 +100,18 @@ def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
 
     for fp in attachments:
         try:
-            img = Image.open(fp)
-            img_pdf = BytesIO()
-            img.save(img_pdf, "pdf")
+            if fp.endswith(".pdf"):
+                # append pdf directly
+                img_pdf = PdfReader(fp)
+            else:
+                # convert ensures that png files with an alpha channel can be appended
+                img = Image.open(fp).convert("RGB")
+                img_pdf = BytesIO()
+                img.save(img_pdf, "pdf")
             writer.append(img_pdf)
-        except:
+        except Exception as e:
             print("Could not add image", fp)
+            print(e)
 
     with open(media_path(filename_pdf), 'wb') as output_stream:
         writer.write(output_stream)

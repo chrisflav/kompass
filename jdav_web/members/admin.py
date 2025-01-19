@@ -981,6 +981,15 @@ class GenerateSeminarReportForm(forms.Form):
                                      widget=CheckboxInput(attrs={'style': 'display: inherit'}),
                                      required=False)
 
+class GenerateSjrForm(forms.Form):
+    
+    def __init__(self, *args, **kwargs):
+        self.attachments = kwargs.pop('attachments')
+        
+        super(GenerateSjrForm,self).__init__(*args,**kwargs)
+        self.fields['invoice'] = forms.ChoiceField(choices=self.attachments, label=_('Invoice'))
+        
+
 
 class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     #inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
@@ -1077,17 +1086,41 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             return serve_pdf(fp)
         return self.render_seminar_report_options(request, memberlist, GenerateSeminarReportForm())
     seminar_report.short_description = _('Generate seminar report')
-
+    
+    def render_sjr_options(self, request, memberlist, form):
+        context = dict(self.admin_site.each_context(request),
+            title=_('Generate SJR application'),
+            opts=self.opts,
+            memberlist=memberlist,
+            form=form,
+            object=memberlist)
+        return render(request, 'admin/generate_sjr_application.html', context=context)
+    
     def sjr_application(self, request, memberlist):
+        if hasattr(memberlist, 'statement'):
+            attachment_names = [f"{b.short_description}: {b.explanation} ({b.amount:.2f}€)" for b in memberlist.statement.bill_set.all() if b.proof]
+            attachment_paths = [b.proof.path for b in memberlist.statement.bill_set.all() if b.proof]
+        else:
+            attachment_names = []
+            attachment_paths = []
+        attachments = zip(attachment_paths, attachment_names)
+            
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
-        context = memberlist.sjr_application_fields()
-        if hasattr(memberlist, 'statement'):
-            attachments = [b.proof.path for b in memberlist.statement.bill_set.all() if b.proof]
-        else:
-            attachments = []
-        title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
-        return fill_pdf_form(title + "_SJR_Antrag", 'members/sjr_template.pdf', context, attachments)
+        if "apply" in request.POST:
+            form = GenerateSjrForm(request.POST, attachments=attachments)
+            if not form.is_valid():
+                messages.error(request, _('Please select an invoice.'))
+                return self.render_sjr_options(request, memberlist, form)
+            
+            selected_attachments = [form.cleaned_data['invoice']]
+            context = memberlist.sjr_application_fields()
+            title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
+            
+            return fill_pdf_form(title + "_SJR_Antrag", 'members/sjr_template.pdf', context, selected_attachments)
+        
+        return self.render_sjr_options(request, memberlist, GenerateSjrForm(attachments=attachments))
+    
     sjr_application.short_description = _('Generate SJR application')
 
     def finance_overview(self, request, memberlist):
