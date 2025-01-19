@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import uuid
+import math
 import pytz
 import unicodedata
 import re
@@ -1151,12 +1152,46 @@ class Freizeit(CommonModel):
         return base_count + self.approved_extra_youth_leader_count
 
     @property
-    def ljp_participant_count(self):
-        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
+    def theoretic_ljp_participant_count(self):
+        """
+        Calculate the participant count in the sense of the LJP regulations. This means
+        that all youth leaders are counted and all participants which are at least 6 years old and
+        strictly less than 27 years old. Additionally, up to 20% of the participants may violate the
+        age restrictions.
+
+        This is the theoretic value, ignoring the cutoff at 5 participants.
+        """
+        # participants (possibly including youth leaders)
+        ps = {x.member for x in self.membersonlist.distinct()}
+        # youth leaders
         jls = set(self.jugendleiter.distinct())
-        count = len(ps.union(jls))
-        return count
-        #return count if count >= 5 else 0
+        # non-youth leader participants
+        ps_only = ps - jls
+        # participants of the correct age
+        ps_correct_age = {m for m in ps_only if m.age() >= 6 and m.age() < 27}
+        # m = the official non-youth-leader participant count
+        # and, assuming there exist enough participants, unrounded m satisfies the equation
+        # len(ps_correct_age) + 1/5 * m = m
+        # if there are not enough participants,
+        # m = len(ps_only)
+        m = min(len(ps_only), math.floor(5/4 * len(ps_correct_age)))
+        return m + len(jls)
+
+    @property
+    def ljp_participant_count(self):
+        """
+        The number of participants in the sense of LJP regulations. If the total
+        number of participants (including youth leaders and too old / young ones) is less
+        than 5, this is zero, otherwise it is `theoretic_ljp_participant_count`.
+        """
+        # participants (possibly including youth leaders)
+        ps = {x.member for x in self.membersonlist.distinct()}
+        # youth leaders
+        jls = set(self.jugendleiter.distinct())
+        if len(ps.union(jls)) < 5:
+            return 0
+        else:
+            return self.theoretic_ljp_participant_count
 
     @property
     def maximal_ljp_contributions(self):

@@ -15,6 +15,8 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 import random
 import datetime
+from dateutil.relativedelta import relativedelta
+import math
 
 
 def create_custom_user(username, groups, prename, lastname):
@@ -44,6 +46,14 @@ class BasicMemberTestCase(TestCase):
         self.fritz.group.add(self.jl)
         self.fritz.group.add(self.alp)
         self.fritz.save()
+
+        self.peter = Member.objects.create(prename="Peter", lastname="Wulter",
+                                           birth_date=timezone.now().date(),
+                                           email=settings.TEST_MAIL, gender=MALE)
+        self.peter.group.add(self.jl)
+        self.peter.group.add(self.alp)
+        self.peter.save()
+
         self.lara = Member.objects.create(prename="Lara", lastname="Wallis", birth_date=timezone.now().date(),
                               email=settings.TEST_MAIL, gender=DIVERSE)
         self.lara.group.add(self.alp)
@@ -130,8 +140,10 @@ class PDFTestCase(TestCase):
         self.note = MemberNoteList.objects.create(title='Cool list')
 
         for i in range(7):
-            m = Member.objects.create(prename='Lise {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
-                                           email=settings.TEST_MAIL, gender=FEMALE)
+            m = Member.objects.create(prename='Lise {}'.format(i),
+                                      lastname='Walter',
+                                      birth_date=timezone.now().date(),
+                                      email=settings.TEST_MAIL, gender=FEMALE)
             NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.ex)
             NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.note)
 
@@ -382,6 +394,81 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, 200, 'Response code is not 200.')
         self.assertEqual(final, final_target, 'Did redirect to wrong url.')
 
+
+class FreizeitTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
+                                          tour_type=GEMEINSCHAFTS_TOUR,
+                                          tour_approach=MUSKELKRAFT_ANREISE,
+                                          difficulty=1)
+
+    def _setup_test_ljp_participant_count(self, n_yl, n_correct_age, n_too_old):
+        for i in range(n_yl):
+            # a 50 years old
+            m = Member.objects.create(prename='Peter {}'.format(i),
+                                      lastname='Wulter',
+                                      birth_date=datetime.datetime.today() - relativedelta(years=50),
+                                      email=settings.TEST_MAIL,
+                                      gender=FEMALE)
+            self.ex.jugendleiter.add(m)
+        for i in range(n_correct_age):
+            # a 10 years old
+            m = Member.objects.create(prename='Lise {}'.format(i),
+                                      lastname='Walter',
+                                      birth_date=datetime.datetime.today() - relativedelta(years=10),
+                                      email=settings.TEST_MAIL,
+                                      gender=FEMALE)
+            NewMemberOnList.objects.create(member=m, comments='a', memberlist=self.ex)
+        for i in range(n_too_old):
+            # a 27 years old
+            m = Member.objects.create(prename='Lise {}'.format(i),
+                                      lastname='Walter',
+                                      birth_date=datetime.datetime.today() - relativedelta(years=27),
+                                      email=settings.TEST_MAIL,
+                                      gender=FEMALE)
+            NewMemberOnList.objects.create(member=m, comments='a', memberlist=self.ex)
+
+    def _cleanup_excursion(self):
+        # delete all members on excursion for clean up
+        NewMemberOnList.objects.all().delete()
+        self.ex.jugendleiter.all().delete()
+
+    def _test_theoretic_ljp_participant_count_proportion(self, n_yl, n_correct_age, n_too_old):
+        self._setup_test_ljp_participant_count(n_yl, n_correct_age, n_too_old)
+        self.assertGreaterEqual(self.ex.theoretic_ljp_participant_count, n_yl,
+                                'An excursion with {n_yl} youth leaders and {n_correct_age} participants in the correct age range should have at least {n} participants.'.format(n_yl=n_yl, n_correct_age=n_correct_age, n=n_yl + n_correct_age))
+        self.assertLessEqual(self.ex.theoretic_ljp_participant_count, n_yl + n_correct_age + n_too_old,
+                             'An excursion with a total number of youth leaders and participants of {n} should have not more than {n} participants'.format(n=n_yl + n_correct_age + n_too_old))
+
+        n_parts_only = self.ex.theoretic_ljp_participant_count - n_yl
+        self.assertLessEqual(n_parts_only - n_correct_age, 1/5 * n_parts_only,
+                             'An excursion with {n_parts_only} non-youth-leaders, of which {n_correct_age} have the correct age, the number of participants violating the age range must not exceed 20% of the total participants, i.e. {d}'.format(n_parts_only=n_parts_only, n_correct_age=n_correct_age, d=1/5 * n_parts_only))
+
+        self.assertEqual(n_parts_only - n_correct_age, min(math.floor(1/5 * n_parts_only), n_too_old),
+                         'An excursion with {n_parts_only} non-youth-leaders, of which {n_correct_age} have the correct age, the number of participants violating the age range must be equal to the minimum of {n_too_old} and the smallest integer less than 20% of the total participants, i.e. {d}'.format(n_parts_only=n_parts_only, n_correct_age=n_correct_age, d=math.floor(1/5 * n_parts_only), n_too_old=n_too_old))
+
+        # cleanup
+        self._cleanup_excursion()
+
+    def _test_ljp_participant_count_proportion(self, n_yl, n_correct_age, n_too_old):
+        self._setup_test_ljp_participant_count(n_yl, n_correct_age, n_too_old)
+        if n_yl + n_correct_age + n_too_old < 5:
+            self.assertEqual(self.ex.ljp_participant_count, 0)
+        else:
+            self.assertEqual(self.ex.ljp_participant_count, self.ex.theoretic_ljp_participant_count)
+
+        # cleanup
+        self._cleanup_excursion()
+
+    def test_theoretic_ljp_participant_count(self):
+        self._test_theoretic_ljp_participant_count_proportion(2, 0, 0)
+        for i in range(10):
+            self._test_theoretic_ljp_participant_count_proportion(2, 10 - i, i)
+
+    def test_ljp_participant_count(self):
+        self._test_ljp_participant_count_proportion(2, 1, 1)
+        self._test_ljp_participant_count_proportion(2, 5, 1)
 
 class FreizeitAdminTestCase(AdminTestCase):
     def setUp(self):
