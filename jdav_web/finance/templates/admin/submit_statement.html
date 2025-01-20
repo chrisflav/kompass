@@ -1,5 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static %}
+{% load overview_extras %}
 
 {% block extrahead %}
     {{ block.super }}
@@ -24,6 +25,35 @@
 
 {% block content %}
 <h2>{% translate "Submit to the finance department" %}</h2>
+<p>{% translate "Please check if all expenses are documented correctly and if all payers have a valid account code." %}</p>
+<table>
+    <th>
+        <td>{% trans "Explanation" %}</td>
+        <td>{% trans "Amount" %}</td>
+        <td>{% trans "Paid by" %}</td>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
+    {% for bill in statement.bill_set.all %}
+        <tr>
+            <td>
+            {{bill.short_description}}
+            </td>
+            <td>
+            {{bill.explanation}}
+            </td>
+            <td>
+            {{ bill.amount }}€
+            </td>
+            <td>
+                {{ bill.paid_by.name }}
+            </td>
+            <td>
+                {{ bill.paid_by.iban_valid|render_bool }}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+
 <p>
 {% trans "Do you want to submit the statement for further processing by the finance department? If you proceed, no further changes to the statement are possible." %}
 </p>

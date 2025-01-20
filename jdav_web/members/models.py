@@ -30,6 +30,7 @@ from contrib.rules import memberize_user, has_global_perm
 from utils import cvt_to_decimal
 
 from dateutil.relativedelta import relativedelta
+from schwifty import IBAN
 
 def generate_random_key():
     return uuid.uuid4().hex
@@ -342,6 +343,10 @@ class Member(Person):
         """Returning the whole place (plz + town)"""
         return "{0} {1}".format(self.plz, self.town)
 
+    @property
+    def iban_valid(self):
+        return IBAN(self.iban, allow_invalid=True).is_valid
+    
     @property
     def address(self):
         """Returning the whole address"""
@@ -1210,7 +1215,7 @@ class Freizeit(CommonModel):
         if not self.statement:
             return 0
         total_costs = self.statement.total_bills_theoretic
-        total_contributions = self.statement.total_staff + self.potential_ljp_contributions
+        total_contributions = self.statement.total_subsidies + self.potential_ljp_contributions
         return total_costs - total_contributions
 
     @property

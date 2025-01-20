@@ -1,5 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static %}
+{% load overview_extras %}
 
 {% block extrahead %}
     {{ block.super }}
@@ -40,7 +41,7 @@
             {{ bill.amount }}€.
             </td>
             <td>
-                {{ bill.costs_covered }}
+            {{ bill.costs_covered|render_bool }}
             </td>
         </tr>
     {% endfor %}

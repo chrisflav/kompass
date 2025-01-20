@@ -1,5 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static %}
+{% load overview_extras %}
 
 {% block extrahead %}
     {{ block.super }}
@@ -38,6 +39,8 @@ cost plan!
     <th>
         <td>{% trans "Explanation" %}</td>
         <td>{% trans "Amount" %}</td>
+        <td>{% trans "Paid by" %}</td>
+        <td>{% trans "IBAN valid" %}</td>
     </th>
     {% for bill in memberlist.statement.bill_set.all %}
         <tr>
@@ -49,6 +52,12 @@ cost plan!
             </td>
             <td>
             {{ bill.amount }}€
+            </td>
+            <td>
+                {{ bill.paid_by.name }}
+            </td>
+            <td>
+                {{ bill.paid_by.iban_valid|render_bool }}
             </td>
         </tr>
     {% endfor %}
@@ -78,21 +87,29 @@ cost plan!
 </p>
 <p>
 {% blocktrans %}The allowance of {{ allowance_per_yl }}€ per person is configured to be paid to:{% endblocktrans %}
-<ul>
+<table>
+    <th>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
     {% for member in memberlist.statement.allowance_to.all %}
-        <li>
-            {{ member.name }}
-        </li>
+    <tr>
+        <td>{{ member.name }}</td>
+        <td>{{ member.iban_valid|render_bool }}</td>
+    </tr>
     {% endfor %}
-</ul>
+</table>
 </p>
 <p>
 {% blocktrans %}The subsidies for night and transportation costs of {{ total_subsidies }}€ is configured to be paid to:{% endblocktrans %}
-<ul>
-    <li>
-        {{ memberlist.statement.subsidy_to.name }}
-    </li>
-</ul>
+<table>
+    <th>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
+    <tr>
+        <td>{{ memberlist.statement.subsidy_to.name }}</td>
+        <td>{{ memberlist.statement.subsidy_to.iban_valid|render_bool }}</td>
+    </tr>
+</table>
 </p>
 {% if not memberlist.statement.allowance_to_valid %}
 <p>
@@ -128,7 +145,7 @@ you may obtain up to 25€ times {{ duration }} days for {{ participant_count }}
             {% trans "Contributions by the association" %}
         </td>
         <td>
-            -{{ total_staff }}€
+            -{{ total_subsidies }}€
         </td>
     </tr>
     <tr>
@@ -162,7 +179,7 @@ excursions main page, you can generate a template for a seminar report.{% endblo
 <h3>{% trans "Submit statement" %}</h3>
 <p>
 {% blocktrans %}Did you already complete this excursion? If yes, please check if all listed expenses are correct
-and then submit the statement for processing by the finance department. If you proceed,
+and people who want their money back have valid bank account numbers. Then submit the statement for processing by the finance department. If you proceed,
 no further changes to the statement are possible.{% endblocktrans %}
 </p>
 

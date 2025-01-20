@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-19 11:40+0100\n"
+"POT-Creation-Date: 2025-01-19 14:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -169,7 +169,7 @@ msgstr "Geldtöpfe"
 msgid "Short description"
 msgstr "Kurzbeschreibung"
 
-#: finance/models.py
+#: finance/models.py finance/templates/admin/submit_statement.html
 msgid "Explanation"
 msgstr "Erklärung"
 
@@ -208,7 +208,7 @@ msgstr "Preis pro Nacht"
 
 #: finance/models.py
 msgid "Submitted"
-msgstr "Eingericht"
+msgstr "Eingereicht"
 
 #: finance/models.py
 msgid "Submitted on"
@@ -291,10 +291,11 @@ msgstr "Bezahlte Abrechnungen"
 
 #: finance/models.py finance/templates/admin/confirmed_statement.html
 #: finance/templates/admin/overview_submitted_statement.html
+#: finance/templates/admin/submit_statement.html
 msgid "Amount"
 msgstr "Betrag"
 
-#: finance/models.py
+#: finance/models.py finance/templates/admin/submit_statement.html
 msgid "Paid by"
 msgstr "Bezahlt von"
 
@@ -532,6 +533,18 @@ msgstr "Einreichen"
 #: finance/templates/admin/submit_statement.html
 msgid "Submit to the finance department"
 msgstr "Beim Finanzreferat einreichen"
+
+#: finance/templates/admin/submit_statement.html
+msgid ""
+"Please check if all expenses are documented correctly and if all payers have "
+"a valid account code."
+msgstr ""
+"Bitte überprüfe, ob alle Ausgaben korrekt erfasst sind und ob alle "
+"auslegenden Personen eine gültige IBAN haben."
+
+#: finance/templates/admin/submit_statement.html
+msgid "IBAN valid"
+msgstr "IBAN gültig"
 
 #: finance/templates/admin/submit_statement.html
 msgid ""

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-19 10:08+0100\n"
+"POT-Creation-Date: 2025-01-19 19:16+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -411,7 +411,7 @@ msgid ""
 "Successfully submited statement. The finance department will notify you as "
 "soon as possible."
 msgstr ""
-"Abrechnung erfolgreich eingericht. Die Finanzabteilung wird sich bei dir so "
+"Abrechnung erfolgreich eingereicht. Die Finanzabteilung wird sich bei dir so "
 "schnell wie möglich melden."
 
 #: members/admin.py members/templates/admin/freizeit_finance_overview.html
@@ -1090,6 +1090,14 @@ msgid "Amount"
 msgstr "Betrag"
 
 #: members/templates/admin/freizeit_finance_overview.html
+msgid "Paid by"
+msgstr "Bezahlt von"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "IBAN valid"
+msgstr "IBAN gültig"
+
+#: members/templates/admin/freizeit_finance_overview.html
 #, python-format
 msgid "The total expected expenses are %(total_bills_theoretic)s €."
 msgstr ""
@@ -1229,14 +1237,17 @@ msgstr "Abrechnung einreichen"
 msgid ""
 "Did you already complete this excursion? If yes, please check if all listed "
 "expenses are correct\n"
-"and then submit the statement for processing by the finance department. If "
-"you proceed,\n"
+"and people who want their money back have valid bank account numbers. Then "
+"submit the statement for processing by the finance department. If you "
+"proceed,\n"
 "no further changes to the statement are possible."
 msgstr ""
 "Hat die Ausfahrt bereits stattgefunden? Wenn ja, prüfe bitte ob alle "
-"aufgelisteten Kosten korrekt sind und reiche deine Abrechnung dann beim "
-"Finanzreferat ein. Wenn du fortschreitest sind keine weiteren Änderungen an "
-"der Abrechnung mehr möglich."
+"aufgelisteten Kosten korrekt sind, alle notwendigen Belege hochgeladen sind "
+"und ob alle Personen, die Geld ausbezahlt bekommen sollen, eine gültige IBAN "
+"haben. Reiche deine Abrechnung dann beim Finanzreferat ein. Wenn du "
+"fortschreitest, sind keine weiteren Änderungen an der Abrechnung mehr "
+"möglich."
 
 #: members/templates/admin/freizeit_finance_overview.html
 msgid "Submit"

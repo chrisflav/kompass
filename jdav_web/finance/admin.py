@@ -89,12 +89,25 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.success(request,
                     _("Successfully submited %(name)s. The finance department will notify the requestors as soon as possible.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
-        context = dict(self.admin_site.each_context(request),
-                       title=_('Submit statement'),
+        
+        if statement.excursion:
+            memberlist = statement.excursion
+            context = dict(self.admin_site.each_context(request),
+                       title=_('Finance overview'),
                        opts=self.opts,
-                       statement=statement)
-
-        return render(request, 'admin/submit_statement.html', context=context)
+                       memberlist=memberlist,
+                       object=memberlist,
+                       participant_count=memberlist.participant_count,
+                       ljp_contributions=memberlist.potential_ljp_contributions,
+                       total_relative_costs=memberlist.total_relative_costs,
+                       **memberlist.statement.template_context())
+            return render(request, 'admin/freizeit_finance_overview.html', context=context)
+        else:
+            context = dict(self.admin_site.each_context(request),
+                title=_('Submit statement'),
+                opts=self.opts,
+                statement=statement)
+            return render(request, 'admin/submit_statement.html', context=context)
 
 
 class TransactionOnSubmittedStatementInline(admin.TabularInline):
