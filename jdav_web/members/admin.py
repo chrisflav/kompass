@@ -1082,7 +1082,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
                                        'members/V32-1_Themenorientierte_Bildungsmassnahmen.pdf',
                                        context,
                                        save_only=True)
-                return merge_pdfs(title + 'LJP_Antrag', [v32_fp, fp])
+                return merge_pdfs(title + '_LJP_Antrag', [v32_fp, fp])
             return serve_pdf(fp)
         return self.render_seminar_report_options(request, memberlist, GenerateSeminarReportForm())
     seminar_report.short_description = _('Generate seminar report')

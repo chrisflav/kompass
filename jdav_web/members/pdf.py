@@ -128,6 +128,8 @@ def merge_pdfs(name, filenames, save_only=False):
         merger.append(media_path(pdf))
 
     filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
+    filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
+    filename = unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
     filename_pdf = filename + ".pdf"
     merger.write(media_path(filename_pdf))
     merger.close()
