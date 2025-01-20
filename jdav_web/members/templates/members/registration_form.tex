@@ -149,9 +149,9 @@
     \fieldd{Gender}{0.3\linewidth}{ {{ member.gender_str|esc_all }} }   \hspace{0.35\linewidth}
 
     \fieldpf{DAV-Mitglieds-Nr.}{0.3\linewidth}{ {{ member.dav_badge_no|esc_all }} }   \hfill
-    \fieldd{Telefon (mobil)*}{0.3\linewidth}{ {{ member.phone_number }} }   \hspace{0.35\linewidth}
+    \fieldd{Telefon (mobil)*}{0.3\linewidth}{ {{ member.phone_number|esc_all }} }   \hspace{0.35\linewidth}
 
-    \fieldd{Adresse}{0.65\linewidth}{ {{ member.street }}, {{ member.plz }} {{ member.town }} }
+    \fieldd{Adresse}{0.65\linewidth}{ {{ member.street|esc_all }}, {{ member.plz|esc_all }} {{ member.town|esc_all }} }
 
     \fieldd{E-Mail}{0.65\linewidth}{ {{ member.email|esc_all }} }
 
@@ -163,7 +163,7 @@
     Vollständiger Name & E-Mail & Telefon (mobil) \\
     \midrule
 {% for c in member.emergencycontact_set.all %}
-{{ c.name }} & {{ c.email }} & {{ c.phone_number }} \\
+{{ c.name|esc_all }} & {{ c.email|esc_all }} & {{ c.phone_number|esc_all }} \\
 {% endfor %}
 \bottomrule
 \end{tabular*}
