@@ -225,9 +225,10 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     ]
     list_display = ('name_text_or_link', 'birth_date', 'age', 'get_group',
                     'email_mailto_link', 'phone_number_tel_link',
+                    'echoed',
                     'comments', 'activity_score')
     search_fields = ('prename', 'lastname', 'email')
-    list_filter = ('group', )
+    list_filter = ('echoed', 'group')
     list_display_links = None
     readonly_fields = ['echoed', 'good_conduct_certificate_valid']
     inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
