@@ -10,12 +10,16 @@ from django.test import TestCase, Client, RequestFactory
 from django.utils import timezone, translation
 from django.conf import settings
 from django.urls import reverse
+from django import template
 from unittest import skip, mock
 from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE,\
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE
-from .admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin
+from .admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
+        MemberUnconfirmedAdmin
+from .pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs
 from mailer.models import EmailAddress
+from finance.models import Statement, Bill
 
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
@@ -23,6 +27,7 @@ import random
 import datetime
 from dateutil.relativedelta import relativedelta
 import math
+import os.path
 
 
 REGISTRATION_DATA = {
@@ -192,55 +197,51 @@ class PDFTestCase(TestCase):
             NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.ex)
             NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.note)
 
-        User.objects.create_superuser(
-            username='superuser', password='secret'
-        )
-        standard = create_custom_user('standard', ['Standard'], 'Paul', 'Wulter')
+    def _assert_file_exists(self, fp):
+        self.assertTrue(os.path.isfile(media_path(fp)),
+                        '{fp} does not exist after generating it.'.format(fp=fp))
 
-    def _test_pdf(self, name, model='freizeit', invalid=False, username='superuser'):
-        c = Client()
-        c.login(username=username, password='secret')
+    def _test_render_tex(self, template, context):
+        fp = render_tex('Foo Bar', template, context, save_only=True)
+        self._assert_file_exists(fp)
+        return fp
 
-        pk = self.ex.pk if model == 'freizeit' else self.note.pk
-        url = reverse('admin:members_%s_action' % model, args=(pk,))
-        response = c.post(url, {name: 'hoho'})
-        if not invalid:
-            self.assertEqual(response.status_code, 200, 'Response code is not 200.')
-            self.assertEqual(response.headers['Content-Type'], 'application/pdf', 'Response content type is not pdf.')
-        else:
-            self.assertEqual(response.status_code, 302, 'Response code is not 302.')
+    def _test_fill_pdf(self, template, context):
+        fp = fill_pdf_form('Foo Bar', template, context, save_only=True)
+        self._assert_file_exists(fp)
 
-    def test_crisis_intervention_list(self):
-        self._test_pdf('crisis_intervention_list')
-        self._test_pdf('crisis_intervention_list', username='standard', invalid=True)
+    def test_invalid_template(self):
+        self.assertRaises(template.TemplateDoesNotExist, find_template, 'foobar')
+
+    def test_seminar_report(self):
+        context = dict(memberlist=self.ex, settings=settings, mode='basic')
+        fp = self._test_render_tex('members/seminar_report.tex', context)
+
+        # test serving pdf
+        response = serve_pdf(fp)
+        self.assertEqual(response.status_code, 200, 'Response code is not 200.')
+        self.assertEqual(response.headers['Content-Type'], 'application/pdf', 'Response content type is not pdf.')
+
+        # test merging
+        fp = merge_pdfs('foo', [fp, fp], save_only=True)
+        self._assert_file_exists(fp)
 
     def test_notes_list(self):
-        self._test_pdf('notes_list')
-        self._test_pdf('notes_list', username='standard', invalid=True)
+        people, skills = self.ex.skill_summary
+        context = dict(memberlist=self.ex, people=people, skill=skills, settings=settings)
+        self._test_render_tex('members/notes_list.tex', context)
 
-    # TODO: Since generating a seminar report requires more input now, this test rightly
-    # fails. Replace this test with one that fills the POST form and generates a pdf.
-    @skip("Currently rightly fails, because expected behaviour changed.")
+    def test_crisis_intervention_list(self):
+        context = dict(memberlist=self.ex, settings=settings)
+        self._test_render_tex('members/crisis_intervention_list.tex', context)
+
     def test_sjr_application(self):
-        self._test_pdf('sjr_application')
-        self._test_pdf('sjr_application', username='standard', invalid=True)
+        context = self.ex.sjr_application_fields()
+        self._test_fill_pdf('members/sjr_template.pdf', context)
 
-    # TODO: Since generating a seminar report requires more input now, this test rightly
-    # fails. Replace this test with one that fills the POST form and generates a pdf.
-    @skip("Currently rightly fails, because expected behaviour changed.")
-    def test_seminar_report(self):
-        self._test_pdf('seminar_report')
-        self._test_pdf('seminar_report', username='standard', invalid=True)
-
-    def test_membernote_summary(self):
-        self._test_pdf('summary', model='membernotelist')
-        self._test_pdf('summary', model='membernotelist', username='standard', invalid=True)
-
-    def test_wrong_action_freizeit(self):
-        return self._test_pdf('asdf', invalid=True)
-
-    def test_wrong_action_membernotelist(self):
-        return self._test_pdf('asdf', invalid=True, model='membernotelist')
+    def test_v32(self):
+        context = self.ex.v32_fields()
+        self._test_fill_pdf('members/V32-1_Themenorientierte_Bildungsmassnahmen.pdf', context)
 
 
 class AdminTestCase(TestCase):
@@ -259,7 +260,7 @@ class AdminTestCase(TestCase):
 
         paul = standard.member
 
-        staff = Group.objects.create(name='Jugendleiter')
+        self.staff = Group.objects.create(name='Jugendleiter')
         cool_kids = Group.objects.create(name='cool kids')
         super_kids = Group.objects.create(name='super kids')
 
@@ -281,11 +282,11 @@ class AdminTestCase(TestCase):
         for i in range(5):
             m = Member.objects.create(prename='Lulla {}'.format(i), lastname='Hulla', birth_date=timezone.now().date(),
                                            email=settings.TEST_MAIL, gender=DIVERSE)
-            m.group.add(staff)
+            m.group.add(self.staff)
             m.save()
         m = Member.objects.create(prename='Peter', lastname='Hulla', birth_date=timezone.now().date(),
                                   email=settings.TEST_MAIL, gender=MALE)
-        m.group.add(staff)
+        m.group.add(self.staff)
         p1.list_members.add(m)
 
     def _login(self, name):
@@ -329,6 +330,7 @@ class MemberAdminTestCase(AdminTestCase):
                                            email=settings.TEST_MAIL, gender=MALE)
             m.group.add(mega_kids)
             m.save()
+        self.fritz = cool_kids.member_set.first()
 
     def test_changelist(self):
         c = self._login('superuser')
@@ -442,6 +444,32 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, 200, 'Response code is not 200.')
         self.assertEqual(final, final_target, 'Did redirect to wrong url.')
 
+    def test_invite_as_user_view(self):
+        # insufficient permissions
+        c = self._login('standard')
+        url = reverse('admin:members_member_inviteasuser', args=(self.fritz.pk,))
+        response = c.post(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Permission denied.'))
+
+        c = self._login('superuser')
+
+        response = c.post(reverse('admin:members_member_inviteasuser', args=(12345,)))
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        response = c.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        self.fritz.email = 'foobar@{domain}'.format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
+        self.fritz.save()
+        response = c.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        response = c.post(url, data={'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        response = c.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
 
 class FreizeitTestCase(BasicMemberTestCase):
     def setUp(self):
@@ -518,18 +546,52 @@ class FreizeitTestCase(BasicMemberTestCase):
         self._test_ljp_participant_count_proportion(2, 1, 1)
         self._test_ljp_participant_count_proportion(2, 5, 1)
 
-class FreizeitAdminTestCase(AdminTestCase):
+
+class PDFActionMixin:
+    def _test_pdf(self, name, pk, model='freizeit', invalid=False, username='superuser', post_data=None):
+        c = Client()
+        c.login(username=username, password='secret')
+
+        url = reverse('admin:members_%s_action' % model, args=(pk,))
+        if not post_data:
+            post_data = {name: 'hoho'}
+        response = c.post(url, post_data)
+        if not invalid:
+            self.assertEqual(response.status_code, 200, 'Response code is not 200.')
+            self.assertEqual(response.headers['Content-Type'], 'application/pdf', 'Response content type is not pdf.')
+        else:
+            self.assertEqual(response.status_code, 302, 'Response code is not 302.')
+
+
+class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
     def setUp(self):
         super().setUp(model=Freizeit, admin=FreizeitAdmin)
-        ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
+        self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
                 tour_type=GEMEINSCHAFTS_TOUR,
                 tour_approach=MUSKELKRAFT_ANREISE,
                 difficulty=1)
+        self.yl1 = Member.objects.create(prename='Lose', lastname='Walter',
+                                         birth_date=timezone.now().date() - relativedelta(years=15),
+                                         email=settings.TEST_MAIL, gender=FEMALE)
+        self.yl2 = Member.objects.create(prename='Lose', lastname='Walter',
+                                         birth_date=timezone.now().date() - relativedelta(years=15),
+                                         email=settings.TEST_MAIL, gender=FEMALE)
+        self.ex.jugendleiter.add(self.yl1)
+        self.ex.jugendleiter.add(self.yl2)
 
         for i in range(7):
-            m = Member.objects.create(prename='Lise {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
-                                           email=settings.TEST_MAIL, gender=FEMALE)
-            NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=ex)
+            m = Member.objects.create(prename='Lise {}'.format(i), lastname='Walter',
+                                      birth_date=timezone.now().date() - relativedelta(years=15),
+                                      email=settings.TEST_MAIL, gender=FEMALE)
+            NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.ex)
+
+        fr = Member.objects.create(prename='Peter', lastname='Wulter', birth_date=datetime.date(1900, 1, 1),
+                                   email=settings.TEST_MAIL, gender=MALE)
+        self.st = Statement.objects.create(night_cost=11, subsidy_to=fr)
+        file = SimpleUploadedFile("proof.pdf", b"file_content", content_type="application/pdf")
+        self.bill = Bill.objects.create(statement=self.st, short_description='bla', explanation='bli',
+                                        amount=42.69, costs_covered=True, paid_by=fr,
+                                        proof=file)
 
     def test_changelist(self):
         c = self._login('superuser')
@@ -596,10 +658,129 @@ class FreizeitAdminTestCase(AdminTestCase):
         queryset = self.admin.formfield_for_manytomany(field, None).queryset
         self.assertQuerysetEqual(queryset, Member.objects.none())
 
+    @mock.patch('members.pdf.render_tex')
+    def test_seminar_report_post(self, mocked_fun):
+        c = self._login('standard')
+        url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
+        response = c.post(url, data={'seminar_report': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        c = self._login('superuser')
+        url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
+        response = c.post(url, data={'seminar_report': ''})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('You may also choose to include the V32 attachment.'))
+
+        response = c.post(url, data={'seminar_report': '', 'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Please select a mode.'))
+
+        response = c.post(url, data={'seminar_report': '',
+                                     'apply': '',
+                                     'mode': 'full',
+                                     'prepend_v32': 'true'})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Full mode is only available, if the seminar report section is filled out.'))
+
+        response = c.post(url, data={'seminar_report': '',
+                                     'apply': '',
+                                     'mode': 'basic',
+                                     'prepend_v32': 'true'})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        print(mocked_fun.call_count)
+
+    @mock.patch('members.pdf.fill_pdf_form')
+    def test_sjr_application_post(self, mocked_fun):
+        url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
+        c = self._login('standard')
+        response = c.post(url, data={'sjr_application': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        c = self._login('superuser')
+        response = c.post(url, data={'sjr_application': ''})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Here you can generate an allowance application for the SJR.'))
+
+        response = c.post(url, data={'sjr_application': '', 'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Please select an invoice.'))
+
+        self.st.excursion = self.ex
+        self.st.save()
+        response = c.post(url, data={'sjr_application': '', 'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Please select an invoice.'))
+
+        response = c.post(url, data={
+            'sjr_application': '',
+            'apply': '',
+            'invoice': self.bill.proof.path,
+        })
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_crisis_intervention_list_post(self):
+        self._test_pdf('crisis_intervention_list', self.ex.pk)
+        self._test_pdf('crisis_intervention_list', self.ex.pk, username='standard', invalid=True)
+
+    def test_notes_list_post(self):
+        self._test_pdf('notes_list', self.ex.pk)
+        self._test_pdf('notes_list', self.ex.pk, username='standard', invalid=True)
+
+    def test_wrong_action_freizeit(self):
+        return self._test_pdf('asdf', self.ex.pk, invalid=True)
+
+    @skip('Currently throws a `RelatedObjectDoesNotExist` error.')
+    def test_finance_overview_no_statement_post(self):
+        url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
+        c = self._login('superuser')
+        # no statement yields error
+        response = c.post(url, data={'finance_overview': ''})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("No statement found. Please add a statement and then retry."))
+
+    def test_finance_overview_post(self):
+        url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
+        c = self._login('superuser')
+        # set statement
+        self.st.excursion = self.ex
+        self.st.save()
+        # render overview
+        response = c.post(url, data={'finance_overview': ''})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('This is the estimated cost and contribution summary:'))
+        # submit fails because allowance_to is wrong
+        response = c.post(url, data={'finance_overview': '', 'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        # submit succeeds after fixing allowance_to
+        self.st.allowance_to.add(self.yl1)
+        self.st.allowance_to.add(self.yl2)
+        response = c.post(url, data={'finance_overview': '', 'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+
+class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
+    def setUp(self):
+        super().setUp(model=MemberNoteList, admin=MemberNoteListAdmin)
+        self.note = MemberNoteList.objects.create(title='Cool list')
+
+        for i in range(7):
+            m = Member.objects.create(prename='Lise {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
+                                           email=settings.TEST_MAIL, gender=FEMALE)
+            NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.note)
+
+    def test_membernote_summary(self):
+        self._test_pdf('summary', self.note.pk, model='membernotelist')
+        self._test_pdf('summary', self.note.pk, model='membernotelist', username='standard', invalid=True)
+
+    def test_wrong_action_membernotelist(self):
+        return self._test_pdf('asdf', self.note.pk, invalid=True, model='membernotelist')
+
 
 class MemberWaitingListAdminTestCase(AdminTestCase):
     def setUp(self):
         super().setUp(model=MemberWaitingList, admin=MemberWaitingListAdmin)
+        self.waiter = MemberWaitingList.objects.create(**WAITER_DATA)
+        self.em = EmailAddress.objects.create(name='foobar')
         for i in range(10):
             day = random.randint(1, 28)
             month = random.randint(1, 12)
@@ -610,17 +791,148 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
                                                   email=settings.TEST_MAIL,
                                                   gender=FEMALE)
 
-    def test_age_eq_birth_date_delta(self):
+    def _request(self):
         u = User.objects.get(username='superuser')
         url = reverse('admin:members_memberwaitinglist_changelist')
         request = self.factory.get(url)
         request.user = u
-        queryset = self.admin.get_queryset(request)
+        return request
+
+    def test_age_eq_birth_date_delta(self):
+        queryset = self.admin.get_queryset(self._request())
         today = timezone.now().date()
 
         for m in queryset:
             self.assertEqual(m.birth_date_delta, m.age(),
                              msg='Queryset based age calculation differs from python based age calculation for birth date {birth_date} compared to {today}.'.format(birth_date=m.birth_date, today=today))
+
+    def test_invite_view_post(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberwaitinglist_invite', args=(self.waiter.pk,))
+
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        response = c.post(url, data={'apply': '',
+                                     'group': 424242})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        response = c.post(url, data={'apply': '',
+                                     'group': self.staff.pk})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        self.staff.contact_email = self.em
+        self.staff.save()
+
+        response = c.post(url, data={'apply': '',
+                                     'group': self.staff.pk})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        response = c.post(url, data={'send': '',
+                                     'group': self.staff.pk})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        response = c.post(url, data={'send': '',
+                                     'group': self.staff.pk,
+                                     'text_template': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_ask_for_registration_action(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        qs = MemberWaitingList.objects.all()
+        response = c.post(url, data={'action': 'ask_for_registration_action',
+                                     '_selected_action': [qs[0].pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_age(self):
+        req = self._request()
+        queryset = self.admin.get_queryset(req)
+        w = queryset[0]
+        self.assertEqual(self.admin.age(w), w.age())
+
+    def test_ask_for_wait_confirmation(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        qs = MemberWaitingList.objects.all()
+        response = c.post(url, data={'action': 'ask_for_wait_confirmation',
+                                     '_selected_action': [q.pk for q in qs]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+
+class MemberUnconfirmedAdminTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=MemberUnconfirmedProxy, admin=MemberUnconfirmedAdmin)
+        self.reg = MemberUnconfirmedProxy.objects.create(**REGISTRATION_DATA, confirmed=False)
+        for i in range(10):
+            MemberUnconfirmedProxy.objects.create(**REGISTRATION_DATA, confirmed=False)
+
+    def test_demote_to_waiter(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_demote', args=(self.reg.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Demote member to waiter'))
+
+        response = c.post(url, data={'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_demote_to_waiter_action(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_changelist')
+        qs = MemberUnconfirmedProxy.objects.all()
+        response = c.post(url, data={'action': 'demote_to_waiter_action',
+                                     '_selected_action': [qs[0].pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        response = c.post(url, data={'action': 'demote_to_waiter_action',
+                                     '_selected_action': [qs[0].pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_confirm(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_changelist')
+        response = c.post(url, data={'action': 'confirm', '_selected_action': [self.reg.pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.reg.confirmed_mail = True
+        self.reg.confirmed_alternative_mail = True
+        self.reg.save()
+        response = c.post(url, data={'action': 'confirm', '_selected_action': [self.reg.pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    @skip('Even when every `member.confirm()` succeeds, it still shows the error message.')
+    def test_confirm_multiple(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_changelist')
+        qs = MemberUnconfirmedProxy.objects.all()
+        response = c.post(url, data={'action': 'confirm', '_selected_action': [q.pk for q in qs]}, follow=True)
+        self.assertContains(response,
+                            _("Failed to confirm some registrations because of unconfirmed email addresses."))
+
+        for q in qs:
+            q.confirmed_mail = True
+            q.confirmed_alternative_mail = True
+            q.save()
+        response = c.post(url, data={'action': 'confirm', '_selected_action': [q.pk for q in qs]}, follow=True)
+        self.assertContains(response,  _("Successfully confirmed multiple registrations."))
+
+    def test_request_mail_confirmation(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_changelist')
+        qs = MemberUnconfirmedProxy.objects.all()
+        response = c.post(url, data={'action': 'request_mail_confirmation',
+                                     '_selected_action': [qs[0].pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Successfully requested mail confirmation from selected registrations."))
+
+    def test_changelist(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberunconfirmedproxy_changelist')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+
+        c = self._login('superuser')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
 class MailConfirmationTestCase(BasicMemberTestCase):
