@@ -1,7 +1,10 @@
+from unittest import skip
 from django.test import TestCase
 from django.utils import timezone
 from django.conf import settings
-from .models import Statement, StatementUnSubmitted, StatementSubmitted, Bill, Ledger, Transaction
+from .models import Statement, StatementUnSubmitted, StatementSubmitted, Bill, Ledger, Transaction,\
+        StatementUnSubmittedManager, StatementSubmittedManager, StatementConfirmedManager,\
+        StatementConfirmed, TransactionIssue, StatementManager
 from members.models import Member, Group, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE, NewMemberOnList,\
         FAHRGEMEINSCHAFT_ANREISE, MALE, FEMALE, DIVERSE
 
@@ -11,6 +14,7 @@ class StatementTestCase(TestCase):
     kilometers_traveled = 512
     participant_count = 10
     staff_count = 5
+    allowance_to_count = 3
 
     def setUp(self):
         self.jl = Group.objects.create(name="Jugendleiter")
@@ -49,7 +53,7 @@ class StatementTestCase(TestCase):
                                 amount=42.69, costs_covered=True, paid_by=m)
             m.group.add(self.jl)
             ex.jugendleiter.add(m)
-            if i < 3:
+            if i < self.allowance_to_count:
                 self.st3.allowance_to.add(m)
 
         ex = Freizeit.objects.create(name='Wild trip 2', kilometers_traveled=self.kilometers_traveled,
@@ -165,6 +169,18 @@ class StatementTestCase(TestCase):
         self.assertFalse(self.st2.transactions_match_expenses,
                          'Transactions match expenses, but one transaction was tweaked.')
 
+    def test_generate_transactions_not_covered(self):
+        bill = self.st2.bill_set.all()[0]
+        bill.paid_by = None
+        bill.save()
+        self.st2.generate_transactions()
+        self.assertTrue(self.st2.transactions_match_expenses)
+
+        bill.amount = 0
+        bill.paid_by = self.fritz
+        bill.save()
+        self.assertTrue(self.st2.transactions_match_expenses)
+
     def test_statement_without_excursion(self):
         # should be all 0, since no excursion is associated
         self.assertEqual(self.st.real_staff_count, 0)
@@ -192,3 +208,153 @@ class StatementTestCase(TestCase):
         # so statement must be invalid
         self.assertFalse(self.st.is_valid(),
                          'Transaction is valid, although an unreasonable gift is paid.')
+
+    @skip('This fails on main, but will be resolved when #112 is merged.')
+    def test_allowance_to_valid(self):
+        self.assertEqual(self.st3.excursion.participant_count, self.participant_count)
+        # st3 should have 3 admissible yls and all of them should receive allowance
+        self.assertEqual(self.st3.admissible_staff_count, self.allowance_to_count)
+        self.assertEqual(self.st3.allowances_paid, self.allowance_to_count)
+        self.assertTrue(self.st3.allowance_to_valid)
+
+        m1 = self.st3.excursion.jugendleiter.all()[0]
+        m2 = self.st3.excursion.jugendleiter.all()[self.allowance_to_count]
+
+        # now remove one, so allowance_to should be reduced by one
+        self.st3.allowance_to.remove(m1)
+        self.assertEqual(self.st3.allowances_paid, self.allowance_to_count - 1)
+        # but still valid
+        self.assertTrue(self.st3.allowance_to_valid)
+        # and theoretical staff costs are now higher than real staff costs
+        self.assertLess(self.st3.total_staff, self.st3.theoretical_total_staff)
+        self.assertLess(self.st3.real_per_yl, self.st3.total_per_yl)
+
+        # adding a foreign yl adds the number of allowances_paid
+        self.st3.allowance_to.add(self.fritz)
+        self.assertEqual(self.st3.allowances_paid, self.allowance_to_count)
+        # but invalidates `allowance_to`
+        self.assertFalse(self.st3.allowance_to_valid)
+
+        # remove the foreign yl and add too many yls
+        self.st3.allowance_to.remove(self.fritz)
+        self.st3.allowance_to.add(m1, m2)
+        self.assertEqual(self.st3.allowances_paid, self.allowance_to_count + 1)
+        # should be invalid
+        self.assertFalse(self.st3.allowance_to_valid)
+
+        self.st3.generate_transactions()
+        for trans in self.st3.transaction_set.all():
+            trans.ledger = self.personal_account
+            trans.save()
+        self.assertEqual(self.st3.validity, Statement.INVALID_ALLOWANCE_TO)
+
+    def test_total_pretty(self):
+        self.assertEqual(self.st3.total_pretty(), "{}€".format(self.st3.total))
+
+    def test_template_context(self):
+        # with excursion
+        self.assertTrue('euro_per_km' in self.st3.template_context())
+        # without excursion
+        self.assertFalse('euro_per_km' in self.st2.template_context())
+
+    def test_grouped_bills(self):
+        bills = self.st2.grouped_bills()
+        self.assertTrue('amount' in bills[0])
+
+
+class LedgerTestCase(TestCase):
+    def setUp(self):
+        self.personal_account = Ledger.objects.create(name='personal account')
+
+    def test_str(self):
+        self.assertTrue(str(self.personal_account), 'personal account')
+
+
+class ManagerTestCase(TestCase):
+    def setUp(self):
+        self.st = Statement.objects.create(short_description='A statement',
+                                           explanation='Important!',
+                                           night_cost=0)
+        self.st_submitted = Statement.objects.create(short_description='A statement',
+                                                     explanation='Important!',
+                                                     night_cost=0,
+                                                     submitted=True)
+        self.st_confirmed = Statement.objects.create(short_description='A statement',
+                                                     explanation='Important!',
+                                                     night_cost=0,
+                                                     confirmed=True)
+
+    def test_get_queryset(self):
+        # TODO: remove this manager, since it is not used
+        mgr = StatementManager()
+        mgr.model = Statement
+        self.assertQuerysetEqual(mgr.get_queryset(), Statement.objects.filter(pk=self.st.pk))
+
+        mgr_unsubmitted = StatementUnSubmittedManager()
+        mgr_unsubmitted.model = StatementUnSubmitted
+        self.assertQuerysetEqual(mgr_unsubmitted.get_queryset(), Statement.objects.filter(pk=self.st.pk))
+
+        mgr_submitted = StatementSubmittedManager()
+        mgr_submitted.model = StatementSubmitted
+        self.assertQuerysetEqual(mgr_submitted.get_queryset(), Statement.objects.filter(pk=self.st_submitted.pk))
+
+        mgr_confirmed = StatementConfirmedManager()
+        mgr_confirmed.model = StatementConfirmed
+        self.assertQuerysetEqual(mgr_confirmed.get_queryset(), Statement.objects.filter(pk=self.st_confirmed.pk))
+
+
+class TransactionTestCase(TestCase):
+    def setUp(self):
+        self.st = Statement.objects.create(short_description='A statement',
+                                           explanation='Important!',
+                                           night_cost=0)
+        self.personal_account = Ledger.objects.create(name='personal account')
+        self.fritz = Member.objects.create(prename="Fritz", lastname="Wulter", birth_date=timezone.now().date(),
+                              email=settings.TEST_MAIL, gender=MALE)
+        self.trans = Transaction.objects.create(reference='foobar',
+                                                amount=42,
+                                                member=self.fritz,
+                                                ledger=self.personal_account,
+                                                statement=self.st)
+
+    def test_str(self):
+        self.assertTrue(str(self.trans.pk) in str(self.trans))
+
+    def test_escape_reference(self):
+        self.assertEqual(Transaction.escape_reference('harmless'), 'harmless')
+        self.assertEqual(Transaction.escape_reference('äöüÄÖÜß'), 'aeoeueAeOeUess')
+        self.assertEqual(Transaction.escape_reference('ha@r!?mless+09'), 'har?mless+09')
+
+    def test_code(self):
+        self.trans.amount = 0
+        # amount is zero, so empty
+        self.assertEqual(self.trans.code(), '')
+        self.trans.amount = 42
+        # iban is invalid, so empty
+        self.assertEqual(self.trans.code(), '')
+        # a valid (random) iban
+        self.fritz.iban = 'DE89370400440532013000'
+        self.assertNotEqual(self.trans.code(), '')
+
+
+class BillTestCase(TestCase):
+    def setUp(self):
+        self.st = Statement.objects.create(short_description='A statement',
+                                           explanation='Important!',
+                                           night_cost=0)
+        self.bill = Bill.objects.create(statement=self.st,
+                                        short_description='foobar')
+
+    def test_str(self):
+        self.assertTrue('€' in str(self.bill))
+
+    def test_pretty_amount(self):
+        self.assertTrue('€' in self.bill.pretty_amount())
+
+
+class TransactionIssueTestCase(TestCase):
+    def setUp(self):
+        self.issue = TransactionIssue('foo', 42, 26)
+
+    def test_difference(self):
+        self.assertEqual(self.issue.difference, 26 - 42)
