@@ -5,6 +5,8 @@ from django.contrib.auth import models as authmodels
 from django.contrib.admin.sites import AdminSite
 from django.contrib.messages import get_messages
 from django.contrib.auth.models import User
+from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.test import TestCase, Client, RequestFactory
 from django.utils import timezone, translation
@@ -14,9 +16,11 @@ from django import template
 from unittest import skip, mock
 from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE,\
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
-        RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE
+        RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE,\
+        Klettertreff, KlettertreffAttendee
 from .admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
-        MemberUnconfirmedAdmin
+        MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
+        MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin
 from .pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs
 from mailer.models import EmailAddress
 from finance.models import Statement, Bill
@@ -331,6 +335,7 @@ class MemberAdminTestCase(AdminTestCase):
             m.group.add(mega_kids)
             m.save()
         self.fritz = cool_kids.member_set.first()
+        self.peter = mega_kids.member_set.first()
 
     def test_changelist(self):
         c = self._login('superuser')
@@ -454,21 +459,95 @@ class MemberAdminTestCase(AdminTestCase):
 
         c = self._login('superuser')
 
-        response = c.post(reverse('admin:members_member_inviteasuser', args=(12345,)))
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        # expect: user does not exist
+        response = c.post(reverse('admin:members_member_inviteasuser', args=(12345,)), follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Member not found.'))
 
-        response = c.post(url)
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        # expect: user is found, but email address is not internal
+        response = c.post(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertFalse(self.fritz.has_internal_email())
+        self.assertContains(response,
+                            _("The configured email address for %(name)s is not an internal one.") % {'name': str(self.fritz)})
 
+        # update email to allowed email domain
         self.fritz.email = 'foobar@{domain}'.format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
         self.fritz.save()
         response = c.post(url)
+        # expect: user is found and confirmation page is shown
         self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Invite'))
 
+        # expect: user is invited
         response = c.post(url, data={'apply': ''})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        # expect: user already has a pending invitation
         response = c.post(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response,
+                            _('%(name)s already has a pending invitation as user.' % {'name': str(self.fritz)}))
+
+        # set user
+        u = User.objects.create(username='fritzuser', password='secret')
+        self.fritz.user = u
+        self.fritz.save()
+
+        # expect: user already has an account
+        response = c.post(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("%(name)s already has login data.") % {'name': str(self.fritz)})
+
+    def test_invite_as_user_action(self):
+        qs = Member.objects.all()
+        url = reverse('admin:members_member_changelist')
+
+        # expect: confirmation view
+        c = self._login('superuser')
+        response = c.post(url, data={'action': 'invite_as_user_action',
+                                     '_selected_action': [self.fritz.pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Invite'))
+
+        # confirm invite, expect: partial success
+        response = c.post(url, data={'action': 'invite_as_user_action',
+                                     '_selected_action': [self.fritz.pk], 'apply': True}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Some members have been invited, others could not be invited.'))
+
+        # confirm invite, expect: success
+        self.peter.email = 'foobar@{domain}'.format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
+        self.peter.save()
+        self.fritz.email = 'foobar@{domain}'.format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
+        self.fritz.save()
+        response = c.post(url, data={'action': 'invite_as_user_action',
+                                     '_selected_action': [self.fritz.pk, self.peter.pk], 'apply': True}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Successfully invited selected members to join as users.'))
+
+    def test_send_mail_to(self):
+        # this is not connected to an action currently
+        qs = Member.objects.all()
+        response = self.admin.send_mail_to(None, qs)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_request_echo(self):
+        self.peter.gets_newsletter = False
+        self.peter.save()
+
+        url = reverse('admin:members_member_changelist')
+
+        # expect: success
+        c = self._login('superuser')
+        response = c.post(url, data={'action': 'request_echo',
+                                     '_selected_action': [self.fritz.pk, self.peter.pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_activity_score(self):
+        # manually set activity score
+        for i in range(5):
+            self.fritz._activity_score = i * 10 - 1
+            self.assertTrue('img' in self.admin.activity_score(self.fritz))
 
 
 class FreizeitTestCase(BasicMemberTestCase):
@@ -1399,3 +1478,221 @@ class EchoViewTestCase(BasicMemberTestCase):
         ))
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('Your data was successfully updated.'))
+
+
+class TestRegistrationFilterTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=Member, admin=MemberAdmin)
+
+    def test_lookups(self):
+        fil = RegistrationFilter(None, {}, Member, self.admin)
+        self.assertTrue(('All', _('All')) in fil.lookups(None, None))
+
+    def test_queryset_no_filter(self):
+        qs = Member.objects.all()
+        # filtering with All returns passed queryset
+        fil = RegistrationFilter(None, {'registration_complete': 'All'}, Member, self.admin)
+        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+
+        # or with None
+        fil = RegistrationFilter(None, {}, Member, self.admin)
+        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+
+    @skip("Currently errors, because 'registration_complete' is not a field.")
+    def test_queryset_filter(self):
+        qs = Member.objects.all()
+        fil = RegistrationFilter(None, {'registration_complete': 'True'}, Member, self.admin)
+        self.assertQuerysetEqual(fil.queryset(None, qs),
+                                 Member.objects.filter(registration_complete=True),
+                                 ordered=False)
+
+        fil = RegistrationFilter(None, {'registration_complete': 'False'}, Member, self.admin)
+        self.assertQuerysetEqual(fil.queryset(None, qs),
+                                 Member.objects.filter(registration_complete=True),
+                                 ordered=False)
+
+        fil = RegistrationFilter(None, {}, Member, self.admin)
+        fil.default_value = ('True', True)
+        self.assertQuerysetEqual(fil.queryset(None, qs),
+                                 Member.objects.filter(registration_complete=True),
+                                 ordered=False)
+
+class MemberAdminFormTestCase(TestCase):
+    def test_clean_iban(self):
+        form_data = dict(REGISTRATION_DATA, iban='foobar')
+        form = MemberAdminForm(data=form_data)
+        self.assertTrue('IBAN' in str(form.errors))
+
+        form_data = dict(REGISTRATION_DATA, iban='DE89370400440532013000')
+        form = MemberAdminForm(data=form_data)
+        self.assertFalse('IBAN' in str(form.errors))
+
+
+class StatementOnListFormTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
+                tour_type=GEMEINSCHAFTS_TOUR,
+                tour_approach=MUSKELKRAFT_ANREISE,
+                difficulty=1)
+        self.ex.jugendleiter.add(self.fritz)
+        self.ex.save()
+        self.st = Statement.objects.create(excursion=self.ex, night_cost=42, subsidy_to=None)
+        self.st.allowance_to.add(self.fritz)
+        self.st.save()
+
+    def test_clean(self):
+        form = StatementOnListForm(parent_obj=self.ex, instance=self.st)
+        # should not raise any error
+        form.cleaned_data = {'excursion': self.ex,
+                             'allowance_to': None}
+        form.clean()
+
+        # should raise Validation error because too many allowance_to are listed
+        form.cleaned_data = {'excursion': self.ex,
+                             'allowance_to': Member.objects.filter(pk=self.fritz.pk)}
+        self.assertGreater(1, self.ex.approved_staff_count)
+        self.assertRaises(ValidationError, form.clean)
+
+
+class KlettertreffAdminTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=Klettertreff, admin=KlettertreffAdmin)
+
+        cool_kids = Group.objects.get(name='cool kids')
+        for i in range(10):
+            kl = Klettertreff.objects.create(location='foo', topic='bar', group=cool_kids)
+
+    def test_change(self):
+        kl = Klettertreff.objects.first()
+        url = reverse('admin:members_klettertreff_change', args=(kl.pk,))
+        c = self._login('superuser')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_overview(self):
+        qs = Klettertreff.objects.all()
+        url = reverse('admin:members_klettertreff_changelist')
+
+        # expect: success
+        c = self._login('superuser')
+        response = c.post(url, data={'action': 'overview',
+                                     '_selected_action': [kl.pk for kl in qs]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        # expect: success and filtered by group, this does not work
+        c = self._login('superuser')
+        response = c.post(url, data={'action': 'overview',
+                                     'group__name': 'cool kids',
+                                     '_selected_action': [kl.pk for kl in qs]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+
+class GroupAdminTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=Group, admin=GroupAdmin)
+
+    def test_change(self):
+        g = Group.objects.first()
+        url = reverse('admin:members_group_change', args=(g.pk,))
+        c = self._login('superuser')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+
+class FilteredMemberFieldMixinTestCase(AdminTestCase):
+    def setUp(self):
+        class CustomGroupAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
+            pass
+        class CustomMemberAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
+            pass
+        class CustomMemberAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
+            pass
+        class CustomKlettertreffAttendeeAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
+            pass
+        self.custom_gr_admin = CustomGroupAdmin(Group, AdminSite())
+        self.custom_member_admin = CustomMemberAdmin(Member, AdminSite())
+        self.custom_kla_admin = CustomKlettertreffAttendeeAdmin(KlettertreffAttendee, AdminSite())
+        super().setUp(model=Group, admin=CustomGroupAdmin)
+        User.objects.create_user(
+            username='foobar', password='secret'
+        )
+
+    def test_invalid_manytomany(self):
+        # filtering a db_field with related model != Member should return the db_field unchanged
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        request = self.factory.get(url)
+        request.user = User.objects.get(username='superuser')
+        db_field = Member._meta.get_field('group')
+        member_admin = MemberAdmin(Member, AdminSite())
+        self.assertQuerysetEqual(self.custom_member_admin.formfield_for_manytomany(db_field, request).queryset,
+                                 member_admin.formfield_for_manytomany(db_field, request).queryset,
+                                 ordered=False)
+
+    def test_invalid_foreignkey(self):
+        # filtering a db_field with related model != Member should return the db_field unchanged
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        request = self.factory.get(url)
+        request.user = User.objects.get(username='superuser')
+        db_field = Group._meta.get_field('contact_email')
+        gr_admin = GroupAdmin(Group, AdminSite())
+        self.assertQuerysetEqual(self.admin.formfield_for_foreignkey(db_field, request).queryset,
+                                 gr_admin.formfield_for_foreignkey(db_field, request).queryset)
+
+    def test_filter_manytomany(self):
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        request = self.factory.get(url)
+
+        # if user has `members.list_global_member`, the filter returns all fields
+        request.user = User.objects.get(username='superuser')
+        field = self.admin.formfield_for_manytomany(Group._meta.get_field('leiters'), request)
+        self.assertQuerysetEqual(field.queryset,
+                                 Member.objects.all(),
+                                 ordered=False)
+
+        # if not, it is filtered by permissions
+        u = User.objects.get(username='standard')
+        request.user = u
+        field = self.admin.formfield_for_manytomany(Group._meta.get_field('leiters'), request)
+        self.assertQuerysetEqual(field.queryset,
+                                 u.member.filter_queryset_by_permissions(model=Member),
+                                 ordered=False)
+
+        # if no request is passed, no members are shown
+        field = self.admin.formfield_for_manytomany(Group._meta.get_field('leiters'), None)
+        self.assertQuerysetEqual(field.queryset, Member.objects.none())
+
+        # if user has no associated member and does not have the special permission,
+        # the filter returns nothing
+        request.user = User.objects.get(username='foobar')
+        field = self.admin.formfield_for_manytomany(Group._meta.get_field('leiters'), request)
+        self.assertQuerysetEqual(field.queryset, Member.objects.none(), ordered=False)
+
+    def test_filter_foreignkey(self):
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        request = self.factory.get(url)
+
+        # if user has `members.list_global_member`, the filter returns all fields
+        request.user = User.objects.get(username='superuser')
+        field = self.admin.formfield_for_foreignkey(KlettertreffAttendee._meta.get_field('member'), request)
+        self.assertQuerysetEqual(field.queryset,
+                                 Member.objects.all(),
+                                 ordered=False)
+
+        # if not, it is filtered by permissions
+        u = User.objects.get(username='standard')
+        request.user = u
+        field = self.admin.formfield_for_foreignkey(KlettertreffAttendee._meta.get_field('member'), request)
+        self.assertQuerysetEqual(field.queryset,
+                                 u.member.filter_queryset_by_permissions(model=Member),
+                                 ordered=False)
+
+        # if no request is passed, no members are shown
+        field = self.admin.formfield_for_foreignkey(KlettertreffAttendee._meta.get_field('member'), None)
+        self.assertQuerysetEqual(field.queryset, Member.objects.none())
+
+        # if user has no associated member and does not have the special permission,
+        # the filter returns nothing
+        request.user = User.objects.get(username='foobar')
+        field = self.admin.formfield_for_foreignkey(KlettertreffAttendee._meta.get_field('member'), request)
+        self.assertQuerysetEqual(field.queryset, Member.objects.none(), ordered=False)
