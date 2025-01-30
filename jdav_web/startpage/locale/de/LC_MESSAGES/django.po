@@ -90,7 +90,7 @@ msgstr "Bilder"
 
 #: startpage/models.py
 msgid "Member"
-msgstr "Mitglied"
+msgstr "Teilnehmer*in"
 
 #: startpage/models.py
 msgid "Description"

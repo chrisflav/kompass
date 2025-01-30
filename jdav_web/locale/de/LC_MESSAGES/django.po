@@ -284,7 +284,7 @@ msgstr "Zu Gruppe einladen"
 #: templates/nesting/admin/inlines/stacked.html
 #, python-format
 msgid "Add another %(verbose_name)s"
-msgstr "Weiteren %(verbose_name)s hinzufügen"
+msgstr "%(verbose_name)s hinzufügen"
 
 #: utils.py
 msgid "Please keep filesize under {} MiB. Current filesize: {:10.2f} MiB."

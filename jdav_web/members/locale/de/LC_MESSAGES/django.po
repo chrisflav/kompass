@@ -1609,7 +1609,7 @@ msgstr "Weiteren hinzufügen"
 #, python-format
 msgid "I am already or will become a member of the DAV %(sektion)s soon."
 msgstr ""
-"Ich bin bereits Mitglied der DAV %(sektion)s, oder beantrage die "
+"Ich bin bereits Mitglied des DAV %(sektion)s, oder beantrage die "
 "Mitgliedschaft zeitnah."
 
 #: members/templates/members/member_form.html
@@ -1856,20 +1856,21 @@ msgstr ""
 
 #: members/views.py
 msgid "Prename of the member."
-msgstr "Vorname des Teilnehmenden"
+msgstr "Vorname des*der Teilnehmenden"
 
 #: members/views.py
 msgid "Lastname of the member."
-msgstr "Nachname des Teilnehmenden"
+msgstr "Nachname des*der Teilnehmenden"
 
 #: members/views.py
 msgid "phone number of child or parent"
-msgstr "Telefonnummer des Teilnehmenden oder einer Kontaktperson"
+msgstr "Telefonnummer des*der Teilnehmenden oder einer Kontaktperson"
 
 #: members/views.py
 msgid "email of child if available, otherwise parental email address"
 msgstr ""
-"Falls verfügbar, E-Mailadresse des Teilnehmenden, sonst einer Kontaktperson"
+"Falls verfügbar, E-Mailadresse des*der Teilnehmenden, sonst einer "
+"Kontaktperson"
 
 #: members/views.py
 msgid "optional additional email address"
