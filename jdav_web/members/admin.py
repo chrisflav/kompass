@@ -995,9 +995,10 @@ class GenerateSjrForm(forms.Form):
 class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     #inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
-    list_display = ['__str__', 'date']
+    list_display = ['__str__', 'date', 'place']
     search_fields = ('name',)
     ordering = ('-date',)
+    list_filter = ['groups']
     view_on_site = False
     fieldsets = (
         (None, {
