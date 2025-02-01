@@ -1,13 +1,7 @@
 {% extends "startpage/base_subsite.html" %}
 
 {% block content %}
-<h1>Gruppen</h1>
-
-<p>
-Die JDAV Heidelberg bietet verschiedene Gruppen für die Jugend bis 27 Jahre an. Die meisten Gruppen klettern regelmäßig in der Halle und Draußen, aber auch allgemeine Ausfahrten, Wintersport, Hochtouren und Mountenbiken gehöhren zu den Aktivitäten. Nachfolgend findest du eine Übersicht aller Gruppen. Die Teilnahme an den Gruppen erfordert generell eine vorherigen Anmledung, auch wenn Zeit und Ort bekannt sein sollte bitten wir dich nicht einfach dort zu erscheinen.
-</p>
-
-<p>Zur Zeit bieten wir die Folgenden Gruppen an:</p>
+{% include "startpage/group_introduction.html" %}
 <ul>
     {% for group in groups %}
     <li>
