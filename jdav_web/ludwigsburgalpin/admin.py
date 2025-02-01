@@ -5,6 +5,7 @@ from wsgiref.util import FileWrapper
 from django.http import HttpResponse
 from django.conf import settings
 from .models import Termin
+from contrib.media import media_path, serve_media, ensure_media_dir
 
 import xlsxwriter
 
@@ -16,6 +17,7 @@ class TerminAdmin(admin.ModelAdmin):
     actions = ['make_overview']
 
     def make_overview(self, request, queryset):
+        ensure_media_dir()
         filename = 'termine.xlsx'
         workbook = xlsxwriter.Workbook(media_path(filename))
         bold = workbook.add_format({'bold': True})
@@ -64,17 +66,8 @@ class TerminAdmin(admin.ModelAdmin):
             worksheet.write(row+2, 19, termin.phone)
             worksheet.write(row+2, 20, termin.email)
         workbook.close()
-        with open(media_path(filename), 'rb') as xls:
-            response = HttpResponse(FileWrapper(xls))
-            response['Content-Type'] = 'application/xlsx'
-            response['Content-Disposition'] = 'attachment; filename='+filename
-
-        return response
+        return serve_media(filename, 'application/xlsx')
     make_overview.short_description = "Termine in Excel Liste überführen"
 
 # Register your models here.
 admin.site.register(Termin, TerminAdmin)
-
-
-def media_path(fp):
-    return os.path.join(os.path.join(settings.MEDIA_ROOT, "memberlists"), fp)

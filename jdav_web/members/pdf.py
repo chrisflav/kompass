@@ -11,6 +11,7 @@ from django.template.loader import get_template
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
+from contrib.media import media_path, media_dir, serve_media, ensure_media_dir
 from PIL import Image
 
 
@@ -23,22 +24,8 @@ def find_template(template_name):
     raise template.TemplateDoesNotExist(f"Could not find template: {template_name}")
 
 
-def media_path(fp):
-    return os.path.join(os.path.join(settings.MEDIA_ROOT, "memberlists"), fp)
-
-
-def media_dir():
-    return os.path.join(settings.MEDIA_ROOT, "memberlists")
-
-
 def serve_pdf(filename_pdf):
-    # provide the user with the resulting pdf file
-    with open(media_path(filename_pdf), 'rb') as pdf:
-        response = HttpResponse(FileWrapper(pdf))#, content='application/pdf')
-        response['Content-Type'] = 'application/pdf'
-        response['Content-Disposition'] = 'attachment; filename='+filename_pdf
-
-    return response
+    return serve_media(filename_pdf, 'application/pdf')
 
 
 def render_tex(name, template_path, context, save_only=False):
@@ -52,8 +39,7 @@ def render_tex(name, template_path, context, save_only=False):
     tmpl = get_template(template_path)
     res = tmpl.render(dict(context, creation_date=datetime.today().strftime('%d.%m.%Y')))
 
-    if not os.path.exists(media_dir()):
-        os.makedirs(media_dir())
+    ensure_media_dir()
 
     with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
         f.write(res)
@@ -88,8 +74,7 @@ def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
 
     path = find_template(template_path)
 
-    if not os.path.exists(media_dir()):
-        os.makedirs(media_dir())
+    ensure_media_dir()
 
     reader = PdfReader(path)
     writer = PdfWriter()
