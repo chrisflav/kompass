@@ -462,7 +462,8 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
     readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail',
                        'good_conduct_certificate_valid', 'echoed']
-    actions = ['request_mail_confirmation', 'confirm', 'demote_to_waiter_action']
+    actions = ['request_mail_confirmation', 'request_required_mail_confirmation', 'confirm',
+               'demote_to_waiter_action']
     inlines = [EmergencyContactInline]
     change_form_template = "members/change_member_unconfirmed.html"
 
@@ -499,6 +500,12 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
             member.request_mail_confirmation()
         messages.success(request, _("Successfully requested mail confirmation from selected registrations."))
     request_mail_confirmation.short_description = _('Request mail confirmation from selected registrations')
+
+    def request_required_mail_confirmation(self, request, queryset):
+        for member in queryset:
+            member.request_mail_confirmation(rerequest=False)
+        messages.success(request, _("Successfully re-requested missing mail confirmations from selected registrations."))
+    request_required_mail_confirmation.short_description = _('Re-request missing mail confirmations from selected registrations.')
 
     def confirm(self, request, queryset):
         notify_individual = len(queryset.all()) < 10

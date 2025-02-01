@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-01 19:24+0100\n"
+"POT-Creation-Date: 2025-02-01 19:55+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,6 +140,20 @@ msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 #: members/admin.py
 msgid "Request mail confirmation from selected registrations"
 msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
+
+#: members/admin.py
+msgid ""
+"Successfully re-requested missing mail confirmations from selected "
+"registrations."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versendet."
+
+#: members/admin.py
+msgid "Re-request missing mail confirmations from selected registrations."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versenden."
 
 #: members/admin.py
 #, python-format
