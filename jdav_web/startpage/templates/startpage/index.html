@@ -1,5 +1,5 @@
 {% extends "startpage/base.html" %}
-{% load static %}
+{% load static common %}
 
 {% block title %}
 Startseite
@@ -12,7 +12,7 @@ Startseite
         <h2>Herzlich Willkommen</h2>
         <p>
             Herzlich Willkommen auf unserer Webseite. Hier finden Sie alle
-            Informationen über die jdav Heidelberg. Viel Spaß beim Surfen!
+            Informationen über die jdav {% settings_value 'SEKTION' %}. Viel Spaß beim Surfen!
         </p>
     </div>
     <div class="column">
