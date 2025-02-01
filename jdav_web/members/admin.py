@@ -20,6 +20,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import DateFieldListFilter
 from django.contrib.contenttypes.admin import GenericTabularInline
+from contrib.media import serve_media, ensure_media_dir
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
@@ -28,6 +29,7 @@ from django.forms import Textarea, RadioSelect, TypedChoiceField, CheckboxInput
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied, ValidationError
 from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf
+from .excel import generate_group_overview
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 
@@ -44,6 +46,7 @@ from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
 from utils import get_member, RestrictedFileField
 from schwifty import IBAN
+from .pdf import media_path, media_dir
 
 #from easy_select2 import apply_select2
 
@@ -791,6 +794,7 @@ class GroupAdminForm(forms.ModelForm):
             self.fields['leiters'].queryset = Member.objects.filter(group__name='Jugendleiter')
 
 
+
 class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['name', 'description', 'year_from', 'year_to', 'leiters', 'contact_email', 'show_website',
         'weekday', ('start_time', 'end_time')]
@@ -798,6 +802,38 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
     list_display = ('name', 'year_from', 'year_to')
     inlines = [RegistrationPasswordInline, PermissionOnGroupInline]
     search_fields = ('name',)
+
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = [
+            path('action/', self.action_view, name='members_group_action'),
+        ]
+        return custom_urls + urls
+
+    def action_view(self, request):
+        if "group_overview" in request.POST:
+            return self.group_overview(request)
+
+    def group_overview(self, request):
+
+        if not request.user.has_perm('members.view_group'):
+            messages.error(request,
+                _("You are not allowed to create a group overview."))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+
+        ensure_media_dir()
+        filename = generate_group_overview(all_groups=self.model.objects.all())
+        response = serve_media(filename=filename, content_type='application/xlsx')
+
+        return response
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
