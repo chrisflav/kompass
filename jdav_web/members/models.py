@@ -1330,7 +1330,8 @@ class Freizeit(CommonModel):
             # Gesamt-Teilnahmetage
             'Textfeld 56': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
             # Ort, Datum
-            'DatumOrt 2': 'Heidelberg, ' + datetime.now().strftime('%d.%m.%Y')
+            'DatumOrt 2': '{place}, {date}'.format(place=settings.SEKTION,
+                                                   date=datetime.now().strftime('%d.%m.%Y'))
         }
         if hasattr(self, 'statement'):
             possible_contributions = self.maximal_ljp_contributions
