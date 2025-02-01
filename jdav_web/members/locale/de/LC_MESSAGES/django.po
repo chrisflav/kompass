@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-01 21:11+0100\n"
+"POT-Creation-Date: 2025-02-02 00:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -459,6 +459,40 @@ msgstr "Samstag"
 #: members/models.py
 msgid "Sunday"
 msgstr "Sonntag"
+
+#: members/models.py
+msgid "winter"
+msgstr "Winter"
+
+#: members/models.py
+msgid "ski mountaineering"
+msgstr "Skibergsteigen"
+
+#: members/models.py
+msgid "climbing"
+msgstr "Klettern"
+
+#: members/models.py
+msgid "mountaineering"
+msgstr "Bergsteigen"
+
+#: members/models.py
+msgid "theory"
+msgstr "Theorie"
+
+#: members/models.py
+msgid "others"
+msgstr "Sonstiges"
+
+#: members/models.py
+msgid "LJP category"
+msgstr "LJP Spielart"
+
+#: members/models.py
+msgid ""
+"The official category for LJP applications associated with this activity."
+msgstr ""
+"Die offizielle Spielart für LJP Anträge mit dieser Aktivität."
 
 #: members/models.py
 msgid "Description"

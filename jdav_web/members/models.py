@@ -55,7 +55,17 @@ class ActivityCategory(models.Model):
     """
     Describes one kind of activity
     """
+    LJP_CATEGORIES = [('Winter', _('winter')),
+                      ('Skibergsteigen', _('ski mountaineering')),
+                      ('Klettern', _('climbing')),
+                      ('Bergsteigen', _('mountaineering')),
+                      ('Theorie', _('theory')),
+                      ('Sonstiges', _('others'))]
     name = models.CharField(max_length=20, verbose_name=_('Name'))
+    ljp_category = models.CharField(choices=LJP_CATEGORIES,
+                                    verbose_name=_('LJP category'),
+                                    max_length=20,
+                                    help_text=_('The official category for LJP applications associated with this activity.'))
     description = models.TextField(_('Description'))
 
     def __str__(self):
@@ -1362,6 +1372,13 @@ class Freizeit(CommonModel):
             # Ergibt wieder
             base['Textfeld 58'] = base['Textfeld 62']
         return base
+
+    def get_ljp_activity_category(self):
+        """
+        The official LJP activity category associated with this excursion. This is deduced
+        from the `activity` field.
+        """
+        return ", ".join([a.ljp_category for a in self.activity.all()])
 
     @staticmethod
     def filter_queryset_by_permissions(member, queryset=None):
