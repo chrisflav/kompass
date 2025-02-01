@@ -62,9 +62,10 @@ class Statement(CommonModel):
     allowance_to = models.ManyToManyField(Member, verbose_name=_('Pay allowance to'),
                                           related_name='receives_allowance_for_statements',
                                           blank=True,
-                                          help_text=_('The youth leaders to which an allowance should be paid. The count must match the number of permitted youth leaders.'))
+                                          help_text=_('The youth leaders to which an allowance should be paid.'))
     subsidy_to = models.ForeignKey(Member, verbose_name=_('Pay subsidy to'),
                                    null=True,
+                                   blank=True,
                                    on_delete=models.SET_NULL,
                                    related_name='receives_subsidy_for_statements',
                                    help_text=_('The person that should receive the subsidy for night and travel costs. Typically the person who paid for them.'))
@@ -163,7 +164,8 @@ class Statement(CommonModel):
     @property
     def allowance_to_valid(self):
         """Checks if the configured `allowance_to` field matches the regulations."""
-        if self.allowance_to.count() != self.real_staff_count:
+        if self.allowances_paid > self.real_staff_count:
+            # it is allowed that less allowances are utilized than youth leaders are enlisted
             return False
         if self.excursion is not None:
             yls = self.excursion.jugendleiter.all()
@@ -239,8 +241,7 @@ class Statement(CommonModel):
         if self.subsidy_to:
             ref = _("Night and travel costs for %(excu)s") % {'excu': self.excursion.name}
             Transaction(statement=self, member=self.subsidy_to, amount=self.total_subsidies, confirmed=False, reference=ref).save()
-        else:
-            return False
+        
         return True
 
     def reduce_transactions(self):
@@ -300,8 +301,12 @@ class Statement(CommonModel):
         return cvt_to_decimal(self.excursion.duration * settings.ALLOWANCE_PER_DAY)
 
     @property
+    def allowances_paid(self):
+        return self.allowance_to.count()
+
+    @property
     def total_allowance(self):
-        return self.allowance_per_yl * self.real_staff_count
+        return self.allowance_per_yl * self.allowances_paid
 
     @property
     def total_transportation(self):
@@ -341,11 +346,24 @@ class Statement(CommonModel):
         The total amount of subsidies excluding the allowance, i.e. the transportation
         and night costs per youth leader multiplied with the real number of youth leaders.
         """
-        return (self.transportation_per_yl + self.nights_per_yl) * self.real_staff_count
+        if self.subsidy_to:
+            return (self.transportation_per_yl + self.nights_per_yl) * self.real_staff_count
+        else:
+            return cvt_to_decimal(0)
+
+    @property
+    def theoretical_total_staff(self):
+        """
+        the sum of subsidies and allowances if all eligible youth leaders would collect them. 
+        """
+        return self.total_per_yl * self.real_staff_count
 
     @property
     def total_staff(self):
-        return self.total_per_yl * self.real_staff_count
+        """
+        the sum of subsidies and allowances that youth leaders are actually collecting
+        """
+        return self.total_allowance + self.total_subsidies
 
     @property
     def real_staff_count(self):
@@ -397,11 +415,14 @@ class Statement(CommonModel):
                 'means_of_transport': self.excursion.get_tour_approach(),
                 'euro_per_km': self.euro_per_km,
                 'allowance_per_day': settings.ALLOWANCE_PER_DAY,
+                'allowances_paid': self.allowances_paid,
                 'nights_per_yl': self.nights_per_yl,
                 'allowance_per_yl': self.allowance_per_yl,
                 'transportation_per_yl': self.transportation_per_yl,
                 'total_per_yl': self.total_per_yl,
                 'total_staff': self.total_staff,
+                'theoretical_total_staff': self.theoretical_total_staff,
+                'real_staff_count': self.real_staff_count,
                 'total_subsidies': self.total_subsidies,
             }
             return dict(context, **excursion_context)

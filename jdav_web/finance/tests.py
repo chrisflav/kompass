@@ -209,7 +209,6 @@ class StatementTestCase(TestCase):
         self.assertFalse(self.st.is_valid(),
                          'Transaction is valid, although an unreasonable gift is paid.')
 
-    @skip('This fails on main, but will be resolved when #112 is merged.')
     def test_allowance_to_valid(self):
         self.assertEqual(self.st3.excursion.participant_count, self.participant_count)
         # st3 should have 3 admissible yls and all of them should receive allowance

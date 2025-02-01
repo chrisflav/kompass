@@ -86,6 +86,7 @@ cost plan!
 </ul>
 </p>
 <p>
+{% if allowances_paid > 0 %}
 {% blocktrans %}The allowance of {{ allowance_per_yl }}€ per person is configured to be paid to:{% endblocktrans %}
 <table>
     <th>
@@ -99,6 +100,14 @@ cost plan!
     {% endfor %}
 </table>
 </p>
+{% if memberlist.statement.allowances_paid < memberlist.statement.real_staff_count %}
+<p>{% blocktrans %}Only {{ allowances_paid }} of the {{ real_staff_count }} youth leaders have requested the outpayment of their allowance.{% endblocktrans %}</p>
+{% endif %}
+
+{% else %}
+<p>{% blocktrans %}No receivers of the allowance were provided. Allowance will not be used.{% endblocktrans %}</p>
+{% endif %}
+{% if memberlist.statement.subsidy_to %}
 <p>
 {% blocktrans %}The subsidies for night and transportation costs of {{ total_subsidies }}€ is configured to be paid to:{% endblocktrans %}
 <table>
@@ -111,6 +120,10 @@ cost plan!
     </tr>
 </table>
 </p>
+{% else %}
+<p>{% blocktrans %}No receivers of the subsidies were provided. Subsidies will not be used.{% endblocktrans %}</p>
+
+{% endif %}
 {% if not memberlist.statement.allowance_to_valid %}
 <p>
 {% blocktrans %}Warning: The configured recipients of the allowance don't match the regulations. This might be because the number of recipients is bigger then the number of admissable youth leaders for this excursion.{% endblocktrans %}

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-19 14:26+0100\n"
+"POT-Creation-Date: 2025-01-25 11:56+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,6 +31,10 @@ msgid ""
 msgstr ""
 "Rechnung %(name)s erfolgreich eingereicht. Das Finanzreferat wird auf dich "
 "sobald wie möglich zukommen."
+
+#: finance/admin.py
+msgid "Finance overview"
+msgstr "Kostenübersicht"
 
 #: finance/admin.py
 msgid "Submit statement"
@@ -182,13 +186,10 @@ msgid "Pay allowance to"
 msgstr "Aufwandsentschädigung auszahlen an"
 
 #: finance/models.py
-msgid ""
-"The youth leaders to which an allowance should be paid. The count must match "
-"the number of permitted youth leaders."
+msgid "The youth leaders to which an allowance should be paid."
 msgstr ""
 "Die Jugendleiter*innen an die eine Aufwandsentschädigung ausgezahlt werden "
-"soll. Die Anzahl muss mit der Anzahl an zugelassenen Jugendleiter*innen "
-"übereinstimmen. "
+"soll."
 
 #: finance/models.py
 msgid "Pay subsidy to"
@@ -412,8 +413,8 @@ msgstr "Ausfahrt"
 #, python-format
 msgid "This excursion featured %(staff_count)s youth leader(s), each costing"
 msgstr ""
-"Diese Ausfahrt hatte %(staff_count)s genehmigte Jugendleiter*innen. Auf "
-"jede*n entfallen die folgenden Kosten:"
+"Diese Ausfahrt hatte %(staff_count)s genehmigte Jugendleiter*innen. Für "
+"jede*n besteht ein Anspruch auf folgende Zuschüsse und Aufwandsentschädigungen:"
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
@@ -427,15 +428,6 @@ msgstr ""
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
 msgid ""
-"%(duration)s days for %(allowance_per_day)s€ per day making a total of "
-"%(allowance_per_yl)s€."
-msgstr ""
-"%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
-"Gesamtsumme von %(allowance_per_yl)s€."
-
-#: finance/templates/admin/overview_submitted_statement.html
-#, python-format
-msgid ""
 "%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
 "km) making a total of %(transportation_per_yl)s€."
 msgstr ""
@@ -445,11 +437,24 @@ msgstr ""
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
 msgid ""
+"%(duration)s days for %(allowance_per_day)s€ per day making a total of "
+"%(allowance_per_yl)s€."
+msgstr ""
+"%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
+"Gesamtsumme von %(allowance_per_yl)s€."
+
+#: finance/templates/admin/overview_submitted_statement.html
+#, python-format
+msgid ""
 "In total this is %(total_per_yl)s€ times %(staff_count)s, giving "
-"%(total_staff)s€."
+"%(theoretical_total_staff)s€."
 msgstr ""
 "Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
-"insgesamt also %(total_staff)s€."
+"insgesamt also maximal %(theoretical_total_staff)s€."
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "Payment of subsidies and allowances"
+msgstr "Auszahlung von Sektionszuschüssen und Aufwandsentschädigungen"
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
@@ -459,13 +464,41 @@ msgstr ""
 "ausgezahlt werden an:"
 
 #: finance/templates/admin/overview_submitted_statement.html
+#: finance/templates/admin/submit_statement.html
+msgid "IBAN valid"
+msgstr "IBAN gültig"
+
+#: finance/templates/admin/overview_submitted_statement.html
+#, python-format
+msgid ""
+"Only %(allowances_paid)s of the %(real_staff_count)s youth leaders have "
+"requested the outpayment of their allowance."
+msgstr ""
+"Achtung: Nur für %(allowances_paid)s der %(real_staff_count)s "
+"Jugendleiter*innen wird die Aufwandsentschädigung abgerufen."
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid ""
+"No receivers of the allowance were provided. Allowance will not be used."
+msgstr ""
+"Keine Empfänger*innen für eine Aufwandsentschädigung angegeben. Es wird "
+"daher keine Aufwandsentschädigung ausbezahlt."
+
+#: finance/templates/admin/overview_submitted_statement.html
 #, python-format
 msgid ""
 "The subsidies for night and transportation costs of %(total_subsidies)s€ "
 "should be paid to:"
 msgstr ""
 "Die Zuschüsse für Übernachtungs- und Fahrtkosten von %(total_subsidies)s€ "
-"sollen ausgezahlt werden an:"
+"für alle Jugendleiter*innen sollen ausgezahlt werden an:"
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid ""
+"No receivers of the subsidies were provided. Subsidies will not be used."
+msgstr ""
+"Keine Empfänger*innen für Sektionszuschüsse angegeben. Es werden daher keine "
+"Sektionszuschüsse ausbezahlt."
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
@@ -541,10 +574,6 @@ msgid ""
 msgstr ""
 "Bitte überprüfe, ob alle Ausgaben korrekt erfasst sind und ob alle "
 "auslegenden Personen eine gültige IBAN haben."
-
-#: finance/templates/admin/submit_statement.html
-msgid "IBAN valid"
-msgstr "IBAN gültig"
 
 #: finance/templates/admin/submit_statement.html
 msgid ""

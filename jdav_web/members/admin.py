@@ -866,11 +866,6 @@ class StatementOnListForm(forms.ModelForm):
                 'allowance_to': _("This excursion only has up to %(approved_count)s approved youth leaders, but you listed %(entered_count)s.") % {'approved_count': str(excursion.approved_staff_count),
                             'entered_count': str(allowance_to.count())},
         })
-        if allowance_to.count() < min(excursion.approved_staff_count, excursion.jugendleiter.count()):
-            raise ValidationError({
-                'allowance_to': _("This excursion has %(approved_count)s approved youth leaders, but you listed only %(entered_count)s.") % {'approved_count': str(excursion.approved_staff_count),
-                      'entered_count': str(allowance_to.count())},
-            })
 
 
 class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):

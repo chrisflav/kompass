@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-19 19:16+0100\n"
+"POT-Creation-Date: 2025-01-25 11:56+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -267,15 +267,6 @@ msgid ""
 msgstr ""
 "Diese Ausfahrt hat nur bis zu %(approved_count)s zugelassene "
 "Jugendleiter*innen, aber du hast %(entered_count)s eingetragen."
-
-#: members/admin.py
-#, python-format
-msgid ""
-"This excursion has %(approved_count)s approved youth leaders, but you listed "
-"only %(entered_count)s."
-msgstr ""
-"Diese Ausfahrt hat %(approved_count)s zugelassene Jugendleiter*innen, aber "
-"du hast nur %(entered_count)s eingetragen."
 
 #: members/admin.py
 msgid ""
@@ -1129,20 +1120,20 @@ msgstr ""
 #: members/templates/admin/freizeit_finance_overview.html
 #, python-format
 msgid ""
-"%(duration)s days for %(allowance_per_day)s€ per day making a total of "
-"%(allowance_per_yl)s€."
-msgstr ""
-"%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
-"Gesamtsumme von %(allowance_per_yl)s€."
-
-#: members/templates/admin/freizeit_finance_overview.html
-#, python-format
-msgid ""
 "%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
 "km) making a total of %(transportation_per_yl)s€."
 msgstr ""
 "%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
 "km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"%(duration)s days for %(allowance_per_day)s€ per day making a total of "
+"%(allowance_per_yl)s€."
+msgstr ""
+"%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
+"Gesamtsumme von %(allowance_per_yl)s€."
 
 #: members/templates/admin/freizeit_finance_overview.html
 #, python-format
@@ -1156,11 +1147,34 @@ msgstr ""
 #: members/templates/admin/freizeit_finance_overview.html
 #, python-format
 msgid ""
+"Only %(allowances_paid)s of the %(real_staff_count)s youth leaders have "
+"requested the outpayment of their allowance."
+msgstr ""
+"Achtung: Nur für %(allowances_paid)s der %(real_staff_count)s "
+"Jugendleiter*innen wird die Aufwandsentschädigung abgerufen."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"No receivers of the allowance were provided. Allowance will not be used."
+msgstr ""
+"Keine Empfänger*innen für eine Aufwandsentschädigung angegeben. Es wird "
+"daher keine Aufwandsentschädigung ausbezahlt."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
 "The subsidies for night and transportation costs of %(total_subsidies)s€ is "
 "configured to be paid to:"
 msgstr ""
 "Die Zuschüsse für Übernachtungs- und Fahrtkosten von %(total_subsidies)s€ "
-"werden ausgezahlt an:"
+"für alle Jugendleiter*innen werden ausgezahlt an:"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"No receivers of the subsidies were provided. Subsidies will not be used."
+msgstr ""
+"Keine Empfänger*innen für Sektionszuschüsse angegeben. Es werden daher keine "
+"Sektionszuschüsse ausbezahlt."
 
 #: members/templates/admin/freizeit_finance_overview.html
 msgid ""
@@ -1486,13 +1500,13 @@ msgstr "Speichern und Registrierung bestätigen"
 msgid "Echo"
 msgstr "Rückmeldung"
 
-#: members/templates/members/echo.html
+#: members/templates/members/echo.html members/tests.py
 msgid "Thanks for echoing back. Here is your current data:"
 msgstr ""
 "Vielen Dank, dass du dich rückmeldest. Hier siehst du deine aktuellen Daten. "
 "Falls sich etwas geändert hat, trage das bitte hier ein."
 
-#: members/templates/members/echo_failed.html
+#: members/templates/members/echo_failed.html members/tests.py
 msgid "Echo failed"
 msgstr "Rückmeldung fehlgeschlagen"
 
@@ -1513,7 +1527,7 @@ msgstr "Wenn du denkst, dass das ein Fehler ist, "
 msgid "contact us."
 msgstr "kontaktiere uns."
 
-#: members/templates/members/echo_password.html
+#: members/templates/members/echo_password.html members/tests.py
 msgid ""
 "Thanks for echoing back. Please enter the password, which you can find in "
 "the email we sent you.\n"
@@ -1535,7 +1549,7 @@ msgstr "Rückmeldung erfolgreich"
 msgid "Thank you"
 msgstr "Danke"
 
-#: members/templates/members/echo_success.html
+#: members/templates/members/echo_success.html members/tests.py
 msgid "Your data was successfully updated."
 msgstr "Deine Daten wurden erfolgreich aktualisiert."
 
@@ -1562,16 +1576,16 @@ msgstr "Registrierung fehlgeschlagen"
 msgid "Registration"
 msgstr "Registrierung"
 
-#: members/templates/members/mail_confirmation_invalid.html
+#: members/templates/members/mail_confirmation_invalid.html members/tests.py
 msgid "Mail confirmation failed"
 msgstr "Emailbestätigung fehlgeschlagen"
 
 #: members/templates/members/mail_confirmation_invalid.html
-#: members/templates/members/waiting_confirmation_invalid.html
+#: members/templates/members/waiting_confirmation_invalid.html members/tests.py
 msgid "The supplied link is invalid."
 msgstr "Der verwendete Link ist ungültig."
 
-#: members/templates/members/mail_confirmation_success.html
+#: members/templates/members/mail_confirmation_success.html members/tests.py
 msgid "Mail confirmed"
 msgstr "Emailadresse bestätigt"
 
@@ -1644,7 +1658,7 @@ msgstr "Registrieren"
 msgid "Here you can register for group"
 msgstr "Hier kannst du dich registrieren für die Gruppe"
 
-#: members/templates/members/register_failed.html
+#: members/templates/members/register_failed.html members/tests.py
 msgid "Something went wrong while processing your registration."
 msgstr "Etwas ist schief gelaufen, bei der Verarbeitung deiner Registrierung."
 
@@ -1699,6 +1713,7 @@ msgid "Registration for waiting list."
 msgstr "Registrierung für die Warteliste."
 
 #: members/templates/members/register_waiting_list_success.html
+#: members/tests.py
 msgid "Your registration for the waiting list was successful."
 msgstr "Du wurdest auf die Warteliste gesetzt."
 
@@ -1724,7 +1739,7 @@ msgstr ""
 msgid "Reject invitation"
 msgstr "Einladung ablehnen"
 
-#: members/templates/members/reject_invalid.html
+#: members/templates/members/reject_invalid.html members/tests.py
 msgid "This invitation is invalid or expired."
 msgstr "Diese Einladung ist ungültig oder abgelaufen."
 
@@ -1792,7 +1807,7 @@ msgstr ""
 "zustimmst, unterschreibe bitte das Formular und lade hier einen Scan oder "
 "ein Bild hoch."
 
-#: members/templates/members/upload_registration_form.html
+#: members/templates/members/upload_registration_form.html members/tests.py
 msgid ""
 "If you are not an adult yet, please let someone responsible for you sign the "
 "agreement."
@@ -1805,10 +1820,12 @@ msgid "Upload"
 msgstr "Hochladen"
 
 #: members/templates/members/upload_registration_form_invalid.html
+#: members/tests.py
 msgid "The supplied key for uploading a registration form is invalid."
 msgstr "Der verwendete Link zum Hochladen eines Anmeldeformulars ist ungültig."
 
 #: members/templates/members/upload_registration_form_success.html
+#: members/tests.py
 msgid ""
 "Thank you for uploading the registration form. Our team will process your "
 "registration shortly."
@@ -1828,11 +1845,11 @@ msgstr ""
 "Leider hast du deinen Wartelistenplatz nicht rechtzeitig bestätigt und hast "
 "somit deinen Platz verloren. Du kannst"
 
-#: members/templates/members/waiting_confirmation_invalid.html
+#: members/templates/members/waiting_confirmation_invalid.html members/tests.py
 msgid "rejoin the waiting list"
 msgstr "der Warteliste erneut beitreten"
 
-#: members/templates/members/waiting_confirmation_success.html
+#: members/templates/members/waiting_confirmation_success.html members/tests.py
 msgid "Waiting confirmed"
 msgstr "Wartelistenplatz bestätigt"
 
@@ -1853,6 +1870,22 @@ msgid ""
 msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
+
+#: members/tests.py
+msgid "This field is required."
+msgstr ""
+
+#: members/tests.py members/views.py
+msgid "The entered password is wrong."
+msgstr "Das eingegebene Passwort ist falsch."
+
+#: members/tests.py members/views.py
+msgid "invalid"
+msgstr "ungültig"
+
+#: members/tests.py members/views.py
+msgid "expired"
+msgstr "abgelaufen"
 
 #: members/views.py
 msgid "Prename of the member."
@@ -1877,20 +1910,16 @@ msgid "optional additional email address"
 msgstr "Optionale zusätzliche E-Mailadresse"
 
 #: members/views.py
-msgid "The entered password is wrong."
-msgstr "Das eingegebene Passwort ist falsch."
-
-#: members/views.py
-msgid "invalid"
-msgstr "ungültig"
-
-#: members/views.py
-msgid "expired"
-msgstr "abgelaufen"
-
-#: members/views.py
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
+
+#, python-format
+#~ msgid ""
+#~ "This excursion has %(approved_count)s approved youth leaders, but you "
+#~ "listed only %(entered_count)s."
+#~ msgstr ""
+#~ "Diese Ausfahrt hat %(approved_count)s zugelassene Jugendleiter*innen, "
+#~ "aber du hast nur %(entered_count)s eingetragen."
 
 #, python-format
 #~ msgid ""

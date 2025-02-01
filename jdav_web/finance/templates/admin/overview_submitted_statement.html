@@ -71,27 +71,47 @@
 </ul>
 </p>
 <p>
-{% blocktrans %}In total this is {{ total_per_yl }}€ times {{ staff_count }}, giving {{ total_staff }}€.{% endblocktrans %}
+{% blocktrans %}In total this is {{ total_per_yl }}€ times {{ staff_count }}, giving {{ theoretical_total_staff }}€.{% endblocktrans %}
 </p>
-
+<h2>{% trans "Payment of subsidies and allowances" %}</h2>
+{% if allowances_paid > 0 %}
 <p>
 {% blocktrans %}The allowance of {{ allowance_per_yl }}€ per person should be paid to:{% endblocktrans %}
-<ul>
+<table>
+    <th>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
     {% for member in statement.allowance_to.all %}
-        <li>
-            {{ member.name }}
-        </li>
+    <tr>
+        <td>{{ member.name }}</td>
+        <td>{{ member.iban_valid|render_bool }}</td>
+    </tr>
     {% endfor %}
-</ul>
+</table>
 </p>
+{% if allowances_paid < real_staff_count %}
+<p>{% blocktrans %}Only {{ allowances_paid }} of the {{ real_staff_count }} youth leaders have requested the outpayment of their allowance.{% endblocktrans %}</p>
+{% endif %}
+
+{% else %}
+<p>{% blocktrans %}No receivers of the allowance were provided. Allowance will not be used.{% endblocktrans %}</p>
+{% endif %}
+{% if statement.subsidy_to %}
 <p>
 {% blocktrans %}The subsidies for night and transportation costs of {{ total_subsidies }}€ should be paid to:{% endblocktrans %}
-<ul>
-    <li>
-        {{ statement.subsidy_to.name }}
-    </li>
-</ul>
+<table>
+    <th>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
+    <tr>
+        <td>{{ statement.subsidy_to.name }}</td>
+        <td>{{ statement.subsidy_to.iban_valid|render_bool }}</td>
+    </tr>
+</table>
 </p>
+{% else %}
+<p>{% blocktrans %}No receivers of the subsidies were provided. Subsidies will not be used.{% endblocktrans %}</p>
+{% endif %}
 
 {% endif %}
 
