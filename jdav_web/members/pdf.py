@@ -24,11 +24,11 @@ def find_template(template_name):
 
 
 def media_path(fp):
-    return os.path.join(os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists"), fp)
+    return os.path.join(os.path.join(settings.MEDIA_ROOT, "memberlists"), fp)
 
 
 def media_dir():
-    return os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists")
+    return os.path.join(settings.MEDIA_ROOT, "memberlists")
 
 
 def serve_pdf(filename_pdf):

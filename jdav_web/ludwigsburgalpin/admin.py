@@ -77,4 +77,4 @@ admin.site.register(Termin, TerminAdmin)
 
 
 def media_path(fp):
-    return os.path.join(os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists"), fp)
+    return os.path.join(os.path.join(settings.MEDIA_ROOT, "memberlists"), fp)

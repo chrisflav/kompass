@@ -20,7 +20,6 @@ BASE_URL = get_var('django', 'base_url', default=HOST)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = get_var('django', 'media_root',
                      default=os.path.join((os.path.join(BASE_DIR, os.pardir)), "media"))
-MEDIA_MEMBERLISTS = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 
 # default primary key auto field type
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
