@@ -1,11 +1,12 @@
 {% extends "admin/app_index.html" %}
+{% load common %}
 
 {% block content %}
 <div id="content-main">
 <div class="app-mailer module current-app">
 <h2>E-Mail Verteiler</h2>
 <p>
-Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV Heidelberg schicken.
+Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV {% settings_value 'SEKTION' %} schicken.
 </p>
 <table>
     <tr>
