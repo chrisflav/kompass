@@ -1139,12 +1139,26 @@ class Freizeit(CommonModel):
     @property
     def staff_count(self):
         return self.jugendleiter.count()
+    
+    @property
+    def staff_on_memberlist(self):
+        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
+        jls = set(self.jugendleiter.distinct())
+        return ps.intersection(jls)
+    
+    @property
+    def staff_on_memberlist_count(self):
+        return len(self.staff_on_memberlist)
 
     @property
     def participant_count(self):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         return len(ps - jls)
+    
+    @property
+    def head_count(self):
+        return self.staff_on_memberlist_count + self.participant_count
 
     @property
     def approved_staff_count(self):

@@ -122,12 +122,12 @@
 \section{Teilnehmer*innenliste}
 
 \begin{table}[H]
-    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLl|c|c|c}
+    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}llLl|c|c|c}
     \hline
-    \textbf{Name} & \textbf{Anschrift} & \textbf{Geburtsdatum} & \textbf{m} & \textbf{w} & \textbf{d} \\ \hline
+    & \textbf{Name} & \textbf{Anschrift} & \textbf{Geburtsdatum} & \textbf{m} & \textbf{w} & \textbf{d} \\ \hline
     %\midrule
     {% for m in memberlist.membersonlist.all %}
-        {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.birth_date_str|esc_all }}
+        {{ forloop.counter }} & {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.birth_date_str|esc_all }}
                                     & {% if m.member.gender == 0 %} x {% endif %}
                                     & {% if m.member.gender == 1 %} x {% endif %}
                                     & {% if m.member.gender == 2 %} x {% endif %} \\

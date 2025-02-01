@@ -951,6 +951,31 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
     sortable_options = []
+    template = "admin/members/freizeit/memberonlistinline.html"
+    
+    def people_count(self, obj):
+        if isinstance(obj, Freizeit):
+            # Number of organizers who are also in the Memberlist
+            organizer_count = obj.staff_on_memberlist_count
+
+            # Total number of people in the Memberlist
+            total_people = obj.head_count
+            
+        else: # fallback if no activity was found
+            total_people = 0
+            organizer_count = 0
+        return dict(total_people=total_people, organizer_count=organizer_count)
+
+    def get_formset(self, request, obj=None, **kwargs):
+        """Override get_formset to add extra context."""
+        formset = super().get_formset(request, obj, **kwargs)
+
+        if obj:  # Ensure there is an Activity instance
+            formset.total_people = self.people_count(obj)['total_people']
+            formset.organizer_count = self.people_count(obj)['organizer_count']
+
+        return formset
+    
 
 
 class MemberNoteListAdmin(admin.ModelAdmin):

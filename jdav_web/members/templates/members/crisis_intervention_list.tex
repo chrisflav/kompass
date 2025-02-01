@@ -79,11 +79,12 @@
     \end{tabular}
 \end{table}
 
-\begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLlLL}
+\begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}llLlLL}
 \toprule
-\textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{Notfallkontakte} \\
+& \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{Notfallkontakte} \\
 \midrule
 {% for m in memberlist.membersonlist.all %}
+    {{ forloop.counter }} & 
     {{ m.member.name|esc_all }} &
     {{ m.member.address|esc_all }} &
     {{ m.member.contact_phone_number|esc_all }} &

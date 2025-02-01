@@ -35,12 +35,12 @@
 \end{table}
 
 \begin{table}[H]
-	\begin{tabularx}{\textwidth}{@{} l l Y @{}}
+	\begin{tabularx}{\textwidth}{@{} l l l Y @{}}
     \toprule
-	\textbf{Name} & \textbf{Fähigkeiten (max. 100)} & \textbf{Kommentare} \\
+	& \textbf{Name} & \textbf{Fähigkeiten (max. 100)} & \textbf{Kommentare} \\
     \midrule
     {% for p in people %}
-        {{ p.name|esc_all }} & {{ p.qualities|esc_all }} & {{ p.comments|esc_all }} \\
+        {{ forloop.counter }} & {{ p.name|esc_all }} & {{ p.qualities|esc_all }} & {{ p.comments|esc_all }} \\
     {% endfor %}
     \bottomrule
   \end{tabularx}

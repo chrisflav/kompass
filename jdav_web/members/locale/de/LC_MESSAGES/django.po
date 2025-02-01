@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-25 11:56+0100\n"
+"POT-Creation-Date: 2025-02-01 19:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,7 +30,7 @@ msgstr "Ja"
 msgid "False"
 msgstr "Nein"
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "All"
 msgstr "Alle"
 
@@ -82,18 +82,18 @@ msgstr "%(name)s hat keine DAV360 E-Mail Adresse oder ist bereits registriert."
 msgid "Successfully invited %(name)s as user."
 msgstr "Erfolgreich %(name)s aufgefordert Zugangsdaten zu wählen."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Successfully invited selected members to join as users."
 msgstr ""
 "Erfolgreich ausgewählte Teilnehmer*innen aufgefordert Zugangsdaten zu wählen."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Some members have been invited, others could not be invited."
 msgstr ""
 "Manche Teilnehmer*innen wurden eingeladen, andere konnten nicht eingeladen "
 "werden."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Permission denied."
 msgstr "Fehlende Berechtigungen."
 
@@ -105,21 +105,21 @@ msgstr "Kompass Zugangsdaten wählen lassen"
 msgid "Invite selected members to join Kompass as users."
 msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Member not found."
 msgstr "Teilnehmer*in nicht gefunden."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 #, python-format
 msgid "%(name)s already has login data."
 msgstr "%(name)s hat schon Zugangsdaten."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 #, python-format
 msgid "The configured email address for %(name)s is not an internal one."
 msgstr "Die für %(name)s eingestellte E-Mail Adresse ist keine DAV360 Adresse."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 #, python-format
 msgid "%(name)s already has a pending invitation as user."
 msgstr ""
@@ -133,7 +133,7 @@ msgstr "Aktivität"
 msgid "Name"
 msgstr "Name"
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 
@@ -151,11 +151,11 @@ msgstr "Registrierung von %(name)s erfolgreich bestätigt."
 msgid "Can't confirm. %(name)s has unconfirmed email addresses."
 msgstr "Bestätigung nicht möglich. %(name)s hat unbestätigte Emailadressen."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Successfully confirmed multiple registrations."
 msgstr "Erfolgreich mehrere Registrierungen bestätigt."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid ""
 "Failed to confirm some registrations because of unconfirmed email addresses."
 msgstr ""
@@ -170,7 +170,7 @@ msgstr "Ausgewählte Registrierungen bestätigen"
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Demote member to waiter"
 msgstr "Ausgewählte Registrierung zurück auf die Warteliste setzen."
 
@@ -364,11 +364,11 @@ msgstr "Hinweise für Jugendleiter erstellen"
 msgid "Generate seminar report"
 msgstr "Landesjugendplan Antrag erstellen"
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Please select a mode."
 msgstr "Bitte wähle einen Modus aus."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid ""
 "Full mode is only available, if the seminar report section is filled out."
 msgstr ""
@@ -379,11 +379,11 @@ msgstr ""
 msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Please select an invoice."
 msgstr "Bitte wähle einen Beleg aus."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "No statement found. Please add a statement and then retry."
 msgstr ""
 "Keine Abrechnung angelegt. Bitte lege eine Abrechnung and und versuche es "
@@ -1210,7 +1210,7 @@ msgstr ""
 msgid "Summary"
 msgstr "Zusammenfassung"
 
-#: members/templates/admin/freizeit_finance_overview.html
+#: members/templates/admin/freizeit_finance_overview.html members/tests.py
 msgid "This is the estimated cost and contribution summary:"
 msgstr "Das ist die geschätzte Kosten- und Zuschussübersicht."
 
@@ -1327,7 +1327,7 @@ msgstr ""
 "Kosten an. In diesem Fall musst du Lernziele und einen Zeitplan manuell "
 "hinzufügen."
 
-#: members/templates/admin/generate_seminar_report.html
+#: members/templates/admin/generate_seminar_report.html members/tests.py
 msgid "You may also choose to include the V32 attachment."
 msgstr ""
 "Ein LJP Antrag benötigt immer ein Formblatt (in unserem Fall V32-1 "
@@ -1340,7 +1340,7 @@ msgstr ""
 msgid "Generate"
 msgstr "Erstellen"
 
-#: members/templates/admin/generate_sjr_application.html
+#: members/templates/admin/generate_sjr_application.html members/tests.py
 msgid "Here you can generate an allowance application for the SJR."
 msgstr "Hier kannst du einen SJR-Zuschussantrag erstellen."
 
@@ -1373,7 +1373,7 @@ msgstr ""
 #: members/templates/admin/invite_as_user.html
 #: members/templates/admin/invite_for_group.html
 #: members/templates/admin/invite_selected_as_user.html
-#: members/templates/admin/invite_selected_for_group.html
+#: members/templates/admin/invite_selected_for_group.html members/tests.py
 msgid "Invite"
 msgstr "Einladen"
 
@@ -1475,6 +1475,14 @@ msgstr ""
 #: members/templates/admin/klettertreff_overview.html
 msgid "date"
 msgstr "Datum"
+
+#: members/templates/admin/members/freizeit/memberonlistinline.html
+msgid "Number of persons:"
+msgstr "Anzahl Personen:"
+
+#: members/templates/admin/members/freizeit/memberonlistinline.html
+msgid "thereof leaders:"
+msgstr "davon Leitung:"
 
 #: members/templates/members/change_member.html
 msgid "Participations:"

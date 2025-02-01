@@ -71,6 +71,7 @@
         </tr>
      {% endfor %}
      </tbody>
+     {% block extra_footer_content %}{% endblock %}
    </table>
   {% if inline_admin_formset.is_collapsible %}</details>{% endif %}
 </fieldset>
