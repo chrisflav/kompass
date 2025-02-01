@@ -4,11 +4,11 @@
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-	'NAME': os.environ.get('DJANGO_DATABASE_NAME', 'jdav_db'),
-        'USER': os.environ.get('DJANGO_DATABASE_USER', 'jdav_user'),
-        'PASSWORD': os.environ.get('DJANGO_DATABASE_PASSWORD', 'jdav00jdav'),
-        'HOST': os.environ.get('DJANGO_DATABASE_HOST', '127.0.0.1'),
-        'PORT': os.environ.get('DJANGO_DATABASE_PORT', '5432')
+        'NAME': get_var('database', 'database', default='jdav_db'),
+        'USER': get_var('database', 'user', default='user'),
+        'PASSWORD': get_var('database', 'password', default='secret'),
+        'HOST': get_var('database', 'host', default='127.0.0.1'),
+        'PORT': get_var('database', 'port', default=5432)
     }
 }
 

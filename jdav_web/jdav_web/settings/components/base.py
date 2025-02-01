@@ -1,26 +1,25 @@
-deployed = '1' == os.environ.get('DJANGO_DEPLOY', '0')
+deployed = get_var('django', 'deployed', default=False)
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY',
-			    '6_ew6l1r9_4(8=p8quv(e8b+z+k+*wm7&zxx%mcnnec99a!lpw')
+SECRET_KEY = get_var('django', 'secret_key', default='secret')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
+DEBUG = get_var('django', 'debug', default=True)
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOST', '').split(",")
+ALLOWED_HOSTS = get_var('django', 'allowed_hosts', default=["*"])
 
 # hostname and base url
-HOST = os.environ.get('DJANGO_ALLOWED_HOST', 'localhost:8000').split(",")[0]
-PROTOCOL = os.environ.get('DJANGO_PROTOCOL', 'https')
-BASE_URL = os.environ.get('DJANGO_BASE_URL', HOST)
+HOST = get_var('django', 'host', default='localhost:8000')
+PROTOCOL = get_var('django', 'protocol', default='https')
+BASE_URL = get_var('django', 'base_url', default=HOST)
 
 # Define media paths e.g. for image storage
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT',
-			    os.path.join((os.path.join(BASE_DIR, os.pardir)), "media"))
+MEDIA_ROOT = get_var('django', 'media_root',
+                     default=os.path.join((os.path.join(BASE_DIR, os.pardir)), "media"))
 MEDIA_MEMBERLISTS = os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 
 # default primary key auto field type
@@ -83,7 +82,8 @@ ROOT_URLCONF = 'jdav_web.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(CONFIG_DIR_PATH, 'templates'),
+                 os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -131,8 +131,7 @@ STATICFILES_DIRS = [
 # static root where all the static files are collected to
 # use python3 manage.py collectstatic to collect static files in the STATIC_ROOT
 # this is needed for deployment
-STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT',
-			     '/var/www/jdav_web/static')
+STATIC_ROOT = get_var('django', 'static_root', default='/var/www/jdav_web/static')
 
 
 # Locale files (translations)
@@ -140,7 +139,7 @@ STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT',
 LOCALE_PATHS = (os.path.join(BASE_DIR, 'locale'),)
 
 # Celery and Redis setup
-BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
+BROKER_URL = get_var('django', 'broker_url', default='redis://localhost:6379/0')
 
 # password hash algorithms used
 
@@ -194,3 +193,6 @@ MARKDOWNIFY = {
 
 # allowed characters in names appearing in urls on the website
 STARTPAGE_URL_NAME_PATTERN = "[\w\-: *]"
+
+# admins to contact on error messages
+ADMINS = get_var('section', 'admins', default=[])

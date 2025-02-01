@@ -1,0 +1,67 @@
+[section]
+name = "Town"
+street = "Street 12"
+town = "12345 Town"
+telephone = "123456789"
+telefax = "987654321"
+contact_mail = "contact@jdav-town.de"
+board_mail = "board@jdav-town.de"
+crisis_intervention_mail = "crisis@jdav-town.de"
+iban = "DE42 4242 4242 4242 4242 42"
+account_holder = "DAV Town"
+responsible_mail = "responsible@jdav-town.de"
+digital_mail = "digital@jdav-town.de"
+admins = [['Admin', 'admin@jdav-town.de']]
+
+[LJP]
+v32_head_organisation = """
+LJP application recipient header
+"""
+
+[misc]
+allowed_email_domains_for_invite_as_user = ['alpenverein-town.de']
+send_from_association_email = true
+domain = 'jdav-town.de'
+
+[finance]
+allowance_per_day = 22
+max_night_cost = 11
+
+[links]
+cloud = "https://nextcloud.com"
+dav_360 = "https://dav360.de"
+wiki = "https://wikipedia.org"
+docs = "https://jdav-hd.de/static/docs"
+registration_form = "download-me"
+
+[startpage]
+redirect_url = ''
+root_section = 'root section'
+recent_section = 'aktuelles'
+reports_section = 'berichte'
+
+[django]
+deployed = true
+debug = true
+secret_key = '6_ew6l1r9_4(8=p8quv(e8b+z+k+*wm7&zxx%mcnnec99a!lpw'
+allowed_hosts = ['*']
+protocol = 'http'
+base_url = 'localhost:8000'
+host = ''
+static_root = '/var/www/jdav_web/assets'
+broker_url = 'redis://redis:6379/0'
+memcached_url = 'cache:11211'
+
+[mail]
+host = 'jdav-town.de'
+user = 'user@jdav-town.de'
+password = 'password'
+default_sending_address = 'info@jdav-town.de'
+default_sending_name = 'JDAV Town'
+
+[database]
+host = 'db'
+port = 3306
+database = 'kompass'
+user = 'kompass'
+password = 'foobar'

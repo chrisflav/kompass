@@ -1,6 +1,6 @@
 # mail texts
 
-CONFIRM_MAIL_TEXT = """Hallo {name},
+CONFIRM_MAIL_TEXT = get_text('confirm_mail', default="""Hallo {name},
 
 du hast bei der JDAV %(SEKTION)s eine E-Mail Adresse hinterlegt. Da bei uns alle Kommunikation
 per Email funktioniert, brauchen wir eine Bestätigung {whattoconfirm}. Dazu klicke bitte einfach auf
@@ -9,9 +9,9 @@ folgenden Link:
 {link}
 
 Viele Grüße
-Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION }
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION })
 
-NEW_UNCONFIRMED_REGISTRATION = """Hallo {name},
+NEW_UNCONFIRMED_REGISTRATION = get_text('new_unconfirmed_registration', default="""Hallo {name},
 
 für deine Gruppe {group} liegt eine neue unbestätigte Reservierung vor. Die Person hat bereits ihre
 E-Mailadressen bestätigt und ihr Anmeldeformular hochgeladen. Bitte prüfe die Registrierung eingehend und
@@ -20,13 +20,15 @@ bestätige falls möglich. Zu der Registrierung kommst du hier:
 {link}
 
 Viele Grüße
-Dein KOMPASS"""
+Dein KOMPASS""")
 
-GROUP_TIME_AVAILABLE_TEXT = """Die Gruppenstunde findet jeden {weekday} von {start_time} bis {end_time} Uhr statt."""
+GROUP_TIME_AVAILABLE_TEXT = get_text('group_time_available',
+                                     default="""Die Gruppenstunde findet jeden {weekday} von {start_time} bis {end_time} Uhr statt.""")
 
-GROUP_TIME_UNAVAILABLE_TEXT = """Bitte erfrage die Gruppenzeiten bei der Gruppenleitung ({contact_email})."""
+GROUP_TIME_UNAVAILABLE_TEXT = get_text('group_time_unavailable',
+                                       default="""Bitte erfrage die Gruppenzeiten bei der Gruppenleitung ({contact_email}).""")
 
-INVITE_TEXT = """Hallo {{name}},
+INVITE_TEXT = get_text('invite', default="""Hallo {{name}},
 
 wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe {group_name} {group_link}freigeworden.
 {group_time}
@@ -50,10 +52,10 @@ Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 
 Viele Grüße
 Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL,
-                              'REGISTRATION_FORM_DOWNLOAD_LINK': REGISTRATION_FORM_DOWNLOAD_LINK }
+                              'REGISTRATION_FORM_DOWNLOAD_LINK': REGISTRATION_FORM_DOWNLOAD_LINK })
 
 
-LEAVE_WAITINGLIST_TEXT = """Hallo {name},
+LEAVE_WAITINGLIST_TEXT = get_text('leave_waitinglist', default="""Hallo {name},
 
 du hast dich erfolgreich von der Warteliste abgemeldet. Falls du zu einem späteren
 Zeitpunkt wieder der Warteliste beitreten möchtest, kannst du das über unsere Webseite machen.
@@ -61,10 +63,10 @@ Zeitpunkt wieder der Warteliste beitreten möchtest, kannst du das über unsere 
 Falls du dich nicht selbst abgemeldet hast, wende dich bitte umgehend an %(RESPONSIBLE_MAIL)s.
 
 Viele Grüße
-Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL })
 
 
-WAIT_CONFIRMATION_TEXT = """Hallo {name},
+WAIT_CONFIRMATION_TEXT = get_text('wait_confirmation', default="""Hallo {name},
 
 leider können wir dir zur Zeit noch keinen Platz in einer Jugendgruppe anbieten. Da wir
 sehr viele Interessenten haben und wir möglichst vielen die Möglichkeit bieten möchten, an
@@ -79,15 +81,15 @@ Das ist Erinnerung Nummer {reminder} von {max_reminder_count}. Nach Erinnerung N
 du automatisch entfernt.
 
 Viele Grüße
-Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION }
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION })
 
 
-UNSUBSCRIBE_CONFIRMATION_TEXT = """Klicke auf den Link, um dich vom Newsletter der JDAV %(SEKTION)s abzumelden
+UNSUBSCRIBE_CONFIRMATION_TEXT = get_text('unsubscribe_confirmation', default="""Klicke auf den Link, um dich vom Newsletter der JDAV %(SEKTION)s abzumelden
 
-{link}""" % { 'SEKTION': SEKTION }
+{link}""" % { 'SEKTION': SEKTION })
 
 
-NOTIFY_MOST_ACTIVE_TEXT = """Hallo {name}!
+NOTIFY_MOST_ACTIVE_TEXT = get_text('notify_most_active', default="""Hallo {name}!
 
 Herzlichen Glückwunsch, du hast im letzten Jahr zu den {congratulate_max} aktivsten
 Mitgliedern der JDAV %(SEKTION)s gehört! Um genau zu sein beträgt dein Aktivitäts Wert
@@ -97,10 +99,10 @@ im letzten Jahr das {position}aktivste Mitglied der JDAV %(SEKTION)s.
 
 Auf ein weiteres aktives Jahr in der JDAV %(SEKTION)s.
 
-Dein:e Jugendreferent:in""" % { 'SEKTION': SEKTION }
+Dein:e Jugendreferent:in""" % { 'SEKTION': SEKTION })
 
 
-ECHO_TEXT = """Hallo {name},
+ECHO_TEXT = get_text('echo', default="""Hallo {name},
 
 um unsere Daten auf dem aktuellen Stand zu halten und sicherzugehen, dass du
 weiterhin ein Teil unserer Jugendarbeit bleiben möchtest, brauchen wir eine
@@ -119,10 +121,10 @@ gelöscht und du erhälst in Zukunft keine Mails mehr von uns.
 Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 
 Viele Grüße
-Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL })
 
 
-PREPEND_INCOMPLETE_REGISTRATION_TEXT = """WICHTIGE MITTEILUNG
+PREPEND_INCOMPLETE_REGISTRATION_TEXT = get_text('prepend_incomplete_registration', default="""WICHTIGE MITTEILUNG
 
 Deine Anmeldung ist aktuell nicht vollständig. Bitte fülle umgehend das
 Anmeldeformular aus und lasse es Deine*r Jugendleiter*in zukommen! Dieses
@@ -132,10 +134,10 @@ kannst Du unter folgendem Link herunterladen:
 
 ****************
 
-""" % { 'REGISTRATION_FORM_DOWNLOAD_LINK': REGISTRATION_FORM_DOWNLOAD_LINK }
+""" % { 'REGISTRATION_FORM_DOWNLOAD_LINK': REGISTRATION_FORM_DOWNLOAD_LINK })
 
 
-MAIL_FOOTER = """
+MAIL_FOOTER = get_text('mail_footer', default="""
 
 
 ****************
@@ -144,10 +146,10 @@ Diese Email wurde über die Webseite der JDAV %(SEKTION)s
 verschickt. Wenn Du in Zukunft keine Emails mehr erhalten möchtest,
 kannst Du hier den Newsletter deabonnieren:
 
-{link}""" % { 'SEKTION': SEKTION }
+{link}""" % { 'SEKTION': SEKTION })
 
 
-INVITE_AS_USER_TEXT = """Hallo {name},
+INVITE_AS_USER_TEXT = get_text('invite_as_user', default="""Hallo {name},
 
 du bist Jugendleiter*in in der Sektion %(SEKTION)s. Die Verwaltung unserer Jugendgruppen,
 Ausfahrten und Finanzen erfolgt in unserer Online Plattform Kompass. Deine Stammdaten sind
@@ -159,10 +161,10 @@ und wähle ein Passwort.
 Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 
 Viele Grüße
-Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL })
 
 
-UPLOAD_REGISTRATION_FORM_TEXT = """Hallo {name},
+UPLOAD_REGISTRATION_FORM_TEXT = get_text('upload_registration_form', default="""Hallo {name},
 
 vielen Dank für deine Anmeldung in der JDAV %(SEKTION)s. Bevor es richtig losgehen kann, brauchen
 wir noch die Bestätigung deiner Daten und die Zustimmung zu unseren Teilnahmebedingungen.
@@ -177,9 +179,9 @@ Bist du noch nicht volljährig? Dann muss eine erziehungsberechtigte Person das 
 Bei Fragen, wende dich gerne an %(RESPONSIBLE_MAIL)s.
 
 Viele Grüße
-Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL }
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBLE_MAIL })
 
 
-ADDRESS = """JDAV %(SEKTION)s
+ADDRESS = get_text('address', default="""JDAV %(SEKTION)s
 %(STREET)s
-%(PLACE)s""" % { 'SEKTION': SEKTION, 'STREET': SEKTION_STREET, 'PLACE': SEKTION_TOWN }
+%(PLACE)s""" % { 'SEKTION': SEKTION, 'STREET': SEKTION_STREET, 'PLACE': SEKTION_TOWN })

@@ -1,0 +1,31 @@
+[testing]
+mail = "test@localhost"
+
+[django]
+deployed = true
+debug = true
+secret_key = '6_ew6l1r9_4(8=p8quv(e8b+z+k+*wm7&zxx%mcnnec99a!lpw'
+allowed_hosts = ['*']
+protocol = 'http'
+base_url = 'localhost:8000'
+host = 'localhost'
+static_root = '/var/www/jdav_web/assets'
+broker_url = 'redis://redis:6379/0'
+memcached_url = 'cache:11211'
+
+[mail]
+host = 'localhost'
+user = 'test'
+password = 'password'
+default_sending_address = 'test@localhost'
+
+[database]
+host = 'db'
+port = 3306
+database = 'kompass'
+user = 'kompass'
+password = 'password'
+
+[startpage]
+recent_section = 'aktuelles'
+reports_section = 'berichte'

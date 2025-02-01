@@ -8,6 +8,8 @@ services:
             dockerfile: docker/test/Dockerfile
         env_file: docker.env
         environment:
+          - KOMPASS_CONFIG_DIR_PATH=/app/config/
+          - DJANGO_SETTINGS_MODULE=jdav_web.settings
           - DJANGO_TEST_KEEPDB=$DJANGO_TEST_KEEPDB
         depends_on:
           - redis
@@ -15,6 +17,7 @@ services:
           - db
         entrypoint: /app/docker/test/entrypoint-master.sh
         volumes:
+          - ./config:/app/config:ro
           - type: bind
             source: ./htmlcov/
             target: /app/jdav_web/htmlcov/

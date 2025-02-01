@@ -2,6 +2,9 @@ x-kompass:
     &kompass
     image: kompass:production
     env_file: docker.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=jdav_web.settings
+      - KOMPASS_CONFIG_DIR_PATH=/app/config/
     restart: always
     depends_on:
       - redis
@@ -19,6 +22,7 @@ services:
           - web_static:/app/static/
           - web_static:/var/www/jdav_web/static/
           - ./media:/var/www/jdav_web/media/
+          - ./config:/app/config:ro
 
     nginx:
         build: ./nginx/
@@ -43,10 +47,14 @@ services:
     celery_worker:
         <<: *kompass
         entrypoint: /app/docker/production/entrypoint-celery-worker.sh
+        volumes:
+          - ./config:/app/config:ro
 
     celery_beat:
         <<: *kompass
         entrypoint: /app/docker/production/entrypoint-celery-beat.sh
+        volumes:
+          - ./config:/app/config:ro
 
 volumes:
   uwsgi_data:

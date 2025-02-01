@@ -1,7 +1,7 @@
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
-        'LOCATION': os.environ.get('MEMCACHED_URL', '127.0.0.1:11211'),
+        'LOCATION': get_var('django', 'memcached_url', default='127.0.0.1:11211'),
         'OPTIONS': {
             'no_delay': True,
             'ignore_exc': True,

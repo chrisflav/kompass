@@ -8,6 +8,9 @@ x-kompass:
             UID: ${UID}
             GID: ${UID}
             USER: ${USER}
+    environment:
+      - KOMPASS_CONFIG_DIR_PATH=/app/config/
+      - DJANGO_SETTINGS_MODULE=jdav_web.settings
     env_file: docker.env
     restart: always
     depends_on:
@@ -25,6 +28,7 @@ services:
           - ./../../jdav_web:/app/jdav_web
           - ./../../docs:/app/docs
           - ./media:/app/media
+          - ./config:/app/config:ro
         ports:
           - "8000:8000"
 
