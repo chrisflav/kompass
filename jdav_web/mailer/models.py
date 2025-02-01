@@ -31,7 +31,7 @@ class EmailAddress(models.Model):
                                        verbose_name=_('Forward to group'),
                                        blank=True)
     internal_only = models.BooleanField(verbose_name=_('Restrict to internal email addresses'),
-                                        help_text=_('Only allow forwarding to this e-mail address from the internal domain.'),
+                                        help_text=_('Only allow forwarding to this e-mail address from one of the following domains: %(domains)s.') % {'domains': ", ".join(settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER)},
                                         default=False)
     allowed_senders = models.ManyToManyField('members.Group',
                                              verbose_name=_('Allowed sender'),

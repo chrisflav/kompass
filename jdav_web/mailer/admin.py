@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.conf import settings
 from django.contrib.admin import helpers
 from django.utils.translation import gettext_lazy as _
 from django.shortcuts import render
@@ -97,7 +98,8 @@ def submit_message(msg, request):
         return
     sender = request.user.member
     if not sender.has_internal_email():
-        messages.error(request, _("Your email address is not an internal email address. Please change your email address and try again."))
+        messages.error(request,
+                       _("Your email address is not an internal email address. Please use an email address with one of the following domains: %(domains)s.") % {'domains': ", ".join(settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER)})
         return
     success = msg.submit(sender)
     if success == NOT_SENT:

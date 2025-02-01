@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-01 21:48+0100\n"
+"POT-Creation-Date: 2025-02-01 21:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,12 +31,13 @@ msgstr ""
 "deine*n Systemadministrator*in."
 
 #: mailer/admin.py
+#, python-format
 msgid ""
-"Your email address is not an internal email address. Please change your "
-"email address and try again."
+"Your email address is not an internal email address. Please use an email "
+"address with one of the following domains: %(domains)s."
 msgstr ""
 "Deine E-Mail Adresse ist keine DAV360 E-Mail Adresse. Bitte stelle sicher, "
-"dass deine E-Mail Adresse mit @alpenverein-heidelberg.de endet."
+"dass deine E-Mail Adresse eine der folgenden Domains hat: %(domains)s."
 
 #: mailer/admin.py
 msgid "Failed to send message"
@@ -80,10 +81,13 @@ msgid "Restrict to internal email addresses"
 msgstr "Weiterleitung nur von internen E-Mail Adressen erlaubt"
 
 #: mailer/models.py
-msgid "Only allow forwarding to this e-mail address from the internal domain."
+#, python-format
+msgid ""
+"Only allow forwarding to this e-mail address from one of the following "
+"domains: %(domains)s."
 msgstr ""
-"Leite nur E-Mails weiter, die von ...@alpenverein-heidelberg.de verschickt "
-"wurden. "
+"Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt "
+"wurden: %(domains)s."
 
 #: mailer/models.py
 msgid "Allowed sender"
