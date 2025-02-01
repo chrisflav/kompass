@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-25 11:56+0100\n"
+"POT-Creation-Date: 2025-02-01 21:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -414,7 +414,8 @@ msgstr "Ausfahrt"
 msgid "This excursion featured %(staff_count)s youth leader(s), each costing"
 msgstr ""
 "Diese Ausfahrt hatte %(staff_count)s genehmigte Jugendleiter*innen. Für "
-"jede*n besteht ein Anspruch auf folgende Zuschüsse und Aufwandsentschädigungen:"
+"jede*n besteht ein Anspruch auf folgende Zuschüsse und "
+"Aufwandsentschädigungen:"
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
@@ -428,20 +429,20 @@ msgstr ""
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format
 msgid ""
-"%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
-"km) making a total of %(transportation_per_yl)s€."
-msgstr ""
-"%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
-"km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
-
-#: finance/templates/admin/overview_submitted_statement.html
-#, python-format
-msgid ""
 "%(duration)s days for %(allowance_per_day)s€ per day making a total of "
 "%(allowance_per_yl)s€."
 msgstr ""
 "%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
 "Gesamtsumme von %(allowance_per_yl)s€."
+
+#: finance/templates/admin/overview_submitted_statement.html
+#, python-format
+msgid ""
+"%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
+"km) making a total of %(transportation_per_yl)s€."
+msgstr ""
+"%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
+"km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format

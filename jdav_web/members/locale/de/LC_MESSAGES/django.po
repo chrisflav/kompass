@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-01 19:55+0100\n"
+"POT-Creation-Date: 2025-02-01 21:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -260,6 +260,11 @@ msgid ""
 msgstr ""
 "Der Gruppenname darf nur aus Buchstaben, Zahlen, _, -, :, * oder Leerzeichen "
 "bestehen."
+
+#: members/admin.py
+msgid "You are not allowed to create a group overview."
+msgstr ""
+"Du hast nicht die notwendigen Rechte um eine Gruppenübersicht zu erstellen."
 
 #: members/admin.py
 msgid "Difficulty"
@@ -1134,20 +1139,20 @@ msgstr ""
 #: members/templates/admin/freizeit_finance_overview.html
 #, python-format
 msgid ""
-"%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
-"km) making a total of %(transportation_per_yl)s€."
-msgstr ""
-"%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
-"km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
-
-#: members/templates/admin/freizeit_finance_overview.html
-#, python-format
-msgid ""
 "%(duration)s days for %(allowance_per_day)s€ per day making a total of "
 "%(allowance_per_yl)s€."
 msgstr ""
 "%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
 "Gesamtsumme von %(allowance_per_yl)s€."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
+"km) making a total of %(transportation_per_yl)s€."
+msgstr ""
+"%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
+"km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
 
 #: members/templates/admin/freizeit_finance_overview.html
 #, python-format
@@ -1973,10 +1978,6 @@ msgstr "Ungültige Notfallkontakte"
 
 #~ msgid "Invited for group"
 #~ msgstr "Einladung zu Gruppe austehend"
-
-#, python-format
-#~ msgid "You are not allowed to view %(name)s."
-#~ msgstr "Du hast nicht die notwendigen Rechte um %(name)s anzuschauen."
 
 #~ msgid "Parents' Email"
 #~ msgstr "Email der Eltern"
