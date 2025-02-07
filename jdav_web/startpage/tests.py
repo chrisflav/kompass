@@ -1,10 +1,13 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.conf import settings
+from django.templatetags.static import static
+from django.utils import timezone
+from django.core.files.uploadedfile import SimpleUploadedFile
 
-from members.models import Group
+from members.models import Member, Group, DIVERSE
 
-from .models import Post, Section
+from .models import Post, Section, Image
 
 
 class BasicTestCase(TestCase):
@@ -16,10 +19,22 @@ class BasicTestCase(TestCase):
                             section=recent)
         Post.objects.create(title='Last trip', urlname='last-trip', website_text='A fun trip.',
                             section=reports)
-        Post.objects.create(title='Staff', urlname='staff', website_text='This is our staff: Peter.',
-                            section=orga)
-        Group.objects.create(name='CrazyClimbers', show_website=True)
+        file = SimpleUploadedFile("post_image.jpg", b"file_content", content_type="image/jpeg")
+        staff_post = Post.objects.create(title='Staff', urlname='staff', website_text='This is our staff: Peter.',
+                                         section=orga)
+        Image.objects.create(post=staff_post, f=file)
+        file = SimpleUploadedFile("member_image.jpg", b"file_content", content_type="image/jpeg")
+        m = Member.objects.create(prename='crazy', lastname='cool', birth_date=timezone.now().date(),
+                                  email=settings.TEST_MAIL, gender=DIVERSE,
+                                  image=file)
+        crazy_group = Group.objects.create(name='CrazyClimbers', show_website=True)
+        m.group.add(crazy_group)
+        m.save()
         Group.objects.create(name='SuperClimbers', show_website=False)
+        crazy_post = Post.objects.create(title='The crazy climbers', urlname='crazy', website_text='foobar',
+                                         section=orga)
+        crazy_post.groups.add(crazy_group)
+        crazy_post.save()
 
 
 class ModelsTestCase(BasicTestCase):
@@ -110,3 +125,17 @@ class ViewTestCase(BasicTestCase):
         url = reverse('startpage:gruppe_detail', args=('SuperClimbersNotExisting',))
         response = c.get(url)
         self.assertEqual(response.status_code, 404, 'Response code is not 404 for group.')
+
+    def test_post_with_groups(self):
+        c = Client()
+        url = reverse('startpage:post', args=('orga', 'crazy'))
+        response = c.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_image(self):
+        c = Client()
+        staff_post = Post.objects.get(urlname='staff')
+        img = Image.objects.get(post=staff_post)
+        url = img.f.url
+        response = c.get('/de' + url)
+        self.assertEqual(response.status_code, 200, 'Images on posts should be visible without login.')

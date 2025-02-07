@@ -136,8 +136,11 @@ class MemberTestCase(BasicMemberTestCase):
                                            email=settings.TEST_MAIL, gender=MALE)
         self.anna = Member.objects.create(prename="Anna", lastname="Keks", birth_date=timezone.now().date(),
                                            email=settings.TEST_MAIL, gender=FEMALE)
+        img = SimpleUploadedFile("image.jpg", b"file_content", content_type="image/jpeg")
+        pdf = SimpleUploadedFile("form.pdf", b"very sensitive!", content_type="application/pdf")
         self.lisa = Member.objects.create(prename="Lisa", lastname="Keks", birth_date=timezone.now().date(),
-                                           email=settings.TEST_MAIL, gender=DIVERSE)
+                                          email=settings.TEST_MAIL, gender=DIVERSE,
+                                          image=img, registration_form=pdf)
         self.peter.group.add(self.ja)
         self.anna.group.add(self.ja)
         self.lisa.group.add(self.ja)
@@ -183,6 +186,26 @@ class MemberTestCase(BasicMemberTestCase):
             s1 = set(member.filter_queryset_by_permissions(model=Member))
             s2 = set(other for other in Member.objects.all() if member.may_list(other))
             self.assertEqual(s1, s2)
+
+    def test_image_visible(self):
+        url = self.lisa.image.url
+        c = Client()
+        response = c.get('/de' + url)
+        self.assertEqual(response.status_code, 200, 'Members images should be visible without login.')
+
+    def test_registration_form_not_visible(self):
+        url = self.lisa.registration_form.url
+        c = Client()
+        response = c.get('/de' + url)
+        self.assertEqual(response.status_code, 302, 'Members registration forms should not be visible without login.')
+
+        User.objects.create_user(
+            username='user', password='secret', is_staff=True
+        )
+        res = c.login(username='user', password='secret')
+        assert res
+        response = c.get('/de' + url)
+        self.assertEqual(response.status_code, 200, 'Members registration forms should be visible after staff login.')
 
 
 class PDFTestCase(TestCase):
