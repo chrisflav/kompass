@@ -10,6 +10,7 @@
 }
 
 .portrait {
+    max-width: 200pt;
     transition: transform .2s;
     line-height: 1;
     /*height: 240pt;*/
