@@ -1,7 +1,18 @@
 import os
 from django.conf import settings
 from django.http import HttpResponse
+from django import template
+from django.template.loader import get_template
 from wsgiref.util import FileWrapper
+
+
+def find_template(template_name):
+    for engine in template.engines.all():
+        for loader in engine.engine.template_loaders:
+            for origin in loader.get_template_sources(template_name):
+                if os.path.exists(origin.name):
+                    return origin.name
+    raise template.TemplateDoesNotExist(f"Could not find template: {template_name}")
 
 
 def media_path(fp):

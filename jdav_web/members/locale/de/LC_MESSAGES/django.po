@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-02 00:32+0100\n"
+"POT-Creation-Date: 2025-02-06 00:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -336,24 +336,19 @@ msgid "Generate PDF summary"
 msgstr "Übersicht erstellen"
 
 #: members/admin.py
-msgid "Full report"
-msgstr "Vollständiger Seminarbericht"
-
-#: members/admin.py
-msgid "Costs and participants only"
-msgstr "Nur Kosten und Teilnehmende"
-
-#: members/admin.py
-msgid "Mode"
-msgstr "Modus"
-
-#: members/admin.py
-msgid "Prepend V32"
-msgstr "V32 Formblatt einfügen"
-
-#: members/admin.py
 msgid "Invoice"
 msgstr "Beleg"
+
+#: members/admin.py
+msgid "Excursion not found."
+msgstr "Ausfahrt nicht gefunden."
+
+#: members/admin.py
+msgid ""
+"This excursion does not have a LJP proposal. Please add one and try again."
+msgstr ""
+"Diese Ausfahrt hat keinen Seminarbericht. Bitte füge einen hinzu und "
+"versuche es erneut."
 
 #: members/admin.py
 msgid ""
@@ -382,17 +377,6 @@ msgstr "Hinweise für Jugendleiter erstellen"
 #: members/admin.py members/templates/admin/generate_seminar_report.html
 msgid "Generate seminar report"
 msgstr "Landesjugendplan Antrag erstellen"
-
-#: members/admin.py members/tests.py
-msgid "Please select a mode."
-msgstr "Bitte wähle einen Modus aus."
-
-#: members/admin.py members/tests.py
-msgid ""
-"Full mode is only available, if the seminar report section is filled out."
-msgstr ""
-"Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
-"ausgefüllt ist. "
 
 #: members/admin.py members/templates/admin/generate_sjr_application.html
 msgid "Generate SJR application"
@@ -491,8 +475,7 @@ msgstr "LJP Spielart"
 #: members/models.py
 msgid ""
 "The official category for LJP applications associated with this activity."
-msgstr ""
-"Die offizielle Spielart für LJP Anträge mit dieser Aktivität."
+msgstr "Die offizielle Spielart für LJP Anträge mit dieser Aktivität."
 
 #: members/models.py
 msgid "Description"
@@ -951,24 +934,92 @@ msgid "registration passwords"
 msgstr "Registrierungspasswörter"
 
 #: members/models.py
-msgid "Alpinistic goals"
-msgstr "Alpintechnische Ziele"
+msgid ""
+"Official title of your seminar, this can differ from the informal title. Use "
+"e.g. sports climbing course instead of climbing weekend for fun."
+msgstr ""
+"Offizieller Titel des Seminars, dieser weicht in der Regel vom informellen "
+"Titel ab. Verwende zum Beispiel Sportkletterkurs statt Kletterfreizeit."
 
 #: members/models.py
-msgid "Pedagogic goals"
-msgstr "Pädagogische Ziele"
+msgid "Educational programme"
+msgstr "Themenorientierte Bildungsmaßnahme"
 
 #: members/models.py
-msgid "Content and methods"
-msgstr "Inhalte und Methoden"
+msgid "Staff training"
+msgstr "Jugendleiter*innenweiterbildung"
 
 #: members/models.py
-msgid "Evaluation"
-msgstr "Wertung"
+msgid "Category"
+msgstr "Kategorie"
 
 #: members/models.py
-msgid "Experiences and possible improvements"
-msgstr "Erfahrungen und Verbesserungsvorschläge"
+msgid "Type of seminar. Usually the correct choice is educational programme."
+msgstr "Kurstyp. In der Regel Themenorientierte Bildungsmaßnahme."
+
+#: members/models.py
+msgid "Qualification"
+msgstr "Qualifizierung"
+
+#: members/models.py
+msgid "Participation"
+msgstr "Partizipation"
+
+#: members/models.py
+msgid "Personality development"
+msgstr "Persönlichkeitsentwicklung"
+
+#: members/models.py
+msgid "Environment"
+msgstr "Umwelt"
+
+#: members/models.py
+msgid "Learning goal"
+msgstr "Bildungsziel"
+
+#: members/models.py
+msgid "Official learning goal according to LJP regulations."
+msgstr "Offizielles Bildungsziel gemäß LJP Richtlinien."
+
+#: members/models.py
+msgid "Strategy"
+msgstr "Zielverfolgung- und Erreichung"
+
+#: members/models.py
+msgid ""
+"How do you want to reach the learning goal? Has the goal been reached? If "
+"not, why not? If yes, what helped you to reach the goal?"
+msgstr ""
+"Wie wolltet ihr das Bildungsziel erreichen? Ist das Ziel so erreicht worden? "
+"Wenn nicht, warum nicht? Wenn ja, was hat geholfen, das Ziel zu erreichen?"
+
+#: members/models.py
+msgid "Course content"
+msgstr "aufgrund der Lehrgangsinhalte"
+
+#: members/models.py
+msgid "Available rooms"
+msgstr "trägereigene Räumlichkeiten"
+
+#: members/models.py
+msgid "Close to the border"
+msgstr "Grenznähe"
+
+#: members/models.py
+msgid "Economic reasons"
+msgstr "wirtschaftliche Sparsamkeit"
+
+#: members/models.py
+msgid "Explanation if excursion not in Baden-Württemberg"
+msgstr "Begründung, falls Kursort nicht in Baden-Württemberg"
+
+#: members/models.py
+msgid ""
+"If the excursion takes place outside of Baden-Württemberg, please explain. "
+"Otherwise, leave this empty."
+msgstr ""
+"Falls die Ausfahrt außerhalb von Baden-Württemberg stattfindet, gib bitte "
+"eine Begründung an. Sonst lass dieses Feld frei."
 
 #: members/models.py
 msgid "LJP Proposal"
@@ -1047,10 +1098,6 @@ msgid "Training categories"
 msgstr "Fortbildungstypen"
 
 #: members/models.py
-msgid "Category"
-msgstr "Kategorien"
-
-#: members/models.py
 msgid "Comments"
 msgstr "Kommentar"
 
@@ -1097,7 +1144,6 @@ msgstr "Zurück auf die Warteliste setzen"
 
 #: members/templates/admin/demote_to_waiter.html
 #: members/templates/admin/freizeit_finance_overview.html
-#: members/templates/admin/generate_seminar_report.html
 #: members/templates/admin/generate_sjr_application.html
 #: members/templates/admin/invite_as_user.html
 #: members/templates/admin/invite_for_group.html
@@ -1335,63 +1381,60 @@ msgstr ""
 "schnellstmöglich auf dich zurück."
 
 #: members/templates/admin/freizeit_finance_overview.html
+#: members/templates/admin/generate_seminar_report.html
 #: members/templates/admin/invite_for_group_text.html
 msgid "Back"
 msgstr "Zurück"
 
 #: members/templates/admin/generate_seminar_report.html
-msgid ""
-"Here you can generate a seminar report suitable for the LJP. A report\n"
-"always contains a head page with the basic information on the seminar."
-msgstr ""
-"Hier kannst du einen Zuschussantrag für den Landesjugendplan (LJP) "
-"erstellen. Ein solcher Antrag besteht immer aus zwei Teilen: Einem Formblatt "
-"und einem Seminarbericht. Ein Bericht enthält immer einen Kopf mit den "
-"Stammdaten des Seminars. Darüber hinaus muss der Seminarbericht eine "
-"Teilnehemendenliste, eine Kostenübersicht und eine detaillierte didaktische "
-"Planung enthalten. "
+msgid "LJP application for"
+msgstr "Landesjugendplan Antrag für"
 
 #: members/templates/admin/generate_seminar_report.html
 msgid ""
-"Expenses with same short description are automatically summed up and shown "
-"as one expense in the\n"
-"expense overview."
+"For applying for contributions by the LJP, a seminar report is required. "
+"From the information\n"
+"that you entered in the excursion, you can automatically generate such a "
+"report here."
 msgstr ""
-"In der Kostenübersicht werden Ausgaben mit der gleichen Kurzbeschreibung "
-"automatisch aufsummiert und zu einer Ausgabe zusammengefasst."
+"Um Zuschüsse vom Landesjugendplan (LJP) zu beantragen, ist ein Antrag "
+"notwendig. Aus den Informationen, die du in der Ausfahrt angegeben hast, "
+"kann automatisch ein solcher Antrag erstellt werden."
+
+#: members/templates/admin/generate_seminar_report.html
+msgid "A seminar report consists of multiple components:"
+msgstr "Ein LJP Antrag besteht aus verschiedenen Komponenten:"
 
 #: members/templates/admin/generate_seminar_report.html
 msgid ""
-"Full report: Include learning goals and a detailed, tabularized time "
-"schedule. This requires\n"
-"the seminar report section to be filled out."
+"An excel sheet containing the basic data of the seminar. This is also called "
+"the V-BK form."
 msgstr ""
-"Vollständiger Bericht: Stelle Lernziele und einen detaillierten, "
-"tabellierten Zeitplan dar. Dies benötigt, dass der Seminarbericht in der "
-"Ausfahrt ausgefüllt ist."
+"Eine Excel Tabelle mit den Basisdaten des Kurses. Fachbegriff: V-BK Formular."
+
+#: members/templates/admin/generate_seminar_report.html
+msgid "Download"
+msgstr "Herunterladen"
 
 #: members/templates/admin/generate_seminar_report.html
 msgid ""
-"Costs and participants only: Only show a list of participants and costs. In "
-"this case you\n"
-"have to add learning goals and a time schedule manually."
+"A pedagocial report on the strategy and outcome of the seminar with respect "
+"to achieving the\n"
+"learning goal.\n"
+"This also includes a detailed, tabularized time schedule and is produced as "
+"an editable Microsoft Word document."
 msgstr ""
-"Nur Kosten und Teilnehmende: Zeige nur eine Liste von Teilnehmenden und "
-"Kosten an. In diesem Fall musst du Lernziele und einen Zeitplan manuell "
-"hinzufügen."
-
-#: members/templates/admin/generate_seminar_report.html members/tests.py
-msgid "You may also choose to include the V32 attachment."
-msgstr ""
-"Ein LJP Antrag benötigt immer ein Formblatt (in unserem Fall V32-1 "
-"Themenorientierte Bildungsmaßnahmen). Dieses kannst du automatisch "
-"vorausfüllen lassen und dem Antrag hinzufügen. Bitte fülle die verbleibenden "
-"Felder im Formblatt selbst aus und unterschreibe das PDF."
+"Ein pädagogischer Bericht zur Planung, zum Ablauf und zur Auswertung des "
+"Kurses. Dies beinhaltet auch einen detaillierten, tabellarischen, zeitlichen "
+"Ablauf und wird als veränderbares Word Dokument erstellt."
 
 #: members/templates/admin/generate_seminar_report.html
-#: members/templates/admin/generate_sjr_application.html
-msgid "Generate"
-msgstr "Erstellen"
+msgid ""
+"A cost and participants overview. This is not required for the actual "
+"application, but is provided for convience as a PDF document."
+msgstr ""
+"Eine Kosten- und Teilnehmendenübersicht. Dies ist nicht notwendig für den "
+"eigentlichen Bericht, muss aber langfristig aufbewahrt werden."
 
 #: members/templates/admin/generate_sjr_application.html members/tests.py
 msgid "Here you can generate an allowance application for the SJR."
@@ -1409,6 +1452,10 @@ msgstr ""
 msgid ""
 "Please send this application form to the jdav finance officer via email."
 msgstr "Bitte sende diesen Antrag an den/die JDAV-Finanzwart*in per E-Mail."
+
+#: members/templates/admin/generate_sjr_application.html
+msgid "Generate"
+msgstr "Erstellen"
 
 #: members/templates/admin/invite_as_user.html
 #, python-format
@@ -1933,6 +1980,25 @@ msgstr ""
 "Dein Platz wurde bestätigt."
 
 #: members/tests.py
+msgid "You may also choose to include the V32 attachment."
+msgstr ""
+"Ein LJP Antrag benötigt immer ein Formblatt (in unserem Fall V32-1 "
+"Themenorientierte Bildungsmaßnahmen). Dieses kannst du automatisch "
+"vorausfüllen lassen und dem Antrag hinzufügen. Bitte fülle die verbleibenden "
+"Felder im Formblatt selbst aus und unterschreibe das PDF."
+
+#: members/tests.py
+msgid "Please select a mode."
+msgstr "Bitte wähle einen Modus aus."
+
+#: members/tests.py
+msgid ""
+"Full mode is only available, if the seminar report section is filled out."
+msgstr ""
+"Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
+"ausgefüllt ist. "
+
+#: members/tests.py
 msgid "This field is required."
 msgstr ""
 
@@ -1973,6 +2039,99 @@ msgstr "Optionale zusätzliche E-Mailadresse"
 #: members/views.py
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
+
+#~ msgid "Generate LJP V-BK form"
+#~ msgstr "Erzeuge LJP V-BK Formular"
+
+#~ msgid ""
+#~ "Every LJP application needs a V-BK form containing the most important "
+#~ "facts about the seminar.\n"
+#~ "Here you can automatically generate such a form in Excel format."
+#~ msgstr ""
+#~ "Jeder LJP Antrag benötigt ein V-BK Formular, das die wichtigsten "
+#~ "Randdaten des Seminars enthält. Hier kannst du automatisch ein solches "
+#~ "Formular im Excel Format erstellen."
+
+#~ msgid ""
+#~ "Your excursion currently has no cost-plan attached, hence the total costs "
+#~ "can't be automatically\n"
+#~ "calculated and added to the form."
+#~ msgstr ""
+#~ "Deine Ausfahrt hat zur Zeit keinen Kostenplan. Daher können die "
+#~ "Gesamtkosten nicht automatisch berechnet und dem Formular hinzugefügt "
+#~ "werden."
+
+#~ msgid ""
+#~ "Depending on the type of seminar, please select one of the two options "
+#~ "below."
+#~ msgstr "Bitte wähle aus, um welche Art von Seminar es sich handelt."
+
+#~ msgid "Full report"
+#~ msgstr "Vollständiger Seminarbericht"
+
+#~ msgid "Costs and participants only"
+#~ msgstr "Nur Kosten und Teilnehmende"
+
+#~ msgid "Mode"
+#~ msgstr "Modus"
+
+#~ msgid "Prepend V32"
+#~ msgstr "V32 Formblatt einfügen"
+
+#~ msgid "Please select a category."
+#~ msgstr "Bitte wähle eine Kategorie aus."
+
+#~ msgid "Alpinistic goals"
+#~ msgstr "Alpintechnische Ziele"
+
+#~ msgid "Pedagogic goals"
+#~ msgstr "Pädagogische Ziele"
+
+#~ msgid "Content and methods"
+#~ msgstr "Inhalte und Methoden"
+
+#~ msgid "Evaluation"
+#~ msgstr "Wertung"
+
+#~ msgid "Experiences and possible improvements"
+#~ msgstr "Erfahrungen und Verbesserungsvorschläge"
+
+#~ msgid ""
+#~ "Here you can generate a seminar report suitable for the LJP. A report\n"
+#~ "always contains a head page with the basic information on the seminar."
+#~ msgstr ""
+#~ "Hier kannst du einen Zuschussantrag für den Landesjugendplan (LJP) "
+#~ "erstellen. Ein solcher Antrag besteht immer aus zwei Teilen: Einem "
+#~ "Formblatt und einem Seminarbericht. Ein Bericht enthält immer einen Kopf "
+#~ "mit den Stammdaten des Seminars. Darüber hinaus muss der Seminarbericht "
+#~ "eine Teilnehemendenliste, eine Kostenübersicht und eine detaillierte "
+#~ "didaktische Planung enthalten. "
+
+#~ msgid ""
+#~ "Expenses with same short description are automatically summed up and "
+#~ "shown as one expense in the\n"
+#~ "expense overview."
+#~ msgstr ""
+#~ "In der Kostenübersicht werden Ausgaben mit der gleichen Kurzbeschreibung "
+#~ "automatisch aufsummiert und zu einer Ausgabe zusammengefasst."
+
+#~ msgid ""
+#~ "Full report: Include learning goals and a detailed, tabularized time "
+#~ "schedule. This requires\n"
+#~ "the seminar report section to be filled out."
+#~ msgstr ""
+#~ "Vollständiger Bericht: Stelle Lernziele und einen detaillierten, "
+#~ "tabellierten Zeitplan dar. Dies benötigt, dass der Seminarbericht in der "
+#~ "Ausfahrt ausgefüllt ist."
+
+#~ msgid ""
+#~ "Costs and participants only: Only show a list of participants and costs. "
+#~ "In this case you\n"
+#~ "have to add learning goals and a time schedule manually."
+#~ msgstr ""
+#~ "Nur Kosten und Teilnehmende: Zeige nur eine Liste von Teilnehmenden und "
+#~ "Kosten an. In diesem Fall musst du Lernziele und einen Zeitplan manuell "
+#~ "hinzufügen."
 
 #, python-format
 #~ msgid ""

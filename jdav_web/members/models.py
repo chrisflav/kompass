@@ -1058,6 +1058,7 @@ class Freizeit(CommonModel):
     name = models.CharField(verbose_name=_('Activity'), default='',
                             max_length=50)
     place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
+    postcode = models.CharField(verbose_name=_('Postcode'), default='', max_length=30)
     destination = models.CharField(verbose_name=_('Destination (optional)'),
                                    default='', max_length=50, blank=True,
                                    help_text=_('e.g. a peak'))
@@ -1145,6 +1146,13 @@ class Freizeit(CommonModel):
             extra_days += 0.5
 
         return full_days + extra_days
+
+    @property
+    def total_intervention_hours(self):
+        if hasattr(self, 'ljpproposal'):
+            return sum([i.duration for i in self.ljpproposal.intervention_set.all()])
+        else:
+            return 0
 
     @property
     def staff_count(self):
@@ -1471,13 +1479,47 @@ class RegistrationPassword(models.Model):
 
 class LJPProposal(CommonModel):
     """A proposal for LJP"""
-    title = models.CharField(verbose_name=_('Title'), max_length=30)
+    title = models.CharField(verbose_name=_('Title'), max_length=100,
+                             blank=True, default='',
+                             help_text=_('Official title of your seminar, this can differ from the informal title. Use e.g. sports climbing course instead of climbing weekend for fun.'))
 
-    goals_alpinistic = models.TextField(verbose_name=_('Alpinistic goals'))
-    goals_pedagogic = models.TextField(verbose_name=_('Pedagogic goals'))
-    methods = models.TextField(verbose_name=_('Content and methods'))
-    evaluation = models.TextField(verbose_name=_('Evaluation'))
-    experiences = models.TextField(verbose_name=_('Experiences and possible improvements'))
+    LJP_STAFF_TRAINING, LJP_EDUCATIONAL = 1, 2
+    LJP_CATEGORIES = [
+        (LJP_EDUCATIONAL, _('Educational programme')),
+        (LJP_STAFF_TRAINING, _('Staff training'))
+    ]
+    category = models.IntegerField(verbose_name=_('Category'),
+                                   choices=LJP_CATEGORIES,
+                                   default=2,
+                                   help_text=_('Type of seminar. Usually the correct choice is educational programme.'))
+    LJP_QUALIFICATION, LJP_PARTICIPATION, LJP_DEVELOPMENT, LJP_ENVIRONMENT = 1, 2, 3, 4
+    LJP_GOALS = [
+        (LJP_QUALIFICATION, _('Qualification')),
+        (LJP_PARTICIPATION, _('Participation')),
+        (LJP_DEVELOPMENT, _('Personality development')),
+        (LJP_ENVIRONMENT, _('Environment')),
+    ]
+    goal = models.IntegerField(verbose_name=_('Learning goal'),
+                               choices=LJP_GOALS,
+                               default=1,
+                               help_text=_('Official learning goal according to LJP regulations.'))
+    goal_strategy = models.TextField(verbose_name=_('Strategy'),
+                                     help_text=_('How do you want to reach the learning goal? Has the goal been reached? If not, why not? If yes, what helped you to reach the goal?'),
+                                     blank=True, default='')
+
+    NOT_BW_CONTENT, NOT_BW_ROOMS, NOT_BW_CLOSE_BORDER, NOT_BW_ECONOMIC = 1, 2, 3, 4
+    NOT_BW_REASONS = [
+        (NOT_BW_CONTENT, _('Course content')),
+        (NOT_BW_ROOMS, _('Available rooms')),
+        (NOT_BW_CLOSE_BORDER, _('Close to the border')),
+        (NOT_BW_ECONOMIC, _('Economic reasons')),
+    ]
+    not_bw_reason = models.IntegerField(verbose_name=_('Explanation if excursion not in Baden-Württemberg'),
+                                        choices=NOT_BW_REASONS,
+                                        default=None,
+                                        blank=True,
+                                        null=True,
+                                        help_text=_('If the excursion takes place outside of Baden-Württemberg, please explain. Otherwise, leave this empty.'))
 
     excursion = models.OneToOneField(Freizeit,
                                      verbose_name=_('Excursion'),

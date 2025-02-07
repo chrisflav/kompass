@@ -1,0 +1,71 @@
+{% load tex_extras %}
+
+\documentclass[a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{cmbright}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks, breaklinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{tabularx}
+\usepackage{titlesec}
+
+\titleformat{\section}
+  {\Large\slshape}{\thesection\;}
+  {0em}{}
+
+\title{Seminarbericht}
+
+\begin{document}
+
+\maketitle
+
+% DESCRIPTION TABLE
+\begin{table}[H]
+    \begin{tabular}{ll}
+        \textbf{Sektion:} & {{ settings.SEKTION }} \\
+        \textbf{Titel der Maßnahme:} & {% if not memberlist.ljpproposal %}{{ memberlist.name|esc_all }}{% else %}{{ memberlist.ljpproposal.title }} {% endif %} \\
+        \textbf{Anzahl der durchgeführten Lehrgangstage:} & {{ memberlist.duration }} \\
+    \end{tabular}
+\end{table}
+
+\section{Bildungsziel}
+
+\begin{table}[H]
+    \begin{tabular}{ccllllllllllll}
+        {% if memberlist.ljpproposal.goal == 1 %}x{% endif %}& 1 & \multicolumn{12}{l}{Ehrenamtliche qualifizieren und stärken} \\
+        {% if memberlist.ljpproposal.goal == 2 %}x{% endif %}& 2 & \multicolumn{12}{l}{Erleben von demokratischen Prozessen. Entwickeln und Stärken eines Demokratieverständnisses.} \\
+        {% if memberlist.ljpproposal.goal == 3 %}x{% endif %}& 3 & \multicolumn{12}{l}{Entwicklung der Persönlichkeit und Erweiterung des sozialen Handlungsrepertoires.} \\
+        {% if memberlist.ljpproposal.goal == 4 %}x{% endif %}& 4 & \multicolumn{12}{l}{Bewusstsein schaffen einer Verantwortung für Natur, Umwelt und zukünftige Generationen.} \\
+    \end{tabular}
+\end{table}
+
+\section{Zielverfolgung und -Erreichung}
+
+{{ memberlist.ljpproposal.goal_strategy|esc_all }}
+
+\section{Zeitlicher Ablauf}
+
+\begin{table}[H]
+    \begin{tabular}{lllllll}
+    \toprule
+    \textbf{Datum} & \textbf{Uhrzeit} & \multicolumn{4}{l}{\textbf{Art der Aktion}} & \textbf{Dauer} \\
+    \midrule
+    {% for intervention in memberlist.ljpproposal.intervention_set.all %}
+    {{ intervention.date_start|date_short }}
+                   & {{ intervention.date_start|time_short }}
+                   & \multicolumn{4}{l}{ {{ intervention.activity|esc_all }} }
+                   & {{ intervention.duration }} h  \\
+    {% endfor %}
+    \bottomrule
+                   & & \multicolumn{4}{l}{} & Summe: {{ memberlist.total_intervention_hours }} h \\
+  \end{tabular}
+\end{table}
+
+\end{document}

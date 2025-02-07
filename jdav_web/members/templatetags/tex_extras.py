@@ -18,3 +18,13 @@ def esc_all(val):
 @register.filter
 def datetime_short(date):
     return date.strftime('%d.%m.%Y %H:%M')
+
+
+@register.filter
+def date_short(date):
+    return date.strftime('%d.%m.%y')
+
+
+@register.filter
+def time_short(date):
+    return date.strftime('%H:%M')

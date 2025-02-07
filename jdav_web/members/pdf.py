@@ -11,30 +11,20 @@ from django.template.loader import get_template
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
-from contrib.media import media_path, media_dir, serve_media, ensure_media_dir
+from contrib.media import media_path, media_dir, serve_media, ensure_media_dir, find_template
 from PIL import Image
-
-
-def find_template(template_name):
-    for engine in template.engines.all():
-        for loader in engine.engine.template_loaders:
-            for origin in loader.get_template_sources(template_name):
-                if os.path.exists(origin.name):
-                    return origin.name
-    raise template.TemplateDoesNotExist(f"Could not find template: {template_name}")
 
 
 def serve_pdf(filename_pdf):
     return serve_media(filename_pdf, 'application/pdf')
 
 
-def render_tex(name, template_path, context, save_only=False):
+def generate_tex(name, template_path, context):
     filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
     filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
     # drop umlauts, accents etc.
     filename = unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
     filename_tex = filename + '.tex'
-    filename_pdf = filename + '.pdf'
 
     tmpl = get_template(template_path)
     res = tmpl.render(dict(context, creation_date=datetime.today().strftime('%d.%m.%Y')))
@@ -43,7 +33,27 @@ def render_tex(name, template_path, context, save_only=False):
 
     with open(media_path(filename_tex), 'w', encoding='utf-8') as f:
         f.write(res)
+    return filename
 
+
+def render_docx(name, template_path, context, save_only=False):
+    filename = generate_tex(name, template_path, context)
+    filename_tex = filename + '.tex'
+    filename_docx = filename + '.docx'
+    oldwd = os.getcwd()
+    os.chdir(media_dir())
+    subprocess.call(['pandoc', filename_tex, '-o', filename_docx])
+    time.sleep(1)
+    os.chdir(oldwd)
+    if save_only:
+        return filename_docx
+    return serve_media(filename_docx, 'application/docx')
+
+
+def render_tex(name, template_path, context, save_only=False):
+    filename = generate_tex(name, template_path, context)
+    filename_tex = filename + '.tex'
+    filename_pdf = filename + '.pdf'
     # compile using pdflatex
     oldwd = os.getcwd()
     os.chdir(media_dir())

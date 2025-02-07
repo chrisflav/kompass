@@ -28,8 +28,8 @@ from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
 from django.forms import Textarea, RadioSelect, TypedChoiceField, CheckboxInput
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied, ValidationError
-from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf
-from .excel import generate_group_overview
+from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf, render_docx
+from .excel import generate_group_overview, generate_ljp_vbk
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 
@@ -844,7 +844,7 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
-    fields = ['name', 'description']
+    fields = ['name', 'ljp_category', 'description']
 
 
 class FreizeitAdminForm(forms.ModelForm):
@@ -1037,14 +1037,6 @@ class MemberNoteListAdmin(admin.ModelAdmin):
     summary.short_description = _('Generate PDF summary')
 
 
-class GenerateSeminarReportForm(forms.Form):
-    modes = (('full', _('Full report')),
-             ('basic', _('Costs and participants only')))
-    mode = forms.ChoiceField(choices=modes, label=_('Mode'))
-    prepend_v32 = forms.BooleanField(label=_('Prepend V32'), initial=True,
-                                     widget=CheckboxInput(attrs={'style': 'display: inherit'}),
-                                     required=False)
-
 class GenerateSjrForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
@@ -1052,6 +1044,23 @@ class GenerateSjrForm(forms.Form):
 
         super(GenerateSjrForm,self).__init__(*args,**kwargs)
         self.fields['invoice'] = forms.ChoiceField(choices=self.attachments, label=_('Invoice'))
+
+
+def decorate_download(fun):
+    def aux(self, request, object_id):
+        try:
+            memberlist = Freizeit.objects.get(pk=object_id)
+        except Freizeit.DoesNotExist:
+            messages.error(request, _('Excursion not found.'))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+        if not self.may_view_excursion(request, memberlist):
+            return self.not_allowed_view(request, memberlist)
+        if not hasattr(memberlist, 'ljpproposal'):
+            messages.error(request, _('This excursion does not have a LJP proposal. Please add one and try again.'))
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                args=(memberlist.pk,)))
+        return fun(self, request, memberlist)
+    return aux
 
 
 class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
@@ -1064,8 +1073,8 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     view_on_site = False
     fieldsets = (
         (None, {
-            'fields': ('name', 'place', 'destination', 'date', 'end', 'description', 'groups', 'jugendleiter',
-                       'approved_extra_youth_leader_count',
+            'fields': ('name', 'place', 'postcode', 'destination', 'date', 'end', 'description', 'groups',
+                       'jugendleiter', 'approved_extra_youth_leader_count',
                        'tour_type', 'tour_approach', 'kilometers_traveled', 'activity', 'difficulty'),
             'description': _('General information on your excursion. These are partly relevant for the amount of financial compensation (means of transport, travel distance, etc.).')
         }),
@@ -1115,40 +1124,36 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         return render_tex(memberlist.name + "_Notizen", 'members/notes_list.tex', context)
     notes_list.short_description = _('Generate overview')
 
-    def render_seminar_report_options(self, request, memberlist, form):
-        context = dict(self.admin_site.each_context(request),
-                       title=_('Generate seminar report'),
-                       opts=self.opts,
-                       memberlist=memberlist,
-                       form=form,
-                       object=memberlist)
-        return render(request, 'admin/generate_seminar_report.html', context=context)
+    @decorate_download
+    def download_seminar_vbk(self, request, memberlist):
+        fp = generate_ljp_vbk(memberlist)
+        return serve_media(fp, 'application/xlsx')
+
+    @decorate_download
+    def download_seminar_report_docx(self, request, memberlist):
+        title = memberlist.ljpproposal.title
+        context = dict(memberlist=memberlist, settings=settings)
+        return render_docx(title + '_Seminarbericht', 'members/seminar_report_docx.tex', context)
+
+    @decorate_download
+    def download_seminar_report_costs_and_participants(self, request, memberlist):
+        title = memberlist.ljpproposal.title
+        context = dict(memberlist=memberlist, settings=settings)
+        return render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context)
 
     def seminar_report(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
-        if "apply" in request.POST:
-            form = GenerateSeminarReportForm(request.POST)
-            if not form.is_valid():
-                messages.error(request, _('Please select a mode.'))
-                return self.render_seminar_report_options(request, memberlist, form)
-            mode = form.cleaned_data['mode']
-            prepend_v32 = form.cleaned_data['prepend_v32']
-            if mode == 'full' and not hasattr(memberlist, 'ljpproposal'):
-                messages.error(request, _('Full mode is only available, if the seminar report section is filled out.'))
-                return self.render_seminar_report_options(request, memberlist, form)
-            title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
-            context = dict(memberlist=memberlist, settings=settings, mode=mode)
-            fp = render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context, save_only=True)
-            if prepend_v32:
-                context = memberlist.v32_fields()
-                v32_fp = fill_pdf_form(title + "_LJP_V32",
-                                       'members/V32-1_Themenorientierte_Bildungsmassnahmen.pdf',
-                                       context,
-                                       save_only=True)
-                return merge_pdfs(title + '_LJP_Antrag', [v32_fp, fp])
-            return serve_pdf(fp)
-        return self.render_seminar_report_options(request, memberlist, GenerateSeminarReportForm())
+        if not hasattr(memberlist, 'ljpproposal'):
+            messages.error(request, _('This excursion does not have a LJP proposal. Please add one and try again.'))
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+                                                args=(memberlist.pk,)))
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Generate seminar report'),
+                       opts=self.opts,
+                       memberlist=memberlist,
+                       object=memberlist)
+        return render(request, 'admin/generate_seminar_report.html', context=context)
     seminar_report.short_description = _('Generate seminar report')
 
     def render_sjr_options(self, request, memberlist, form):
@@ -1226,12 +1231,27 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
                 wrap(self.action_view),
                 name="%s_%s_action" % (self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "<path:object_id>/download/ljp_vbk",
+                wrap(self.download_seminar_vbk),
+                name="%s_%s_download_ljp_vbk" % (self.opts.app_label, self.opts.model_name),
+            ),
+            path("<path:object_id>/download/ljp_report_docx",
+                 wrap(self.download_seminar_report_docx),
+                 name="%s_%s_download_ljp_report_docx" % (self.opts.app_label, self.opts.model_name),
+            ),
+            path("<path:object_id>/download/ljp_report_costs_and_participants",
+                 wrap(self.download_seminar_report_costs_and_participants),
+                 name="%s_%s_download_ljp_costs_participants" % (self.opts.app_label, self.opts.model_name),
+            ),
         ]
         return custom_urls + urls
 
     def action_view(self, request, object_id):
         if "sjr_application" in request.POST:
             return self.sjr_application(request, Freizeit.objects.get(pk=object_id))
+        if "seminar_vbk" in request.POST:
+            return self.seminar_vbk(request, Freizeit.objects.get(pk=object_id))
         if "seminar_report" in request.POST:
             return self.seminar_report(request, Freizeit.objects.get(pk=object_id))
         if "notes_list" in request.POST:

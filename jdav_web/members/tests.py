@@ -17,7 +17,7 @@ from unittest import skip, mock
 from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE,\
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE,\
-        Klettertreff, KlettertreffAttendee
+        Klettertreff, KlettertreffAttendee, LJPProposal
 from .admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
         MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin
@@ -671,6 +671,16 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self.bill = Bill.objects.create(statement=self.st, short_description='bla', explanation='bli',
                                         amount=42.69, costs_covered=True, paid_by=fr,
                                         proof=file)
+        self.ex2 = Freizeit.objects.create(name='Wild trip 2', kilometers_traveled=0,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1)
+        self.ljpproposal = LJPProposal.objects.create(title='My seminar',
+                                                      category=LJPProposal.LJP_STAFF_TRAINING,
+                                                      goal=LJPProposal.LJP_ENVIRONMENT,
+                                                      goal_strategy='my strategy',
+                                                      not_bw_reason=LJPProposal.NOT_BW_ROOMS,
+                                                      excursion=self.ex2)
 
     def test_changelist(self):
         c = self._login('superuser')
@@ -746,27 +756,50 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
 
         c = self._login('superuser')
         url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
-        response = c.post(url, data={'seminar_report': ''})
+        response = c.post(url, data={'seminar_report': ''}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _('You may also choose to include the V32 attachment.'))
+        self.assertContains(response,
+                            _('This excursion does not have a LJP proposal. Please add one and try again.'))
 
+        url = reverse('admin:members_freizeit_action', args=(self.ex2.pk,))
         response = c.post(url, data={'seminar_report': '', 'apply': ''})
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _('Please select a mode.'))
+        self.assertContains(response, _('A seminar report consists of multiple components:'))
 
-        response = c.post(url, data={'seminar_report': '',
-                                     'apply': '',
-                                     'mode': 'full',
-                                     'prepend_v32': 'true'})
+    def test_invalid_download(self):
+        url = reverse('admin:members_freizeit_download_ljp_vbk', args=(self.ex.pk,))
+        c = self._login('standard')
+        response = c.get(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _('Full mode is only available, if the seminar report section is filled out.'))
+        self.assertContains(response, _("You are not allowed to view all members on excursion %(name)s.") % {'name': self.ex.name})
 
-        response = c.post(url, data={'seminar_report': '',
-                                     'apply': '',
-                                     'mode': 'basic',
-                                     'prepend_v32': 'true'})
+        c = self._login('superuser')
+        response = c.get(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        print(mocked_fun.call_count)
+        self.assertContains(response, _('This excursion does not have a LJP proposal. Please add one and try again.'))
+
+        url = reverse('admin:members_freizeit_download_ljp_vbk', args=(123456789,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Excursion not found.'))
+
+    def test_download_seminar_vbk(self):
+        url = reverse('admin:members_freizeit_download_ljp_vbk', args=(self.ex2.pk,))
+        c = self._login('superuser')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_download_seminar_report_docx(self):
+        url = reverse('admin:members_freizeit_download_ljp_report_docx', args=(self.ex2.pk,))
+        c = self._login('superuser')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_download_seminar_report_costs_and_participants(self):
+        url = reverse('admin:members_freizeit_download_ljp_costs_participants', args=(self.ex2.pk,))
+        c = self._login('superuser')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     @mock.patch('members.pdf.fill_pdf_form')
     def test_sjr_application_post(self, mocked_fun):
