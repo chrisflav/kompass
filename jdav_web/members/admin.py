@@ -1066,10 +1066,10 @@ def decorate_download(fun):
 class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     #inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
-    list_display = ['__str__', 'date', 'place']
+    list_display = ['__str__', 'date', 'place', 'approved']
     search_fields = ('name',)
     ordering = ('-date',)
-    list_filter = ['groups']
+    list_filter = ['groups', 'approved']
     view_on_site = False
     fieldsets = (
         (None, {
@@ -1078,11 +1078,24 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
                        'tour_type', 'tour_approach', 'kilometers_traveled', 'activity', 'difficulty'),
             'description': _('General information on your excursion. These are partly relevant for the amount of financial compensation (means of transport, travel distance, etc.).')
         }),
+        (_('Approval'), {
+            'fields': ('approved', 'approval_comments'),
+            'description': _('Information on the approval status of this excursion. Everything here is not editable by standard users.')
+        }),
     )
     #formfield_overrides = {
     #    ManyToManyField: {'widget': forms.CheckboxSelectMultiple},
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
+    field_view_permissions = {
+        'approved': 'members.view_approval_excursion',
+        'approval_comments': 'members.view_approval_excursion',
+    }
+
+    field_change_permissions = {
+        'approved': 'members.manage_approval_excursion',
+        'approval_comments': 'members.manage_approval_excursion',
+    }
 
     def get_inlines(self, request, obj=None):
         if obj:

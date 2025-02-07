@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-06 00:32+0100\n"
+"POT-Creation-Date: 2025-02-08 00:12+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -339,11 +339,11 @@ msgstr "Übersicht erstellen"
 msgid "Invoice"
 msgstr "Beleg"
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid "Excursion not found."
 msgstr "Ausfahrt nicht gefunden."
 
-#: members/admin.py
+#: members/admin.py members/tests.py
 msgid ""
 "This excursion does not have a LJP proposal. Please add one and try again."
 msgstr ""
@@ -360,6 +360,19 @@ msgstr ""
 "Fahrstrecke in km)."
 
 #: members/admin.py
+msgid "Approval"
+msgstr "Genehmigung"
+
+#: members/admin.py
+msgid ""
+"Information on the approval status of this excursion. Everything here is not "
+"editable by standard users."
+msgstr ""
+"Informationen zum Genehmigungszustand der Ausfahrt. Die Felder hier sind "
+"nicht sichtbar für Standardbenutzer*innen, nur der Genehmigungszustand wird "
+"in der Übersicht alle Ausfahrten angezeigt."
+
+#: members/admin.py members/tests.py
 #, python-format
 msgid "You are not allowed to view all members on excursion %(name)s."
 msgstr ""
@@ -885,6 +898,22 @@ msgstr "mittel"
 msgid "hard"
 msgstr "schwer"
 
+#: members/models.py
+msgid "Approved"
+msgstr "Genehmigt"
+
+#: members/models.py
+msgid ""
+"Choose no in case of rejection or yes in case of approval. Leave empty, if "
+"not yet decided."
+msgstr ""
+"Wähle Ja bei Genehmigung, Nein bei Ablehung und Unbekannt, falls noch keine "
+"Entscheidung getroffen wurde."
+
+#: members/models.py
+msgid "Approval comments"
+msgstr "Kommentare oder Auflagen zur Genehmigung"
+
 #: members/models.py members/templates/admin/freizeit_finance_overview.html
 msgid "Excursion"
 msgstr "Ausfahrt"
@@ -1401,7 +1430,7 @@ msgstr ""
 "notwendig. Aus den Informationen, die du in der Ausfahrt angegeben hast, "
 "kann automatisch ein solcher Antrag erstellt werden."
 
-#: members/templates/admin/generate_seminar_report.html
+#: members/templates/admin/generate_seminar_report.html members/tests.py
 msgid "A seminar report consists of multiple components:"
 msgstr "Ein LJP Antrag besteht aus verschiedenen Komponenten:"
 
@@ -1980,25 +2009,6 @@ msgstr ""
 "Dein Platz wurde bestätigt."
 
 #: members/tests.py
-msgid "You may also choose to include the V32 attachment."
-msgstr ""
-"Ein LJP Antrag benötigt immer ein Formblatt (in unserem Fall V32-1 "
-"Themenorientierte Bildungsmaßnahmen). Dieses kannst du automatisch "
-"vorausfüllen lassen und dem Antrag hinzufügen. Bitte fülle die verbleibenden "
-"Felder im Formblatt selbst aus und unterschreibe das PDF."
-
-#: members/tests.py
-msgid "Please select a mode."
-msgstr "Bitte wähle einen Modus aus."
-
-#: members/tests.py
-msgid ""
-"Full mode is only available, if the seminar report section is filled out."
-msgstr ""
-"Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
-"ausgefüllt ist. "
-
-#: members/tests.py
 msgid "This field is required."
 msgstr ""
 
@@ -2039,6 +2049,22 @@ msgstr "Optionale zusätzliche E-Mailadresse"
 #: members/views.py
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
+
+#~ msgid "You may also choose to include the V32 attachment."
+#~ msgstr ""
+#~ "Ein LJP Antrag benötigt immer ein Formblatt (in unserem Fall V32-1 "
+#~ "Themenorientierte Bildungsmaßnahmen). Dieses kannst du automatisch "
+#~ "vorausfüllen lassen und dem Antrag hinzufügen. Bitte fülle die "
+#~ "verbleibenden Felder im Formblatt selbst aus und unterschreibe das PDF."
+
+#~ msgid "Please select a mode."
+#~ msgstr "Bitte wähle einen Modus aus."
+
+#~ msgid ""
+#~ "Full mode is only available, if the seminar report section is filled out."
+#~ msgstr ""
+#~ "Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
+#~ "ausgefüllt ist. "
 
 #~ msgid "Generate LJP V-BK form"
 #~ msgstr "Erzeuge LJP V-BK Formular"

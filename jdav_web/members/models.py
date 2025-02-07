@@ -1091,6 +1091,14 @@ class Freizeit(CommonModel):
     difficulty = models.IntegerField(choices=difficulty_choices)
     membersonlist = GenericRelation(NewMemberOnList)
 
+    # approval: None means no decision taken, False means rejected
+    approved = models.BooleanField(verbose_name=_('Approved'),
+                                   null=True,
+                                   default=None,
+                                   help_text=_('Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided.'))
+    approval_comments = models.TextField(verbose_name=_('Approval comments'),
+                                         blank=True, default='')
+
     def __str__(self):
         """String represenation"""
         return self.name
@@ -1098,6 +1106,10 @@ class Freizeit(CommonModel):
     class Meta(CommonModel.Meta):
         verbose_name = _('Excursion')
         verbose_name_plural = _('Excursions')
+        permissions = (
+            ('manage_approval_excursion', 'Can edit the approval status of excursions.'),
+            ('view_approval_excursion', 'Can view the approval status of excursions.'),
+        )
         rules_permissions = {
             'add_obj': has_global_perm('members.add_global_freizeit'),
             'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
