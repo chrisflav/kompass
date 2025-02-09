@@ -35,8 +35,8 @@ html_static_path = ['_static']
 # -- Sphinxawsome-theme options ------------------------------------------------
 # https://sphinxawesome.xyz/how-to/configure/
 
-html_logo = "_static/favicon2.png"
-html_favicon  = "_static/favicon2.png"
+html_logo = "_static/favicon.png"
+html_favicon  = "_static/favicon.png"
 
 html_sidebars = {
   "about": ["sidebar_main_nav_links.html"],
