@@ -1323,6 +1323,7 @@ class Freizeit(CommonModel):
                 'bis 27 nicht aus HD': str(total_b27_non_local),
                 'Verpflegungstage': str(self.duration * self.participant_count).replace('.', ','),
                 'Betreuer/in': str(len(jls)),
+                'Auswahl Veranstaltung': 'Auswahl2',
                 'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
         print(members)
         for i, m in enumerate(members):
@@ -1330,12 +1331,12 @@ class Freizeit(CommonModel):
             # indexing starts at zero, but the listing in the pdf starts at 1
             if i + 1 == 1:
                 suffix = ''
-            elif i + 1 == 12:
-                suffix = '12'
+            elif i + 1 >= 13:
+                suffix = str(i + 1)
             base['Vor- und Nachname' + suffix] = m.name
             base['Anschrift' + suffix] = m.address
             base['Alter' + suffix] = str(m.age())
-            base['Status' + suffix] = str(2)
+            base['Status' + str(i+1)] = '2' if m in jls else 'Auswahl1' if settings.SEKTION in m.address else 'Auswahl2'
         return base
 
     def v32_fields(self):
