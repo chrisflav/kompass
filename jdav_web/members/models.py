@@ -1117,6 +1117,10 @@ class Freizeit(CommonModel):
             'delete_obj': is_leader | has_global_perm('members.delete_global_freizeit'),
         }
 
+    @property
+    def code(self):
+        return f"B{self.date:%y}-{self.pk}"
+
     def get_tour_type(self):
         if self.tour_type == FUEHRUNGS_TOUR:
             return "Führungstour"

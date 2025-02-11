@@ -1033,7 +1033,7 @@ class MemberNoteListAdmin(admin.ModelAdmin):
         if not self.may_view_notelist(request, memberlist):
             return self.not_allowed_view(request, memberlist)
         context = dict(memberlist=memberlist, settings=settings)
-        return render_tex(memberlist.title + "_Zusammenfassung", 'members/notelist_summary.tex', context)
+        return render_tex(f"{memberlist.title}_Zusammenfassung", 'members/notelist_summary.tex', context)
     summary.short_description = _('Generate PDF summary')
 
 
@@ -1126,7 +1126,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
         context = dict(memberlist=memberlist, settings=settings)
-        return render_tex(memberlist.name + "_Krisenliste", 'members/crisis_intervention_list.tex', context)
+        return render_tex(f"{memberlist.code}_{memberlist.name}_Krisenliste", 'members/crisis_intervention_list.tex', context)
     crisis_intervention_list.short_description = _('Generate crisis intervention list')
 
     def notes_list(self, request, memberlist):
@@ -1134,7 +1134,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             return self.not_allowed_view(request, memberlist)
         people, skills = memberlist.skill_summary
         context = dict(memberlist=memberlist, people=people, skills=skills, settings=settings)
-        return render_tex(memberlist.name + "_Notizen", 'members/notes_list.tex', context)
+        return render_tex(f"{memberlist.code}_{memberlist.name}_Notizen", 'members/notes_list.tex', context)
     notes_list.short_description = _('Generate overview')
 
     @decorate_download
@@ -1146,13 +1146,13 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     def download_seminar_report_docx(self, request, memberlist):
         title = memberlist.ljpproposal.title
         context = dict(memberlist=memberlist, settings=settings)
-        return render_docx(title + '_Seminarbericht', 'members/seminar_report_docx.tex', context)
+        return render_docx(f"{memberlist.code}_{title}_Seminarbericht", 'members/seminar_report_docx.tex', context)
 
     @decorate_download
     def download_seminar_report_costs_and_participants(self, request, memberlist):
         title = memberlist.ljpproposal.title
         context = dict(memberlist=memberlist, settings=settings)
-        return render_tex(title + '_Seminarbericht', 'members/seminar_report.tex', context)
+        return render_tex(f"{memberlist.code}_{title}_TN_Kosten", 'members/seminar_report.tex', context)
 
     def seminar_report(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
@@ -1199,7 +1199,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             context = memberlist.sjr_application_fields()
             title = memberlist.ljpproposal.title if hasattr(memberlist, 'ljpproposal') else memberlist.name
 
-            return fill_pdf_form(title + "_SJR_Antrag", 'members/sjr_template.pdf', context, selected_attachments)
+            return fill_pdf_form(f"{memberlist.code}_{title}_SJR_Antrag", 'members/sjr_template.pdf', context, selected_attachments)
 
         return self.render_sjr_options(request, memberlist, GenerateSjrForm(attachments=attachments))
 

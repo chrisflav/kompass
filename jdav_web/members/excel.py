@@ -111,7 +111,7 @@ def generate_ljp_vbk(excursion):
     sheet['B6'] = settings.SEKTION_TOWN
     sheet['B7'] = settings.RESPONSIBLE_MAIL
     sheet['B36'] = f"{settings.SEKTION}, {datetime.today():%d.%m.%Y}"
-    sheet['F19'] = f"B {excursion.date:%y}-{excursion.pk}"
+    sheet['F19'] = excursion.code
     sheet['C19'] = LJP_GOALS[excursion.ljpproposal.goal] if excursion.ljpproposal.goal in LJP_GOALS else ""
     sheet['D19'] = settings.SEKTION
     sheet['G19'] = title
@@ -126,6 +126,6 @@ def generate_ljp_vbk(excursion):
     if hasattr(excursion, 'statement'):
         sheet['Q19'] = f"{excursion.statement.total_theoretic}"
 
-    filename = f"LJP_V-BK_3.{excursion.ljpproposal.category}_{title}.xlsx"
+    filename = f"{excursion.code}_{title}_LJP_V-BK_3.{excursion.ljpproposal.category}.xlsx"
     workbook.save(media_path(filename))
     return filename
