@@ -581,6 +581,31 @@ class FreizeitTestCase(BasicMemberTestCase):
                                           tour_approach=MUSKELKRAFT_ANREISE,
                                           difficulty=1)
 
+    def _setup_test_sjr_application_numbers(self, n_yl, n_b27_local, n_b27_non_local):
+        for i in range(n_yl):
+            m = Member.objects.create(prename='Peter {}'.format(i),
+                                      lastname='Wulter',
+                                      birth_date=datetime.datetime.today() - relativedelta(years=50),
+                                      email=settings.TEST_MAIL,
+                                      gender=FEMALE)
+            self.ex.jugendleiter.add(m)
+            NewMemberOnList.objects.create(member=m, comments='a', memberlist=self.ex)
+        for i in range(n_b27_local):
+            m = Member.objects.create(prename='Lise {}'.format(i),
+                                      lastname='Walter',
+                                      birth_date=datetime.datetime.today() - relativedelta(years=10),
+                                      town=settings.SEKTION,
+                                      email=settings.TEST_MAIL,
+                                      gender=FEMALE)
+            NewMemberOnList.objects.create(member=m, comments='a', memberlist=self.ex)
+        for i in range(n_b27_non_local):
+            m = Member.objects.create(prename='Lise {}'.format(i),
+                                      lastname='Walter',
+                                      birth_date=datetime.datetime.today() - relativedelta(years=10),
+                                      email=settings.TEST_MAIL,
+                                      gender=FEMALE)
+            NewMemberOnList.objects.create(member=m, comments='a', memberlist=self.ex)
+
     def _setup_test_ljp_participant_count(self, n_yl, n_correct_age, n_too_old):
         for i in range(n_yl):
             # a 50 years old
@@ -647,6 +672,26 @@ class FreizeitTestCase(BasicMemberTestCase):
     def test_ljp_participant_count(self):
         self._test_ljp_participant_count_proportion(2, 1, 1)
         self._test_ljp_participant_count_proportion(2, 5, 1)
+
+    def _test_sjr_application_numbers(self, n_yl, n_b27_local, n_b27_non_local):
+        self._setup_test_sjr_application_numbers(n_yl, n_b27_local, n_b27_non_local)
+        numbers = self.ex.sjr_application_numbers()
+
+        self.assertEqual(numbers['b27_local'], n_b27_local)
+        self.assertEqual(numbers['b27_non_local'], n_b27_non_local)
+        self.assertEqual(numbers['staff'], n_yl)
+        self.assertLessEqual(numbers['relevant_b27'], n_b27_local + n_b27_non_local)
+        self.assertLessEqual(numbers['relevant_b27'] - n_b27_local, 1/3 * numbers['relevant_b27'])
+        self.assertLessEqual(numbers['subsidizable'] - numbers['relevant_b27'], n_yl)
+        self.assertLessEqual(numbers['subsidizable'] - numbers['relevant_b27'], numbers['relevant_b27'] / 7 + 1)
+
+        # cleanup
+        self._cleanup_excursion()
+
+    def test_sjr_application_numbers(self):
+        self._test_sjr_application_numbers(0, 10, 0)
+        for i in range(10):
+            self._test_sjr_application_numbers(10, 10 - i, i)
 
 
 class PDFActionMixin:

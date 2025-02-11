@@ -1303,26 +1303,46 @@ class Freizeit(CommonModel):
             sks.append(dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max))
         return (people, sks)
 
+    def sjr_application_numbers(self):
+        members = set(map(lambda x: x.member, self.membersonlist.distinct()))
+        jls = set(self.jugendleiter.distinct())
+        participants = members - jls
+        b27_local = len([m for m in participants
+                         if m.age() <= 27 and settings.SEKTION in m.town])
+        b27_non_local = len([m for m in participants
+                             if m.age() <= 27 and not settings.SEKTION in m.town])
+        staff = len(jls)
+        total = b27_local + b27_non_local + len(jls)
+        relevant_b27 = min(b27_local + b27_non_local, math.floor(3/2 * b27_local))
+        subsidizable = relevant_b27 + min(math.ceil(relevant_b27 / 7), staff)
+        duration = self.night_count + 1
+        return {
+            'b27_local': b27_local,
+            'b27_non_local': b27_non_local,
+            'staff': staff,
+            'total': total,
+            'relevant_b27': relevant_b27,
+            'subsidizable': subsidizable,
+            'subsidized_days': duration * subsidizable,
+            'duration': duration
+        }
+
     def sjr_application_fields(self):
         members = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        total = len(members)
-        total_b27_local = len([m for m in members
-                               if m.age() <= 27 and settings.SEKTION in m.town])
-        total_b27_non_local = len([m for m in members
-                                   if m.age() <= 27 and not settings.SEKTION in m.town])
-        jls = self.jugendleiter.distinct()
+        jls = set(self.jugendleiter.distinct())
+        numbers = self.sjr_application_numbers()
         title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
         base = {'Haushaltsjahr': str(datetime.now().year),
                 'Art / Thema / Titel': title,
                 'Ort': self.place,
                 'Datum von': self.date.strftime('%d.%m.%Y'),
                 'Datum bis': self.end.strftime('%d.%m.%Y'),
-                'Dauer': str(self.duration).replace('.', ','),
-                'Teilnehmenden gesamt': str(total),
-                'bis 27 aus HD': str(total_b27_local),
-                'bis 27 nicht aus HD': str(total_b27_non_local),
-                'Verpflegungstage': str(self.duration * self.participant_count).replace('.', ','),
-                'Betreuer/in': str(len(jls)),
+                'Dauer': str(numbers['duration']),
+                'Teilnehmenden gesamt': str(numbers['total']),
+                'bis 27 aus HD': str(numbers['b27_local']),
+                'bis 27 nicht aus HD': str(numbers['b27_non_local']),
+                'Verpflegungstage': str(numbers['subsidized_days']).replace('.', ','),
+                'Betreuer/in': str(numbers['staff']),
                 'Auswahl Veranstaltung': 'Auswahl2',
                 'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
         print(members)
