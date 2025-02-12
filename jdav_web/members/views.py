@@ -1,6 +1,6 @@
 from startpage.views import render
 from django.utils.translation import gettext_lazy as _
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, Http404
 from django import forms
 from django.forms import ModelForm, TextInput, DateInput, BaseInlineFormSet,\
     inlineformset_factory, HiddenInput, FileInput
@@ -512,3 +512,32 @@ def render_waiting_confirmation_invalid(request, prename=None, expired=False):
 def render_waiting_confirmation_success(request, prename, already_confirmed):
     return render(request, 'members/waiting_confirmation_success.html',
                   {'prename': prename, 'already_confirmed': already_confirmed})
+
+
+def render_leave_waitinglist(request, waiter):
+    return render(request, 'members/leave_waitinglist.html', dict(waiter=waiter))
+
+
+def render_leave_waitinglist_success(request, waiter):
+    return render(request, 'members/leave_waitinglist_success.html', dict(waiter=waiter))
+
+
+def leave_waitinglist(request):
+    if request.method == 'GET' and 'key' in request.GET:
+        key = request.GET['key']
+        try:
+            waiter = MemberWaitingList.objects.get(leave_key=key)
+            return render_leave_waitinglist(request, waiter)
+        except (MemberWaitingList.DoesNotExist, MemberWaitingList.MultipleObjectsReturned):
+            raise Http404("Waiter with given leave key does not exist.")
+    if request.method != 'POST' or 'key' not in request.POST:
+        raise Http404("Waiter with given leave key does not exist.")
+    key = request.POST['key']
+    try:
+        waiter = MemberWaitingList.objects.get(leave_key=key)
+    except (MemberWaitingList.DoesNotExist, MemberWaitingList.MultipleObjectsReturned):
+        raise Http404("Waiter with given leave key does not exist.")
+    if not 'leave_waitinglist' in request.POST:
+        raise Http404("leave_waitinglist not found in POST data.")
+    waiter.unregister()
+    return render_leave_waitinglist_success(request, waiter)

@@ -81,6 +81,10 @@ def get_wait_confirmation_link(waiter):
     return prepend_base_url("/members/waitinglist/confirm?key={}".format(key))
 
 
+def get_leave_waitinglist_link(key):
+    return prepend_base_url("/members/waitinglist/leave?key={}".format(key))
+
+
 def get_mail_confirmation_link(key):
     return prepend_base_url("/members/mail/confirm?key={}".format(key))
 

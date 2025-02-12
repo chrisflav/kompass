@@ -1,0 +1,19 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Left waitinglist" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Left waitinglist" %}</h1>
+
+<p>
+{% blocktrans %}You successfully unregistered from the waitinglist. If you want to rejoin the waitinglist
+at a later time, please do so on our website.
+{% endblocktrans %}
+</p>
+
+{% endblock %}

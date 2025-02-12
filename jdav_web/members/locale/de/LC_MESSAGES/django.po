@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-08 00:12+0100\n"
+"POT-Creation-Date: 2025-02-11 23:51+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1713,6 +1713,38 @@ msgstr "Registrierung fehlgeschlagen"
 msgid "Registration"
 msgstr "Registrierung"
 
+#: members/templates/members/leave_waitinglist.html
+msgid "Leave waitinglist"
+msgstr "Warteliste verlassen"
+
+#: members/templates/members/leave_waitinglist.html
+msgid ""
+"Are you sure you want to leave the waitinglist? This can't be undone and\n"
+"you need to requeue if you change your mind later."
+msgstr ""
+"Bist du sicher, dass du die Warteliste verlassen möchtest? Dies kann nicht "
+"rückgängig gemacht werden. Falls du später wieder der Warteliste beitreten möchtest, "
+"musst du dich neu registrieren."
+
+#: members/templates/members/leave_waitinglist.html
+msgid "Yes, leave the waitinglist"
+msgstr "Ja, Warteliste verlassen"
+
+#: members/templates/members/leave_waitinglist_success.html
+msgid "Left waitinglist"
+msgstr "Warteliste verlassen"
+
+#: members/templates/members/leave_waitinglist_success.html
+#: members/templates/members/reject_success.html
+msgid ""
+"You successfully unregistered from the waitinglist. If you want to rejoin "
+"the waitinglist\n"
+"at a later time, please do so on our website.\n"
+msgstr ""
+"Du hast dich erfolgreich von der Warteliste abgemeldet. Falls du dich zu "
+"einem späteren Zeitpunkt wieder auf die Warteliste setzen lassen möchtest "
+"kannst du das auf unserer Webseite machen.\n"
+
 #: members/templates/members/mail_confirmation_invalid.html members/tests.py
 msgid "Mail confirmation failed"
 msgstr "Emailbestätigung fehlgeschlagen"
@@ -1907,16 +1939,6 @@ msgstr "Diese Einladung ablehnen und auf der Warteliste bleiben"
 #: members/templates/members/reject_invitation.html
 msgid "Leave the waitinglist"
 msgstr "Warteliste verlassen"
-
-#: members/templates/members/reject_success.html
-msgid ""
-"You successfully unregistered from the waitinglist. If you want to rejoin "
-"the waitinglist\n"
-"at a later time, please do so on our website.\n"
-msgstr ""
-"Du hast dich erfolgreich von der Warteliste abgemeldet. Falls du dich zu "
-"einem späteren Zeitpunkt wieder auf die Warteliste setzen lassen möchtest "
-"kannst du das auf unserer Webseite machen.\n"
 
 #: members/templates/members/reject_success.html
 #, python-format

@@ -77,6 +77,10 @@ Wenn du weiterhin auf der Warteliste bleiben möchtest, klicke auf den folgenden
 
 {link}
 
+Falls du kein Interesse mehr hast, kannst du unter folgendem Link die Warteliste verlassen:
+
+{leave_link}
+
 Das ist Erinnerung Nummer {reminder} von {max_reminder_count}. Nach Erinnerung Nummer {max_reminder_count} wirst
 du automatisch entfernt.
 

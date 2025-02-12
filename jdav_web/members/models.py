@@ -18,7 +18,7 @@ from utils import RestrictedFileField
 import os
 from mailer.mailutils import send as send_mail, get_mail_confirmation_link,\
     prepend_base_url, get_registration_link, get_wait_confirmation_link,\
-    get_invitation_reject_link, get_invite_as_user_key
+    get_invitation_reject_link, get_invite_as_user_key, get_leave_waitinglist_link
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -894,6 +894,8 @@ class MemberWaitingList(Person):
     wait_confirmation_key = models.CharField(max_length=32, default="")
     wait_confirmation_key_expire = models.DateTimeField(default=timezone.now)
 
+    leave_key = models.CharField(max_length=32, default="")
+
     last_reminder = models.DateTimeField(auto_now=True, verbose_name=_('Last reminder'))
     sent_reminders = models.IntegerField(default=0, verbose_name=_('Missed reminders'))
 
@@ -940,10 +942,12 @@ class MemberWaitingList(Person):
         """Sends an email to the person asking them to confirm their intention to wait."""
         self.last_reminder = datetime.now()
         self.sent_reminders += 1
+        self.leave_key = gen_key()
         self.save()
         self.send_mail(_('Waiting confirmation needed'),
                        settings.WAIT_CONFIRMATION_TEXT.format(name=self.prename,
                                                               link=get_wait_confirmation_link(self),
+                                                              leave_link=get_leave_waitinglist_link(self.leave_key),
                                                               reminder=self.sent_reminders,
                                                               max_reminder_count=settings.MAX_REMINDER_COUNT))
 
@@ -957,6 +961,7 @@ class MemberWaitingList(Person):
             self.last_wait_confirmation = timezone.now()
             self.wait_confirmation_key_expire = timezone.now()
             self.sent_reminders = 0
+            self.leave_key = ''
             self.save()
             return self.WAITING_CONFIRMATION_SUCCESS
 

@@ -1470,6 +1470,8 @@ class ConfirmWaitingViewTestCase(BasicMemberTestCase):
         response = self.client.get(url, data={'key': self.key, 'foo': 'bar'})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('Waiting confirmed'))
+        waiter = MemberWaitingList.objects.get(pk=self.waiter.pk)
+        self.assertEqual(waiter.leave_key, '')
 
     @skip("This currently fails, because `last_wait_confirmation` has `auto_now=True`, which is wrong.")
     def test_get_expired(self):
@@ -1485,6 +1487,34 @@ class ConfirmWaitingViewTestCase(BasicMemberTestCase):
         response = self.client.get(url, data={'key': self.key})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('rejoin the waiting list'))
+
+    def test_get_leave(self):
+        url = reverse('members:leave_waitinglist')
+        response = self.client.get(url, data={'key': self.waiter.leave_key})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Leave waitinglist'))
+
+        # modify the POST data, otherwise the request is cached
+        response = self.client.post(url, data={'key': self.waiter.leave_key,
+                                               'leave_waitinglist': 'bar'})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Left waitinglist'))
+        self.assertRaises(MemberWaitingList.DoesNotExist, MemberWaitingList.objects.get, pk=self.waiter.pk)
+
+    def test_leave_invalid(self):
+        url = reverse('members:leave_waitinglist')
+        # get, wrong key
+        response = self.client.get(url, data={'key': 'foobar'})
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        # post, wrong key
+        response = self.client.post(url, data={'key': 'foobar'})
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        # post, no key
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+        # post, no sanity flag
+        response = self.client.post(url, data={'key': self.waiter.leave_key})
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
 
 class MailConfirmationViewTestCase(BasicMemberTestCase):
