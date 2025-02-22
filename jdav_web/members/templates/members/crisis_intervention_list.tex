@@ -90,8 +90,8 @@
     {{ m.member.address|esc_all }} &
     {{ m.member.contact_phone_number|esc_all }} &
     {% for c in m.member.emergencycontact_set.all %}
-        {{ c.name }} \newline
-        Tel.: {{ c.phone_number }}
+        {{ c.name|esc_all }} \newline
+        Tel.: {{ c.phone_number|esc_all }}
     {% endfor %} \\
 {% endfor %}
 \bottomrule
