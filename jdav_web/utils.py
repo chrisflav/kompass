@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, ROUND_HALF_DOWN
+import unicodedata
 
 
 def file_size_validator(max_upload_size):
@@ -60,3 +61,11 @@ def get_member(request):
         return None
     else:
         return request.user.member
+
+
+def normalize_name(raw, nospaces=True):
+    if nospaces:
+        noumlaut = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue').replace(' ', '_')
+    else:
+        noumlaut = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
+    return unicodedata.normalize('NFKD', noumlaut).encode('ascii', 'ignore').decode('ascii')

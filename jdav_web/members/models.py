@@ -14,7 +14,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
-from utils import RestrictedFileField
+from utils import RestrictedFileField, normalize_name
 import os
 from mailer.mailutils import send as send_mail, get_mail_confirmation_link,\
     prepend_base_url, get_registration_link, get_wait_confirmation_link,\
@@ -2012,8 +2012,3 @@ def import_from_csv_waitinglist(path):
 
     for row in rows:
         transform_row(row)
-
-
-def normalize_name(raw):
-    noumlaut = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue').replace(' ', '_')
-    return unicodedata.normalize('NFKD', noumlaut).encode('ascii', 'ignore').decode('ascii')
