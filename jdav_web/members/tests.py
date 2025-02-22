@@ -1473,7 +1473,6 @@ class ConfirmWaitingViewTestCase(BasicMemberTestCase):
         waiter = MemberWaitingList.objects.get(pk=self.waiter.pk)
         self.assertEqual(waiter.leave_key, '')
 
-    @skip("This currently fails, because `last_wait_confirmation` has `auto_now=True`, which is wrong.")
     def test_get_expired(self):
         self.waiter.last_wait_confirmation = datetime.date(1900, 1, 1)
         self.waiter.save()

@@ -312,7 +312,7 @@ class Member(Person):
                                           default=True)
     unsubscribe_key = models.CharField(max_length=32, default="")
     unsubscribe_expire = models.DateTimeField(default=timezone.now)
-    created = models.DateField(auto_now=True, verbose_name=_('created'))
+    created = models.DateField(default=timezone.now, verbose_name=_('created'))
     active = models.BooleanField(default=True, verbose_name=_('Active'))
     registration_form = RestrictedFileField(verbose_name=_('registration form'),
                                             upload_to='registration_forms',
@@ -858,7 +858,7 @@ class InvitationToGroup(models.Model):
     """An invitation of a waiter to a group."""
     waiter = models.ForeignKey('MemberWaitingList', verbose_name=_('Waiter'), on_delete=models.CASCADE)
     group = models.ForeignKey(Group, verbose_name=_('Group'), on_delete=models.CASCADE)
-    date = models.DateField(auto_now=True, verbose_name=_('Invitation date'))
+    date = models.DateField(default=timezone.now, verbose_name=_('Invitation date'))
     rejected = models.BooleanField(verbose_name=_('Invitation rejected'), default=False)
     key = models.CharField(max_length=32, default=gen_key)
 
@@ -890,13 +890,13 @@ class MemberWaitingList(Person):
     application_text = models.TextField(_('Do you want to tell us something else?'), default='', blank=True)
     application_date = models.DateTimeField(verbose_name=_('application date'), default=timezone.now)
 
-    last_wait_confirmation = models.DateField(auto_now=True, verbose_name=_('Last wait confirmation'))
+    last_wait_confirmation = models.DateField(default=timezone.now, verbose_name=_('Last wait confirmation'))
     wait_confirmation_key = models.CharField(max_length=32, default="")
     wait_confirmation_key_expire = models.DateTimeField(default=timezone.now)
 
     leave_key = models.CharField(max_length=32, default="")
 
-    last_reminder = models.DateTimeField(auto_now=True, verbose_name=_('Last reminder'))
+    last_reminder = models.DateTimeField(default=timezone.now, verbose_name=_('Last reminder'))
     sent_reminders = models.IntegerField(default=0, verbose_name=_('Missed reminders'))
 
     registration_key = models.CharField(max_length=32, default="")
@@ -940,7 +940,7 @@ class MemberWaitingList(Person):
 
     def ask_for_wait_confirmation(self):
         """Sends an email to the person asking them to confirm their intention to wait."""
-        self.last_reminder = datetime.now()
+        self.last_reminder = timezone.now()
         self.sent_reminders += 1
         self.leave_key = gen_key()
         self.save()
