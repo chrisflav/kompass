@@ -30,7 +30,9 @@ def serve_media(filename, content_type):
     with open(media_path(filename), 'rb') as f:
         response = HttpResponse(FileWrapper(f))
         response['Content-Type'] = content_type
-        response['Content-Disposition'] = 'attachment; filename='+filename
+        # download other files than pdf, show pdfs in the browser
+        response['Content-Disposition'] = 'filename='+filename if content_type == 'application/pdf' else 'attachment; filename='+filename
+        
 
     return response
 

@@ -4,7 +4,7 @@
 {% block object-tools-items %}
 
 <li>
-    <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}">
+    <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}" target="_blank">
         {% csrf_token %}
         <input type="submit" name="crisis_intervention_list" value="{% trans 'Generate crisis intervention list' %}">
     </form>
@@ -25,7 +25,7 @@
 </li>
 
 <li>
-    <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}">
+    <form method="post" action="{% url 'admin:members_freizeit_action' original.pk %}" target="_blank">
         {% csrf_token %}
         <input type="submit" name="notes_list" value="{% trans 'Generate overview' %}">
     </form>
