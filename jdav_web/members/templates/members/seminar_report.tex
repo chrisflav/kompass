@@ -72,7 +72,7 @@
 % DESCRIPTION TABLE
 \begin{table}[H]
     \begin{tabular}{ll}
-        \large Kursname: & {% if not memberlist.ljpproposal %}{{ memberlist.name|esc_all }}{% else %}{{ memberlist.ljpproposal.title }} {% endif %} \\
+        \large Kursname: & {% if not memberlist.ljpproposal %}{{ memberlist.name|esc_all }}{% else %}{{ memberlist.ljpproposal.title|esc_all }} {% endif %} \\
         \large Ordnungsnummer & {{ memberlist.code|esc_all }} \\
         \large Gruppe: & {{ memberlist.groups_str|esc_all }} \\
         \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }} \\
