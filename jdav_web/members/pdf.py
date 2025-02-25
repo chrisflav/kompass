@@ -12,6 +12,7 @@ from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from wsgiref.util import FileWrapper
 from contrib.media import media_path, media_dir, serve_media, ensure_media_dir, find_template
+from utils import normalize_filename
 from PIL import Image
 
 
@@ -20,10 +21,7 @@ def serve_pdf(filename_pdf):
 
 
 def generate_tex(name, template_path, context):
-    filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
-    filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
-    # drop umlauts, accents etc.
-    filename = unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
+    filename = normalize_filename(name)
     filename_tex = filename + '.tex'
 
     tmpl = get_template(template_path)
@@ -76,10 +74,7 @@ def render_tex(name, template_path, context, save_only=False):
 
 
 def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
-    filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
-    filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
-    # drop umlauts, accents etc.
-    filename = unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
+    filename = normalize_filename(name)
     filename_pdf = filename + '.pdf'
 
     path = find_template(template_path)
@@ -122,9 +117,7 @@ def merge_pdfs(name, filenames, save_only=False):
     for pdf in filenames:
         merger.append(media_path(pdf))
 
-    filename = name + "_" + datetime.today().strftime("%d_%m_%Y")
-    filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
-    filename = unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
+    filename = normalize_filename(name)
     filename_pdf = filename + ".pdf"
     merger.write(media_path(filename_pdf))
     merger.close()

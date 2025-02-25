@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
@@ -69,3 +70,11 @@ def normalize_name(raw, nospaces=True, noumlaut=True):
     if nospaces:
         raw = raw.replace(' ', '_')
     return unicodedata.normalize('NFKD', raw).encode('ascii', 'ignore').decode('ascii')
+
+
+def normalize_filename(filename, append_date=True):
+    if append_date:
+        filename = filename + "_" + datetime.today().strftime("%d_%m_%Y")
+    filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
+    # drop umlauts, accents etc.
+    return unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()

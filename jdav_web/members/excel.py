@@ -4,6 +4,7 @@ import xlsxwriter
 import openpyxl
 from django.conf import settings
 from contrib.media import media_path, find_template
+from utils import normalize_filename
 from .models import WEEKDAYS, LJPProposal
 
 def generate_group_overview(all_groups, limit_to_public = True):
@@ -126,6 +127,7 @@ def generate_ljp_vbk(excursion):
     if hasattr(excursion, 'statement'):
         sheet['Q19'] = f"{excursion.statement.total_theoretic}"
 
-    filename = f"{excursion.code}_{title}_LJP_V-BK_3.{excursion.ljpproposal.category}.xlsx"
+    name = normalize_filename(f"{excursion.code}_{title}_LJP_V-BK_3.{excursion.ljpproposal.category}")
+    filename = name + ".xlsx"
     workbook.save(media_path(filename))
     return filename
