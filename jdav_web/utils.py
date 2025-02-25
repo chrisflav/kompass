@@ -63,9 +63,9 @@ def get_member(request):
         return request.user.member
 
 
-def normalize_name(raw, nospaces=True):
+def normalize_name(raw, nospaces=True, noumlaut=True):
+    if noumlaut:
+        raw = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
     if nospaces:
-        noumlaut = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue').replace(' ', '_')
-    else:
-        noumlaut = raw.replace('ö', 'oe').replace('ä', 'ae').replace('ü', 'ue')
-    return unicodedata.normalize('NFKD', noumlaut).encode('ascii', 'ignore').decode('ascii')
+        raw = raw.replace(' ', '_')
+    return unicodedata.normalize('NFKD', raw).encode('ascii', 'ignore').decode('ascii')

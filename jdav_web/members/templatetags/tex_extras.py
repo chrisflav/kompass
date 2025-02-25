@@ -13,7 +13,7 @@ def checked_if_true(name, value):
 
 @register.filter
 def esc_all(val):
-    return mark_safe(str(normalize_name(val, False)).replace('_', '\\_').replace('&', '\\&'))
+    return mark_safe(str(normalize_name(str(val), False, False)).replace('_', '\\_').replace('&', '\\&'))
 
 
 @register.filter

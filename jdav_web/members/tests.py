@@ -207,6 +207,11 @@ class MemberTestCase(BasicMemberTestCase):
         response = c.get('/de' + url)
         self.assertEqual(response.status_code, 200, 'Members registration forms should be visible after staff login.')
 
+    def test_suggested_username(self):
+        self.fritz.prename = 'Päter'
+        self.fritz.lastname = 'Püt er'
+        self.assertEqual(self.fritz.suggested_username(), 'paeter.puet_er')
+
 
 class PDFTestCase(TestCase):
     def setUp(self):
