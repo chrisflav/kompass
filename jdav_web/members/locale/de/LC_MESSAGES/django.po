@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-11 23:51+0100\n"
+"POT-Creation-Date: 2025-02-24 23:22+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1139,6 +1139,10 @@ msgid "Passed"
 msgstr "Bestanden"
 
 #: members/models.py
+msgid "certificate of attendance"
+msgstr "Teilnahmebestätigung"
+
+#: members/models.py
 msgid "Training"
 msgstr "Fortbildung"
 
@@ -1713,7 +1717,7 @@ msgstr "Registrierung fehlgeschlagen"
 msgid "Registration"
 msgstr "Registrierung"
 
-#: members/templates/members/leave_waitinglist.html
+#: members/templates/members/leave_waitinglist.html members/tests.py
 msgid "Leave waitinglist"
 msgstr "Warteliste verlassen"
 
@@ -1723,14 +1727,14 @@ msgid ""
 "you need to requeue if you change your mind later."
 msgstr ""
 "Bist du sicher, dass du die Warteliste verlassen möchtest? Dies kann nicht "
-"rückgängig gemacht werden. Falls du später wieder der Warteliste beitreten möchtest, "
-"musst du dich neu registrieren."
+"rückgängig gemacht werden. Falls du später wieder der Warteliste beitreten "
+"möchtest, musst du dich neu registrieren."
 
 #: members/templates/members/leave_waitinglist.html
 msgid "Yes, leave the waitinglist"
 msgstr "Ja, Warteliste verlassen"
 
-#: members/templates/members/leave_waitinglist_success.html
+#: members/templates/members/leave_waitinglist_success.html members/tests.py
 msgid "Left waitinglist"
 msgstr "Warteliste verlassen"
 

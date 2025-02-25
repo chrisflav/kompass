@@ -1785,7 +1785,15 @@ class MemberTraining(CommonModel):
     comments = models.TextField(verbose_name=_('Comments'), blank=True)
     participated = models.BooleanField(verbose_name=_('Participated'))
     passed = models.BooleanField(verbose_name=_('Passed'))
-
+    certificate = RestrictedFileField(verbose_name=_('certificate of attendance'),
+                                      upload_to='training_forms',
+                                      blank=True,
+                                      max_upload_size=5,
+                                      content_types=['application/pdf',
+                                                      'image/jpeg',
+                                                      'image/png',
+                                                      'image/gif'])
+  
     class Meta(CommonModel.Meta):
         verbose_name = _('Training')
         verbose_name_plural = _('Trainings')

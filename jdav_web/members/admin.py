@@ -108,10 +108,10 @@ class PermissionOnMemberInline(admin.StackedInline):
 class TrainingOnMemberInline(CommonAdminInlineMixin, admin.TabularInline):
     model = MemberTraining
     formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25})}
     }
     ordering = ("date",)
-    extra = 0
+    extra = 1
 
 
 class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
