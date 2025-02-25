@@ -98,67 +98,103 @@ Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV {% se
 {% block sidebar %}
 <div id="content-related">
 <div class="module" id="recent-actions-module">
-<h2>Links</h2>
-<table>
-    <tr>
-        <td>
-            <a href="{% settings_value 'CLOUD_LINK' %}">Nextcloud</a>
-        </td>
-        <td>
-            Hier liegen Vorlagen für Formulare und nützliche Handbücher.
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <a href="{% settings_value 'DAV_360_LINK' %}">DAV 360</a>
-        </td>
-        <td>
-            Zugriff zu Online Office, Teams und deinem DAV Mailaccount.
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <a href="{% settings_value 'WIKI_LINK' %}">Julei-Wiki</a>
-        </td>
-        <td>
-            Informationen zum Jugendleiter*in-sein.
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <a href="{% settings_value 'DOCS_LINK' %}">Dokumentation</a>
-        </td>
-        <td>
-            Kompass Dokumentation
-        </td>
-    </tr>
-</table>
-
-<h2>Ansprechpersonen</h2>
-{% comment %}
-Nicht alles im Leben ist ein automatisierter Prozess. Falls du trotz KOMPASS nicht mehr
-weiterweißt oder sonst der Schuh drückt, schreibe eine E-Mail an eine der folgenden Personen:
-{% endcomment %}
 <div>
-<table>
-    <tr>
-        <td>
-            Jugendreferat
-        </td>
-        <td>
-            <a href="mailto:{% settings_value 'RESPONSIBLE_MAIL' %}">jugendreferat@jdav-hd.de</a>
-        </td>
-    </tr>
-    <tr>
-        <td>
-            Fragen zum Kompass
-        </td>
-        <td>
-             <a href="mailto:{% settings_value 'DIGITAL_MAIL' %}">digitales@jdav-hd.de</a>
-        </td>
-    </tr>
-</table>
+    
+    <h2>Links</h2>
+
+
+<div class="icon-gallery">
+        {% for link in external_links %}
+        {% if link.visible %}
+
+        <a href="{{ link.url }}" class="icon-item" target="_blank">
+            {% if link.icon %}
+                <img src="{{ link.icon.url }}" alt="">
+                {% else %}
+                <img src="{% static 'admin/img/favicon.png' %}" style="transform: scale(0.8);" alt="">
+                {% endif %}
+            <div class="icon-text">
+                <span class="icon-title">{{ link.title }}</span>
+                <span class="icon-subtext">{{ link.description }}</span>
+            </div>
+        </a>
+        {% endif %}
+        {% endfor %}
+
+        <a href="{% settings_value 'DOCS_LINK' %}" class="icon-item" target="_blank">
+            <img src="{% static 'admin/img/favicon.png' %}" style="transform: scale(0.8);" alt="">
+            <div class="icon-text">
+                <span class="icon-title">Kompass-Dokumentation</span>
+                <span class="icon-subtext">Anleitung zur Benutzung des Kompasses</span>
+            </div>
+        </a>
 </div>
+
+<style>
+    .icon-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive columns */
+        grid-auto-rows: minmax(150px, auto); /* Prevents overlap by enforcing row height */
+        gap: 15px;
+        justify-content: center;
+        padding: 0 0 20px 0;
+        min-width: 484px;
+        /* max-width: 800px; Optional: Adjust based on design */
+        margin: auto; /* Centers the grid */
+    }
+    
+    .icon-item {
+        text-decoration: none;
+        text-align: center;
+        background: white;
+        padding: 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between; /* Ensures even spacing */
+        /*height: 100%;  Forces uniform height */
+        /*min-height: 150px;  Ensures all boxes have at least this height */
+    }
+    
+    .icon-item img {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        margin-bottom: 8px;
+    }
+    
+    .icon-text {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex-grow: 1; /* Ensures text takes up available space */
+    }
+    
+    .icon-title {
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .icon-subtext {
+        font-size: 12px;
+        color: #666;
+    }
+    
+    .icon-item:hover {
+        
+        transform: translateY(-3px);
+    }
+    </style>
+
+</div>
+
+{% include "startpage/contact.html" %}
+
 </div>
 </div>
 {% endblock %}

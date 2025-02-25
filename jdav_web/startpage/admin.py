@@ -2,8 +2,10 @@ from django.contrib import admin
 from django.conf import settings
 from django import forms
 from django.utils.translation import gettext_lazy as _
+from django.db.models import TextField
+from django.forms import Textarea
 
-from .models import Post, Image, Section, MemberOnPost
+from .models import Post, Image, Section, MemberOnPost, Link
 
 
 class ImageInline(admin.TabularInline):
@@ -40,3 +42,14 @@ class SectionForm(forms.ModelForm):
 class SectionAdmin(admin.ModelAdmin):
     list_display = ['title', 'absolute_urlname']
     form = SectionForm
+
+
+@admin.register(Link)
+class LinkAdmin(admin.ModelAdmin):
+    list_display = ['title', 'url', 'visible']
+    
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 2, 'cols': 40})}
+    }
+
+

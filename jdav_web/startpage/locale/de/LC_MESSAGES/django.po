@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-01 21:11+0100\n"
+"POT-Creation-Date: 2025-02-25 13:22+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -107,6 +107,22 @@ msgstr "Person"
 #: startpage/models.py
 msgid "Persons"
 msgstr "Personen"
+
+#: startpage/models.py
+msgid "Link Icon"
+msgstr "Link Logo"
+
+#: startpage/models.py
+msgid "Visible"
+msgstr "Sichtbar"
+
+#: startpage/models.py
+msgid "Link"
+msgstr "Link"
+
+#: startpage/models.py
+msgid "Links"
+msgstr "Links"
 
 #: startpage/templates/startpage/faq_content.html
 #: startpage/templates/startpage/group_introduction.html

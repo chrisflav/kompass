@@ -52,6 +52,7 @@ JET_SIDE_MENU_ITEMS = [
     {'app_label': 'startpage', 'permissions': ['startpage'], 'items': [
         {'name': 'section', 'permissions': ['startpage.view_section']},
         {'name': 'post', 'permissions': ['startpage.view_post']},
+        {'name': 'link', 'permissions': ['startpage.view_link']},
     ]},
     {'label': 'Externe Links', 'items' : [
         { 'label': 'Nextcloud', 'url': CLOUD_LINK, 'url_blank': True },

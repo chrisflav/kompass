@@ -101,3 +101,30 @@ class MemberOnPost(models.Model):
     class Meta:
         verbose_name = _("Person")
         verbose_name_plural = _("Persons")
+
+
+class Link(models.Model):
+    """
+    Link to external resources that should be shown on the internal startpage.
+    """
+
+    title = models.CharField(_('Title'), max_length=100, default='', blank=True)
+    description = models.TextField(_('Description'), default='', blank=True)
+    url = models.URLField(max_length=250)
+
+    icon = RestrictedFileField(verbose_name=_('Link Icon'),
+                               upload_to='icons',
+                               blank=True,
+                               max_upload_size=5,
+                               content_types=['image/jpeg',
+                                               'image/png',
+                                               'image/gif'])
+
+    visible = models.BooleanField(verbose_name=_('Visible'), default=True)
+
+    class Meta:
+        verbose_name = _('Link')
+        verbose_name_plural = _('Links')
+
+    def __str__(self):
+        return self.title
