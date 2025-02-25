@@ -364,6 +364,14 @@ class Member(Person):
             return "---"
         else:
             return "{0}, {1}".format(self.street, self.place)
+        
+    @property
+    def address_multiline(self):
+        """Returning the whole address with a linebreak between street and town"""
+        if not self.street and not self.town and not self.plz:
+            return "---"
+        else:
+            return "{0},\\linebreak[1] {1}".format(self.street, self.place)
 
     def good_conduct_certificate_valid(self):
         """Returns if a good conduct certificate is still valid, depending on the last presentation."""

@@ -13,10 +13,11 @@
 \usepackage[colorlinks]{hyperref}
 \usepackage{float}
 \usepackage[margin=1cm]{geometry}
+\usepackage{ltablex}
 
 \renewcommand{\arraystretch}{1.5}
 
-\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}p{0.4\linewidth}}
 \begin{document}
 
 % HEADLINE
@@ -35,17 +36,16 @@
     \end{tabular}
 \end{table}
 
-\begin{table}[H]
-	\begin{tabularx}{\textwidth}{@{} l l l Y @{}}
+\begin{tabularx}{1\linewidth}{ l l l Y}
     \toprule
-	& \textbf{Name} & \textbf{Fähigkeiten (max. 100)} & \textbf{Kommentare} \\
+	\# & \textbf{Name} & \textbf{Fähigkeiten (max. 100)} & \textbf{Kommentare} \\
     \midrule
     {% for p in people %}
         {{ forloop.counter }} & {{ p.name|esc_all }} & {{ p.qualities|esc_all }} & {{ p.comments|esc_all }} \\
     {% endfor %}
     \bottomrule
-  \end{tabularx}
-\end{table}
+\end{tabularx}
+
 
 \noindent\large Fähigkeiten der Gruppe\\
 \begin{table}[H]

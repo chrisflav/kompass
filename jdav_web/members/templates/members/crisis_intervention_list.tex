@@ -10,7 +10,7 @@
 \usepackage{textpos}
 \usepackage[colorlinks, breaklinks]{hyperref}
 \usepackage{float}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=2cm]{geometry}
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{ltablex}
@@ -34,7 +34,9 @@
 
 \renewcommand{\arraystretch}{1.5}
 
-\newcolumntype{L}{>{\hspace{0pt}}X}
+\newcolumntype{L}{>{\hspace{0pt}\raggedright\arraybackslash}X}
+\newcolumntype{S}{>{\raggedright\arraybackslash\hsize=0.7\hsize}X}
+
 \newcommand{\tickedbox}{
     \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
 }
@@ -43,8 +45,8 @@
 }
 \begin{document}
 % HEADER RIGHT
-\picpos{4.5cm}{11.5cm}{0cm}{/app/jdav_web/static/general/img/dav_logo_sektion.png}
-\begin{textblock*}{5cm}(11.5cm, 2.3cm)
+\picpos{4.5cm}{12cm}{0cm}{/app/jdav_web/static/general/img/dav_logo_sektion.png}
+\begin{textblock*}{5cm}(12cm, 2.3cm)
     \begin{flushright}
         \small
         \noindent Deutscher Alpenverein e. V. \\
@@ -80,21 +82,25 @@
     \end{tabular}
 \end{table}
 
-\begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}llLlLL}
-\toprule
-& \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{Notfallkontakte} \\
-\midrule
-{% for m in memberlist.membersonlist.all %}
-    {{ forloop.counter }} & 
-    {{ m.member.name|esc_all }} &
-    {{ m.member.address|esc_all }} &
-    {{ m.member.contact_phone_number|esc_all }} &
-    {% for c in m.member.emergencycontact_set.all %}
-        {{ c.name|esc_all }} \newline
-        Tel.: {{ c.phone_number|esc_all }}
-    {% endfor %} \\
-{% endfor %}
-\bottomrule
+\begin{tabularx}{1\linewidth}{lSLSL}
+    \toprule
+    \# & \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{Notfallkontakte} \\
+    \midrule
+    \endhead
+    \bottomrule
+    \endfoot
+
+    {% for m in memberlist.membersonlist.all %}
+        {{ forloop.counter }} & 
+        {{ m.member.name|esc_all }} &
+        {{ m.member.address_multiline|esc_all }} &
+        {{ m.member.contact_phone_number|esc_all }} &
+        {% for c in m.member.emergencycontact_set.all %}
+            {{ c.name|esc_all }} \newline
+            Tel.: {{ c.phone_number|esc_all }}
+        {% endfor %} \\
+    {% endfor %}
+
 \end{tabularx}
 
 \vspace{1cm}

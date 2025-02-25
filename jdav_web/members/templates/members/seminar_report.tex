@@ -15,6 +15,7 @@
 \usepackage{ragged2e}
 \usepackage{tabularx}
 \usepackage{titlesec}
+\usepackage{ltablex}
 
 \titleformat{\section}
   {\Large\slshape}{\thesection\;}
@@ -41,6 +42,7 @@
 
 \newcolumntype{L}{>{\hspace{0pt}}X}
 \newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
 \newcommand{\tickedbox}{
     \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
 }
@@ -122,38 +124,38 @@
 
 \section{Teilnehmer*innenliste}
 
-\begin{table}[H]
-    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}llLl|c|c|c}
+\begin{tabularx}{1\linewidth}{p{0.01\linewidth}>{\RaggedRight\arraybackslash}p{0.22\linewidth}>{\RaggedRight\arraybackslash}p{0.38\linewidth}p{0.14\linewidth}|c|c|c}
     \hline
-    & \textbf{Name} & \textbf{Anschrift} & \textbf{Geburtsdatum} & \textbf{m} & \textbf{w} & \textbf{d} \\ \hline
-    %\midrule
+    \# & \textbf{Name} & \textbf{Anschrift} & \textbf{Geburtsdatum} & \textbf{m} & \textbf{w} & \textbf{d} \\
+    \hline
+    \endhead
+    \hline
+    \endfoot
     {% for m in memberlist.membersonlist.all %}
         {{ forloop.counter }} & {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.birth_date_str|esc_all }}
                                     & {% if m.member.gender == 0 %} x {% endif %}
                                     & {% if m.member.gender == 1 %} x {% endif %}
                                     & {% if m.member.gender == 2 %} x {% endif %} \\
     {% endfor %}
-    %\bottomrule
-  \end{tabularx}
-\end{table}
+\end{tabularx}
 
 {% if memberlist.statement %}
 
 \section{Kosten}
 
-\begin{table}[H]
-    \begin{tabularx}{1\linewidth}{@{}L r @{}}
+\begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}Lr}
     \toprule
     \textbf{Beschreibung} & \textbf{Betrag} \\
     \midrule
+    {% if memberlist.statement.total_allowance > 0 %}
     Aufwandsentschädigung & {{ memberlist.statement.total_allowance }} € \\
+    {% endif %}
     {% for bill in memberlist.statement.grouped_bills %}
         {{ bill.short_description|esc_all }} & {{ bill.amount }} € \\
     {% endfor %}
     \bottomrule
         Gesamt & {{ memberlist.statement.total_theoretic }} € \\
-  \end{tabularx}
-\end{table}
+\end{tabularx}
 
 {% endif %}
 
