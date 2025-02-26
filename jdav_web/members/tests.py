@@ -215,15 +215,15 @@ class MemberTestCase(BasicMemberTestCase):
 
 class PDFTestCase(TestCase):
     def setUp(self):
-        self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
+        self.ex = Freizeit.objects.create(name='Wild & ‬_törip', kilometers_traveled=120,
                                           tour_type=GEMEINSCHAFTS_TOUR,
                                           tour_approach=MUSKELKRAFT_ANREISE,
                                           difficulty=1)
-        self.note = MemberNoteList.objects.create(title='Cool list')
+        self.note = MemberNoteList.objects.create(title='Coolß! ‬löst')
 
         for i in range(7):
-            m = Member.objects.create(prename='Lise {}'.format(i),
-                                      lastname='Walter',
+            m = Member.objects.create(prename='Liääüuße {}'.format(i),
+                                      lastname='Walter&co ‬: _ kg &',
                                       birth_date=timezone.now().date(),
                                       email=settings.TEST_MAIL, gender=FEMALE)
             NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.ex)

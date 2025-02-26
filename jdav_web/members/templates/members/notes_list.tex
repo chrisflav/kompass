@@ -3,6 +3,10 @@
 \documentclass[a4paper]{article}
 
 \usepackage[utf8]{inputenc}
+% remove all undefined unicode characters instead of throwing an error
+\makeatletter
+\def\UTFviii@undefined@err#1{}
+\makeatother
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{ragged2e}
