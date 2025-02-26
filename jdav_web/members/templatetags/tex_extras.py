@@ -12,7 +12,7 @@ def checked_if_true(name, value):
 
 @register.filter
 def esc_all(val):
-    return mark_safe(str(val).replace('_', '\\_').replace('&', '\\&'))
+    return mark_safe(str(val).replace('_', '\\_').replace('&', '\\&').replace('%', '\\%'))
 
 
 @register.filter
