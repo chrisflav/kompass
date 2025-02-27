@@ -1026,6 +1026,13 @@ class MemberWaitingList(Person):
                        settings.LEAVE_WAITINGLIST_TEXT.format(name=self.prename))
         self.delete()
 
+    def confirm_mail(self, key):
+        ret = super().confirm_mail(key)
+        if ret:
+            self.send_mail(_("Successfully registered for the waitinglist"),
+                           settings.JOIN_WAITINGLIST_CONFIRMATION_TEXT.format(name=self.prename))
+        return ret
+
 
 class NewMemberOnList(CommonModel):
     """

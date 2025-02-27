@@ -88,6 +88,20 @@ Viele Grüße
 Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION })
 
 
+JOIN_WAITINGLIST_CONFIRMATION_TEXT = get_text('join_waitinglist_confirmation', default="""Hallo {name},
+
+vielen Dank für dein Interesse an einem Platz in einer Jugendgruppe der JDAV %(SEKTION)s. Du hast dich erfolgreich
+für die Warteliste registriert.
+
+Leider ist die Nachfrage nach Jugendgruppenplätzen deutlich höher als unsere Kapazitäten. Daher kann es
+mehrere Jahren dauern, bis wir dir einen Platz anbieten können. Damit unsere Warteliste möglichst
+aktuell bleibt, werden wir dich in regelmäßigen Abständen per E-Mail bitten, dein Interesse an der Jugendgruppe
+zu bestätigen.
+
+Viele Grüße
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION })
+
+
 UNSUBSCRIBE_CONFIRMATION_TEXT = get_text('unsubscribe_confirmation', default="""Klicke auf den Link, um dich vom Newsletter der JDAV %(SEKTION)s abzumelden
 
 {link}""" % { 'SEKTION': SEKTION })

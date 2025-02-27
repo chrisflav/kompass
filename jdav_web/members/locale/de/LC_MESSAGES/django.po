@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-24 23:22+0100\n"
+"POT-Creation-Date: 2025-02-27 01:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -830,6 +830,10 @@ msgstr "Einladung zu Schnupperstunde"
 #: members/models.py
 msgid "Unregistered from waiting list"
 msgstr "Von der Warteliste abgemeldet"
+
+#: members/models.py
+msgid "Successfully registered for the waitinglist"
+msgstr "Erfolgreich für die Warteliste registriert"
 
 #: members/models.py
 msgid "Comment"
@@ -2253,6 +2257,3 @@ msgstr "Ungültige Notfallkontakte"
 
 #~ msgid "Memberlists"
 #~ msgstr "Teilnehmerlisten"
-
-#~ msgid "Here you can register for the waiting list."
-#~ msgstr "Hier kannst du dich auf die Warteliste eintragen."
