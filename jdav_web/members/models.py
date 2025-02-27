@@ -938,10 +938,17 @@ class MemberWaitingList(Person):
 
     def waiting_confirmed(self):
         """Returns if the persons waiting status is considered to be confirmed."""
-        cutoff = timezone.now() \
-            - timezone.timedelta(days=  settings.GRACE_PERIOD_WAITING_CONFIRMATION \
-                                      + settings.WAITING_CONFIRMATION_FREQUENCY)
-        return self.last_wait_confirmation > cutoff.date()
+        if self.sent_reminders > 0:
+            # there was sent at least one wait confirmation request
+            if timezone.now() < self.wait_confirmation_key_expire:
+                # the request has not expired yet
+                return None
+            else:
+                # we sent a request that has expired
+                return False
+        else:
+            # if there exist no pending or expired reminders, the waiter remains confirmed
+            return True
     waiting_confirmed.admin_order_field = 'last_wait_confirmation'
     waiting_confirmed.boolean = True
     waiting_confirmed.short_description = _('Waiting status confirmed')

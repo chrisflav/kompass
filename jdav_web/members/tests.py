@@ -1479,15 +1479,14 @@ class ConfirmWaitingViewTestCase(BasicMemberTestCase):
         self.assertEqual(waiter.leave_key, '')
 
     def test_get_expired(self):
-        self.waiter.last_wait_confirmation = datetime.date(1900, 1, 1)
-        self.waiter.save()
-        # after setting the last wait confirmation to an old date, the waiting status
-        # should be unconfirmed
-        self.assertFalse(self.waiter.waiting_confirmed())
+        # waiter has a pending confirmation request
+        self.assertEqual(self.waiter.waiting_confirmed(), None)
 
         url = reverse('members:confirm_waiting')
         self.waiter.wait_confirmation_key_expire = timezone.now() - timezone.timedelta(days=10)
         self.waiter.save()
+        # waiter has pending confirmation request, but request has expired
+        self.assertEqual(self.waiter.waiting_confirmed(), False)
         response = self.client.get(url, data={'key': self.key})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('rejoin the waiting list'))
