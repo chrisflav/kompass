@@ -17,7 +17,7 @@ from unittest import skip, mock
 from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE,\
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE,\
-        Klettertreff, KlettertreffAttendee, LJPProposal
+        Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS
 from .admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
         MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin
@@ -133,9 +133,12 @@ class MemberTestCase(BasicMemberTestCase):
 
         self.ja = Group.objects.create(name="Jugendausschuss")
         self.peter = Member.objects.create(prename="Peter", lastname="Keks", birth_date=timezone.now().date(),
-                                           email=settings.TEST_MAIL, gender=MALE)
+                                           email=settings.TEST_MAIL, gender=MALE,
+                                           street='Peters Street 123', town='Peters Town',
+                                           plz='3515 AJ', phone_number='+49 124125125')
         self.anna = Member.objects.create(prename="Anna", lastname="Keks", birth_date=timezone.now().date(),
-                                           email=settings.TEST_MAIL, gender=FEMALE)
+                                          email=settings.TEST_MAIL, gender=FEMALE,
+                                          good_conduct_certificate_presented_date=timezone.now().date())
         img = SimpleUploadedFile("image.jpg", b"file_content", content_type="image/jpeg")
         pdf = SimpleUploadedFile("form.pdf", b"very sensitive!", content_type="application/pdf")
         self.lisa = Member.objects.create(prename="Lisa", lastname="Keks", birth_date=timezone.now().date(),
@@ -211,6 +214,53 @@ class MemberTestCase(BasicMemberTestCase):
         self.fritz.prename = 'Päter'
         self.fritz.lastname = 'Püt er'
         self.assertEqual(self.fritz.suggested_username(), 'paeter.puet_er')
+
+    def test_place(self):
+        self.assertIn(self.peter.plz, self.peter.place)
+
+    def test_address(self):
+        self.assertIn(self.peter.street, self.peter.address)
+        self.assertEqual("---", self.lisa.address)
+
+        self.assertIn(self.peter.street, self.peter.address_multiline)
+        self.assertIn('\\linebreak', self.peter.address_multiline)
+        self.assertEqual("---", self.lisa.address_multiline)
+
+    def test_good_conduct_certificate_valid(self):
+        self.assertFalse(self.peter.good_conduct_certificate_valid())
+        self.assertTrue(self.anna.good_conduct_certificate_valid())
+        delta = datetime.timedelta(days=2 * settings.MAX_AGE_GOOD_CONDUCT_CERTIFICATE_MONTHS * 30)
+        self.anna.good_conduct_certificate_presented_date -= delta
+        self.assertFalse(self.anna.good_conduct_certificate_valid())
+
+    def test_generate_key(self):
+        key = self.peter.generate_key()
+        p = Member.objects.get(pk=self.peter.pk)
+        self.assertEqual(key, p.unsubscribe_key)
+
+    def test_unsubscribe(self):
+        key = self.peter.generate_key()
+        self.assertTrue(self.peter.unsubscribe(key))
+        self.assertFalse(self.lisa.unsubscribe(key))
+
+        p = Member.objects.get(pk=self.peter.pk)
+        self.assertFalse(p.gets_newsletter)
+
+    def test_contact_phone_number(self):
+        self.assertEqual(self.peter.phone_number, self.peter.contact_phone_number)
+        self.assertEqual("---", self.lisa.contact_phone_number)
+
+    def test_contact_email(self):
+        self.assertEqual(self.peter.email, self.peter.contact_email)
+
+    def test_username(self):
+        self.assertEqual(self.peter.username, self.peter.suggested_username())
+        u = User.objects.create_user(username='user', password='secret', is_staff=True)
+        self.peter.user = u
+        self.assertEqual(self.peter.username, 'user')
+
+    def test_association_email(self):
+        self.assertIn(settings.DOMAIN, self.peter.association_email)
 
 
 class PDFTestCase(TestCase):
@@ -1830,3 +1880,40 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         request.user = User.objects.get(username='foobar')
         field = self.admin.formfield_for_foreignkey(KlettertreffAttendee._meta.get_field('member'), request)
         self.assertQuerysetEqual(field.queryset, Member.objects.none(), ordered=False)
+
+
+class ActivityCategoryTestCase(TestCase):
+    def setUp(self):
+        self.cat = ActivityCategory.objects.create(name='crazy climbing', ljp_category='Klettern',
+                                                   description='foobar')
+
+    def test_str(self):
+        self.assertEqual(str(self.cat), 'crazy climbing')
+
+
+class GroupTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.alp.show_website = True
+        self.alp.weekday = 3
+        self.alp.start_time = datetime.time(15, 0)
+        self.alp.end_time = datetime.time(17, 0)
+        self.alp.save()
+
+    def test_str(self):
+        self.assertEqual(str(self.alp), self.alp.name)
+
+    def test_has_time_info(self):
+        self.assertTrue(self.alp.has_time_info())
+        self.assertFalse(self.spiel.has_time_info())
+
+    def test_get_invitation_text_template(self):
+        alp_text = self.alp.get_invitation_text_template()
+        spiel_text = self.spiel.get_invitation_text_template()
+        url = reverse('startpage:gruppe_detail', args=[self.alp.name])
+        self.assertIn(url, alp_text)
+
+        url = reverse('startpage:gruppe_detail', args=[self.spiel.name])
+        self.assertNotIn(url, spiel_text)
+
+        self.assertIn(str(WEEKDAYS[self.alp.weekday][1]), alp_text)
