@@ -1,4 +1,4 @@
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect as django_redirect, get_object_or_404
 from django import shortcuts
 from django.conf import settings
 from django.urls import reverse
@@ -26,6 +26,10 @@ def index(request):
         'reports': Post.objects.filter(section__urlname=settings.REPORTS_SECTION).order_by('-date'),
     }
     return render(request, 'startpage/index.html', context)
+
+
+def redirect(request):
+    return django_redirect(settings.STARTPAGE_REDIRECT_URL)
 
 
 # static view factory
