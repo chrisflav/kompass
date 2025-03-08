@@ -769,7 +769,8 @@ class Member(Person):
         match = re.match('(^[^@]*)@(.*)$', self.email)
         if not match:
             return False
-        return match.group(2) in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
+        return match.group(2) in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER or\
+            "*" in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
 
     def invite_as_user(self):
         """Invites the member to join Kompass as a user."""
