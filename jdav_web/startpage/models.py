@@ -3,7 +3,7 @@ import os
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from utils import RestrictedFileField
 from members.models import Group, Member
 
@@ -28,7 +28,10 @@ class Section(models.Model):
         return self.title
 
     def absolute_urlname(self):
-        return reverse('startpage:section', args=(self.urlname,))
+        try:
+            return reverse('startpage:section', args=(self.urlname,))
+        except NoReverseMatch:
+            return _('deactivated')
     absolute_urlname.short_description = 'URL'
 
 
@@ -63,10 +66,13 @@ class Post(models.Model):
     absolute_section.short_description = _('Section')
 
     def absolute_urlname(self):
-        if self.section is None:
-            return reverse('startpage:post', args=('aktuelles', self.urlname))
-        else:
-            return reverse('startpage:post', args=(self.section.urlname, self.urlname))
+        try:
+            if self.section is None:
+                return reverse('startpage:post', args=('aktuelles', self.urlname))
+            else:
+                return reverse('startpage:post', args=(self.section.urlname, self.urlname))
+        except NoReverseMatch:
+            return _('deactivated')
     absolute_urlname.short_description = 'URL'
 
 
