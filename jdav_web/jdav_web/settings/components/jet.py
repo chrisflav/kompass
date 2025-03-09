@@ -45,7 +45,7 @@ JET_SIDE_MENU_ITEMS = [
     {'app_label': 'ludwigsburgalpin', 'permissions': ['ludwigsburgalpin'], 'items': [
         {'name': 'termin', 'permissions': ['ludwigsburgalpin.view_termin']},
     ]},
-    {'app_label': 'material', 'permissions': ['material'], 'items': [
+    {'app_label': 'material', 'permissions': ['material.view_materialpart'], 'items': [
         {'name': 'materialcategory', 'permissions': ['material.view_materialcategory']},
         {'name': 'materialpart', 'permissions': ['material.view_materialpart']},
     ]},
