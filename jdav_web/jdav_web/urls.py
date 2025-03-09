@@ -13,13 +13,14 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.urls import re_path, include
+from django.urls import path, re_path, include
 from django.contrib import admin
 from django.conf.urls.static import static
 from django.conf.urls.i18n import i18n_patterns
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
+from oauth2_provider import urls as oauth2_urls
 from .views import media_access
 
 admin.site.index_title = _('Startpage')
@@ -36,6 +37,7 @@ urlpatterns = i18n_patterns(
     re_path(r'^LBAlpin/Programm(/)?(20)?[0-9]{0,2}', include('ludwigsburgalpin.urls',
             namespace="ludwigsburgalpin")),
     re_path(r'^_nested_admin/', include('nested_admin.urls')),
+    path('o/', include(oauth2_urls)),
     re_path(r'^', include('startpage.urls', namespace="startpage")),
 )
 

@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'rules',
     'jet',
+    'oauth2_provider',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -196,3 +197,5 @@ STARTPAGE_URL_NAME_PATTERN = "[\w\-: *]"
 
 # admins to contact on error messages
 ADMINS = get_var('section', 'admins', default=[])
+
+LOGIN_URL = '/de/kompass/login/'
