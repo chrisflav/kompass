@@ -2,6 +2,18 @@
 {% load i18n static common %}
 
 {% block content %}
+<script>
+/*
+Remove breadcrumbs from index page. We can't just override the breadcrumbs block in
+this template, because this also removes breadcrumbs from all descendents.
+TODO: Find a better solution.
+*/
+var els = document.getElementsByClassName('breadcrumbs');
+for (var i = 0; i < els.length; ++i) {
+    var item = els[i];
+    item.remove();
+}
+</script>
 
 <div id="content-main">
 <div>

@@ -1,6 +1,6 @@
 alabaster==0.7.16
 amqp==5.0.9
-asgiref==3.4.1
+asgiref==3.8.1
 auditlog3==1.0.1
 babel==2.16.0
 bcrypt==4.0.1
@@ -17,7 +17,7 @@ click-repl==0.2.0
 coverage==7.5.4
 cron-descriptor==1.2.35
 Deprecated==1.2.13
-Django==4.0.1
+Django==4.2.20
 django-appconf==1.0.5
 django-celery-beat==2.5.0
 django-celery-email==3.0.0
