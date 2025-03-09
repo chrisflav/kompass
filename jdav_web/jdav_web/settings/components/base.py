@@ -125,13 +125,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static")
+    os.path.join(CONFIG_DIR_PATH, "static"),
+    os.path.join(BASE_DIR, "static"),
 ]
 # static root where all the static files are collected to
 # use python3 manage.py collectstatic to collect static files in the STATIC_ROOT
 # this is needed for deployment
 STATIC_ROOT = get_var('django', 'static_root', default='/var/www/jdav_web/static')
-
+DEFAULT_STATIC_PATH = get_var('django', 'default_static_path', default='/app/jdav_web/static')
 
 # Locale files (translations)
 

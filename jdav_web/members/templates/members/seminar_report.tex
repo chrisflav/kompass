@@ -1,4 +1,4 @@
-{% load tex_extras %}
+{% load static common tex_extras %}
 
 \documentclass[a4paper]{article}
 
@@ -55,7 +55,10 @@
 }
 \begin{document}
 % HEADER RIGHT
-\picpos{4.5cm}{11.5cm}{0cm}{/app/jdav_web/static/general/img/dav_logo_sektion.png}
+{% settings_value 'DEFAULT_STATIC_PATH' as static_root %}
+\picpos{4.5cm}{11.5cm}{0cm}{%
+{{ static_root }}/general/img/dav_logo_sektion.png%
+}
 \begin{textblock*}{5cm}(11.5cm, 2.3cm)
     \begin{flushright}
         \small
