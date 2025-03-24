@@ -5,7 +5,7 @@ import subprocess
 import time
 import glob
 from io import BytesIO
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter, PageObject
 from django import template
 from django.template.loader import get_template
 from django.conf import settings
@@ -73,6 +73,30 @@ def render_tex(name, template_path, context, save_only=False):
     return serve_pdf(filename_pdf)
 
 
+def scale_pdf_page_to_a4(page):
+    A4_WIDTH, A4_HEIGHT = 595, 842
+    
+    page_width = page.mediabox.width
+    page_height = page.mediabox.height
+    scale_x = A4_WIDTH / page_width
+    scale_y = A4_HEIGHT / page_height
+    scale_factor = min(scale_x, scale_y)
+    
+    new_page = PageObject.create_blank_page(width=A4_WIDTH, height=A4_HEIGHT)
+    page.scale_by(scale_factor)
+    x_offset = (A4_WIDTH - page.mediabox.width) / 2
+    y_offset = (A4_HEIGHT - page.mediabox.height) / 2
+    new_page.merge_translated_page(page, x_offset, y_offset)
+    
+    return new_page
+
+def scale_pdf_to_a4(pdf):
+    scaled_pdf = PdfWriter()
+    for page in pdf.pages:
+        scaled_pdf.add_page(scale_pdf_page_to_a4(page))
+    
+    return scaled_pdf
+
 def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
     filename = normalize_filename(name)
     filename_pdf = filename + '.pdf'
@@ -96,9 +120,12 @@ def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
             else:
                 # convert ensures that png files with an alpha channel can be appended
                 img = Image.open(fp).convert("RGB")
-                img_pdf = BytesIO()
-                img.save(img_pdf, "pdf")
-            writer.append(img_pdf)
+                img_io = BytesIO()
+                img.save(img_io, "pdf")
+                img_io.seek(0)
+                img_pdf = PdfReader(img_io)
+            img_pdf_scaled = scale_pdf_to_a4(img_pdf)
+            writer.append(img_pdf_scaled)
         except Exception as e:
             print("Could not add image", fp)
             print(e)
