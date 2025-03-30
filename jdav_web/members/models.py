@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import uuid
 import math
 import pytz
@@ -256,6 +256,10 @@ class Person(Contact):
         return relativedelta(datetime.today(), self.birth_date).years
     age.admin_order_field = 'birth_date'
     age.short_description = _('age')
+
+    def age_at(self, date: date):
+        """Age of member at a given date"""
+        return relativedelta(date.replace(tzinfo=None), self.birth_date).years
 
     @property
     def birth_date_str(self):
@@ -1252,7 +1256,7 @@ class Freizeit(CommonModel):
         # non-youth leader participants
         ps_only = ps - jls
         # participants of the correct age
-        ps_correct_age = {m for m in ps_only if m.age() >= 6 and m.age() < 27}
+        ps_correct_age = {m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27}
         # m = the official non-youth-leader participant count
         # and, assuming there exist enough participants, unrounded m satisfies the equation
         # len(ps_correct_age) + 1/5 * m = m
@@ -1340,9 +1344,9 @@ class Freizeit(CommonModel):
         jls = set(self.jugendleiter.distinct())
         participants = members - jls
         b27_local = len([m for m in participants
-                         if m.age() <= 27 and settings.SEKTION in m.town])
+                         if m.age_at(self.date) <= 27 and settings.SEKTION in m.town])
         b27_non_local = len([m for m in participants
-                             if m.age() <= 27 and not settings.SEKTION in m.town])
+                             if m.age_at(self.date) <= 27 and not settings.SEKTION in m.town])
         staff = len(jls)
         total = b27_local + b27_non_local + len(jls)
         relevant_b27 = min(b27_local + b27_non_local, math.floor(3/2 * b27_local))
@@ -1387,7 +1391,7 @@ class Freizeit(CommonModel):
                 suffix = str(i + 1)
             base['Vor- und Nachname' + suffix] = m.name
             base['Anschrift' + suffix] = m.address
-            base['Alter' + suffix] = str(m.age())
+            base['Alter' + suffix] = str(m.age_at(self.date))
             base['Status' + str(i+1)] = '2' if m in jls else 'Auswahl1' if settings.SEKTION in m.address else 'Auswahl2'
         return base
 
