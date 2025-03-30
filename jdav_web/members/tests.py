@@ -634,7 +634,8 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
                                           tour_type=GEMEINSCHAFTS_TOUR,
                                           tour_approach=MUSKELKRAFT_ANREISE,
-                                          difficulty=1)
+                                          difficulty=1,
+                                          date=timezone.localtime())
 
     def _setup_test_sjr_application_numbers(self, n_yl, n_b27_local, n_b27_non_local):
         for i in range(n_yl):
