@@ -75,27 +75,29 @@ def render_tex(name, template_path, context, save_only=False):
 
 def scale_pdf_page_to_a4(page):
     A4_WIDTH, A4_HEIGHT = 595, 842
-    
+
     page_width = page.mediabox.width
     page_height = page.mediabox.height
     scale_x = A4_WIDTH / page_width
     scale_y = A4_HEIGHT / page_height
     scale_factor = min(scale_x, scale_y)
-    
+
     new_page = PageObject.create_blank_page(width=A4_WIDTH, height=A4_HEIGHT)
     page.scale_by(scale_factor)
     x_offset = (A4_WIDTH - page.mediabox.width) / 2
     y_offset = (A4_HEIGHT - page.mediabox.height) / 2
     new_page.merge_translated_page(page, x_offset, y_offset)
-    
+
     return new_page
+
 
 def scale_pdf_to_a4(pdf):
     scaled_pdf = PdfWriter()
     for page in pdf.pages:
         scaled_pdf.add_page(scale_pdf_page_to_a4(page))
-    
+
     return scaled_pdf
+
 
 def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
     filename = normalize_filename(name)

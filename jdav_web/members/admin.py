@@ -959,7 +959,7 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     }
     sortable_options = []
     template = "admin/members/freizeit/memberonlistinline.html"
-    
+
     def people_count(self, obj):
         if isinstance(obj, Freizeit):
             # Number of organizers who are also in the Memberlist
@@ -967,7 +967,7 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
 
             # Total number of people in the Memberlist
             total_people = obj.head_count
-            
+
         else: # fallback if no activity was found
             total_people = 0
             organizer_count = 0
@@ -982,7 +982,6 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
             formset.organizer_count = self.people_count(obj)['organizer_count']
 
         return formset
-    
 
 
 class MemberNoteListAdmin(admin.ModelAdmin):
