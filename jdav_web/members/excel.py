@@ -127,7 +127,8 @@ def generate_ljp_vbk(excursion):
     if hasattr(excursion, 'statement'):
         sheet['Q19'] = f"{excursion.statement.total_theoretic}"
 
-    name = normalize_filename(f"{excursion.code}_{title}_LJP_V-BK_3.{excursion.ljpproposal.category}")
+    name = normalize_filename(f"{excursion.code}_{title}_LJP_V-BK_3.{excursion.ljpproposal.category}",
+                              date=excursion.date)
     filename = name + ".xlsx"
     workbook.save(media_path(filename))
     return filename

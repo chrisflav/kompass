@@ -20,8 +20,8 @@ def serve_pdf(filename_pdf):
     return serve_media(filename_pdf, 'application/pdf')
 
 
-def generate_tex(name, template_path, context):
-    filename = normalize_filename(name)
+def generate_tex(name, template_path, context, date=None):
+    filename = normalize_filename(name, date=date)
     filename_tex = filename + '.tex'
 
     tmpl = get_template(template_path)
@@ -34,8 +34,8 @@ def generate_tex(name, template_path, context):
     return filename
 
 
-def render_docx(name, template_path, context, save_only=False):
-    filename = generate_tex(name, template_path, context)
+def render_docx(name, template_path, context, date=None, save_only=False):
+    filename = generate_tex(name, template_path, context, date=date)
     filename_tex = filename + '.tex'
     filename_docx = filename + '.docx'
     oldwd = os.getcwd()
@@ -48,8 +48,8 @@ def render_docx(name, template_path, context, save_only=False):
     return serve_media(filename_docx, 'application/docx')
 
 
-def render_tex(name, template_path, context, save_only=False):
-    filename = generate_tex(name, template_path, context)
+def render_tex(name, template_path, context, date=None, save_only=False):
+    filename = generate_tex(name, template_path, context, date=date)
     filename_tex = filename + '.tex'
     filename_pdf = filename + '.pdf'
     # compile using pdflatex
@@ -99,8 +99,8 @@ def scale_pdf_to_a4(pdf):
     return scaled_pdf
 
 
-def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
-    filename = normalize_filename(name)
+def fill_pdf_form(name, template_path, fields, attachments=[], date=None, save_only=False):
+    filename = normalize_filename(name, date=date)
     filename_pdf = filename + '.pdf'
 
     path = find_template(template_path)
@@ -140,13 +140,13 @@ def fill_pdf_form(name, template_path, fields, attachments=[], save_only=False):
     return serve_pdf(filename_pdf)
 
 
-def merge_pdfs(name, filenames, save_only=False):
+def merge_pdfs(name, filenames, date=None, save_only=False):
     merger = PdfWriter()
 
     for pdf in filenames:
         merger.append(media_path(pdf))
 
-    filename = normalize_filename(name)
+    filename = normalize_filename(name, date=date)
     filename_pdf = filename + ".pdf"
     merger.write(media_path(filename_pdf))
     merger.close()

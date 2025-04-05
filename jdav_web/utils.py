@@ -72,9 +72,11 @@ def normalize_name(raw, nospaces=True, noumlaut=True):
     return unicodedata.normalize('NFKD', raw).encode('ascii', 'ignore').decode('ascii')
 
 
-def normalize_filename(filename, append_date=True):
-    if append_date:
-        filename = filename + "_" + datetime.today().strftime("%d_%m_%Y")
+def normalize_filename(filename, append_date=True, date=None):
+    if append_date and not date:
+        date = datetime.today()
+    if date:
+        filename = filename + "_" + date.strftime("%d_%m_%Y")
     filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
     # drop umlauts, accents etc.
     return unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
