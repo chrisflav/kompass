@@ -1,32 +1,9 @@
-{% load tex_extras %}
+{% extends "members/tex_base.tex" %}
+{% load static common tex_extras %}
 
-\documentclass[a4paper]{article}
+{% block title %}Teilnehmer*innenübersicht{% endblock %}
 
-\usepackage[utf8]{inputenc}
-% remove all undefined unicode characters instead of throwing an error
-\makeatletter
-\def\UTFviii@undefined@err#1{}
-\makeatother
-\usepackage{booktabs}
-\usepackage{tabularx}
-\usepackage{ragged2e}
-\usepackage{amssymb}
-\usepackage{cmbright}
-\usepackage{graphicx}
-\usepackage{textpos}
-\usepackage[colorlinks]{hyperref}
-\usepackage{float}
-\usepackage[margin=1cm]{geometry}
-\usepackage{ltablex}
-
-\renewcommand{\arraystretch}{1.5}
-
-\newcolumntype{Y}{>{\RaggedRight\arraybackslash}p{0.4\linewidth}}
-\begin{document}
-
-% HEADLINE
-{\noindent\LARGE{Teilnehmer*innenübersicht}}\\[1mm]
-\textit{Erstellt: {{ creation_date }} }\\
+{% block content %}
 
 % DESCRIPTION
 \begin{table}[H]
@@ -40,20 +17,21 @@
     \end{tabular}
 \end{table}
 
-\begin{tabularx}{1\linewidth}{ l l l Y}
+\begin{tabularx}{.97\linewidth}{lXXX}
     \toprule
 	\# & \textbf{Name} & \textbf{Fähigkeiten (max. 100)} & \textbf{Kommentare} \\
     \midrule
+    \endhead
+    \bottomrule
+    \endfoot
+
     {% for p in people %}
         {{ forloop.counter }} & {{ p.name|esc_all }} & {{ p.qualities|esc_all }} & {{ p.comments|esc_all }} \\
     {% endfor %}
-    \bottomrule
 \end{tabularx}
 
-
-\noindent\large Fähigkeiten der Gruppe\\
-\begin{table}[H]
-    \begin{tabular*}{1\linewidth}{@{\extracolsep{\fill}}llll}
+\noindent{\large Fähigkeiten der Gruppe}\\
+\begin{tabularx}{.97\linewidth}{Xlll}
 	\toprule
     \textbf{Name} & \textbf{Durchschnitt} & \textbf{Minimum} & \textbf{Maximum} \\
 	\midrule
@@ -61,9 +39,6 @@
         {{ skill.name|esc_all }} & {{ skill.skill_avg|esc_all }} & {{ skill.skill_min|esc_all }} & {{ skill.skill_max|esc_all }} \\
     {% endfor %}
 	\bottomrule
-  \end{tabular*}
-\end{table}
+\end{tabularx}
 
-\vspace{1cm}
-
-\end{document}
+{% endblock %}

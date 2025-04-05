@@ -1,34 +1,12 @@
-{% load tex_extras %}
+{% extends "members/tex_base.tex" %}
+{% load static common tex_extras %}
 
-\documentclass{article}
+{% block title %}{{ memberlist.title|esc_all }}{% endblock %}
+{% block contact %}{% endblock %}
 
-\usepackage[utf8]{inputenc}
-% remove all undefined unicode characters instead of throwing an error
-\makeatletter
-\def\UTFviii@undefined@err#1{}
-\makeatother
-\usepackage{booktabs}
-\usepackage{tabularx}
-\usepackage{ragged2e}
-\usepackage{amssymb}
-\usepackage{cmbright}
-\usepackage{graphicx}
-\usepackage{textpos}
-\usepackage[colorlinks]{hyperref}
-\usepackage{float}
-\usepackage[margin=1cm]{geometry}
+{% block content %}
 
-\renewcommand{\arraystretch}{1.5}
-
-\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
-\begin{document}
-
-% HEADLINE
-{\noindent\LARGE\textsc{ {{ memberlist.title|esc_all }} }}\\
-\textit{Erstellt: {{ creation_date }} }\\
-
-\begin{table}[H]
-    \begin{tabularx}{\textwidth}{@{} l l Y @{}}
+\begin{tabularx}{\textwidth}{l X}
     \toprule
     \textbf{Name} & \textbf{Kommentare} \\
     \midrule
@@ -36,7 +14,6 @@
         {{ m.member.name|esc_all }} & {{ m.comments_tex|esc_all }}  \\
     {% endfor %}
     \bottomrule
-  \end{tabularx}
-\end{table}
+\end{tabularx}
 
-\end{document}
+{% endblock %}

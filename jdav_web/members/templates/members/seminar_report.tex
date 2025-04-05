@@ -1,80 +1,9 @@
+{% extends "members/tex_base.tex" %}
 {% load static common tex_extras %}
 
-\documentclass[a4paper]{article}
+{% block title %}Seminarbericht{% endblock %}
 
-\usepackage[utf8]{inputenc}
-% remove all undefined unicode characters instead of throwing an error
-\makeatletter
-\def\UTFviii@undefined@err#1{}
-\makeatother
-\usepackage{booktabs}
-\usepackage{amssymb}
-\usepackage{cmbright}
-\usepackage{graphicx}
-\usepackage{textpos}
-\usepackage[colorlinks, breaklinks]{hyperref}
-\usepackage{float}
-\usepackage[margin=1in]{geometry}
-\usepackage{array}
-\usepackage{ragged2e}
-\usepackage{tabularx}
-\usepackage{titlesec}
-\usepackage{ltablex}
-
-\titleformat{\section}
-  {\Large\slshape}{\thesection\;}
-  {0em}{}
-
-\newcommand{\picpos}[4]{
-  \begin{textblock*}{#1}(#2, #3)
-    \includegraphics[width=\textwidth]{#4}
-  \end{textblock*}
-}
-
-% custom url command for properly formatting emails
-\DeclareUrlCommand\Email{\urlstyle{same}}
-% allow linebreak after every character
-\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
-\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
-\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
-\do\w\do\x\do\y\do\z
-\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
-\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
-\do\W\do\X\do\Y\do\Z}
-
-\renewcommand{\arraystretch}{1.5}
-
-\newcolumntype{L}{>{\hspace{0pt}}X}
-\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
-
-\newcommand{\tickedbox}{
-    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
-}
-\newcommand{\checkbox}{
-    \makebox[0pt][l]{$\square$}
-}
-\begin{document}
-% HEADER RIGHT
-{% settings_value 'DEFAULT_STATIC_PATH' as static_root %}
-\picpos{4.5cm}{11.5cm}{0cm}{%
-{{ static_root }}/general/img/dav_logo_sektion.png%
-}
-\begin{textblock*}{5cm}(11.5cm, 2.3cm)
-    \begin{flushright}
-        \small
-        \noindent Deutscher Alpenverein e. V. \\
-        Sektion {{ settings.SEKTION }} \\
-        {{ settings.SEKTION_STREET }} \\
-        {{ settings.SEKTION_TOWN }} \\
-        Tel.: {{ settings.SEKTION_TELEPHONE }} \\
-        Fax: {{ settings.SEKTION_TELEFAX }} \\
-        {{ settings.RESPONSIBLE_MAIL }} \\
-    \end{flushright}
-\end{textblock*}
-
-% HEADLINE
-{\noindent\LARGE{Seminarbericht}}\\[1mm]
-\textit{Erstellt: {{ creation_date }} }\\
+{% block content %}
 
 % DESCRIPTION TABLE
 \begin{table}[H]
@@ -89,54 +18,14 @@
     \end{tabular}
 \end{table}
 
-{% if mode == 'full' %}
-{% if memberlist.ljpproposal %}
-
-\section{Alpintechnische Ziele}
-
-{{ memberlist.ljpproposal.goals_alpinistic|esc_all }}
-
-\section{Pädagogische Ziele}
-
-{{ memberlist.ljpproposal.goals_pedagogic|esc_all }}
-
-\section{Inhalte und Methoden}
-
-{{ memberlist.ljpproposal.methods|esc_all }}
-
-\section{Wertung}
-
-{{ memberlist.ljpproposal.evaluation|esc_all }}
-
-\section{Erfahrungen und Verbesserungsvorschläge}
-
-{{ memberlist.ljpproposal.experiences|esc_all }}
-
-\section{Zeitlicher und methodischer Ablauf}
-
-\begin{table}[H]
-    \begin{tabularx}{1\linewidth}{@{}l l Y @{}}
-    \toprule
-    \textbf{Zeitpunkt} & \textbf{Dauer} & \textbf{Art der Aktion inkl. Methode} \\
-    \midrule
-    {% for intervention in memberlist.ljpproposal.intervention_set.all %}
-        {{ intervention.date_start|datetime_short }} & {{ intervention.duration }} h & {{ intervention.activity|esc_all }} \\
-    {% endfor %}
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-{% endif %}
-{% endif %}
-
 \section{Teilnehmer*innenliste}
 
-\begin{tabularx}{1\linewidth}{p{0.01\linewidth}>{\RaggedRight\arraybackslash}p{0.22\linewidth}>{\RaggedRight\arraybackslash}p{0.38\linewidth}p{0.14\linewidth}|c|c|c}
-    \hline
+\begin{tabularx}{.97\linewidth}{lp{0.2\textwidth}Xlccc}
+    \toprule
     \# & \textbf{Name} & \textbf{Anschrift} & \textbf{Geburtsdatum} & \textbf{m} & \textbf{w} & \textbf{d} \\
-    \hline
+    \midrule
     \endhead
-    \hline
+    \bottomrule
     \endfoot
     {% for m in memberlist.membersonlist.all %}
         {{ forloop.counter }} & {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.birth_date_str|esc_all }}
@@ -150,7 +39,7 @@
 
 \section{Kosten}
 
-\begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}Lr}
+\begin{tabularx}{.97\textwidth}{Xr}
     \toprule
     \textbf{Beschreibung} & \textbf{Betrag} \\
     \midrule
@@ -160,10 +49,11 @@
     {% for bill in memberlist.statement.grouped_bills %}
         {{ bill.short_description|esc_all }} & {{ bill.amount }} € \\
     {% endfor %}
+    \midrule
+    Gesamt & {{ memberlist.statement.total_theoretic }} € \\
     \bottomrule
-        Gesamt & {{ memberlist.statement.total_theoretic }} € \\
 \end{tabularx}
 
 {% endif %}
 
-\end{document}
+{% endblock %}
