@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-08 16:16+0100\n"
+"POT-Creation-Date: 2025-04-06 14:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -225,6 +225,10 @@ msgstr "Wartende auffordern den Wartelistenplatz zu bestätigen"
 #: members/admin.py
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
+
+#: members/admin.py
+msgid "A waiter with this ID does not exist."
+msgstr "Es existiert keine wartende Person mit dieser ID."
 
 #: members/admin.py
 msgid ""
@@ -764,6 +768,10 @@ msgid "Invitation rejected"
 msgstr "Einladung abgelehnt"
 
 #: members/models.py
+msgid "Created by"
+msgstr "Erstellt von"
+
+#: members/models.py
 msgid "Invitation to group"
 msgstr "Gruppeneinladung"
 
@@ -786,6 +794,16 @@ msgstr "Ausstehend"
 #: members/models.py
 msgid "Status"
 msgstr "Status"
+
+#: members/models.py
+#, python-format
+msgid "%(waiter)s left the waiting list"
+msgstr "%(waiter)s hat die Warteliste verlassen"
+
+#: members/models.py
+#, python-format
+msgid "Group invitation rejected by %(waiter)s"
+msgstr "Einladung zur Schnupperstunde von %(waiter)s abgelehnt"
 
 #: members/models.py
 msgid "Do you want to tell us something else?"

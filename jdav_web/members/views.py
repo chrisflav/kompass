@@ -470,10 +470,10 @@ def reject_invitation(request):
     except InvitationToGroup.DoesNotExist:
         return render_reject_invalid(request)
     if 'reject_invitation' in request.POST:
-        invitation.rejected = True
-        invitation.save()
+        invitation.reject()
         return render_reject_success(request, invitation)
     elif 'leave_waitinglist' in request.POST:
+        invitation.notify_left_waitinglist()
         invitation.waiter.unregister()
         return render_reject_success(request, invitation, leave_waitinglist=True)
     return render_reject_invalid(request)

@@ -22,6 +22,24 @@ bestätige falls möglich. Zu der Registrierung kommst du hier:
 Viele Grüße
 Dein KOMPASS""")
 
+GROUP_INVITATION_LEFT_WAITINGLIST = get_text('group_invitation_left_waitinglist',
+                                             default="""Hallo {name},
+
+der*die kürzlich zu einer Schnupperstunde für die Gruppe {group} eingeladene Wartende {waiter}
+hat die Warteliste verlassen.
+
+Viele Grüße
+Dein KOMPASS""")
+
+GROUP_INVITATION_REJECTED = get_text('group_invitation_rejected',
+                                     default="""Hallo {name},
+
+{waiter} hat die Einladung zu einer Schnupperstunde bei der Gruppe {group} abgelehnt, ist
+aber weiterhin auf der Warteliste.
+
+Viele Grüße
+Dein KOMPASS""")
+
 GROUP_TIME_AVAILABLE_TEXT = get_text('group_time_available',
                                      default="""Die Gruppenstunde findet jeden {weekday} von {start_time} bis {end_time} Uhr statt.""")
 

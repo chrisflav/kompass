@@ -874,6 +874,11 @@ class InvitationToGroup(models.Model):
     date = models.DateField(default=timezone.now, verbose_name=_('Invitation date'))
     rejected = models.BooleanField(verbose_name=_('Invitation rejected'), default=False)
     key = models.CharField(max_length=32, default=gen_key)
+    created_by = models.ForeignKey(Member, verbose_name=_('Created by'),
+                                   blank=True,
+                                   null=True,
+                                   on_delete=models.SET_NULL,
+                                   related_name='created_group_invitations')
 
     class Meta:
         verbose_name = _('Invitation to group')
@@ -890,6 +895,42 @@ class InvitationToGroup(models.Model):
         else:
             return _('Undecided')
     status.short_description = _('Status')
+
+    def send_left_waitinglist_notification_to(self, recipient):
+        send_mail(_('%(waiter)s left the waiting list') % {'waiter': self.waiter},
+                  settings.GROUP_INVITATION_LEFT_WAITINGLIST.format(name=recipient.prename,
+                                                                    waiter=self.waiter,
+                                                                    group=self.group),
+                  settings.DEFAULT_SENDING_MAIL,
+                  recipient.email)
+
+    def send_reject_notification_to(self, recipient):
+        send_mail(_('Group invitation rejected by %(waiter)s') % {'waiter': self.waiter},
+                  settings.GROUP_INVITATION_REJECTED.format(name=recipient.prename,
+                                                            waiter=self.waiter,
+                                                            group=self.group),
+                  settings.DEFAULT_SENDING_MAIL,
+                  recipient.email)
+
+    def notify_left_waitinglist(self):
+        """
+        Inform youth leaders of the group and the inviter that the waiter left the waitinglist,
+        prompted by this group invitation.
+        """
+        if self.created_by:
+            self.send_left_waitinglist_notification_to(self.created_by)
+        for jl in self.group.leiters.all():
+            self.send_left_waitinglist_notification_to(jl)
+
+    def reject(self):
+        """Reject this invitation. Informs the youth leaders of the group of the rejection."""
+        self.rejected = True
+        self.save()
+        # send notifications
+        if self.created_by:
+            self.send_reject_notification_to(self.created_by)
+        for jl in self.group.leiters.all():
+            self.send_reject_notification_to(jl)
 
 
 class MemberWaitingList(Person):
@@ -1008,7 +1049,7 @@ class MemberWaitingList(Person):
         except InvitationToGroup.DoesNotExist:
             return False
 
-    def invite_to_group(self, group, text_template=None):
+    def invite_to_group(self, group, text_template=None, creator=None):
         """
         Invite waiter to given group. Stores a new group invitation
         and sends a personalized e-mail based on the passed template.
@@ -1017,7 +1058,7 @@ class MemberWaitingList(Person):
         self.save()
         if not text_template:
             text_template = group.get_invitation_text_template()
-        invitation = InvitationToGroup(group=group, waiter=self)
+        invitation = InvitationToGroup(group=group, waiter=self, created_by=creator)
         invitation.save()
         self.send_mail(_("Invitation to trial group meeting"),
             text_template.format(name=self.prename,

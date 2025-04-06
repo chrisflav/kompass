@@ -712,7 +712,12 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     def invite_view(self, request, object_id):
         if type(object_id) == str:
-            waiter = MemberWaitingList.objects.get(pk=object_id)
+            try:
+                waiter = MemberWaitingList.objects.get(pk=object_id)
+            except MemberWaitingList.DoesNotExist:
+                messages.error(request,
+                               _("A waiter with this ID does not exist."))
+                return HttpResponseRedirect(reverse('admin:members_memberwaitinglist_changelist'))
             queryset = [waiter]
             id_list = [waiter.pk]
         else:
@@ -756,7 +761,8 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                                _("An error occurred while trying to invite said members. Please try again."))
                 return HttpResponseRedirect(request.get_full_path())
             for w in queryset:
-                w.invite_to_group(group, text_template=text_template)
+                w.invite_to_group(group, text_template=text_template,
+                                  creator=request.user.member if hasattr(request.user, 'member') else None)
                 messages.success(request,
                         _("Successfully invited %(name)s to %(group)s.") % {'name': w.name, 'group': w.invited_for_group.name})
 
