@@ -10,6 +10,7 @@ from jdav_web.celery import app
 from django.core.validators import RegexValidator
 from django.conf import settings
 
+from contrib.rules import has_global_perm
 from contrib.models import CommonModel
 from .rules import is_creator
 
@@ -201,9 +202,9 @@ class Message(CommonModel):
             ("submit_mails", _("Can submit mails")),
         )
         rules_permissions = {
-            "view_obj": is_creator,
-            "change_obj": is_creator,
-            "delete_obj": is_creator,
+            "view_obj": is_creator | has_global_perm('mailer.view_global_message'),
+            "change_obj": is_creator | has_global_perm('mailer.change_global_message'),
+            "delete_obj": is_creator | has_global_perm('mailer.delete_global_message'),
         }
 
 
@@ -237,9 +238,9 @@ class Attachment(CommonModel):
         verbose_name = _('attachment')
         verbose_name_plural = _('attachments')
         rules_permissions = {
-            "add_obj": is_creator,
-            "view_obj": is_creator,
-            "change_obj": is_creator,
-            "delete_obj": is_creator,
+            "add_obj": is_creator | has_global_perm('mailer.view_global_message'),
+            "view_obj": is_creator | has_global_perm('mailer.view_global_message'),
+            "change_obj": is_creator | has_global_perm('mailer.change_global_message'),
+            "delete_obj": is_creator | has_global_perm('mailer.delete_global_message'),
         }
 
