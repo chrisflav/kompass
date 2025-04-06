@@ -479,6 +479,47 @@ def reject_invitation(request):
     return render_reject_invalid(request)
 
 
+def render_confirm_invitation(request, invitation):
+    return render(request, 'members/confirm_invitation.html',
+                  {'invitation': invitation,
+                   'groupname': invitation.group.name,
+                   'contact_email': invitation.group.contact_email,
+                   'timeinfo': invitation.group.get_time_info()})
+
+
+def render_confirm_invalid(request):
+    return render(request, 'members/confirm_invalid.html')
+
+
+def render_confirm_success(request, invitation):
+    return render(request, 'members/confirm_success.html',
+                  {'invitation': invitation,
+                   'groupname': invitation.group.name,
+                   'contact_email': invitation.group.contact_email,
+                   'timeinfo': invitation.group.get_time_info()})
+
+
+def confirm_invitation(request):
+    if request.method == 'GET' and 'key' in request.GET:
+        key = request.GET['key']
+        try:
+            invitation = InvitationToGroup.objects.get(key=key)
+            if invitation.rejected or invitation.is_expired():
+                raise ValueError
+            return render_confirm_invitation(request, invitation)
+        except (ValueError, InvitationToGroup.DoesNotExist):
+            return render_confirm_invalid(request)
+    if request.method != 'POST' or 'key' not in request.POST:
+        return render_confirm_invalid(request)
+    key = request.POST['key']
+    try:
+        invitation = InvitationToGroup.objects.get(key=key)
+    except InvitationToGroup.DoesNotExist:
+        return render_confirm_invalid(request)
+    invitation.confirm()
+    return render_confirm_success(request, invitation)
+
+
 def confirm_waiting(request):
     if request.method == 'GET' and 'key' in request.GET:
         key = request.GET['key']

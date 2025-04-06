@@ -1,0 +1,29 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Confirm trial group meeting invitation" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Confirm trial group meeting invitation" %}</h1>
+
+<p>
+{% blocktrans %}You were invited to a trial group meeting of the group {{ groupname }}.{% endblocktrans %}
+{{ timeinfo }}
+</p>
+
+<p>
+{% blocktrans %}Do you want to take part in the trial group meeting? If yes, please confirm your attendance by clicking on the following button.{% endblocktrans %}
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="key" value="{{invitation.key}}">
+    <input type="submit" name="confirm_invitation"
+        value="{% trans "Confirm trial group meeting" %}"/>
+</form>
+
+{% endblock %}

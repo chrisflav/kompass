@@ -18,7 +18,8 @@ from utils import RestrictedFileField, normalize_name
 import os
 from mailer.mailutils import send as send_mail, get_mail_confirmation_link,\
     prepend_base_url, get_registration_link, get_wait_confirmation_link,\
-    get_invitation_reject_link, get_invite_as_user_key, get_leave_waitinglist_link
+    get_invitation_reject_link, get_invite_as_user_key, get_leave_waitinglist_link,\
+    get_invitation_confirm_link
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -109,6 +110,14 @@ class Group(models.Model):
         # return if the group has all relevant time slot information filled
         return self.weekday and self.start_time and self.end_time
 
+    def get_time_info(self):
+        if self.has_time_info():
+            return settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[self.weekday][1],
+                                                             start_time=self.start_time.strftime('%H:%M'),
+                                                             end_time=self.end_time.strftime('%H:%M'))
+        else:
+            return ""
+
     def get_invitation_text_template(self):
         """The text template used to invite waiters to this group. This contains
         placeholders for the name of the waiter and personalized links."""
@@ -117,9 +126,7 @@ class Group(models.Model):
         else:
             group_link = ''
         if self.has_time_info():
-            group_time = settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[self.weekday][1],
-                                                                   start_time=self.start_time.strftime('%H:%M'),
-                                                                   end_time=self.end_time.strftime('%H:%M'))
+            group_time = self.get_time_info()
         else:
             group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=self.contact_email)
         return settings.INVITE_TEXT.format(group_time=group_time,
@@ -912,6 +919,21 @@ class InvitationToGroup(models.Model):
                   settings.DEFAULT_SENDING_MAIL,
                   recipient.email)
 
+    def send_confirm_notification_to(self, recipient):
+        send_mail(_('Group invitation confirmed by %(waiter)s') % {'waiter': self.waiter},
+                  settings.GROUP_INVITATION_CONFIRMED_TEXT.format(name=recipient.prename,
+                                                                  waiter=self.waiter,
+                                                                  group=self.group),
+                  settings.DEFAULT_SENDING_MAIL,
+                  recipient.email)
+
+    def send_confirm_confirmation(self):
+        self.waiter.send_mail(_('Trial group meeting confirmed'),
+                              settings.TRIAL_GROUP_MEETING_CONFIRMED_TEXT.format(name=self.waiter.prename,
+                                                                                 group=self.group,
+                                                                                 contact_email=self.group.contact_email,
+                                                                                 timeinfo=self.group.get_time_info()))
+
     def notify_left_waitinglist(self):
         """
         Inform youth leaders of the group and the inviter that the waiter left the waitinglist,
@@ -931,6 +953,18 @@ class InvitationToGroup(models.Model):
             self.send_reject_notification_to(self.created_by)
         for jl in self.group.leiters.all():
             self.send_reject_notification_to(jl)
+
+    def confirm(self):
+        """Confirm this invitation. Informs the youth leaders of the group of the invitation."""
+        self.rejected = False
+        self.save()
+        # confirm the confirmation
+        self.send_confirm_confirmation()
+        # send notifications
+        if self.created_by:
+            self.send_confirm_notification_to(self.created_by)
+        for jl in self.group.leiters.all():
+            self.send_confirm_notification_to(jl)
 
 
 class MemberWaitingList(Person):
@@ -1063,7 +1097,8 @@ class MemberWaitingList(Person):
         self.send_mail(_("Invitation to trial group meeting"),
             text_template.format(name=self.prename,
                                  link=get_registration_link(invitation.key),
-                                 invitation_reject_link=get_invitation_reject_link(invitation.key)),
+                                 invitation_reject_link=get_invitation_reject_link(invitation.key),
+                                 invitation_confirm_link=get_invitation_confirm_link(invitation.key)),
             cc=group.contact_email.email)
 
     def unregister(self):

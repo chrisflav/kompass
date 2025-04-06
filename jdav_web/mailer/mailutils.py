@@ -76,6 +76,10 @@ def get_invitation_reject_link(key):
     return prepend_base_url("/members/waitinglist/invitation/reject?key={}".format(key))
 
 
+def get_invitation_confirm_link(key):
+    return prepend_base_url("/members/waitinglist/invitation/confirm?key={}".format(key))
+
+
 def get_wait_confirmation_link(waiter):
     key = waiter.generate_wait_confirmation_key()
     return prepend_base_url("/members/waitinglist/confirm?key={}".format(key))

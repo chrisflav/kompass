@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-06 14:02+0200\n"
+"POT-Creation-Date: 2025-04-06 15:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -804,6 +804,15 @@ msgstr "%(waiter)s hat die Warteliste verlassen"
 #, python-format
 msgid "Group invitation rejected by %(waiter)s"
 msgstr "Einladung zur Schnupperstunde von %(waiter)s abgelehnt"
+
+#: members/models.py
+#, python-format
+msgid "Group invitation confirmed by %(waiter)s"
+msgstr "Teilnahme an Schnupperstunde von %(waiter)s bestätigt"
+
+#: members/models.py
+msgid "Trial group meeting confirmed"
+msgstr "Teilnahme an Schnupperstunde bestätigt"
 
 #: members/models.py
 msgid "Do you want to tell us something else?"
@@ -1655,6 +1664,60 @@ msgstr "Fähigkeitsniveau"
 msgid "Save and confirm registration"
 msgstr "Speichern und Registrierung bestätigen"
 
+#: members/templates/members/confirm_invalid.html
+msgid "Confirm invitation"
+msgstr "Teilnahme bestätigen"
+
+#: members/templates/members/confirm_invalid.html
+#: members/templates/members/reject_invalid.html members/tests.py
+msgid "This invitation is invalid or expired."
+msgstr "Diese Einladung ist ungültig oder abgelaufen."
+
+#: members/templates/members/confirm_invitation.html
+msgid "Confirm trial group meeting invitation"
+msgstr "Teilnahme bestätigen"
+
+#: members/templates/members/confirm_invitation.html
+#, python-format
+msgid "You were invited to a trial group meeting of the group %(groupname)s."
+msgstr ""
+"Du wurdest zu einer Schnupperstunde in der Gruppe %(groupname)s eingeladen."
+
+#: members/templates/members/confirm_invitation.html
+msgid ""
+"Do you want to take part in the trial group meeting? If yes, please confirm "
+"your attendance by clicking on the following button."
+msgstr ""
+"Möchtest du an der Schnupperstunde teilnehmen? Falls ja, bitte bestätige "
+"deine Teilnahme durch das Betätigen des folgenden Knopfes."
+
+#: members/templates/members/confirm_invitation.html
+msgid "Confirm trial group meeting"
+msgstr "Teilnahme bestätigen"
+
+#: members/templates/members/confirm_success.html
+msgid "Invitation confirmed"
+msgstr "Teilnahme bestätigt"
+
+#: members/templates/members/confirm_success.html
+#, python-format
+msgid ""
+"You successfully confirmed the invitation to the trial group meeting of the "
+"group %(groupname)s."
+msgstr ""
+"Deine Teilnahme an der Schnupperstunde der Gruppe %(groupname)s wurde "
+"erfolgreich bestätigt."
+
+#: members/templates/members/confirm_success.html
+msgid ""
+"We have informed the group leaders about your confirmation. If for some "
+"reason you can not make it,\n"
+"please contact the group leaders at"
+msgstr ""
+"Wir haben die Jugendleiter*innen der Jugendgruppe über deine Bestätigung "
+"informiert. Falls du doch nicht zur Schnupperstunde kommen kannst, "
+"informiere bitte die Jugendleiter*innen unter"
+
 #: members/templates/members/echo.html
 #: members/templates/members/echo_failed.html
 #: members/templates/members/echo_password.html
@@ -1941,10 +2004,6 @@ msgstr ""
 #: members/templates/members/reject_invitation.html
 msgid "Reject invitation"
 msgstr "Einladung ablehnen"
-
-#: members/templates/members/reject_invalid.html members/tests.py
-msgid "This invitation is invalid or expired."
-msgstr "Diese Einladung ist ungültig oder abgelaufen."
 
 #: members/templates/members/reject_invitation.html
 #, python-format
@@ -2239,14 +2298,6 @@ msgstr "Ungültige Notfallkontakte"
 
 #~ msgid "Good conduct certificate presentation needed"
 #~ msgstr "Vorlage Führungszeugnis notwendig"
-
-#, python-format
-#~ msgid ""
-#~ "Do you want to reject the invitation to a trial group meeting of the\n"
-#~ "group %(invitation.group.name)s?"
-#~ msgstr ""
-#~ "Möchtest du die Einladung zur Schnupperstunde bei der Gruppe "
-#~ "%(invitation.group.name)s wirklich ablehnen?"
 
 #~ msgid "Yes, reject invitation"
 #~ msgstr "Ja, Einladung ablehnen."

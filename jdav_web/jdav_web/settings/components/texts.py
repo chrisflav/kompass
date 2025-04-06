@@ -40,6 +40,28 @@ aber weiterhin auf der Warteliste.
 Viele Grüße
 Dein KOMPASS""")
 
+
+GROUP_INVITATION_CONFIRMED_TEXT = get_text('group_invitation_confirmed',
+                                           default="""Hallo {name},
+
+{waiter} hat die Einladung zu einer Schnupperstunde bei der Gruppe {group} angenommen.
+
+Viele Grüße
+Dein KOMPASS""")
+
+
+TRIAL_GROUP_MEETING_CONFIRMED_TEXT = get_text('trial_group_meeting_confirmed',
+                                              default="""Hallo {name},
+
+deine Teilnahme an der Schnupperstunde der Gruppe {group} wurde erfolgreich bestätigt.
+{timeinfo}
+
+Für alle weiteren Absprachen, kontaktiere bitte die Jugendleiter*innen der Gruppe
+unter {contact_email}.
+
+Viele Grüße
+Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION })
+
 GROUP_TIME_AVAILABLE_TEXT = get_text('group_time_available',
                                      default="""Die Gruppenstunde findet jeden {weekday} von {start_time} bis {end_time} Uhr statt.""")
 
@@ -51,7 +73,11 @@ INVITE_TEXT = get_text('invite', default="""Hallo {{name}},
 wir haben gute Neuigkeiten für dich. Es ist ein Platz in der Jugendgruppe {group_name} {group_link}freigeworden.
 {group_time}
 
-Bitte kontaktiere die Gruppenleitung ({contact_email}) für alle weiteren Absprachen.
+Wenn du an der Schnupperstunde teilnehmen möchtest, bestätige deine Teilnahme bitte unter folgendem Link:
+
+{{invitation_confirm_link}}
+
+Für alle weiteren Absprachen, kontaktiere bitte die Gruppenleitung ({contact_email}).
 
 Wenn du nach der Schnupperstunde beschließt der Gruppe beizutreten, benötigen wir noch ein paar
 Informationen und eine schriftliche Anmeldebestätigung von dir. Das kannst du alles über folgenden Link erledigen:
