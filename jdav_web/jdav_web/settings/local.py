@@ -20,6 +20,7 @@ DIGITAL_MAIL = get_var('section', 'digital_mail', default='bar@example.org')
 
 V32_HEAD_ORGANISATION = get_var('LJP', 'v32_head_organisation', default='not configured')
 LJP_CONTRIBUTION_PER_DAY = get_var('LJP', 'contribution_per_day', default=25)
+LJP_TAX = get_var('LJP', 'tax', default=0)
 
 # echo
 

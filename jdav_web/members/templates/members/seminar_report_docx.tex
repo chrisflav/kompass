@@ -36,7 +36,7 @@
         \textbf{Sektion:} & {{ settings.SEKTION }} \\
         \textbf{Titel der Maßnahme:} & {% if not memberlist.ljpproposal %}{{ memberlist.name|esc_all }}{% else %}{{ memberlist.ljpproposal.title }} {% endif %} \\
         \textbf{Interne Ordnungsnummer:} & {{ memberlist.code|esc_all }} \\
-        \textbf{Anzahl der durchgeführten Lehrgangstage:} & {{ memberlist.duration }} \\
+        \textbf{Anzahl der durchgeführten Lehrgangstage:} & {{ memberlist.ljp_duration }} \\
     \end{tabular}
 \end{table}
 

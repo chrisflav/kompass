@@ -1,0 +1,137 @@
+{% extends "members/tex_base.tex" %}
+{% load static common tex_extras %}
+
+{% block title %}Abrechnungs- und Zuschussbeleg\\[2mm]Sektionsveranstaltung{% endblock %}
+
+{% block content %}
+
+{% if excursion %}
+\noindent\textbf{\large Ausfahrt}
+
+% DESCRIPTION TABLE
+\begin{table}[H]
+    \begin{tabular}{ll}
+        Aktivität: & {{ excursion.name|esc_all }} \\
+        Ordnungsnummer & {{ excursion.code|esc_all }} \\
+        Ort / Stützpunkt: & {{ excursion.place|esc_all }} \\
+        Zeitraum: & {{ excursion.duration|esc_all}} Tage ({{ excursion.time_period_str|esc_all }}) \\
+        Teilnehmer*innen: & {{ excursion.participant_count }} der Gruppe(n) {{ excursion.groups_str|esc_all }} \\
+        Betreuer*innen: & {{excursion.staff_count|esc_all }} ({{ excursion.staff_str|esc_all }}) \\
+        Art der Tour: & {% checked_if_true 'Gemeinschaftstour' excursion.get_tour_type %}
+            {% checked_if_true 'Führungstour' excursion.get_tour_type %}
+            {% checked_if_true 'Ausbildung' excursion.get_tour_type %} \\
+        Anreise: & {% checked_if_true 'ÖPNV' excursion.get_tour_approach %}
+            {% checked_if_true 'Muskelkraft' excursion.get_tour_approach %}
+            {% checked_if_true 'Fahrgemeinschaften' excursion.get_tour_approach %}
+    \end{tabular}
+\end{table}
+
+\noindent\textbf{\large Zuschüsse und Aufwandsentschädigung}
+{% if excursion.approved_staff_count > 0 %}
+
+\noindent Gemäß Beschluss des Jugendausschusses gelten folgende Sätze für Zuschüsse pro genehmigter Jugendleiter*in:
+
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{.97\textwidth}{Xllr}
+        \toprule
+        \textbf{Posten} & \textbf{Einzelsatz} & \textbf{Anzahl} & \textbf{Gesamtbetrag pro JL} \\
+        \midrule
+        Zuschuss Übernachtung & {{ statement.price_per_night }} € / Nacht  & {{ statement.nights }} Nächte & {{ statement.nights_per_yl }} € \\
+        Zuschuss Anreise & {{statement.euro_per_km}} € / km ({{ statement.means_of_transport }}) & {{ statement.kilometers_traveled }} km & {{ statement.transportation_per_yl }} € \\
+        Aufwandsentschädigung & {{ statement.allowance_per_day }},00 € / Tag  & {{ statement.duration }} Tage & {{ statement.allowance_per_yl }} € \\
+        \midrule
+        \textbf{Summe}& & & \textbf{ {{ statement.total_per_yl }} }€\\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\noindent Gemäß JDAV-Betreuungsschlüssel können bei {{ excursion.participant_count }} Teilnehmer*innen
+bis zu {{ excursion.approved_staff_count }} Jugendleiter*innen {% if excursion.approved_extra_youth_leader_count %}
+(davon {{ excursion.approved_extra_youth_leader_count }} durch das Jugendreferat zusätzlich genehmigt){% endif %} bezuschusst werden.
+Zuschüsse und Aufwandsentschädigung werden wie folgt abgerufen:
+\begin{itemize}
+
+    {% if statement.allowances_paid > 0 %}
+
+        \item Eine Aufwandsentschädigung von {{ statement.allowance_per_yl }} € pro Jugendleiter*in wird überwiesen an:
+        {% for m in statement.allowance_to.all %}{% if forloop.counter > 1 %}, {% endif %}{{ m.name }}{% endfor %}
+    {% else %}
+    \item Keiner*r der Jugendleiter*innen nimmt eine Aufwandsentschädigung in Anspruch.
+    {% endif %}
+
+    {% if statement.subsidy_to %}
+    \item Der Zuschuss zu Übernachtung und Anreise für alle Jugendleiter*innen in Höhe von {{ statement.total_subsidies }} € wird überwiesen an:
+            {{ statement.subsidy_to.name }}
+
+    {% else %}
+    \item Zuschüsse zu Übernachtung und Anreise werden nicht in Anspruch genommen.
+    {% endif %}
+
+\end{itemize}
+{% else %}
+\noindent Für die vorliegende Ausfahrt sind keine Jugendleiter*innen anspruchsberechtigt für Zuschüsse oder Aufwandsentschädigung.
+
+{% endif %}
+
+{% if statement.ljp_to %}
+\noindent\textbf{LJP-Zuschüsse}
+
+\noindent Der LJP-Zuschuss für die Teilnehmenden in Höhe von {{ statement.paid_ljp_contributions|esc_all }} € wird überwiesen an:
+{{ statement.ljp_to.name|esc_all }} Dieser Zuschuss wird aus Landesmitteln gewährt und ist daher 
+in der Ausgabenübersicht gesondert aufgeführt.
+
+{% endif %}
+
+{% else %}
+\vspace{110pt}
+{% endif %}
+
+
+\vspace{12pt}
+
+\noindent\textbf{\large Ausgabenübersicht}
+\nopagebreak
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{.97\textwidth}{lXlr}
+        \toprule
+        \textbf{Titel} & \textbf{Beschreibung} & \textbf{Auszahlung an} & \textbf{Betrag} \\
+        \midrule
+
+{% if statement.bills_covered %}
+    {% for bill in statement.bills_covered %}
+        {{ forloop.counter }}. {{ bill.short_description}} & {{ bill.explanation}} & {{ bill.paid_by.name|esc_all }} &  {{ bill.amount }} € \\
+        {% endfor %}
+        \midrule
+        \multicolumn{3}{l}{\textbf{Summe übernommene Ausgaben}} & \textbf{ {{ statement.total_bills }} }€\\
+{% endif %}
+{% if excursion.approved_staff_count > 0 and statement.allowances_paid > 0 or excursion.approved_staff_count > 0 and statement.subsidy_to %}
+        \midrule
+        {% if statement.allowances_paid > 0 %}
+        {% for m in statement.allowance_to.all %}
+        Aufwandsentschädigung & & {{ m.name|esc_all }} & {{ statement.allowance_per_yl }} €\\
+        {% endfor %}
+        {% endif %}
+        {% if statement.subsidy_to %}
+        \multicolumn{2}{l}{Zuschuss Übernachtung und Anreise für alle Jugendleiter*innen} & {{ statement.subsidy_to.name|esc_all }} & {{ statement.total_subsidies }} €\\
+        {% endif %}
+        \midrule
+        \multicolumn{3}{l}{\textbf{Summe Zuschüsse und Aufwandsentschädigung Jugendleitende}} & \textbf{ {{ statement.total_staff }} }€\\
+{%endif %}
+{% if statement.ljp_to %}
+        \midrule
+        LJP-Zuschuss für die Teilnehmenden && {{ statement.ljp_to.name|esc_all }} & {{ statement.paid_ljp_contributions|esc_all }} €\\
+
+{% endif %}
+{% if statement.ljp_to or statement.bills_covered and excursion.approved_staff_count > 0 %}
+        \midrule
+        \textbf{Gesamtsumme}& & & \textbf{ {{ statement.total }} }€\\
+{% endif %}
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\noindent Dieser Beleg wird automatisch erstellt und daher nicht unterschrieben.
+
+{% endblock %}

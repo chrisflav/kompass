@@ -113,9 +113,65 @@
 <p>{% blocktrans %}No receivers of the subsidies were provided. Subsidies will not be used.{% endblocktrans %}</p>
 {% endif %}
 
+{% if statement.ljp_to %}
+<p>
+{% blocktrans %} The youth leaders have documented interventions worth of {{ total_seminar_days }} seminar 
+days for {{ participant_count }} eligible participants. Taking into account the maximum contribution quota 
+of 90% and possible taxes ({{ ljp_tax }}%), this results in a total of {{ paid_ljp_contributions }}€. 
+Once their proposal was approved, the ljp contributions of should be paid to:{% endblocktrans %}
+<table>
+    <th>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
+    <tr>
+        <td>{{ statement.ljp_to.name }}</td>
+        <td>{{ statement.ljp_to.iban_valid|render_bool }}</td>
+    </tr>
+</table>
+</p>
 {% endif %}
 
-<h2>{% trans "Total" %}</h2>
+
+{% endif %}
+
+
+<h2>{% trans "Summary" %}</h2>
+
+
+<table>
+    <tr>
+        <td>
+            {% trans "Covered bills" %}
+        </td>
+        <td>
+            {{ total_bills }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Allowance" %}
+        </td>
+        <td>
+            {{ total_allowance }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Contributions by the association" %}
+        </td>
+        <td>
+            {{ total_subsidies }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "ljp contributions" %}
+        </td>
+        <td>
+            {{ paid_ljp_contributions }}€
+        </td>
+    </tr>
+</table>
 
 <p>
 {% blocktrans %}This results in a total amount of {{ total }}€{% endblocktrans %}

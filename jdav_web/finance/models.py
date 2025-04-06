@@ -70,6 +70,13 @@ class Statement(CommonModel):
                                    related_name='receives_subsidy_for_statements',
                                    help_text=_('The person that should receive the subsidy for night and travel costs. Typically the person who paid for them.'))
 
+    ljp_to = models.ForeignKey(Member, verbose_name=_('Pay ljp contributions to'),
+                               null=True,
+                               blank=True,
+                               on_delete=models.SET_NULL,
+                               related_name='receives_ljp_for_statements',
+                               help_text=_('The person that should receive the ljp contributions for the participants. Should be only selected if an ljp request was submitted.'))
+
     night_cost = models.DecimalField(verbose_name=_('Price per night'), default=0, decimal_places=2, max_digits=5)
 
     submitted = models.BooleanField(verbose_name=_('Submitted'), default=False)
@@ -128,6 +135,8 @@ class Statement(CommonModel):
             needed_paiments.extend([(yl, self.allowance_per_yl) for yl in self.allowance_to.all()])
         if self.subsidy_to:
             needed_paiments.append((self.subsidy_to, self.total_subsidies))
+        if self.ljp_to:
+            needed_paiments.append((self.ljp_to, self.paid_ljp_contributions))
 
         needed_paiments = sorted(needed_paiments, key=lambda p: p[0].pk)
         target = dict(map(lambda p: (p[0], sum([x[1] for x in p[1]])), groupby(needed_paiments, lambda p: p[0])))
@@ -242,6 +251,10 @@ class Statement(CommonModel):
             ref = _("Night and travel costs for %(excu)s") % {'excu': self.excursion.name}
             Transaction(statement=self, member=self.subsidy_to, amount=self.total_subsidies, confirmed=False, reference=ref).save()
         
+        if self.ljp_to:
+            ref = _("LJP-Contribution %(excu)s") % {'excu': self.excursion.name}
+            Transaction(statement=self, member=self.ljp_to, amount=self.paid_ljp_contributions, confirmed=False, reference=ref).save()
+        
         return True
 
     def reduce_transactions(self):
@@ -261,7 +274,7 @@ class Statement(CommonModel):
                 continue
 
             new_amount = sum((trans.amount for trans in grp))
-            new_ref = "\n".join((trans.reference for trans in grp))
+            new_ref = ", ".join((f"{trans.reference} EUR{trans.amount: .2f}" for trans in grp))
             Transaction(statement=self, member=member, amount=new_amount, confirmed=False, reference=new_ref,
                         ledger=ledger).save()
             for trans in grp:
@@ -269,11 +282,26 @@ class Statement(CommonModel):
 
     @property
     def total_bills(self):
-        return sum([bill.amount for bill in self.bill_set.all() if bill.costs_covered])
+        return sum([bill.amount for bill in self.bills_covered])
 
+    @property
+    def bills_covered(self):
+        """Returns the bills that are marked for reimbursement by the finance officer"""
+        return [bill for bill in self.bill_set.all() if bill.costs_covered]
+
+    @property
+    def bills_without_proof(self):
+        """Returns the bills that lack a proof file"""
+        return [bill for bill in self.bill_set.all() if not bill.proof]
+    
     @property
     def total_bills_theoretic(self):
         return sum([bill.amount for bill in self.bill_set.all()])
+
+    @property
+    def total_bills_not_covered(self):
+        """Returns the sum of bills that are not marked for reimbursement by the finance officer"""
+        return sum([bill.amount for bill in self.bill_set.all()]) - self.total_bills
 
     @property
     def euro_per_km(self):
@@ -380,10 +408,23 @@ class Statement(CommonModel):
             return 0
         else:
             return self.excursion.approved_staff_count
+        
+    @property
+    def paid_ljp_contributions(self):
+        if hasattr(self.excursion, 'ljpproposal') and self.ljp_to:
+            return cvt_to_decimal(
+                min(
+                    (1-settings.LJP_TAX) * settings.LJP_CONTRIBUTION_PER_DAY * self.excursion.ljp_participant_count * self.excursion.ljp_duration,
+                    (1-settings.LJP_TAX) * 0.9 * (float(self.total_bills_not_covered) + float(self.total_staff) ),
+                    float(self.total_bills_not_covered)
+                )
+            )
+        else:
+            return 0
 
     @property
     def total(self):
-        return self.total_bills + self.total_staff
+        return self.total_bills + self.total_staff  + self.paid_ljp_contributions
 
     @property
     def total_theoretic(self):
@@ -403,6 +444,7 @@ class Statement(CommonModel):
         context = {
             'total_bills': self.total_bills,
             'total_bills_theoretic': self.total_bills_theoretic,
+            'bills_covered': self.bills_covered,
             'total': self.total,
         }
         if self.excursion:
@@ -421,9 +463,18 @@ class Statement(CommonModel):
                 'transportation_per_yl': self.transportation_per_yl,
                 'total_per_yl': self.total_per_yl,
                 'total_staff': self.total_staff,
+                'total_allowance': self.total_allowance,
                 'theoretical_total_staff': self.theoretical_total_staff,
                 'real_staff_count': self.real_staff_count,
                 'total_subsidies': self.total_subsidies,
+                'total_allowance': self.total_allowance,
+                'subsidy_to': self.subsidy_to,
+                'allowance_to': self.allowance_to,
+                'paid_ljp_contributions': self.paid_ljp_contributions,
+                'ljp_to': self.ljp_to,
+                'participant_count': self.excursion.participant_count,
+                'total_seminar_days': self.excursion.total_seminar_days,
+                'ljp_tax': settings.LJP_TAX * 100,
             }
             return dict(context, **excursion_context)
         else:

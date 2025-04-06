@@ -898,10 +898,11 @@ class StatementOnListForm(forms.ModelForm):
         # of subsidies and allowance
         self.fields['allowance_to'].queryset = excursion.jugendleiter.all()
         self.fields['subsidy_to'].queryset = excursion.jugendleiter.all()
+        self.fields['ljp_to'].queryset = excursion.jugendleiter.all()
 
     class Meta:
         model = Statement
-        fields = ['night_cost', 'allowance_to', 'subsidy_to']
+        fields = ['night_cost', 'allowance_to', 'subsidy_to', 'ljp_to']
 
     def clean(self):
         """Check if the `allowance_to` and `subsidy_to` fields are compatible with
@@ -922,7 +923,7 @@ class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedIn
     extra = 1
     description = _('Please list here all expenses in relation with this excursion and upload relevant bills. These have to be permanently stored for the application of LJP contributions. The short descriptions are used in the seminar report cost overview (possible descriptions are e.g. food, material, etc.).')
     sortable_options = []
-    fields = ['night_cost', 'allowance_to', 'subsidy_to']
+    fields = ['night_cost', 'allowance_to', 'subsidy_to', 'ljp_to']
     inlines = [BillOnExcursionInline]
     form = StatementOnListForm
 
@@ -1229,6 +1230,12 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
                 messages.error(request,
                                _("The configured recipients of the allowance don't match the regulations. Please correct this and try again."))
                 return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(memberlist.pk,)))
+            
+            if memberlist.statement.ljp_to and len(memberlist.statement.bills_without_proof) > 0:
+                messages.error(request,
+                               _("The excursion is configured to claim LJP contributions. In that case, for all bills, a proof must be uploaded. Please correct this and try again."))
+                return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(memberlist.pk,)))
+            
             memberlist.statement.submit(get_member(request))
             messages.success(request,
                              _("Successfully submited statement. The finance department will notify you as soon as possible."))
@@ -1238,8 +1245,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
                        opts=self.opts,
                        memberlist=memberlist,
                        object=memberlist,
-                       participant_count=memberlist.participant_count,
-                       ljp_contributions=memberlist.potential_ljp_contributions,
+                       ljp_contributions=memberlist.payable_ljp_contributions,
                        total_relative_costs=memberlist.total_relative_costs,
                        **memberlist.statement.template_context())
         return render(request, 'admin/freizeit_finance_overview.html', context=context)

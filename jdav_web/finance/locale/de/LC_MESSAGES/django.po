@@ -49,6 +49,10 @@ msgid "Submit statement"
 msgstr "Rechnung einreichen"
 
 #: finance/admin.py
+msgid "Length"
+msgstr "Länge"
+
+#: finance/admin.py
 #, python-format
 msgid "%(name)s is not yet submitted."
 msgstr "%(name)s ist noch nicht eingereicht."
@@ -68,6 +72,13 @@ msgid ""
 msgstr ""
 "Erfolgreich %(name)s abgewickelt. Ich hoffe du hast die zugehörigen "
 "Überweisungen ausgeführt, ich werde dich nicht nochmal erinnern."
+
+#: finance/admin.py
+#, python-format
+msgid "You can download a <a href='%(link)s', target='_blank'>receipt</a>."
+msgstr ""
+"Hier kannst du den Abrechnungsbeleg <a href='%(link)s', "
+"target='_blank'>herunterladen</a>."
 
 #: finance/admin.py
 msgid "Statement confirmed"
@@ -160,6 +171,10 @@ msgstr ""
 msgid "Unconfirm statement"
 msgstr "Bestätigung zurücknehmen"
 
+#: finance/admin.py
+msgid "Download summary"
+msgstr "Beleg herunterladen"
+
 #: finance/apps.py
 msgid "Finance"
 msgstr "Finanzen"
@@ -210,6 +225,18 @@ msgid ""
 msgstr ""
 "Die Person, die die Übernachtungs- und Fahrtkostenzuschüsse erhalten soll. "
 "Dies ist in der Regel die Person, die sie bezahlt hat."
+
+#: finance/models.py
+msgid "Pay ljp contributions to"
+msgstr "LJP-Zuschüsse auszahlen an"
+
+#: finance/models.py
+msgid ""
+"The person that should receive the ljp contributions for the participants. "
+"Should be only selected if an ljp request was submitted."
+msgstr ""
+"Die Person, die die LJP-Zuschüsse für die Teilnehmenden erhalten soll. Nur "
+"auswählen, wenn ein LJP-Antrag abgegeben wird."
 
 #: finance/models.py
 msgid "Price per night"
@@ -270,7 +297,12 @@ msgstr "Aufwandsentschädigung für %(excu)s"
 msgid "Night and travel costs for %(excu)s"
 msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
 
-#: finance/models.py finance/templates/admin/overview_submitted_statement.html
+#: finance/models.py
+#, python-format
+msgid "LJP-Contribution %(excu)s"
+msgstr "LJP-Zuschuss %(excu)s"
+
+#: finance/models.py
 msgid "Total"
 msgstr "Gesamtbetrag"
 
@@ -508,6 +540,44 @@ msgid ""
 msgstr ""
 "Keine Empfänger*innen für Sektionszuschüsse angegeben. Es werden daher keine "
 "Sektionszuschüsse ausbezahlt."
+
+#: finance/templates/admin/overview_submitted_statement.html
+#, python-format
+msgid ""
+" The youth leaders have documented interventions worth of "
+"%(total_seminar_days)s seminar \n"
+"days for %(participant_count)s eligible participants. Taking into account "
+"the maximum contribution quota \n"
+"of 90%% and possible taxes (%(ljp_tax)s%%), this results in a total of "
+"%(paid_ljp_contributions)s€. \n"
+"Once their proposal was approved, the ljp contributions of should be paid to:"
+msgstr ""
+"Jugendleiter*innen haben Lerneinheiten für insgesamt %(total_seminar_days)s "
+"Seminartage und für %(participant_count)s Teilnehmende dokumentiert. Unter "
+"Einbezug der maximalen Förderquote von 90%% und möglichen Steuern "
+"(%(ljp_tax)s%%), ergibt sich ein auszuzahlender Betrag von "
+"%(paid_ljp_contributions)s€. Sobald der LJP-Antrag geprüft ist, können LJP-"
+"Zuschüsse ausbezahlt werden an:"
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "Summary"
+msgstr "Zusammenfassung"
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "Covered bills"
+msgstr "Übernommene Ausgaben"
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "Allowance"
+msgstr "Aufwandsentschädigung"
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "Contributions by the association"
+msgstr "Sektionszuschüsse"
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "ljp contributions"
+msgstr "LJP-Zuschüsse"
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format

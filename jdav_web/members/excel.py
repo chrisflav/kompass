@@ -117,7 +117,7 @@ def generate_ljp_vbk(excursion):
     sheet['D19'] = settings.SEKTION
     sheet['G19'] = title
     sheet['I19'] = f"von {excursion.date:%d.%m.%y} bis {excursion.end:%d.%m.%y}"
-    sheet['J19'] = excursion.duration
+    sheet['J19'] = excursion.ljp_duration
     sheet['L19'] = f"{excursion.ljp_participant_count}"
     sheet['H19'] = excursion.get_ljp_activity_category()
     sheet['M19'] = f"{excursion.postcode}, {excursion.place}"

@@ -8,6 +8,7 @@ import csv
 from django.db import models
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
+from django.db.models.functions import TruncDate
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.utils.html import format_html
@@ -1279,15 +1280,39 @@ class Freizeit(CommonModel):
             return 0
 
     @property
+    def total_seminar_days(self):
+        """calculate seminar days based on intervention hours in every day"""
+        # TODO: add tests for this
+        if hasattr(self, 'ljpproposal'):
+            hours_per_day = (
+                self.ljpproposal.intervention_set
+                .annotate(day=TruncDate('date_start'))  # Extract the date (without time)
+                .values('day')  # Group by day
+                .annotate(total_duration=Sum('duration'))  # Sum durations for each day
+                .order_by('day')  # Sort results by date
+            )
+            # Calculate the total number of seminar days
+            # Each day is counted as 1 if total_duration is >= 5 hours, as 0.5 if total_duration is >= 2.5
+            # otherwise 0
+            return sum([min(math.floor(h['total_duration']/cvt_to_decimal(2.5))/2, 1) for h in hours_per_day])
+        else:
+            return 0
+
+    @property
+    def ljp_duration(self):
+        """calculate the duration in days for the LJP"""
+        return min(self.duration, self.total_seminar_days)
+
+    @property
     def staff_count(self):
         return self.jugendleiter.count()
-    
+
     @property
     def staff_on_memberlist(self):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         return ps.intersection(jls)
-    
+
     @property
     def staff_on_memberlist_count(self):
         return len(self.staff_on_memberlist)
@@ -1297,7 +1322,7 @@ class Freizeit(CommonModel):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         return len(ps - jls)
-    
+
     @property
     def head_count(self):
         return self.staff_on_memberlist_count + self.participant_count
@@ -1367,11 +1392,18 @@ class Freizeit(CommonModel):
                                   0.9 * float(self.statement.total_bills_theoretic) + float(self.statement.total_staff)))
 
     @property
+    def payable_ljp_contributions(self):
+        """from the requested ljp contributions, a tax may be deducted for risk reduction"""
+        if self.statement.ljp_to:
+            return self.statement.paid_ljp_contributions
+        return cvt_to_decimal(self.potential_ljp_contributions * cvt_to_decimal(1 - settings.LJP_TAX))
+
+    @property
     def total_relative_costs(self):
         if not self.statement:
             return 0
         total_costs = self.statement.total_bills_theoretic
-        total_contributions = self.statement.total_subsidies + self.potential_ljp_contributions
+        total_contributions = self.statement.total_subsidies + self.payable_ljp_contributions
         return total_costs - total_contributions
 
     @property

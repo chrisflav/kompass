@@ -130,13 +130,38 @@ cost plan!
 </p>
 {% endif %}
 
+
+{% if memberlist.statement.ljp_to %}
 <h3>{% trans "LJP contributions" %}</h3>
 
 <p>
+{% blocktrans %}By submitting the given seminar report, you will receive LJP contributions.
+You have documented interventions worth of {{ total_seminar_days }} seminar days for {{ participant_count }} participants.
+This results in a total contribution of {{ ljp_contributions }}€.
+To receive them, you need to submit the LJP-Proposal within 3 weeks after your excursion and have it approved by the finance office.{% endblocktrans %}
+</p>
+
+<p>
+    {% blocktrans %}The LJP contributions are configured to be paid to:{% endblocktrans %}
+    <table>
+        <th>
+            <td>{% trans "IBAN valid" %}</td>
+        </th>
+        <tr>
+            <td>{{ memberlist.statement.ljp_to.name }}</td>
+            <td>{{ memberlist.statement.ljp_to.iban_valid|render_bool }}</td>
+        </tr>
+    </table>
+</p>
+
+{% else %}
+<p>
 {% blocktrans %}By submitting a seminar report, you may apply for LJP contributions. In this case,
 you may obtain up to 25€ times {{ duration }} days for {{ participant_count }} participants but only up to
-90% of the total costs. This results in a total of {{ ljp_contributions }}€.{% endblocktrans %}
+90% of the total costs. This results in a total of {{ ljp_contributions }}€. If you have created a seminar report, you need to specify who should receive the contributions in order to make use of them.{% endblocktrans %}
 </p>
+
+{% endif %}
 
 <h3>{% trans "Summary" %}</h3>
 
@@ -163,7 +188,7 @@ you may obtain up to 25€ times {{ duration }} days for {{ participant_count }}
     </tr>
     <tr>
         <td>
-            {% trans "Potential LJP contributions" %}
+            {% if memberlist.statement.ljp_to %}{% trans "LJP contributions" %}{% else %}{% trans "Potential LJP contributions" %}{% endif %}
         </td>
         <td>
             -{{ ljp_contributions }}€

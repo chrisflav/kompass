@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.utils.safestring import mark_safe
 from django import forms
 from django.forms import Textarea, ClearableFileInput
 from django.http import HttpResponse, HttpResponseRedirect
@@ -13,6 +14,7 @@ from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 from utils import get_member, RestrictedFileField
 
 from rules.contrib.admin import ObjectPermissionsModelAdmin
+from members.pdf import render_tex_with_attachments
 
 from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted, StatementConfirmed,\
         StatementUnSubmitted, BillOnStatementProxy
@@ -115,7 +117,7 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
                        memberlist=memberlist,
                        object=memberlist,
                        participant_count=memberlist.participant_count,
-                       ljp_contributions=memberlist.potential_ljp_contributions,
+                       ljp_contributions=memberlist.payable_ljp_contributions,
                        total_relative_costs=memberlist.total_relative_costs,
                        **memberlist.statement.template_context())
             return render(request, 'admin/freizeit_finance_overview.html', context=context)
@@ -129,11 +131,22 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
 
 class TransactionOnSubmittedStatementInline(admin.TabularInline):
     model = Transaction
-    fields = ['amount', 'member', 'reference', 'ledger']
+    fields = ['amount', 'member', 'reference', 'text_length_warning', 'ledger']
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
+    readonly_fields = ['text_length_warning']
     extra = 0
+
+    def text_length_warning(self, obj):
+        """Display reference length, warn if exceeds 140 characters."""
+        len_reference = len(obj.reference)
+        len_string = f"{len_reference}/140"
+        if len_reference > 140:
+            return mark_safe(f'<span style="color: red;">{len_string}</span>')
+
+        return len_string
+    text_length_warning.short_description = _("Length")
 
 
 class BillOnSubmittedStatementInline(BillOnStatementInline):
@@ -217,6 +230,9 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
             messages.success(request,
                     _("Successfully confirmed %(name)s. I hope you executed the associated transactions, I wont remind you again.")
                     % {'name': str(statement)})
+            download_link = reverse('admin:finance_statementconfirmed_summary', args=(statement.pk,))
+            messages.success(request,
+                             mark_safe(_("You can download a <a href='%(link)s', target='_blank'>receipt</a>.") % {'link': download_link}))
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
         if "confirm" in request.POST:
             res = statement.validity
@@ -271,6 +287,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                        title=_('View submitted statement'),
                        opts=self.opts,
                        statement=statement,
+                       settings=settings,
                        transaction_issues=statement.transaction_issues,
                        **statement.template_context())
 
@@ -321,6 +338,11 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
                 wrap(self.unconfirm_view),
                 name="%s_%s_unconfirm" % (self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "<path:object_id>/summary/",
+                wrap(self.statement_summary_view),
+                name="%s_%s_summary" % (self.opts.app_label, self.opts.model_name),
+            ),
         ]
         return custom_urls + urls
 
@@ -347,6 +369,22 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
                        statement=statement)
 
         return render(request, 'admin/unconfirm_statement.html', context=context)
+
+    @decorate_statement_view(StatementConfirmed, perm='finance.may_manage_confirmed_statements')
+    def statement_summary_view(self, request, statement):
+        if not statement.confirmed:
+            messages.error(request,
+                    _("%(name)s is not yet confirmed.") % {'name': str(statement)})
+            return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
+        excursion = statement.excursion
+        context = dict(statement=statement.template_context(), excursion=excursion, settings=settings)
+
+        pdf_filename = f"{excursion.code}_{excursion.name}_Zuschussbeleg" if excursion else f"Abrechnungsbeleg"
+        attachments = [bill.proof.path for bill in statement.bills_covered if bill.proof]
+        return render_tex_with_attachments(pdf_filename, 'finance/statement_summary.tex', context, attachments)
+
+    statement_summary_view.short_description = _('Download summary')
+
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):

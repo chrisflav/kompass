@@ -47,6 +47,23 @@ def render_docx(name, template_path, context, date=None, save_only=False):
         return filename_docx
     return serve_media(filename_docx, 'application/docx')
 
+def render_tex_with_attachments(name, template_path, context, attachments, save_only=False):
+    
+    rendered_pdf = render_tex(name, template_path, context, save_only=True)
+
+    reader = PdfReader(media_path(rendered_pdf))
+    writer = PdfWriter()
+    writer.append(reader)
+    
+    pdf_add_attachments(writer, attachments)
+
+    with open(media_path(rendered_pdf), 'wb') as output_stream:
+        writer.write(output_stream)
+
+    if save_only:
+        return rendered_pdf
+    return serve_pdf(rendered_pdf)
+
 
 def render_tex(name, template_path, context, date=None, save_only=False):
     filename = generate_tex(name, template_path, context, date=date)
@@ -73,6 +90,27 @@ def render_tex(name, template_path, context, date=None, save_only=False):
     return serve_pdf(filename_pdf)
 
 
+def pdf_add_attachments(pdf_writer, attachments):
+    for fp in attachments:
+        try:
+            if fp.endswith(".pdf"):
+                # append pdf directly
+                img_pdf = PdfReader(fp)
+            else:
+                # convert ensures that png files with an alpha channel can be appended
+                img = Image.open(fp).convert("RGB")
+                img_io = BytesIO()
+                img.save(img_io, "pdf")
+                img_io.seek(0)
+                img_pdf = PdfReader(img_io)
+            img_pdf_scaled = scale_pdf_to_a4(img_pdf)
+            pdf_writer.append(img_pdf_scaled)
+        
+        except Exception as e:
+            print("Could not add image", fp)
+            print(e)
+            
+    
 def scale_pdf_page_to_a4(page):
     A4_WIDTH, A4_HEIGHT = 595, 842
 
@@ -114,23 +152,7 @@ def fill_pdf_form(name, template_path, fields, attachments=[], date=None, save_o
 
     writer.update_page_form_field_values(None, fields, auto_regenerate=False)
 
-    for fp in attachments:
-        try:
-            if fp.endswith(".pdf"):
-                # append pdf directly
-                img_pdf = PdfReader(fp)
-            else:
-                # convert ensures that png files with an alpha channel can be appended
-                img = Image.open(fp).convert("RGB")
-                img_io = BytesIO()
-                img.save(img_io, "pdf")
-                img_io.seek(0)
-                img_pdf = PdfReader(img_io)
-            img_pdf_scaled = scale_pdf_to_a4(img_pdf)
-            writer.append(img_pdf_scaled)
-        except Exception as e:
-            print("Could not add image", fp)
-            print(e)
+    pdf_add_attachments(writer, attachments)
 
     with open(media_path(filename_pdf), 'wb') as output_stream:
         writer.write(output_stream)
