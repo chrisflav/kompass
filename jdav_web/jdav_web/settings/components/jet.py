@@ -11,8 +11,8 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'group', 'permissions': ['members.view_group']},
         {'name': 'membernotelist', 'permissions': ['members.view_membernotelist']},
         {'name': 'klettertreff', 'permissions': ['members.view_klettertreff']},
-        {'name': 'activitycategory', 'permissions': ['members.view_group']},
-        {'name': 'trainingcategory', 'permissions': ['members.view_group']},
+        {'name': 'activitycategory', 'permissions': ['members.view_activitycategory']},
+        {'name': 'trainingcategory', 'permissions': ['members.view_trainingcategory']},
     ]},
     {'label': 'Neue Mitglieder', 'app_label': 'members', 'permissions': ['members.view_memberunconfirmedproxy'], 'items': [
         {'name': 'memberunconfirmedproxy', 'permissions': ['members.view_memberunconfirmedproxy']},
