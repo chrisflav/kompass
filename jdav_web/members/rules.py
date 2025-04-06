@@ -60,7 +60,7 @@ def _is_leader(member, excursion):
         return False
     if member in excursion.jugendleiter.all():
         return True
-    yl = [ yl for group in member.group.all() for yl in group.leiters.all() ]
+    yl = [ yl for group in excursion.groups.all() for yl in group.leiters.all() ]
     return member in yl
 
 
