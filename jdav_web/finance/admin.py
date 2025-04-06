@@ -40,6 +40,23 @@ class BillOnStatementInline(CommonAdminInlineMixin, admin.TabularInline):
     form = BillOnStatementInlineForm
 
 
+def decorate_statement_view(model, perm=None):
+    def decorator(fun):
+        def aux(self, request, object_id):
+            try:
+                statement = model.objects.get(pk=object_id)
+            except model.DoesNotExist:
+                messages.error(request, _('Statement not found.'))
+                return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+            permitted = self.has_change_permission(request, statement) if not perm else request.user.has_perm(perm)
+            if not permitted:
+                messages.error(request, _('Insufficient permissions.'))
+                return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+            return fun(self, request, statement)
+        return aux
+    return decorator
+
+
 @admin.register(StatementUnSubmitted)
 class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'submitted']
@@ -77,8 +94,8 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def submit_view(self, request, object_id):
-        statement = Statement.objects.get(pk=object_id)
+    @decorate_statement_view(Statement)
+    def submit_view(self, request, statement):
         if statement.submitted:
             messages.error(request,
                     _("%(name)s is already submitted.") % {'name': str(statement)})
@@ -89,7 +106,7 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.success(request,
                     _("Successfully submited %(name)s. The finance department will notify the requestors as soon as possible.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
-        
+
         if statement.excursion:
             memberlist = statement.excursion
             context = dict(self.admin_site.each_context(request),
@@ -183,8 +200,8 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def overview_view(self, request, object_id):
-        statement = StatementSubmitted.objects.get(pk=object_id)
+    @decorate_statement_view(StatementSubmitted)
+    def overview_view(self, request, statement):
         if not statement.submitted:
             messages.error(request,
                     _("%(name)s is not yet submitted.") % {'name': str(statement)})
@@ -259,8 +276,8 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
 
         return render(request, 'admin/overview_submitted_statement.html', context=context)
 
-    def reduce_transactions_view(self, request, object_id):
-        statement = StatementSubmitted.objects.get(pk=object_id)
+    @decorate_statement_view(StatementSubmitted)
+    def reduce_transactions_view(self, request, statement):
         statement.reduce_transactions()
         messages.success(request,
                 _("Successfully reduced transactions for %(name)s.") % {'name': str(statement)})
@@ -307,8 +324,8 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def unconfirm_view(self, request, object_id):
-        statement = StatementConfirmed.objects.get(pk=object_id)
+    @decorate_statement_view(StatementConfirmed, perm='finance.may_manage_confirmed_statements')
+    def unconfirm_view(self, request, statement):
         if not statement.confirmed:
             messages.error(request,
                     _("%(name)s is not yet confirmed.") % {'name': str(statement)})
