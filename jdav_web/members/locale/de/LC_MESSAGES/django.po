@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-10 23:31+0200\n"
+"POT-Creation-Date: 2025-04-10 23:51+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -132,6 +132,15 @@ msgstr "Aktivität"
 #: members/admin.py members/models.py
 msgid "Name"
 msgstr "Name"
+
+#: members/admin.py
+msgid "Successfully unconfirmed selected members."
+msgstr ""
+"Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurückgesetzt."
+
+#: members/admin.py
+msgid "Unconfirm selected members."
+msgstr "Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
 
 #: members/admin.py members/tests.py
 msgid "Successfully requested mail confirmation from selected registrations."

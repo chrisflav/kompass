@@ -414,6 +414,10 @@ class Member(Person):
         self.save()
         return True
 
+    def unconfirm(self):
+        self.confirmed = False
+        self.save()
+
     def unsubscribe(self, key):
         if self.unsubscribe_key == key and timezone.now() <\
                 self.unsubscribe_expire:

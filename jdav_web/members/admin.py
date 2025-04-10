@@ -240,7 +240,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     }
     change_form_template = "members/change_member.html"
     ordering = ('lastname',)
-    actions = ['request_echo', 'invite_as_user_action']
+    actions = ['request_echo', 'invite_as_user_action', 'unconfirm']
     list_per_page = 25
 
     form = MemberAdminForm
@@ -408,6 +408,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             return obj.name
     name_text_or_link.short_description = _('Name')
     name_text_or_link.admin_order_field = 'lastname'
+
+    def unconfirm(self, request, queryset):
+        for member in queryset:
+            member.unconfirm()
+        messages.success(request, _("Successfully unconfirmed selected members."))
+    unconfirm.short_description = _('Unconfirm selected members.')
 
 
 class DemoteToWaiterForm(forms.Form):
