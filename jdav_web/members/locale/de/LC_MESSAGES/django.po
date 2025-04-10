@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-11 00:39+0200\n"
+"POT-Creation-Date: 2025-04-11 00:56+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1793,11 +1793,13 @@ msgstr ""
 msgid "Echo"
 msgstr "Rückmeldung"
 
-#: members/templates/members/echo.html members/tests.py
-msgid "Thanks for echoing back. Here is your current data:"
+#: members/templates/members/echo.html
+msgid ""
+"Here is your current data. Please check if it is up to date and change "
+"accordingly."
 msgstr ""
-"Vielen Dank, dass du dich rückmeldest. Hier siehst du deine aktuellen Daten. "
-"Falls sich etwas geändert hat, trage das bitte hier ein."
+"Hier siehst du deine aktuellen Daten. Bitte überprüfe alles und passe es "
+"bei Bedarf an."
 
 #: members/templates/members/echo_failed.html members/tests.py
 msgid "Echo failed"
@@ -2123,13 +2125,12 @@ msgid ""
 "conditions. If you agree,\n"
 "please sign the document and upload a scan or image here."
 msgstr ""
-"Danke für das Aktualisieren deiner Daten. Aus rechtlichen Gründen, "
-"benötigen wir zusätzlich ein schriftliches Anmeldeformular. Für dich liegt uns "
-"kein aktuelles Formular vor. Bitte "
-"<a href=\"%(download_url)s?key=%(key)s\">lade das Formular herunter</a>, "
-"fülle die verbleibenden Felder aus und lese unsere Teilnahmebedingungen. Falls du "
-"zustimmst, unterschreibe bitte das Formular und lade hier einen Scan oder "
-"ein Bild hoch."
+"Danke für das Aktualisieren deiner Daten. Aus rechtlichen Gründen, benötigen "
+"wir zusätzlich ein schriftliches Anmeldeformular. Für dich liegt uns kein "
+"aktuelles Formular vor. Bitte <a href=\"%(download_url)s?key=%(key)s\">lade "
+"das Formular herunter</a>, fülle die verbleibenden Felder aus und lese "
+"unsere Teilnahmebedingungen. Falls du zustimmst, unterschreibe bitte das "
+"Formular und lade hier einen Scan oder ein Bild hoch."
 
 #: members/templates/members/upload_registration_form.html
 #, python-format
@@ -2167,6 +2168,7 @@ msgid "Thank you for uploading the registration form."
 msgstr "Danke für das Hochladen des Anmeldeformulars."
 
 #: members/templates/members/upload_registration_form_success.html
+#: members/tests.py
 msgid "Our team will process your registration shortly."
 msgstr ""
 "Unser Jugendleiter*innenteam wird deine Registrierung so schnell wie möglich "
@@ -2218,14 +2220,6 @@ msgstr ""
 msgid "The entered password is wrong."
 msgstr "Das eingegebene Passwort ist falsch."
 
-#: members/tests.py
-msgid ""
-"Thank you for uploading the registration form. Our team will process your "
-"registration shortly."
-msgstr ""
-"Danke für das Hochladen des Anmeldeformulars. Unser Jugendleiterteam wird "
-"deine Registrierung so schnell wie möglich bearbeiten."
-
 #: members/tests.py members/views.py
 msgid "invalid"
 msgstr "ungültig"
@@ -2233,6 +2227,12 @@ msgstr "ungültig"
 #: members/tests.py members/views.py
 msgid "expired"
 msgstr "abgelaufen"
+
+#: members/tests.py
+msgid "Thanks for echoing back. Here is your current data:"
+msgstr ""
+"Vielen Dank, dass du dich rückmeldest. Hier siehst du deine aktuellen Daten. "
+"Falls sich etwas geändert hat, trage das bitte hier ein."
 
 #: members/views.py
 msgid "Prename of the member."
