@@ -354,6 +354,7 @@ class Member(Person):
                                                         help_text=_('If the person registered from the waitinglist, this is their application date.'))
 
     objects = MemberManager()
+    all_objects = models.Manager()
 
     @property
     def email_fields(self):
@@ -508,6 +509,10 @@ class Member(Person):
     def get_activities(self):
         # get activity overview
         return Freizeit.objects.filter(membersonlist__member=self)
+
+    def generate_upload_registration_form_key(self):
+        self.upload_registration_form_key = uuid.uuid4().hex
+        self.save()
 
     def create_from_registration(self, waiter, group):
         """Given a member, a corresponding waiting-list object and a group, this completes

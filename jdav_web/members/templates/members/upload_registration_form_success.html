@@ -3,14 +3,26 @@
 {% load static %}
 
 {% block title %}
+{% if member.confirmed %}
+{% trans "Echo" %}
+{% else %}
 {% trans "Registration" %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
 
+{% if member.confirmed %}
+<h1>{% trans "Echo" %}</h1>
+{% else %}
 <h1>{% trans "Register" %}</h1>
+{% endif %}
 
-<p>{% blocktrans %}Thank you for uploading the registration form. Our team will process your registration shortly.{% endblocktrans %}
+<p>
+{% blocktrans %}Thank you for uploading the registration form.{% endblocktrans %}
+{% if not member.confirmed %}
+{% blocktrans %}Our team will process your registration shortly.{% endblocktrans %}
+{% endif %}
 </p>
 
 {% endblock %}

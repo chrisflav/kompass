@@ -180,7 +180,13 @@ def echo(request):
             # member.echo_key, member.echo_expire = "", timezone.now()
             member.echoed = True
             member.save()
-            return render_echo_success(request, member.prename)
+            if not member.registration_form:
+                # If the member does not have a registration form, forward them to the upload page.
+                member.generate_upload_registration_form_key()
+                member.send_upload_registration_form_link()
+                return HttpResponseRedirect(reverse('members:upload_registration_form') + "?key=" + member.upload_registration_form_key)
+            else:
+                return render_echo_success(request, member.prename)
         except ValueError:
             # when input is invalid
             form = MemberForm(request.POST)
@@ -305,7 +311,7 @@ def download_registration_form(request):
         return render_upload_registration_form_invalid(request)
     key = request.GET['key']
     try:
-        member = MemberUnconfirmedProxy.objects.get(upload_registration_form_key=key)
+        member = Member.all_objects.get(upload_registration_form_key=key)
         return render_download_registration_form(request, member)
     except Member.DoesNotExist:
         return render_upload_registration_form_invalid(request)
@@ -332,7 +338,7 @@ def upload_registration_form(request):
             return render_upload_registration_form_invalid(request)
         key = request.GET['key']
         try:
-            member = MemberUnconfirmedProxy.objects.get(upload_registration_form_key=key)
+            member = Member.all_objects.get(upload_registration_form_key=key)
         except Member.DoesNotExist:
             return render_upload_registration_form_invalid(request)
         form = UploadRegistrationForm(instance=member)
@@ -341,7 +347,7 @@ def upload_registration_form(request):
         return render_upload_registration_form_invalid(request)
     key = request.POST['key']
     try:
-        member = MemberUnconfirmedProxy.objects.get(upload_registration_form_key=key)
+        member = Member.all_objects.get(upload_registration_form_key=key)
     except Member.DoesNotExist:
         return render_upload_registration_form_invalid(request)
 

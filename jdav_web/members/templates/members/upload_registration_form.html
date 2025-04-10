@@ -3,19 +3,36 @@
 {% load static %}
 
 {% block title %}
+{% if member.confirmed %}
+{% trans "Echo" %}
+{% else %}
 {% trans "Registration" %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
 
+{% if member.confirmed %}
+<h1>{% trans "Echo" %}</h1>
+{% else %}
 <h1>{% trans "Register" %}</h1>
+{% endif %}
 
 {% url 'members:download_registration_form' as download_url %}
+{% if member.confirmed %}
+<p>{% blocktrans %}Thank you for echoing back, your data was updated. For legal
+reasons, we also need a signed participation form. In your case, a recent
+participation form is missing. Please <a href="{{ download_url }}?key={{ key }}">download</a>
+the pre-filled form, fill in the remaining fields and read the general conditions. If you agree,
+please sign the document and upload a scan or image here.{% endblocktrans %}
+</p>
+{% else %}
 <p>{% blocktrans %}We summarized your registration in our registration
 form. Please <a href="{{ download_url }}?key={{ key }}">download</a> it,
 fill in the remaining fields and read the general conditions. If you agree,
 please sign the document and upload a scan or image here.{% endblocktrans %}
 </p>
+{% endif %}
 <p>{% blocktrans %}If you are not an adult yet, please let someone responsible for you sign the agreement.{% endblocktrans %}
 </p>
 

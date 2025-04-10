@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-10 23:51+0200\n"
+"POT-Creation-Date: 2025-04-11 00:39+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,7 +140,8 @@ msgstr ""
 
 #: members/admin.py
 msgid "Unconfirm selected members."
-msgstr "Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
+msgstr ""
+"Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
 
 #: members/admin.py members/tests.py
 msgid "Successfully requested mail confirmation from selected registrations."
@@ -1787,6 +1788,8 @@ msgstr ""
 #: members/templates/members/echo_password.html
 #: members/templates/members/echo_success.html
 #: members/templates/members/echo_wrong_password.html
+#: members/templates/members/upload_registration_form.html
+#: members/templates/members/upload_registration_form_success.html
 msgid "Echo"
 msgstr "Rückmeldung"
 
@@ -2112,6 +2115,25 @@ msgstr ""
 #: members/templates/members/upload_registration_form.html
 #, python-format
 msgid ""
+"Thank you for echoing back, your data was updated. For legal\n"
+"reasons, we also need a signed participation form. In your case, a recent\n"
+"participation form is missing. Please <a href=\"%(download_url)s?"
+"key=%(key)s\">download</a>\n"
+"the pre-filled form, fill in the remaining fields and read the general "
+"conditions. If you agree,\n"
+"please sign the document and upload a scan or image here."
+msgstr ""
+"Danke für das Aktualisieren deiner Daten. Aus rechtlichen Gründen, "
+"benötigen wir zusätzlich ein schriftliches Anmeldeformular. Für dich liegt uns "
+"kein aktuelles Formular vor. Bitte "
+"<a href=\"%(download_url)s?key=%(key)s\">lade das Formular herunter</a>, "
+"fülle die verbleibenden Felder aus und lese unsere Teilnahmebedingungen. Falls du "
+"zustimmst, unterschreibe bitte das Formular und lade hier einen Scan oder "
+"ein Bild hoch."
+
+#: members/templates/members/upload_registration_form.html
+#, python-format
+msgid ""
 "We summarized your registration in our registration\n"
 "form. Please <a href=\"%(download_url)s?key=%(key)s\">download</a> it,\n"
 "fill in the remaining fields and read the general conditions. If you agree,\n"
@@ -2141,13 +2163,14 @@ msgid "The supplied key for uploading a registration form is invalid."
 msgstr "Der verwendete Link zum Hochladen eines Anmeldeformulars ist ungültig."
 
 #: members/templates/members/upload_registration_form_success.html
-#: members/tests.py
-msgid ""
-"Thank you for uploading the registration form. Our team will process your "
-"registration shortly."
+msgid "Thank you for uploading the registration form."
+msgstr "Danke für das Hochladen des Anmeldeformulars."
+
+#: members/templates/members/upload_registration_form_success.html
+msgid "Our team will process your registration shortly."
 msgstr ""
-"Danke für das Hochladen des Anmeldeformulars. Unser Jugendleiterteam wird "
-"deine Registrierung so schnell wie möglich bearbeiten."
+"Unser Jugendleiter*innenteam wird deine Registrierung so schnell wie möglich "
+"bearbeiten."
 
 #: members/templates/members/waiting_confirmation_invalid.html
 msgid "Waiting confirmation failed"
@@ -2194,6 +2217,14 @@ msgstr ""
 #: members/tests.py members/views.py
 msgid "The entered password is wrong."
 msgstr "Das eingegebene Passwort ist falsch."
+
+#: members/tests.py
+msgid ""
+"Thank you for uploading the registration form. Our team will process your "
+"registration shortly."
+msgstr ""
+"Danke für das Hochladen des Anmeldeformulars. Unser Jugendleiterteam wird "
+"deine Registrierung so schnell wie möglich bearbeiten."
 
 #: members/tests.py members/views.py
 msgid "invalid"

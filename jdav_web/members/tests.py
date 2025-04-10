@@ -1354,7 +1354,7 @@ class UploadRegistrationFormViewTestCase(BasicMemberTestCase):
         })
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response,
-                            _("Thank you for uploading the registration form. Our team will process your registration shortly."))
+                            _("Our team will process your registration shortly."))
 
 class DownloadRegistrationFormViewTestCase(BasicMemberTestCase):
     def setUp(self):
@@ -1597,6 +1597,9 @@ class EchoViewTestCase(BasicMemberTestCase):
     def setUp(self):
         super().setUp()
         self.key = self.fritz.generate_echo_key()
+        file = SimpleUploadedFile("form.pdf", b"file_content", content_type="application/pdf")
+        self.fritz.registration_form = file
+        self.fritz.save()
 
     def _assert_failed(self, response):
         self.assertEqual(response.status_code, HTTPStatus.OK)
