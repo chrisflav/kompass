@@ -643,7 +643,8 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                     'confirmed_mail', 'waiting_confirmed', 'sent_reminders')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ['confirmed_mail', InvitedToGroupFilter, AgeFilter, 'gender']
-    actions = ['ask_for_registration_action', 'ask_for_wait_confirmation']
+    actions = ['ask_for_registration_action', 'ask_for_wait_confirmation',
+               'request_mail_confirmation', 'request_required_mail_confirmation']
     inlines = [InvitationToGroupAdmin]
     readonly_fields= ['application_date', 'sent_reminders']
 
@@ -670,6 +671,18 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                         reverse('admin:%s_%s_invite' % (waiter._meta.app_label, waiter._meta.model_name),
                                 args=(waiter.pk,)))
         return ret
+
+    def request_mail_confirmation(self, request, queryset):
+        for member in queryset:
+            member.request_mail_confirmation()
+        messages.success(request, _("Successfully requested mail confirmation from selected waiters."))
+    request_mail_confirmation.short_description = _('Request mail confirmation from selected waiters.')
+
+    def request_required_mail_confirmation(self, request, queryset):
+        for member in queryset:
+            member.request_mail_confirmation(rerequest=False)
+        messages.success(request, _("Successfully re-requested missing mail confirmations from selected waiters."))
+    request_required_mail_confirmation.short_description = _('Re-request missing mail confirmations from selected waiters.')
 
     def get_urls(self):
         urls = super().get_urls()

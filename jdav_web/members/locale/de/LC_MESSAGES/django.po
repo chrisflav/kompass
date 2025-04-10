@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-06 18:57+0200\n"
+"POT-Creation-Date: 2025-04-10 23:31+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -221,6 +221,27 @@ msgstr "Erfolgreich %(name)s aufgefordert den Wartelistenplatz zu bestätigen."
 #: members/admin.py
 msgid "Ask selected waiters to confirm their waiting status"
 msgstr "Wartende auffordern den Wartelistenplatz zu bestätigen"
+
+#: members/admin.py
+msgid "Successfully requested mail confirmation from selected waiters."
+msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
+
+#: members/admin.py
+msgid "Request mail confirmation from selected waiters."
+msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
+
+#: members/admin.py
+msgid ""
+"Successfully re-requested missing mail confirmations from selected waiters."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versendet."
+
+#: members/admin.py
+msgid "Re-request missing mail confirmations from selected waiters."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versenden."
 
 #: members/admin.py
 msgid "Offer waiter a place in a group."
@@ -1376,10 +1397,9 @@ msgstr ""
 "Wenn du den erstellten LJP-Antrag einreichst, erhältst du LJP-Zuschüsse. Du "
 "hast Lehreinheiten für insgesamt %(total_seminar_days)s Seminartage und für "
 "%(participant_count)s Teilnehmende dokumentiert.\n"
-"Daraus ergibt sich ein auszahlbarer LJP-Zuschuss von "
-"%(ljp_contributions)s€. Um den zu erhalten, musst du den LJP-Antrag "
-"innerhalb von 3 Wochen nach der Ausfahrt beim Jugendreferat einreichen und "
-"formal genehmigt bekommen."
+"Daraus ergibt sich ein auszahlbarer LJP-Zuschuss von %(ljp_contributions)s€. "
+"Um den zu erhalten, musst du den LJP-Antrag innerhalb von 3 Wochen nach der "
+"Ausfahrt beim Jugendreferat einreichen und formal genehmigt bekommen."
 
 #: members/templates/admin/freizeit_finance_overview.html
 msgid "The LJP contributions are configured to be paid to:"
