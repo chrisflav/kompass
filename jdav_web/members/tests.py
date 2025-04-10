@@ -1641,7 +1641,7 @@ class EchoViewTestCase(BasicMemberTestCase):
         url = reverse('members:echo')
         response = self.client.post(url, data={'key': self.key, 'password': self.fritz.echo_password})
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _('Thanks for echoing back. Here is your current data:'))
+        self.assertContains(response, _('Here is your current data. Please check if it is up to date and change accordingly.'))
 
     def test_post_save(self):
         url = reverse('members:echo')
@@ -1653,7 +1653,7 @@ class EchoViewTestCase(BasicMemberTestCase):
             save='',
         ))
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _('Thanks for echoing back. Here is your current data:'))
+        self.assertContains(response, _('Here is your current data. Please check if it is up to date and change accordingly.'))
 
         # provide everything correctly
         url = reverse('members:echo')
