@@ -881,7 +881,7 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
         n_weeks = 17 # TODO: als variable in settings.toml?
 
         context = {
-            'groups': self.model.objects.all(), 
+            'groups': self.model.objects.filter(show_website=True), 
             'settings': settings, 
             'range': range(n_weeks),
             'extras': range(4),

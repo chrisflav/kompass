@@ -62,7 +62,7 @@
 \noindent {{ weekdays|index:group.weekday|esc_all }}, {{ group.start_time }} - {{ group.end_time }} Uhr\\
 \vspace{12pt}
 
-\begin{tabularx}{0.94\textwidth}{lXl|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
+\begin{tabularx}{0.94\textwidth}{lX|c|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
     \toprule
     \textbf{\#} & \textbf{Name} & \textbf{JL}  {% for i in range %}
     & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
@@ -72,7 +72,7 @@
     \midrule
         {{ forloop.counter }}  &
         {{ m.name|esc_all }} &
-        {% if m in group.leiters.all %} x {% endif %} 
+        {% if m in group.leiters.all %} X {% endif %} 
         {% for i in range %} & {% endfor %}\\
     {% endfor %}
 
