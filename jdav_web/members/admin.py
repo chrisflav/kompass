@@ -30,6 +30,7 @@ from django.shortcuts import render
 from django.core.exceptions import PermissionDenied, ValidationError
 from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf, render_docx
 from .excel import generate_group_overview, generate_ljp_vbk
+from .models import WEEKDAYS
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 
@@ -853,6 +854,8 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
     def action_view(self, request):
         if "group_overview" in request.POST:
             return self.group_overview(request)
+        elif "group_checklist" in request.POST:
+            return self.group_checklist(request)
 
     def group_overview(self, request):
 
@@ -866,6 +869,31 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
         response = serve_media(filename=filename, content_type='application/xlsx')
 
         return response
+    
+    def group_checklist(self, request):
+
+        if not request.user.has_perm('members.view_group'):
+            messages.error(request,
+                _("You are not allowed to create a group checklist."))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+
+        ensure_media_dir()
+        n_weeks = 17 # TODO: als variable in settings.toml?
+
+        context = {
+            'groups': self.model.objects.all(), 
+            'settings': settings, 
+            'range': range(n_weeks),
+            'extras': range(4),
+            'dates': mondays_until_nth(n_weeks),
+            'weekdays': [long for i, long in WEEKDAYS],
+        }
+        return render_tex(f"Gruppen-Checkliste", 'members/group_checklist.tex', context)
+
+def mondays_until_nth(n):
+    today = datetime.today()
+    next_monday = today + timedelta(days=(7 - today.weekday()) % 7 or 7)
+    return [(next_monday + timedelta(weeks=i)).date() for i in range(n + 1)]
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):

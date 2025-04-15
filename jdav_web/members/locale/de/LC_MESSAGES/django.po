@@ -302,6 +302,11 @@ msgstr ""
 "Du hast nicht die notwendigen Rechte um eine Gruppenübersicht zu erstellen."
 
 #: members/admin.py
+msgid "You are not allowed to create a group checklist."
+msgstr ""
+"Du hast nicht die notwendigen Rechte um eine Gruppencheckliste zu erstellen."
+
+#: members/admin.py
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 

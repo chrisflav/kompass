@@ -1,0 +1,92 @@
+{% load static common tex_extras %}
+
+\documentclass[a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+% remove all undefined unicode characters instead of throwing an error
+\makeatletter
+\def\UTFviii@undefined@err#1{}
+\makeatother
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{cmbright}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks, breaklinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=1cm]{geometry}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{rotating}
+
+
+\newcommand{\picpos}[4]{
+  \begin{textblock*}{#1}(#2, #3)
+    \includegraphics[width=\textwidth]{#4}
+  \end{textblock*}
+}
+
+% custom url command for properly formatting emails
+\DeclareUrlCommand\Email{\urlstyle{same}}
+% allow linebreak after every character
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
+\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
+\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
+\do\w\do\x\do\y\do\z
+\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
+\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
+\do\W\do\X\do\Y\do\Z}
+
+\renewcommand{\arraystretch}{1.5}
+
+\newcolumntype{L}{>{\hspace{0pt}\raggedright\arraybackslash}X}
+\newcolumntype{S}{>{\raggedright\arraybackslash\hsize=0.7\hsize}X}
+
+\newcommand{\tickedbox}{
+    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
+}
+\newcommand{\checkbox}{
+    \makebox[0pt][l]{$\square$}
+}
+\begin{document}
+% HEADER RIGHT
+{% settings_value 'DEFAULT_STATIC_PATH' as static_root %}
+
+{% for group in groups %}
+\picpos{2.5cm}{15.5cm}{0cm}{%
+{{ static_root }}/general/img/dav_logo_sektion.png%
+}
+% HEADLINE
+
+{\noindent\Large{Anmeldeliste {{ group.name }} }}\\[1mm]
+\noindent {{ weekdays|index:group.weekday|esc_all }}, {{ group.start_time }} - {{ group.end_time }} Uhr\\
+\vspace{12pt}
+
+\begin{tabularx}{0.94\textwidth}{lXl|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
+    \toprule
+    \textbf{\#} & \textbf{Name} & \textbf{JL}  {% for i in range %}
+    & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
+ {% endfor %} \\
+
+    {% for m in group.member_set.all %}
+    \midrule
+        {{ forloop.counter }}  &
+        {{ m.name|esc_all }} &
+        {% if m in group.leiters.all %} x {% endif %} 
+        {% for i in range %} & {% endfor %}\\
+    {% endfor %}
+
+    {% for m in extras %}
+    \midrule
+        &
+        & 
+        {% for i in range %} & {% endfor %}\\
+    {% endfor %}
+
+    \bottomrule
+\end{tabularx}
+
+\clearpage
+{% endfor %}
+
+\end{document}
