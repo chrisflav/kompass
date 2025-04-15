@@ -68,7 +68,7 @@
     & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
  {% endfor %} \\
 
-    {% for m in group.member_set.all %}
+    {% for m in group.sorted_members %}
     \midrule
         {{ forloop.counter }}  &
         {{ m.name|esc_all }} &

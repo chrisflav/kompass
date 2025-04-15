@@ -107,6 +107,11 @@ class Group(models.Model):
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
+        
+    @property
+    def sorted_members(self):
+        """Returns the members of this group sorted by their last name."""
+        return self.member_set.all().order_by('lastname')
 
     def has_time_info(self):
         # return if the group has all relevant time slot information filled
