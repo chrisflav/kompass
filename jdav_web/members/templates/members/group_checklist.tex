@@ -53,38 +53,41 @@
 {% settings_value 'DEFAULT_STATIC_PATH' as static_root %}
 
 {% for group in groups %}
-\picpos{2.5cm}{15.5cm}{0cm}{%
+\picpos{2.5cm}{16cm}{-0.4cm}{%
 {{ static_root }}/general/img/dav_logo_sektion.png%
 }
 % HEADLINE
 
 {\noindent\Large{Anmeldeliste {{ group.name }} }}\\[1mm]
 \noindent {{ weekdays|index:group.weekday|esc_all }}, {{ group.start_time }} - {{ group.end_time }} Uhr\\
-\vspace{12pt}
 
-\begin{tabularx}{0.94\textwidth}{lX|c|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
+\noindent Anwesende Jugendleitende und Teilnehmende werden mit einem Kreuz markiert und die ausgefüllte 
+Liste zum Anfang der Gruppenstunde an der Kasse abgegeben. Zum Ende wird sie wieder abgeholt. Abgelaufene 
+Punktekarten werden von Kasse mit einem Kreis markiert.\\
+\begin{table}[htbp]
+    \centering
+\begin{tabularx}{\textwidth}{lX|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
     \toprule
-    \textbf{\#} & \textbf{Name} & \textbf{JL}  {% for i in range %}
+    \textbf{\#} & \textbf{Name}   {% for i in range %}
     & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
  {% endfor %} \\
 
     {% for m in group.sorted_members %}
     \midrule
         {{ forloop.counter }}  &
-        {{ m.name|esc_all }} &
-        {% if m in group.leiters.all %} X {% endif %} 
+        {% if m in group.leiters.all %} \textbf{ {{ m.name|esc_all }} (JL) } {% else %} {{ m.name|esc_all }} {% endif %}  
         {% for i in range %} & {% endfor %}\\
     {% endfor %}
 
     {% for m in extras %}
     \midrule
-        &
         & 
         {% for i in range %} & {% endfor %}\\
     {% endfor %}
 
     \bottomrule
 \end{tabularx}
+\end{table}
 
 \clearpage
 {% endfor %}
