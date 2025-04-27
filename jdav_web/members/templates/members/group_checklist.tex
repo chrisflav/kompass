@@ -48,6 +48,11 @@
 \newcommand{\checkbox}{
     \makebox[0pt][l]{$\square$}
 }
+
+\newenvironment{compacttext}
+  {\ignorespaces}
+  {\ignorespacesafterend}
+
 \begin{document}
 % HEADER RIGHT
 {% settings_value 'DEFAULT_STATIC_PATH' as static_root %}
@@ -61,10 +66,11 @@
 {\noindent\Large{Anmeldeliste {{ group.name }} }}\\[1mm]
 \noindent {{ weekdays|index:group.weekday|esc_all }}, {{ group.start_time }} - {{ group.end_time }} Uhr\\
 
-\noindent Anwesende Jugendleitende und Teilnehmende werden mit einem Kreuz markiert und die ausgefüllte 
+\noindent Anwesende Jugendleitende und Teilnehmende werden mit einem Kreuz ($\times$) markiert und die ausgefüllte 
 Liste zum Anfang der Gruppenstunde an der Kasse abgegeben. Zum Ende wird sie wieder abgeholt. Abgelaufene 
-Punktekarten werden von Kasse mit einem Kreis markiert.\\
-\begin{table}[htbp]
+Punktekarten werden von Kasse mit einem Kreis ($\otimes$) markiert.\\
+
+\begin{table}[H]
     \centering
 \begin{tabularx}{\textwidth}{lX|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
     \toprule
@@ -72,17 +78,13 @@ Punktekarten werden von Kasse mit einem Kreis markiert.\\
     & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
  {% endfor %} \\
 
-    {% for m in group.sorted_members %}
+    {% for j in n_members %}
+    {% with m=group.sorted_members|index:j %}
     \midrule
-        {{ forloop.counter }}  &
-        {% if m in group.leiters.all %} \textbf{ {{ m.name|esc_all }} (JL) } {% else %} {{ m.name|esc_all }} {% endif %}  
-        {% for i in range %} & {% endfor %}\\
-    {% endfor %}
-
-    {% for m in extras %}
-    \midrule
-        & 
-        {% for i in range %} & {% endfor %}\\
+        {{ j|plus:1 }}  & \begin{compacttext} 
+        {% if m in group.leiters.all %}{{ m.name|esc_all }} \textbf{(JL)} {% else %} {{ m.name|esc_all }}  {% endif %}  
+    \end{compacttext} {% for i in range %} & {% endfor %}\\
+    {% endwith %}
     {% endfor %}
 
     \bottomrule

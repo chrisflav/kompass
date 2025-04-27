@@ -884,7 +884,7 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
             'groups': self.model.objects.filter(show_website=True), 
             'settings': settings, 
             'range': range(n_weeks),
-            'extras': range(4),
+            'n_members': range(25),
             'dates': mondays_until_nth(n_weeks),
             'weekdays': [long for i, long in WEEKDAYS],
         }

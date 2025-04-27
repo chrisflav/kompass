@@ -44,3 +44,9 @@ def add(date, days):
     if days:
         return date + timedelta(days=days)
     return date
+
+@register.filter
+def plus(num1, num2):
+    if num2:
+        return num1 + num2
+    return num1
