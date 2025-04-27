@@ -371,6 +371,12 @@ class Member(Person):
     def place(self):
         """Returning the whole place (plz + town)"""
         return "{0} {1}".format(self.plz, self.town)
+    
+    @property
+    def dav_badge_no_tag(self):
+        """Returning the badge number stripped of strings and spaces"""
+        
+        return "{" + ''.join(re.findall(r'\d', self.dav_badge_no)) + "}"
 
     @property
     def iban_valid(self):

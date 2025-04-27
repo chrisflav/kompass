@@ -878,7 +878,7 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         ensure_media_dir()
-        n_weeks = 17 # TODO: als variable in settings.toml?
+        n_weeks = 12 # TODO: als variable in settings.toml?
 
         context = {
             'groups': self.model.objects.filter(show_website=True), 
