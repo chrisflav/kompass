@@ -8,7 +8,7 @@ import csv
 from django.db import models
 from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
     Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
-from django.db.models.functions import TruncDate
+from django.db.models.functions import Cast
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.utils.html import format_html
@@ -1293,19 +1293,35 @@ class Freizeit(CommonModel):
         """calculate seminar days based on intervention hours in every day"""
         # TODO: add tests for this
         if hasattr(self, 'ljpproposal'):
-            hours_per_day = (
-                self.ljpproposal.intervention_set
-                .annotate(day=TruncDate('date_start'))  # Extract the date (without time)
-                .values('day')  # Group by day
-                .annotate(total_duration=Sum('duration'))  # Sum durations for each day
-                .order_by('day')  # Sort results by date
-            )
+            hours_per_day = self.seminar_time_per_day
             # Calculate the total number of seminar days
             # Each day is counted as 1 if total_duration is >= 5 hours, as 0.5 if total_duration is >= 2.5
             # otherwise 0
-            return sum([min(math.floor(h['total_duration']/cvt_to_decimal(2.5))/2, 1) for h in hours_per_day])
+            sum_days = sum([h['sum_days'] for h in hours_per_day])
+
+            return sum_days
         else:
             return 0
+
+
+    @property
+    def seminar_time_per_day(self):
+        if hasattr(self, 'ljpproposal'):
+            return (
+                self.ljpproposal.intervention_set
+                .annotate(day=Cast('date_start', output_field=models.DateField()))  # Force it to date
+                .values('day')  # Group by day
+                .annotate(total_duration=Sum('duration'))# Sum durations for each day
+                .annotate(
+                    sum_days=Case(
+                        When(total_duration__gte=5.0, then=Value(1.0)),
+                        When(total_duration__gte=2.5, then=Value(0.5)),
+                        default=Value(0.0),)
+                )
+                .order_by('day')  # Sort results by date
+            )
+        else:
+            return []
 
     @property
     def ljp_duration(self):

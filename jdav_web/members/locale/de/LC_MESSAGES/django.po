@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-11 00:56+0200\n"
+"POT-Creation-Date: 2025-04-15 22:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1412,6 +1412,18 @@ msgstr ""
 "Ausfahrt beim Jugendreferat einreichen und formal genehmigt bekommen."
 
 #: members/templates/admin/freizeit_finance_overview.html
+msgid "Seminar hours"
+msgstr "Seminar-Stunden"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Seminar days"
+msgstr "Seminar-Tage"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Sum"
+msgstr "Summe"
+
+#: members/templates/admin/freizeit_finance_overview.html
 msgid "The LJP contributions are configured to be paid to:"
 msgstr "Die LJP-Zuschüsse werden ausgezahlt an:"
 
@@ -1420,19 +1432,30 @@ msgstr "Die LJP-Zuschüsse werden ausgezahlt an:"
 msgid ""
 "By submitting a seminar report, you may apply for LJP contributions. In this "
 "case,\n"
-"you may obtain up to 25€ times %(duration)s days for %(participant_count)s "
-"participants but only up to\n"
+"you may obtain up to 25€ times %(duration)s days for "
+"%(theoretic_ljp_participant_count)s participants but only up to\n"
 "90%% of the total costs. This results in a total of %(ljp_contributions)s€. "
 "If you have created a seminar report, you need to specify who should receive "
 "the contributions in order to make use of them."
 msgstr ""
 "Indem du einen Seminarbericht anfertigst, kannst du Landesjugendplan (LJP) "
 "Zuschüsse beantragen. In diesem Fall kannst du bis zu 25€ mal %(duration)s "
-"Tage für %(participant_count)s Teilnehmende, aber nicht mehr als 90%% der "
+"Tage für %(theoretic_ljp_participant_count)s Teilnehmende, aber nicht mehr als 90%% der "
 "Gesamtausgaben erhalten. Das resultiert in einem Gesamtzuschuss von "
 "%(ljp_contributions)s€. Wenn du schon einen Seminarbericht erstellt hast, "
 "musst du im Tab 'Abrechnungen' noch angeben, an wen die LJP-Zuschüsse "
 "ausgezahlt werden sollen."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+" Warning: LJP contributions can only be claimed for activities with at least "
+"5 participants and one leader. This activity currently has only "
+"%(theoretic_ljp_participant_count)s participants."
+msgstr ""
+"Achtung: Nur für Aktivitäten mit mindestens 5 Teilnehmenden und einer "
+"Leitungsperson kann ein LJP-Antrag gestellt werden. Diese Ausfahrt hat "
+"aktuell nur %(theoretic_ljp_participant_count)s Teilnehmende."
 
 #: members/templates/admin/freizeit_finance_overview.html
 msgid "Summary"
@@ -1793,13 +1816,13 @@ msgstr ""
 msgid "Echo"
 msgstr "Rückmeldung"
 
-#: members/templates/members/echo.html
+#: members/templates/members/echo.html members/tests.py
 msgid ""
 "Here is your current data. Please check if it is up to date and change "
 "accordingly."
 msgstr ""
-"Hier siehst du deine aktuellen Daten. Bitte überprüfe alles und passe es "
-"bei Bedarf an."
+"Hier siehst du deine aktuellen Daten. Bitte überprüfe alles und passe es bei "
+"Bedarf an."
 
 #: members/templates/members/echo_failed.html members/tests.py
 msgid "Echo failed"
@@ -2227,12 +2250,6 @@ msgstr "ungültig"
 #: members/tests.py members/views.py
 msgid "expired"
 msgstr "abgelaufen"
-
-#: members/tests.py
-msgid "Thanks for echoing back. Here is your current data:"
-msgstr ""
-"Vielen Dank, dass du dich rückmeldest. Hier siehst du deine aktuellen Daten. "
-"Falls sich etwas geändert hat, trage das bitte hier ein."
 
 #: members/views.py
 msgid "Prename of the member."

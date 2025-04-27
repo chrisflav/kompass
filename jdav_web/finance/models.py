@@ -412,6 +412,10 @@ class Statement(CommonModel):
     @property
     def paid_ljp_contributions(self):
         if hasattr(self.excursion, 'ljpproposal') and self.ljp_to:
+            
+            if self.excursion.theoretic_ljp_participant_count < 5:
+                return 0
+            
             return cvt_to_decimal(
                 min(
                     (1-settings.LJP_TAX) * settings.LJP_CONTRIBUTION_PER_DAY * self.excursion.ljp_participant_count * self.excursion.ljp_duration,
@@ -472,6 +476,7 @@ class Statement(CommonModel):
                 'allowance_to': self.allowance_to,
                 'paid_ljp_contributions': self.paid_ljp_contributions,
                 'ljp_to': self.ljp_to,
+                'theoretic_ljp_participant_count': self.excursion.theoretic_ljp_participant_count,
                 'participant_count': self.excursion.participant_count,
                 'total_seminar_days': self.excursion.total_seminar_days,
                 'ljp_tax': settings.LJP_TAX * 100,

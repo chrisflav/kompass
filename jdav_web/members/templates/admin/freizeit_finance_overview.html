@@ -141,6 +141,26 @@ This results in a total contribution of {{ ljp_contributions }}€.
 To receive them, you need to submit the LJP-Proposal within 3 weeks after your excursion and have it approved by the finance office.{% endblocktrans %}
 </p>
 
+<table>
+    <tr>
+        <td></td>
+        <td>{% trans "Seminar hours" %}</td>
+        <td>{% trans "Seminar days" %}</td>
+    </tr>
+{% for day in memberlist.seminar_time_per_day %}
+    <tr>
+        <td>{{ day.day }}</td>
+        <td>{{ day.total_duration }}</td>
+        <td>{{ day.sum_days }}</td>
+    </tr>
+    {% endfor %}
+    <tr>
+        <td><b>{% trans "Sum" %}</b></td>
+        <td></td>
+        <td>{{ total_seminar_days }}</td>
+    </tr>
+</table>
+
 <p>
     {% blocktrans %}The LJP contributions are configured to be paid to:{% endblocktrans %}
     <table>
@@ -157,10 +177,16 @@ To receive them, you need to submit the LJP-Proposal within 3 weeks after your e
 {% else %}
 <p>
 {% blocktrans %}By submitting a seminar report, you may apply for LJP contributions. In this case,
-you may obtain up to 25€ times {{ duration }} days for {{ participant_count }} participants but only up to
+you may obtain up to 25€ times {{ duration }} days for {{ theoretic_ljp_participant_count }} participants but only up to
 90% of the total costs. This results in a total of {{ ljp_contributions }}€. If you have created a seminar report, you need to specify who should receive the contributions in order to make use of them.{% endblocktrans %}
 </p>
 
+{% endif %}
+
+{% if memberlist.theoretic_ljp_participant_count < 5 %}
+<p>
+    {% blocktrans %} Warning: LJP contributions can only be claimed for activities with at least 5 participants and one leader. This activity currently has only {{ theoretic_ljp_participant_count }} participants.{% endblocktrans %}
+</p>
 {% endif %}
 
 <h3>{% trans "Summary" %}</h3>
