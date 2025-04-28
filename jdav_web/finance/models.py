@@ -135,6 +135,11 @@ class Statement(CommonModel):
             needed_paiments.extend([(yl, self.allowance_per_yl) for yl in self.allowance_to.all()])
         if self.subsidy_to:
             needed_paiments.append((self.subsidy_to, self.total_subsidies))
+
+        # only include org fee if either allowance or subsidy is claimed (part of the property)
+        if self.total_org_fee:
+            needed_paiments.append((self.org_fee_payant, -self.total_org_fee))
+
         if self.ljp_to:
             needed_paiments.append((self.ljp_to, self.paid_ljp_contributions))
 
@@ -250,11 +255,17 @@ class Statement(CommonModel):
         if self.subsidy_to:
             ref = _("Night and travel costs for %(excu)s") % {'excu': self.excursion.name}
             Transaction(statement=self, member=self.subsidy_to, amount=self.total_subsidies, confirmed=False, reference=ref).save()
-        
+
+        if self.total_org_fee:
+            # if no subsidy receiver is given but org fees have to be paid. Just pick one of allowance receivers
+            ref = _("reduced by org fee")
+            Transaction(statement=self, member=self.org_fee_payant, amount=-self.total_org_fee, confirmed=False, reference=ref).save()
+
         if self.ljp_to:
             ref = _("LJP-Contribution %(excu)s") % {'excu': self.excursion.name}
-            Transaction(statement=self, member=self.ljp_to, amount=self.paid_ljp_contributions, confirmed=False, reference=ref).save()
-        
+            Transaction(statement=self, member=self.ljp_to, amount=self.paid_ljp_contributions,
+                        confirmed=False, reference=ref).save()
+
         return True
 
     def reduce_transactions(self):
@@ -369,6 +380,24 @@ class Statement(CommonModel):
         return cvt_to_decimal(self.total_staff / self.excursion.staff_count)
 
     @property
+    def total_org_fee_theoretical(self):
+        """participants older than 26.99 years need to pay a specified organisation fee per person per day."""
+        if self.excursion is None:
+            return 0
+        return cvt_to_decimal(settings.EXCURSION_ORG_FEE * self.excursion.duration * self.excursion.old_participant_count)
+
+    @property
+    def total_org_fee(self):
+        """only calculate org fee if subsidies or allowances are claimed."""
+        if self.subsidy_to or self.allowances_paid > 0:
+            return self.total_org_fee_theoretical
+        return cvt_to_decimal(0)
+
+    @property
+    def org_fee_payant(self):
+        return self.subsidy_to if self.subsidy_to else self.allowance_to.all()[0]
+
+    @property
     def total_subsidies(self):
         """
         The total amount of subsidies excluding the allowance, i.e. the transportation
@@ -378,6 +407,10 @@ class Statement(CommonModel):
             return (self.transportation_per_yl + self.nights_per_yl) * self.real_staff_count
         else:
             return cvt_to_decimal(0)
+
+    @property
+    def subsidies_paid(self):
+        return self.total_subsidies - self.total_org_fee
 
     @property
     def theoretical_total_staff(self):
@@ -392,6 +425,11 @@ class Statement(CommonModel):
         the sum of subsidies and allowances that youth leaders are actually collecting
         """
         return self.total_allowance + self.total_subsidies
+
+    @property
+    def total_staff_paid(self):
+        return self.total_staff - self.total_org_fee
+
 
     @property
     def real_staff_count(self):
@@ -428,7 +466,7 @@ class Statement(CommonModel):
 
     @property
     def total(self):
-        return self.total_bills + self.total_staff  + self.paid_ljp_contributions
+        return self.total_bills + self.total_staff_paid  + self.paid_ljp_contributions
 
     @property
     def total_theoretic(self):
@@ -464,6 +502,7 @@ class Statement(CommonModel):
                 'allowances_paid': self.allowances_paid,
                 'nights_per_yl': self.nights_per_yl,
                 'allowance_per_yl': self.allowance_per_yl,
+                'total_allowance': self.total_allowance,
                 'transportation_per_yl': self.transportation_per_yl,
                 'total_per_yl': self.total_per_yl,
                 'total_staff': self.total_staff,
@@ -480,6 +519,11 @@ class Statement(CommonModel):
                 'participant_count': self.excursion.participant_count,
                 'total_seminar_days': self.excursion.total_seminar_days,
                 'ljp_tax': settings.LJP_TAX * 100,
+                'total_org_fee_theoretical': self.total_org_fee_theoretical,
+                'total_org_fee': self.total_org_fee,
+                'old_participant_count': self.excursion.old_participant_count,
+                'total_staff_paid': self.total_staff_paid,
+                'org_fee': cvt_to_decimal(settings.EXCURSION_ORG_FEE),
             }
             return dict(context, **excursion_context)
         else:

@@ -55,6 +55,8 @@ DOMAIN = get_var('misc', 'domain', default='example.org')
 ALLOWANCE_PER_DAY = get_var('finance', 'allowance_per_day', default=22)
 MAX_NIGHT_COST = get_var('finance', 'max_night_cost', default=11)
 
+EXCURSION_ORG_FEE = get_var('finance', 'org_fee', default=10)
+
 # links
 
 CLOUD_LINK = get_var('links', 'cloud', default='https://startpage.com')

@@ -83,6 +83,12 @@ in der Ausgabenübersicht gesondert aufgeführt.
 
 {% endif %}
 
+{% if statement.total_org_fee %}
+\noindent\textbf{Organisationsbeitrag}
+
+\noindent An der Ausfahrt haben {{ statement.old_participant_count }} Personen teilgenommen, die 27 Jahre alt oder älter sind. Für sie wird pro Tag ein Organisationsbeitrag von {{ statement.org_fee }} € erhoben und mit den bezahlten Zuschüssen und Aufwandsentschädigungen verrechnet.
+{% endif %}
+
 {% else %}
 \vspace{110pt}
 {% endif %}
@@ -116,8 +122,11 @@ in der Ausgabenübersicht gesondert aufgeführt.
         {% if statement.subsidy_to %}
         \multicolumn{2}{l}{Zuschuss Übernachtung und Anreise für alle Jugendleiter*innen} & {{ statement.subsidy_to.name|esc_all }} & {{ statement.total_subsidies }} €\\
         {% endif %}
+        {% if statement.total_org_fee %}
+        \multicolumn{2}{l}{abzüglich Organisationsbeitrag für {{ statement.old_participant_count }} Teilnehmende über 27 } &  & -{{ statement.total_org_fee }} €\\
+        {% endif %}
         \midrule
-        \multicolumn{3}{l}{\textbf{Summe Zuschüsse und Aufwandsentschädigung Jugendleitende}} & \textbf{ {{ statement.total_staff }} }€\\
+        \multicolumn{3}{l}{\textbf{Summe Zuschüsse und Aufwandsentschädigung Jugendleitende}} & \textbf{ {{ statement.total_staff_paid }} }€\\
 {%endif %}
 {% if statement.ljp_to %}
         \midrule

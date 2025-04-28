@@ -122,17 +122,24 @@ cost plan!
 </p>
 {% else %}
 <p>{% blocktrans %}No receivers of the subsidies were provided. Subsidies will not be used.{% endblocktrans %}</p>
-
 {% endif %}
+
+{% if total_org_fee %}
+<h3>{% trans "Org fee" %}</h3>
+<p>
+{% blocktrans %}Warning: {{ old_participant_count }} participant(s) of the excursion are 27 or older. For each of them, an organisation fee of {{ org_fee }} € per day has to be paid to the account. With a duration of {{ duration }} days, a total of {{ total_org_fee_theoretical }} € is charged against the other transactions.{% endblocktrans %}
+</p>
+{% endif %}
+
 {% if not memberlist.statement.allowance_to_valid %}
 <p>
 {% blocktrans %}Warning: The configured recipients of the allowance don't match the regulations. This might be because the number of recipients is bigger then the number of admissable youth leaders for this excursion.{% endblocktrans %}
 </p>
 {% endif %}
 
-
-{% if memberlist.statement.ljp_to %}
 <h3>{% trans "LJP contributions" %}</h3>
+{% if memberlist.statement.ljp_to %}
+
 
 <p>
 {% blocktrans %}By submitting the given seminar report, you will receive LJP contributions.
@@ -202,6 +209,14 @@ you may obtain up to 25€ times {{ duration }} days for {{ theoretic_ljp_partic
         </td>
         <td>
             {{ total_bills_theoretic }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Organisation fees" %}
+        </td>
+        <td>
+            {{ total_org_fee }}€
         </td>
     </tr>
     <tr>

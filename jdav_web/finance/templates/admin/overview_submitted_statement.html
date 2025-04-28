@@ -109,11 +109,20 @@
     </tr>
 </table>
 </p>
+
 {% else %}
 <p>{% blocktrans %}No receivers of the subsidies were provided. Subsidies will not be used.{% endblocktrans %}</p>
 {% endif %}
 
+{% if total_org_fee %}
+<h3>{% trans "Org fee" %}</h3>
+{% blocktrans %}Since overaged people where part of the excursion, an organisational fee of {{ org_fee }}€ per person per day has to be paid. This totals to {{ total_org_fee_theoretical }}€. This organisational fee will be accounted against allowances and subsidies.{% endblocktrans %}
+
+{% endif %}
+
+
 {% if statement.ljp_to %}
+<h3>{% trans "LJP contributions" %}</h3>
 <p>
 {% blocktrans %} The youth leaders have documented interventions worth of {{ total_seminar_days }} seminar 
 days for {{ participant_count }} eligible participants. Taking into account the maximum contribution quota 
@@ -161,6 +170,14 @@ Once their proposal was approved, the ljp contributions of should be paid to:{% 
         </td>
         <td>
             {{ total_subsidies }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Org fee" %}
+        </td>
+        <td>
+            -{{ total_org_fee }}€
         </td>
     </tr>
     <tr>

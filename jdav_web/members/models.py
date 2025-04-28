@@ -1344,10 +1344,19 @@ class Freizeit(CommonModel):
 
     @property
     def participant_count(self):
+        return len(self.participants)
+    
+    @property
+    def participants(self):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
-        return len(ps - jls)
-
+        return list(ps - jls)
+        
+    @property
+    def old_participant_count(self):
+        old_ps = [m for m in self.participants if m.age() >= 27]
+        return len(old_ps)
+    
     @property
     def head_count(self):
         return self.staff_on_memberlist_count + self.participant_count

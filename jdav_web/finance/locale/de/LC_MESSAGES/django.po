@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-06 18:46+0200\n"
+"POT-Creation-Date: 2025-04-27 23:00+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -298,6 +298,10 @@ msgid "Night and travel costs for %(excu)s"
 msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
 
 #: finance/models.py
+msgid "reduced by org fee"
+msgstr "reduziert um Org-Beitrag"
+
+#: finance/models.py
 #, python-format
 msgid "LJP-Contribution %(excu)s"
 msgstr "LJP-Zuschuss %(excu)s"
@@ -540,6 +544,27 @@ msgid ""
 msgstr ""
 "Keine Empfänger*innen für Sektionszuschüsse angegeben. Es werden daher keine "
 "Sektionszuschüsse ausbezahlt."
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "Org fee"
+msgstr "Organisationsbeitrag"
+
+#: finance/templates/admin/overview_submitted_statement.html
+#, python-format
+msgid ""
+"Since overaged people where part of the excursion, an organisational fee of "
+"%(org_fee)s€ per person per day has to be paid. This totals to "
+"%(total_org_fee_theoretical)s€. This organisational fee will be accounted "
+"against allowances and subsidies."
+msgstr ""
+"Da Personen über 27 an der Ausfahrt teilnehommen haben, wird ein "
+"Organisationsbeitrag von %(org_fee)s€ pro Person und Tag fällig. Der Gesamtbetrag "
+"von %(total_org_fee_theoretical)s€ wird mit Zuschüssen und "
+"Aufwandsentschädigungen verrechnet."
+
+#: finance/templates/admin/overview_submitted_statement.html
+msgid "LJP contributions"
+msgstr "LJP-Zuschüsse"
 
 #: finance/templates/admin/overview_submitted_statement.html
 #, python-format

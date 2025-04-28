@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-15 22:36+0200\n"
+"POT-Creation-Date: 2025-04-27 23:00+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1380,6 +1380,24 @@ msgstr ""
 "Sektionszuschüsse ausbezahlt."
 
 #: members/templates/admin/freizeit_finance_overview.html
+msgid "Org fee"
+msgstr "Organisationsbeitrag"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"Warning: %(old_participant_count)s participant(s) of the excursion are 27 or "
+"older. For each of them, an organisation fee of %(org_fee)s € per day has to "
+"be paid to the account. With a duration of %(duration)s days, a total of "
+"%(total_org_fee_theoretical)s € is charged against the other transactions."
+msgstr ""
+"Achtung: %(old_participant_count)s Teilnehmende der Ausfahrt sind 27 oder "
+"älter. Für diese Teilnehmende(n) ist ein Org-Beitrag von %(org_fee)s € pro Tag "
+"fällig. Durch die Länge der Ausfahrt von %(duration)s Tagen werden insgesamt "
+"%(total_org_fee_theoretical)s € mit den Zuschüssen und "
+"Aufwandsentschädigungen verrechnet, sofern diese in Anspruch genommen werden."
+
+#: members/templates/admin/freizeit_finance_overview.html
 msgid ""
 "Warning: The configured recipients of the allowance don't match the "
 "regulations. This might be because the number of recipients is bigger then "
@@ -1440,10 +1458,10 @@ msgid ""
 msgstr ""
 "Indem du einen Seminarbericht anfertigst, kannst du Landesjugendplan (LJP) "
 "Zuschüsse beantragen. In diesem Fall kannst du bis zu 25€ mal %(duration)s "
-"Tage für %(theoretic_ljp_participant_count)s Teilnehmende, aber nicht mehr als 90%% der "
-"Gesamtausgaben erhalten. Das resultiert in einem Gesamtzuschuss von "
-"%(ljp_contributions)s€. Wenn du schon einen Seminarbericht erstellt hast, "
-"musst du im Tab 'Abrechnungen' noch angeben, an wen die LJP-Zuschüsse "
+"Tage für %(theoretic_ljp_participant_count)s Teilnehmende, aber nicht mehr "
+"als 90%% der Gesamtausgaben erhalten. Das resultiert in einem Gesamtzuschuss "
+"von %(ljp_contributions)s€. Wenn du schon einen Seminarbericht erstellt "
+"hast, musst du im Tab 'Abrechnungen' noch angeben, an wen die LJP-Zuschüsse "
 "ausgezahlt werden sollen."
 
 #: members/templates/admin/freizeit_finance_overview.html
@@ -1464,6 +1482,10 @@ msgstr "Zusammenfassung"
 #: members/templates/admin/freizeit_finance_overview.html members/tests.py
 msgid "This is the estimated cost and contribution summary:"
 msgstr "Das ist die geschätzte Kosten- und Zuschussübersicht."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Organisation fees"
+msgstr "Org-Beitrag"
 
 #: members/templates/admin/freizeit_finance_overview.html
 msgid "Potential LJP contributions"
