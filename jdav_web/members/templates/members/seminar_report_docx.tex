@@ -1,4 +1,4 @@
-{% load tex_extras %}
+{% load tex_extras tz %}
 
 \documentclass[a4paper]{article}
 
@@ -63,8 +63,8 @@
     \textbf{Datum} & \textbf{Uhrzeit} & \multicolumn{4}{l}{\textbf{Art der Aktion}} & \textbf{Dauer} \\
     \midrule
     {% for intervention in memberlist.ljpproposal.intervention_set.all %}
-    {{ intervention.date_start|date_short }}
-                   & {{ intervention.date_start|time_short }}
+    {{ intervention.date_start|localtime|date_short }}
+                   & {{ intervention.date_start|localtime|time_short }}
                    & \multicolumn{4}{l}{ {{ intervention.activity|esc_all }} }
                    & {{ intervention.duration }} h  \\
     {% endfor %}
