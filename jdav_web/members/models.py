@@ -376,7 +376,7 @@ class Member(Person):
     def dav_badge_no_tag(self):
         """Returning the badge number stripped of strings and spaces"""
         
-        return "{" + ''.join(re.findall(r'\d', self.dav_badge_no)) + "}"
+        return "{" + ''.join(re.findall(r'\d', self.dav_badge_no))[-6:] + "}"
 
     @property
     def iban_valid(self):
