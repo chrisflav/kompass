@@ -1,5 +1,6 @@
 from datetime import datetime
 from django.db import models
+from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, ROUND_HALF_DOWN
@@ -80,3 +81,10 @@ def normalize_filename(filename, append_date=True, date=None):
     filename = filename.replace(' ', '_').replace('&', '').replace('/', '_')
     # drop umlauts, accents etc.
     return unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
+
+
+def coming_midnight():
+    base = timezone.now() + timezone.timedelta(days=1)
+    return timezone.datetime(year=base.year, month=base.month, day=base.day,
+                             hour=0, minute=0, second=0, microsecond=0,
+                             tzinfo=base.tzinfo)

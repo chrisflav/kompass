@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-27 23:00+0200\n"
+"POT-Creation-Date: 2025-05-03 18:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -468,6 +468,15 @@ msgstr ""
 #: members/admin.py members/templates/admin/freizeit_finance_overview.html
 msgid "Finance overview"
 msgstr "Kostenübersicht"
+
+#: members/admin.py
+msgid "Inform youth leaders about sending of crisis intervention list."
+msgstr ""
+"Informiere Jugendleiter:innen über Versand der Kriseninterventionsliste."
+
+#: members/admin.py
+msgid "Send crisis intervention list."
+msgstr "Kriseninterventionsliste verschicken"
 
 #: members/apps.py
 msgid "member administration"
@@ -994,6 +1003,15 @@ msgid "Excursions"
 msgstr "Ausfahrten"
 
 #: members/models.py
+msgid "Crisis intervention list for %(excursion)s from %(start)s to %(end)s"
+msgstr "Kriseninterventionsliste für %(excursion)s vom %(start)s bis %(end)s"
+
+#: members/models.py
+#, python-format
+msgid "Participant list for %(excursion)s from %(start)s to %(end)s"
+msgstr "Teilnehmendenliste für %(excursion)s vom %(start)s bis %(end)s"
+
+#: members/models.py
 msgid "Title"
 msgstr "Titel"
 
@@ -1392,9 +1410,9 @@ msgid ""
 "%(total_org_fee_theoretical)s € is charged against the other transactions."
 msgstr ""
 "Achtung: %(old_participant_count)s Teilnehmende der Ausfahrt sind 27 oder "
-"älter. Für diese Teilnehmende(n) ist ein Org-Beitrag von %(org_fee)s € pro Tag "
-"fällig. Durch die Länge der Ausfahrt von %(duration)s Tagen werden insgesamt "
-"%(total_org_fee_theoretical)s € mit den Zuschüssen und "
+"älter. Für diese Teilnehmende(n) ist ein Org-Beitrag von %(org_fee)s € pro "
+"Tag fällig. Durch die Länge der Ausfahrt von %(duration)s Tagen werden "
+"insgesamt %(total_org_fee_theoretical)s € mit den Zuschüssen und "
 "Aufwandsentschädigungen verrechnet, sofern diese in Anspruch genommen werden."
 
 #: members/templates/admin/freizeit_finance_overview.html

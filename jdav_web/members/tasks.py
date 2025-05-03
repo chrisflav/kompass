@@ -1,7 +1,7 @@
 from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
-from .models import MemberWaitingList
+from .models import MemberWaitingList, Freizeit
 
 @shared_task
 def ask_for_waiting_confirmation():
@@ -16,5 +16,33 @@ def ask_for_waiting_confirmation():
                                                    last_reminder__lte=reminder_cutoff,
                                                    sent_reminders__lt=settings.MAX_REMINDER_COUNT):
         waiter.ask_for_wait_confirmation()
+        no += 1
+    return no
+
+
+@shared_task
+def send_crisis_intervention_list():
+    """
+    Send crisis intervention lists for all excursions that start on the current day and
+    that have not been sent yet.
+    """
+    no = 0
+    for excursion in Freizeit.objects.filter(date__date=timezone.now().date(),
+                                             crisis_intervention_list_sent=False):
+        excursion.send_crisis_intervention_list()
+        no += 1
+    return no
+
+
+@shared_task
+def send_notification_crisis_intervention_list():
+    """
+    Send crisis intervention list notifiactions for all excursions that start on the next
+    day and that have not been sent yet.
+    """
+    no = 0
+    for excursion in Freizeit.objects.filter(date__date=timezone.now().date() + timezone.timedelta(days=1),
+                                             notification_crisis_intervention_list_sent=False):
+        excursion.notify_leaders_crisis_intervention_list()
         no += 1
     return no

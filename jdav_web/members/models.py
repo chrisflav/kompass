@@ -26,10 +26,12 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 
 from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion
+from .pdf import render_tex
 import rules
 from contrib.models import CommonModel
+from contrib.media import media_path
 from contrib.rules import memberize_user, has_global_perm
-from utils import cvt_to_decimal
+from utils import cvt_to_decimal, coming_midnight
 
 from dateutil.relativedelta import relativedelta
 from schwifty import IBAN
@@ -1217,6 +1219,10 @@ class Freizeit(CommonModel):
     approval_comments = models.TextField(verbose_name=_('Approval comments'),
                                          blank=True, default='')
 
+    # automatic sending of crisis intervention list
+    crisis_intervention_list_sent = models.BooleanField(default=False)
+    notification_crisis_intervention_list_sent = models.BooleanField(default=False)
+
     def __str__(self):
         """String represenation"""
         return self.name
@@ -1345,18 +1351,18 @@ class Freizeit(CommonModel):
     @property
     def participant_count(self):
         return len(self.participants)
-    
+
     @property
     def participants(self):
         ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         return list(ps - jls)
-        
+
     @property
     def old_participant_count(self):
         old_ps = [m for m in self.participants if m.age() >= 27]
         return len(old_ps)
-    
+
     @property
     def head_count(self):
         return self.staff_on_memberlist_count + self.participant_count
@@ -1608,6 +1614,61 @@ class Freizeit(CommonModel):
         # one may view all leited groups and oneself
         queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter__pk=member.pk)).distinct()
         return queryset
+
+    def send_crisis_intervention_list(self, sending_time=None):
+        """
+        Send the crisis intervention list to the crisis invervention email, the
+        responsible and the youth leaders of this excursion.
+        """
+        context = dict(memberlist=self, settings=settings)
+        start_date= timezone.localtime(self.date).strftime('%d.%m.%Y')
+        filename = render_tex(f"{self.code}_{self.name}_Krisenliste",
+                              'members/crisis_intervention_list.tex', context,
+                              date=self.date, save_only=True)
+        leaders = ", ".join([yl.name for yl in self.jugendleiter.all()])
+        start_date = timezone.localtime(self.date).strftime('%d.%m.%Y')
+        end_date = timezone.localtime(self.end).strftime('%d.%m.%Y')
+        # create email with attachment
+        send_mail(_('Crisis intervention list for %(excursion)s from %(start)s to %(end)s') %\
+                    { 'excursion': self.name,
+                      'start': start_date,
+                      'end': end_date },
+                  settings.SEND_EXCURSION_CRISIS_LIST.format(excursion=self.name, leaders=leaders,
+                                                             excursion_start=start_date,
+                                                             excursion_end=end_date),
+                  sender=settings.DEFAULT_SENDING_MAIL,
+                  recipients=[settings.SEKTION_CRISIS_INTERVENTION_MAIL],
+                  cc=[settings.RESPONSIBLE_MAIL] + [yl.email for yl in self.jugendleiter.all()],
+                  attachments=[media_path(filename)])
+        self.crisis_intervention_list_sent = True
+        self.save()
+
+    def notify_leaders_crisis_intervention_list(self, sending_time=None):
+        """
+        Send an email to the youth leaders of this excursion with a list of currently
+        registered participants and a heads-up that the crisis intervention list
+        will be automatically sent on the night of this day.
+        """
+        participants = "\n".join([f"- {p.member.name}" for p in self.membersonlist.all()])
+        if not sending_time:
+            sending_time = coming_midnight().strftime("%d.%m.%y %H:%M")
+        elif not isinstance(sending_time, str):
+            sending_time = sending_time.strftime("%d.%m.%y %H:%M")
+        start_date = timezone.localtime(self.date).strftime('%d.%m.%Y')
+        end_date = timezone.localtime(self.end).strftime('%d.%m.%Y')
+        excursion_link = prepend_base_url(self.get_absolute_url())
+        for yl in self.jugendleiter.all():
+            yl.send_mail(_('Participant list for %(excursion)s from %(start)s to %(end)s') %\
+                            { 'excursion': self.name,
+                              'start': start_date,
+                              'end': end_date },
+                         settings.NOTIFY_EXCURSION_PARTICIPANT_LIST.format(name=yl.prename,
+                                                                           excursion=self.name,
+                                                                           participants=participants,
+                                                                           sending_time=sending_time,
+                                                                           excursion_link=excursion_link))
+        self.notification_crisis_intervention_list_sent = True
+        self.save()
 
 
 class MemberNoteList(models.Model):

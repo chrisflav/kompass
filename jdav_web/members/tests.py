@@ -631,11 +631,20 @@ class MemberAdminTestCase(AdminTestCase):
 class FreizeitTestCase(BasicMemberTestCase):
     def setUp(self):
         super().setUp()
+        # this excursion is used for the counting tests
         self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
                                           tour_type=GEMEINSCHAFTS_TOUR,
                                           tour_approach=MUSKELKRAFT_ANREISE,
                                           difficulty=1,
                                           date=timezone.localtime())
+        # this excursion is used in the other tests
+        self.ex2 = Freizeit.objects.create(name='Wild trip 2', kilometers_traveled=120,
+                                           tour_type=GEMEINSCHAFTS_TOUR,
+                                           tour_approach=MUSKELKRAFT_ANREISE,
+                                           difficulty=1,
+                                           date=timezone.localtime())
+        self.ex2.jugendleiter.add(self.fritz)
+        self.ex2.save()
 
     def _setup_test_sjr_application_numbers(self, n_yl, n_b27_local, n_b27_non_local):
         for i in range(n_yl):
@@ -748,6 +757,17 @@ class FreizeitTestCase(BasicMemberTestCase):
         self._test_sjr_application_numbers(0, 10, 0)
         for i in range(10):
             self._test_sjr_application_numbers(10, 10 - i, i)
+
+    def test_notify_leaders_crisis_intervention_list(self):
+        self.ex2.notification_crisis_intervention_list_sent = False
+        self.ex2.notify_leaders_crisis_intervention_list()
+        self.assertTrue(self.ex2.notification_crisis_intervention_list_sent)
+        self.ex2.notify_leaders_crisis_intervention_list(sending_time=timezone.now())
+
+    def test_send_crisis_intervention_list(self):
+        self.ex2.crisis_intervention_list_sent = False
+        self.ex2.send_crisis_intervention_list()
+        self.assertTrue(self.ex2.crisis_intervention_list_sent)
 
 
 class PDFActionMixin:

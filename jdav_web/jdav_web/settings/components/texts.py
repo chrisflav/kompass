@@ -247,3 +247,29 @@ Deine JDAV %(SEKTION)s""" % { 'SEKTION': SEKTION, 'RESPONSIBLE_MAIL': RESPONSIBL
 ADDRESS = get_text('address', default="""JDAV %(SEKTION)s
 %(STREET)s
 %(PLACE)s""" % { 'SEKTION': SEKTION, 'STREET': SEKTION_STREET, 'PLACE': SEKTION_TOWN })
+
+
+NOTIFY_EXCURSION_PARTICIPANT_LIST = get_text('notify_excursion_participant_list', default="""Hallo {name},
+
+deine Ausfahrt {excursion} steht kurz bevor. Damit die Sektion dich im Notfall gut unterstützen kann, benötigt
+die Geschäftsstelle eine aktuelle Kriseninterventionsliste, das heißt eine Teilnehmendenliste der Ausfahrt.
+
+Das Verschicken der Liste passiert automatisch zum Zeitpunkt: {sending_time}.
+
+Das sind die aktuell in der Ausfahrt eingetragenen Teilnehmenden:
+{participants}
+
+Falls diese Liste nicht mehr aktuell ist, gehe bitte umgehend auf {excursion_link} und trage die Daten nach.
+
+Viele Grüße
+Dein KOMPASS""")
+
+SEND_EXCURSION_CRISIS_LIST = get_text('send_excursion_crisis_list', default="""Hallo zusammen,
+
+vom {excursion_start} bis {excursion_end} findet die Ausfahrt {excursion} der Jugend statt. Die
+Ausfahrt wird geleitet von {leaders}.
+
+Im Anhang findet ihr die Kriseninterventionsliste.
+
+Viele Grüße
+Euer KOMPASS""")
