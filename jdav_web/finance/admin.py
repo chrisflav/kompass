@@ -219,7 +219,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
             messages.error(request,
                     _("%(name)s is not yet submitted.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
-        if "transaction_execution_confirm" in request.POST:
+        if "transaction_execution_confirm" in request.POST or "transaction_execution_confirm_and_send" in request.POST:
             res = statement.confirm(confirmer=get_member(request))
             if not res:
                 # this should NOT happen!
@@ -227,6 +227,9 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                         _("An error occured while trying to confirm %(name)s. Please try again.") % {'name': str(statement)})
                 return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name)))
 
+            if "transaction_execution_confirm_and_send" in request.POST:
+                statement.send_summary(cc=[request.user.member.email] if hasattr(request.user, 'member') else [])
+                messages.success(request, _("Successfully sent receipt to the office."))
             messages.success(request,
                     _("Successfully confirmed %(name)s. I hope you executed the associated transactions, I wont remind you again.")
                     % {'name': str(statement)})

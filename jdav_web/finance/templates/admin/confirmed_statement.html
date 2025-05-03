@@ -110,6 +110,7 @@ links.forEach(link => {
     <input type="checkbox" required>
     {% blocktrans %}I did execute the listed transactions.{% endblocktrans %}
     </p>
-    <input class="default confirm" type="submit" name="transaction_execution_confirm" value="{% translate 'Confirm' %}">
+    <input class="default confirm" type="submit" name="transaction_execution_confirm" value="{% translate 'Confirm only' %}">
+    <input class="default confirm" type="submit" name="transaction_execution_confirm_and_send" value="{% translate 'Confirm and send receipt to office' %}">
 </form>
 {% endblock %}

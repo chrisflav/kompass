@@ -273,3 +273,11 @@ Im Anhang findet ihr die Kriseninterventionsliste.
 
 Viele Grüße
 Euer KOMPASS""")
+
+SEND_STATEMENT_SUMMARY = get_text('send_statement_summary', default="""Hallo zusammen,
+
+anbei findet ihr die Abrechnung inklusive Belege für {statement}. Die Überweisungen
+wurden wie beschrieben ausgeführt.
+
+Viele Grüße
+Euer KOMPASS""")

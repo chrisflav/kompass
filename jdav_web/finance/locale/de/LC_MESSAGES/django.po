@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-27 23:00+0200\n"
+"POT-Creation-Date: 2025-05-03 19:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -63,6 +63,10 @@ msgid "An error occured while trying to confirm %(name)s. Please try again."
 msgstr ""
 "Beim Abwickeln von %(name)s ist ein Fehler aufgetreten. Bitte versuche es "
 "erneut."
+
+#: finance/admin.py
+msgid "Successfully sent receipt to the office."
+msgstr "Abrechnungsbeleg an die Geschäftsstelle gesendet."
 
 #: finance/admin.py
 #, python-format
@@ -284,6 +288,10 @@ msgid "Statement: %(excursion)s"
 msgstr "Abrechnung: %(excursion)s"
 
 #: finance/models.py
+msgid "Excursion %(excursion)s"
+msgstr "Ausfahrt %(excursion)s"
+
+#: finance/models.py
 msgid "Ready to confirm"
 msgstr "Bereit zur Abwicklung"
 
@@ -309,6 +317,11 @@ msgstr "LJP-Zuschuss %(excu)s"
 #: finance/models.py
 msgid "Total"
 msgstr "Gesamtbetrag"
+
+#: finance/models.py
+#, python-format
+msgid "Statement summary for %(title)s"
+msgstr "Abrechnung für %(title)s"
 
 #: finance/models.py
 msgid "Statement in preparation"
@@ -433,8 +446,12 @@ msgid "I did execute the listed transactions."
 msgstr "Ich habe die aufgeführten Überweisungen ausgeführt."
 
 #: finance/templates/admin/confirmed_statement.html
-msgid "Confirm"
-msgstr "Bestätigen"
+msgid "Confirm only"
+msgstr "Nur bestätigen"
+
+#: finance/templates/admin/confirmed_statement.html
+msgid "Confirm and send receipt to office"
+msgstr "Bestätigen und Beleg an die Geschäftsstelle senden"
 
 #: finance/templates/admin/overview_submitted_statement.html
 msgid "Overview"
@@ -558,8 +575,8 @@ msgid ""
 "against allowances and subsidies."
 msgstr ""
 "Da Personen über 27 an der Ausfahrt teilnehommen haben, wird ein "
-"Organisationsbeitrag von %(org_fee)s€ pro Person und Tag fällig. Der Gesamtbetrag "
-"von %(total_org_fee_theoretical)s€ wird mit Zuschüssen und "
+"Organisationsbeitrag von %(org_fee)s€ pro Person und Tag fällig. Der "
+"Gesamtbetrag von %(total_org_fee_theoretical)s€ wird mit Zuschüssen und "
 "Aufwandsentschädigungen verrechnet."
 
 #: finance/templates/admin/overview_submitted_statement.html

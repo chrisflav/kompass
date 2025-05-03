@@ -9,6 +9,7 @@ SEKTION_CONTACT_MAIL = get_var('section', 'contact_mail', default='info@example.
 SEKTION_BOARD_MAIL = get_var('section', 'board_mail', default=SEKTION_CONTACT_MAIL)
 SEKTION_CRISIS_INTERVENTION_MAIL = get_var('section', 'crisis_intervention_mail',
                                            default=SEKTION_BOARD_MAIL)
+SEKTION_FINANCE_MAIL = get_var('section', 'finance_mail', default=SEKTION_CONTACT_MAIL)
 SEKTION_IBAN = get_var('section', 'iban', default='Foo 123')
 SEKTION_ACCOUNT_HOLDER = get_var('section', 'account_holder',
                                  default='Foo')

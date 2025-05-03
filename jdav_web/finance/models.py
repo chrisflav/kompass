@@ -15,6 +15,9 @@ import rules
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from utils import cvt_to_decimal, RestrictedFileField
+from members.pdf import render_tex_with_attachments
+from mailer.mailutils import send as send_mail
+from contrib.media import media_path
 
 from schwifty import IBAN
 import re
@@ -118,6 +121,13 @@ class Statement(CommonModel):
     def __str__(self):
         if self.excursion is not None:
             return _('Statement: %(excursion)s') % {'excursion': str(self.excursion)}
+        else:
+            return self.short_description
+
+    @property
+    def title(self):
+        if self.excursion is not None:
+            return _('Excursion %(excursion)s') % {'excursion': str(self.excursion)}
         else:
             return self.short_description
 
@@ -533,6 +543,23 @@ class Statement(CommonModel):
         return self.bill_set.values('short_description')\
                             .order_by('short_description')\
                             .annotate(amount=Sum('amount'))
+
+    def send_summary(self, cc=None):
+        """
+        Sends a summary of the statement to the central office of the association.
+        """
+        excursion = self.excursion
+        context = dict(statement=self.template_context(), excursion=excursion, settings=settings)
+        pdf_filename = f"{excursion.code}_{excursion.name}_Zuschussbeleg" if excursion else f"Abrechnungsbeleg"
+        attachments = [bill.proof.path for bill in self.bills_covered if bill.proof]
+        filename = render_tex_with_attachments(pdf_filename, 'finance/statement_summary.tex',
+                                               context, attachments, save_only=True)
+        send_mail(_('Statement summary for %(title)s') % { 'title': self.title },
+                  settings.SEND_STATEMENT_SUMMARY.format(statement=self.title),
+                  sender=settings.DEFAULT_SENDING_MAIL,
+                  recipients=[settings.SEKTION_FINANCE_MAIL],
+                  cc=cc,
+                  attachments=[media_path(filename)])
 
 
 class StatementUnSubmittedManager(models.Manager):
