@@ -1,61 +1,16 @@
+{% extends "members/tex_base.tex" %}
 {% load static common tex_extras %}
 
-\documentclass[a4paper]{article}
+{% block headline %}{% endblock %}
+{% block contact %}{% endblock %}
 
-\usepackage[utf8]{inputenc}
-% remove all undefined unicode characters instead of throwing an error
-\makeatletter
-\def\UTFviii@undefined@err#1{}
-\makeatother
-\usepackage{booktabs}
-\usepackage{amssymb}
-\usepackage{cmbright}
-\usepackage{graphicx}
-\usepackage{textpos}
-\usepackage[colorlinks, breaklinks]{hyperref}
-\usepackage{float}
-\usepackage[margin=1cm, bottom=1.5cm]{geometry}
-\usepackage{array}
-\usepackage{tabularx}
+{% block extra-preamble %}
 \usepackage{rotating}
 \usepackage[code=Code39,X=.24mm,ratio=2.25,H=0.4cm]{makebarcode}
+\geometry{reset,margin=1cm, bottom=1.5cm}
+{% endblock %}
 
-
-\newcommand{\picpos}[4]{
-  \begin{textblock*}{#1}(#2, #3)
-    \includegraphics[width=\textwidth]{#4}
-  \end{textblock*}
-}
-
-% custom url command for properly formatting emails
-\DeclareUrlCommand\Email{\urlstyle{same}}
-% allow linebreak after every character
-\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
-\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
-\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
-\do\w\do\x\do\y\do\z
-\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
-\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
-\do\W\do\X\do\Y\do\Z}
-
-\renewcommand{\arraystretch}{1.5}
-
-\newcolumntype{L}{>{\hspace{0pt}\raggedright\arraybackslash}X}
-\newcolumntype{S}{>{\raggedright\arraybackslash\hsize=0.7\hsize}X}
-
-\newcommand{\tickedbox}{
-    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
-}
-\newcommand{\checkbox}{
-    \makebox[0pt][l]{$\square$}
-}
-
-\newenvironment{compacttext}
-  {\ignorespaces}
-  {\ignorespacesafterend}
-
-\begin{document}
-% HEADER RIGHT
+{% block content %}
 {% settings_value 'DEFAULT_STATIC_PATH' as static_root %}
 
 {% for group in groups %}
@@ -69,30 +24,30 @@
 
 \noindent Anwesende Jugendleitende und Teilnehmende werden mit einem Kreuz ($\times$) markiert und die ausgefüllte 
 Liste zum Anfang der Gruppenstunde an der Kasse abgegeben. Zum Ende wird sie wieder abgeholt. Abgelaufene 
-Punktekarten werden von Kasse mit einem Kreis ($\otimes$) markiert.\\
-
+Punktekarten werden von der Kasse mit einem Kreis ($\otimes$) markiert.
 \begin{table}[H]
-    \centering
-\begin{tabularx}{\textwidth}{lX|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
-    \toprule
-    \textbf{\#} & \textbf{Name}   {% for i in range %}
-    & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
- {% endfor %} \\
+  \centering
+%\begin{tabularx}{\textwidth}{lXX|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
+\begin{tabularx}{\textwidth}{lXl{% for i in range %}|l{% endfor%}}
+\toprule
+  \textbf{\#} & \textbf{Name}  & {% for i in range %}
+  & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
+{% endfor %} \\
 
-    {% for j in n_members %}
-    {% with m=group.sorted_members|index:j %}
-    \midrule
-        {{ j|plus:1 }}  & \begin{compacttext} 
-        {% if m in group.leiters.all %}{{ m.name|esc_all }} \textbf{(JL)} {% else %} {{ m.name|esc_all }}  {% endif %}  {% if m.dav_badge_no_tag|length > 2 %}\barcode{{ m.dav_badge_no_tag }}{% endif %}  
-    \end{compacttext} {% for i in range %} & {% endfor %}\\
-    {% endwith %}
-    {% endfor %}
+  {% for j in n_members %}
+  {% with m=group.sorted_members|index:j %}
+  \midrule
+      {{ j|plus:1 }}  & 
+      {% if m in group.leiters.all %}{{ m.name|esc_all }} \textbf{(JL)} {% else %} {{ m.name|esc_all }}  {% endif %} & {% if m.dav_badge_no_tag|length > 2 %}\barcode{{ m.dav_badge_no_tag }}{% endif %}  
+  {% for i in range %} & {% endfor %}\\
+  {% endwith %}
+  {% endfor %}
 
-    \bottomrule
+  \bottomrule
 \end{tabularx}
 \end{table}
 
 \clearpage
 {% endfor %}
 
-\end{document}
+{% endblock content %}
