@@ -14,10 +14,13 @@ from django.conf import settings
 from django.urls import reverse
 from django import template
 from unittest import skip, mock
-from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE,\
+from .models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR,\
+        MUSKELKRAFT_ANREISE, FUEHRUNGS_TOUR, AUSBILDUNGS_TOUR, OEFFENTLICHE_ANREISE,\
+        FAHRGEMEINSCHAFT_ANREISE,\
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE,\
-        Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS
+        Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS,\
+        TrainingCategory, Person
 from .admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
         MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin
@@ -34,6 +37,7 @@ import math
 import os.path
 
 
+INTERNAL_EMAIL = "foobar@{domain}".format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
 REGISTRATION_DATA = {
     'prename': 'Peter',
     'lastname': 'Wulter',
@@ -109,7 +113,7 @@ class BasicMemberTestCase(TestCase):
         self.peter.save()
 
         self.lara = Member.objects.create(prename="Lara", lastname="Wallis", birth_date=timezone.now().date(),
-                              email=settings.TEST_MAIL, gender=DIVERSE)
+                              email=INTERNAL_EMAIL, gender=DIVERSE)
         self.lara.group.add(self.alp)
         self.lara.save()
         self.fridolin = Member.objects.create(prename="Fridolin", lastname="Spargel", birth_date=timezone.now().date(),
@@ -120,6 +124,8 @@ class BasicMemberTestCase(TestCase):
 
         self.lise = Member.objects.create(prename="Lise", lastname="Lotte", birth_date=timezone.now().date(),
                               email=settings.TEST_MAIL, gender=FEMALE)
+        self.alp.leiters.add(self.lise)
+        self.alp.save()
 
 
 class MemberTestCase(BasicMemberTestCase):
@@ -262,6 +268,41 @@ class MemberTestCase(BasicMemberTestCase):
     def test_association_email(self):
         self.assertIn(settings.DOMAIN, self.peter.association_email)
 
+    def test_registration_complete(self):
+        # this is currently a dummy that always returns True
+        self.assertTrue(self.peter.registration_complete())
+
+    def test_unconfirm(self):
+        self.assertTrue(self.peter.confirmed)
+        self.peter.unconfirm()
+        self.assertFalse(self.peter.confirmed)
+
+    def test_generate_upload_registration_form_key(self):
+        self.peter.generate_upload_registration_form_key()
+        self.assertIsNotNone(self.peter.upload_registration_form_key)
+
+    def test_has_internal_email(self):
+        self.peter.email = 'foobar'
+        self.assertFalse(self.peter.has_internal_email())
+
+    def test_invite_as_user(self):
+        self.assertTrue(self.lara.has_internal_email())
+        self.lara.user = None
+        self.assertTrue(self.lara.invite_as_user())
+        u = User.objects.create_user(username='user', password='secret', is_staff=True)
+        self.peter.user = u
+        self.assertFalse(self.peter.invite_as_user())
+
+    def test_birth_date_str(self):
+        self.fritz.birth_date = None
+        self.assertEqual(self.fritz.birth_date_str, '---')
+        date = timezone.now().date()
+        self.fritz.birth_date = date
+        self.assertEqual(self.fritz.birth_date_str, date.strftime('%d.%m.%Y'))
+
+    def test_gender_str(self):
+        self.assertGreater(len(self.fritz.gender_str), 0)
+
 
 class PDFTestCase(TestCase):
     def setUp(self):
@@ -270,8 +311,12 @@ class PDFTestCase(TestCase):
                                           tour_approach=MUSKELKRAFT_ANREISE,
                                           difficulty=1)
         self.note = MemberNoteList.objects.create(title='Coolß! ‬löst')
+        self.cat = ActivityCategory.objects.create(name='Climbing', description='Climbing')
+        ActivityCategory.objects.create(name='Walking', description='Climbing')
+        self.ex.activity.add(self.cat)
+        self.ex.save()
 
-        for i in range(7):
+        for i in range(15):
             m = Member.objects.create(prename='Liääüuße {}'.format(i),
                                       lastname='Walter&co ‬: _ kg &',
                                       birth_date=timezone.now().date(),
@@ -550,7 +595,7 @@ class MemberAdminTestCase(AdminTestCase):
                             _("The configured email address for %(name)s is not an internal one.") % {'name': str(self.fritz)})
 
         # update email to allowed email domain
-        self.fritz.email = 'foobar@{domain}'.format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
+        self.fritz.email = INTERNAL_EMAIL
         self.fritz.save()
         response = c.post(url)
         # expect: user is found and confirmation page is shown
@@ -594,9 +639,9 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertContains(response, _('Some members have been invited, others could not be invited.'))
 
         # confirm invite, expect: success
-        self.peter.email = 'foobar@{domain}'.format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
+        self.peter.email = INTERNAL_EMAIL
         self.peter.save()
-        self.fritz.email = 'foobar@{domain}'.format(domain=settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER[0])
+        self.fritz.email = INTERNAL_EMAIL
         self.fritz.save()
         response = c.post(url, data={'action': 'invite_as_user_action',
                                      '_selected_action': [self.fritz.pk, self.peter.pk], 'apply': True}, follow=True)
@@ -644,6 +689,7 @@ class FreizeitTestCase(BasicMemberTestCase):
                                            difficulty=1,
                                            date=timezone.localtime())
         self.ex2.jugendleiter.add(self.fritz)
+        self.st = Statement.objects.create(excursion=self.ex2, night_cost=42, subsidy_to=None)
         self.ex2.save()
 
     def _setup_test_sjr_application_numbers(self, n_yl, n_b27_local, n_b27_non_local):
@@ -768,6 +814,56 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.ex2.crisis_intervention_list_sent = False
         self.ex2.send_crisis_intervention_list()
         self.assertTrue(self.ex2.crisis_intervention_list_sent)
+
+    def test_filter_queryset_by_permissions(self):
+        qs = Freizeit.filter_queryset_by_permissions(self.fritz)
+        self.assertIn(self.ex2, qs)
+
+    def test_v32_fields(self):
+        self.assertIn('Textfeld 61', self.ex2.v32_fields().keys())
+
+    @skip("This currently throws a `RelatedObjectDoesNotExist` error.")
+    def test_no_statement(self):
+        self.assertEqual(self.ex.total_relative_costs, 0)
+        self.assertEqual(self.ex.payable_ljp_contributions, 0)
+
+    def test_no_ljpproposal(self):
+        self.assertEqual(self.ex2.total_intervention_hours, 0)
+        self.assertEqual(self.ex2.seminar_time_per_day, [])
+
+    def test_relative_costs(self):
+        # after deducting contributions, the total costs should still be non-negative
+        self.assertGreaterEqual(self.ex2.total_relative_costs, 0)
+
+    def test_payable_ljp_contributions(self):
+        self.assertGreaterEqual(self.ex2.payable_ljp_contributions, 0)
+
+    def test_get_tour_type(self):
+        self.ex2.tour_type = GEMEINSCHAFTS_TOUR
+        self.assertEqual(self.ex2.get_tour_type(), 'Gemeinschaftstour')
+        self.ex2.tour_type = FUEHRUNGS_TOUR
+        self.assertEqual(self.ex2.get_tour_type(), 'Führungstour')
+        self.ex2.tour_type = AUSBILDUNGS_TOUR
+        self.assertEqual(self.ex2.get_tour_type(), 'Ausbildung')
+
+    def test_get_tour_approach(self):
+        self.ex2.tour_approach = MUSKELKRAFT_ANREISE
+        self.assertEqual(self.ex2.get_tour_approach(), 'Muskelkraft')
+        self.ex2.tour_approach = OEFFENTLICHE_ANREISE
+        self.assertEqual(self.ex2.get_tour_approach(), 'ÖPNV')
+        self.ex2.tour_approach = FAHRGEMEINSCHAFT_ANREISE
+        self.assertEqual(self.ex2.get_tour_approach(), 'Fahrgemeinschaften')
+
+    def test_duration(self):
+        self.assertGreaterEqual(self.ex.duration, 0)
+        self.ex.date = timezone.datetime(2000, 1, 1, 8, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 1, 10, 0, 0)
+        self.assertEqual(self.ex.duration, 0.5)
+
+        # TODO: fix this in the model, the duration of this excursion should be 0
+        self.ex.date = timezone.datetime(2000, 1, 1, 12, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 1, 12, 0, 0)
+        self.assertEqual(self.ex.duration, 1)
 
 
 class PDFActionMixin:
@@ -1024,6 +1120,9 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
                                            email=settings.TEST_MAIL, gender=FEMALE)
             NewMemberOnList.objects.create(member=m, comments='a' * i, memberlist=self.note)
 
+    def test_str(self):
+        self.assertEqual(str(self.note), 'Cool list')
+
     def test_membernote_summary(self):
         self._test_pdf('summary', self.note.pk, model='membernotelist')
         self._test_pdf('summary', self.note.pk, model='membernotelist', username='standard', invalid=True)
@@ -1197,6 +1296,24 @@ class MailConfirmationTestCase(BasicMemberTestCase):
         self.father = EmergencyContact.objects.create(prename='Olaf', lastname='Old',
                 email=settings.TEST_MAIL, member=self.fritz)
         self.father.save()
+        self.reg = MemberUnconfirmedProxy.objects.create(**REGISTRATION_DATA, confirmed=False)
+        self.reg.group.add(self.alp)
+        file = SimpleUploadedFile("form.pdf", b"file_content", content_type="application/pdf")
+        self.reg.registration_form = file
+        self.reg.save()
+
+    def test_request_mail_confirmation(self):
+        self.reg.confirmed_mail = True
+        self.reg.confirmed_alternative_mail = True
+        self.assertFalse(self.reg.request_mail_confirmation(rerequest=False))
+
+    def test_confirm_mail_memberunconfirmed(self):
+        requested = self.reg.request_mail_confirmation()
+        self.assertTrue(requested)
+        self.assertIsNone(self.reg.confirm_mail('foobar'))
+        self.assertTrue(self.reg.confirm_mail(self.reg.confirm_mail_key))
+        self.assertTrue(self.reg.confirm_mail(self.reg.confirm_alternative_mail_key))
+        self.assertTrue(self.reg.registration_ready())
 
     def test_contact_confirmation(self):
         # request mail confirmation of father
@@ -1519,6 +1636,58 @@ class InvitationToGroupViewTestCase(BasicMemberTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
+class InvitationToGroupTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.waiter = MemberWaitingList.objects.create(**WAITER_DATA)
+        self.waiter.invite_to_group(self.alp)
+        self.invitation = InvitationToGroup.objects.get(group=self.alp, waiter=self.waiter)
+        self.invitation.created_by = self.fritz
+
+    def test_status(self):
+        self.assertEqual(self.invitation.status(), _('Undecided'))
+        # expire the invitation
+        self.invitation.date = (timezone.now() - timezone.timedelta(days=100)).date()
+        self.assertTrue(self.invitation.is_expired())
+        self.assertEqual(self.invitation.status(), _('Expired'))
+        # reject the invitation
+        self.invitation.reject()
+        self.assertEqual(self.invitation.status(), _('Rejected'))
+
+    def test_confirm(self):
+        self.invitation.confirm()
+        self.assertFalse(self.invitation.rejected)
+
+    def test_notify_left_waitinglist(self):
+        self.invitation.notify_left_waitinglist()
+
+
+class MemberWaitingListTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.waiter = MemberWaitingList.objects.create(**WAITER_DATA)
+        self.waiter.invite_to_group(self.alp)
+        self.invitation = InvitationToGroup.objects.get(group=self.alp, waiter=self.waiter)
+
+    def test_latest_group_invitation(self):
+        self.assertGreater(len(self.waiter.latest_group_invitation()), 1)
+
+    @skip("This currently throws a 'TypeError'.")
+    def test_may_register(self):
+        self.assertTrue(self.waiter.may_register(self.invitation.key))
+
+    def test_may_register_invalid(self):
+        self.assertFalse(self.waiter.may_register('foobar'))
+
+    @skip("This currently throws a 'NameError'.")
+    def test_waiting_confirmation_needed(self):
+        self.assertFalse(self.waiter.waiting_confirmation_needed())
+
+    def test_confirm_waiting_invalid(self):
+        self.assertEqual(self.waiter.confirm_waiting('foobar'),
+                         MemberWaitingList.WAITING_CONFIRMATION_INVALID)
+
+
 class ConfirmWaitingViewTestCase(BasicMemberTestCase):
     def setUp(self):
         super().setUp()
@@ -1612,6 +1781,7 @@ class MailConfirmationViewTestCase(BasicMemberTestCase):
         response = self.client.get(url, {'key': self.waiter.confirm_mail_key})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Mail confirmed"))
+
 
 class EchoViewTestCase(BasicMemberTestCase):
     def setUp(self):
@@ -1724,6 +1894,7 @@ class TestRegistrationFilterTestCase(AdminTestCase):
         self.assertQuerysetEqual(fil.queryset(None, qs),
                                  Member.objects.filter(registration_complete=True),
                                  ordered=False)
+
 
 class MemberAdminFormTestCase(TestCase):
     def test_clean_iban(self):
@@ -1941,3 +2112,83 @@ class GroupTestCase(BasicMemberTestCase):
         self.assertNotIn(url, spiel_text)
 
         self.assertIn(str(WEEKDAYS[self.alp.weekday][1]), alp_text)
+
+
+class NewMemberOnListTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
+                tour_type=GEMEINSCHAFTS_TOUR,
+                tour_approach=MUSKELKRAFT_ANREISE,
+                difficulty=1)
+        self.cat = ActivityCategory.objects.create(name='crazy climbing', ljp_category='Klettern',
+                                                   description='foobar')
+        self.ex.activity.add(self.cat)
+        self.ex.save()
+        self.mol = NewMemberOnList.objects.create(memberlist=self.ex, member=self.fritz)
+
+    @skip("This currently throws a 'NameError'.")
+    def test_skills(self):
+        self.assertGreater(len(self.mol.skills), 0)
+
+    @skip("This currently throws a 'NameError'.")
+    def test_qualities_tex(self):
+        self.assertGreater(len(self.mol.qualities_tex), 0)
+
+
+class TrainingCategoryTestCase(TestCase):
+    def setUp(self):
+        self.cat = TrainingCategory.objects.create(name='school', permission_needed=True)
+
+    def test_str(self):
+        self.assertEqual(str(self.cat), 'school')
+
+class PermissionMemberGroupTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.gp = PermissionGroup.objects.create(group=self.alp)
+        self.gm = PermissionMember.objects.create(member=self.fritz)
+
+    def test_str(self):
+        self.assertEqual(str(self.gp), _('Group permissions'))
+        self.assertEqual(str(self.gm), _('Permissions'))
+
+
+class LJPProposalTestCase(TestCase):
+    def setUp(self):
+        self.proposal = LJPProposal.objects.create(title='Foo')
+
+    def test_str(self):
+        self.assertEqual(str(self.proposal), 'Foo')
+
+
+class KlettertreffTestCase(BasicMemberTestCase):
+    def setUp(self):
+        super().setUp()
+        self.kt = Klettertreff.objects.create(location='foo', topic='bar', group=self.alp)
+        self.kt.jugendleiter.add(self.fritz)
+        self.kt.save()
+        self.attendee = KlettertreffAttendee.objects.create(klettertreff=self.kt, member=self.peter)
+
+    def test_str_attendee(self):
+        self.assertEqual(str(self.attendee), str(self.peter))
+
+    def test_get_jugendleiter(self):
+        self.assertIn(self.kt.get_jugendleiter(), self.fritz.name)
+
+    def test_has_jugendleiter(self):
+        self.assertFalse(self.kt.has_jugendleiter(self.peter))
+        self.assertTrue(self.kt.has_jugendleiter(self.fritz))
+
+    def test_has_attendee(self):
+        self.assertTrue(self.kt.has_attendee(self.peter))
+        self.assertFalse(self.kt.has_attendee(self.fritz))
+
+
+class EmergencyContactTestCase(TestCase):
+    def setUp(self):
+        self.member = Member.objects.create(**REGISTRATION_DATA)
+        self.emergency_contact = EmergencyContact.objects.create(member=self.member)
+
+    def test_str(self):
+        self.assertEqual(str(self.emergency_contact), str(self.member))

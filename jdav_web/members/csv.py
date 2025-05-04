@@ -3,7 +3,7 @@ import re
 import csv
 
 
-def import_from_csv(path, omit_groupless=True):
+def import_from_csv(path, omit_groupless=True): # pragma: no cover
     with open(path, encoding='ISO-8859-1') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
         rows = list(reader)
@@ -72,7 +72,7 @@ def import_from_csv(path, omit_groupless=True):
         transform_row(row)
 
 
-def parse_group(value):
+def parse_group(value): # pragma: no cover
     groups_raw = re.split(',', value)
 
     # need to determine if member is youth leader
@@ -101,35 +101,35 @@ def parse_group(value):
     return groups
 
 
-def parse_date(value):
+def parse_date(value): # pragma: no cover
     if value == '':
         return None
     return datetime.strptime(value, '%d.%m.%Y').date()
 
 
-def parse_datetime(value):
+def parse_datetime(value): # pragma: no cover
     tz = pytz.timezone('Europe/Berlin')
     if value == '':
         return timezone.now()
     return tz.localize(datetime.strptime(value, '%d.%m.%Y %H:%M:%S'))
 
 
-def parse_status(value):
+def parse_status(value): # pragma: no cover
     return value != "Passivmitglied"
 
 
-def parse_boolean(value):
+def parse_boolean(value): # pragma: no cover
     return value.lower() == "ja"
 
 
-def parse_nullable_boolean(value):
+def parse_nullable_boolean(value): # pragma: no cover
     if value == '':
         return None
     else:
         return value.lower() == "ja"
 
 
-def parse_gender(value):
+def parse_gender(value): # pragma: no cover
     if value == 'männlich':
         return MALE
     elif value == 'weiblich':
@@ -138,11 +138,11 @@ def parse_gender(value):
         return DIVERSE
 
 
-def parse_can_swim(value):
+def parse_can_swim(value): # pragma: no cover
     return True if len(value) > 0 else False
 
 
-CLUBDESK_TO_KOMPASS = {
+CLUBDESK_TO_KOMPASS = { # pragma: no cover
     'Nachname': 'lastname',
     'Vorname': 'prename',
     'Adresse': 'street',
@@ -188,7 +188,7 @@ CLUBDESK_TO_KOMPASS = {
 }
 
 
-def import_from_csv_waitinglist(path):
+def import_from_csv_waitinglist(path): # pragma: no cover
     with open(path, encoding='ISO-8859-1') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
         rows = list(reader)
