@@ -310,6 +310,7 @@ class Member(Person):
     has_key = models.BooleanField(_('Has key'), default=False)
     has_free_ticket_gym = models.BooleanField(_('Has a free ticket for the climbing gym'), default=False)
     dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='', blank=True)
+    ticket_no = models.CharField(max_length=20, verbose_name=_('entrance ticket number'), default='', blank=True)   
     swimming_badge = models.BooleanField(verbose_name=_('Knows how to swim'), default=False)
     climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='', blank=True)
     alpine_experience = models.TextField(verbose_name=_('Alpine experience'), default='', blank=True)

@@ -196,7 +196,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 ('join_date', 'leave_date'),
                 'comments',
                 'legal_guardians',
-                'dav_badge_no',
+                ('dav_badge_no', 'ticket_no'),
                 'active', 'echoed',
                 'user',
              ]
