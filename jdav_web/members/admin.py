@@ -1403,6 +1403,19 @@ class KlettertreffAdmin(admin.ModelAdmin):
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
 
+class MemberTrainingAdminForm(forms.ModelForm):
+    class Meta:
+        model = MemberTraining
+        exclude = []
+class MemberTrainingAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
+    
+    form = MemberTrainingAdminForm
+    list_display = ['title', 'member', 'date', 'category', 'get_activities', 'participated', 'passed', 'certificate']
+    search_fields = ('member__name', 'title')
+    list_filter = (('date', DateFieldListFilter), 'category', 'passed', 'activity__name')
+
+
+
 
 admin.site.register(Member, MemberAdmin)
 admin.site.register(MemberUnconfirmedProxy, MemberUnconfirmedAdmin)
@@ -1413,3 +1426,4 @@ admin.site.register(MemberNoteList, MemberNoteListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
 admin.site.register(ActivityCategory, ActivityCategoryAdmin)
 admin.site.register(TrainingCategory, TrainingCategoryAdmin)
+admin.site.register(MemberTraining, MemberTrainingAdmin)
