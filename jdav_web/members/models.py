@@ -2038,6 +2038,7 @@ class MemberTraining(CommonModel):
     title = models.CharField(verbose_name=_('Title'), max_length=30)
     date = models.DateField(verbose_name=_('Date'), null=True, blank=True)
     category = models.ForeignKey(TrainingCategory, on_delete=models.PROTECT, verbose_name=_('Category'))
+    activity = models.ManyToManyField(ActivityCategory, verbose_name=_('Activity'))
     comments = models.TextField(verbose_name=_('Comments'), blank=True)
     participated = models.BooleanField(verbose_name=_('Participated'))
     passed = models.BooleanField(verbose_name=_('Passed'))
@@ -2049,7 +2050,17 @@ class MemberTraining(CommonModel):
                                                       'image/jpeg',
                                                       'image/png',
                                                       'image/gif'])
+    
+    def __str__(self):
+        return self.title + ' ' + self.date.strftime('%d.%m.%Y')
+    
+    def get_activities(self):
+        activity_string = ', '.join(a.name for a in self.activity.all())
+        return activity_string
 
+    get_activities.short_description = _('Activities')
+
+  
     class Meta(CommonModel.Meta):
         verbose_name = _('Training')
         verbose_name_plural = _('Trainings')
