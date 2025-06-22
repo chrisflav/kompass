@@ -878,8 +878,8 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         ensure_media_dir()
-        n_weeks = 18
-        n_members = 20
+        n_weeks = settings.GROUP_CHECKLIST_N_WEEKS
+        n_members = settings.GROUP_CHECKLIST_N_MEMBERS
 
         context = {
             'groups': self.model.objects.filter(show_website=True), 
@@ -888,6 +888,7 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
             'member_range': range(n_members),
             'dates': mondays_until_nth(n_weeks),
             'weekdays': [long for i, long in WEEKDAYS],
+            'header_text': settings.GROUP_CHECKLIST_TEXT,
         }
         return render_tex(f"Gruppen-Checkliste", 'members/group_checklist.tex', context)
 

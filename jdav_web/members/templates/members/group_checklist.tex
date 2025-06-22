@@ -20,11 +20,10 @@
 }
 % HEADLINE
 
-{\noindent\Large{Anmeldeliste {{ group.name }} }}\\[1mm]
+{\noindent\Large{Gruppenliste {{ group.name }} }}\\[1mm]
 \noindent {{ weekdays|index:group.weekday|esc_all }}, {{ group.start_time }} - {{ group.end_time }} Uhr\\
 
-\noindent Anwesende Jugendleitende und Teilnehmende werden mit einem Kreuz ($\times$) markiert und die ausgefüllte 
-Liste zum Anfang der Gruppenstunde an der Kasse abgegeben. Zum Ende wird sie wieder abgeholt. Wenn die Punkte auf einer Karte fast aufgebraucht sind, notiert die Kasse die verbliebenen Eintritte (3, 2, 1) unter dem Kreuz. 
+\noindent {{ header_text }}
 \begin{table}[H]
   \centering
 %\begin{tabularx}{\textwidth}{lYY|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
