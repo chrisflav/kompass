@@ -374,10 +374,10 @@ class Member(Person):
         return "{0} {1}".format(self.plz, self.town)
     
     @property
-    def dav_badge_no_tag(self):
-        """Returning the badge number stripped of strings and spaces"""
+    def ticket_tag(self):
+        """Returning the ticket number stripped of strings and spaces"""
         
-        return "{" + ''.join(re.findall(r'\d', self.dav_badge_no))[-6:] + "}"
+        return "{" + ''.join(re.findall(r'\d', self.ticket_no)) + "}"
 
     @property
     def iban_valid(self):

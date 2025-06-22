@@ -878,13 +878,14 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         ensure_media_dir()
-        n_weeks = 15
+        n_weeks = 18
+        n_members = 20
 
         context = {
             'groups': self.model.objects.filter(show_website=True), 
             'settings': settings, 
-            'range': range(n_weeks),
-            'n_members': range(24),
+            'week_range': range(n_weeks),
+            'member_range': range(n_members),
             'dates': mondays_until_nth(n_weeks),
             'weekdays': [long for i, long in WEEKDAYS],
         }
