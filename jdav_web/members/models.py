@@ -1423,23 +1423,30 @@ class Freizeit(CommonModel):
 
     @property
     def maximal_ljp_contributions(self):
+        """This is the maximal amount of LJP contributions that can be requested given participants and length
+        This calculation if intended for the LJP application, not for the payout."""
         return cvt_to_decimal(settings.LJP_CONTRIBUTION_PER_DAY * self.ljp_participant_count * self.duration)
 
     @property
     def potential_ljp_contributions(self):
+        """The maximal amount can be reduced if the actual costs are lower than the maximal amount
+        This calculation if intended for the LJP application, not for the payout."""
+        if not hasattr(self, 'statement'):
+            return cvt_to_decimal(0)
         return cvt_to_decimal(min(self.maximal_ljp_contributions,
                                   0.9 * float(self.statement.total_bills_theoretic) + float(self.statement.total_staff)))
 
     @property
     def payable_ljp_contributions(self):
-        """from the requested ljp contributions, a tax may be deducted for risk reduction"""
-        if self.statement.ljp_to:
+        """the payable contributions can differ from potential contributions if a tax is deducted for risk reduction.
+        the actual payout depends on more factors, e.g. the actual costs that had to be paid by the trip organisers."""
+        if hasattr(self, 'statement') and self.statement.ljp_to:
             return self.statement.paid_ljp_contributions
         return cvt_to_decimal(self.potential_ljp_contributions * cvt_to_decimal(1 - settings.LJP_TAX))
 
     @property
     def total_relative_costs(self):
-        if not self.statement:
+        if not hasattr(self, 'statement'):
             return 0
         total_costs = self.statement.total_bills_theoretic
         total_contributions = self.statement.total_subsidies + self.payable_ljp_contributions

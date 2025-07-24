@@ -405,6 +405,8 @@ class Statement(CommonModel):
 
     @property
     def org_fee_payant(self):
+        if self.total_org_fee == 0:
+            return None
         return self.subsidy_to if self.subsidy_to else self.allowance_to.all()[0]
 
     @property
@@ -466,8 +468,11 @@ class Statement(CommonModel):
             
             return cvt_to_decimal(
                 min(
+                    # if total costs are more than the max amount of the LJP contribution, we pay the max amount, reduced by taxes
                     (1-settings.LJP_TAX) * settings.LJP_CONTRIBUTION_PER_DAY * self.excursion.ljp_participant_count * self.excursion.ljp_duration,
+                    # if the total costs are less than the max amount, we pay up to 90% of the total costs, reduced by taxes
                     (1-settings.LJP_TAX) * 0.9 * (float(self.total_bills_not_covered) + float(self.total_staff) ),
+                    # we never pay more than the maximum costs of the trip
                     float(self.total_bills_not_covered)
                 )
             )
