@@ -5,8 +5,9 @@ from django.conf import settings
 from .models import Statement, StatementUnSubmitted, StatementSubmitted, Bill, Ledger, Transaction,\
         StatementUnSubmittedManager, StatementSubmittedManager, StatementConfirmedManager,\
         StatementConfirmed, TransactionIssue, StatementManager
-from members.models import Member, Group, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE, NewMemberOnList,\
+from members.models import Member, Group, Freizeit, LJPProposal, Intervention, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE, NewMemberOnList,\
         FAHRGEMEINSCHAFT_ANREISE, MALE, FEMALE, DIVERSE
+from dateutil.relativedelta import relativedelta
 
 # Create your tests here.
 class StatementTestCase(TestCase):
@@ -66,6 +67,116 @@ class StatementTestCase(TestCase):
                                       email=settings.TEST_MAIL, gender=DIVERSE)
             mol = NewMemberOnList.objects.create(member=m, memberlist=ex)
             ex.membersonlist.add(mol)
+        
+        base = timezone.now()
+        ex = Freizeit.objects.create(name='Wild trip with old people', kilometers_traveled=self.kilometers_traveled,
+                                     tour_type=GEMEINSCHAFTS_TOUR,
+                                     tour_approach=MUSKELKRAFT_ANREISE,
+                                     difficulty=2, date=timezone.datetime(2024, 1, 2, 8, 0, 0, tzinfo=base.tzinfo), end=timezone.datetime(2024, 1, 5, 17, 0, 0, tzinfo=base.tzinfo) )
+        
+        settings.EXCURSION_ORG_FEE = 20
+        settings.LJP_TAX = 0.2
+        settings.LJP_CONTRIBUTION_PER_DAY = 20
+        
+        self.st5 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
+        
+        for i in range(9):
+            m = Member.objects.create(prename='Peter {}'.format(i), lastname='Walter', birth_date=timezone.now().date() - relativedelta(years=i+21),
+                                      email=settings.TEST_MAIL, gender=DIVERSE)
+            mol = NewMemberOnList.objects.create(member=m, memberlist=ex)
+            ex.membersonlist.add(mol)   
+            
+        ljpproposal = LJPProposal.objects.create(
+            title='Test proposal', 
+            category=LJPProposal.LJP_STAFF_TRAINING,
+            goal=LJPProposal.LJP_ENVIRONMENT,
+            goal_strategy='my strategy',
+            not_bw_reason=LJPProposal.NOT_BW_ROOMS,
+            excursion=self.st5.excursion)
+        
+        for i in range(3):
+            int = Intervention.objects.create(
+                date_start=timezone.datetime(2024, 1, 2+i, 12, 0, 0, tzinfo=base.tzinfo), 
+                duration = 2+i, 
+                activity = 'hi',
+                ljp_proposal=ljpproposal
+                )
+            
+        self.b1 = Bill.objects.create(
+            statement=self.st5, 
+            short_description='covered bill', 
+            explanation='hi', 
+            amount='300', 
+            paid_by=self.fritz, 
+            costs_covered=True, 
+            refunded=False
+        )
+
+        self.b2 = Bill.objects.create(
+            statement=self.st5, 
+            short_description='non-covered bill', 
+            explanation='hi', 
+            amount='900', 
+            paid_by=self.fritz, 
+            costs_covered=False, 
+            refunded=False
+        )
+        
+    def test_org_fee(self):
+        # org fee should be collected if participants are older than 26
+        self.assertEqual(self.st5.excursion.old_participant_count, 3, 'Calculation of number of old people in excursion is incorrect.')
+        
+        total_org = 4 * 3 * 20 # 4 days, 3 old people, 20€ per day
+        
+        self.assertEqual(self.st5.total_org_fee_theoretical, total_org, 'Theoretical org_fee should equal to amount per day per person * n_persons * n_days if there are old people.')
+        self.assertEqual(self.st5.total_org_fee, 0, 'Paid org fee should be 0 if no allowance and subsidies are paid if there are old people.')
+        
+        self.assertIsNone(self.st5.org_fee_payant)
+        
+        # now collect subsidies
+        self.st5.subsidy_to = self.fritz
+        self.assertEqual(self.st5.total_org_fee, total_org, 'Paid org fee should equal to amount per day per person * n_persons * n_days if subsidies are paid.')
+        
+        # now collect allowances
+        self.st5.allowance_to.add(self.fritz)
+        self.st5.subsidy_to = None
+        self.assertEqual(self.st5.total_org_fee, total_org, 'Paid org fee should equal to amount per day per person * n_persons * n_days if allowances are paid.')
+        
+        # now collect both
+        self.st5.subsidy_to = self.fritz
+        self.assertEqual(self.st5.total_org_fee, total_org, 'Paid org fee should equal to amount per day per person * n_persons * n_days if subsidies and allowances are paid.')
+        
+        self.assertEqual(self.st5.org_fee_payant, self.fritz, 'Org fee payant should be the receiver allowances and subsidies.')
+
+        # return to previous state
+        self.st5.subsidy_to = None
+        self.st5.allowance_to.remove(self.fritz)
+    
+        
+    def test_ljp_payment(self):
+        
+        expected_intervention_hours = 2 + 3 + 4
+        expected_seminar_days = 0 + 0.5 + 0.5 # >=2.5h = 0.5days, >=5h = 1.0day
+        expected_ljp = (1-settings.LJP_TAX) * expected_seminar_days * settings.LJP_CONTRIBUTION_PER_DAY * 9 
+        # (1 - 20% tax) * 1 seminar day * 20€ * 9 participants 
+        
+        self.assertEqual(self.st5.excursion.total_intervention_hours, expected_intervention_hours, 'Calculation of total intervention hours is incorrect.')
+        self.assertEqual(self.st5.excursion.total_seminar_days, expected_seminar_days, 'Calculation of total seminar days is incorrect.')
+        
+        self.assertEqual(self.st5.paid_ljp_contributions, 0, 'No LJP contributions should be paid if no receiver is set.')
+        
+        # now we want to pay out the LJP contributions
+        self.st5.ljp_to = self.fritz
+        self.assertEqual(self.st5.paid_ljp_contributions, expected_ljp, 'LJP contributions should be paid if a receiver is set.')
+        
+        # now the total costs paid by trip organisers is lower than expected ljp contributions, should be reduced automatically
+        self.b2.amount=100
+        self.b2.save()
+        
+        self.assertEqual(self.st5.total_bills_not_covered, 100, 'Changes in bills should be reflected in the total costs paid by trip organisers')
+        self.assertGreaterEqual(self.st5.total_bills_not_covered, self.st5.paid_ljp_contributions, 'LJP contributions should be less than or equal to the costs paid by trip organisers')
+        
+        self.st5.ljp_to = None
 
     def test_staff_count(self):
         self.assertEqual(self.st4.admissible_staff_count, 0,
