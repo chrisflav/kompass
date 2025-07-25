@@ -124,6 +124,15 @@ class Group(models.Model):
                                                              end_time=self.end_time.strftime('%H:%M'))
         else:
             return ""
+    
+    def has_age_info(self):
+        return self.year_from and self.year_to
+    
+    def get_age_info(self):
+        if self.has_age_info():
+            return _("years %(from)s to %(to)s") % {'from':self.year_from, 'to':self.year_to}
+        else:
+            return ""
 
     def get_invitation_text_template(self):
         """The text template used to invite waiters to this group. This contains
@@ -136,8 +145,14 @@ class Group(models.Model):
             group_time = self.get_time_info()
         else:
             group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=self.contact_email)
+        if self.has_age_info():
+            group_age = self.get_age_info()
+        else:
+            group_age = _("no information available")
+        
         return settings.INVITE_TEXT.format(group_time=group_time,
                                            group_name=self.name,
+                                           group_age=group_age,
                                            group_link=group_link,
                                            contact_email=self.contact_email)
 
