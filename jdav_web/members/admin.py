@@ -892,11 +892,6 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
         }
         return render_tex(f"Gruppen-Checkliste", 'members/group_checklist.tex', context)
 
-def mondays_until_nth(n):
-    today = datetime.today()
-    next_monday = today + timedelta(days=(7 - today.weekday()) % 7 or 7)
-    return [(next_monday + timedelta(weeks=i)).date() for i in range(n + 1)]
-
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
     fields = ['name', 'ljp_category', 'description']

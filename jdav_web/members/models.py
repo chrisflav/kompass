@@ -376,7 +376,6 @@ class Member(Person):
     @property
     def ticket_tag(self):
         """Returning the ticket number stripped of strings and spaces"""
-        
         return "{" + ''.join(re.findall(r'\d', self.ticket_no)) + "}"
 
     @property
