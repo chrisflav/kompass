@@ -16,6 +16,7 @@ if ! [ -f completed_initial_run ]; then
     python jdav_web/manage.py compilemessages --locale de
 
     python jdav_web/manage.py migrate
+    python jdav_web/manage.py ensuresuperuser
 
     touch completed_initial_run
 fi
