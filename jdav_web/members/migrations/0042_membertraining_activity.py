@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('members', '0041_freizeit_crisis_intervention_list_sent_and_more'),
+        ('members', '0041_member_ticket_no'),
     ]
 
     operations = [
