@@ -196,7 +196,6 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 ('join_date', 'leave_date'),
                 'comments',
                 'legal_guardians',
-                ('dav_badge_no', 'ticket_no'),
                 'active', 'echoed',
                 'user',
              ]
@@ -214,8 +213,8 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         ),
         (_("Others"),
          {
-             'fields': ['allergies', 'tetanus_vaccination', 'medication', 'photos_may_be_taken',
-                        'may_cancel_appointment_independently']
+             'fields': ['dav_badge_no', 'ticket_no', 'allergies', 'tetanus_vaccination', 
+                        'medication', 'photos_may_be_taken','may_cancel_appointment_independently']
          }
         ),
         (_("Organizational"),
