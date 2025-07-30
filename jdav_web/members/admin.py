@@ -1412,7 +1412,7 @@ class MemberTrainingAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     form = MemberTrainingAdminForm
     list_display = ['title', 'member', 'date', 'category', 'get_activities', 'participated', 'passed', 'certificate']
     search_fields = ('member__name', 'title')
-    list_filter = (('date', DateFieldListFilter), 'category', 'passed', 'activity__name')
+    list_filter = (('date', DateFieldListFilter), 'category', 'passed', 'activity')
 
 
 
