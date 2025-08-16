@@ -3,12 +3,13 @@ from django.test import TestCase
 from django.utils import timezone
 from django.conf import settings
 from decimal import Decimal
-from .models import Statement, StatementUnSubmitted, StatementSubmitted, Bill, Ledger, Transaction,\
+from finance.models import Statement, StatementUnSubmitted, StatementSubmitted, Bill, Ledger, Transaction,\
         StatementUnSubmittedManager, StatementSubmittedManager, StatementConfirmedManager,\
         StatementConfirmed, TransactionIssue, StatementManager
 from members.models import Member, Group, Freizeit, LJPProposal, Intervention, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE, NewMemberOnList,\
         FAHRGEMEINSCHAFT_ANREISE, MALE, FEMALE, DIVERSE
 from dateutil.relativedelta import relativedelta
+from utils import get_member
 
 # Create your tests here.
 class StatementTestCase(TestCase):
