@@ -45,7 +45,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
 from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
-from utils import get_member, RestrictedFileField
+from utils import get_member, RestrictedFileField, mondays_until_nth
 from schwifty import IBAN
 from .pdf import media_path, media_dir
 
