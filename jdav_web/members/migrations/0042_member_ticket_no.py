@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('members', '0040_invitationtogroup_created_by'),
+        ('members', '0041_freizeit_crisis_intervention_list_sent_and_more'),
     ]
 
     operations = [
