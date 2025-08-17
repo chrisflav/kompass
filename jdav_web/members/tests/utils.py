@@ -83,7 +83,8 @@ class BasicMemberTestCase(TestCase):
     """
     def setUp(self):
         self.jl = Group.objects.create(name="Jugendleiter", year_from=0, year_to=0)
-        self.alp = Group.objects.create(name="Alpenfuechse", year_from=1900, year_to=2000)
+        self.alp = Group.objects.create(name="Alpenfuechse", year_from=1900, year_to=2000,
+                                        show_website=True)
         self.spiel = Group.objects.create(name="Spielkinder")
 
         self.fritz = Member.objects.create(prename="Fritz", lastname="Wulter", birth_date=timezone.now().date(),

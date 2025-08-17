@@ -9,6 +9,7 @@ from members.models import Member, RegistrationPassword, MemberUnconfirmedProxy,
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
+from django.views.decorators.cache import never_cache
 from .pdf import render_tex, media_path
 
 
@@ -505,6 +506,7 @@ def render_confirm_success(request, invitation):
                    'timeinfo': invitation.group.get_time_info()})
 
 
+@never_cache
 def confirm_invitation(request):
     if request.method == 'GET' and 'key' in request.GET:
         key = request.GET['key']

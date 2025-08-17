@@ -416,7 +416,7 @@ class AdminTestCase(TestCase):
 
         self.em = EmailAddress.objects.create(name='foobar')
         self.staff = Group.objects.create(name='Jugendleiter', contact_email=self.em)
-        cool_kids = Group.objects.create(name='cool kids')
+        cool_kids = Group.objects.create(name='cool kids', show_website=True)
         super_kids = Group.objects.create(name='super kids')
 
         p1 = PermissionMember.objects.create(member=paul)
