@@ -82,8 +82,8 @@ class BasicMemberTestCase(TestCase):
     It creates a few groups and members with different attributes.
     """
     def setUp(self):
-        self.jl = Group.objects.create(name="Jugendleiter")
-        self.alp = Group.objects.create(name="Alpenfuechse")
+        self.jl = Group.objects.create(name="Jugendleiter", year_from=0, year_to=0)
+        self.alp = Group.objects.create(name="Alpenfuechse", year_from=1900, year_to=2000)
         self.spiel = Group.objects.create(name="Spielkinder")
 
         self.fritz = Member.objects.create(prename="Fritz", lastname="Wulter", birth_date=timezone.now().date(),

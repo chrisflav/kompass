@@ -26,7 +26,7 @@ from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, Me
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
         InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
 from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs
-from mailer.models import EmailAddress
+from mailer.models import EmailAddress, Message
 from finance.models import Statement, Bill
 
 from django.db import connection
@@ -59,9 +59,14 @@ class MemberTestCase(BasicMemberTestCase):
         super().setUp()
 
         p1 = PermissionMember.objects.create(member=self.fritz)
+        p1.list_members.add(self.lara)
         p1.view_members.add(self.lara)
         p1.change_members.add(self.lara)
+        p1.delete_members.add(self.lara)
+        p1.list_groups.add(self.spiel)
         p1.view_groups.add(self.spiel)
+        p1.change_groups.add(self.spiel)
+        p1.delete_groups.add(self.spiel)
 
         self.ja = Group.objects.create(name="Jugendausschuss")
         self.peter = Member.objects.create(prename="Peter", lastname="Keks", birth_date=timezone.now().date(),
@@ -76,32 +81,62 @@ class MemberTestCase(BasicMemberTestCase):
         self.lisa = Member.objects.create(prename="Lisa", lastname="Keks", birth_date=timezone.now().date(),
                                           email=settings.TEST_MAIL, gender=DIVERSE,
                                           image=img, registration_form=pdf)
+        self.lisa.confirmed_mail, self.lisa.confirmed_alternative_mail = True, True
         self.peter.group.add(self.ja)
         self.anna.group.add(self.ja)
         self.lisa.group.add(self.ja)
 
+        self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
+                                          tour_type=GEMEINSCHAFTS_TOUR,
+                                          tour_approach=MUSKELKRAFT_ANREISE,
+                                          difficulty=1, date=timezone.localtime())
+        self.ex.jugendleiter.add(self.fritz)
+        self.ex.save()
+
         p2 = PermissionGroup.objects.create(group=self.ja)
+        p2.list_members.add(self.lara)
+        p2.view_members.add(self.lara)
+        p2.change_members.add(self.lara)
+        p2.delete_members.add(self.lara)
         p2.list_groups.add(self.ja)
+        p2.list_groups.add(self.spiel)
+        p2.view_groups.add(self.spiel)
+        p2.change_groups.add(self.spiel)
+        p2.delete_groups.add(self.spiel)
 
     def test_may(self):
+        self.assertTrue(self.fritz.may_list(self.lara))
         self.assertTrue(self.fritz.may_view(self.lara))
         self.assertTrue(self.fritz.may_change(self.lara))
+        self.assertTrue(self.fritz.may_delete(self.lara))
+        self.assertTrue(self.fritz.may_list(self.fridolin))
         self.assertTrue(self.fritz.may_view(self.fridolin))
-        self.assertFalse(self.fritz.may_change(self.fridolin))
+        self.assertTrue(self.fritz.may_change(self.fridolin))
+        self.assertTrue(self.fritz.may_delete(self.fridolin))
+        self.assertFalse(self.fritz.may_view(self.anna))
 
         # every member should be able to list, view and change themselves
         for member in Member.objects.all():
             self.assertTrue(member.may_list(member))
             self.assertTrue(member.may_view(member))
             self.assertTrue(member.may_change(member))
+            self.assertTrue(member.may_delete(member))
 
         # every member of Jugendausschuss should be able to view every other member of Jugendausschuss
         for member in self.ja.member_set.all():
+            self.assertTrue(member.may_list(self.fridolin))
+            self.assertTrue(member.may_view(self.fridolin))
+            self.assertTrue(member.may_view(self.lara))
+            self.assertTrue(member.may_change(self.lara))
+            self.assertTrue(member.may_change(self.fridolin))
+            self.assertTrue(member.may_delete(self.lara))
+            self.assertTrue(member.may_delete(self.fridolin))
             for other in self.ja.member_set.all():
                 self.assertTrue(member.may_list(other))
                 if member != other:
                     self.assertFalse(member.may_view(other))
                     self.assertFalse(member.may_change(other))
+                    self.assertFalse(member.may_delete(other))
 
     def test_filter_queryset(self):
         # lise may only list herself
@@ -114,6 +149,42 @@ class MemberTestCase(BasicMemberTestCase):
             self.assertEqual(set(member.filter_queryset_by_permissions(Member.objects.all(), model=Member)),
                              set(member.filter_queryset_by_permissions(model=Member)))
 
+    def test_filter_members_by_permissions(self):
+        qs = Member.objects.all()
+        qs_a = self.anna.filter_members_by_permissions(qs, annotate=True)
+        # Anna may list Peter, because Peter is also in the Jugendausschuss.
+        self.assertIn(self.peter, qs_a)
+        # Anna may not view Peter.
+        self.assertNotIn(self.peter, qs_a.filter(_viewable=True))
+
+    def test_filter_messages_by_permissions(self):
+        good = Message.objects.create(subject='Good message', content='This is a test message',
+            created_by=self.fritz)
+        bad = Message.objects.create(subject='Bad message', content='This is a test message')
+        self.assertQuerysetEqual(self.fritz.filter_messages_by_permissions(Message.objects.all()),
+                                 [good], ordered=False)
+
+    def test_filter_statements_by_permissions(self):
+        st1 = Statement.objects.create(night_cost=42, subsidy_to=None, created_by=self.fritz)
+        st2 = Statement.objects.create(night_cost=42, subsidy_to=None, excursion=self.ex)
+        st3 = Statement.objects.create(night_cost=42, subsidy_to=None)
+        qs = Statement.objects.all()
+        self.assertQuerysetEqual(self.fritz.filter_statements_by_permissions(qs),
+                                 [st1, st2], ordered=False)
+
+    def test_annotate_view_permissions(self):
+        qs = Member.objects.all()
+        # if the model is not Member, the queryset should not change
+        self.assertQuerysetEqual(self.fritz.annotate_view_permission(qs, MemberWaitingList), qs,
+                                 ordered=False)
+
+        # Fritz can't view Anna.
+        qs_a = self.fritz.annotate_view_permission(qs, Member)
+        self.assertNotIn(self.anna, qs_a.filter(_viewable=True))
+
+        # Anna can't view Fritz.
+        qs_a = self.anna.annotate_view_permission(qs, Member)
+        self.assertNotIn(self.fritz, qs_a.filter(_viewable=True))
 
     def test_compare_filter_queryset_may_list(self):
         # filter_queryset and filtering manually by may_list should be the same
@@ -212,11 +283,18 @@ class MemberTestCase(BasicMemberTestCase):
         self.assertFalse(self.peter.has_internal_email())
 
     def test_invite_as_user(self):
+        # sucess
         self.assertTrue(self.lara.has_internal_email())
         self.lara.user = None
         self.assertTrue(self.lara.invite_as_user())
+
+        # failure: already has user data
         u = User.objects.create_user(username='user', password='secret', is_staff=True)
-        self.peter.user = u
+        self.lara.user = u
+        self.assertFalse(self.lara.invite_as_user())
+
+        # failure: no internal email
+        self.peter.email = 'foobar'
         self.assertFalse(self.peter.invite_as_user())
 
     def test_birth_date_str(self):
@@ -228,6 +306,29 @@ class MemberTestCase(BasicMemberTestCase):
 
     def test_gender_str(self):
         self.assertGreater(len(self.fritz.gender_str), 0)
+
+    def test_led_freizeiten(self):
+        self.assertGreater(len(self.fritz.led_freizeiten()), 0)
+
+    def test_create_from_registration(self):
+        self.lisa.confirmed = False
+        # Lisa's registration is ready, no more mail requests needed
+        self.assertFalse(self.lisa.create_from_registration(None, self.alp))
+        # After creating from registration, Lisa should be unconfirmed.
+        self.assertFalse(self.lisa.confirmed)
+
+    def test_validate_registration_form(self):
+        self.lisa.confirmed = False
+        self.assertIsNotNone(self.lisa.registration_form)
+        self.assertIsNone(self.lisa.validate_registration_form())
+
+    def test_send_upload_registration_form_link(self):
+        self.assertEqual(self.lisa.upload_registration_form_key, '')
+        self.assertIsNone(self.lisa.send_upload_registration_form_link())
+
+    def test_demote_to_waiter(self):
+        self.lisa.waitinglist_application_date = timezone.now()
+        self.lisa.demote_to_waiter()
 
 
 class PDFTestCase(TestCase):
@@ -721,10 +822,10 @@ class FreizeitTestCase(BasicMemberTestCase):
     def test_v32_fields(self):
         self.assertIn('Textfeld 61', self.ex2.v32_fields().keys())
 
-    @skip("This currently throws a `RelatedObjectDoesNotExist` error.")
     def test_no_statement(self):
         self.assertEqual(self.ex.total_relative_costs, 0)
         self.assertEqual(self.ex.payable_ljp_contributions, 0)
+        self.assertEqual(self.ex.potential_ljp_contributions, 0)
 
     def test_no_ljpproposal(self):
         self.assertEqual(self.ex2.total_intervention_hours, 0)
@@ -735,6 +836,8 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.assertGreaterEqual(self.ex2.total_relative_costs, 0)
 
     def test_payable_ljp_contributions(self):
+        self.assertGreaterEqual(self.ex2.payable_ljp_contributions, 0)
+        self.st.ljp_to = self.fritz
         self.assertGreaterEqual(self.ex2.payable_ljp_contributions, 0)
 
     def test_get_tour_type(self):
@@ -2109,6 +2212,14 @@ class GroupTestCase(BasicMemberTestCase):
         self.assertTrue(self.alp.has_time_info())
         self.assertFalse(self.spiel.has_time_info())
 
+    def test_has_age_info(self):
+        self.assertTrue(self.alp.has_age_info())
+        self.assertFalse(self.jl.has_age_info())
+
+    def test_get_age_info(self):
+        self.assertGreater(len(self.alp.get_age_info()), 0)
+        self.assertEqual(self.jl.get_age_info(), "")
+
     def test_get_invitation_text_template(self):
         alp_text = self.alp.get_invitation_text_template()
         spiel_text = self.spiel.get_invitation_text_template()
@@ -2119,6 +2230,9 @@ class GroupTestCase(BasicMemberTestCase):
         self.assertNotIn(url, spiel_text)
 
         self.assertIn(str(WEEKDAYS[self.alp.weekday][1]), alp_text)
+
+        # check that method does not crash if no age info exists
+        self.assertGreater(len(self.jl.get_invitation_text_template()), 0)
 
 
 class NewMemberOnListTestCase(BasicMemberTestCase):
