@@ -35,9 +35,6 @@ from utils import cvt_to_decimal, coming_midnight
 from dateutil.relativedelta import relativedelta
 from schwifty import IBAN
 
-def generate_random_key():
-    return uuid.uuid4().hex
-
 
 GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = MALE = 0
 FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = FEMALE = 1
