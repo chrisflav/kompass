@@ -331,7 +331,8 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         return request.user.has_perm('%s.%s' % (self.opts.app_label, 'may_invite_as_user'))
 
     def invite_as_user_action(self, request, queryset):
-        if not request.user.has_perm('members.may_invite_as_user'):
+        if not request.user.has_perm('members.may_invite_as_user'): # pragma: no cover
+            # this should be unreachable, because of allowed_permissions attribute
             messages.error(request, _('Permission denied.'))
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
         if "apply" in request.POST:
@@ -846,7 +847,7 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
             return update_wrapper(wrapper, view)
 
         custom_urls = [
-            path('action/', self.action_view, name='members_group_action'),
+            path('action/', wrap(self.action_view), name='members_group_action'),
         ]
         return custom_urls + urls
 
