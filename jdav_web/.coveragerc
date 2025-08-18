@@ -6,3 +6,4 @@
     omit =
         ./jet/*
         manage.py
+        jdav_web/wsgi.py
