@@ -14,6 +14,11 @@ from django.conf import settings
 from django.urls import reverse
 from django import template
 from unittest import skip, mock
+import os
+from PIL import Image
+from pypdf import PdfReader, PdfWriter, PageObject
+from io import BytesIO
+import tempfile
 from members.models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR,\
         MUSKELKRAFT_ANREISE, FUEHRUNGS_TOUR, AUSBILDUNGS_TOUR, OEFFENTLICHE_ANREISE,\
         FAHRGEMEINSCHAFT_ANREISE,\
@@ -25,7 +30,7 @@ from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, Me
         MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
         InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
-from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs
+from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs, render_docx, pdf_add_attachments, scale_pdf_page_to_a4, scale_pdf_to_a4
 from mailer.models import EmailAddress, Message
 from finance.models import Statement, Bill
 
@@ -396,6 +401,76 @@ class PDFTestCase(TestCase):
     def test_v32(self):
         context = self.ex.v32_fields()
         self._test_fill_pdf('members/V32-1_Themenorientierte_Bildungsmassnahmen.pdf', context)
+
+    def test_render_docx_save_only(self):
+        """Test render_docx with save_only=True"""
+        context = dict(memberlist=self.ex, settings=settings, mode='basic')
+        fp = render_docx('Test DOCX', 'members/seminar_report.tex', context, save_only=True)
+        self.assertIsInstance(fp, str)
+        self.assertTrue(fp.endswith('.docx'))
+
+    def test_pdf_add_attachments_with_image(self):
+        """Test pdf_add_attachments with non-PDF image files"""
+        # Create a simple test image
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+            img = Image.new('RGB', (100, 100), color='red')
+            img.save(tmp_file.name, 'PNG')
+            tmp_file.flush()
+
+            # Create a PDF writer and test adding the image
+            writer = PdfWriter()
+            blank_page = PageObject.create_blank_page(width=595, height=842)
+            writer.add_page(blank_page)
+
+            # add image as attachment and verify page count
+            pdf_add_attachments(writer, [tmp_file.name])
+            self.assertGreater(len(writer.pages), 1)
+
+            # Clean up
+            os.unlink(tmp_file.name)
+
+    def test_scale_pdf_page_to_a4(self):
+        """Test scale_pdf_page_to_a4 function"""
+        # Create a test page with different dimensions
+        original_page = PageObject.create_blank_page(width=200, height=300)
+        scaled_page = scale_pdf_page_to_a4(original_page)
+
+        # A4 dimensions are 595x842
+        self.assertEqual(float(scaled_page.mediabox.width), 595.0)
+        self.assertEqual(float(scaled_page.mediabox.height), 842.0)
+
+    def test_scale_pdf_to_a4(self):
+        """Test scale_pdf_to_a4 function"""
+        # Create a simple PDF with multiple pages of different sizes
+        original_pdf = PdfWriter()
+        original_pdf.add_page(PageObject.create_blank_page(width=200, height=300))
+        original_pdf.add_page(PageObject.create_blank_page(width=400, height=600))
+
+        # Write to BytesIO to create a readable PDF
+        pdf_io = BytesIO()
+        original_pdf.write(pdf_io)
+        pdf_io.seek(0)
+
+        # Read it back and scale
+        pdf_reader = PdfReader(pdf_io)
+        scaled_pdf = scale_pdf_to_a4(pdf_reader)
+
+        # All pages should be A4 size (595x842)
+        for page in scaled_pdf.pages:
+            self.assertEqual(float(page.mediabox.width), 595.0)
+            self.assertEqual(float(page.mediabox.height), 842.0)
+
+    def test_merge_pdfs_serve(self):
+        """Test merge_pdfs with save_only=False"""
+        # First create two PDF files to merge
+        context = dict(memberlist=self.ex, settings=settings, mode='basic')
+        fp1 = render_tex('Test PDF 1', 'members/seminar_report.tex', context, save_only=True)
+        fp2 = render_tex('Test PDF 2', 'members/seminar_report.tex', context, save_only=True)
+
+        # Test merge with save_only=False (should return HttpResponse)
+        response = merge_pdfs('Merged PDF', [fp1, fp2], save_only=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/pdf')
 
 
 class AdminTestCase(TestCase):
