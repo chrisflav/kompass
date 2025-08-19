@@ -9,6 +9,13 @@ from members.models import Member, DIVERSE
 from ..models import RegistrationPassword, initial_user_setup
 
 
+class RegistrationPasswordTestCase(TestCase):
+    def test_str_method(self):
+        """Test RegistrationPassword __str__ method returns password"""
+        reg_password = RegistrationPassword.objects.create(password="test123")
+        self.assertEqual(str(reg_password), "test123")
+
+
 class RegisterViewTestCase(TestCase):
     def setUp(self):
         self.client = Client()

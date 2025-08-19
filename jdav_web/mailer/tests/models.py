@@ -124,7 +124,7 @@ class MessageTestCase(BasicMailerTestCase):
         # Verify the message was not marked as sent
         self.message.refresh_from_db()
         self.assertFalse(self.message.sent)
-        # Note: The submit method always returns SENT due to line 190 in the code
+        # Note: The submit method always returns SENT when an exception occurs
         self.assertEqual(result, SENT)
 
     @mock.patch('mailer.models.send')
@@ -235,6 +235,22 @@ class MessageTestCase(BasicMailerTestCase):
         # Attachment should be deleted
         with self.assertRaises(Attachment.DoesNotExist):
             attachment.refresh_from_db()
+
+    @mock.patch('mailer.models.send')
+    def test_submit_with_association_email_enabled(self, mock_send):
+        """Test submit method when SEND_FROM_ASSOCIATION_EMAIL is True and sender has association_email"""
+        mock_send.return_value = SENT
+
+        # Mock settings to enable association email sending
+        with mock.patch.object(settings, 'SEND_FROM_ASSOCIATION_EMAIL', True):
+            result = self.message.submit(sender=self.sender)
+
+        # Check that send was called with sender's association email
+        self.assertTrue(mock_send.called)
+        call_args = mock_send.call_args
+        from_addr = call_args[0][2]  # from_addr is the 3rd positional argument
+        expected_from = f"{self.sender.name} <{self.sender.association_email}>"
+        self.assertEqual(from_addr, expected_from)
 
 
 class AttachmentTestCase(BasicMailerTestCase):

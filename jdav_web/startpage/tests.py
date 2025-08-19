@@ -4,8 +4,11 @@ from django.conf import settings
 from django.templatetags.static import static
 from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
+from unittest import mock
+from importlib import reload
 
 from members.models import Member, Group, DIVERSE
+from startpage import urls
 
 from .models import Post, Section, Image
 
@@ -139,3 +142,16 @@ class ViewTestCase(BasicTestCase):
         url = img.f.url
         response = c.get('/de' + url)
         self.assertEqual(response.status_code, 200, 'Images on posts should be visible without login.')
+
+    def test_urlpatterns_with_redirect_url(self):
+        """Test URL patterns when STARTPAGE_REDIRECT_URL is not empty"""
+
+        # Mock settings to have a non-empty STARTPAGE_REDIRECT_URL
+        with mock.patch.object(settings, 'STARTPAGE_REDIRECT_URL', 'https://example.com'):
+            # Reload the urls module to trigger the conditional urlpatterns creation
+            reload(urls)
+
+            # Check that urlpatterns contains the redirect view
+            url_names = [pattern.name for pattern in urls.urlpatterns if hasattr(pattern, 'name')]
+            self.assertIn('index', url_names)
+            self.assertEqual(len(urls.urlpatterns), 2)  # Should have index and impressum only

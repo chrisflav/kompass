@@ -31,6 +31,7 @@ from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, Me
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
         InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
 from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs, render_docx, pdf_add_attachments, scale_pdf_page_to_a4, scale_pdf_to_a4
+from members.excel import generate_ljp_vbk
 from mailer.models import EmailAddress, Message
 from finance.models import Statement, Bill
 
@@ -941,6 +942,12 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.ex.date = timezone.datetime(2000, 1, 1, 12, 0, 0)
         self.ex.end = timezone.datetime(2000, 1, 1, 12, 0, 0)
         self.assertEqual(self.ex.duration, 1)
+
+    def test_generate_ljp_vbk_no_proposal_raises_error(self):
+        """Test generate_ljp_vbk raises ValueError when excursion has no LJP proposal"""
+        with self.assertRaises(ValueError) as cm:
+            generate_ljp_vbk(self.ex)
+        self.assertIn("Excursion has no LJP proposal", str(cm.exception))
 
 
 class PDFActionMixin:
