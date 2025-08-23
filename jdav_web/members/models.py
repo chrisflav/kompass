@@ -2064,6 +2064,10 @@ class MemberTraining(CommonModel):
     class Meta(CommonModel.Meta):
         verbose_name = _('Training')
         verbose_name_plural = _('Trainings')
+        
+        permissions = (
+            ('manage_success_trainings', 'Can edit the success status of trainings.'),
+        )
         rules_permissions = {
             # sine this is used in an inline, the member and not the training is passed
             'add_obj': is_oneself | has_global_perm('members.add_global_membertraining'),

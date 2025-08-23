@@ -114,6 +114,11 @@ class TrainingOnMemberInline(CommonAdminInlineMixin, admin.TabularInline):
     }
     ordering = ("date",)
     extra = 1
+    
+    field_change_permissions = {
+        'participated': 'members.manage_success_trainings',
+        'passed': 'members.manage_success_trainings',
+    }
 
 
 class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
