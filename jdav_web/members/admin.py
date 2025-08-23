@@ -108,6 +108,7 @@ class PermissionOnMemberInline(admin.StackedInline):
 
 class TrainingOnMemberInline(CommonAdminInlineMixin, admin.TabularInline):
     model = MemberTraining
+    description = _("Please enter all training courses and further education courses that you have already attended or will be attending soon. Please also upload your confirmation of participation so that the responsible person can fill in the 'Attended' and 'Passed' fields. If the activity selection does not match your training, please describe it in the comment field.")
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25})}
     }
@@ -117,6 +118,7 @@ class TrainingOnMemberInline(CommonAdminInlineMixin, admin.TabularInline):
 
 class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
     model = EmergencyContact
+    description = _('Please enter at least one emergency contact with contact details here. These are necessary for crisis intervention during trips.')
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
@@ -1411,8 +1413,8 @@ class MemberTrainingAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     
     form = MemberTrainingAdminForm
     list_display = ['title', 'member', 'date', 'category', 'get_activities', 'participated', 'passed', 'certificate']
-    search_fields = ('member__name', 'title')
-    list_filter = (('date', DateFieldListFilter), 'category', 'passed', 'activity')
+    search_fields = ['title']
+    list_filter = (('date', DateFieldListFilter), 'category', 'passed', 'activity', 'member')
 
 
 
