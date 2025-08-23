@@ -21,8 +21,7 @@
 % HEADLINE
 
 {\noindent\Large{Gruppenliste {{ group.name }} }}\\[1mm]
-\noindent {{ weekdays|index:group.weekday|esc_all }}, {{ group.start_time }} - {{ group.end_time }} Uhr\\
-
+{% if group.has_time_info %} \noindent {{ weekdays|index:group.weekday|esc_all }}, {{ group.start_time }} - {{ group.end_time }} Uhr\\ {% endif %}
 \noindent {{ header_text }}
 \begin{table}[H]
   \centering
@@ -35,16 +34,24 @@
 
   {% for j in member_range %}
   {% with m=group.sorted_members|index:j %}
+  {% with codelength=m.ticket_tag|length %}
   \midrule
       \begin{tabular}{@{}l}
-        {% if m.ticket_tag|length > 2 %}\barcode{{ m.ticket_tag }}{% else %}\rule{0pt}{5mm}{% endif %} 
+         {% if codelength > 2 %}
+          \barcode[
+            X=\dimexpr 3.5mm / \numexpr {{ codelength }} \relax \relax
+          ]{{ m.ticket_tag }}
+        {% else %}
+          \rule{0pt}{5mm}
+        {% endif %} 
         \vspace{-0.8ex} \\
         {\small {{ j|plus:1 }} {% if m in group.leiters.all %}\textbf{JL}{% endif %}
-        {{ m.name|esc_all }} {% if m.ticket_tag|length > 2 %} - {{ m.ticket_tag }}{% endif %} 
+        {{ m.name|esc_all }} {% if codelength > 2 %} - {{ m.ticket_tag }}{% endif %} 
         \vspace{-3ex} }
     \end{tabular} 
       
   {% for i in week_range %} & {% endfor %}\\
+  {% endwith %}
   {% endwith %}
   {% endfor %}
 
