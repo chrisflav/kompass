@@ -183,14 +183,13 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
         return f"{self.model._meta.app_label}_{self.model.__name__}".lower()
     
     def get_excluded_fields(self):
-        """if model has custom excluded fields in settings, return them as a set"""
-        return OrderedSet(settings.CUSTOM_MODEL_FIELDS.get(self.field_key, {}).get('exclude', []))
+        """if model has custom excluded fields in settings, return them as list"""
+        return settings.CUSTOM_MODEL_FIELDS.get(self.field_key, {}).get('exclude', [])
     
     def get_included_fields(self):
-        """if model has an entire custom fieldset in settings, return it as a set"""
-        return OrderedSet(settings.CUSTOM_MODEL_FIELDS.get(self.field_key, {}).get('fields', []))
+        """if model has an entire fieldset in settings, return them as list"""
+        return settings.CUSTOM_MODEL_FIELDS.get(self.field_key, {}).get('fields', [])
 
-    
     def get_fieldsets(self, request, obj=None):
         """filter fieldsets according to included and excluded fields in settings"""
         
@@ -198,48 +197,51 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
         original_fieldsets = super().get_fieldsets(request, obj)
         included = self.get_included_fields()
         excluded = self.get_excluded_fields()
-        if original_fieldsets:
-            print(f"get_fieldsets called for {self.field_key}")
-            print(f"Original fieldsets: {original_fieldsets}")
+
         new_fieldsets = []
 
         for title, attrs in original_fieldsets:
             fields = attrs.get("fields", [])
 
-            # Flatten groupings like tuples if needed
+            # custom fields take precedence over exclude
             filtered_fields = [
                 f for f in fields
                 if (
                     (not included or f in included)
-                    and f not in excluded
+                    and (included or f not in excluded)
                 )
             ]
 
             if filtered_fields:
+                # only add fieldset if it has any fields left
                 new_fieldsets.append((title, dict(attrs, **{"fields": filtered_fields})))
 
-        if new_fieldsets:
-            print(f"Filtered fieldsets: {new_fieldsets}")
         return new_fieldsets
     
 
     def get_fields(self, request, obj=None):
         """filter fields according to included and excluded fields in settings"""
-        fields = OrderedSet(super().get_fields(request, obj) or [])
-        custom_fields = self.get_included_fields() - self.get_excluded_fields()
-        if custom_fields:
-            print(f"get_fields called for {self.field_key}, fields: {fields}, custom_fields: {custom_fields}")
-            return list(custom_fields)
-        return list(fields)
+        fields = super().get_fields(request, obj) or []
+        excluded = super().get_exclude(request, obj) or []
+        custom_included = self.get_included_fields()
+        custom_excluded = self.get_excluded_fields()
+        
+        if custom_included:
+            # custom included fields take precedence over exclude
+            return custom_included
+        return [f for f in fields if f not in custom_excluded and f not in excluded]
     
     def get_exclude(self, request, obj=None):
         """filter excluded fields according to included and excluded fields in settings"""
-        excluded = OrderedSet(super().get_exclude(request, obj) or [])
-        custom_excluded = self.get_excluded_fields() - self.get_included_fields()
-        if custom_excluded:
-            print(f"get_exclude called for {self.field_key}, excluded: {excluded}, custom_excluded: {custom_excluded}")
-            return list(excluded | custom_excluded)
-        return list(excluded)
+        excluded = super().get_exclude(request, obj) or []
+        custom_included = self.get_included_fields()
+        custom_excluded = self.get_excluded_fields()
+
+        if custom_included:
+            # custom included fields take precedence over exclude
+            return custom_included
+        return list(set(excluded) | set(custom_excluded))
+
 
 
 class CommonAdminInlineMixin(CommonAdminMixin):
