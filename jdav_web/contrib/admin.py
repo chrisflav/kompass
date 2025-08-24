@@ -11,8 +11,6 @@ from django.contrib.admin import helpers, widgets
 from django.conf import settings
 import rules.contrib.admin
 from rules.permissions import perm_exists
-from utils import OrderedSet
-
 
 class FieldPermissionsAdminMixin:
     field_change_permissions = {}

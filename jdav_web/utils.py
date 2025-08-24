@@ -90,27 +90,3 @@ def coming_midnight():
                              hour=0, minute=0, second=0, microsecond=0,
                              tzinfo=base.tzinfo)
 
-
-class OrderedSet(OrderedDict):
-    def __init__(self, iterable=None):
-        super().__init__()
-        if iterable:
-            for item in iterable:
-                self[item] = None
-
-    def __sub__(self, other):
-        if not isinstance(other, OrderedSet):
-            return NotImplemented
-        return OrderedSet(k for k in self if k not in other)
-
-    def add(self, item):
-        self[item] = None
-
-    def discard(self, item):
-        self.pop(item, None)
-
-    def __contains__(self, item):
-        return item in self.keys()
-
-    def __iter__(self):
-        return iter(self.keys())
