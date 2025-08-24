@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, ROUND_HALF_DOWN
 import unicodedata
+from collections import OrderedDict
 
 
 def file_size_validator(max_upload_size):
@@ -88,3 +89,28 @@ def coming_midnight():
     return timezone.datetime(year=base.year, month=base.month, day=base.day,
                              hour=0, minute=0, second=0, microsecond=0,
                              tzinfo=base.tzinfo)
+
+
+class OrderedSet(OrderedDict):
+    def __init__(self, iterable=None):
+        super().__init__()
+        if iterable:
+            for item in iterable:
+                self[item] = None
+
+    def __sub__(self, other):
+        if not isinstance(other, OrderedSet):
+            return NotImplemented
+        return OrderedSet(k for k in self if k not in other)
+
+    def add(self, item):
+        self[item] = None
+
+    def discard(self, item):
+        self.pop(item, None)
+
+    def __contains__(self, item):
+        return item in self.keys()
+
+    def __iter__(self):
+        return iter(self.keys())
