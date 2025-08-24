@@ -80,4 +80,4 @@ TEST_MAIL = get_var('testing', 'mail', default='test@localhost')
 
 # excluded and included model fields in admin and admin forms
 CUSTOM_MODELS = list(get_var('custom_model_fields', default={}).keys())
-CUSTOM_MODEL_FIELDS = {model.lower(): get_var('model_fields', model, default=[]) for model in CUSTOM_MODELS}
+CUSTOM_MODEL_FIELDS = {model.lower(): get_var('custom_model_fields', model, default={}) for model in CUSTOM_MODELS}

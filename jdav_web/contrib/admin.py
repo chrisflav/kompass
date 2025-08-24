@@ -179,19 +179,25 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
     
     @property
     def field_key(self):
+        """returns the key to look if model has custom fields in settings"""
         return f"{self.model._meta.app_label}_{self.model.__name__}".lower()
     
     def get_excluded_fields(self):
+        """if model has custom excluded fields in settings, return them as a set"""
         return OrderedSet(settings.CUSTOM_MODEL_FIELDS.get(self.field_key, {}).get('exclude', []))
     
     def get_included_fields(self):
+        """if model has an entire custom fieldset in settings, return it as a set"""
         return OrderedSet(settings.CUSTOM_MODEL_FIELDS.get(self.field_key, {}).get('fields', []))
 
     
     def get_fieldsets(self, request, obj=None):
+        """filter fieldsets according to included and excluded fields in settings"""
+        
+        # get original fields and user-defined included and excluded fields
+        original_fieldsets = super().get_fieldsets(request, obj)
         included = self.get_included_fields()
         excluded = self.get_excluded_fields()
-        original_fieldsets = super().get_fieldsets(request, obj)
         if original_fieldsets:
             print(f"get_fieldsets called for {self.field_key}")
             print(f"Original fieldsets: {original_fieldsets}")
@@ -218,6 +224,7 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
     
 
     def get_fields(self, request, obj=None):
+        """filter fields according to included and excluded fields in settings"""
         fields = OrderedSet(super().get_fields(request, obj) or [])
         custom_fields = self.get_included_fields() - self.get_excluded_fields()
         if custom_fields:
@@ -226,6 +233,7 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
         return list(fields)
     
     def get_exclude(self, request, obj=None):
+        """filter excluded fields according to included and excluded fields in settings"""
         excluded = OrderedSet(super().get_exclude(request, obj) or [])
         custom_excluded = self.get_excluded_fields() - self.get_included_fields()
         if custom_excluded:
