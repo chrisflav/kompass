@@ -5,7 +5,6 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, ROUND_HALF_DOWN
 import unicodedata
-from collections import OrderedDict
 
 
 def file_size_validator(max_upload_size):
@@ -89,4 +88,3 @@ def coming_midnight():
     return timezone.datetime(year=base.year, month=base.month, day=base.day,
                              hour=0, minute=0, second=0, microsecond=0,
                              tzinfo=base.tzinfo)
-
