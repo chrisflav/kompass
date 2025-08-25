@@ -51,6 +51,14 @@ SEND_FROM_ASSOCIATION_EMAIL = get_var('misc', 'send_from_association_email', def
 # domain for association email and generated urls
 DOMAIN = get_var('misc', 'domain', default='example.org')
 
+GROUP_CHECKLIST_N_WEEKS = get_var('misc', 'group_checklist_n_weeks', default=18)
+GROUP_CHECKLIST_N_MEMBERS = get_var('misc', 'group_checklist_n_members', default=20)
+GROUP_CHECKLIST_TEXT = get_var('misc', 'group_checklist_text',
+                               default="""Anwesende Jugendleitende und Teilnehmende werden mit einem 
+Kreuz ($\\times$) markiert und die ausgefüllte Liste zum Anfang der Gruppenstunde an der Kasse 
+abgegeben. Zum Ende wird sie wieder abgeholt. Wenn die Punkte auf einer Karte fast aufgebraucht 
+sind, notiert die Kasse die verbliebenen Eintritte (3, 2, 1) unter dem Kreuz.""")
+
 # finance
 
 ALLOWANCE_PER_DAY = get_var('finance', 'allowance_per_day', default=22)

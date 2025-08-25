@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-06 19:10+0200\n"
+"POT-Creation-Date: 2025-04-15 23:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -275,6 +275,10 @@ msgstr "Kostenübersicht"
 #: templates/admin/members/group/change_list.html
 msgid "Generate group overview"
 msgstr "Gruppenübersicht erstellen"
+
+#: templates/admin/members/group/change_list.html
+msgid "Generate group checklist"
+msgstr "Gruppencheckliste erstellen"
 
 #: templates/admin/members/member/change_form_object_tools.html
 msgid "Invite as user"

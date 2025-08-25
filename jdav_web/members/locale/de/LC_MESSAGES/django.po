@@ -302,6 +302,11 @@ msgstr ""
 "Du hast nicht die notwendigen Rechte um eine Gruppenübersicht zu erstellen."
 
 #: members/admin.py
+msgid "You are not allowed to create a group checklist."
+msgstr ""
+"Du hast nicht die notwendigen Rechte um eine Gruppencheckliste zu erstellen."
+
+#: members/admin.py
 msgid "Difficulty"
 msgstr "Schwierigkeit"
 
@@ -687,6 +692,10 @@ msgstr "Hat Freikarte für Kletterhalle"
 #: members/models.py
 msgid "DAV badge number"
 msgstr "DAV Mitgliedsnummer"
+
+#: members/models.py
+msgid "entrance ticket number"
+msgstr "Eintrittskarten Nummer"
 
 #: members/models.py
 msgid "Knows how to swim"

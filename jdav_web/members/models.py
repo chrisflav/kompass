@@ -104,6 +104,11 @@ class Group(models.Model):
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
+        
+    @property
+    def sorted_members(self):
+        """Returns the members of this group sorted by their last name."""
+        return self.member_set.all().order_by('lastname')
 
     def has_time_info(self):
         # return if the group has all relevant time slot information filled
@@ -318,6 +323,9 @@ class Member(Person):
     has_key = models.BooleanField(_('Has key'), default=False)
     has_free_ticket_gym = models.BooleanField(_('Has a free ticket for the climbing gym'), default=False)
     dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='', blank=True)
+    
+    # use this to store a climbing gym customer or membership id, used to print on meeting checklists
+    ticket_no = models.CharField(max_length=20, verbose_name=_('entrance ticket number'), default='', blank=True)   
     swimming_badge = models.BooleanField(verbose_name=_('Knows how to swim'), default=False)
     climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='', blank=True)
     alpine_experience = models.TextField(verbose_name=_('Alpine experience'), default='', blank=True)
@@ -379,6 +387,11 @@ class Member(Person):
     def place(self):
         """Returning the whole place (plz + town)"""
         return "{0} {1}".format(self.plz, self.town)
+    
+    @property
+    def ticket_tag(self):
+        """Returning the ticket number stripped of strings and spaces"""
+        return "{" + ''.join(re.findall(r'\d', self.ticket_no)) + "}"
 
     @property
     def iban_valid(self):

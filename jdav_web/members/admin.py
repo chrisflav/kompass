@@ -30,6 +30,7 @@ from django.shortcuts import render
 from django.core.exceptions import PermissionDenied, ValidationError
 from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf, render_docx
 from .excel import generate_group_overview, generate_ljp_vbk
+from .models import WEEKDAYS
 
 from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
 
@@ -44,7 +45,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
 from finance.models import Statement, BillOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
-from utils import get_member, RestrictedFileField
+from utils import get_member, RestrictedFileField, mondays_until_nth
 from schwifty import IBAN
 from .pdf import media_path, media_dir
 
@@ -195,7 +196,6 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 ('join_date', 'leave_date'),
                 'comments',
                 'legal_guardians',
-                'dav_badge_no',
                 'active', 'echoed',
                 'user',
              ]
@@ -213,8 +213,8 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         ),
         (_("Others"),
          {
-             'fields': ['allergies', 'tetanus_vaccination', 'medication', 'photos_may_be_taken',
-                        'may_cancel_appointment_independently']
+             'fields': ['dav_badge_no', 'ticket_no', 'allergies', 'tetanus_vaccination', 
+                        'medication', 'photos_may_be_taken','may_cancel_appointment_independently']
          }
         ),
         (_("Organizational"),
@@ -854,6 +854,8 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
     def action_view(self, request):
         if "group_overview" in request.POST:
             return self.group_overview(request)
+        elif "group_checklist" in request.POST:
+            return self.group_checklist(request)
 
     def group_overview(self, request):
 
@@ -867,6 +869,28 @@ class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
         response = serve_media(filename=filename, content_type='application/xlsx')
 
         return response
+    
+    def group_checklist(self, request):
+
+        if not request.user.has_perm('members.view_group'):
+            messages.error(request,
+                _("You are not allowed to create a group checklist."))
+            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+
+        ensure_media_dir()
+        n_weeks = settings.GROUP_CHECKLIST_N_WEEKS
+        n_members = settings.GROUP_CHECKLIST_N_MEMBERS
+
+        context = {
+            'groups': self.model.objects.filter(show_website=True), 
+            'settings': settings, 
+            'week_range': range(n_weeks),
+            'member_range': range(n_members),
+            'dates': mondays_until_nth(n_weeks),
+            'weekdays': [long for i, long in WEEKDAYS],
+            'header_text': settings.GROUP_CHECKLIST_TEXT,
+        }
+        return render_tex(f"Gruppen-Checkliste", 'members/group_checklist.tex', context)
 
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
