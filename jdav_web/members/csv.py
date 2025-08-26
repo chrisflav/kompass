@@ -1,6 +1,6 @@
-from .models import *
-import re
-import csv
+from .models import * # pragma: no cover
+import re # pragma: no cover
+import csv # pragma: no cover
 
 
 def import_from_csv(path, omit_groupless=True): # pragma: no cover

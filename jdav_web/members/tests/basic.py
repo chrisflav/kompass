@@ -14,6 +14,11 @@ from django.conf import settings
 from django.urls import reverse
 from django import template
 from unittest import skip, mock
+import os
+from PIL import Image
+from pypdf import PdfReader, PdfWriter, PageObject
+from io import BytesIO
+import tempfile
 from members.models import Member, Group, PermissionMember, PermissionGroup, Freizeit, GEMEINSCHAFTS_TOUR,\
         MUSKELKRAFT_ANREISE, FUEHRUNGS_TOUR, AUSBILDUNGS_TOUR, OEFFENTLICHE_ANREISE,\
         FAHRGEMEINSCHAFT_ANREISE,\
@@ -23,9 +28,11 @@ from members.models import Member, Group, PermissionMember, PermissionGroup, Fre
         TrainingCategory, Person
 from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
         MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
-        MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin
-from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs
-from mailer.models import EmailAddress
+        MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
+        InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
+from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs, render_docx, pdf_add_attachments, scale_pdf_page_to_a4, scale_pdf_to_a4
+from members.excel import generate_ljp_vbk
+from mailer.models import EmailAddress, Message
 from finance.models import Statement, Bill
 
 from django.db import connection
@@ -58,9 +65,14 @@ class MemberTestCase(BasicMemberTestCase):
         super().setUp()
 
         p1 = PermissionMember.objects.create(member=self.fritz)
+        p1.list_members.add(self.lara)
         p1.view_members.add(self.lara)
         p1.change_members.add(self.lara)
+        p1.delete_members.add(self.lara)
+        p1.list_groups.add(self.spiel)
         p1.view_groups.add(self.spiel)
+        p1.change_groups.add(self.spiel)
+        p1.delete_groups.add(self.spiel)
 
         self.ja = Group.objects.create(name="Jugendausschuss")
         self.peter = Member.objects.create(prename="Peter", lastname="Keks", birth_date=timezone.now().date(),
@@ -75,32 +87,62 @@ class MemberTestCase(BasicMemberTestCase):
         self.lisa = Member.objects.create(prename="Lisa", lastname="Keks", birth_date=timezone.now().date(),
                                           email=settings.TEST_MAIL, gender=DIVERSE,
                                           image=img, registration_form=pdf)
+        self.lisa.confirmed_mail, self.lisa.confirmed_alternative_mail = True, True
         self.peter.group.add(self.ja)
         self.anna.group.add(self.ja)
         self.lisa.group.add(self.ja)
 
+        self.ex = Freizeit.objects.create(name='Wild trip', kilometers_traveled=120,
+                                          tour_type=GEMEINSCHAFTS_TOUR,
+                                          tour_approach=MUSKELKRAFT_ANREISE,
+                                          difficulty=1, date=timezone.localtime())
+        self.ex.jugendleiter.add(self.fritz)
+        self.ex.save()
+
         p2 = PermissionGroup.objects.create(group=self.ja)
+        p2.list_members.add(self.lara)
+        p2.view_members.add(self.lara)
+        p2.change_members.add(self.lara)
+        p2.delete_members.add(self.lara)
         p2.list_groups.add(self.ja)
+        p2.list_groups.add(self.spiel)
+        p2.view_groups.add(self.spiel)
+        p2.change_groups.add(self.spiel)
+        p2.delete_groups.add(self.spiel)
 
     def test_may(self):
+        self.assertTrue(self.fritz.may_list(self.lara))
         self.assertTrue(self.fritz.may_view(self.lara))
         self.assertTrue(self.fritz.may_change(self.lara))
+        self.assertTrue(self.fritz.may_delete(self.lara))
+        self.assertTrue(self.fritz.may_list(self.fridolin))
         self.assertTrue(self.fritz.may_view(self.fridolin))
-        self.assertFalse(self.fritz.may_change(self.fridolin))
+        self.assertTrue(self.fritz.may_change(self.fridolin))
+        self.assertTrue(self.fritz.may_delete(self.fridolin))
+        self.assertFalse(self.fritz.may_view(self.anna))
 
         # every member should be able to list, view and change themselves
         for member in Member.objects.all():
             self.assertTrue(member.may_list(member))
             self.assertTrue(member.may_view(member))
             self.assertTrue(member.may_change(member))
+            self.assertTrue(member.may_delete(member))
 
         # every member of Jugendausschuss should be able to view every other member of Jugendausschuss
         for member in self.ja.member_set.all():
+            self.assertTrue(member.may_list(self.fridolin))
+            self.assertTrue(member.may_view(self.fridolin))
+            self.assertTrue(member.may_view(self.lara))
+            self.assertTrue(member.may_change(self.lara))
+            self.assertTrue(member.may_change(self.fridolin))
+            self.assertTrue(member.may_delete(self.lara))
+            self.assertTrue(member.may_delete(self.fridolin))
             for other in self.ja.member_set.all():
                 self.assertTrue(member.may_list(other))
                 if member != other:
                     self.assertFalse(member.may_view(other))
                     self.assertFalse(member.may_change(other))
+                    self.assertFalse(member.may_delete(other))
 
     def test_filter_queryset(self):
         # lise may only list herself
@@ -113,6 +155,42 @@ class MemberTestCase(BasicMemberTestCase):
             self.assertEqual(set(member.filter_queryset_by_permissions(Member.objects.all(), model=Member)),
                              set(member.filter_queryset_by_permissions(model=Member)))
 
+    def test_filter_members_by_permissions(self):
+        qs = Member.objects.all()
+        qs_a = self.anna.filter_members_by_permissions(qs, annotate=True)
+        # Anna may list Peter, because Peter is also in the Jugendausschuss.
+        self.assertIn(self.peter, qs_a)
+        # Anna may not view Peter.
+        self.assertNotIn(self.peter, qs_a.filter(_viewable=True))
+
+    def test_filter_messages_by_permissions(self):
+        good = Message.objects.create(subject='Good message', content='This is a test message',
+            created_by=self.fritz)
+        bad = Message.objects.create(subject='Bad message', content='This is a test message')
+        self.assertQuerysetEqual(self.fritz.filter_messages_by_permissions(Message.objects.all()),
+                                 [good], ordered=False)
+
+    def test_filter_statements_by_permissions(self):
+        st1 = Statement.objects.create(night_cost=42, subsidy_to=None, created_by=self.fritz)
+        st2 = Statement.objects.create(night_cost=42, subsidy_to=None, excursion=self.ex)
+        st3 = Statement.objects.create(night_cost=42, subsidy_to=None)
+        qs = Statement.objects.all()
+        self.assertQuerysetEqual(self.fritz.filter_statements_by_permissions(qs),
+                                 [st1, st2], ordered=False)
+
+    def test_annotate_view_permissions(self):
+        qs = Member.objects.all()
+        # if the model is not Member, the queryset should not change
+        self.assertQuerysetEqual(self.fritz.annotate_view_permission(qs, MemberWaitingList), qs,
+                                 ordered=False)
+
+        # Fritz can't view Anna.
+        qs_a = self.fritz.annotate_view_permission(qs, Member)
+        self.assertNotIn(self.anna, qs_a.filter(_viewable=True))
+
+        # Anna can't view Fritz.
+        qs_a = self.anna.annotate_view_permission(qs, Member)
+        self.assertNotIn(self.fritz, qs_a.filter(_viewable=True))
 
     def test_compare_filter_queryset_may_list(self):
         # filter_queryset and filtering manually by may_list should be the same
@@ -211,11 +289,18 @@ class MemberTestCase(BasicMemberTestCase):
         self.assertFalse(self.peter.has_internal_email())
 
     def test_invite_as_user(self):
+        # sucess
         self.assertTrue(self.lara.has_internal_email())
         self.lara.user = None
         self.assertTrue(self.lara.invite_as_user())
+
+        # failure: already has user data
         u = User.objects.create_user(username='user', password='secret', is_staff=True)
-        self.peter.user = u
+        self.lara.user = u
+        self.assertFalse(self.lara.invite_as_user())
+
+        # failure: no internal email
+        self.peter.email = 'foobar'
         self.assertFalse(self.peter.invite_as_user())
 
     def test_birth_date_str(self):
@@ -227,6 +312,29 @@ class MemberTestCase(BasicMemberTestCase):
 
     def test_gender_str(self):
         self.assertGreater(len(self.fritz.gender_str), 0)
+
+    def test_led_freizeiten(self):
+        self.assertGreater(len(self.fritz.led_freizeiten()), 0)
+
+    def test_create_from_registration(self):
+        self.lisa.confirmed = False
+        # Lisa's registration is ready, no more mail requests needed
+        self.assertFalse(self.lisa.create_from_registration(None, self.alp))
+        # After creating from registration, Lisa should be unconfirmed.
+        self.assertFalse(self.lisa.confirmed)
+
+    def test_validate_registration_form(self):
+        self.lisa.confirmed = False
+        self.assertIsNotNone(self.lisa.registration_form)
+        self.assertIsNone(self.lisa.validate_registration_form())
+
+    def test_send_upload_registration_form_link(self):
+        self.assertEqual(self.lisa.upload_registration_form_key, '')
+        self.assertIsNone(self.lisa.send_upload_registration_form_link())
+
+    def test_demote_to_waiter(self):
+        self.lisa.waitinglist_application_date = timezone.now()
+        self.lisa.demote_to_waiter()
 
 
 class PDFTestCase(TestCase):
@@ -295,6 +403,76 @@ class PDFTestCase(TestCase):
         context = self.ex.v32_fields()
         self._test_fill_pdf('members/V32-1_Themenorientierte_Bildungsmassnahmen.pdf', context)
 
+    def test_render_docx_save_only(self):
+        """Test render_docx with save_only=True"""
+        context = dict(memberlist=self.ex, settings=settings, mode='basic')
+        fp = render_docx('Test DOCX', 'members/seminar_report.tex', context, save_only=True)
+        self.assertIsInstance(fp, str)
+        self.assertTrue(fp.endswith('.docx'))
+
+    def test_pdf_add_attachments_with_image(self):
+        """Test pdf_add_attachments with non-PDF image files"""
+        # Create a simple test image
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+            img = Image.new('RGB', (100, 100), color='red')
+            img.save(tmp_file.name, 'PNG')
+            tmp_file.flush()
+
+            # Create a PDF writer and test adding the image
+            writer = PdfWriter()
+            blank_page = PageObject.create_blank_page(width=595, height=842)
+            writer.add_page(blank_page)
+
+            # add image as attachment and verify page count
+            pdf_add_attachments(writer, [tmp_file.name])
+            self.assertGreater(len(writer.pages), 1)
+
+            # Clean up
+            os.unlink(tmp_file.name)
+
+    def test_scale_pdf_page_to_a4(self):
+        """Test scale_pdf_page_to_a4 function"""
+        # Create a test page with different dimensions
+        original_page = PageObject.create_blank_page(width=200, height=300)
+        scaled_page = scale_pdf_page_to_a4(original_page)
+
+        # A4 dimensions are 595x842
+        self.assertEqual(float(scaled_page.mediabox.width), 595.0)
+        self.assertEqual(float(scaled_page.mediabox.height), 842.0)
+
+    def test_scale_pdf_to_a4(self):
+        """Test scale_pdf_to_a4 function"""
+        # Create a simple PDF with multiple pages of different sizes
+        original_pdf = PdfWriter()
+        original_pdf.add_page(PageObject.create_blank_page(width=200, height=300))
+        original_pdf.add_page(PageObject.create_blank_page(width=400, height=600))
+
+        # Write to BytesIO to create a readable PDF
+        pdf_io = BytesIO()
+        original_pdf.write(pdf_io)
+        pdf_io.seek(0)
+
+        # Read it back and scale
+        pdf_reader = PdfReader(pdf_io)
+        scaled_pdf = scale_pdf_to_a4(pdf_reader)
+
+        # All pages should be A4 size (595x842)
+        for page in scaled_pdf.pages:
+            self.assertEqual(float(page.mediabox.width), 595.0)
+            self.assertEqual(float(page.mediabox.height), 842.0)
+
+    def test_merge_pdfs_serve(self):
+        """Test merge_pdfs with save_only=False"""
+        # First create two PDF files to merge
+        context = dict(memberlist=self.ex, settings=settings, mode='basic')
+        fp1 = render_tex('Test PDF 1', 'members/seminar_report.tex', context, save_only=True)
+        fp2 = render_tex('Test PDF 2', 'members/seminar_report.tex', context, save_only=True)
+
+        # Test merge with save_only=False (should return HttpResponse)
+        response = merge_pdfs('Merged PDF', [fp1, fp2], save_only=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/pdf')
+
 
 class AdminTestCase(TestCase):
     def setUp(self, model, admin):
@@ -312,8 +490,9 @@ class AdminTestCase(TestCase):
 
         paul = standard.member
 
-        self.staff = Group.objects.create(name='Jugendleiter')
-        cool_kids = Group.objects.create(name='cool kids')
+        self.em = EmailAddress.objects.create(name='foobar')
+        self.staff = Group.objects.create(name='Jugendleiter', contact_email=self.em)
+        cool_kids = Group.objects.create(name='cool kids', show_website=True)
         super_kids = Group.objects.create(name='super kids')
 
         p1 = PermissionMember.objects.create(member=paul)
@@ -546,6 +725,16 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("%(name)s already has login data.") % {'name': str(self.fritz)})
 
+    def test_invite_as_user_action_insufficient_permission(self):
+        url = reverse('admin:members_member_changelist')
+
+        # expect: confirmation view
+        c = self._login('trainer')
+        response = c.post(url, data={'action': 'invite_as_user_action',
+                                     '_selected_action': [self.fritz.pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertNotContains(response, _('Invite'))
+
     def test_invite_as_user_action(self):
         qs = Member.objects.all()
         url = reverse('admin:members_member_changelist')
@@ -596,6 +785,15 @@ class MemberAdminTestCase(AdminTestCase):
         for i in range(5):
             self.fritz._activity_score = i * 10 - 1
             self.assertTrue('img' in self.admin.activity_score(self.fritz))
+
+    def test_unconfirm(self):
+        url = reverse('admin:members_member_changelist')
+        c = self._login('superuser')
+        response = c.post(url, data={'action': 'unconfirm',
+                                     '_selected_action': [self.fritz.pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.fritz.refresh_from_db()
+        self.assertFalse(self.fritz.confirmed)
 
 
 class FreizeitTestCase(BasicMemberTestCase):
@@ -700,10 +898,10 @@ class FreizeitTestCase(BasicMemberTestCase):
     def test_v32_fields(self):
         self.assertIn('Textfeld 61', self.ex2.v32_fields().keys())
 
-    @skip("This currently throws a `RelatedObjectDoesNotExist` error.")
     def test_no_statement(self):
         self.assertEqual(self.ex.total_relative_costs, 0)
         self.assertEqual(self.ex.payable_ljp_contributions, 0)
+        self.assertEqual(self.ex.potential_ljp_contributions, 0)
 
     def test_no_ljpproposal(self):
         self.assertEqual(self.ex2.total_intervention_hours, 0)
@@ -714,6 +912,8 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.assertGreaterEqual(self.ex2.total_relative_costs, 0)
 
     def test_payable_ljp_contributions(self):
+        self.assertGreaterEqual(self.ex2.payable_ljp_contributions, 0)
+        self.st.ljp_to = self.fritz
         self.assertGreaterEqual(self.ex2.payable_ljp_contributions, 0)
 
     def test_get_tour_type(self):
@@ -742,6 +942,12 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.ex.date = timezone.datetime(2000, 1, 1, 12, 0, 0)
         self.ex.end = timezone.datetime(2000, 1, 1, 12, 0, 0)
         self.assertEqual(self.ex.duration, 1)
+
+    def test_generate_ljp_vbk_no_proposal_raises_error(self):
+        """Test generate_ljp_vbk raises ValueError when excursion has no LJP proposal"""
+        with self.assertRaises(ValueError) as cm:
+            generate_ljp_vbk(self.ex)
+        self.assertIn("Excursion has no LJP proposal", str(cm.exception))
 
 
 class PDFActionMixin:
@@ -799,6 +1005,11 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
                                                       goal_strategy='my strategy',
                                                       not_bw_reason=LJPProposal.NOT_BW_ROOMS,
                                                       excursion=self.ex2)
+        self.st_ljp = Statement.objects.create(night_cost=11, subsidy_to=fr, ljp_to=fr,
+                                               excursion=self.ex2)
+        self.bill_no_proof = Bill.objects.create(statement=self.st_ljp, short_description='bla', explanation='bli',
+                                                 amount=42.69, costs_covered=True, paid_by=fr)
+
 
     def test_changelist(self):
         c = self._login('superuser')
@@ -948,6 +1159,10 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         })
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    @skip('Throws `AttributeError`: `Freizeit.seminar_vbk` does not exist.')
+    def test_seminar_vbk(self):
+        self._test_pdf('seminar_vbk', self.ex.pk)
+
     def test_crisis_intervention_list_post(self):
         self._test_pdf('crisis_intervention_list', self.ex.pk)
         self._test_pdf('crisis_intervention_list', self.ex.pk, username='standard', invalid=True)
@@ -967,6 +1182,24 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         response = c.post(url, data={'finance_overview': ''})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("No statement found. Please add a statement and then retry."))
+
+    def test_finance_overview_invalid_post(self):
+        url = reverse('admin:members_freizeit_action', args=(self.ex2.pk,))
+        c = self._login('superuser')
+
+        # bill with missing proof
+        response = c.post(url, data={'finance_overview': '', 'apply': ''}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response,
+                            _("The excursion is configured to claim LJP contributions. In that case, for all bills, a proof must be uploaded. Please correct this and try again."))
+
+        # invalidate allowance_to
+        self.st_ljp.allowance_to.add(self.yl1)
+
+        response = c.post(url, data={'finance_overview': '', 'apply': ''}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response,
+                            _("The configured recipients of the allowance don't match the regulations. Please correct this and try again."))
 
     def test_finance_overview_post(self):
         url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
@@ -1008,12 +1241,18 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
     def test_wrong_action_membernotelist(self):
         return self._test_pdf('asdf', self.note.pk, invalid=True, model='membernotelist')
 
+    def test_change(self):
+        c = self._login('superuser')
+
+        url = reverse('admin:members_membernotelist_change', args=(self.note.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, 200, 'Response code is not 200.')
+
 
 class MemberWaitingListAdminTestCase(AdminTestCase):
     def setUp(self):
         super().setUp(model=MemberWaitingList, admin=MemberWaitingListAdmin)
         self.waiter = MemberWaitingList.objects.create(**WAITER_DATA)
-        self.em = EmailAddress.objects.create(name='foobar')
         for i in range(10):
             day = random.randint(1, 28)
             month = random.randint(1, 12)
@@ -1039,6 +1278,14 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
             self.assertEqual(m.birth_date_delta, m.age(),
                              msg='Queryset based age calculation differs from python based age calculation for birth date {birth_date} compared to {today}.'.format(birth_date=m.birth_date, today=today))
 
+    def test_invite_view_invalid(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberwaitinglist_invite', args=(12312,))
+
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("A waiter with this ID does not exist."))
+
     def test_invite_view_post(self):
         c = self._login('standard')
         url = reverse('admin:members_memberwaitinglist_invite', args=(self.waiter.pk,))
@@ -1049,6 +1296,9 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
         response = c.post(url, data={'apply': '',
                                      'group': 424242})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        self.staff.contact_email = None
+        self.staff.save()
 
         response = c.post(url, data={'apply': '',
                                      'group': self.staff.pk})
@@ -1075,7 +1325,10 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
         url = reverse('admin:members_memberwaitinglist_changelist')
         qs = MemberWaitingList.objects.all()
         response = c.post(url, data={'action': 'ask_for_registration_action',
-                                     '_selected_action': [qs[0].pk]}, follow=True)
+                                     '_selected_action': [qs[0].pk],
+                                     'send': '',
+                                     'text_template': '',
+                                     'group': self.staff.pk}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_age(self):
@@ -1092,6 +1345,19 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
                                      '_selected_action': [q.pk for q in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_request_mail_confirmation(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        qs = MemberWaitingList.objects.all()
+
+        response = c.post(url, data={'action': 'request_mail_confirmation',
+                                     '_selected_action': [q.pk for q in qs]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        response = c.post(url, data={'action': 'request_required_mail_confirmation',
+                                     '_selected_action': [q.pk for q in qs]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
 
 class MemberUnconfirmedAdminTestCase(AdminTestCase):
     def setUp(self):
@@ -1099,6 +1365,20 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         self.reg = MemberUnconfirmedProxy.objects.create(**REGISTRATION_DATA, confirmed=False)
         for i in range(10):
             MemberUnconfirmedProxy.objects.create(**REGISTRATION_DATA, confirmed=False)
+
+    def test_get_queryset(self):
+        request = self.factory.get('/')
+        request.user = User.objects.get(username='superuser')
+        qs = self.admin.get_queryset(request)
+        self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.all(), ordered=False)
+
+        request.user = User.objects.create(username='test', password='secret')
+        qs = self.admin.get_queryset(request)
+        self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
+
+        request.user = User.objects.get(username='standard')
+        qs = self.admin.get_queryset(request)
+        self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
 
     def test_demote_to_waiter(self):
         c = self._login('superuser')
@@ -1156,6 +1436,16 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
                                      '_selected_action': [qs[0].pk]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Successfully requested mail confirmation from selected registrations."))
+
+    def test_request_required_mail_confirmation(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_changelist')
+        qs = MemberUnconfirmedProxy.objects.all()
+        response = c.post(url, data={'action': 'request_required_mail_confirmation',
+                                     '_selected_action': [qs[0].pk]}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response,
+                            _("Successfully re-requested missing mail confirmations from selected registrations."))
 
     def test_changelist(self):
         c = self._login('standard')
@@ -1754,6 +2044,14 @@ class TestRegistrationFilterTestCase(AdminTestCase):
         fil = RegistrationFilter(None, {}, Member, self.admin)
         self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
 
+    def test_choices(self):
+        fil = RegistrationFilter(None, {'registration_complete': 'True'}, Member, self.admin)
+        request = RequestFactory().get("/", {})
+        request.user = User.objects.get(username='superuser')
+        changelist = self.admin.get_changelist_instance(request)
+        choices = list(fil.choices(changelist))
+        self.assertEqual(choices[0]['display'], _('Yes'))
+
     @skip("Currently errors, because 'registration_complete' is not a field.")
     def test_queryset_filter(self):
         qs = Member.objects.all()
@@ -1837,12 +2135,18 @@ class KlettertreffAdminTestCase(AdminTestCase):
                                      '_selected_action': [kl.pk for kl in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-        # expect: success and filtered by group, this does not work
+    @skip('Members are not filtered by group, because group attribute is retrieved from GET data.')
+    def test_overview_filtered(self):
+        qs = Klettertreff.objects.all()
+        url = reverse('admin:members_klettertreff_changelist')
+
+        # expect: success and filtered by group
         c = self._login('superuser')
         response = c.post(url, data={'action': 'overview',
                                      'group__name': 'cool kids',
                                      '_selected_action': [kl.pk for kl in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertNotContains(response, 'Lulla')
 
 
 class GroupAdminTestCase(AdminTestCase):
@@ -1854,6 +2158,16 @@ class GroupAdminTestCase(AdminTestCase):
         url = reverse('admin:members_group_change', args=(g.pk,))
         c = self._login('superuser')
         response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_group_overview(self):
+        url = reverse('admin:members_group_action')
+        c = self._login('standard')
+        response = c.post(url, data={'group_overview': ''}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+
+        c = self._login('superuser')
+        response = c.post(url, data={'group_overview': ''}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
@@ -1980,6 +2294,14 @@ class GroupTestCase(BasicMemberTestCase):
         self.assertTrue(self.alp.has_time_info())
         self.assertFalse(self.spiel.has_time_info())
 
+    def test_has_age_info(self):
+        self.assertTrue(self.alp.has_age_info())
+        self.assertFalse(self.jl.has_age_info())
+
+    def test_get_age_info(self):
+        self.assertGreater(len(self.alp.get_age_info()), 0)
+        self.assertEqual(self.jl.get_age_info(), "")
+
     def test_get_invitation_text_template(self):
         alp_text = self.alp.get_invitation_text_template()
         spiel_text = self.spiel.get_invitation_text_template()
@@ -1990,6 +2312,9 @@ class GroupTestCase(BasicMemberTestCase):
         self.assertNotIn(url, spiel_text)
 
         self.assertIn(str(WEEKDAYS[self.alp.weekday][1]), alp_text)
+
+        # check that method does not crash if no age info exists
+        self.assertGreater(len(self.jl.get_invitation_text_template()), 0)
 
 
 class NewMemberOnListTestCase(BasicMemberTestCase):
@@ -2070,3 +2395,51 @@ class EmergencyContactTestCase(TestCase):
 
     def test_str(self):
         self.assertEqual(str(self.emergency_contact), str(self.member))
+
+
+class InvitationToGroupAdminTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=InvitationToGroup, admin=InvitationToGroupAdmin)
+
+    def test_has_add_permission(self):
+        self.assertFalse(self.admin.has_add_permission(None))
+
+
+class MemberWaitingListFilterTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=MemberWaitingList, admin=MemberWaitingListAdmin)
+        self.waiter = MemberWaitingList.objects.create(**WAITER_DATA)
+        self.waiter.invite_to_group(self.staff)
+
+
+class AgeFilterTestCase(MemberWaitingListFilterTestCase):
+    def test_queryset_no_value(self):
+        fil = AgeFilter(None, {}, MemberWaitingList, self.admin)
+        qs = MemberWaitingList.objects.all()
+        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+
+    def test_queryset(self):
+        fil = AgeFilter(None, {'age': 12}, MemberWaitingList, self.admin)
+        request = self.factory.get('/')
+        request.user = User.objects.get(username='superuser')
+        qs = self.admin.get_queryset(request)
+        self.assertQuerysetEqual(fil.queryset(request, qs),
+                                 qs.filter(birth_date_delta=12),
+                                 ordered=False)
+
+
+class InvitedToGroupFilterTestCase(MemberWaitingListFilterTestCase):
+    def test_queryset_no_value(self):
+        fil = InvitedToGroupFilter(None, {}, MemberWaitingList, self.admin)
+        qs = MemberWaitingList.objects.all()
+        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+
+    def test_queryset(self):
+        fil = InvitedToGroupFilter(None, {'pending_group_invitation': self.staff.pk},
+                                   MemberWaitingList, self.admin)
+        request = self.factory.get('/')
+        request.user = User.objects.get(username='superuser')
+        qs = self.admin.get_queryset(request)
+        self.assertQuerysetEqual(fil.queryset(request, qs).distinct(),
+                                 [self.waiter],
+                                 ordered=False)

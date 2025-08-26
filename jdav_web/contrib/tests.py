@@ -1,7 +1,13 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.contrib import admin
+from django.db import models
+from django.test import RequestFactory
+from unittest.mock import Mock
+from rules.contrib.models import RulesModelMixin, RulesModelBase
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
+from contrib.admin import CommonAdminMixin
 
 User = get_user_model()
 
@@ -20,8 +26,6 @@ class CommonModelTestCase(TestCase):
         # Test that CommonModel has the expected functionality
         # Since it's abstract, we can't instantiate it directly
         # but we can check its metaclass and mixins
-        from rules.contrib.models import RulesModelMixin, RulesModelBase
-
         self.assertTrue(issubclass(CommonModel, RulesModelMixin))
         self.assertEqual(CommonModel.__class__, RulesModelBase)
 
@@ -54,3 +58,36 @@ class GlobalPermissionRulesTestCase(TestCase):
         predicate = has_global_perm('auth.add_user')
         result = predicate(self.user, None)
         self.assertFalse(result)
+
+
+class CommonAdminMixinTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+
+    def test_formfield_for_dbfield_with_formfield_overrides(self):
+        """Test formfield_for_dbfield when db_field class is in formfield_overrides"""
+        # Create a test admin instance that inherits from Django's ModelAdmin
+        class TestAdmin(CommonAdminMixin, admin.ModelAdmin):
+            formfield_overrides = {
+                models.ForeignKey: {'widget': Mock()}
+            }
+
+        # Create a mock model to use with the admin
+        class TestModel:
+            _meta = Mock()
+            _meta.app_label = 'test'
+
+        admin_instance = TestAdmin(TestModel, admin.site)
+
+        # Create a mock ForeignKey field to trigger the missing line 147
+        db_field = models.ForeignKey(User, on_delete=models.CASCADE)
+
+        # Create a test request
+        request = RequestFactory().get('/')
+        request.user = self.user
+
+        # Call the method to test formfield_overrides usage
+        result = admin_instance.formfield_for_dbfield(db_field, request, help_text='Test help text')
+
+        # Verify that the formfield_overrides were used
+        self.assertIsNotNone(result)
