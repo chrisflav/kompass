@@ -105,18 +105,18 @@ Hier kannst du Gruppen anlegen und ändern.
     </div>
 {% endif %}
 
-{% if perms.members.change_activitycategory %}
+{% if perms.members.change_membertraining %}
 <br>
 <div class="app-members module current-app">
-<h2>Sonstiges</h2>
+<h2>Ausbildung und Aktivtäten</h2>
 <p>
-Hier kannst du mögliche Aktivitäten und Fortbildungstypen festlegen. Diese bestimmen, welche
+Hier kannst du Fortbildungen verwalten und mögliche Aktivitäten und Fortbildungstypen festlegen. Diese bestimmen, welche
 Aktivitäten bzw. Fortbildungen Nutzer:innen auswählen können.
 </p>
 <table>
     <tr>
         <th scope="row">
-            <a href="{% url 'admin:members_activitycategory_changelist' %}">Aktivitäten</a>
+            <a href="{% url 'admin:members_membertraining_changelist' %}">Fortbildungen</a>
         </th>
         <td></td>
         <td></td>
@@ -124,6 +124,13 @@ Aktivitäten bzw. Fortbildungen Nutzer:innen auswählen können.
     <tr>
         <th scope="row">
             <a href="{% url 'admin:members_trainingcategory_changelist' %}">Fortbildungstypen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_activitycategory_changelist' %}">Aktivitäten</a>
         </th>
         <td></td>
         <td></td>
