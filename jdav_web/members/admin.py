@@ -1349,7 +1349,7 @@ class KlettertreffAttendeeInline(admin.TabularInline):
     #}
 
 
-class KlettertreffAdmin(admin.ModelAdmin):
+class KlettertreffAdmin(CommonAdminMixin, admin.ModelAdmin):
     form = KlettertreffAdminForm
     exclude = []
     inlines = [KlettertreffAttendeeInline]
