@@ -1058,9 +1058,8 @@ class MemberWaitingList(Person):
     @property
     def waiting_confirmation_needed(self):
         """Returns if person should be asked to confirm waiting status."""
-        # TODO: Throws `NameError` (has skipped test).
-        return wait_confirmation_key is None \
-            and last_wait_confirmation < timezone.now() -\
+        return not self.wait_confirmation_key \
+            and self.last_wait_confirmation < timezone.now() -\
                 timezone.timedelta(days=settings.WAITING_CONFIRMATION_FREQUENCY)
 
     def waiting_confirmed(self):
@@ -1123,11 +1122,9 @@ class MemberWaitingList(Person):
         return self.wait_confirmation_key
 
     def may_register(self, key):
-        # TODO: Throws a `TypeError` (has skipped test).
-        print("may_register", key)
         try:
             invitation = InvitationToGroup.objects.get(key=key)
-            return self.pk == invitation.waiter.pk and timezone.now() < invitation.date + timezone.timedelta(days=30)
+            return self.pk == invitation.waiter.pk and timezone.now().date() < invitation.date + timezone.timedelta(days=30)
         except InvitationToGroup.DoesNotExist:
             return False
 
@@ -1197,15 +1194,13 @@ class NewMemberOnList(CommonModel):
 
     @property
     def skills(self):
-        # TODO: Throws a `NameError` (has skipped test).
-        activities = [a.name for a in memberlist.activity.all()]
+        activities = [a.name for a in self.memberlist.activity.all()]
         return {k: v for k, v in self.member.get_skills().items() if k in activities}
 
     @property
     def qualities_tex(self):
-        # TODO: Throws a `NameError` (has skipped test).
         qualities = []
-        for activity, value in self.skills:
+        for activity, value in self.skills.items():
             qualities.append("\\textit{%s:} %s" % (activity, value))
         return ", ".join(qualities)
 

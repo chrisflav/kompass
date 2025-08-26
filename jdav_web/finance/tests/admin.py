@@ -126,7 +126,6 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('Submit statement'))
 
-    @unittest.skip('Currently fails with TypeError, because `participant_count` is passed twice.')
     def test_submit_view_get_with_excursion(self):
         url = reverse('admin:finance_statementunsubmitted_submit',
                       args=(self.statement_with_excursion.pk,))

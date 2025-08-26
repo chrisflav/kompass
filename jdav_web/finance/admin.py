@@ -116,7 +116,6 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
                        opts=self.opts,
                        memberlist=memberlist,
                        object=memberlist,
-                       participant_count=memberlist.participant_count,
                        ljp_contributions=memberlist.payable_ljp_contributions,
                        total_relative_costs=memberlist.total_relative_costs,
                        **memberlist.statement.template_context())

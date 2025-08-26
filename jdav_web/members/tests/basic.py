@@ -1159,10 +1159,6 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         })
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip('Throws `AttributeError`: `Freizeit.seminar_vbk` does not exist.')
-    def test_seminar_vbk(self):
-        self._test_pdf('seminar_vbk', self.ex.pk)
-
     def test_crisis_intervention_list_post(self):
         self._test_pdf('crisis_intervention_list', self.ex.pk)
         self._test_pdf('crisis_intervention_list', self.ex.pk, username='standard', invalid=True)
@@ -1174,12 +1170,11 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
     def test_wrong_action_freizeit(self):
         return self._test_pdf('asdf', self.ex.pk, invalid=True)
 
-    @skip('Currently throws a `RelatedObjectDoesNotExist` error.')
     def test_finance_overview_no_statement_post(self):
         url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
         c = self._login('superuser')
-        # no statement yields error
-        response = c.post(url, data={'finance_overview': ''})
+        # no statement yields redirect
+        response = c.post(url, data={'finance_overview': ''}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("No statement found. Please add a statement and then retry."))
 
@@ -1720,7 +1715,6 @@ class RegistrationFromWaiterViewTestCase(BasicMemberTestCase):
         ))
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip("This currently throws an 'AttributeError'.")
     def test_register_post_no_save(self):
         url = reverse('members:register')
         response = self.client.post(url, data=dict(
@@ -1840,16 +1834,14 @@ class MemberWaitingListTestCase(BasicMemberTestCase):
     def test_latest_group_invitation(self):
         self.assertGreater(len(self.waiter.latest_group_invitation()), 1)
 
-    @skip("This currently throws a 'TypeError'.")
     def test_may_register(self):
         self.assertTrue(self.waiter.may_register(self.invitation.key))
 
     def test_may_register_invalid(self):
         self.assertFalse(self.waiter.may_register('foobar'))
 
-    @skip("This currently throws a 'NameError'.")
     def test_waiting_confirmation_needed(self):
-        self.assertFalse(self.waiter.waiting_confirmation_needed())
+        self.assertFalse(self.waiter.waiting_confirmation_needed)
 
     def test_confirm_waiting_invalid(self):
         self.assertEqual(self.waiter.confirm_waiting('foobar'),
@@ -2330,11 +2322,9 @@ class NewMemberOnListTestCase(BasicMemberTestCase):
         self.ex.save()
         self.mol = NewMemberOnList.objects.create(memberlist=self.ex, member=self.fritz)
 
-    @skip("This currently throws a 'NameError'.")
     def test_skills(self):
         self.assertGreater(len(self.mol.skills), 0)
 
-    @skip("This currently throws a 'NameError'.")
     def test_qualities_tex(self):
         self.assertGreater(len(self.mol.qualities_tex), 0)
 
