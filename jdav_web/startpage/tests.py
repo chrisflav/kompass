@@ -1,8 +1,10 @@
+import os
 from django.test import TestCase, Client
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.conf import settings
 from django.templatetags.static import static
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest import mock
 from importlib import reload
@@ -10,7 +12,7 @@ from importlib import reload
 from members.models import Member, Group, DIVERSE
 from startpage import urls
 
-from .models import Post, Section, Image
+from .models import Post, Section, Image, Link, MemberOnPost
 
 
 class BasicTestCase(TestCase):
@@ -25,7 +27,7 @@ class BasicTestCase(TestCase):
         file = SimpleUploadedFile("post_image.jpg", b"file_content", content_type="image/jpeg")
         staff_post = Post.objects.create(title='Staff', urlname='staff', website_text='This is our staff: Peter.',
                                          section=orga)
-        Image.objects.create(post=staff_post, f=file)
+        self.image_with_file = Image.objects.create(post=staff_post, f=file)
         file = SimpleUploadedFile("member_image.jpg", b"file_content", content_type="image/jpeg")
         m = Member.objects.create(prename='crazy', lastname='cool', birth_date=timezone.now().date(),
                                   email=settings.TEST_MAIL, gender=DIVERSE,
@@ -38,6 +40,10 @@ class BasicTestCase(TestCase):
                                          section=orga)
         crazy_post.groups.add(crazy_group)
         crazy_post.save()
+
+        self.post_no_section = Post.objects.create(title='No Section', urlname='no-section', section=None)
+        self.image_no_file = Image.objects.create(post=staff_post)
+        self.test_link = Link.objects.create(title='Test Link', url='https://example.com')
 
 
 class ModelsTestCase(BasicTestCase):
@@ -65,6 +71,41 @@ class ModelsTestCase(BasicTestCase):
         self.assertEqual(post3.absolute_urlname(),
                          '/de/{name}/last-trip'.format(name=settings.REPORTS_SECTION))
         self.assertEqual(post3.absolute_urlname(), reverse('startpage:post', args=(reports.urlname, 'last-trip')))
+
+    def test_post_absolute_section_none(self):
+        """Test Post.absolute_section when section is None"""
+        self.assertEqual(self.post_no_section.absolute_section(), 'Aktuelles')
+
+    def test_post_absolute_urlname_no_section(self):
+        """Test Post.absolute_urlname when section is None"""
+        expected_url = reverse('startpage:post', args=('aktuelles', 'no-section'))
+        self.assertEqual(self.post_no_section.absolute_urlname(), expected_url)
+
+    def test_image_str_without_file(self):
+        """Test Image.__str__ when no file is associated"""
+        self.assertEqual(str(self.image_no_file), str(_('Empty')))
+
+    def test_image_str_with_file(self):
+        """Test Image.__str__ when file is associated"""
+        # The str should return basename of the file
+        expected = os.path.basename(self.image_with_file.f.name)
+        self.assertEqual(str(self.image_with_file), expected)
+
+    def test_link_str(self):
+        """Test Link.__str__ method"""
+        self.assertEqual(str(self.test_link), 'Test Link')
+
+    def test_section_absolute_urlname_no_reverse_match(self):
+        """Test Section.absolute_urlname when NoReverseMatch occurs"""
+        section = Section.objects.get(urlname='orga')
+        with mock.patch('startpage.models.reverse', side_effect=NoReverseMatch):
+            self.assertEqual(section.absolute_urlname(), str(_('deactivated')))
+
+    def test_post_absolute_urlname_no_reverse_match(self):
+        """Test Post.absolute_urlname when NoReverseMatch occurs"""
+        post = Post.objects.get(urlname='staff')
+        with mock.patch('startpage.models.reverse', side_effect=NoReverseMatch):
+            self.assertEqual(post.absolute_urlname(), str(_('deactivated')))
 
 
 class ViewTestCase(BasicTestCase):
@@ -137,9 +178,7 @@ class ViewTestCase(BasicTestCase):
 
     def test_post_image(self):
         c = Client()
-        staff_post = Post.objects.get(urlname='staff')
-        img = Image.objects.get(post=staff_post)
-        url = img.f.url
+        url = self.image_with_file.f.url
         response = c.get('/de' + url)
         self.assertEqual(response.status_code, 200, 'Images on posts should be visible without login.')
 
