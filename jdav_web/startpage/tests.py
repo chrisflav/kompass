@@ -1,5 +1,5 @@
 import os
-from django.test import TestCase, Client
+from django.test import TestCase, Client, RequestFactory
 from django.urls import reverse, NoReverseMatch
 from django.conf import settings
 from django.templatetags.static import static
@@ -11,6 +11,7 @@ from importlib import reload
 
 from members.models import Member, Group, DIVERSE
 from startpage import urls
+from startpage.views import redirect, handler500
 
 from .models import Post, Section, Image, Link, MemberOnPost
 
@@ -194,3 +195,17 @@ class ViewTestCase(BasicTestCase):
             url_names = [pattern.name for pattern in urls.urlpatterns if hasattr(pattern, 'name')]
             self.assertIn('index', url_names)
             self.assertEqual(len(urls.urlpatterns), 2)  # Should have index and impressum only
+
+    def test_redirect_view(self):
+        """Test redirect view functionality"""
+        request = RequestFactory().get('/')
+        with mock.patch.object(settings, 'STARTPAGE_REDIRECT_URL', 'https://example.com'):
+            response = redirect(request)
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.url, 'https://example.com')
+
+    def test_handler500(self):
+        """Test custom 500 error handler"""
+        request = RequestFactory().get('/')
+        response = handler500(request)
+        self.assertEqual(response.status_code, 500)
