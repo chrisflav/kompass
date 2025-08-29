@@ -6,12 +6,15 @@ from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template import Template, Context, TemplateSyntaxError, VariableDoesNotExist
 from unittest import mock
+from unittest.mock import Mock
 from importlib import reload
 
 from members.models import Member, Group, DIVERSE
 from startpage import urls
 from startpage.views import redirect, handler500
+from startpage.templatetags.markdown_extras import RenderAsTemplateNode, render_as_template
 
 from .models import Post, Section, Image, Link, MemberOnPost
 
@@ -209,3 +212,32 @@ class ViewTestCase(BasicTestCase):
         request = RequestFactory().get('/')
         response = handler500(request)
         self.assertEqual(response.status_code, 500)
+
+
+class MarkdownExtrasTestCase(TestCase):
+    def test_render_as_template_node_variable_does_not_exist(self):
+        node = RenderAsTemplateNode('nonexistent_var', 'result')
+        context = Context({})
+        result = node.render(context)
+        self.assertEqual(result, '')
+
+    def test_render_as_template_no_arguments(self):
+        token = Mock()
+        token.contents = 'render_as_template'
+        parser = Mock()
+        with self.assertRaises(TemplateSyntaxError):
+            render_as_template(parser, token)
+
+    def test_render_as_template_invalid_syntax(self):
+        token = Mock()
+        token.contents = 'render_as_template "content"'
+        parser = Mock()
+        with self.assertRaises(TemplateSyntaxError):
+            render_as_template(parser, token)
+
+    def test_render_as_template_unquoted_argument(self):
+        token = Mock()
+        token.contents = 'render_as_template content as result'
+        parser = Mock()
+        with self.assertRaises(TemplateSyntaxError):
+            render_as_template(parser, token)

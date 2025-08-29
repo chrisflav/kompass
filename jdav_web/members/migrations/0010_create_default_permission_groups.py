@@ -83,7 +83,7 @@ def create_group_with_perms(apps, schema_editor, name, perm_names):
     Group = apps.get_model("auth", "Group")
     Permission = apps.get_model("auth", "Permission")
     if Group.objects.filter(name=name).exists():
-        raise ValueError("A group with name %s already exists." % name)
+        raise ValueError("A group with name %s already exists." % name) # pragma: no cover
     perms = [ Permission.objects.get(codename=codename, content_type__app_label=app_label) for app_label, codename in perm_names ]
     g = Group.objects.using(db_alias).create(name=name)
     g.permissions.set(perms)

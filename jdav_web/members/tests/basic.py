@@ -12,6 +12,7 @@ from django.test import TestCase, Client, RequestFactory
 from django.utils import timezone, translation
 from django.conf import settings
 from django.urls import reverse
+from django.http import HttpResponse, HttpResponseRedirect
 from django import template
 from unittest import skip, mock
 import os
@@ -1215,6 +1216,18 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         response = c.post(url, data={'finance_overview': '', 'apply': ''})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
+    def test_save_model_with_statement(self):
+        user_with_member = User.objects.get(username='standard')
+        self.ex.statement = self.st
+        request = self.factory.post('/')
+        request.user = user_with_member
+        form = mock.MagicMock()
+        with mock.patch('members.admin.super') as mock_super:
+            mock_super.return_value.save_model.return_value = None
+            self.admin.save_model(request, self.ex, form, change=False)
+        self.st.refresh_from_db()
+        self.assertEqual(self.st.created_by, user_with_member.member)
+
 
 class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
     def setUp(self):
@@ -1353,6 +1366,23 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
                                      '_selected_action': [q.pk for q in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_response_change_invite(self):
+        request = self.factory.post('/', {'_invite': True})
+        request.user = User.objects.get(username='superuser')
+        with mock.patch('members.admin.super') as mock_super:
+            mock_super.return_value.response_change.return_value = HttpResponse()
+            response = self.admin.response_change(request, self.waiter)
+        self.assertIsInstance(response, HttpResponseRedirect)
+
+    def test_response_change_no_invite(self):
+        request = self.factory.post('/', {})
+        request.user = User.objects.get(username='superuser')
+        expected_response = HttpResponse()
+        with mock.patch('members.admin.super') as mock_super:
+            mock_super.return_value.response_change.return_value = expected_response
+            response = self.admin.response_change(request, self.waiter)
+        self.assertEqual(response, expected_response)
+
 
 class MemberUnconfirmedAdminTestCase(AdminTestCase):
     def setUp(self):
@@ -1451,6 +1481,22 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         c = self._login('superuser')
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_response_change_confirm(self):
+        request = self.factory.post('/', {'_confirm': True})
+        request.user = User.objects.get(username='superuser')
+        request._messages = mock.MagicMock()
+
+        # Test successful confirm
+        self.reg.confirmed_mail = True
+        self.reg.confirmed_alternative_mail = True
+        self.reg.save()
+        with mock.patch.object(self.reg, 'confirm', return_value=True):
+            response = self.admin.response_change(request, self.reg)
+
+        # Test failed confirm
+        with mock.patch.object(self.reg, 'confirm', return_value=False):
+            response = self.admin.response_change(request, self.reg)
 
 
 class MailConfirmationTestCase(BasicMemberTestCase):
@@ -2160,6 +2206,16 @@ class GroupAdminTestCase(AdminTestCase):
 
         c = self._login('superuser')
         response = c.post(url, data={'group_overview': ''}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_group_checklist(self):
+        url = reverse('admin:members_group_action')
+        c = self._login('standard')
+        response = c.post(url, data={'group_checklist': ''}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+
+        c = self._login('superuser')
+        response = c.post(url, data={'group_checklist': ''}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
