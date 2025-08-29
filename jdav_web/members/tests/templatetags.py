@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.template import Context, Template
 from datetime import datetime, date, timedelta
 from members.templatetags.tex_extras import index, datetime_short, date_short, date_vs, time_short, add, plus
+from members.templatetags.overview_extras import blToColor, render_bool
 
 
 class TexExtrasTestCase(TestCase):
@@ -53,3 +54,27 @@ class TexExtrasTestCase(TestCase):
     def test_plus_without_second_number(self):
         result = plus(10, None)
         self.assertEqual(result, 10)
+
+
+class OverviewExtrasTestCase(TestCase):
+    def test_blToColor_truthy_value(self):
+        result = blToColor(True)
+        self.assertEqual(result, 'green')
+
+    def test_blToColor_falsy_value(self):
+        result = blToColor(False)
+        self.assertEqual(result, 'red')
+
+    def test_render_bool_non_boolean_value(self):
+        with self.assertRaises(ValueError):
+            render_bool("not_a_boolean")
+
+    def test_render_bool_true(self):
+        result = render_bool(True)
+        self.assertIn('#bcd386', result)
+        self.assertIn('icon-tick', result)
+
+    def test_render_bool_false(self):
+        result = render_bool(False)
+        self.assertIn('#dba4a4', result)
+        self.assertIn('icon-cross', result)
