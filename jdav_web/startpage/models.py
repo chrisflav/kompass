@@ -88,7 +88,7 @@ class Image(models.Model):
                             max_upload_size=10)
 
     def __str__(self):
-        return os.path.basename(self.f.name) if self.f.name else _("Empty")
+        return os.path.basename(self.f.name) if self.f.name else str(_("Empty"))
 
     class Meta:
         verbose_name = _('image')

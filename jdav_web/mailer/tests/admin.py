@@ -38,13 +38,6 @@ class AdminTestCase(TestCase):
         standard = create_custom_user('standard', ['Standard'], 'Paul', 'Wulter')
         trainer = create_custom_user('trainer', ['Standard', 'Trainings'], 'Lise', 'Lotte')
 
-    def _login(self, name):
-        c = Client()
-        res = c.login(username=name, password='secret')
-        # make sure we logged in
-        assert res
-        return c
-
     def _add_middleware(self, request):
         """Add required middleware to request."""
         # Session middleware

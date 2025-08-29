@@ -1,0 +1,12 @@
+confirm_mail = """
+Hiho custom test test {name},
+
+du hast bei der JDAV %(SEKTION)s eine E-Mail Adresse hinterlegt. Da bei uns alle Kommunikation
+per Email funktioniert, brauchen wir eine Bestätigung {whattoconfirm}.
+
+Custom!
+
+{link}
+
+Test test
+Deine JDAV test test %(SEKTION)s"""
