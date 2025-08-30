@@ -77,7 +77,7 @@ class MemberRegistrationWaitingListForm(ModelForm):
             'prename': _('Prename of the member.'),
             'lastname': _('Lastname of the member.'),
         }
-        required = []
+        required = ['birth_date']
 
 
 class EmergencyContactForm(ModelForm):
@@ -319,7 +319,6 @@ def download_registration_form(request):
         return render_download_registration_form(request, member)
     except Member.DoesNotExist:
         return render_upload_registration_form_invalid(request)
-    return render_upload_registration_form_invalid(request)
 
 
 def render_upload_registration_form_invalid(request):
@@ -364,7 +363,6 @@ def upload_registration_form(request):
         return render_upload_registration_form_success(request, member)
     except ValueError as e:
         return render_upload_registration_form(request, member, form, key)
-    return render_upload_registration_form_invalid(request)
 
 
 def confirm_mail(request):

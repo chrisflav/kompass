@@ -33,6 +33,7 @@ from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, Me
         InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
 from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs, render_docx, pdf_add_attachments, scale_pdf_page_to_a4, scale_pdf_to_a4
 from members.excel import generate_ljp_vbk
+from members.views import render_register_success, render_register_failed
 from mailer.models import EmailAddress, Message
 from finance.models import Statement, Bill
 
@@ -1596,6 +1597,7 @@ class RegisterViewTestCase(BasicMemberTestCase):
 
     def setUp(self):
         super().setUp()
+        self.factory = RequestFactory()
         RegistrationPassword.objects.create(group=self.alp,
                                             password=RegisterViewTestCase.REGISTRATION_PASSWORD)
 
@@ -1647,6 +1649,27 @@ class RegisterViewTestCase(BasicMemberTestCase):
         })
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("The entered password is wrong."))
+
+    def test_register_no_group(self):
+        # Test when group is None, render_register_failed is called with reason
+        url = reverse('members:register')
+        response = self.client.post(url, data={
+            'password': '',
+            'waiter_key': '',
+            'save': '',
+        })
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Registration failed'))
+
+    def test_render_register_success(self):
+        # Test render_register_success return statement
+        response = render_register_success(self.factory.get('/'), "Test Group", "Test Member", False)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_render_register_failed_with_reason(self):
+        # Test render_register_failed with reason to cover context assignment
+        response = render_register_failed(self.factory.get('/'), "Test reason")
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
 class UploadRegistrationFormViewTestCase(BasicMemberTestCase):
@@ -1701,6 +1724,21 @@ class UploadRegistrationFormViewTestCase(BasicMemberTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response,
                             _("Our team will process your registration shortly."))
+
+    def test_upload_registration_form_validation_error(self):
+        # Test ValueError exception handling during form validation
+        url = reverse('members:upload_registration_form')
+        file = SimpleUploadedFile("form.pdf", b"file_content", content_type="application/pdf")
+        with mock.patch.object(Member, 'validate_registration_form') as mock_validate:
+            mock_validate.side_effect = ValueError("Test validation error")
+            response = self.client.post(url, data={
+                'key': self.reg.upload_registration_form_key,
+                'registration_form': file,
+            })
+            self.assertEqual(response.status_code, HTTPStatus.OK)
+            # Should stay on upload form page due to error
+            self.assertContains(response,
+                                _('If you are not an adult yet, please let someone responsible for you sign the agreement.'))
 
 class DownloadRegistrationFormViewTestCase(BasicMemberTestCase):
     def setUp(self):
@@ -1965,6 +2003,15 @@ class ConfirmWaitingViewTestCase(BasicMemberTestCase):
         response = self.client.post(url, data={'key': self.waiter.leave_key})
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
+    def test_confirm_waiting_invalid_status(self):
+        # Test invalid status handling in confirm_waiting
+        url = reverse('members:confirm_waiting')
+        with mock.patch.object(MemberWaitingList, 'confirm_waiting') as mock_confirm:
+            mock_confirm.return_value = 999  # Invalid status
+            response = self.client.get(url, data={'key': self.key})
+            self.assertEqual(response.status_code, HTTPStatus.OK)
+            self.assertContains(response, _('The supplied link is invalid.'))
+
 
 class MailConfirmationViewTestCase(BasicMemberTestCase):
     def setUp(self):
@@ -2062,6 +2109,22 @@ class EchoViewTestCase(BasicMemberTestCase):
         ))
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('Your data was successfully updated.'))
+
+    def test_post_save_without_registration_form(self):
+        # Clear registration form to test member without registration_form case
+        self.fritz.registration_form = None
+        self.fritz.save()
+        url = reverse('members:echo')
+        response = self.client.post(url, data=dict(
+            REGISTRATION_DATA,
+            **EMERGENCY_CONTACT_DATA,
+            key=self.key,
+            password=self.fritz.echo_password,
+            save='',
+        ))
+        # Should redirect to upload registration form
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn('upload', response.url)
 
 
 class TestRegistrationFilterTestCase(AdminTestCase):
