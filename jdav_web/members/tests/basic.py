@@ -28,7 +28,7 @@ from members.models import Member, Group, PermissionMember, PermissionGroup, Fre
         Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS,\
         TrainingCategory, Person
 from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
-        MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
+        MemberUnconfirmedAdmin, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
         InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
 from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs, render_docx, pdf_add_attachments, scale_pdf_page_to_a4, scale_pdf_to_a4
@@ -2125,52 +2125,6 @@ class EchoViewTestCase(BasicMemberTestCase):
         # Should redirect to upload registration form
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.assertIn('upload', response.url)
-
-
-class TestRegistrationFilterTestCase(AdminTestCase):
-    def setUp(self):
-        super().setUp(model=Member, admin=MemberAdmin)
-
-    def test_lookups(self):
-        fil = RegistrationFilter(None, {}, Member, self.admin)
-        self.assertTrue(('All', _('All')) in fil.lookups(None, None))
-
-    def test_queryset_no_filter(self):
-        qs = Member.objects.all()
-        # filtering with All returns passed queryset
-        fil = RegistrationFilter(None, {'registration_complete': 'All'}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
-
-        # or with None
-        fil = RegistrationFilter(None, {}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
-
-    def test_choices(self):
-        fil = RegistrationFilter(None, {'registration_complete': 'True'}, Member, self.admin)
-        request = RequestFactory().get("/", {})
-        request.user = User.objects.get(username='superuser')
-        changelist = self.admin.get_changelist_instance(request)
-        choices = list(fil.choices(changelist))
-        self.assertEqual(choices[0]['display'], _('Yes'))
-
-    @skip("Currently errors, because 'registration_complete' is not a field.")
-    def test_queryset_filter(self):
-        qs = Member.objects.all()
-        fil = RegistrationFilter(None, {'registration_complete': 'True'}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs),
-                                 Member.objects.filter(registration_complete=True),
-                                 ordered=False)
-
-        fil = RegistrationFilter(None, {'registration_complete': 'False'}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs),
-                                 Member.objects.filter(registration_complete=True),
-                                 ordered=False)
-
-        fil = RegistrationFilter(None, {}, Member, self.admin)
-        fil.default_value = ('True', True)
-        self.assertQuerysetEqual(fil.queryset(None, qs),
-                                 Member.objects.filter(registration_complete=True),
-                                 ordered=False)
 
 
 class MemberAdminFormTestCase(TestCase):

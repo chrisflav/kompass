@@ -129,44 +129,6 @@ class TrainingCategoryAdmin(admin.ModelAdmin):
     ordering = ('name', )
 
 
-class RegistrationFilter(admin.SimpleListFilter):
-    title = _('Registration complete')
-    parameter_name = 'registration_complete'
-    default_value = ('All', None)
-
-    def lookups(self, request, model_admin):
-        return (
-            ('True', _('True')),
-            ('False', _('False')),
-            ('All', _('All'))
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'True':
-            return queryset.filter(registration_complete=True)
-        elif self.value() == 'False':
-            return queryset.filter(registration_complete=False)
-        elif self.value() is None:
-            if self.default_value[1] is None:
-                return queryset
-            else:
-                return queryset.filter(registration_complete=self.default_value[1])
-        elif self.value() == 'All':
-            return queryset
-
-    def choices(self, cl):
-        for lookup, title in self.lookup_choices:
-            yield {
-                'selected':
-                    self.value() == lookup or
-                    (self.value() is None and lookup == self.default_value[0]),
-                'query_string': cl.get_query_string({
-                                    self.parameter_name:
-                                    lookup,
-                                }, []),
-                'display': title
-            }
-
 class MemberAdminForm(forms.ModelForm):
 
     class Meta:
