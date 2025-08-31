@@ -1,3 +1,4 @@
+import logging
 from django.contrib import admin, messages
 from django.utils.safestring import mark_safe
 from django import forms
@@ -18,6 +19,8 @@ from members.pdf import render_tex_with_attachments
 
 from .models import Ledger, Statement, Receipt, Transaction, Bill, StatementSubmitted, StatementConfirmed,\
         StatementUnSubmitted, BillOnStatementProxy
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(Ledger)
@@ -98,7 +101,8 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     @decorate_statement_view(Statement)
     def submit_view(self, request, statement):
-        if statement.submitted:
+        if statement.submitted: # pragma: no cover
+            logger.error(f"submit_view reached with submitted statement {statement}. This should not happen.")
             messages.error(request,
                     _("%(name)s is already submitted.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
@@ -214,14 +218,16 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
 
     @decorate_statement_view(StatementSubmitted)
     def overview_view(self, request, statement):
-        if not statement.submitted:
+        if not statement.submitted: # pragma: no cover
+            logger.error(f"overview_view reached with unsubmitted statement {statement}. This should not happen.")
             messages.error(request,
                     _("%(name)s is not yet submitted.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
         if "transaction_execution_confirm" in request.POST or "transaction_execution_confirm_and_send" in request.POST:
             res = statement.confirm(confirmer=get_member(request))
-            if not res:
+            if not res: # pragma: no cover
                 # this should NOT happen!
+                logger.error(f"Error occured while confirming {statement}, this should not be possible.")
                 messages.error(request,
                         _("An error occured while trying to confirm %(name)s. Please try again.") % {'name': str(statement)})
                 return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name)))
@@ -258,11 +264,14 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                 messages.error(request,
                                _("The configured recipients for the allowance don't match the regulations. Please correct this on the excursion."))
                 return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
-            elif res == Statement.INVALID_TOTAL:
+            elif res == Statement.INVALID_TOTAL: # pragma: no cover
+                logger.error(f"INVALID_TOTAL reached on {statement}.")
                 messages.error(request,
                                _("The calculated total amount does not match the sum of all transactions. This is most likely a bug."))
                 return HttpResponseRedirect(reverse('admin:%s_%s_overview' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
-            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+            else: # pragma: no cover
+                logger.error(f"Statement.validity returned invalid value for {statement}.")
+                return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         if "reject" in request.POST:
             statement.submitted = False
@@ -350,7 +359,8 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
 
     @decorate_statement_view(StatementConfirmed, perm='finance.may_manage_confirmed_statements')
     def unconfirm_view(self, request, statement):
-        if not statement.confirmed:
+        if not statement.confirmed: # pragma: no cover
+            logger.error(f"unconfirm_view reached with unconfirmed statement {statement}.")
             messages.error(request,
                     _("%(name)s is not yet confirmed.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
@@ -374,7 +384,8 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
 
     @decorate_statement_view(StatementConfirmed, perm='finance.may_manage_confirmed_statements')
     def statement_summary_view(self, request, statement):
-        if not statement.confirmed:
+        if not statement.confirmed: # pragma: no cover
+            logger.error(f"statement_summary_view reached with unconfirmed statement {statement}.")
             messages.error(request,
                     _("%(name)s is not yet confirmed.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
