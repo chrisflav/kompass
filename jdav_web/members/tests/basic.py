@@ -1058,7 +1058,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self.assertEqual(response.status_code, 200, 'Response code is not 200.')
 
     @skip("The filtering is currently (intentionally) disabled.")
-    def test_add_queryset_filter(self):
+    def test_add_queryset_filter(self): # pragma: no cover
         """Test if queryset on `jugendleiter` field is properly filtered by permissions."""
         u = User.objects.get(username='standard')
         c = self._login('standard')
@@ -1561,7 +1561,7 @@ class MailConfirmationTestCase(BasicMemberTestCase):
         self.assertTrue(self.father.confirmed_mail, msg='After confirming by key, the mail should be confirmed.')
 
     @skip("Currently, emergency contact email addresses are not required to be confirmed.")
-    def test_emergency_contact_confirmation(self):
+    def test_emergency_contact_confirmation(self): # pragma: no cover
         # request mail confirmation of fritz, should also ask for confirmation of father
         requested_confirmation = self.fritz.request_mail_confirmation()
         self.assertTrue(requested_confirmation,
