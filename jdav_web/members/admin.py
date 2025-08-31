@@ -480,13 +480,15 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
         notify_individual = len(queryset.all()) < 10
         success = True
         for member in queryset:
-            if member.confirm() and notify_individual:
-                messages.success(request, _("Successfully confirmed %(name)s.") % {'name': member.name})
-            else:
-                if notify_individual:
+            confirmed = member.confirm()
+            if not confirmed:
+                success = False
+            if notify_individual:
+                if confirmed:
+                    messages.success(request, _("Successfully confirmed %(name)s.") % {'name': member.name})
+                else:
                     messages.error(request,
                             _("Can't confirm. %(name)s has unconfirmed email addresses.") % {'name': member.name})
-                success = False
         if notify_individual:
             return
         if success:
@@ -1340,13 +1342,13 @@ class KlettertreffAdmin(admin.ModelAdmin):
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
     search_fields = ('date', 'location', 'topic')
-    list_filter = [('date', DateFieldListFilter), 'group__name']
+    list_filter = [('date', DateFieldListFilter), 'group']
     actions = ['overview']
 
     def overview(self, request, queryset):
-        group = request.GET.get('group__name')
+        group = request.GET.get('group__id__exact')
         if group != None:
-            members = Member.objects.filter(group__name__contains=group)
+            members = Member.objects.filter(group=group)
         else:
             members = Member.objects.all()
         context = {

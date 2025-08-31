@@ -936,14 +936,31 @@ class FreizeitTestCase(BasicMemberTestCase):
 
     def test_duration(self):
         self.assertGreaterEqual(self.ex.duration, 0)
+
+        # less than 6 hours
         self.ex.date = timezone.datetime(2000, 1, 1, 8, 0, 0)
         self.ex.end = timezone.datetime(2000, 1, 1, 10, 0, 0)
         self.assertEqual(self.ex.duration, 0.5)
 
-        # TODO: fix this in the model, the duration of this excursion should be 0
+        # at least 6 hours
+        self.ex.date = timezone.datetime(2000, 1, 1, 8, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 1, 14, 0, 0)
+        self.assertEqual(self.ex.duration, 1)
+
+        # one full day and two extra days on beginning and end
+        self.ex.date = timezone.datetime(2000, 1, 1, 8, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 3, 14, 0, 0)
+        self.assertEqual(self.ex.duration, 3)
+
+        # one full day and two half days on beginning and end
+        self.ex.date = timezone.datetime(2000, 1, 1, 16, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 3, 8, 0, 0)
+        self.assertEqual(self.ex.duration, 2)
+
+    def test_duration_midday_midday(self):
         self.ex.date = timezone.datetime(2000, 1, 1, 12, 0, 0)
         self.ex.end = timezone.datetime(2000, 1, 1, 12, 0, 0)
-        self.assertEqual(self.ex.duration, 1)
+        self.assertEqual(self.ex.duration, 0.5)
 
     def test_generate_ljp_vbk_no_proposal_raises_error(self):
         """Test generate_ljp_vbk raises ValueError when excursion has no LJP proposal"""
@@ -1438,7 +1455,6 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         response = c.post(url, data={'action': 'confirm', '_selected_action': [self.reg.pk]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip('Even when every `member.confirm()` succeeds, it still shows the error message.')
     def test_confirm_multiple(self):
         c = self._login('superuser')
         url = reverse('admin:members_memberunconfirmedproxy_changelist')
@@ -2190,18 +2206,17 @@ class KlettertreffAdminTestCase(AdminTestCase):
                                      '_selected_action': [kl.pk for kl in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip('Members are not filtered by group, because group attribute is retrieved from GET data.')
     def test_overview_filtered(self):
         qs = Klettertreff.objects.all()
-        url = reverse('admin:members_klettertreff_changelist')
+        cool_kids = Group.objects.get(name='cool kids')
+        url = reverse('admin:members_klettertreff_changelist') + f"?group__id__exact={cool_kids.pk}"
 
         # expect: success and filtered by group
         c = self._login('superuser')
         response = c.post(url, data={'action': 'overview',
-                                     'group__name': 'cool kids',
                                      '_selected_action': [kl.pk for kl in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertNotContains(response, 'Lulla')
+        self.assertNotContains(response, 'Lise')
 
 
 class GroupAdminTestCase(AdminTestCase):

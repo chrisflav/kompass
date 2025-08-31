@@ -1305,18 +1305,28 @@ class Freizeit(CommonModel):
     @property
     def duration(self):
         # number of nights is number of full days + 1
-        full_days = self.night_count - 1
+        full_days = max(self.night_count - 1, 0)
         extra_days = 0
 
-        if self.date.hour <= 12:
-            extra_days += 1.0
+        if self.date.date() == self.end.date():
+            # excursion starts and ends on the same day
+            hours = max(self.end.hour - self.date.hour, 0)
+            # at least 6 hours counts as full day
+            if hours >= 6:
+                extra_days = 1.0
+            # otherwise half day
+            else:
+                extra_days = 0.5
         else:
-            extra_days += 0.5
+            if self.date.hour <= 12:
+                extra_days += 1.0
+            else:
+                extra_days += 0.5
 
-        if self.end.hour >= 12:
-            extra_days += 1.0
-        else:
-            extra_days += 0.5
+            if self.end.hour >= 12:
+                extra_days += 1.0
+            else:
+                extra_days += 0.5
 
         return full_days + extra_days
 
