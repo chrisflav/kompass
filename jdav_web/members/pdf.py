@@ -4,6 +4,7 @@ import os
 import subprocess
 import time
 import glob
+import logging
 from io import BytesIO
 from pypdf import PdfReader, PdfWriter, PageObject
 from django import template
@@ -14,6 +15,8 @@ from wsgiref.util import FileWrapper
 from contrib.media import media_path, media_dir, serve_media, ensure_media_dir, find_template
 from utils import normalize_filename
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 def serve_pdf(filename_pdf):
@@ -107,8 +110,7 @@ def pdf_add_attachments(pdf_writer, attachments):
             pdf_writer.append(img_pdf_scaled)
         
         except Exception as e:
-            print("Could not add image", fp)
-            print(e)
+            logger.warning(f"Could not add image under filepath {fp}: {e}.")
             
     
 def scale_pdf_page_to_a4(page):

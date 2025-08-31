@@ -291,7 +291,6 @@ def register(request):
             new_member.send_upload_registration_form_link()
             return HttpResponseRedirect(reverse('members:upload_registration_form') + "?key=" + new_member.upload_registration_form_key)
         except ValueError as e:
-            print("value error", e)
             # when input is invalid
             if pwd:
                 return render_register(request, group, form, emergency_contacts_formset, pwd=pwd.password,

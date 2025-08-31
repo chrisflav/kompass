@@ -590,7 +590,6 @@ class Member(Person):
     def send_upload_registration_form_link(self):
         if not self.upload_registration_form_key:
             return
-        print(self.name, self.upload_registration_form_key)
         link = self.get_upload_registration_form_link()
         self.send_mail(_('Upload registration form'),
                        settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
@@ -1579,7 +1578,6 @@ class Freizeit(CommonModel):
                 'Betreuer/in': str(numbers['staff']),
                 'Auswahl Veranstaltung': 'Auswahl2',
                 'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
-        print(members)
         for i, m in enumerate(members):
             suffix = str(' {}'.format(i + 1))
             # indexing starts at zero, but the listing in the pdf starts at 1

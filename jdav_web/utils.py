@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, ROUND_HALF_DOWN
 import unicodedata
+import logging
+logger = logging.getLogger(__name__)
 
 
 def file_size_validator(max_upload_size):
@@ -50,7 +52,7 @@ class RestrictedFileField(models.FileField):
                                         '{}').format(self.max_upload_size,
                                                      f._size))
         except AttributeError as e:
-            print(e)
+            logger.warning(e)
         return data
 
 
