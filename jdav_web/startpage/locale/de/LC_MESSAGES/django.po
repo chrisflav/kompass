@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-08 16:16+0100\n"
+"POT-Creation-Date: 2025-09-07 02:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,7 +48,7 @@ msgstr "Abschnitt"
 msgid "Sections"
 msgstr "Abschnitte"
 
-#: startpage/models.py
+#: startpage/models.py startpage/tests.py
 msgid "deactivated"
 msgstr "deaktiviert"
 
@@ -80,7 +80,7 @@ msgstr "Einträge"
 msgid "file"
 msgstr "Datei"
 
-#: startpage/models.py
+#: startpage/models.py startpage/tests.py
 msgid "Empty"
 msgstr "Leer"
 
@@ -137,6 +137,30 @@ msgid ""
 msgstr ""
 "Dies ist nur ein Platzhalter. Bitte überschreibe diesen Platzhalter wie in "
 "der Dokumentation beschrieben mit einem benutzerdefinierten Text."
+
+#: startpage/templates/startpage/impressum.html
+msgid "Attributions"
+msgstr "Copyright Informationen"
+
+#: startpage/templates/startpage/impressum.html
+msgid "The source code of this website is licensed under"
+msgstr "Der Quelltext dieser Webseite ist lizenziert unter"
+
+#: startpage/templates/startpage/impressum.html
+msgid "Copyright © 2025 JDAV Sektion "
+msgstr "Copyright © 2025 JDAV Sektion "
+
+#: startpage/templates/startpage/impressum.html
+msgid "for the content of this website."
+msgstr "für den Inhalt dieser Webseite."
+
+#: startpage/templates/startpage/impressum.html
+msgid "External assets used on this website:"
+msgstr "Lizenzhinweise für Ressourcen Dritter:"
+
+#: startpage/templates/startpage/impressum.html
+msgid "Background image"
+msgstr "Hintergrundbild"
 
 #~ msgid "Awesome JDAV website being able to do a lot!"
 #~ msgstr "Tolle JDAV Webseite die ganz viel kann!"

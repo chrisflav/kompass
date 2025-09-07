@@ -154,20 +154,6 @@ h6 {
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
 }
 
-/* Links inside the navbar */
-.navbar a.nav {
-  float: right;
-  font-size: 16px;
-  color: black;
-  text-align: center;
-  padding: 11px 17px;
-  text-decoration: none;
-  border: 1px solid black;
-  border-radius: 25px;
-  vertical-align: middle;
-  margin-left: auto;
-}
-
 /* The dropdown container */
 .dropdown {
   float: left;
@@ -176,16 +162,22 @@ h6 {
 
 /* Dropdown button */
 .dropbtn {
-  font-size: 19px;
-  border: none;
-  outline: none;
-  color: black;
-  padding: 14px 16px;
-  background-color: rgba(255, 255, 255, 0);
-  font: inherit; /* Important for vertical align on mobile phones */
-  margin: 0; /* Important for vertical align on mobile phones */
   float: right;
+  font-size: 16px;
+  color: black;
+  text-align: center;
+  padding: 11px 17px;
+  text-decoration: none;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid black;
+  border-radius: 25px;
+  vertical-align: middle;
+  margin-left: auto;
   cursor: pointer;
+}
+
+.dropbtn:hover {
+  background-color: rgba(240, 240, 240, 1.0);
 }
 
 /* Add a red background color to navbar links on hover */
@@ -343,6 +335,10 @@ a, a:visited {
     color: rgba(87,171,39,1.0);
     text-transform: none;
     text-decoration: none;
+}
+
+a.dropbtn {
+  color: black;
 }
 
 .helptext {

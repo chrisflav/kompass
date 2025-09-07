@@ -16,9 +16,9 @@ want to contribute code, please open a [pull request](https://git.jdav-hd.merten
 The following is a short description of where to find the documentation with more information.
 
 
-# Documentation 
+# Documentation
 
-Documentation is handled by [sphinx](https://www.sphinx-doc.org/) and located in `docs/`. 
+Documentation is handled by [sphinx](https://www.sphinx-doc.org/) and located in `docs/`.
 
 The sphinx documentation contains information about:
 - Development Setup
@@ -40,7 +40,14 @@ cd docs/
 make html
 
 # MacOS (with firefox)
-open -a firefox $(pwd)/docs/build/html/index.html 
+open -a firefox $(pwd)/docs/build/html/index.html
 # Linux (I guess?!?)
-firefox ${pwd}/docs/build/html/index.html 
+firefox ${pwd}/docs/build/html/index.html
 ```
+
+# License
+
+This code is licensed under the [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html).
+For the full license text, see `LICENCSE`.
+
+See the `NOTICE.txt` file for attributions.

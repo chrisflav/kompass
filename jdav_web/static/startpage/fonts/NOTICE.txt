@@ -1,0 +1,4 @@
+The fonts in this directory are licensed under the Open Font License (https://openfontlicense.org/).
+
+- Roboto font: https://fonts.google.com/specimen/Roboto
+- Oswald font: https://fonts.google.com/specimen/Oswald

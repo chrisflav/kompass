@@ -1,0 +1,2 @@
+This repository contains third-party assets. Attributions are either placed in the file itself or
+in a file `NOTICE.txt` in the respective folder.

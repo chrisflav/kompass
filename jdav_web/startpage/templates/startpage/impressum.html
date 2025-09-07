@@ -1,8 +1,31 @@
 {% extends "startpage/base_subsite.html" %}
-{% load static %}
+{% load static common i18n %}
 
 {% block content %}
 
 {% include "startpage/impressum_content.html" %}
+
+{% block attribution %}
+<h1>{% trans "Attributions" %}</h1>
+
+<p>
+{% trans "The source code of this website is licensed under" %}
+<a href="https://www.gnu.org/licenses/agpl-3.0.en.html">AGPLv3</a>.
+{% trans "Copyright © 2025 JDAV Sektion " %} {% settings_value 'SEKTION' %}
+{% trans "for the content of this website." %}
+</p>
+
+<p>
+{% trans "External assets used on this website:" %}
+</p>
+
+<ul>
+<li>
+{% trans "Background image" %}:
+<a href="https://commons.wikimedia.org/wiki/File:Alps_Panorama_(4954145205).jpg">Reza</a>, <a href="https://creativecommons.org/licenses/by/2.0">CC BY 2.0</a>, via Wikimedia Commons
+</li>
+</ul>
+
+{% endblock %}
 
 {% endblock %}
