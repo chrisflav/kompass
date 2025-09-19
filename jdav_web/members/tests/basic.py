@@ -1423,6 +1423,28 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         qs = self.admin.get_queryset(request)
         self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
 
+    def test_request_registration_form_invalid(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberunconfirmedproxy_request_registration_form', args=(124,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_request_registration_form_insuficient_permission(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberunconfirmedproxy_request_registration_form', args=(self.reg.pk,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+
+    def test_request_registration_form(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_request_registration_form', args=(self.reg.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Request registration form'))
+
+        response = c.post(url, data={'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
     def test_demote_to_waiter(self):
         c = self._login('superuser')
         url = reverse('admin:members_memberunconfirmedproxy_demote', args=(self.reg.pk,))

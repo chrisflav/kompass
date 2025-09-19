@@ -183,8 +183,7 @@ def echo(request):
             member.save()
             if not member.registration_form:
                 # If the member does not have a registration form, forward them to the upload page.
-                member.generate_upload_registration_form_key()
-                member.send_upload_registration_form_link()
+                member.request_registration_form()
                 return HttpResponseRedirect(reverse('members:upload_registration_form') + "?key=" + member.upload_registration_form_key)
             else:
                 return render_echo_success(request, member.prename)

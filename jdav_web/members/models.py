@@ -595,6 +595,11 @@ class Member(Person):
                        settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
                                                                      link=link))
 
+    def request_registration_form(self):
+        """Ask the member to upload a registration form via email."""
+        self.generate_upload_registration_form_key()
+        self.send_upload_registration_form_link()
+
     def notify_jugendleiters_about_confirmed_mail(self):
         group = ", ".join([g.name for g in self.group.all()])
         # notify jugendleiters of group of registration

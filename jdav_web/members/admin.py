@@ -32,7 +32,7 @@ from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf, render_docx
 from .excel import generate_group_overview, generate_ljp_vbk
 from .models import WEEKDAYS
 
-from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
+from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin, decorate_admin_view
 
 import nested_admin
 
@@ -513,6 +513,11 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
                 wrap(self.demote_to_waiter_view),
                 name="%s_%s_demote" % (self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "<path:object_id>/request_registration_form/",
+                wrap(self.request_registration_form_view),
+                name="%s_%s_request_registration_form" % (self.opts.app_label, self.opts.model_name),
+            ),
         ]
         return custom_urls + urls
 
@@ -544,6 +549,18 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
         for member in queryset:
             member.demote_to_waiter()
             messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': member.name})
+
+    @decorate_admin_view(MemberUnconfirmedProxy)
+    def request_registration_form_view(self, request, member):
+        if "apply" in request.POST:
+            member.request_registration_form()
+            messages.success(request, _("Requested registration form for %(name)s.") % {'name': member.name})
+            return HttpResponseRedirect(reverse('admin:members_memberunconfirmedproxy_change', args=(member.pk,)))
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Request upload registration form'),
+                       opts=self.opts,
+                       member=member)
+        return render(request, 'admin/request_registration_form.html', context=context)
 
     def response_change(self, request, member):
         if "_confirm" in request.POST:
