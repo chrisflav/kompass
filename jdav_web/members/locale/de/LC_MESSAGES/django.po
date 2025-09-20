@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-19 21:35+0200\n"
+"POT-Creation-Date: 2025-09-20 02:43+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -776,6 +776,10 @@ msgstr "Teilnehmer*in"
 #: members/models.py
 msgid "members"
 msgstr "Teilnehmer*innen"
+
+#: members/models.py
+msgid "Registration form"
+msgstr "Anmeldeformular"
 
 #: members/models.py
 msgid "Upload registration form"
@@ -1794,14 +1798,17 @@ msgid "thereof leaders:"
 msgstr "davon Leitung:"
 
 #: members/templates/admin/request_registration_form.html
+#: members/tests/basic.py
 msgid "Request registration form"
 msgstr "Anmeldeformular anfragen"
 
 #: members/templates/admin/request_registration_form.html
+#, python-format
 msgid "Do you want to ask %(member)s to upload their registration form?"
 msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
 
 #: members/templates/admin/request_registration_form.html
+#, python-format
 msgid "Warning: %(member)s has already uploaded a registration form."
 msgstr "Warnung: %(member)s hat bereits ein Anmeldeformular hochgeladen."
 

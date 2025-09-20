@@ -426,7 +426,8 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
          }
         ),
     ]
-    list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail')
+    list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail',
+                    'registration_form_uploaded')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
     readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail',

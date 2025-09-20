@@ -565,6 +565,12 @@ class Member(Person):
             waiter.delete()
         return self.request_mail_confirmation(rerequest=False)
 
+    def registration_form_uploaded(self):
+        print(self.registration_form.name)
+        return not self.registration_form.name is None and self.registration_form.name != ""
+    registration_form_uploaded.boolean = True
+    registration_form_uploaded.short_description = _('Registration form')
+
     def registration_ready(self):
         """Returns if the member is currently unconfirmed and all email addresses
         are confirmed."""
