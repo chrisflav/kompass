@@ -816,6 +816,12 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.ex2.jugendleiter.add(self.fritz)
         self.st = Statement.objects.create(excursion=self.ex2, night_cost=42, subsidy_to=None)
         self.ex2.save()
+        # this excursion is used in the other tests
+        self.ex3 = Freizeit.objects.create(name='Wild trip 3', kilometers_traveled=120,
+                                           tour_type=GEMEINSCHAFTS_TOUR,
+                                           tour_approach=MUSKELKRAFT_ANREISE,
+                                           difficulty=1,
+                                           date=timezone.localtime())
 
     def _setup_test_sjr_application_numbers(self, n_yl, n_b27_local, n_b27_non_local):
         add_memberonlist_by_local(self.ex, n_yl, n_b27_local, n_b27_non_local)
@@ -967,6 +973,34 @@ class FreizeitTestCase(BasicMemberTestCase):
         with self.assertRaises(ValueError) as cm:
             generate_ljp_vbk(self.ex)
         self.assertIn("Excursion has no LJP proposal", str(cm.exception))
+
+    def test_filter_queryset_date_next_n_hours(self):
+        self.ex.date = timezone.now() + timezone.timedelta(hours=12)
+        self.ex.save()
+        self.ex2.date = timezone.now() + timezone.timedelta(hours=36)
+        self.ex2.save()
+        self.ex3.date = timezone.now() - timezone.timedelta(hours=1)
+        self.ex3.save()
+        qs = Freizeit.filter_queryset_date_next_n_hours(24)
+        self.assertIn(self.ex, qs)
+        self.assertNotIn(self.ex2, qs)
+        self.assertNotIn(self.ex3, qs)
+
+    def test_querysets_crisis_intervention_list(self):
+        self.ex.date = timezone.now() + timezone.timedelta(hours=12)
+        self.ex.crisis_intervention_list_sent = False
+        self.ex.save()
+        self.ex2.date = timezone.now() + timezone.timedelta(hours=36)
+        self.ex2.notification_crisis_intervention_list_sent = False
+        self.ex2.save()
+        self.ex3.notification_crisis_intervention_list_sent = True
+        self.ex3.save()
+        to_send = Freizeit.to_send_crisis_intervention_list()
+        to_notify = Freizeit.to_notify_crisis_intervention_list()
+        self.assertIn(self.ex, to_send)
+        self.assertNotIn(self.ex2, to_send)
+        self.assertNotIn(self.ex3, to_send)
+        self.assertIn(self.ex2, to_notify)
 
 
 class PDFActionMixin:

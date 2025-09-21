@@ -1288,6 +1288,23 @@ class Freizeit(CommonModel):
     def code(self):
         return f"B{self.date:%y}-{self.pk}"
 
+    @staticmethod
+    def filter_queryset_date_next_n_hours(hours, queryset=None):
+        if queryset is None:
+            queryset = Freizeit.objects.all()
+        return queryset.filter(date__lte=timezone.now() + timezone.timedelta(hours=hours),
+                               date__gte=timezone.now())
+
+    @staticmethod
+    def to_notify_crisis_intervention_list():
+        qs = Freizeit.objects.filter(notification_crisis_intervention_list_sent=False)
+        return Freizeit.filter_queryset_date_next_n_hours(48, queryset=qs)
+
+    @staticmethod
+    def to_send_crisis_intervention_list():
+        qs = Freizeit.objects.filter(crisis_intervention_list_sent=False)
+        return Freizeit.filter_queryset_date_next_n_hours(24, queryset=qs)
+
     def get_tour_type(self):
         if self.tour_type == FUEHRUNGS_TOUR:
             return "Führungstour"
