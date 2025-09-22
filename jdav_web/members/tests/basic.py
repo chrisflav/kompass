@@ -180,6 +180,14 @@ class MemberTestCase(BasicMemberTestCase):
         self.assertQuerysetEqual(self.fritz.filter_statements_by_permissions(qs),
                                  [st1, st2], ordered=False)
 
+    def test_filter_waiters_by_permissions(self):
+        waiter = MemberWaitingList.objects.create(**WAITER_DATA)
+        MemberWaitingList.objects.create(**WAITER_DATA)
+        InvitationToGroup.objects.create(group=self.alp, waiter=waiter)
+        qs = MemberWaitingList.objects.all()
+        self.assertQuerysetEqual(self.lise.filter_waiters_by_permissions(qs),
+                                 [waiter], ordered=False)
+
     def test_annotate_view_permissions(self):
         qs = Member.objects.all()
         # if the model is not Member, the queryset should not change
@@ -489,6 +497,7 @@ class AdminTestCase(TestCase):
         trainer = create_custom_user('trainer', ['Standard', 'Trainings'], 'Lise', 'Lotte')
         treasurer = create_custom_user('treasurer', ['Standard', 'Finance'], 'Lara', 'Litte')
         materialwarden = create_custom_user('materialwarden', ['Standard', 'Material'], 'Loro', 'Lutte')
+        waitinglistmanager = create_custom_user('waitinglistmanager', ['Standard', 'Waitinglist'], 'Liri', 'Litti')
 
         paul = standard.member
 
@@ -537,6 +546,8 @@ class PermissionTestCase(AdminTestCase):
     def test_standard_permissions(self):
         u = User.objects.get(username='standard')
         self.assertTrue(u.has_perm('members.view_member'))
+        self.assertTrue(u.has_perm('members.view_memberwaitinglist'))
+        self.assertFalse(u.has_perm('members.view_memberwaitinglist_global'))
 
     def test_queryset_standard(self):
         u = User.objects.get(username='standard')
@@ -1330,6 +1341,22 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
         request.user = u
         return request
 
+    def test_has_view_permission(self):
+        request = self.factory.get('/')
+        request.user = User.objects.get(username='standard')
+        self.assertTrue(self.admin.has_view_permission(request))
+        self.assertFalse(self.admin.has_view_permission(request, self.waiter))
+
+    def test_changelist(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        c = self._login('waitinglistmanager')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
     def test_age_eq_birth_date_delta(self):
         queryset = self.admin.get_queryset(self._request())
         today = timezone.now().date()
@@ -1463,11 +1490,12 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
-    def test_request_registration_form_insuficient_permission(self):
+    def test_request_registration_form_insufficient_permission(self):
         c = self._login('standard')
         url = reverse('admin:members_memberunconfirmedproxy_request_registration_form', args=(self.reg.pk,))
         response = c.get(url, follow=True)
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Insufficient permissions.'))
 
     def test_request_registration_form(self):
         c = self._login('superuser')
@@ -1549,10 +1577,8 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         c = self._login('standard')
         url = reverse('admin:members_memberunconfirmedproxy_changelist')
         response = c.get(url)
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
-
-        c = self._login('superuser')
-        response = c.get(url)
+        # By default, standard users may access the member unconfirmed listing (but only view
+        # the relevant registrations)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_response_change_confirm(self):

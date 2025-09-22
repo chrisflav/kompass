@@ -24,7 +24,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
 
-from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion
+from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion,\
+    is_leader_of_relevant_invitation
 from .pdf import render_tex
 import rules
 from contrib.models import CommonModel
@@ -642,6 +643,8 @@ class Member(Person):
             return self.filter_statements_by_permissions(queryset, annotate)
         elif name == "Freizeit":
             return self.filter_excursions_by_permissions(queryset, annotate)
+        elif name == "MemberWaitingList":
+            return self.filter_waiters_by_permissions(queryset, annotate)
         elif name == "LJPProposal":
             return queryset
         elif name == "MemberTraining":
@@ -663,6 +666,8 @@ class Member(Person):
         elif name == "EmergencyContact":
             return queryset
         elif name == "MemberUnconfirmedProxy":
+            return queryset
+        elif name == "InvitationToGroup":
             return queryset
         else:
             raise ValueError(name)
@@ -741,6 +746,12 @@ class Member(Person):
         # one may view all excursions by leited groups and leited excursions
         queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter=self)).distinct()
         return queryset
+
+    def filter_waiters_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
+        # return waiters that have a pending, expired or rejected group invitation for a group
+        # led by the member
+        return queryset.filter(invitationtogroup__group__leiters=self)
 
     def may_list(self, other):
         if self.pk == other.pk:
@@ -930,7 +941,7 @@ def gen_key():
     return uuid.uuid4().hex
 
 
-class InvitationToGroup(models.Model):
+class InvitationToGroup(CommonModel):
     """An invitation of a waiter to a group."""
     waiter = models.ForeignKey('MemberWaitingList', verbose_name=_('Waiter'), on_delete=models.CASCADE)
     group = models.ForeignKey(Group, verbose_name=_('Group'), on_delete=models.CASCADE)
@@ -943,9 +954,15 @@ class InvitationToGroup(models.Model):
                                    on_delete=models.SET_NULL,
                                    related_name='created_group_invitations')
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Invitation to group')
         verbose_name_plural = _('Invitations to groups')
+        rules_permissions = {
+            'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
+            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
+            'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
+            'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
+        }
 
     def is_expired(self):
         return self.date < (timezone.now() - timezone.timedelta(days=30)).date()
@@ -1052,7 +1069,7 @@ class MemberWaitingList(Person):
         permissions = (('may_manage_waiting_list', 'Can view and manage the waiting list.'),)
         rules_permissions = {
             'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
-            'view_obj': has_global_perm('members.view_global_memberwaitinglist'),
+            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
             'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
             'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
         }

@@ -585,7 +585,7 @@ class WaiterInviteTextForm(forms.Form):
             widget=forms.Textarea(attrs={'rows': 30, 'cols': 100}))
 
 
-class InvitationToGroupAdmin(admin.TabularInline):
+class InvitationToGroupAdmin(CommonAdminInlineMixin, admin.TabularInline):
     model = InvitationToGroup
     fields = ['group', 'date', 'status']
     readonly_fields = ['group', 'date', 'status']
@@ -640,6 +640,9 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     def has_add_permission(self, request, obj=None):
         return False
 
+    def has_action_permission(self, request):
+        return request.user.has_perm('members.change_global_memberwaitinglist')
+
     def age(self, obj):
         return obj.birth_date_delta
     age.short_description=_('age')
@@ -652,6 +655,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.success(request,
                     _("Successfully asked %(name)s to confirm their waiting status.") % {'name': waiter.name})
     ask_for_wait_confirmation.short_description = _('Ask selected waiters to confirm their waiting status')
+    ask_for_wait_confirmation.allowed_permissions = ('action',)
 
     def response_change(self, request, waiter):
         ret = super(MemberWaitingListAdmin, self).response_change(request, waiter)
@@ -666,12 +670,14 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             member.request_mail_confirmation()
         messages.success(request, _("Successfully requested mail confirmation from selected waiters."))
     request_mail_confirmation.short_description = _('Request mail confirmation from selected waiters.')
+    request_mail_confirmation.allowed_permissions = ('action',)
 
     def request_required_mail_confirmation(self, request, queryset):
         for member in queryset:
             member.request_mail_confirmation(rerequest=False)
         messages.success(request, _("Successfully re-requested missing mail confirmations from selected waiters."))
     request_required_mail_confirmation.short_description = _('Re-request missing mail confirmations from selected waiters.')
+    request_required_mail_confirmation.allowed_permissions = ('action',)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -711,6 +717,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     def ask_for_registration_action(self, request, queryset):
         return self.invite_view(request, queryset)
     ask_for_registration_action.short_description = _('Offer waiter a place in a group.')
+    ask_for_registration_action.allowed_permissions = ('action',)
 
     def invite_view(self, request, object_id):
         if type(object_id) == str:
