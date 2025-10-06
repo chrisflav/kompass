@@ -47,3 +47,12 @@ jobs:
 
     - name: Run tests
       run: make test-only
+
+    - name: Check coverage
+      run: |
+        COVERAGE=$(python3 -c "import json; data=json.load(open('docker/test/htmlcov/coverage.json')); print(data['totals']['percent_covered'])")
+        echo "Coverage: ${COVERAGE}%"
+        if (( $(echo "$COVERAGE < 100" | bc -l) )); then
+          echo "Error: Coverage is ${COVERAGE}%, must be 100%"
+          exit 1
+        fi
