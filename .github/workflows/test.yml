@@ -46,8 +46,4 @@ jobs:
         mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
     - name: Run tests
-      run: |
-        mkdir -p docker/test/htmlcov
-        chmod 777 docker/test/htmlcov
-        cd docker/test
-        docker compose up --abort-on-container-exit
+      run: make test-only
