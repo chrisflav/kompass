@@ -123,7 +123,7 @@ Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV {% se
             {% if link.icon %}
                 <img src="{{ link.icon.url }}" alt="">
                 {% else %}
-                <img src="{% static 'admin/img/favicon.png' %}" style="transform: scale(0.8);" alt="">
+                <img src="{% static 'admin/img/favicon.svg' %}" style="transform: scale(0.8);" alt="">
                 {% endif %}
             <div class="icon-text">
                 <span class="icon-title">{{ link.title }}</span>
@@ -134,7 +134,7 @@ Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV {% se
         {% endfor %}
 
         <a href="{% settings_value 'DOCS_LINK' %}" class="icon-item" target="_blank">
-            <img src="{% static 'admin/img/favicon.png' %}" style="transform: scale(0.8);" alt="">
+            <img src="{% static 'admin/img/favicon.svg' %}" style="transform: scale(0.8);" alt="">
             <div class="icon-text">
                 <span class="icon-title">Kompass-Dokumentation</span>
                 <span class="icon-subtext">Anleitung zur Benutzung des Kompasses</span>
