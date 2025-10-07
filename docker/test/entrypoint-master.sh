@@ -44,3 +44,5 @@ else
     coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin jdav_web -v 2 --noinput
 fi
 coverage html
+coverage json -o htmlcov/coverage.json
+coverage report

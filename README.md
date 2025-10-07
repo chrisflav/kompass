@@ -1,6 +1,6 @@
 # jdav Kompass
 
-[![Build Status](https://jenkins.merten.dev/buildStatus/icon?job=gitea%2Fkompass%2Fmain)](https://jenkins.merten.dev/job/gitea/job/kompass/job/main/)
+![Build Status](https://github.com/chrisflav/kompass/actions/workflows/test.yml/badge.svg?branch=main)
 
 Kompass is an administration platform designed for local sections of the Young German Alpine Club. It provides
 tools to contact and (automatically) manage members, groups, material, excursions and statements.
