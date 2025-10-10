@@ -2041,7 +2041,7 @@ class TrainingCategory(models.Model):
 class MemberTraining(CommonModel):
     """Represents a training planned or attended by a member."""
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs')
-    title = models.CharField(verbose_name=_('Title'), max_length=30)
+    title = models.CharField(verbose_name=_('Title'), max_length=150)
     date = models.DateField(verbose_name=_('Date'), null=True, blank=True)
     category = models.ForeignKey(TrainingCategory, on_delete=models.PROTECT, verbose_name=_('Category'))
     activity = models.ManyToManyField(ActivityCategory, verbose_name=_('Activity'))
