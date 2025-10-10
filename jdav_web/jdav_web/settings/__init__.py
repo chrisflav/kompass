@@ -58,6 +58,7 @@ base_settings = [
     'components/emails.py',
     'components/texts.py',
     'components/locale.py',
+    'components/logging.py',
     'components/oauth.py',
 ]
 

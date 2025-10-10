@@ -133,3 +133,6 @@ jdav_web/static/docs
 
 # mac files
 .DS_Store
+
+# Claude configuration file
+CLAUDE.md

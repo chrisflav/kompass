@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-25 18:44+0200\n"
+"POT-Creation-Date: 2025-09-20 02:43+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -174,7 +174,7 @@ msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 msgid "Request mail confirmation from selected registrations"
 msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
 
-#: members/admin.py
+#: members/admin.py members/tests/basic.py
 msgid ""
 "Successfully re-requested missing mail confirmations from selected "
 "registrations."
@@ -225,6 +225,15 @@ msgstr "Ausgewählte Registrierung zurück auf die Warteliste setzen."
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
+
+#: members/admin.py
+#, python-format
+msgid "Requested registration form for %(name)s."
+msgstr "Anmeldeformular für %(name)s angefragt."
+
+#: members/admin.py
+msgid "Request upload registration form"
+msgstr "Anmeldeformular anfragen"
 
 #: members/admin.py members/models.py
 msgid "Group"
@@ -280,7 +289,7 @@ msgstr ""
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
 
-#: members/admin.py
+#: members/admin.py members/tests/basic.py
 msgid "A waiter with this ID does not exist."
 msgstr "Es existiert keine wartende Person mit dieser ID."
 
@@ -468,7 +477,7 @@ msgstr ""
 "Keine Abrechnung angelegt. Bitte lege eine Abrechnung and und versuche es "
 "erneut."
 
-#: members/admin.py
+#: members/admin.py members/tests/basic.py
 msgid ""
 "The configured recipients of the allowance don't match the regulations. "
 "Please correct this and try again."
@@ -476,7 +485,7 @@ msgstr ""
 "Die ausgewählten Empfänger*innen der Aufwandsentschädigung stimmen nicht mit "
 "den Richtlinien überein. Bitte korrigiere das und versuche es erneut. "
 
-#: members/admin.py
+#: members/admin.py members/tests/basic.py
 msgid ""
 "The excursion is configured to claim LJP contributions. In that case, for "
 "all bills, a proof must be uploaded. Please correct this and try again."
@@ -796,12 +805,20 @@ msgid "Good conduct certificate valid"
 msgstr "Führungszeugnis gültig"
 
 #: members/models.py
+msgid "Registration complete"
+msgstr "Anmeldung vollständig"
+
+#: members/models.py
 msgid "member"
 msgstr "Teilnehmer*in"
 
 #: members/models.py
 msgid "members"
 msgstr "Teilnehmer*innen"
+
+#: members/models.py
+msgid "Registration form"
+msgstr "Anmeldeformular"
 
 #: members/models.py
 msgid "Upload registration form"
@@ -1281,19 +1298,25 @@ msgstr "Fortbildungen"
 #: members/templates/admin/invite_for_group_text.html
 #: members/templates/admin/invite_selected_as_user.html
 #: members/templates/admin/invite_selected_for_group.html
+#: members/templates/admin/request_registration_form.html
+#: members/templates/admin/request_registratoin_form.html
 msgid "Home"
 msgstr "Start"
 
 #: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/request_registration_form.html
+#: members/templates/admin/request_registratoin_form.html
 msgid "Demote to waiter"
 msgstr "Zurück auf die Warteliste setzen"
 
 #: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/request_registratoin_form.html
 msgid ""
 "Do you want to demote the following unconfirmed registrations to waiters?"
 msgstr "Möchtest du die folgenden Personen zurück auf die Warteliste setzen?"
 
 #: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/request_registratoin_form.html
 msgid "Demote"
 msgstr "Zurück auf die Warteliste setzen"
 
@@ -1304,6 +1327,8 @@ msgstr "Zurück auf die Warteliste setzen"
 #: members/templates/admin/invite_for_group.html
 #: members/templates/admin/invite_selected_as_user.html
 #: members/templates/admin/invite_selected_for_group.html
+#: members/templates/admin/request_registration_form.html
+#: members/templates/admin/request_registratoin_form.html
 msgid "Cancel"
 msgstr "Abbrechen"
 
@@ -1811,6 +1836,21 @@ msgstr "Anzahl Personen:"
 msgid "thereof leaders:"
 msgstr "davon Leitung:"
 
+#: members/templates/admin/request_registration_form.html
+#: members/tests/basic.py
+msgid "Request registration form"
+msgstr "Anmeldeformular anfragen"
+
+#: members/templates/admin/request_registration_form.html
+#, python-format
+msgid "Do you want to ask %(member)s to upload their registration form?"
+msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
+
+#: members/templates/admin/request_registration_form.html
+#, python-format
+msgid "Warning: %(member)s has already uploaded a registration form."
+msgstr "Warnung: %(member)s hat bereits ein Anmeldeformular hochgeladen."
+
 #: members/templates/members/change_member.html
 msgid "Participations:"
 msgstr "Ausfahrtteilnahmen:"
@@ -1833,10 +1873,11 @@ msgstr "Teilnahme bestätigen"
 
 #: members/templates/members/confirm_invalid.html
 #: members/templates/members/reject_invalid.html members/tests/basic.py
+#: members/tests/views.py
 msgid "This invitation is invalid or expired."
 msgstr "Diese Einladung ist ungültig oder abgelaufen."
 
-#: members/templates/members/confirm_invitation.html
+#: members/templates/members/confirm_invitation.html members/tests/views.py
 msgid "Confirm trial group meeting invitation"
 msgstr "Teilnahme bestätigen"
 
@@ -1858,7 +1899,7 @@ msgstr ""
 msgid "Confirm trial group meeting"
 msgstr "Teilnahme bestätigen"
 
-#: members/templates/members/confirm_success.html
+#: members/templates/members/confirm_success.html members/tests/views.py
 msgid "Invitation confirmed"
 msgstr "Teilnahme bestätigt"
 
@@ -1953,7 +1994,7 @@ msgstr ""
 "Jugendleiter nach einem korrekten Passwort."
 
 #: members/templates/members/invited_registration_failed.html
-#: members/templates/members/register_failed.html
+#: members/templates/members/register_failed.html members/tests/basic.py
 msgid "Registration failed"
 msgstr "Registrierung fehlgeschlagen"
 
@@ -2358,6 +2399,15 @@ msgstr "Optionale zusätzliche E-Mailadresse"
 #: members/views.py
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
+
+#~ msgid "True"
+#~ msgstr "Ja"
+
+#~ msgid "False"
+#~ msgstr "Nein"
+
+#~ msgid "All"
+#~ msgstr "Alle"
 
 #~ msgid "Inform youth leaders about sending of crisis intervention list."
 #~ msgstr ""

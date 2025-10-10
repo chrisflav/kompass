@@ -2,6 +2,7 @@ from unittest import skip
 from django.test import TestCase
 from django.utils import timezone
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 from finance.models import Statement, StatementUnSubmitted, StatementSubmitted, Bill, Ledger, Transaction,\
         StatementUnSubmittedManager, StatementSubmittedManager, StatementConfirmedManager,\
@@ -59,13 +60,35 @@ class StatementTestCase(TestCase):
             if i < self.allowance_to_count:
                 self.st3.allowance_to.add(m)
 
+        # Create a small excursion with < 5 theoretic LJP participants for LJP contribution test
+        small_ex = Freizeit.objects.create(name='Small trip', kilometers_traveled=100,
+                                         tour_type=GEMEINSCHAFTS_TOUR,
+                                         tour_approach=MUSKELKRAFT_ANREISE,
+                                         difficulty=1)
+        # Add only 3 participants (< 5 for theoretic_ljp_participant_count)
+        for i in range(3):
+            # Create young participants (< 6 years old) so they don't count toward LJP
+            birth_date = timezone.now().date() - relativedelta(years=4)
+            m = Member.objects.create(prename='Small {}'.format(i), lastname='Participant',
+                                    birth_date=birth_date,
+                                    email=settings.TEST_MAIL, gender=MALE)
+            NewMemberOnList.objects.create(member=m, memberlist=small_ex)
+
+        # Create LJP proposal for the small excursion
+        ljp_proposal = LJPProposal.objects.create(title='Small LJP', category=LJPProposal.LJP_STAFF_TRAINING)
+        small_ex.ljpproposal = ljp_proposal
+        small_ex.save()
+
+        self.st_small = Statement.objects.create(night_cost=10, excursion=small_ex)
+
         ex = Freizeit.objects.create(name='Wild trip 2', kilometers_traveled=self.kilometers_traveled,
                                      tour_type=GEMEINSCHAFTS_TOUR,
                                      tour_approach=MUSKELKRAFT_ANREISE,
                                      difficulty=2)
         self.st4 = Statement.objects.create(night_cost=self.night_cost, excursion=ex, subsidy_to=self.fritz)
         for i in range(2):
-            m = Member.objects.create(prename='Peter {}'.format(i), lastname='Walter', birth_date=timezone.now().date(),
+            m = Member.objects.create(prename='Peter {}'.format(i), lastname='Walter',
+                                      birth_date=timezone.now().date() - relativedelta(years=30),
                                       email=settings.TEST_MAIL, gender=DIVERSE)
             mol = NewMemberOnList.objects.create(member=m, memberlist=ex)
             ex.membersonlist.add(mol)
@@ -407,6 +430,63 @@ class StatementTestCase(TestCase):
         context = self.st3.template_context()
         self.assertIn('euro_per_km', context)
         self.assertIsInstance(context['euro_per_km'], (int, float, Decimal))
+
+    def test_title_with_excursion(self):
+        title = self.st3.title
+        self.assertIn('Wild trip', title)
+
+    def test_transaction_issues_with_org_fee(self):
+        issues = self.st4.transaction_issues
+        self.assertIsInstance(issues, list)
+
+    def test_transaction_issues_with_ljp(self):
+        self.st3.ljp_to = self.fritz
+        self.st3.save()
+        issues = self.st3.transaction_issues
+        self.assertIsInstance(issues, list)
+
+    def test_generate_transactions_org_fee(self):
+        # Ensure conditions for org fee are met: need subsidy_to or allowances
+        # and participants >= 27 years old
+        self.st4.subsidy_to = self.fritz
+        self.st4.save()
+
+        # Verify org fee is calculated
+        self.assertGreater(self.st4.total_org_fee, 0, "Org fee should be > 0 with subsidies and old participants")
+
+        initial_count = Transaction.objects.count()
+        self.st4.generate_transactions()
+        final_count = Transaction.objects.count()
+        self.assertGreater(final_count, initial_count)
+        org_fee_transaction = Transaction.objects.filter(statement=self.st4,
+                                                         reference__icontains=_('reduced by org fee')).first()
+        self.assertIsNotNone(org_fee_transaction)
+
+    def test_generate_transactions_ljp(self):
+        self.st3.ljp_to = self.fritz
+        self.st3.save()
+        initial_count = Transaction.objects.count()
+        self.st3.generate_transactions()
+        final_count = Transaction.objects.count()
+        self.assertGreater(final_count, initial_count)
+        ljp_transaction = Transaction.objects.filter(statement=self.st3, member=self.fritz, reference__icontains='LJP').first()
+        self.assertIsNotNone(ljp_transaction)
+
+    def test_subsidies_paid_property(self):
+        subsidies_paid = self.st3.subsidies_paid
+        expected = self.st3.total_subsidies - self.st3.total_org_fee
+        self.assertEqual(subsidies_paid, expected)
+
+    def test_ljp_contributions_low_participant_count(self):
+        self.st_small.ljp_to = self.fritz
+        self.st_small.save()
+
+        # Verify that the small excursion has < 5 theoretic LJP participants
+        self.assertLess(self.st_small.excursion.theoretic_ljp_participant_count, 5,
+                        "Should have < 5 theoretic LJP participants")
+
+        ljp_contrib = self.st_small.paid_ljp_contributions
+        self.assertEqual(ljp_contrib, 0)
 
 
 class LedgerTestCase(TestCase):

@@ -1,7 +1,11 @@
 from django.core import mail
 from django.core.mail import EmailMessage
 from django.conf import settings
+import logging
 import os
+
+
+logger = logging.getLogger(__name__)
 
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
@@ -41,7 +45,7 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
         # send all mails with one connection
         connection.send_messages(mails)
     except Exception as e:
-        print("Error when sending mail:", e)
+        logger.error(f"Caught exception while sending email: {e}")
         failed = True
     else:
         succeeded = True

@@ -39,8 +39,8 @@ fi
 cd jdav_web
 
 if [[ "$DJANGO_TEST_KEEPDB" == 1 ]]; then
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin -v 2 --noinput --keepdb
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin jdav_web -v 2 --noinput --keepdb
 else
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin -v 2 --noinput
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin jdav_web -v 2 --noinput
 fi
 coverage html

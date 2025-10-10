@@ -24,7 +24,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
 
-from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion
+from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion,\
+    is_leader_of_relevant_invitation
 from .pdf import render_tex
 import rules
 from contrib.models import CommonModel
@@ -565,6 +566,12 @@ class Member(Person):
             waiter.delete()
         return self.request_mail_confirmation(rerequest=False)
 
+    def registration_form_uploaded(self):
+        print(self.registration_form.name)
+        return not self.registration_form.name is None and self.registration_form.name != ""
+    registration_form_uploaded.boolean = True
+    registration_form_uploaded.short_description = _('Registration form')
+
     def registration_ready(self):
         """Returns if the member is currently unconfirmed and all email addresses
         are confirmed."""
@@ -590,11 +597,15 @@ class Member(Person):
     def send_upload_registration_form_link(self):
         if not self.upload_registration_form_key:
             return
-        print(self.name, self.upload_registration_form_key)
         link = self.get_upload_registration_form_link()
         self.send_mail(_('Upload registration form'),
                        settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
                                                                      link=link))
+
+    def request_registration_form(self):
+        """Ask the member to upload a registration form via email."""
+        self.generate_upload_registration_form_key()
+        self.send_upload_registration_form_link()
 
     def notify_jugendleiters_about_confirmed_mail(self):
         group = ", ".join([g.name for g in self.group.all()])
@@ -632,6 +643,8 @@ class Member(Person):
             return self.filter_statements_by_permissions(queryset, annotate)
         elif name == "Freizeit":
             return self.filter_excursions_by_permissions(queryset, annotate)
+        elif name == "MemberWaitingList":
+            return self.filter_waiters_by_permissions(queryset, annotate)
         elif name == "LJPProposal":
             return queryset
         elif name == "MemberTraining":
@@ -653,6 +666,8 @@ class Member(Person):
         elif name == "EmergencyContact":
             return queryset
         elif name == "MemberUnconfirmedProxy":
+            return queryset
+        elif name == "InvitationToGroup":
             return queryset
         else:
             raise ValueError(name)
@@ -731,6 +746,12 @@ class Member(Person):
         # one may view all excursions by leited groups and leited excursions
         queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter=self)).distinct()
         return queryset
+
+    def filter_waiters_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
+        # return waiters that have a pending, expired or rejected group invitation for a group
+        # led by the member
+        return queryset.filter(invitationtogroup__group__leiters=self)
 
     def may_list(self, other):
         if self.pk == other.pk:
@@ -920,7 +941,7 @@ def gen_key():
     return uuid.uuid4().hex
 
 
-class InvitationToGroup(models.Model):
+class InvitationToGroup(CommonModel):
     """An invitation of a waiter to a group."""
     waiter = models.ForeignKey('MemberWaitingList', verbose_name=_('Waiter'), on_delete=models.CASCADE)
     group = models.ForeignKey(Group, verbose_name=_('Group'), on_delete=models.CASCADE)
@@ -933,9 +954,15 @@ class InvitationToGroup(models.Model):
                                    on_delete=models.SET_NULL,
                                    related_name='created_group_invitations')
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Invitation to group')
         verbose_name_plural = _('Invitations to groups')
+        rules_permissions = {
+            'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
+            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
+            'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
+            'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
+        }
 
     def is_expired(self):
         return self.date < (timezone.now() - timezone.timedelta(days=30)).date()
@@ -1042,7 +1069,7 @@ class MemberWaitingList(Person):
         permissions = (('may_manage_waiting_list', 'Can view and manage the waiting list.'),)
         rules_permissions = {
             'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
-            'view_obj': has_global_perm('members.view_global_memberwaitinglist'),
+            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
             'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
             'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
         }
@@ -1278,6 +1305,23 @@ class Freizeit(CommonModel):
     def code(self):
         return f"B{self.date:%y}-{self.pk}"
 
+    @staticmethod
+    def filter_queryset_date_next_n_hours(hours, queryset=None):
+        if queryset is None:
+            queryset = Freizeit.objects.all()
+        return queryset.filter(date__lte=timezone.now() + timezone.timedelta(hours=hours),
+                               date__gte=timezone.now())
+
+    @staticmethod
+    def to_notify_crisis_intervention_list():
+        qs = Freizeit.objects.filter(notification_crisis_intervention_list_sent=False)
+        return Freizeit.filter_queryset_date_next_n_hours(48, queryset=qs)
+
+    @staticmethod
+    def to_send_crisis_intervention_list():
+        qs = Freizeit.objects.filter(crisis_intervention_list_sent=False)
+        return Freizeit.filter_queryset_date_next_n_hours(24, queryset=qs)
+
     def get_tour_type(self):
         if self.tour_type == FUEHRUNGS_TOUR:
             return "Führungstour"
@@ -1305,18 +1349,28 @@ class Freizeit(CommonModel):
     @property
     def duration(self):
         # number of nights is number of full days + 1
-        full_days = self.night_count - 1
+        full_days = max(self.night_count - 1, 0)
         extra_days = 0
 
-        if self.date.hour <= 12:
-            extra_days += 1.0
+        if self.date.date() == self.end.date():
+            # excursion starts and ends on the same day
+            hours = max(self.end.hour - self.date.hour, 0)
+            # at least 6 hours counts as full day
+            if hours >= 6:
+                extra_days = 1.0
+            # otherwise half day
+            else:
+                extra_days = 0.5
         else:
-            extra_days += 0.5
+            if self.date.hour <= 12:
+                extra_days += 1.0
+            else:
+                extra_days += 0.5
 
-        if self.end.hour >= 12:
-            extra_days += 1.0
-        else:
-            extra_days += 0.5
+            if self.end.hour >= 12:
+                extra_days += 1.0
+            else:
+                extra_days += 0.5
 
         return full_days + extra_days
 
@@ -1569,7 +1623,6 @@ class Freizeit(CommonModel):
                 'Betreuer/in': str(numbers['staff']),
                 'Auswahl Veranstaltung': 'Auswahl2',
                 'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
-        print(members)
         for i, m in enumerate(members):
             suffix = str(' {}'.format(i + 1))
             # indexing starts at zero, but the listing in the pdf starts at 1

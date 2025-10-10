@@ -77,7 +77,7 @@ class MemberRegistrationWaitingListForm(ModelForm):
             'prename': _('Prename of the member.'),
             'lastname': _('Lastname of the member.'),
         }
-        required = []
+        required = ['birth_date']
 
 
 class EmergencyContactForm(ModelForm):
@@ -183,8 +183,7 @@ def echo(request):
             member.save()
             if not member.registration_form:
                 # If the member does not have a registration form, forward them to the upload page.
-                member.generate_upload_registration_form_key()
-                member.send_upload_registration_form_link()
+                member.request_registration_form()
                 return HttpResponseRedirect(reverse('members:upload_registration_form') + "?key=" + member.upload_registration_form_key)
             else:
                 return render_echo_success(request, member.prename)
@@ -291,7 +290,6 @@ def register(request):
             new_member.send_upload_registration_form_link()
             return HttpResponseRedirect(reverse('members:upload_registration_form') + "?key=" + new_member.upload_registration_form_key)
         except ValueError as e:
-            print("value error", e)
             # when input is invalid
             if pwd:
                 return render_register(request, group, form, emergency_contacts_formset, pwd=pwd.password,
@@ -319,7 +317,6 @@ def download_registration_form(request):
         return render_download_registration_form(request, member)
     except Member.DoesNotExist:
         return render_upload_registration_form_invalid(request)
-    return render_upload_registration_form_invalid(request)
 
 
 def render_upload_registration_form_invalid(request):
@@ -364,7 +361,6 @@ def upload_registration_form(request):
         return render_upload_registration_form_success(request, member)
     except ValueError as e:
         return render_upload_registration_form(request, member, form, key)
-    return render_upload_registration_form_invalid(request)
 
 
 def confirm_mail(request):

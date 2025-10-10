@@ -32,7 +32,7 @@ from .pdf import render_tex, fill_pdf_form, merge_pdfs, serve_pdf, render_docx
 from .excel import generate_group_overview, generate_ljp_vbk
 from .models import WEEKDAYS
 
-from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
+from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin, decorate_admin_view
 
 import nested_admin
 
@@ -135,44 +135,6 @@ class TrainingCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'permission_needed')
     ordering = ('name', )
 
-
-class RegistrationFilter(admin.SimpleListFilter):
-    title = _('Registration complete')
-    parameter_name = 'registration_complete'
-    default_value = ('All', None)
-
-    def lookups(self, request, model_admin):
-        return (
-            ('True', _('True')),
-            ('False', _('False')),
-            ('All', _('All'))
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'True':
-            return queryset.filter(registration_complete=True)
-        elif self.value() == 'False':
-            return queryset.filter(registration_complete=False)
-        elif self.value() is None:
-            if self.default_value[1] is None:
-                return queryset
-            else:
-                return queryset.filter(registration_complete=self.default_value[1])
-        elif self.value() == 'All':
-            return queryset
-
-    def choices(self, cl):
-        for lookup, title in self.lookup_choices:
-            yield {
-                'selected':
-                    self.value() == lookup or
-                    (self.value() is None and lookup == self.default_value[0]),
-                'query_string': cl.get_query_string({
-                                    self.parameter_name:
-                                    lookup,
-                                }, []),
-                'display': title
-            }
 
 class MemberAdminForm(forms.ModelForm):
 
@@ -471,7 +433,8 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
          }
         ),
     ]
-    list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail')
+    list_display = ('name', 'birth_date', 'age', 'get_group', 'confirmed_mail', 'confirmed_alternative_mail',
+                    'registration_form_uploaded')
     search_fields = ('prename', 'lastname', 'email')
     list_filter = ('group', 'confirmed_mail', 'confirmed_alternative_mail')
     readonly_fields = ['confirmed_mail', 'confirmed_alternative_mail',
@@ -525,13 +488,15 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
         notify_individual = len(queryset.all()) < 10
         success = True
         for member in queryset:
-            if member.confirm() and notify_individual:
-                messages.success(request, _("Successfully confirmed %(name)s.") % {'name': member.name})
-            else:
-                if notify_individual:
+            confirmed = member.confirm()
+            if not confirmed:
+                success = False
+            if notify_individual:
+                if confirmed:
+                    messages.success(request, _("Successfully confirmed %(name)s.") % {'name': member.name})
+                else:
                     messages.error(request,
                             _("Can't confirm. %(name)s has unconfirmed email addresses.") % {'name': member.name})
-                success = False
         if notify_individual:
             return
         if success:
@@ -555,6 +520,11 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
                 "<path:object_id>/demote/",
                 wrap(self.demote_to_waiter_view),
                 name="%s_%s_demote" % (self.opts.app_label, self.opts.model_name),
+            ),
+            path(
+                "<path:object_id>/request_registration_form/",
+                wrap(self.request_registration_form_view),
+                name="%s_%s_request_registration_form" % (self.opts.app_label, self.opts.model_name),
             ),
         ]
         return custom_urls + urls
@@ -588,6 +558,18 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
             member.demote_to_waiter()
             messages.success(request, _("Successfully demoted %(name)s to waiter.") % {'name': member.name})
 
+    @decorate_admin_view(MemberUnconfirmedProxy)
+    def request_registration_form_view(self, request, member):
+        if "apply" in request.POST:
+            member.request_registration_form()
+            messages.success(request, _("Requested registration form for %(name)s.") % {'name': member.name})
+            return HttpResponseRedirect(reverse('admin:members_memberunconfirmedproxy_change', args=(member.pk,)))
+        context = dict(self.admin_site.each_context(request),
+                       title=_('Request upload registration form'),
+                       opts=self.opts,
+                       member=member)
+        return render(request, 'admin/request_registration_form.html', context=context)
+
     def response_change(self, request, member):
         if "_confirm" in request.POST:
             if member.confirm():
@@ -610,7 +592,7 @@ class WaiterInviteTextForm(forms.Form):
             widget=forms.Textarea(attrs={'rows': 30, 'cols': 100}))
 
 
-class InvitationToGroupAdmin(admin.TabularInline):
+class InvitationToGroupAdmin(CommonAdminInlineMixin, admin.TabularInline):
     model = InvitationToGroup
     fields = ['group', 'date', 'status']
     readonly_fields = ['group', 'date', 'status']
@@ -665,6 +647,9 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     def has_add_permission(self, request, obj=None):
         return False
 
+    def has_action_permission(self, request):
+        return request.user.has_perm('members.change_global_memberwaitinglist')
+
     def age(self, obj):
         return obj.birth_date_delta
     age.short_description=_('age')
@@ -677,6 +662,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.success(request,
                     _("Successfully asked %(name)s to confirm their waiting status.") % {'name': waiter.name})
     ask_for_wait_confirmation.short_description = _('Ask selected waiters to confirm their waiting status')
+    ask_for_wait_confirmation.allowed_permissions = ('action',)
 
     def response_change(self, request, waiter):
         ret = super(MemberWaitingListAdmin, self).response_change(request, waiter)
@@ -691,12 +677,14 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             member.request_mail_confirmation()
         messages.success(request, _("Successfully requested mail confirmation from selected waiters."))
     request_mail_confirmation.short_description = _('Request mail confirmation from selected waiters.')
+    request_mail_confirmation.allowed_permissions = ('action',)
 
     def request_required_mail_confirmation(self, request, queryset):
         for member in queryset:
             member.request_mail_confirmation(rerequest=False)
         messages.success(request, _("Successfully re-requested missing mail confirmations from selected waiters."))
     request_required_mail_confirmation.short_description = _('Re-request missing mail confirmations from selected waiters.')
+    request_required_mail_confirmation.allowed_permissions = ('action',)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -736,6 +724,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     def ask_for_registration_action(self, request, queryset):
         return self.invite_view(request, queryset)
     ask_for_registration_action.short_description = _('Offer waiter a place in a group.')
+    ask_for_registration_action.allowed_permissions = ('action',)
 
     def invite_view(self, request, object_id):
         if type(object_id) == str:
@@ -1385,13 +1374,13 @@ class KlettertreffAdmin(admin.ModelAdmin):
     inlines = [KlettertreffAttendeeInline]
     list_display = ['__str__', 'date', 'get_jugendleiter']
     search_fields = ('date', 'location', 'topic')
-    list_filter = [('date', DateFieldListFilter), 'group__name']
+    list_filter = [('date', DateFieldListFilter), 'group']
     actions = ['overview']
 
     def overview(self, request, queryset):
-        group = request.GET.get('group__name')
+        group = request.GET.get('group__id__exact')
         if group != None:
-            members = Member.objects.filter(group__name__contains=group)
+            members = Member.objects.filter(group=group)
         else:
             members = Member.objects.all()
         context = {

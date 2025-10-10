@@ -12,6 +12,26 @@ import rules.contrib.admin
 from rules.permissions import perm_exists
 
 
+def decorate_admin_view(model, perm=None):
+    """
+    Decorator for wrapping admin views.
+    """
+    def decorator(fun):
+        def aux(self, request, object_id):
+            try:
+                obj = model.objects.get(pk=object_id)
+            except model.DoesNotExist:
+                messages.error(request, _('%(modelname)s not found.') % {'modelname': self.opts.verbose_name})
+                return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+            permitted = self.has_change_permission(request, obj) if not perm else request.user.has_perm(perm)
+            if not permitted:
+                messages.error(request, _('Insufficient permissions.'))
+                return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
+            return fun(self, request, obj)
+        return aux
+    return decorator
+
+
 class FieldPermissionsAdminMixin:
     field_change_permissions = {}
     field_view_permissions = {}

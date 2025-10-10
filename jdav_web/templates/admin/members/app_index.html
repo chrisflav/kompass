@@ -50,7 +50,7 @@ Hier siehst du alle von dir geleiteten Ausfahrten und für dich sichtbare Teilne
 <div class="app-members module current-app">
 <h2>Neue Mitglieder</h2>
 <p>
-{% if perms.member.may_manage_waiting_list %}
+{% if perms.members.view_global_memberwaitinglist %}
 Um ein neues Mitglied anzulegen, muss sich die Person
 <a href="{% url 'members:register_waiting_list' %}">anmelden</a>. Daraufhin landet
 sie auf der <a href="{% url 'admin:members_memberwaitinglist_changelist' %}">Warteliste</a>. Eine
@@ -59,6 +59,8 @@ Diese Einladung enthält einen Registrierungslink zu einem Formular in dem die P
 Stammdaten eingbit. Diese Daten landen dann unter
 <a href="{% url 'admin:members_memberunconfirmedproxy_changelist' %}">Unbestätigte Registrierungen</a>.
 {% else %}
+Neue Teilnehmer:innen für deine Gruppen werden auf Anfrage von der Warteliste eingeladen. Die ausstehenden
+Einladungen für deine Gruppe siehst du unter Warteliste.<br>
 Ob über die Warteliste oder über ein Registrierungspasswort,
 liegt eine neue Registrierung für eine von dir geleitete Jugendgruppe vor, kannst du die hier einsehen
 und die Daten prüfen. Falls die Daten vollständig sind, bestätige die Registrierung um die Person in deine
@@ -66,7 +68,7 @@ Jugendgruppe aufzunehmen.
 {% endif %}
 </p>
 <table>
-    {% if perms.member.may_manage_waiting_list %}
+    {% if perms.members.view_memberwaitinglist %}
     <tr>
         <th scope="row">
             <a href="{% url 'admin:members_memberwaitinglist_changelist' %}">Warteliste</a>
