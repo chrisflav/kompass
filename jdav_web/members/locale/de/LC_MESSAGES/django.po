@@ -1266,8 +1266,6 @@ msgid "certificate of attendance"
 msgstr "Teilnahmebestätigung"
 
 #: members/models.py
-#, fuzzy
-#| msgid "date"
 msgid "(no date)"
 msgstr "(ohne Datum)"
 
@@ -2349,10 +2347,8 @@ msgstr ""
 "Dein Platz wurde bestätigt."
 
 #: members/tests/basic.py
-#, fuzzy
-#| msgid "Group permissions"
 msgid "Insufficient permissions."
-msgstr "Gruppenberechtigungen"
+msgstr "Unzureichende Berechtigungen."
 
 #: members/tests/basic.py
 msgid "This field is required."
