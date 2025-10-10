@@ -2093,14 +2093,14 @@ class TrainingCategory(models.Model):
 
 class MemberTraining(CommonModel):
     """Represents a training planned or attended by a member."""
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs')
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs', verbose_name=_('Member'))
     title = models.CharField(verbose_name=_('Title'), max_length=150)
     date = models.DateField(verbose_name=_('Date'), null=True, blank=True)
     category = models.ForeignKey(TrainingCategory, on_delete=models.PROTECT, verbose_name=_('Category'))
     activity = models.ManyToManyField(ActivityCategory, verbose_name=_('Activity'))
     comments = models.TextField(verbose_name=_('Comments'), blank=True)
-    participated = models.BooleanField(verbose_name=_('Participated'))
-    passed = models.BooleanField(verbose_name=_('Passed'))
+    participated = models.BooleanField(verbose_name=_('Participated'), null=True)
+    passed = models.BooleanField(verbose_name=_('Passed'), null=True)
     certificate = RestrictedFileField(verbose_name=_('certificate of attendance'),
                                       upload_to='training_forms',
                                       blank=True,

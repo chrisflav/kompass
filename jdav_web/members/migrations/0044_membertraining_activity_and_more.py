@@ -24,4 +24,19 @@ class Migration(migrations.Migration):
             name='title',
             field=models.CharField(max_length=150, verbose_name='Title'),
         ),
+        migrations.AlterField(
+            model_name='membertraining',
+            name='member',
+            field=models.ForeignKey(on_delete=models.deletion.CASCADE, related_name='traininigs', to='members.member', verbose_name='Member'),
+        ),
+        migrations.AlterField(
+            model_name='membertraining',
+            name='participated',
+            field=models.BooleanField(null=True, verbose_name='Participated'),
+        ),
+        migrations.AlterField(
+            model_name='membertraining',
+            name='passed',
+            field=models.BooleanField(null=True, verbose_name='Passed'),
+        ),
     ]
