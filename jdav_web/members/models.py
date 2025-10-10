@@ -2058,7 +2058,9 @@ class MemberTraining(CommonModel):
                                                       'image/gif'])
     
     def __str__(self):
-        return self.title + ' ' + self.date.strftime('%d.%m.%Y')
+        if self.date:
+            return self.title + ' ' + self.date.strftime('%d.%m.%Y')
+        return self.title + ' ' + str(_('(no date)'))
     
     def get_activities(self):
         activity_string = ', '.join(a.name for a in self.activity.all())
