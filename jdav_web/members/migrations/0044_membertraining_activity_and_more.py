@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('members', '0042_member_ticket_no'),
+        ('members', '0043_waitinglist_permissions'),
     ]
 
     operations = [
