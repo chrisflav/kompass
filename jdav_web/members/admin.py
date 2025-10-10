@@ -1406,7 +1406,6 @@ class MemberTrainingAdminForm(forms.ModelForm):
         
         
 class MemberTrainingAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
-    
     form = MemberTrainingAdminForm
     list_display = ['title', 'member', 'date', 'category', 'get_activities', 'participated', 'passed', 'certificate']
     search_fields = ['title']
