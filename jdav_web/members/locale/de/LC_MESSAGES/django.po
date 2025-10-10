@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-20 02:43+0200\n"
+"POT-Creation-Date: 2025-10-10 18:31+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,25 +37,9 @@ msgid ""
 "Please enter at least one emergency contact with contact details here. These "
 "are necessary for crisis intervention during trips."
 msgstr ""
-"Trage hier bitte mindestens einen Notfallkontakt mit Kontaktdaten ein. "
-"Diese sind notwendig für die Krisenintervention auf Ausfahrten und bei "
+"Trage hier bitte mindestens einen Notfallkontakt mit Kontaktdaten ein. Diese "
+"sind notwendig für die Krisenintervention auf Ausfahrten und bei "
 "Veranstaltungen."
-
-#: members/admin.py members/models.py
-msgid "Registration complete"
-msgstr "Anmeldung vollständig"
-
-#: members/admin.py
-msgid "True"
-msgstr "Ja"
-
-#: members/admin.py
-msgid "False"
-msgstr "Nein"
-
-#: members/admin.py members/tests/basic.py
-msgid "All"
-msgstr "Alle"
 
 #: members/admin.py
 msgid "The entered IBAN is not valid."
@@ -1282,6 +1266,12 @@ msgid "certificate of attendance"
 msgstr "Teilnahmebestätigung"
 
 #: members/models.py
+#, fuzzy
+#| msgid "date"
+msgid "(no date)"
+msgstr "Datum"
+
+#: members/models.py
 msgid "Training"
 msgstr "Fortbildung"
 
@@ -2357,6 +2347,12 @@ msgid ""
 msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
+
+#: members/tests/basic.py
+#, fuzzy
+#| msgid "Group permissions"
+msgid "Insufficient permissions."
+msgstr "Gruppenberechtigungen"
 
 #: members/tests/basic.py
 msgid "This field is required."
