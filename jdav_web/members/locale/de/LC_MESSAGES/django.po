@@ -1269,7 +1269,7 @@ msgstr "Teilnahmebestätigung"
 #, fuzzy
 #| msgid "date"
 msgid "(no date)"
-msgstr "Datum"
+msgstr "(ohne Datum)"
 
 #: members/models.py
 msgid "Training"
