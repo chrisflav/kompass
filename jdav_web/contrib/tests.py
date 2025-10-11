@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.test import TestCase, RequestFactory
-from django.test.utils import override_settings, RequestFactory
+from django.test.utils import override_settings
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
