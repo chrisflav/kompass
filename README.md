@@ -7,14 +7,20 @@ tools to contact and (automatically) manage members, groups, material, excursion
 
 For more details on the features, see the (German) [documentation](https://jdav-hd.de/static/docs/index.html).
 
+If you are interested in using the Kompass in your own local section, please get in touch via
+email at `name of this project`@`merten.dev`. We are very happy to discuss how the Kompass can be used in
+your setting.
+
 # Contributing
 
 Any form of contribution is appreciated. If you found a bug or have a feature request, please file an
-[issue](https://git.jdav-hd.merten.dev/digitales/kompass/issues). If you want to help with the documentation or
-want to contribute code, please open a [pull request](https://git.jdav-hd.merten.dev/digitales/kompass/pulls).
+[issue](https://github.com/chrisflav/kompass/issues). If you want to help with the documentation or
+want to contribute code, please open a [pull request](https://github.com/chrisflav/kompass/pulls).
+
+If you don't have a github account or don't want to open an issue or pull request here, there is
+also a [Gitea repository](https://git.jdav-hd.merten.dev/digitales/kompass).
 
 The following is a short description of where to find the documentation with more information.
-
 
 # Documentation
 
@@ -28,22 +34,8 @@ The sphinx documentation contains information about:
 - End user documentation
 - and much more...
 
-> Please add all further documentation also in the sphinx documentation. And not in the readme
-
-## online
-Online (latest release version): https://jdav-hd.de/static/docs/
-
-## local
-To read the documentation build it locally and view it in your browser:
-```bash
-cd docs/
-make html
-
-# MacOS (with firefox)
-open -a firefox $(pwd)/docs/build/html/index.html
-# Linux (I guess?!?)
-firefox ${pwd}/docs/build/html/index.html
-```
+For further details on the implementation, please head to the
+[developer documentation](https://jdav-hd.de/static/docs/development_manual/index.html).
 
 # License
 
