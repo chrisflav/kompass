@@ -26,7 +26,7 @@ from members.models import Member, Group, PermissionMember, PermissionGroup, Fre
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE,\
         Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS,\
-        TrainingCategory, Person
+        TrainingCategory, Person, MemberTraining
 from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
         MemberUnconfirmedAdmin, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
@@ -2505,6 +2505,34 @@ class TrainingCategoryTestCase(TestCase):
 
     def test_str(self):
         self.assertEqual(str(self.cat), 'school')
+        
+        
+class MemberTrainingAdminTestCase(AdminTestCase):
+    def setUp(self):
+        class MemberTrainingAdmin(admin.ModelAdmin):
+            list_display = ('member', 'training', 'completion_date')
+        super().setUp(model=MemberTraining, admin=MemberTrainingAdmin)
+        self.member_training = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=timezone.now().date()
+        )
+        
+        self.member_training.activity.add(
+            ActivityCategory.objects.create(name='Test Activity', ljp_category='Sonstiges', description='Test')
+        )
+
+    def test_changelist(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_membertraining_changelist')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_change(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_membertraining_change', args=(self.member_training.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
 class PermissionMemberGroupTestCase(BasicMemberTestCase):
     def setUp(self):
