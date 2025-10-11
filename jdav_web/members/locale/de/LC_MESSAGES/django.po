@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-20 02:43+0200\n"
+"POT-Creation-Date: 2025-10-10 18:31+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,29 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: members/admin.py
+msgid ""
+"Please enter all training courses and further education courses that you "
+"have already attended or will be attending soon. Please also upload your "
+"confirmation of participation so that the responsible person can fill in the "
+"'Attended' and 'Passed' fields. If the activity selection does not match "
+"your training, please describe it in the comment field."
+msgstr ""
+"Bitte trage alle Ausbildungen und Fortbildungen ein, die du bereits besucht "
+"hast oder bald besuchst. Lade auch deine Teilnahmebestätigung hoch, damit "
+"von der verantwortlichen Person die Felder 'Teilgenommen' und 'Bestanden' "
+"gepflegt werden können. Wenn die Aktivitätsauswahl nicht zu deiner "
+"Ausbildung passt, dann beschreibe sie im Kommentarfeld."
+
+#: members/admin.py
+msgid ""
+"Please enter at least one emergency contact with contact details here. These "
+"are necessary for crisis intervention during trips."
+msgstr ""
+"Trage hier bitte mindestens einen Notfallkontakt mit Kontaktdaten ein. Diese "
+"sind notwendig für die Krisenintervention auf Ausfahrten und bei "
+"Veranstaltungen."
 
 #: members/admin.py
 msgid "The entered IBAN is not valid."
@@ -1243,6 +1266,10 @@ msgid "certificate of attendance"
 msgstr "Teilnahmebestätigung"
 
 #: members/models.py
+msgid "(no date)"
+msgstr "(ohne Datum)"
+
+#: members/models.py
 msgid "Training"
 msgstr "Fortbildung"
 
@@ -2318,6 +2345,10 @@ msgid ""
 msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
+
+#: members/tests/basic.py
+msgid "Insufficient permissions."
+msgstr "Unzureichende Berechtigungen."
 
 #: members/tests/basic.py
 msgid "This field is required."

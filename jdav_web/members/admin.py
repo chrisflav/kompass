@@ -108,15 +108,22 @@ class PermissionOnMemberInline(admin.StackedInline):
 
 class TrainingOnMemberInline(CommonAdminInlineMixin, admin.TabularInline):
     model = MemberTraining
+    description = _("Please enter all training courses and further education courses that you have already attended or will be attending soon. Please also upload your confirmation of participation so that the responsible person can fill in the 'Attended' and 'Passed' fields. If the activity selection does not match your training, please describe it in the comment field.")
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25})}
     }
     ordering = ("date",)
     extra = 1
+    
+    field_change_permissions = {
+        'participated': 'members.manage_success_trainings',
+        'passed': 'members.manage_success_trainings',
+    }
 
 
 class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
     model = EmergencyContact
+    description = _('Please enter at least one emergency contact with contact details here. These are necessary for crisis intervention during trips.')
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
     }
@@ -1392,6 +1399,20 @@ class KlettertreffAdmin(admin.ModelAdmin):
     #    ForeignKey: {'widget': apply_select2(forms.Select)}
     #}
 
+class MemberTrainingAdminForm(forms.ModelForm):
+    class Meta:
+        model = MemberTraining
+        exclude = []
+        
+        
+class MemberTrainingAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
+    form = MemberTrainingAdminForm
+    list_display = ['title', 'member', 'date', 'category', 'get_activities', 'participated', 'passed', 'certificate']
+    search_fields = ['title']
+    list_filter = (('date', DateFieldListFilter), 'category', 'passed', 'activity', 'member')
+    ordering = ('-date',)
+
+
 
 admin.site.register(Member, MemberAdmin)
 admin.site.register(MemberUnconfirmedProxy, MemberUnconfirmedAdmin)
@@ -1402,3 +1423,4 @@ admin.site.register(MemberNoteList, MemberNoteListAdmin)
 admin.site.register(Klettertreff, KlettertreffAdmin)
 admin.site.register(ActivityCategory, ActivityCategoryAdmin)
 admin.site.register(TrainingCategory, TrainingCategoryAdmin)
+admin.site.register(MemberTraining, MemberTrainingAdmin)

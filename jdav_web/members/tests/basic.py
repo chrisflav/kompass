@@ -26,11 +26,12 @@ from members.models import Member, Group, PermissionMember, PermissionGroup, Fre
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE,\
         Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS,\
-        TrainingCategory, Person
+        TrainingCategory, Person, MemberTraining
 from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
         MemberUnconfirmedAdmin, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
-        InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
+        InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter,\
+        MemberTrainingAdmin
 from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs, render_docx, pdf_add_attachments, scale_pdf_page_to_a4, scale_pdf_to_a4
 from members.excel import generate_ljp_vbk
 from members.views import render_register_success, render_register_failed
@@ -2505,6 +2506,50 @@ class TrainingCategoryTestCase(TestCase):
 
     def test_str(self):
         self.assertEqual(str(self.cat), 'school')
+
+
+class MemberTrainingTestCase(TestCase):
+    def setUp(self):
+        self.member_training = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=timezone.now().date()
+        )
+        self.member_training_no_date = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=None
+        )
+
+    def test_str(self):
+        self.assertIn(self.member_training.date.strftime('%d.%m.%Y'), str(self.member_training))
+        self.assertIn(str(_('(no date)')), str(self.member_training_no_date))
+
+
+class MemberTrainingAdminTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=MemberTraining, admin=MemberTrainingAdmin)
+        self.member_training = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=timezone.now().date()
+        )
+        self.activity = ActivityCategory.objects.create(name='Test Activity',
+                                                        ljp_category='Sonstiges', description='Test')
+        self.member_training.activity.add(self.activity)
+
+    def test_changelist(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_membertraining_changelist')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_change(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_membertraining_change', args=(self.member_training.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
 
 class PermissionMemberGroupTestCase(BasicMemberTestCase):
     def setUp(self):
