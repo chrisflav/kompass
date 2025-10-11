@@ -267,6 +267,5 @@ class AttachmentTestCase(BasicMailerTestCase):
         self.attachment.f.name = 'attachments/test_document.pdf'
         self.assertEqual(str(self.attachment), 'test_document.pdf')
 
-    @skip('Fails with TypeError: __str__ returns a lazy translation object, but must return a string.')
     def test_str_without_file(self):
         self.assertEqual(str(self.attachment), _('Empty'))

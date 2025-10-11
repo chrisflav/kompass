@@ -22,7 +22,7 @@ from members.models import Member, Group, PermissionMember, PermissionGroup, Fre
         Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS,\
         TrainingCategory, Person
 from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
-        MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
+        MemberUnconfirmedAdmin, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin
 from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs
 from mailer.models import EmailAddress

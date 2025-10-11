@@ -25,7 +25,7 @@ if os.path.exists(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE)):
     with open(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE), 'rb') as f:
         texts = tomli.load(f)
 else:
-    texts = {}
+    texts = {} # pragma: no cover
 
 
 def get_var(*keys, default='', dictionary=config):
@@ -58,6 +58,7 @@ base_settings = [
     'components/emails.py',
     'components/texts.py',
     'components/locale.py',
+    'components/logging.py',
     'components/oauth.py',
 ]
 

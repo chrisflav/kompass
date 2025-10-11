@@ -1,10 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, ROUND_HALF_DOWN
 import unicodedata
+import logging
+logger = logging.getLogger(__name__)
 
 
 def file_size_validator(max_upload_size):
@@ -50,7 +52,7 @@ class RestrictedFileField(models.FileField):
                                         '{}').format(self.max_upload_size,
                                                      f._size))
         except AttributeError as e:
-            print(e)
+            logger.warning(e)
         return data
 
 
@@ -88,3 +90,11 @@ def coming_midnight():
     return timezone.datetime(year=base.year, month=base.month, day=base.day,
                              hour=0, minute=0, second=0, microsecond=0,
                              tzinfo=base.tzinfo)
+
+
+def mondays_until_nth(n):
+    """ Returns a list of dates for the next n Mondays, starting from the next Monday.
+    This functions aids in the generation of weekly schedules or reports."""
+    today = datetime.today()
+    next_monday = today + timedelta(days=(7 - today.weekday()) % 7 or 7)
+    return [(next_monday + timedelta(weeks=i)).date() for i in range(n + 1)]

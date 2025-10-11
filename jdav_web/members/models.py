@@ -24,7 +24,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.validators import MinValueValidator
 
-from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion
+from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion,\
+    is_leader_of_relevant_invitation
 from .pdf import render_tex
 import rules
 from contrib.models import CommonModel
@@ -104,6 +105,11 @@ class Group(models.Model):
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
+        
+    @property
+    def sorted_members(self):
+        """Returns the members of this group sorted by their last name."""
+        return self.member_set.all().order_by('lastname')
 
     def has_time_info(self):
         # return if the group has all relevant time slot information filled
@@ -318,6 +324,9 @@ class Member(Person):
     has_key = models.BooleanField(_('Has key'), default=False)
     has_free_ticket_gym = models.BooleanField(_('Has a free ticket for the climbing gym'), default=False)
     dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='', blank=True)
+    
+    # use this to store a climbing gym customer or membership id, used to print on meeting checklists
+    ticket_no = models.CharField(max_length=20, verbose_name=_('entrance ticket number'), default='', blank=True)   
     swimming_badge = models.BooleanField(verbose_name=_('Knows how to swim'), default=False)
     climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='', blank=True)
     alpine_experience = models.TextField(verbose_name=_('Alpine experience'), default='', blank=True)
@@ -379,6 +388,11 @@ class Member(Person):
     def place(self):
         """Returning the whole place (plz + town)"""
         return "{0} {1}".format(self.plz, self.town)
+    
+    @property
+    def ticket_tag(self):
+        """Returning the ticket number stripped of strings and spaces"""
+        return "{" + ''.join(re.findall(r'\d', self.ticket_no)) + "}"
 
     @property
     def iban_valid(self):
@@ -552,6 +566,12 @@ class Member(Person):
             waiter.delete()
         return self.request_mail_confirmation(rerequest=False)
 
+    def registration_form_uploaded(self):
+        print(self.registration_form.name)
+        return not self.registration_form.name is None and self.registration_form.name != ""
+    registration_form_uploaded.boolean = True
+    registration_form_uploaded.short_description = _('Registration form')
+
     def registration_ready(self):
         """Returns if the member is currently unconfirmed and all email addresses
         are confirmed."""
@@ -577,11 +597,15 @@ class Member(Person):
     def send_upload_registration_form_link(self):
         if not self.upload_registration_form_key:
             return
-        print(self.name, self.upload_registration_form_key)
         link = self.get_upload_registration_form_link()
         self.send_mail(_('Upload registration form'),
                        settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
                                                                      link=link))
+
+    def request_registration_form(self):
+        """Ask the member to upload a registration form via email."""
+        self.generate_upload_registration_form_key()
+        self.send_upload_registration_form_link()
 
     def notify_jugendleiters_about_confirmed_mail(self):
         group = ", ".join([g.name for g in self.group.all()])
@@ -619,6 +643,8 @@ class Member(Person):
             return self.filter_statements_by_permissions(queryset, annotate)
         elif name == "Freizeit":
             return self.filter_excursions_by_permissions(queryset, annotate)
+        elif name == "MemberWaitingList":
+            return self.filter_waiters_by_permissions(queryset, annotate)
         elif name == "LJPProposal":
             return queryset
         elif name == "MemberTraining":
@@ -640,6 +666,8 @@ class Member(Person):
         elif name == "EmergencyContact":
             return queryset
         elif name == "MemberUnconfirmedProxy":
+            return queryset
+        elif name == "InvitationToGroup":
             return queryset
         else:
             raise ValueError(name)
@@ -718,6 +746,12 @@ class Member(Person):
         # one may view all excursions by leited groups and leited excursions
         queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter=self)).distinct()
         return queryset
+
+    def filter_waiters_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
+        # return waiters that have a pending, expired or rejected group invitation for a group
+        # led by the member
+        return queryset.filter(invitationtogroup__group__leiters=self)
 
     def may_list(self, other):
         if self.pk == other.pk:
@@ -907,7 +941,7 @@ def gen_key():
     return uuid.uuid4().hex
 
 
-class InvitationToGroup(models.Model):
+class InvitationToGroup(CommonModel):
     """An invitation of a waiter to a group."""
     waiter = models.ForeignKey('MemberWaitingList', verbose_name=_('Waiter'), on_delete=models.CASCADE)
     group = models.ForeignKey(Group, verbose_name=_('Group'), on_delete=models.CASCADE)
@@ -920,9 +954,15 @@ class InvitationToGroup(models.Model):
                                    on_delete=models.SET_NULL,
                                    related_name='created_group_invitations')
 
-    class Meta:
+    class Meta(CommonModel.Meta):
         verbose_name = _('Invitation to group')
         verbose_name_plural = _('Invitations to groups')
+        rules_permissions = {
+            'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
+            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
+            'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
+            'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
+        }
 
     def is_expired(self):
         return self.date < (timezone.now() - timezone.timedelta(days=30)).date()
@@ -1029,7 +1069,7 @@ class MemberWaitingList(Person):
         permissions = (('may_manage_waiting_list', 'Can view and manage the waiting list.'),)
         rules_permissions = {
             'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
-            'view_obj': has_global_perm('members.view_global_memberwaitinglist'),
+            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
             'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
             'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
         }
@@ -1045,9 +1085,8 @@ class MemberWaitingList(Person):
     @property
     def waiting_confirmation_needed(self):
         """Returns if person should be asked to confirm waiting status."""
-        # TODO: Throws `NameError` (has skipped test).
-        return wait_confirmation_key is None \
-            and last_wait_confirmation < timezone.now() -\
+        return not self.wait_confirmation_key \
+            and self.last_wait_confirmation < timezone.now() -\
                 timezone.timedelta(days=settings.WAITING_CONFIRMATION_FREQUENCY)
 
     def waiting_confirmed(self):
@@ -1110,11 +1149,9 @@ class MemberWaitingList(Person):
         return self.wait_confirmation_key
 
     def may_register(self, key):
-        # TODO: Throws a `TypeError` (has skipped test).
-        print("may_register", key)
         try:
             invitation = InvitationToGroup.objects.get(key=key)
-            return self.pk == invitation.waiter.pk and timezone.now() < invitation.date + timezone.timedelta(days=30)
+            return self.pk == invitation.waiter.pk and timezone.now().date() < invitation.date + timezone.timedelta(days=30)
         except InvitationToGroup.DoesNotExist:
             return False
 
@@ -1184,15 +1221,13 @@ class NewMemberOnList(CommonModel):
 
     @property
     def skills(self):
-        # TODO: Throws a `NameError` (has skipped test).
-        activities = [a.name for a in memberlist.activity.all()]
+        activities = [a.name for a in self.memberlist.activity.all()]
         return {k: v for k, v in self.member.get_skills().items() if k in activities}
 
     @property
     def qualities_tex(self):
-        # TODO: Throws a `NameError` (has skipped test).
         qualities = []
-        for activity, value in self.skills:
+        for activity, value in self.skills.items():
             qualities.append("\\textit{%s:} %s" % (activity, value))
         return ", ".join(qualities)
 
@@ -1270,6 +1305,23 @@ class Freizeit(CommonModel):
     def code(self):
         return f"B{self.date:%y}-{self.pk}"
 
+    @staticmethod
+    def filter_queryset_date_next_n_hours(hours, queryset=None):
+        if queryset is None:
+            queryset = Freizeit.objects.all()
+        return queryset.filter(date__lte=timezone.now() + timezone.timedelta(hours=hours),
+                               date__gte=timezone.now())
+
+    @staticmethod
+    def to_notify_crisis_intervention_list():
+        qs = Freizeit.objects.filter(notification_crisis_intervention_list_sent=False)
+        return Freizeit.filter_queryset_date_next_n_hours(48, queryset=qs)
+
+    @staticmethod
+    def to_send_crisis_intervention_list():
+        qs = Freizeit.objects.filter(crisis_intervention_list_sent=False)
+        return Freizeit.filter_queryset_date_next_n_hours(24, queryset=qs)
+
     def get_tour_type(self):
         if self.tour_type == FUEHRUNGS_TOUR:
             return "Führungstour"
@@ -1297,18 +1349,28 @@ class Freizeit(CommonModel):
     @property
     def duration(self):
         # number of nights is number of full days + 1
-        full_days = self.night_count - 1
+        full_days = max(self.night_count - 1, 0)
         extra_days = 0
 
-        if self.date.hour <= 12:
-            extra_days += 1.0
+        if self.date.date() == self.end.date():
+            # excursion starts and ends on the same day
+            hours = max(self.end.hour - self.date.hour, 0)
+            # at least 6 hours counts as full day
+            if hours >= 6:
+                extra_days = 1.0
+            # otherwise half day
+            else:
+                extra_days = 0.5
         else:
-            extra_days += 0.5
+            if self.date.hour <= 12:
+                extra_days += 1.0
+            else:
+                extra_days += 0.5
 
-        if self.end.hour >= 12:
-            extra_days += 1.0
-        else:
-            extra_days += 0.5
+            if self.end.hour >= 12:
+                extra_days += 1.0
+            else:
+                extra_days += 0.5
 
         return full_days + extra_days
 
@@ -1561,7 +1623,6 @@ class Freizeit(CommonModel):
                 'Betreuer/in': str(numbers['staff']),
                 'Auswahl Veranstaltung': 'Auswahl2',
                 'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
-        print(members)
         for i, m in enumerate(members):
             suffix = str(' {}'.format(i + 1))
             # indexing starts at zero, but the listing in the pdf starts at 1
@@ -2032,13 +2093,14 @@ class TrainingCategory(models.Model):
 
 class MemberTraining(CommonModel):
     """Represents a training planned or attended by a member."""
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs')
-    title = models.CharField(verbose_name=_('Title'), max_length=30)
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs', verbose_name=_('Member'))
+    title = models.CharField(verbose_name=_('Title'), max_length=150)
     date = models.DateField(verbose_name=_('Date'), null=True, blank=True)
     category = models.ForeignKey(TrainingCategory, on_delete=models.PROTECT, verbose_name=_('Category'))
+    activity = models.ManyToManyField(ActivityCategory, verbose_name=_('Activity'))
     comments = models.TextField(verbose_name=_('Comments'), blank=True)
-    participated = models.BooleanField(verbose_name=_('Participated'))
-    passed = models.BooleanField(verbose_name=_('Passed'))
+    participated = models.BooleanField(verbose_name=_('Participated'), null=True)
+    passed = models.BooleanField(verbose_name=_('Passed'), null=True)
     certificate = RestrictedFileField(verbose_name=_('certificate of attendance'),
                                       upload_to='training_forms',
                                       blank=True,
@@ -2047,10 +2109,26 @@ class MemberTraining(CommonModel):
                                                       'image/jpeg',
                                                       'image/png',
                                                       'image/gif'])
+    
+    def __str__(self):
+        if self.date:
+            return self.title + ' ' + self.date.strftime('%d.%m.%Y')
+        return self.title + ' ' + str(_('(no date)'))
+    
+    def get_activities(self):
+        activity_string = ', '.join(a.name for a in self.activity.all())
+        return activity_string
 
+    get_activities.short_description = _('Activities')
+
+  
     class Meta(CommonModel.Meta):
         verbose_name = _('Training')
         verbose_name_plural = _('Trainings')
+        
+        permissions = (
+            ('manage_success_trainings', 'Can edit the success status of trainings.'),
+        )
         rules_permissions = {
             # sine this is used in an inline, the member and not the training is passed
             'add_obj': is_oneself | has_global_perm('members.add_global_membertraining'),

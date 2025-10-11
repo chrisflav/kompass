@@ -1,4 +1,5 @@
 from contrib.rules import memberize_user
+from django.utils import timezone
 from rules import predicate
 
 
@@ -73,3 +74,10 @@ def statement_not_submitted(self, excursion):
     if excursion.statement is None:
         return False
     return not excursion.statement.submitted
+
+
+@predicate
+@memberize_user
+def is_leader_of_relevant_invitation(member, waiter):
+    assert waiter is not None
+    return waiter.invitationtogroup_set.filter(group__leiters=member).exists()

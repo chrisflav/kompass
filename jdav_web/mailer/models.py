@@ -1,3 +1,4 @@
+import logging
 from django.db import models
 from django.core.exceptions import ValidationError
 from django import forms
@@ -15,6 +16,9 @@ from contrib.models import CommonModel
 from .rules import is_creator
 
 import os
+
+
+logger = logging.getLogger(__name__)
 
 
 alphanumeric = RegexValidator(r'^[0-9a-zA-Z._-]*$',
@@ -145,7 +149,7 @@ class Message(CommonModel):
             members.update([mol.member for mol in
                             self.to_notelist.membersonlist.all()])
         filtered = [m for m in members if m.gets_newsletter]
-        print("sending mail to", filtered)
+        logger.info(f"sending mail to {filtered}")
 
         attach = [a.f.path for a in Attachment.objects.filter(msg__id=self.pk)
                   if a.f.name]
@@ -189,7 +193,7 @@ class Message(CommonModel):
                 a.delete()
             success = SENT
         except Exception as e:
-            print("Exception caught", e)
+            logger.error(f"Caught exception while sending email: {e}")
             success = NOT_SENT
         finally:
             self.save()
@@ -232,7 +236,7 @@ class Attachment(CommonModel):
                             max_upload_size=10)
 
     def __str__(self):
-        return os.path.basename(self.f.name) if self.f.name else _("Empty")
+        return os.path.basename(self.f.name) if self.f.name else str(_("Empty"))
 
     class Meta:
         verbose_name = _('attachment')

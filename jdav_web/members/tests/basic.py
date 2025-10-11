@@ -12,6 +12,7 @@ from django.test import TestCase, Client, RequestFactory
 from django.utils import timezone, translation
 from django.conf import settings
 from django.urls import reverse
+from django.http import HttpResponse, HttpResponseRedirect
 from django import template
 from unittest import skip, mock
 import os
@@ -25,13 +26,15 @@ from members.models import Member, Group, PermissionMember, PermissionGroup, Fre
         MemberNoteList, NewMemberOnList, confirm_mail_by_key, EmergencyContact, MemberWaitingList,\
         RegistrationPassword, MemberUnconfirmedProxy, InvitationToGroup, DIVERSE, MALE, FEMALE,\
         Klettertreff, KlettertreffAttendee, LJPProposal, ActivityCategory, WEEKDAYS,\
-        TrainingCategory, Person
+        TrainingCategory, Person, MemberTraining
 from members.admin import MemberWaitingListAdmin, MemberAdmin, FreizeitAdmin, MemberNoteListAdmin,\
-        MemberUnconfirmedAdmin, RegistrationFilter, FilteredMemberFieldMixin,\
+        MemberUnconfirmedAdmin, FilteredMemberFieldMixin,\
         MemberAdminForm, StatementOnListForm, KlettertreffAdmin, GroupAdmin,\
-        InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter
+        InvitationToGroupAdmin, AgeFilter, InvitedToGroupFilter,\
+        MemberTrainingAdmin
 from members.pdf import fill_pdf_form, render_tex, media_path, serve_pdf, find_template, merge_pdfs, render_docx, pdf_add_attachments, scale_pdf_page_to_a4, scale_pdf_to_a4
 from members.excel import generate_ljp_vbk
+from members.views import render_register_success, render_register_failed
 from mailer.models import EmailAddress, Message
 from finance.models import Statement, Bill
 
@@ -177,6 +180,14 @@ class MemberTestCase(BasicMemberTestCase):
         qs = Statement.objects.all()
         self.assertQuerysetEqual(self.fritz.filter_statements_by_permissions(qs),
                                  [st1, st2], ordered=False)
+
+    def test_filter_waiters_by_permissions(self):
+        waiter = MemberWaitingList.objects.create(**WAITER_DATA)
+        MemberWaitingList.objects.create(**WAITER_DATA)
+        InvitationToGroup.objects.create(group=self.alp, waiter=waiter)
+        qs = MemberWaitingList.objects.all()
+        self.assertQuerysetEqual(self.lise.filter_waiters_by_permissions(qs),
+                                 [waiter], ordered=False)
 
     def test_annotate_view_permissions(self):
         qs = Member.objects.all()
@@ -487,6 +498,7 @@ class AdminTestCase(TestCase):
         trainer = create_custom_user('trainer', ['Standard', 'Trainings'], 'Lise', 'Lotte')
         treasurer = create_custom_user('treasurer', ['Standard', 'Finance'], 'Lara', 'Litte')
         materialwarden = create_custom_user('materialwarden', ['Standard', 'Material'], 'Loro', 'Lutte')
+        waitinglistmanager = create_custom_user('waitinglistmanager', ['Standard', 'Waitinglist'], 'Liri', 'Litti')
 
         paul = standard.member
 
@@ -535,6 +547,8 @@ class PermissionTestCase(AdminTestCase):
     def test_standard_permissions(self):
         u = User.objects.get(username='standard')
         self.assertTrue(u.has_perm('members.view_member'))
+        self.assertTrue(u.has_perm('members.view_memberwaitinglist'))
+        self.assertFalse(u.has_perm('members.view_memberwaitinglist_global'))
 
     def test_queryset_standard(self):
         u = User.objects.get(username='standard')
@@ -814,6 +828,12 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.ex2.jugendleiter.add(self.fritz)
         self.st = Statement.objects.create(excursion=self.ex2, night_cost=42, subsidy_to=None)
         self.ex2.save()
+        # this excursion is used in the other tests
+        self.ex3 = Freizeit.objects.create(name='Wild trip 3', kilometers_traveled=120,
+                                           tour_type=GEMEINSCHAFTS_TOUR,
+                                           tour_approach=MUSKELKRAFT_ANREISE,
+                                           difficulty=1,
+                                           date=timezone.localtime())
 
     def _setup_test_sjr_application_numbers(self, n_yl, n_b27_local, n_b27_non_local):
         add_memberonlist_by_local(self.ex, n_yl, n_b27_local, n_b27_non_local)
@@ -934,20 +954,65 @@ class FreizeitTestCase(BasicMemberTestCase):
 
     def test_duration(self):
         self.assertGreaterEqual(self.ex.duration, 0)
+
+        # less than 6 hours
         self.ex.date = timezone.datetime(2000, 1, 1, 8, 0, 0)
         self.ex.end = timezone.datetime(2000, 1, 1, 10, 0, 0)
         self.assertEqual(self.ex.duration, 0.5)
 
-        # TODO: fix this in the model, the duration of this excursion should be 0
+        # at least 6 hours
+        self.ex.date = timezone.datetime(2000, 1, 1, 8, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 1, 14, 0, 0)
+        self.assertEqual(self.ex.duration, 1)
+
+        # one full day and two extra days on beginning and end
+        self.ex.date = timezone.datetime(2000, 1, 1, 8, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 3, 14, 0, 0)
+        self.assertEqual(self.ex.duration, 3)
+
+        # one full day and two half days on beginning and end
+        self.ex.date = timezone.datetime(2000, 1, 1, 16, 0, 0)
+        self.ex.end = timezone.datetime(2000, 1, 3, 8, 0, 0)
+        self.assertEqual(self.ex.duration, 2)
+
+    def test_duration_midday_midday(self):
         self.ex.date = timezone.datetime(2000, 1, 1, 12, 0, 0)
         self.ex.end = timezone.datetime(2000, 1, 1, 12, 0, 0)
-        self.assertEqual(self.ex.duration, 1)
+        self.assertEqual(self.ex.duration, 0.5)
 
     def test_generate_ljp_vbk_no_proposal_raises_error(self):
         """Test generate_ljp_vbk raises ValueError when excursion has no LJP proposal"""
         with self.assertRaises(ValueError) as cm:
             generate_ljp_vbk(self.ex)
         self.assertIn("Excursion has no LJP proposal", str(cm.exception))
+
+    def test_filter_queryset_date_next_n_hours(self):
+        self.ex.date = timezone.now() + timezone.timedelta(hours=12)
+        self.ex.save()
+        self.ex2.date = timezone.now() + timezone.timedelta(hours=36)
+        self.ex2.save()
+        self.ex3.date = timezone.now() - timezone.timedelta(hours=1)
+        self.ex3.save()
+        qs = Freizeit.filter_queryset_date_next_n_hours(24)
+        self.assertIn(self.ex, qs)
+        self.assertNotIn(self.ex2, qs)
+        self.assertNotIn(self.ex3, qs)
+
+    def test_querysets_crisis_intervention_list(self):
+        self.ex.date = timezone.now() + timezone.timedelta(hours=12)
+        self.ex.crisis_intervention_list_sent = False
+        self.ex.save()
+        self.ex2.date = timezone.now() + timezone.timedelta(hours=36)
+        self.ex2.notification_crisis_intervention_list_sent = False
+        self.ex2.save()
+        self.ex3.notification_crisis_intervention_list_sent = True
+        self.ex3.save()
+        to_send = Freizeit.to_send_crisis_intervention_list()
+        to_notify = Freizeit.to_notify_crisis_intervention_list()
+        self.assertIn(self.ex, to_send)
+        self.assertNotIn(self.ex2, to_send)
+        self.assertNotIn(self.ex3, to_send)
+        self.assertIn(self.ex2, to_notify)
 
 
 class PDFActionMixin:
@@ -1039,7 +1104,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self.assertEqual(response.status_code, 200, 'Response code is not 200.')
 
     @skip("The filtering is currently (intentionally) disabled.")
-    def test_add_queryset_filter(self):
+    def test_add_queryset_filter(self): # pragma: no cover
         """Test if queryset on `jugendleiter` field is properly filtered by permissions."""
         u = User.objects.get(username='standard')
         c = self._login('standard')
@@ -1159,10 +1224,6 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         })
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip('Throws `AttributeError`: `Freizeit.seminar_vbk` does not exist.')
-    def test_seminar_vbk(self):
-        self._test_pdf('seminar_vbk', self.ex.pk)
-
     def test_crisis_intervention_list_post(self):
         self._test_pdf('crisis_intervention_list', self.ex.pk)
         self._test_pdf('crisis_intervention_list', self.ex.pk, username='standard', invalid=True)
@@ -1174,12 +1235,11 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
     def test_wrong_action_freizeit(self):
         return self._test_pdf('asdf', self.ex.pk, invalid=True)
 
-    @skip('Currently throws a `RelatedObjectDoesNotExist` error.')
     def test_finance_overview_no_statement_post(self):
         url = reverse('admin:members_freizeit_action', args=(self.ex.pk,))
         c = self._login('superuser')
-        # no statement yields error
-        response = c.post(url, data={'finance_overview': ''})
+        # no statement yields redirect
+        response = c.post(url, data={'finance_overview': ''}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("No statement found. Please add a statement and then retry."))
 
@@ -1219,6 +1279,18 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self.st.allowance_to.add(self.yl2)
         response = c.post(url, data={'finance_overview': '', 'apply': ''})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_save_model_with_statement(self):
+        user_with_member = User.objects.get(username='standard')
+        self.ex.statement = self.st
+        request = self.factory.post('/')
+        request.user = user_with_member
+        form = mock.MagicMock()
+        with mock.patch('members.admin.super') as mock_super:
+            mock_super.return_value.save_model.return_value = None
+            self.admin.save_model(request, self.ex, form, change=False)
+        self.st.refresh_from_db()
+        self.assertEqual(self.st.created_by, user_with_member.member)
 
 
 class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
@@ -1269,6 +1341,22 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
         request = self.factory.get(url)
         request.user = u
         return request
+
+    def test_has_view_permission(self):
+        request = self.factory.get('/')
+        request.user = User.objects.get(username='standard')
+        self.assertTrue(self.admin.has_view_permission(request))
+        self.assertFalse(self.admin.has_view_permission(request, self.waiter))
+
+    def test_changelist(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberwaitinglist_changelist')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        c = self._login('waitinglistmanager')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_age_eq_birth_date_delta(self):
         queryset = self.admin.get_queryset(self._request())
@@ -1358,6 +1446,23 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
                                      '_selected_action': [q.pk for q in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_response_change_invite(self):
+        request = self.factory.post('/', {'_invite': True})
+        request.user = User.objects.get(username='superuser')
+        with mock.patch('members.admin.super') as mock_super:
+            mock_super.return_value.response_change.return_value = HttpResponse()
+            response = self.admin.response_change(request, self.waiter)
+        self.assertIsInstance(response, HttpResponseRedirect)
+
+    def test_response_change_no_invite(self):
+        request = self.factory.post('/', {})
+        request.user = User.objects.get(username='superuser')
+        expected_response = HttpResponse()
+        with mock.patch('members.admin.super') as mock_super:
+            mock_super.return_value.response_change.return_value = expected_response
+            response = self.admin.response_change(request, self.waiter)
+        self.assertEqual(response, expected_response)
+
 
 class MemberUnconfirmedAdminTestCase(AdminTestCase):
     def setUp(self):
@@ -1379,6 +1484,29 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         request.user = User.objects.get(username='standard')
         qs = self.admin.get_queryset(request)
         self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
+
+    def test_request_registration_form_invalid(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberunconfirmedproxy_request_registration_form', args=(124,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_request_registration_form_insufficient_permission(self):
+        c = self._login('standard')
+        url = reverse('admin:members_memberunconfirmedproxy_request_registration_form', args=(self.reg.pk,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Insufficient permissions.'))
+
+    def test_request_registration_form(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_memberunconfirmedproxy_request_registration_form', args=(self.reg.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Request registration form'))
+
+        response = c.post(url, data={'apply': ''})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
     def test_demote_to_waiter(self):
         c = self._login('superuser')
@@ -1412,7 +1540,6 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         response = c.post(url, data={'action': 'confirm', '_selected_action': [self.reg.pk]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip('Even when every `member.confirm()` succeeds, it still shows the error message.')
     def test_confirm_multiple(self):
         c = self._login('superuser')
         url = reverse('admin:members_memberunconfirmedproxy_changelist')
@@ -1451,11 +1578,25 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         c = self._login('standard')
         url = reverse('admin:members_memberunconfirmedproxy_changelist')
         response = c.get(url)
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
-
-        c = self._login('superuser')
-        response = c.get(url)
+        # By default, standard users may access the member unconfirmed listing (but only view
+        # the relevant registrations)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_response_change_confirm(self):
+        request = self.factory.post('/', {'_confirm': True})
+        request.user = User.objects.get(username='superuser')
+        request._messages = mock.MagicMock()
+
+        # Test successful confirm
+        self.reg.confirmed_mail = True
+        self.reg.confirmed_alternative_mail = True
+        self.reg.save()
+        with mock.patch.object(self.reg, 'confirm', return_value=True):
+            response = self.admin.response_change(request, self.reg)
+
+        # Test failed confirm
+        with mock.patch.object(self.reg, 'confirm', return_value=False):
+            response = self.admin.response_change(request, self.reg)
 
 
 class MailConfirmationTestCase(BasicMemberTestCase):
@@ -1503,7 +1644,7 @@ class MailConfirmationTestCase(BasicMemberTestCase):
         self.assertTrue(self.father.confirmed_mail, msg='After confirming by key, the mail should be confirmed.')
 
     @skip("Currently, emergency contact email addresses are not required to be confirmed.")
-    def test_emergency_contact_confirmation(self):
+    def test_emergency_contact_confirmation(self): # pragma: no cover
         # request mail confirmation of fritz, should also ask for confirmation of father
         requested_confirmation = self.fritz.request_mail_confirmation()
         self.assertTrue(requested_confirmation,
@@ -1555,6 +1696,7 @@ class RegisterViewTestCase(BasicMemberTestCase):
 
     def setUp(self):
         super().setUp()
+        self.factory = RequestFactory()
         RegistrationPassword.objects.create(group=self.alp,
                                             password=RegisterViewTestCase.REGISTRATION_PASSWORD)
 
@@ -1606,6 +1748,27 @@ class RegisterViewTestCase(BasicMemberTestCase):
         })
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("The entered password is wrong."))
+
+    def test_register_no_group(self):
+        # Test when group is None, render_register_failed is called with reason
+        url = reverse('members:register')
+        response = self.client.post(url, data={
+            'password': '',
+            'waiter_key': '',
+            'save': '',
+        })
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Registration failed'))
+
+    def test_render_register_success(self):
+        # Test render_register_success return statement
+        response = render_register_success(self.factory.get('/'), "Test Group", "Test Member", False)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_render_register_failed_with_reason(self):
+        # Test render_register_failed with reason to cover context assignment
+        response = render_register_failed(self.factory.get('/'), "Test reason")
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
 class UploadRegistrationFormViewTestCase(BasicMemberTestCase):
@@ -1660,6 +1823,21 @@ class UploadRegistrationFormViewTestCase(BasicMemberTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response,
                             _("Our team will process your registration shortly."))
+
+    def test_upload_registration_form_validation_error(self):
+        # Test ValueError exception handling during form validation
+        url = reverse('members:upload_registration_form')
+        file = SimpleUploadedFile("form.pdf", b"file_content", content_type="application/pdf")
+        with mock.patch.object(Member, 'validate_registration_form') as mock_validate:
+            mock_validate.side_effect = ValueError("Test validation error")
+            response = self.client.post(url, data={
+                'key': self.reg.upload_registration_form_key,
+                'registration_form': file,
+            })
+            self.assertEqual(response.status_code, HTTPStatus.OK)
+            # Should stay on upload form page due to error
+            self.assertContains(response,
+                                _('If you are not an adult yet, please let someone responsible for you sign the agreement.'))
 
 class DownloadRegistrationFormViewTestCase(BasicMemberTestCase):
     def setUp(self):
@@ -1720,7 +1898,6 @@ class RegistrationFromWaiterViewTestCase(BasicMemberTestCase):
         ))
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip("This currently throws an 'AttributeError'.")
     def test_register_post_no_save(self):
         url = reverse('members:register')
         response = self.client.post(url, data=dict(
@@ -1840,16 +2017,14 @@ class MemberWaitingListTestCase(BasicMemberTestCase):
     def test_latest_group_invitation(self):
         self.assertGreater(len(self.waiter.latest_group_invitation()), 1)
 
-    @skip("This currently throws a 'TypeError'.")
     def test_may_register(self):
         self.assertTrue(self.waiter.may_register(self.invitation.key))
 
     def test_may_register_invalid(self):
         self.assertFalse(self.waiter.may_register('foobar'))
 
-    @skip("This currently throws a 'NameError'.")
     def test_waiting_confirmation_needed(self):
-        self.assertFalse(self.waiter.waiting_confirmation_needed())
+        self.assertFalse(self.waiter.waiting_confirmation_needed)
 
     def test_confirm_waiting_invalid(self):
         self.assertEqual(self.waiter.confirm_waiting('foobar'),
@@ -1926,6 +2101,15 @@ class ConfirmWaitingViewTestCase(BasicMemberTestCase):
         # post, no sanity flag
         response = self.client.post(url, data={'key': self.waiter.leave_key})
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_confirm_waiting_invalid_status(self):
+        # Test invalid status handling in confirm_waiting
+        url = reverse('members:confirm_waiting')
+        with mock.patch.object(MemberWaitingList, 'confirm_waiting') as mock_confirm:
+            mock_confirm.return_value = 999  # Invalid status
+            response = self.client.get(url, data={'key': self.key})
+            self.assertEqual(response.status_code, HTTPStatus.OK)
+            self.assertContains(response, _('The supplied link is invalid.'))
 
 
 class MailConfirmationViewTestCase(BasicMemberTestCase):
@@ -2025,51 +2209,21 @@ class EchoViewTestCase(BasicMemberTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('Your data was successfully updated.'))
 
-
-class TestRegistrationFilterTestCase(AdminTestCase):
-    def setUp(self):
-        super().setUp(model=Member, admin=MemberAdmin)
-
-    def test_lookups(self):
-        fil = RegistrationFilter(None, {}, Member, self.admin)
-        self.assertTrue(('All', _('All')) in fil.lookups(None, None))
-
-    def test_queryset_no_filter(self):
-        qs = Member.objects.all()
-        # filtering with All returns passed queryset
-        fil = RegistrationFilter(None, {'registration_complete': 'All'}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
-
-        # or with None
-        fil = RegistrationFilter(None, {}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
-
-    def test_choices(self):
-        fil = RegistrationFilter(None, {'registration_complete': 'True'}, Member, self.admin)
-        request = RequestFactory().get("/", {})
-        request.user = User.objects.get(username='superuser')
-        changelist = self.admin.get_changelist_instance(request)
-        choices = list(fil.choices(changelist))
-        self.assertEqual(choices[0]['display'], _('Yes'))
-
-    @skip("Currently errors, because 'registration_complete' is not a field.")
-    def test_queryset_filter(self):
-        qs = Member.objects.all()
-        fil = RegistrationFilter(None, {'registration_complete': 'True'}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs),
-                                 Member.objects.filter(registration_complete=True),
-                                 ordered=False)
-
-        fil = RegistrationFilter(None, {'registration_complete': 'False'}, Member, self.admin)
-        self.assertQuerysetEqual(fil.queryset(None, qs),
-                                 Member.objects.filter(registration_complete=True),
-                                 ordered=False)
-
-        fil = RegistrationFilter(None, {}, Member, self.admin)
-        fil.default_value = ('True', True)
-        self.assertQuerysetEqual(fil.queryset(None, qs),
-                                 Member.objects.filter(registration_complete=True),
-                                 ordered=False)
+    def test_post_save_without_registration_form(self):
+        # Clear registration form to test member without registration_form case
+        self.fritz.registration_form = None
+        self.fritz.save()
+        url = reverse('members:echo')
+        response = self.client.post(url, data=dict(
+            REGISTRATION_DATA,
+            **EMERGENCY_CONTACT_DATA,
+            key=self.key,
+            password=self.fritz.echo_password,
+            save='',
+        ))
+        # Should redirect to upload registration form
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn('upload', response.url)
 
 
 class MemberAdminFormTestCase(TestCase):
@@ -2135,18 +2289,17 @@ class KlettertreffAdminTestCase(AdminTestCase):
                                      '_selected_action': [kl.pk for kl in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    @skip('Members are not filtered by group, because group attribute is retrieved from GET data.')
     def test_overview_filtered(self):
         qs = Klettertreff.objects.all()
-        url = reverse('admin:members_klettertreff_changelist')
+        cool_kids = Group.objects.get(name='cool kids')
+        url = reverse('admin:members_klettertreff_changelist') + f"?group__id__exact={cool_kids.pk}"
 
         # expect: success and filtered by group
         c = self._login('superuser')
         response = c.post(url, data={'action': 'overview',
-                                     'group__name': 'cool kids',
                                      '_selected_action': [kl.pk for kl in qs]}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertNotContains(response, 'Lulla')
+        self.assertNotContains(response, 'Lise')
 
 
 class GroupAdminTestCase(AdminTestCase):
@@ -2168,6 +2321,16 @@ class GroupAdminTestCase(AdminTestCase):
 
         c = self._login('superuser')
         response = c.post(url, data={'group_overview': ''}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_group_checklist(self):
+        url = reverse('admin:members_group_action')
+        c = self._login('standard')
+        response = c.post(url, data={'group_checklist': ''}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+
+        c = self._login('superuser')
+        response = c.post(url, data={'group_checklist': ''}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
@@ -2330,11 +2493,9 @@ class NewMemberOnListTestCase(BasicMemberTestCase):
         self.ex.save()
         self.mol = NewMemberOnList.objects.create(memberlist=self.ex, member=self.fritz)
 
-    @skip("This currently throws a 'NameError'.")
     def test_skills(self):
         self.assertGreater(len(self.mol.skills), 0)
 
-    @skip("This currently throws a 'NameError'.")
     def test_qualities_tex(self):
         self.assertGreater(len(self.mol.qualities_tex), 0)
 
@@ -2345,6 +2506,50 @@ class TrainingCategoryTestCase(TestCase):
 
     def test_str(self):
         self.assertEqual(str(self.cat), 'school')
+
+
+class MemberTrainingTestCase(TestCase):
+    def setUp(self):
+        self.member_training = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=timezone.now().date()
+        )
+        self.member_training_no_date = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=None
+        )
+
+    def test_str(self):
+        self.assertIn(self.member_training.date.strftime('%d.%m.%Y'), str(self.member_training))
+        self.assertIn(str(_('(no date)')), str(self.member_training_no_date))
+
+
+class MemberTrainingAdminTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=MemberTraining, admin=MemberTrainingAdmin)
+        self.member_training = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=timezone.now().date()
+        )
+        self.activity = ActivityCategory.objects.create(name='Test Activity',
+                                                        ljp_category='Sonstiges', description='Test')
+        self.member_training.activity.add(self.activity)
+
+    def test_changelist(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_membertraining_changelist')
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_change(self):
+        c = self._login('superuser')
+        url = reverse('admin:members_membertraining_change', args=(self.member_training.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
 
 class PermissionMemberGroupTestCase(BasicMemberTestCase):
     def setUp(self):

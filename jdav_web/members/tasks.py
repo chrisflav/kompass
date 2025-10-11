@@ -27,8 +27,7 @@ def send_crisis_intervention_list():
     that have not been sent yet.
     """
     no = 0
-    for excursion in Freizeit.objects.filter(date__date=timezone.now().date(),
-                                             crisis_intervention_list_sent=False):
+    for excursion in Freizeit.to_send_crisis_intervention_list():
         excursion.send_crisis_intervention_list()
         no += 1
     return no
@@ -41,8 +40,7 @@ def send_notification_crisis_intervention_list():
     day and that have not been sent yet.
     """
     no = 0
-    for excursion in Freizeit.objects.filter(date__date=timezone.now().date() + timezone.timedelta(days=1),
-                                             notification_crisis_intervention_list_sent=False):
+    for excursion in Freizeit.to_notify_crisis_intervention_list():
         excursion.notify_leaders_crisis_intervention_list()
         no += 1
     return no

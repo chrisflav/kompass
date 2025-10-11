@@ -110,13 +110,13 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         readonly_fields = self.admin.get_readonly_fields(None, self.statement)
         self.assertEqual(readonly_fields, ['submitted', 'excursion'])
 
-    @unittest.skip('Request returns 200, but should give insufficient permissions.')
     def test_submit_view_insufficient_permission(self):
         url = reverse('admin:finance_statementunsubmitted_submit',
                       args=(self.statement.pk,))
         c = self._login('standard')
         response = c.get(url, follow=True)
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Insufficient permissions.'))
 
     def test_submit_view_get(self):
         url = reverse('admin:finance_statementunsubmitted_submit',
@@ -126,7 +126,6 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _('Submit statement'))
 
-    @unittest.skip('Currently fails with TypeError, because `participant_count` is passed twice.')
     def test_submit_view_get_with_excursion(self):
         url = reverse('admin:finance_statementunsubmitted_submit',
                       args=(self.statement_with_excursion.pk,))
@@ -247,16 +246,6 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             amount=amount,
             paid_by=self.member
         )
-
-    def _add_session_to_request(self, request):
-        """Add session to request"""
-        middleware = SessionMiddleware(lambda req: None)
-        middleware.process_request(request)
-        request.session.save()
-
-        middleware = MessageMiddleware(lambda req: None)
-        middleware.process_request(request)
-        request._messages = FallbackStorage(request)
 
     def test_has_add_permission(self):
         """Test that add permission is disabled"""
