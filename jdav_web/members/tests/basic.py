@@ -2518,9 +2518,16 @@ class MemberTrainingAdminTestCase(AdminTestCase):
             date=timezone.now().date()
         )
         
-        self.member_training.activity.add(
-            ActivityCategory.objects.create(name='Test Activity', ljp_category='Sonstiges', description='Test')
+        self.member_training2 = MemberTraining.objects.create(
+            member=Member.objects.create(**REGISTRATION_DATA),
+            category=TrainingCategory.objects.create(name='Test Training', permission_needed=False),
+            date=None
         )
+        
+        self.activity = ActivityCategory.objects.create(name='Test Activity', ljp_category='Sonstiges', description='Test')
+        
+        self.member_training.activity.add(self.activity)
+        self.member_training2.activity.add(self.activity)
 
     def test_changelist(self):
         c = self._login('superuser')
@@ -2533,6 +2540,10 @@ class MemberTrainingAdminTestCase(AdminTestCase):
         url = reverse('admin:members_membertraining_change', args=(self.member_training.pk,))
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+    
+    def test_membertraining_title(self):
+        self.assertNotEqual(self.member_training, self.member_training2)
+        
 
 class PermissionMemberGroupTestCase(BasicMemberTestCase):
     def setUp(self):
