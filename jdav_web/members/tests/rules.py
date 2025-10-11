@@ -88,12 +88,12 @@ class RulesTestCase(TestCase):
         self.statement_unsubmitted = Statement.objects.create(
             short_description='Unsubmitted Statement',
             excursion=self.excursion,
-            submitted=False
+            status=Statement.UNSUBMITTED
         )
 
         self.statement_submitted = Statement.objects.create(
             short_description='Submitted Statement',
-            submitted=True
+            status=Statement.SUBMITTED
         )
 
     def test_is_oneself(self):

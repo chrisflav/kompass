@@ -99,16 +99,16 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
     def test_get_readonly_fields_submitted(self):
         """Test readonly fields when statement is submitted"""
         # Mark statement as submitted
-        self.statement.submitted = True
+        self.statement.status = Statement.SUBMITTED
         readonly_fields = self.admin.get_readonly_fields(None, self.statement)
-        self.assertIn('submitted', readonly_fields)
+        self.assertIn('status', readonly_fields)
         self.assertIn('excursion', readonly_fields)
         self.assertIn('short_description', readonly_fields)
 
     def test_get_readonly_fields_not_submitted(self):
         """Test readonly fields when statement is not submitted"""
         readonly_fields = self.admin.get_readonly_fields(None, self.statement)
-        self.assertEqual(readonly_fields, ['submitted', 'excursion'])
+        self.assertEqual(readonly_fields, ['status', 'excursion'])
 
     def test_submit_view_insufficient_permission(self):
         url = reverse('admin:finance_statementunsubmitted_submit',
@@ -163,7 +163,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.statement = Statement.objects.create(
             short_description='Submitted Statement',
             explanation='Test explanation',
-            submitted=True,
+            status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
             night_cost=25
@@ -198,7 +198,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.statement_no_trans_success = Statement.objects.create(
             short_description='No Transactions Success',
             explanation='Test explanation',
-            submitted=True,
+            status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
             night_cost=25
@@ -206,7 +206,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.statement_no_trans_error = Statement.objects.create(
             short_description='No Transactions Error',
             explanation='Test explanation',
-            submitted=True,
+            status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
             night_cost=25
@@ -294,7 +294,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         """Test overview_view with statement that can't be found in StatementSubmitted queryset"""
         # When trying to access an unsubmitted statement via StatementSubmitted admin,
         # the decorator will fail to find it and show "Statement not found"
-        self.statement.submitted = False
+        self.statement.status = Statement.UNSUBMITTED
         self.statement.save()
 
         url = reverse('admin:finance_statementsubmitted_overview', args=(self.statement.pk,))
@@ -496,8 +496,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         base_statement = Statement.objects.create(
             short_description='Confirmed Statement',
             explanation='Test explanation',
-            submitted=True,
-            confirmed=True,
+            status=Statement.CONFIRMED,
             confirmed_by=self.member,
             confirmed_date=timezone.now(),
             night_cost=25
@@ -510,8 +509,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         self.unconfirmed_statement = Statement.objects.create(
             short_description='Unconfirmed Statement',
             explanation='Test explanation',
-            submitted=True,
-            confirmed=False,
+            status=Statement.SUBMITTED,
             night_cost=25
         )
 
@@ -528,8 +526,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         confirmed_with_excursion_base = Statement.objects.create(
             short_description='Confirmed with Excursion',
             explanation='Test explanation',
-            submitted=True,
-            confirmed=True,
+            status=Statement.CONFIRMED,
             confirmed_by=self.member,
             confirmed_date=timezone.now(),
             excursion=self.excursion,
