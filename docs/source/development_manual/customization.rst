@@ -40,6 +40,7 @@ Key sections include:
 * ``[misc]``: Miscellaneous application settings
 * ``[mail]``: Email configuration
 * ``[database]``: Database connection details
+* ``[custom_model_fields]``: Customize visible model fields in admin interface (see below)
 
 Customizing Model Fields
 ~~~~~~~~~~~~~~~~~~~~~~~
