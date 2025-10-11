@@ -11,6 +11,7 @@ The application uses two main configuration files:
 * ``settings.toml``: Contains core application settings
 * ``text.toml``: Contains customizable text content
 
+An example `settings.toml` can be found in `deploy/config/settings.toml`. For more details, see the following section.
 settings.toml
 ~~~~~~~~~~~~
 
