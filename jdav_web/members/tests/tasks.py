@@ -75,7 +75,7 @@ class TasksTestCase(TestCase):
 
         self.excursion_today_not_sent = Freizeit.objects.create(
             name='Today Excursion 1',
-            date=timezone.now().replace(hour=10, minute=0, second=0, microsecond=0),
+            date=timezone.now() + timezone.timedelta(hours=4),
             tour_type=GEMEINSCHAFTS_TOUR,
             kilometers_traveled=10,
             difficulty=1,
@@ -85,7 +85,7 @@ class TasksTestCase(TestCase):
 
         self.excursion_today_sent = Freizeit.objects.create(
             name='Today Excursion 2',
-            date=timezone.now().replace(hour=14, minute=0, second=0, microsecond=0),
+            date=timezone.now() + timezone.timedelta(hours=4),
             tour_type=GEMEINSCHAFTS_TOUR,
             kilometers_traveled=10,
             difficulty=1,
@@ -95,7 +95,7 @@ class TasksTestCase(TestCase):
 
         self.excursion_tomorrow_not_sent = Freizeit.objects.create(
             name='Tomorrow Excursion 1',
-            date=(timezone.now() + timezone.timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0),
+            date=timezone.now() + timezone.timedelta(days=1, hours=4),
             tour_type=GEMEINSCHAFTS_TOUR,
             kilometers_traveled=10,
             difficulty=1,
@@ -105,7 +105,7 @@ class TasksTestCase(TestCase):
 
         self.excursion_tomorrow_sent = Freizeit.objects.create(
             name='Tomorrow Excursion 2',
-            date=(timezone.now() + timezone.timedelta(days=1)).replace(hour=14, minute=0, second=0, microsecond=0),
+            date=timezone.now() + timezone.timedelta(days=1, hours=4),
             tour_type=GEMEINSCHAFTS_TOUR,
             kilometers_traveled=10,
             difficulty=1,
@@ -136,6 +136,7 @@ class TasksTestCase(TestCase):
         """Test send_notification_crisis_intervention_list task calls correct excursions."""
         result = send_notification_crisis_intervention_list()
 
-        # Should call notify_leaders_crisis_intervention_list for tomorrow's excursions that haven't been sent
-        self.assertEqual(result, 1)
-        self.assertEqual(mock_notify.call_count, 1)
+        # Should call notify_leaders_crisis_intervention_list for tomorrow's and todays excursions
+        # that haven't been sent
+        self.assertEqual(result, 2)
+        self.assertEqual(mock_notify.call_count, 2)
