@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
+from django.utils.html import format_html
 from members.models import Member, Freizeit, OEFFENTLICHE_ANREISE, MUSKELKRAFT_ANREISE
 from django.conf import settings
 import rules
@@ -55,6 +56,9 @@ class Statement(CommonModel):
     STATUS_CHOICES = [(UNSUBMITTED, _('In preparation')),
                       (SUBMITTED, _('Submitted')),
                       (CONFIRMED, _('Confirmed'))]
+    STATUS_CSS_CLASS = { SUBMITTED: 'submitted',
+                         CONFIRMED: 'confirmed',
+                         UNSUBMITTED: 'unsubmitted' }
 
     short_description = models.CharField(verbose_name=_('Short description'),
                                          max_length=30,
@@ -115,12 +119,14 @@ class Statement(CommonModel):
             ('may_edit_submitted_statements', 'Is allowed to edit submitted statements')
         ]
         rules_permissions = {
-            # this is suboptimal, but Statement is only ever used as an inline on Freizeit
-            # so we check for excursion permissions
-            'add_obj': is_leader,
-            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
-            'change_obj': is_leader & statement_not_submitted,
-            'delete_obj': is_leader & statement_not_submitted,
+            # All users may add draft statements.
+            'add_obj': rules.is_staff,
+            # All users may view their own statements and statements of excursions they are responsible for.
+            'view_obj': is_creator | leads_excursion | has_global_perm('finance.view_global_statement'),
+            # All users may change relevant (see above) draft statements.
+            'change_obj': (not_submitted & (is_creator | leads_excursion)) | has_global_perm('finance.change_global_statement'),
+            # All users may delete relevant (see above) draft statements.
+            'delete_obj': not_submitted & (is_creator | leads_excursion | has_global_perm('finance.delete_global_statement')),
         }
 
     def __str__(self):
@@ -143,6 +149,13 @@ class Statement(CommonModel):
     @property
     def confirmed(self):
         return self.status == Statement.CONFIRMED
+
+    def status_badge(self):
+        code = Statement.STATUS_CSS_CLASS[self.status]
+        return format_html(f'<span class="statement-{code}">{Statement.STATUS_CHOICES[self.status][1]}</span>')
+    status_badge.short_description = _('Status')
+    status_badge.allow_tags = True
+    status_badge.admin_order_field = 'status'
 
     def submit(self, submitter=None):
         self.status = self.SUBMITTED
@@ -509,6 +522,7 @@ class Statement(CommonModel):
     def total_pretty(self):
         return "{}€".format(self.total)
     total_pretty.short_description = _('Total')
+    total_pretty.admin_order_field = 'total'
 
     def template_context(self):
         context = {
@@ -578,6 +592,20 @@ class Statement(CommonModel):
                   recipients=[settings.SEKTION_FINANCE_MAIL],
                   cc=cc,
                   attachments=[media_path(filename)])
+
+
+class StatementOnExcursionProxy(Statement):
+    class Meta(CommonModel.Meta):
+        proxy = True
+        verbose_name = _('Statement')
+        verbose_name_plural = _('Statements')
+        rules_permissions = {
+            # This is used as an inline on excursions, so we check for excursion permissions.
+            'add_obj': is_leader,
+            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
+            'change_obj': is_leader & statement_not_submitted,
+            'delete_obj': is_leader & statement_not_submitted,
+        }
 
 
 class StatementUnSubmittedManager(models.Manager):

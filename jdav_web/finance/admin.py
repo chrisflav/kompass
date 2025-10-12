@@ -62,11 +62,28 @@ def decorate_statement_view(model, perm=None):
     return decorator
 
 
-@admin.register(StatementUnSubmitted)
-class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
+@admin.register(Statement)
+class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'status']
-    list_display = ['__str__', 'excursion', 'created_by']
+    list_display = ['__str__', 'excursion', 'total_pretty', 'created_by', 'submitted_date', 'status_badge']
+    list_filter = ['status']
+    search_fields = ('excursion__name', 'short_description')
+    ordering = ['-submitted_date']
     inlines = [BillOnStatementInline]
+
+    def has_change_permission(self, request, obj=None):
+        if obj is None:
+            return super().has_change_permission(request)
+        if obj.confirmed:
+            # Confirmed statements may not be changed (they should be unconfirmed first)
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is None or obj.submitted:
+            # Submitted statements may not be deleted (they should be rejected first)
+            return False
+        return super().has_delete_permission(request, obj)
 
     def save_model(self, request, obj, form, change):
         if not change and hasattr(request.user, 'member'):
@@ -79,6 +96,12 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
             return readonly_fields + self.fields
         else:
             return readonly_fields
+
+    def get_inlines(self, request, obj=None):
+        if obj is None or not obj.submitted:
+            return [BillOnStatementInline]
+        else:
+            return [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -96,10 +119,30 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
                 wrap(self.submit_view),
                 name="%s_%s_submit" % (self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "<path:object_id>/overview/",
+                wrap(self.overview_view),
+                name="%s_%s_overview" % (self.opts.app_label, self.opts.model_name),
+            ),
+            path(
+                "<path:object_id>/reduce_transactions/",
+                wrap(self.reduce_transactions_view),
+                name="%s_%s_reduce_transactions" % (self.opts.app_label, self.opts.model_name),
+            ),
+            path(
+                "<path:object_id>/unconfirm/",
+                wrap(self.unconfirm_view),
+                name="%s_%s_unconfirm" % (self.opts.app_label, self.opts.model_name),
+            ),
+            path(
+                "<path:object_id>/summary/",
+                wrap(self.statement_summary_view),
+                name="%s_%s_summary" % (self.opts.app_label, self.opts.model_name),
+            ),
         ]
         return custom_urls + urls
 
-    @decorate_statement_view(Statement)
+    @decorate_statement_view(StatementUnSubmitted)
     def submit_view(self, request, statement):
         if statement.submitted: # pragma: no cover
             logger.error(f"submit_view reached with submitted statement {statement}. This should not happen.")
@@ -131,91 +174,6 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
                 statement=statement)
             return render(request, 'admin/submit_statement.html', context=context)
 
-
-class TransactionOnSubmittedStatementInline(admin.TabularInline):
-    model = Transaction
-    fields = ['amount', 'member', 'reference', 'text_length_warning', 'ledger']
-    formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
-    }
-    readonly_fields = ['text_length_warning']
-    extra = 0
-
-    def text_length_warning(self, obj):
-        """Display reference length, warn if exceeds 140 characters."""
-        len_reference = len(obj.reference)
-        len_string = f"{len_reference}/140"
-        if len_reference > 140:
-            return mark_safe(f'<span style="color: red;">{len_string}</span>')
-
-        return len_string
-    text_length_warning.short_description = _("Length")
-
-
-class BillOnSubmittedStatementInline(BillOnStatementInline):
-    model = BillOnStatementProxy
-    extra = 0
-    sortable_options = []
-    fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof', 'costs_covered']
-    formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
-    }
-
-    def get_readonly_fields(self, request, obj=None):
-        return ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
-
-
-@admin.register(StatementSubmitted)
-class StatementSubmittedAdmin(admin.ModelAdmin):
-    fields = ['short_description', 'explanation', 'excursion', 'status']
-    list_display = ['__str__', 'is_valid', 'submitted_date', 'submitted_by']
-    ordering = ('-submitted_date',)
-    inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
-
-    def has_add_permission(self, request, obj=None):
-        # Submitted statements should not be added directly, but instead be created
-        # as unsubmitted statements and then submitted.
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return request.user.has_perm('finance.process_statementsubmitted')
-
-    def has_delete_permission(self, request, obj=None):
-        # Submitted statements should not be deleted. Instead they can be rejected
-        # and then deleted as unsubmitted statements.
-        return False
-
-    def get_readonly_fields(self, request, obj=None):
-        readonly_fields = ['status']
-        if obj is not None and obj.submitted:
-            return readonly_fields + self.fields
-        else:
-            return readonly_fields
-
-    def get_urls(self):
-        urls = super().get_urls()
-
-        def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
-
-            wrapper.model_admin = self
-            return update_wrapper(wrapper, view)
-
-        custom_urls = [
-            path(
-                "<path:object_id>/overview/",
-                wrap(self.overview_view),
-                name="%s_%s_overview" % (self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/reduce_transactions/",
-                wrap(self.reduce_transactions_view),
-                name="%s_%s_reduce_transactions" % (self.opts.app_label, self.opts.model_name),
-            ),
-        ]
-        return custom_urls + urls
-
     @decorate_statement_view(StatementSubmitted)
     def overview_view(self, request, statement):
         if not statement.submitted: # pragma: no cover
@@ -238,7 +196,8 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
             messages.success(request,
                     _("Successfully confirmed %(name)s. I hope you executed the associated transactions, I wont remind you again.")
                     % {'name': str(statement)})
-            download_link = reverse('admin:finance_statementconfirmed_summary', args=(statement.pk,))
+            download_link = reverse('admin:%s_%s_summary' % (self.opts.app_label, self.opts.model_name),
+                                    args=(statement.pk,))
             messages.success(request,
                              mark_safe(_("You can download a <a href='%(link)s', target='_blank'>receipt</a>.") % {'link': download_link}))
             return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
@@ -310,52 +269,6 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
         messages.success(request,
                 _("Successfully reduced transactions for %(name)s.") % {'name': str(statement)})
         return HttpResponseRedirect(request.GET['redirectTo'])
-        #return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
-
-
-@admin.register(StatementConfirmed)
-class StatementConfirmedAdmin(admin.ModelAdmin):
-    fields = ['short_description', 'explanation', 'excursion', 'status']
-    #readonly_fields = fields
-    list_display = ['__str__', 'total_pretty', 'confirmed_date', 'confirmed_by']
-    ordering = ('-confirmed_date',)
-    inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
-
-    def has_add_permission(self, request, obj=None):
-        # To preserve integrity, no one is allowed to add confirmed statements
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        # To preserve integrity, no one is allowed to change confirmed statements
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        # To preserve integrity, no one is allowed to delete confirmed statements
-        return False
-
-    def get_urls(self):
-        urls = super().get_urls()
-
-        def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
-
-            wrapper.model_admin = self
-            return update_wrapper(wrapper, view)
-
-        custom_urls = [
-            path(
-                "<path:object_id>/unconfirm/",
-                wrap(self.unconfirm_view),
-                name="%s_%s_unconfirm" % (self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/summary/",
-                wrap(self.statement_summary_view),
-                name="%s_%s_summary" % (self.opts.app_label, self.opts.model_name),
-            ),
-        ]
-        return custom_urls + urls
 
     @decorate_statement_view(StatementConfirmed, perm='finance.may_manage_confirmed_statements')
     def unconfirm_view(self, request, statement):
@@ -397,6 +310,39 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
         return render_tex_with_attachments(pdf_filename, 'finance/statement_summary.tex', context, attachments)
 
     statement_summary_view.short_description = _('Download summary')
+
+
+class TransactionOnSubmittedStatementInline(admin.TabularInline):
+    model = Transaction
+    fields = ['amount', 'member', 'reference', 'text_length_warning', 'ledger']
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+    }
+    readonly_fields = ['text_length_warning']
+    extra = 0
+
+    def text_length_warning(self, obj):
+        """Display reference length, warn if exceeds 140 characters."""
+        len_reference = len(obj.reference)
+        len_string = f"{len_reference}/140"
+        if len_reference > 140:
+            return mark_safe(f'<span style="color: red;">{len_string}</span>')
+
+        return len_string
+    text_length_warning.short_description = _("Length")
+
+
+class BillOnSubmittedStatementInline(BillOnStatementInline):
+    model = BillOnStatementProxy
+    extra = 0
+    sortable_options = []
+    fields = ['short_description', 'explanation', 'amount', 'paid_by', 'proof', 'costs_covered']
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 40})}
+    }
+
+    def get_readonly_fields(self, request, obj=None):
+        return ['short_description', 'explanation', 'amount', 'paid_by', 'proof']
 
 
 @admin.register(Transaction)

@@ -4,6 +4,7 @@ from django.test import TestCase, override_settings
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory, Client
 from django.contrib.auth.models import User, Permission
+from django.contrib.auth import models as authmodels
 from django.utils import timezone
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.messages.middleware import MessageMiddleware
@@ -24,8 +25,7 @@ from ..models import (
     StatementSubmitted
 )
 from ..admin import (
-    LedgerAdmin, StatementUnSubmittedAdmin, StatementSubmittedAdmin,
-    StatementConfirmedAdmin, TransactionAdmin, BillAdmin
+    LedgerAdmin, StatementAdmin, TransactionAdmin, BillAdmin
 )
 
 
@@ -52,10 +52,10 @@ class AdminTestCase(TestCase):
 
 
 class StatementUnSubmittedAdminTestCase(AdminTestCase):
-    """Test cases for StatementUnSubmittedAdmin"""
+    """Test cases for StatementAdmin in the case of unsubmitted statements"""
 
     def setUp(self):
-        super().setUp(model=StatementUnSubmitted, admin=StatementUnSubmittedAdmin)
+        super().setUp(model=Statement, admin=StatementAdmin)
 
         self.superuser = User.objects.get(username='superuser')
         self.member = Member.objects.create(
@@ -96,6 +96,18 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.admin.save_model(request, new_statement, None, change=False)
         self.assertEqual(new_statement.created_by, self.member)
 
+    def test_has_delete_permission(self):
+        """Test if unsubmitted statements may be deleted"""
+        request = self.factory.post('/')
+        request.user = self.superuser
+        self.assertTrue(self.admin.has_delete_permission(request, self.statement))
+
+    def test_get_inlines(self):
+        """Test get_inlines"""
+        request = self.factory.post('/')
+        request.user = self.superuser
+        self.assertEqual(len(self.admin.get_inlines(request, self.statement)), 1)
+
     def test_get_readonly_fields_submitted(self):
         """Test readonly fields when statement is submitted"""
         # Mark statement as submitted
@@ -111,7 +123,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.assertEqual(readonly_fields, ['status', 'excursion'])
 
     def test_submit_view_insufficient_permission(self):
-        url = reverse('admin:finance_statementunsubmitted_submit',
+        url = reverse('admin:finance_statement_submit',
                       args=(self.statement.pk,))
         c = self._login('standard')
         response = c.get(url, follow=True)
@@ -119,7 +131,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.assertContains(response, _('Insufficient permissions.'))
 
     def test_submit_view_get(self):
-        url = reverse('admin:finance_statementunsubmitted_submit',
+        url = reverse('admin:finance_statement_submit',
                       args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.get(url, follow=True)
@@ -127,7 +139,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.assertContains(response, _('Submit statement'))
 
     def test_submit_view_get_with_excursion(self):
-        url = reverse('admin:finance_statementunsubmitted_submit',
+        url = reverse('admin:finance_statement_submit',
                       args=(self.statement_with_excursion.pk,))
         c = self._login('superuser')
         response = c.get(url, follow=True)
@@ -135,7 +147,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.assertContains(response, _('Finance overview'))
 
     def test_submit_view_post(self):
-        url = reverse('admin:finance_statementunsubmitted_submit',
+        url = reverse('admin:finance_statement_submit',
                       args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'apply': ''})
@@ -145,10 +157,10 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
 
 
 class StatementSubmittedAdminTestCase(AdminTestCase):
-    """Test cases for StatementSubmittedAdmin"""
+    """Test cases for StatementAdmin in the case of submitted statements"""
 
     def setUp(self):
-        super().setUp(model=StatementSubmitted, admin=StatementSubmittedAdmin)
+        super().setUp(model=Statement, admin=StatementAdmin)
 
         self.user = User.objects.create_user('testuser', 'test@example.com', 'pass')
         self.member = Member.objects.create(
@@ -157,8 +169,8 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         )
 
         self.finance_user = User.objects.create_user('finance', 'finance@example.com', 'pass')
-        finance_perm = Permission.objects.get(codename='process_statementsubmitted')
-        self.finance_user.user_permissions.add(finance_perm)
+        self.finance_user.groups.add(authmodels.Group.objects.get(name='Finance'),
+                                     authmodels.Group.objects.get(name='Standard'))
 
         self.statement = Statement.objects.create(
             short_description='Submitted Statement',
@@ -247,12 +259,6 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             paid_by=self.member
         )
 
-    def test_has_add_permission(self):
-        """Test that add permission is disabled"""
-        request = self.factory.get('/')
-        request.user = self.finance_user
-        self.assertFalse(self.admin.has_add_permission(request))
-
     def test_has_change_permission_with_permission(self):
         """Test change permission with proper permission"""
         request = self.factory.get('/')
@@ -276,14 +282,14 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
                          self.admin.get_readonly_fields(None, self.statement_unsubmitted))
 
     def test_change(self):
-        url = reverse('admin:finance_statementsubmitted_change',
+        url = reverse('admin:finance_statement_change',
                       args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_overview_view(self):
-        url = reverse('admin:finance_statementsubmitted_overview',
+        url = reverse('admin:finance_statement_overview',
                       args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.get(url)
@@ -297,7 +303,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.statement.status = Statement.UNSUBMITTED
         self.statement.save()
 
-        url = reverse('admin:finance_statementsubmitted_overview', args=(self.statement.pk,))
+        url = reverse('admin:finance_statement_overview', args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.get(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -314,7 +320,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         # Create a bill that matches the transaction amount to make it valid
         self._create_matching_bill()
 
-        url = reverse('admin:finance_statementsubmitted_overview', args=(self.statement.pk,))
+        url = reverse('admin:finance_statement_overview', args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'transaction_execution_confirm': ''})
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -332,7 +338,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         # Create a bill that matches the transaction amount to make it valid
         self._create_matching_bill()
 
-        url = reverse('admin:finance_statementsubmitted_overview', args=(self.statement.pk,))
+        url = reverse('admin:finance_statement_overview', args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'transaction_execution_confirm_and_send': ''})
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -349,7 +355,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         # Create a bill that matches the transaction amount to make total valid
         self._create_matching_bill()
 
-        url = reverse('admin:finance_statementsubmitted_overview',
+        url = reverse('admin:finance_statement_overview',
                       args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, data={'confirm': ''})
@@ -361,7 +367,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         # Create a bill that doesn't match the transaction
         self._create_non_matching_bill()
 
-        url = reverse('admin:finance_statementsubmitted_overview',
+        url = reverse('admin:finance_statement_overview',
                       args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'confirm': ''})
@@ -378,7 +384,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         # Create a bill that matches the transaction amount to pass the first check
         self._create_matching_bill()
 
-        url = reverse('admin:finance_statementsubmitted_overview',
+        url = reverse('admin:finance_statement_overview',
                       args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'confirm': ''})
@@ -406,7 +412,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         # Check validity obstruction is allowances
         self.assertEqual(self.statement_no_trans_success.validity, Statement.INVALID_ALLOWANCE_TO)
 
-        url = reverse('admin:finance_statementsubmitted_overview',
+        url = reverse('admin:finance_statement_overview',
                       args=(self.statement_no_trans_success.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'confirm': ''})
@@ -418,7 +424,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
 
     def test_overview_view_reject(self):
         """Test overview_view reject statement"""
-        url = reverse('admin:finance_statementsubmitted_overview', args=(self.statement.pk,))
+        url = reverse('admin:finance_statement_overview', args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'reject': ''})
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -435,7 +441,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         # Ensure there's already a transaction
         self.assertTrue(self.statement.transaction_set.count() > 0)
 
-        url = reverse('admin:finance_statementsubmitted_overview', args=(self.statement.pk,))
+        url = reverse('admin:finance_statement_overview', args=(self.statement.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'generate_transactions': ''})
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -444,7 +450,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
 
     def test_overview_view_generate_transactions_success(self):
         """Test overview_view generate transactions successfully"""
-        url = reverse('admin:finance_statementsubmitted_overview',
+        url = reverse('admin:finance_statement_overview',
                       args=(self.statement_no_trans_success.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'generate_transactions': ''})
@@ -455,7 +461,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
 
     def test_overview_view_generate_transactions_error(self):
         """Test overview_view generate transactions with error"""
-        url = reverse('admin:finance_statementsubmitted_overview',
+        url = reverse('admin:finance_statement_overview',
                       args=(self.statement_no_trans_error.pk,))
         c = self._login('superuser')
         response = c.post(url, follow=True, data={'generate_transactions': ''})
@@ -466,10 +472,10 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.assertTrue(any(expected_text in str(msg) for msg in messages))
 
     def test_reduce_transactions_view(self):
-        url = reverse('admin:finance_statementsubmitted_reduce_transactions',
+        url = reverse('admin:finance_statement_reduce_transactions',
                       args=(self.statement.pk,))
         c = self._login('superuser')
-        response = c.get(url, data={'redirectTo': reverse('admin:finance_statementsubmitted_changelist')},
+        response = c.get(url, data={'redirectTo': reverse('admin:finance_statement_changelist')},
                          follow=True)
         self.assertContains(response,
                             _("Successfully reduced transactions for %(name)s.") %\
@@ -477,10 +483,10 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
 
 
 class StatementConfirmedAdminTestCase(AdminTestCase):
-    """Test cases for StatementConfirmedAdmin"""
+    """Test cases for StatementAdmin in the case of confirmed statements"""
 
     def setUp(self):
-        super().setUp(model=StatementConfirmed, admin=StatementConfirmedAdmin)
+        super().setUp(model=Statement, admin=StatementAdmin)
 
         self.user = User.objects.create_user('testuser', 'test@example.com', 'pass')
         self.member = Member.objects.create(
@@ -489,8 +495,8 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         )
 
         self.finance_user = User.objects.create_user('finance', 'finance@example.com', 'pass')
-        unconfirm_perm = Permission.objects.get(codename='may_manage_confirmed_statements')
-        self.finance_user.user_permissions.add(unconfirm_perm)
+        self.finance_user.groups.add(authmodels.Group.objects.get(name='Finance'),
+                                     authmodels.Group.objects.get(name='Standard'))
 
         # Create a base statement first
         base_statement = Statement.objects.create(
@@ -544,23 +550,17 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         middleware.process_request(request)
         request._messages = FallbackStorage(request)
 
-    def test_has_add_permission(self):
-        """Test that add permission is disabled"""
-        request = self.factory.get('/')
-        request.user = self.finance_user
-        self.assertFalse(self.admin.has_add_permission(request))
-
     def test_has_change_permission(self):
         """Test that change permission is disabled"""
         request = self.factory.get('/')
         request.user = self.finance_user
-        self.assertFalse(self.admin.has_change_permission(request))
+        self.assertFalse(self.admin.has_change_permission(request, self.statement))
 
     def test_has_delete_permission(self):
         """Test that delete permission is disabled"""
         request = self.factory.get('/')
         request.user = self.finance_user
-        self.assertFalse(self.admin.has_delete_permission(request))
+        self.assertFalse(self.admin.has_delete_permission(request, self.statement))
 
     def test_unconfirm_view_not_confirmed_statement(self):
         """Test unconfirm_view with statement that is not confirmed"""
@@ -622,14 +622,15 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         self.assertIn(self.statement.short_description.encode(), response.content)
 
     def test_statement_summary_view_insufficient_permission(self):
-        url = reverse('admin:finance_statementconfirmed_summary',
+        url = reverse('admin:finance_statement_summary',
                       args=(self.statement_with_excursion.pk,))
         c = self._login('standard')
         response = c.get(url, follow=True)
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _('Insufficient permissions.'))
 
     def test_statement_summary_view_unconfirmed(self):
-        url = reverse('admin:finance_statementconfirmed_summary',
+        url = reverse('admin:finance_statement_summary',
                       args=(self.unconfirmed_statement.pk,))
         c = self._login('superuser')
         response = c.get(url, follow=True)
@@ -638,7 +639,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
 
     def test_statement_summary_view_confirmed_with_excursion(self):
         """Test statement_summary_view when statement is confirmed with excursion"""
-        url = reverse('admin:finance_statementconfirmed_summary',
+        url = reverse('admin:finance_statement_summary',
                       args=(self.statement_with_excursion.pk,))
         c = self._login('superuser')
         response = c.get(url, follow=True)

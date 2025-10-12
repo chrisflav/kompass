@@ -42,7 +42,7 @@ from .models import (Member, Group, Freizeit, MemberNoteList, NewMemberOnList, K
                      KlettertreffAttendee, ActivityCategory, EmergencyContact,
                      annotate_activity_score, RegistrationPassword, MemberUnconfirmedProxy,
                      InvitationToGroup)
-from finance.models import Statement, BillOnExcursionProxy
+from finance.models import BillOnExcursionProxy, StatementOnExcursionProxy
 from mailer.mailutils import send as send_mail, get_echo_link
 from django.conf import settings
 from utils import get_member, RestrictedFileField, mondays_until_nth
@@ -941,7 +941,7 @@ class StatementOnListForm(forms.ModelForm):
         self.fields['ljp_to'].queryset = excursion.jugendleiter.all()
 
     class Meta:
-        model = Statement
+        model = StatementOnExcursionProxy
         fields = ['night_cost', 'allowance_to', 'subsidy_to', 'ljp_to']
 
     def clean(self):
@@ -959,7 +959,7 @@ class StatementOnListForm(forms.ModelForm):
 
 
 class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
-    model = Statement
+    model = StatementOnExcursionProxy
     extra = 1
     description = _('Please list here all expenses in relation with this excursion and upload relevant bills. These have to be permanently stored for the application of LJP contributions. The short descriptions are used in the seminar report cost overview (possible descriptions are e.g. food, material, etc.).')
     sortable_options = []
