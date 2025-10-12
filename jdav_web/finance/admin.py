@@ -64,7 +64,7 @@ def decorate_statement_view(model, perm=None):
 
 @admin.register(StatementUnSubmitted)
 class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
-    fields = ['short_description', 'explanation', 'excursion', 'submitted']
+    fields = ['short_description', 'explanation', 'excursion', 'status']
     list_display = ['__str__', 'excursion', 'created_by']
     inlines = [BillOnStatementInline]
 
@@ -74,7 +74,7 @@ class StatementUnSubmittedAdmin(CommonAdminMixin, admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
     def get_readonly_fields(self, request, obj=None):
-        readonly_fields = ['submitted', 'excursion']
+        readonly_fields = ['status', 'excursion']
         if obj is not None and obj.submitted:
             return readonly_fields + self.fields
         else:
@@ -167,7 +167,7 @@ class BillOnSubmittedStatementInline(BillOnStatementInline):
 
 @admin.register(StatementSubmitted)
 class StatementSubmittedAdmin(admin.ModelAdmin):
-    fields = ['short_description', 'explanation', 'excursion', 'submitted']
+    fields = ['short_description', 'explanation', 'excursion', 'status']
     list_display = ['__str__', 'is_valid', 'submitted_date', 'submitted_by']
     ordering = ('-submitted_date',)
     inlines = [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
@@ -186,7 +186,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
         return False
 
     def get_readonly_fields(self, request, obj=None):
-        readonly_fields = ['submitted']
+        readonly_fields = ['status']
         if obj is not None and obj.submitted:
             return readonly_fields + self.fields
         else:
@@ -274,7 +274,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
                 return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (self.opts.app_label, self.opts.model_name)))
 
         if "reject" in request.POST:
-            statement.submitted = False
+            statement.status = Statement.UNSUBMITTED
             statement.save()
             messages.success(request,
                     _("Successfully rejected %(name)s. The requestor can reapply, when needed.")
@@ -315,7 +315,7 @@ class StatementSubmittedAdmin(admin.ModelAdmin):
 
 @admin.register(StatementConfirmed)
 class StatementConfirmedAdmin(admin.ModelAdmin):
-    fields = ['short_description', 'explanation', 'excursion', 'confirmed']
+    fields = ['short_description', 'explanation', 'excursion', 'status']
     #readonly_fields = fields
     list_display = ['__str__', 'total_pretty', 'confirmed_date', 'confirmed_by']
     ordering = ('-confirmed_date',)
@@ -365,7 +365,7 @@ class StatementConfirmedAdmin(admin.ModelAdmin):
                     _("%(name)s is not yet confirmed.") % {'name': str(statement)})
             return HttpResponseRedirect(reverse('admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name), args=(statement.pk,)))
         if "unconfirm" in request.POST:
-            statement.confirmed = False
+            statement.status = Statement.SUBMITTED
             statement.confirmed_date = None
             statement.confired_by = None
             statement.save()

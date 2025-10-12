@@ -46,11 +46,15 @@ class TransactionIssue:
 
 class StatementManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(submitted=False, confirmed=False)
+        return super().get_queryset().filter(status=Statement.UNSUBMITTED)
 
 
 class Statement(CommonModel):
     MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, INVALID_ALLOWANCE_TO, INVALID_TOTAL, VALID = 0, 1, 2, 3, 4
+    UNSUBMITTED, SUBMITTED, CONFIRMED = 0, 1, 2
+    STATUS_CHOICES = [(UNSUBMITTED, _('In preparation')),
+                      (SUBMITTED, _('Submitted')),
+                      (CONFIRMED, _('Confirmed'))]
 
     short_description = models.CharField(verbose_name=_('Short description'),
                                          max_length=30,
@@ -82,9 +86,10 @@ class Statement(CommonModel):
 
     night_cost = models.DecimalField(verbose_name=_('Price per night'), default=0, decimal_places=2, max_digits=5)
 
-    submitted = models.BooleanField(verbose_name=_('Submitted'), default=False)
+    status = models.IntegerField(verbose_name=_('Status'),
+                                 choices=STATUS_CHOICES,
+                                 default=UNSUBMITTED)
     submitted_date = models.DateTimeField(verbose_name=_('Submitted on'), default=None, null=True)
-    confirmed = models.BooleanField(verbose_name=_('Confirmed'), default=False)
     confirmed_date = models.DateTimeField(verbose_name=_('Paid on'), default=None, null=True)
 
     created_by = models.ForeignKey(Member, verbose_name=_('Created by'),
@@ -131,8 +136,16 @@ class Statement(CommonModel):
         else:
             return self.short_description
 
+    @property
+    def submitted(self):
+        return self.status == Statement.SUBMITTED or self.status == Statement.CONFIRMED
+
+    @property
+    def confirmed(self):
+        return self.status == Statement.CONFIRMED
+
     def submit(self, submitter=None):
-        self.submitted = True
+        self.status = self.SUBMITTED
         self.submitted_date = timezone.now()
         self.submitted_by = submitter
         self.save()
@@ -231,7 +244,7 @@ class Statement(CommonModel):
         if not self.validity == Statement.VALID:
             return False
 
-        self.confirmed = True
+        self.status = self.CONFIRMED
         self.confirmed_date = timezone.now()
         self.confirmed_by = confirmer
         for trans in self.transaction_set.all():
@@ -569,7 +582,7 @@ class Statement(CommonModel):
 
 class StatementUnSubmittedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(submitted=False, confirmed=False)
+        return super().get_queryset().filter(status=Statement.UNSUBMITTED)
 
 
 class StatementUnSubmitted(Statement):
@@ -589,7 +602,7 @@ class StatementUnSubmitted(Statement):
 
 class StatementSubmittedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(submitted=True, confirmed=False)
+        return super().get_queryset().filter(status=Statement.SUBMITTED)
 
 
 class StatementSubmitted(Statement):
@@ -606,7 +619,7 @@ class StatementSubmitted(Statement):
 
 class StatementConfirmedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(confirmed=True)
+        return super().get_queryset().filter(status=Statement.CONFIRMED)
 
 
 class StatementConfirmed(Statement):

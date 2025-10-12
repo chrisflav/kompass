@@ -52,15 +52,15 @@ class FinanceRulesTestCase(TestCase):
 
     def test_not_submitted_statement(self):
         """Test not_submitted predicate returns True when statement is not submitted"""
-        self.statement.submitted = False
+        self.statement.status = Statement.UNSUBMITTED
         self.assertTrue(not_submitted(self.user1, self.statement))
-        self.statement.submitted = True
+        self.statement.status = Statement.SUBMITTED
         self.assertFalse(not_submitted(self.user1, self.statement))
 
     def test_not_submitted_freizeit_with_statement(self):
         """Test not_submitted predicate with Freizeit having unsubmitted statement"""
         self.freizeit.statement = self.statement
-        self.statement.submitted = False
+        self.statement.status = Statement.UNSUBMITTED
         self.assertTrue(not_submitted(self.user1, self.freizeit))
 
     def test_not_submitted_freizeit_without_statement(self):

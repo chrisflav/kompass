@@ -505,11 +505,11 @@ class ManagerTestCase(TestCase):
         self.st_submitted = Statement.objects.create(short_description='A statement',
                                                      explanation='Important!',
                                                      night_cost=0,
-                                                     submitted=True)
+                                                     status=Statement.SUBMITTED)
         self.st_confirmed = Statement.objects.create(short_description='A statement',
                                                      explanation='Important!',
                                                      night_cost=0,
-                                                     confirmed=True)
+                                                     status=Statement.CONFIRMED)
 
     def test_get_queryset(self):
         # TODO: remove this manager, since it is not used
