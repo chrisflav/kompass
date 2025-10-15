@@ -1,6 +1,7 @@
 [run]
     source =
         .
+    dynamic_context = test_function
 
 [report]
     omit =

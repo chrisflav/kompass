@@ -43,6 +43,6 @@ if [[ "$DJANGO_TEST_KEEPDB" == 1 ]]; then
 else
     coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin jdav_web -v 2 --noinput
 fi
-coverage html
+coverage html --show-contexts
 coverage json -o htmlcov/coverage.json
 coverage report
