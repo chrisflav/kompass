@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-12 11:37+0200\n"
+"POT-Creation-Date: 2025-10-16 23:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,10 +47,6 @@ msgstr "Kostenübersicht"
 #: finance/admin.py finance/tests/admin.py
 msgid "Submit statement"
 msgstr "Rechnung einreichen"
-
-#: finance/admin.py
-msgid "Length"
-msgstr "Länge"
 
 #: finance/admin.py
 #, python-format
@@ -180,6 +176,10 @@ msgstr "Bestätigung zurücknehmen"
 msgid "Download summary"
 msgstr "Beleg herunterladen"
 
+#: finance/admin.py
+msgid "Length"
+msgstr "Länge"
+
 #: finance/apps.py
 msgid "Finance"
 msgstr "Finanzen"
@@ -290,11 +290,6 @@ msgstr "Abrechnung"
 #: finance/models.py
 msgid "Statements"
 msgstr "Abrechnungen"
-
-#: finance/models.py
-#, python-format
-msgid "Statement: %(excursion)s"
-msgstr "Abrechnung: %(excursion)s"
 
 #: finance/models.py
 #, python-format

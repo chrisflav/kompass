@@ -62,7 +62,7 @@ class Statement(CommonModel):
 
     short_description = models.CharField(verbose_name=_('Short description'),
                                          max_length=30,
-                                         blank=True)
+                                         blank=False)
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
 
     excursion = models.OneToOneField(Freizeit, verbose_name=_('Associated excursion'),
@@ -129,18 +129,15 @@ class Statement(CommonModel):
             'delete_obj': not_submitted & (is_creator | leads_excursion | has_global_perm('finance.delete_global_statement')),
         }
 
-    def __str__(self):
-        if self.excursion is not None:
-            return _('Statement: %(excursion)s') % {'excursion': str(self.excursion)}
-        else:
-            return self.short_description
-
     @property
     def title(self):
         if self.excursion is not None:
             return _('Excursion %(excursion)s') % {'excursion': str(self.excursion)}
         else:
             return self.short_description
+
+    def __str__(self):
+        return str(self.title)
 
     @property
     def submitted(self):
@@ -664,7 +661,7 @@ class StatementConfirmed(Statement):
 
 class Bill(CommonModel):
     statement = models.ForeignKey(Statement, verbose_name=_('Statement'), on_delete=models.CASCADE)
-    short_description = models.CharField(verbose_name=_('Short description'), max_length=30)
+    short_description = models.CharField(verbose_name=_('Short description'), max_length=30, blank=False)
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
 
     amount = models.DecimalField(verbose_name=_('Amount'), max_digits=6, decimal_places=2, default=0)

@@ -65,7 +65,7 @@ def decorate_statement_view(model, perm=None):
 @admin.register(Statement)
 class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'status']
-    list_display = ['__str__', 'excursion', 'total_pretty', 'created_by', 'submitted_date', 'is_valid', 'status_badge']
+    list_display = ['__str__', 'total_pretty', 'created_by', 'submitted_date', 'is_valid', 'status_badge']
     list_filter = ['status']
     search_fields = ('excursion__name', 'short_description')
     ordering = ['-submitted_date']
@@ -89,6 +89,16 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
         if not change and hasattr(request.user, 'member'):
             obj.created_by = request.user.member
         super().save_model(request, obj, form, change)
+
+    def get_fields(self, request, obj=None):
+        if obj is not None and obj.excursion:
+            # if the object exists and an excursion is set, show the excursion (read only)
+            # instead of the short description
+            return ['excursion', 'explanation', 'status']
+        else:
+            # if the object is newly created or no excursion is set, require
+            # a short description
+            return ['short_description', 'explanation', 'status']
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = ['status', 'excursion']

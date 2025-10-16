@@ -102,6 +102,14 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         request.user = self.superuser
         self.assertTrue(self.admin.has_delete_permission(request, self.statement))
 
+    def test_get_fields(self):
+        """Test get_fields when excursion is set or not set."""
+        request = self.factory.post('/')
+        request.user = self.superuser
+        self.assertIn('excursion', self.admin.get_fields(request, self.statement_with_excursion))
+        self.assertNotIn('excursion', self.admin.get_fields(request, self.statement))
+        self.assertNotIn('excursion', self.admin.get_fields(request))
+
     def test_get_inlines(self):
         """Test get_inlines"""
         request = self.factory.post('/')
