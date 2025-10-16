@@ -22,8 +22,6 @@ ENV PATH="/app/.local/bin:$PATH"
 
 # install requirements
 COPY --chown=app:app ./requirements.txt /app/requirements.txt
-# we install uwsgi here to check if packages dependencies are resolved, but we don't actually
-# need uwsgi in test
-RUN pip install coverage uwsgi -r requirements.txt
+RUN pip install uwsgi -r requirements.txt
 
 COPY --chown=app:app . /app
