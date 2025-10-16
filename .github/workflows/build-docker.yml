@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build, Push, and Test
 
 on:
   push:
@@ -89,3 +89,57 @@ jobs:
           echo ""
           echo "Nginx image tags:"
           echo "${{ steps.meta-nginx.outputs.tags }}"
+
+  test:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull or build Docker image
+        run: |
+          # Try to pull the pre-built image from the registry
+          if docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}; then
+            echo "Using pre-built image from registry"
+            docker tag ghcr.io/${{ github.repository }}:${{ github.ref_name }} kompass:test
+          elif docker pull ghcr.io/${{ github.repository }}:latest; then
+            echo "Using latest image from registry"
+            docker tag ghcr.io/${{ github.repository }}:latest kompass:test
+          else
+            echo "Building image from scratch (registry image not available)"
+            cd docker/test
+            docker buildx build \
+              --load \
+              -t kompass:test \
+              -f Dockerfile \
+              ../../
+          fi
+
+      - name: Run tests
+        run: make test-only
+
+      - name: Check coverage
+        run: |
+          COVERAGE=$(python3 -c "import json; data=json.load(open('docker/test/htmlcov/coverage.json')); print(data['totals']['percent_covered'])")
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 100" | bc -l) )); then
+            echo "Error: Coverage is ${COVERAGE}%, must be 100%"
+            exit 1
+          fi
