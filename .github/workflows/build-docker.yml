@@ -89,6 +89,15 @@ jobs:
             kompass:test \
             bash -c "cd /app/docs && sphinx-build -b html source /app/docs-output"
 
+      - name: Deploy to GitHub Pages
+        # if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs-output
+          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.ref_name }}
+          keep_files: true
+
       - name: Run tests
         run: make test-only
 
@@ -100,15 +109,6 @@ jobs:
             echo "Error: Coverage is ${COVERAGE}%, must be 100%"
             exit 1
           fi
-
-      - name: Deploy to GitHub Pages
-        # if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs-output
-          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.ref_name }}
-          keep_files: true
 
       - name: Tag and push application image
         if: github.event_name != 'pull_request'
