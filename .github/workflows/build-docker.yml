@@ -1,0 +1,147 @@
+name: Build and test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  APP_IMAGE_NAME: ${{ github.repository }}
+  NGINX_IMAGE_NAME: ${{ github.repository }}-nginx
+
+jobs:
+  build-test-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for application image
+        id: meta-app
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Extract metadata for nginx image
+        id: meta-nginx
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build application image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/production/Dockerfile
+          load: true
+          tags: kompass:test
+          cache-from: |
+            type=gha,scope=app-${{ github.ref_name }}
+            type=gha,scope=app-master
+            type=gha,scope=app-main
+            type=registry,ref=ghcr.io/${{ github.repository }}:latest
+          cache-to: type=gha,mode=max,scope=app-${{ github.ref_name }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Build documentation
+        run: |
+          # Create output directory with proper permissions
+          mkdir -p docs-output
+          chmod 777 docs-output
+
+          # Run sphinx-build inside the container
+          docker run --rm \
+            -v ${{ github.workspace }}/docs:/app/docs:ro \
+            -v ${{ github.workspace }}/docs-output:/app/docs-output \
+            kompass:test \
+            bash -c "cd /app/docs && sphinx-build -b html source /app/docs-output"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs-output
+          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.ref_name }}
+          keep_files: true
+
+      - name: Run tests
+        run: make test-only
+
+      - name: Check coverage
+        run: |
+          COVERAGE=$(python3 -c "import json; data=json.load(open('docker/test/htmlcov/coverage.json')); print(data['totals']['percent_covered'])")
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 100" | bc -l) )); then
+            echo "Error: Coverage is ${COVERAGE}%, must be 100%"
+            exit 1
+          fi
+
+      - name: Tag and push application image
+        if: github.event_name != 'pull_request'
+        run: |
+          # Tag the built image with all required tags
+          echo "${{ steps.meta-app.outputs.tags }}" | while read -r tag; do
+            docker tag kompass:test "$tag"
+            docker push "$tag"
+          done
+
+      - name: Build and push nginx image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/production/nginx
+          file: docker/production/nginx/Dockerfile
+          push: true
+          tags: ${{ steps.meta-nginx.outputs.tags }}
+          labels: ${{ steps.meta-nginx.outputs.labels }}
+          cache-from: |
+            type=gha,scope=nginx-${{ github.ref_name }}
+            type=gha,scope=nginx-master
+            type=gha,scope=nginx-main
+            type=registry,ref=ghcr.io/${{ github.repository }}-nginx:latest
+          cache-to: type=gha,mode=max,scope=nginx-${{ github.ref_name }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Output image tags
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Application image tags:"
+          echo "${{ steps.meta-app.outputs.tags }}"
+          echo ""
+          echo "Nginx image tags:"
+          echo "${{ steps.meta-nginx.outputs.tags }}"
