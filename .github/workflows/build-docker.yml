@@ -1,9 +1,10 @@
-name: Build, Push, and Test
+name: Build and test
 
 on:
   push:
+    branches:
+      - main
   pull_request:
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -90,7 +91,6 @@ jobs:
             bash -c "cd /app/docs && sphinx-build -b html source /app/docs-output"
 
       - name: Deploy to GitHub Pages
-        # if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
