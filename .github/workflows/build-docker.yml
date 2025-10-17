@@ -15,10 +15,10 @@ env:
   NGINX_IMAGE_NAME: ${{ github.repository }}-nginx
 
 jobs:
-  build-and-push:
+  build-test-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -60,14 +60,13 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push application image
+      - name: Build application image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: docker/production/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-app.outputs.tags }}
-          labels: ${{ steps.meta-app.outputs.labels }}
+          load: true
+          tags: kompass:test
           cache-from: |
             type=gha,scope=app-${{ github.ref_name }}
             type=gha,scope=app-master
@@ -77,77 +76,18 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      - name: Build and push nginx image
-        uses: docker/build-push-action@v5
-        with:
-          context: docker/production/nginx
-          file: docker/production/nginx/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-nginx.outputs.tags }}
-          labels: ${{ steps.meta-nginx.outputs.labels }}
-          cache-from: |
-            type=gha,scope=nginx-${{ github.ref_name }}
-            type=gha,scope=nginx-master
-            type=gha,scope=nginx-main
-            type=registry,ref=ghcr.io/${{ github.repository }}-nginx:latest
-          cache-to: type=gha,mode=max,scope=nginx-${{ github.ref_name }}
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-
-      - name: Output image tags
+      - name: Build documentation
         run: |
-          echo "Application image tags:"
-          echo "${{ steps.meta-app.outputs.tags }}"
-          echo ""
-          echo "Nginx image tags:"
-          echo "${{ steps.meta-nginx.outputs.tags }}"
+          # Create output directory with proper permissions
+          mkdir -p docs-output
+          chmod 777 docs-output
 
-  test:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull or build Docker image
-        run: |
-          # Try to pull the pre-built image from the registry
-          if docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}; then
-            echo "Using pre-built image from registry"
-            docker tag ghcr.io/${{ github.repository }}:${{ github.ref_name }} kompass:test
-          elif docker pull ghcr.io/${{ github.repository }}:latest; then
-            echo "Using latest image from registry"
-            docker tag ghcr.io/${{ github.repository }}:latest kompass:test
-          else
-            echo "Building image from scratch with cache (registry image not available)"
-            cd docker/test
-            docker buildx build \
-              --load \
-              --cache-from type=gha,scope=app-${{ github.ref_name }} \
-              --cache-from type=gha,scope=app-master \
-              --cache-from type=gha,scope=app-main \
-              --cache-to type=gha,mode=max,scope=app-${{ github.ref_name }} \
-              --build-arg BUILDKIT_INLINE_CACHE=1 \
-              -t kompass:test \
-              -f Dockerfile \
-              ../../
-          fi
+          # Run sphinx-build inside the container
+          docker run --rm \
+            -v ${{ github.workspace }}/docs:/app/docs:ro \
+            -v ${{ github.workspace }}/docs-output:/app/docs-output \
+            kompass:test \
+            bash -c "cd /app/docs && sphinx-build -b html source /app/docs-output"
 
       - name: Run tests
         run: make test-only
@@ -161,56 +101,6 @@ jobs:
             exit 1
           fi
 
-  build-docs:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull pre-built Docker image
-        run: |
-          # Try to pull the pre-built image from the registry
-          if docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}; then
-            echo "Using pre-built image from registry"
-            docker tag ghcr.io/${{ github.repository }}:${{ github.ref_name }} kompass:docs
-          elif docker pull ghcr.io/${{ github.repository }}:latest; then
-            echo "Using latest image from registry"
-            docker tag ghcr.io/${{ github.repository }}:latest kompass:docs
-          else
-            echo "Error: No pre-built image found"
-            exit 1
-          fi
-
-      - name: Build documentation
-        run: |
-          # Create output directory with proper permissions
-          mkdir -p docs-output
-          chmod 777 docs-output
-
-          # Run sphinx-build inside the container
-          docker run --rm \
-            -v ${{ github.workspace }}/docs:/app/docs:ro \
-            -v ${{ github.workspace }}/docs-output:/app/docs-output \
-            kompass:docs \
-            bash -c "cd /app/docs && sphinx-build -b html source /app/docs-output"
-
       - name: Deploy to GitHub Pages
         # if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
@@ -219,3 +109,39 @@ jobs:
           publish_dir: ./docs-output
           destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.ref_name }}
           keep_files: true
+
+      - name: Tag and push application image
+        if: github.event_name != 'pull_request'
+        run: |
+          # Tag the built image with all required tags
+          echo "${{ steps.meta-app.outputs.tags }}" | while read -r tag; do
+            docker tag kompass:test "$tag"
+            docker push "$tag"
+          done
+
+      - name: Build and push nginx image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/production/nginx
+          file: docker/production/nginx/Dockerfile
+          push: true
+          tags: ${{ steps.meta-nginx.outputs.tags }}
+          labels: ${{ steps.meta-nginx.outputs.labels }}
+          cache-from: |
+            type=gha,scope=nginx-${{ github.ref_name }}
+            type=gha,scope=nginx-master
+            type=gha,scope=nginx-main
+            type=registry,ref=ghcr.io/${{ github.repository }}-nginx:latest
+          cache-to: type=gha,mode=max,scope=nginx-${{ github.ref_name }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Output image tags
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Application image tags:"
+          echo "${{ steps.meta-app.outputs.tags }}"
+          echo ""
+          echo "Nginx image tags:"
+          echo "${{ steps.meta-nginx.outputs.tags }}"
