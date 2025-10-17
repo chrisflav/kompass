@@ -206,8 +206,9 @@ jobs:
 
       - name: Build documentation
         run: |
-          # Create output directory
+          # Create output directory with proper permissions
           mkdir -p docs-output
+          chmod 777 docs-output
 
           # Run sphinx-build inside the container
           docker run --rm \
@@ -216,17 +217,44 @@ jobs:
             kompass:docs \
             bash -c "cd /app/docs && sphinx-build -b html source /app/docs-output"
 
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages-content
+
+      - name: Prepare deployment
+        run: |
+          # Sanitize branch name for use as directory
+          BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9-]/-/g')
+
+          # For main branch, deploy to root; for others, deploy to branch subdirectory
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "Deploying main branch to root"
+            # Remove old content but keep branch subdirectories
+            find gh-pages-content -maxdepth 1 -type f -delete
+            find gh-pages-content -maxdepth 1 -type d ! -name '.*' ! -name 'gh-pages-content' -exec rm -rf {} + || true
+            # Copy new docs to root
+            cp -r docs-output/* gh-pages-content/
+          else
+            echo "Deploying branch '$BRANCH_NAME' to subdirectory"
+            # Create/update branch subdirectory
+            mkdir -p gh-pages-content/$BRANCH_NAME
+            rm -rf gh-pages-content/$BRANCH_NAME/*
+            cp -r docs-output/* gh-pages-content/$BRANCH_NAME/
+          fi
+
       - name: Setup Pages
-        if: github.ref == 'refs/heads/master'
+        # if: github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
-        if: github.ref == 'refs/heads/master'
+        # if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs-output
+          path: gh-pages-content
 
       - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/master'
+        # if: github.ref == 'refs/heads/main'
         id: deployment
         uses: actions/deploy-pages@v4
