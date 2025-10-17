@@ -68,8 +68,14 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-app.outputs.tags }}
           labels: ${{ steps.meta-app.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha,scope=app-${{ github.ref_name }}
+            type=gha,scope=app-master
+            type=gha,scope=app-main
+            type=registry,ref=ghcr.io/${{ github.repository }}:latest
+          cache-to: type=gha,mode=max,scope=app-${{ github.ref_name }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
 
       - name: Build and push nginx image
         uses: docker/build-push-action@v5
@@ -79,8 +85,14 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-nginx.outputs.tags }}
           labels: ${{ steps.meta-nginx.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha,scope=nginx-${{ github.ref_name }}
+            type=gha,scope=nginx-master
+            type=gha,scope=nginx-main
+            type=registry,ref=ghcr.io/${{ github.repository }}-nginx:latest
+          cache-to: type=gha,mode=max,scope=nginx-${{ github.ref_name }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
 
       - name: Output image tags
         run: |
@@ -123,10 +135,15 @@ jobs:
             echo "Using latest image from registry"
             docker tag ghcr.io/${{ github.repository }}:latest kompass:test
           else
-            echo "Building image from scratch (registry image not available)"
+            echo "Building image from scratch with cache (registry image not available)"
             cd docker/test
             docker buildx build \
               --load \
+              --cache-from type=gha,scope=app-${{ github.ref_name }} \
+              --cache-from type=gha,scope=app-master \
+              --cache-from type=gha,scope=app-main \
+              --cache-to type=gha,mode=max,scope=app-${{ github.ref_name }} \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
               -t kompass:test \
               -f Dockerfile \
               ../../
