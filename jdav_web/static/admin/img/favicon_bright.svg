@@ -3,37 +3,38 @@
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 viewBox="0 0 48 48" style="enable-background:new 0 0 48 48;" xml:space="preserve">
 <style type="text/css">
-	.st0{opacity:0.27;fill:url(#SVGID_1_);}
-	.st1{fill:none;stroke:#999999;stroke-width:3.3;stroke-miterlimit:10;}
-	.st2{fill:none;stroke:#508480;stroke-width:3.2;stroke-miterlimit:10;}
-	.st3{fill:none;stroke:url(#SVGID_00000121983970493329986990000017723393330248815746_);stroke-width:3.2;stroke-miterlimit:10;}
-	.st4{fill:#999999;}
-	.st5{fill:#BADDD9;}
-	.st6{fill:#508480;}
-	.st7{opacity:0.36;}
-	.st8{opacity:0.24;fill:#FFFFFF;}
+	.st0{display:none;}
+	.st1{display:inline;fill:#254D49;}
+	.st2{opacity:0.27;fill:url(#SVGID_1_);}
+	.st3{fill:none;stroke:#1B2E2C;stroke-width:3;stroke-miterlimit:10;}
+	.st4{fill:#1B2E2C;}
+	.st5{fill:none;stroke:#508480;stroke-width:3.2;stroke-miterlimit:10;}
+	.st6{fill:#BADDD9;}
+	.st7{fill:#508480;}
+	.st8{opacity:0.36;}
+	.st9{opacity:0.24;fill:#FFFFFF;}
 </style>
-<g id="Logo_x5F_Schatten">
-	<radialGradient id="SVGID_1_" cx="20.8612" cy="20.647" r="22.9444" gradientUnits="userSpaceOnUse">
-		<stop  offset="0" style="stop-color:#FFFFFF"/>
+<g id="Hintergrund_x5F_Uni" class="st0">
+	<rect class="st1" width="48" height="48"/>
+</g>
+<g id="Verlauf">
+	<radialGradient id="SVGID_1_" cx="23.348" cy="21.0566" r="25.4002" fx="3.9002" fy="4.7179" gradientUnits="userSpaceOnUse">
+		<stop  offset="0" style="stop-color:#000000;stop-opacity:0"/>
 		<stop  offset="1" style="stop-color:#000000"/>
 	</radialGradient>
-	<circle class="st0" cx="23.6" cy="23.6" r="22.9"/>
-	<circle class="st1" cx="24.3" cy="24.3" r="21.7"/>
+	<circle class="st2" cx="23.6" cy="23.6" r="22.9"/>
+</g>
+<g id="Logo_x5F_Schatten">
+	<circle class="st3" cx="24.3" cy="24.3" r="21.7"/>
+	<polygon class="st4" points="21.4,22.9 15.8,42.4 27.5,25.7 33.2,6.2 	"/>
 </g>
 <g id="LogooVordergrund">
-	<circle class="st2" cx="23.7" cy="23.7" r="21.7"/>
-	
-		<linearGradient id="SVGID_00000165954078947660943750000008230134672540192957_" gradientUnits="userSpaceOnUse" x1="3.5175" y1="12.0447" x2="43.8685" y2="35.3413">
-		<stop  offset="0" style="stop-color:#BADDD9;stop-opacity:0.1"/>
-		<stop  offset="1" style="stop-color:#508480"/>
-	</linearGradient>
-	
-		<circle style="fill:none;stroke:url(#SVGID_00000165954078947660943750000008230134672540192957_);stroke-width:3.2;stroke-miterlimit:10;" cx="23.7" cy="23.7" r="21.7"/>
-	<polygon class="st4" points="21.2,23 15.2,43.9 27.7,26 33.7,5 	"/>
-	<polygon class="st5" points="14.3,43.2 26.8,25.2 20.3,22.2 	"/>
-	<polygon class="st6" points="32.8,4.3 20.3,22.2 26.8,25.2 	"/>
-	<polyline class="st7" points="14.3,43.2 26.8,25.2 32.8,4.3 	"/>
-	<circle class="st8" cx="23.6" cy="23.6" r="1.5"/>
+	<circle class="st5" cx="23.7" cy="23.7" r="21.7"/>
+	<g>
+		<polygon class="st6" points="14.9,41.8 26.6,25.1 20.5,22.2 		"/>
+		<polygon class="st7" points="32.3,5.5 20.5,22.2 26.6,25.1 		"/>
+		<polyline class="st8" points="14.9,41.8 26.6,25.1 32.3,5.5 		"/>
+		<circle class="st9" cx="23.6" cy="23.6" r="1.6"/>
+	</g>
 </g>
 </svg>
