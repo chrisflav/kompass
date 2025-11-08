@@ -55,7 +55,7 @@ class Statement(CommonModel):
     UNSUBMITTED, SUBMITTED, CONFIRMED = 0, 1, 2
     STATUS_CHOICES = [(UNSUBMITTED, _('In preparation')),
                       (SUBMITTED, _('Submitted')),
-                      (CONFIRMED, _('Confirmed'))]
+                      (CONFIRMED, _('Completed'))]
     STATUS_CSS_CLASS = { SUBMITTED: 'submitted',
                          CONFIRMED: 'confirmed',
                          UNSUBMITTED: 'unsubmitted' }

@@ -206,7 +206,7 @@ msgid "Submitted"
 msgstr "Eingereicht"
 
 #: finance/models.py
-msgid "Confirmed"
+msgid "Completed"
 msgstr "Abgewickelt"
 
 #: finance/models.py
