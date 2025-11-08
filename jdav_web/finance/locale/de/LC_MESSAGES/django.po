@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-03 19:06+0200\n"
+"POT-Creation-Date: 2025-10-16 23:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "Statement not found."
 msgstr "Abrechnung nicht gefunden."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "Insufficient permissions."
 msgstr "Unzureichende Berechtigungen."
 
@@ -31,7 +31,7 @@ msgstr "Unzureichende Berechtigungen."
 msgid "%(name)s is already submitted."
 msgstr "%(name)s ist bereits eingereicht."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 #, python-format
 msgid ""
 "Successfully submited %(name)s. The finance department will notify the "
@@ -40,17 +40,13 @@ msgstr ""
 "Rechnung %(name)s erfolgreich eingereicht. Das Finanzreferat wird auf dich "
 "sobald wie möglich zukommen."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "Finance overview"
 msgstr "Kostenübersicht"
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "Submit statement"
 msgstr "Rechnung einreichen"
-
-#: finance/admin.py
-msgid "Length"
-msgstr "Länge"
 
 #: finance/admin.py
 #, python-format
@@ -64,11 +60,11 @@ msgstr ""
 "Beim Abwickeln von %(name)s ist ein Fehler aufgetreten. Bitte versuche es "
 "erneut."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "Successfully sent receipt to the office."
 msgstr "Abrechnungsbeleg an die Geschäftsstelle gesendet."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 #, python-format
 msgid ""
 "Successfully confirmed %(name)s. I hope you executed the associated "
@@ -84,11 +80,11 @@ msgstr ""
 "Hier kannst du den Abrechnungsbeleg <a href='%(link)s', "
 "target='_blank'>herunterladen</a>."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "Statement confirmed"
 msgstr "Abrechnung abgewickelt"
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid ""
 "Transactions do not match the covered expenses. Please correct the mistakes "
 "listed below."
@@ -96,12 +92,12 @@ msgstr ""
 "Überweisungen stimmen nicht mit den übernommenen Kosten überein. Bitte "
 "korrigiere die unten aufgeführten Fehler."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "Some transactions have no ledger configured. Please fill in the gaps."
 msgstr ""
 "Manche Überweisungen haben kein Geldtopf eingestellt. Bitte trage das nach."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid ""
 "The configured recipients for the allowance don't match the regulations. "
 "Please correct this on the excursion."
@@ -117,14 +113,14 @@ msgstr ""
 "Der berechnete Gesamtbetrag stimmt nicht mit der Summe aller Überweisungen "
 "überein. Das ist höchstwahrscheinlich ein Fehler in der Implementierung."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 #, python-format
 msgid "Successfully rejected %(name)s. The requestor can reapply, when needed."
 msgstr ""
 "Die Rechnung %(name)s wurde abgelehnt. Die Person kann die Rechnung erneut "
 "einstellen, wenn es benötigt wird."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 #, python-format
 msgid ""
 "%(name)s already has transactions. Please delete them first, if you want to "
@@ -133,12 +129,12 @@ msgstr ""
 "%(name)s hat bereits Überweisungen. Bitte lösche diese zunächst, bevor du "
 "neue generierst."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 #, python-format
 msgid "Successfully generated transactions for %(name)s"
 msgstr "Automatisch Überweisungsträger für %(name)s generiert."
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 #, python-format
 msgid ""
 "Error while generating transactions for %(name)s. Do all bills have a payer "
@@ -150,11 +146,11 @@ msgstr ""
 "einer Ausfahrt gehört, wurde eine Person als Empfänger*in der Übernachtungs- "
 "und Fahrtkostenzuschüsse ausgewählt?"
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 msgid "View submitted statement"
 msgstr "Eingereichte Abrechnung einsehen"
 
-#: finance/admin.py
+#: finance/admin.py finance/tests/admin.py
 #, python-format
 msgid "Successfully reduced transactions for %(name)s."
 msgstr "Überweisungsträger für %(name)s minimiert."
@@ -172,12 +168,17 @@ msgstr ""
 "was du machst."
 
 #: finance/admin.py finance/templates/admin/unconfirm_statement.html
+#: finance/tests/admin.py
 msgid "Unconfirm statement"
 msgstr "Bestätigung zurücknehmen"
 
 #: finance/admin.py
 msgid "Download summary"
 msgstr "Beleg herunterladen"
+
+#: finance/admin.py
+msgid "Length"
+msgstr "Länge"
 
 #: finance/apps.py
 msgid "Finance"
@@ -195,6 +196,18 @@ msgstr "Geldtopf"
 #: finance/models.py
 msgid "Ledgers"
 msgstr "Geldtöpfe"
+
+#: finance/models.py
+msgid "In preparation"
+msgstr "In Vorbereitung"
+
+#: finance/models.py
+msgid "Submitted"
+msgstr "Eingereicht"
+
+#: finance/models.py
+msgid "Completed"
+msgstr "Abgewickelt"
 
 #: finance/models.py
 msgid "Short description"
@@ -247,16 +260,12 @@ msgid "Price per night"
 msgstr "Preis pro Nacht"
 
 #: finance/models.py
-msgid "Submitted"
-msgstr "Eingereicht"
+msgid "Status"
+msgstr "Status"
 
 #: finance/models.py
 msgid "Submitted on"
 msgstr "Eingereicht am"
-
-#: finance/models.py
-msgid "Confirmed"
-msgstr "Abgewickelt"
 
 #: finance/models.py
 msgid "Paid on"
@@ -284,10 +293,6 @@ msgstr "Abrechnungen"
 
 #: finance/models.py
 #, python-format
-msgid "Statement: %(excursion)s"
-msgstr "Abrechnung: %(excursion)s"
-
-#: finance/models.py
 msgid "Excursion %(excursion)s"
 msgstr "Ausfahrt %(excursion)s"
 
@@ -305,7 +310,7 @@ msgstr "Aufwandsentschädigung für %(excu)s"
 msgid "Night and travel costs for %(excu)s"
 msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
 
-#: finance/models.py
+#: finance/models.py finance/tests/models.py
 msgid "reduced by org fee"
 msgstr "reduziert um Org-Beitrag"
 

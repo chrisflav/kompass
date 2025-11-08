@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
+from django.utils.html import format_html
 from members.models import Member, Freizeit, OEFFENTLICHE_ANREISE, MUSKELKRAFT_ANREISE
 from django.conf import settings
 import rules
@@ -46,15 +47,22 @@ class TransactionIssue:
 
 class StatementManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(submitted=False, confirmed=False)
+        return super().get_queryset().filter(status=Statement.UNSUBMITTED)
 
 
 class Statement(CommonModel):
     MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, INVALID_ALLOWANCE_TO, INVALID_TOTAL, VALID = 0, 1, 2, 3, 4
+    UNSUBMITTED, SUBMITTED, CONFIRMED = 0, 1, 2
+    STATUS_CHOICES = [(UNSUBMITTED, _('In preparation')),
+                      (SUBMITTED, _('Submitted')),
+                      (CONFIRMED, _('Completed'))]
+    STATUS_CSS_CLASS = { SUBMITTED: 'submitted',
+                         CONFIRMED: 'confirmed',
+                         UNSUBMITTED: 'unsubmitted' }
 
     short_description = models.CharField(verbose_name=_('Short description'),
                                          max_length=30,
-                                         blank=True)
+                                         blank=False)
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
 
     excursion = models.OneToOneField(Freizeit, verbose_name=_('Associated excursion'),
@@ -82,9 +90,10 @@ class Statement(CommonModel):
 
     night_cost = models.DecimalField(verbose_name=_('Price per night'), default=0, decimal_places=2, max_digits=5)
 
-    submitted = models.BooleanField(verbose_name=_('Submitted'), default=False)
+    status = models.IntegerField(verbose_name=_('Status'),
+                                 choices=STATUS_CHOICES,
+                                 default=UNSUBMITTED)
     submitted_date = models.DateTimeField(verbose_name=_('Submitted on'), default=None, null=True)
-    confirmed = models.BooleanField(verbose_name=_('Confirmed'), default=False)
     confirmed_date = models.DateTimeField(verbose_name=_('Paid on'), default=None, null=True)
 
     created_by = models.ForeignKey(Member, verbose_name=_('Created by'),
@@ -110,19 +119,15 @@ class Statement(CommonModel):
             ('may_edit_submitted_statements', 'Is allowed to edit submitted statements')
         ]
         rules_permissions = {
-            # this is suboptimal, but Statement is only ever used as an inline on Freizeit
-            # so we check for excursion permissions
-            'add_obj': is_leader,
-            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
-            'change_obj': is_leader & statement_not_submitted,
-            'delete_obj': is_leader & statement_not_submitted,
+            # All users may add draft statements.
+            'add_obj': rules.is_staff,
+            # All users may view their own statements and statements of excursions they are responsible for.
+            'view_obj': is_creator | leads_excursion | has_global_perm('finance.view_global_statement'),
+            # All users may change relevant (see above) draft statements.
+            'change_obj': (not_submitted & (is_creator | leads_excursion)) | has_global_perm('finance.change_global_statement'),
+            # All users may delete relevant (see above) draft statements.
+            'delete_obj': not_submitted & (is_creator | leads_excursion | has_global_perm('finance.delete_global_statement')),
         }
-
-    def __str__(self):
-        if self.excursion is not None:
-            return _('Statement: %(excursion)s') % {'excursion': str(self.excursion)}
-        else:
-            return self.short_description
 
     @property
     def title(self):
@@ -131,8 +136,26 @@ class Statement(CommonModel):
         else:
             return self.short_description
 
+    def __str__(self):
+        return str(self.title)
+
+    @property
+    def submitted(self):
+        return self.status == Statement.SUBMITTED or self.status == Statement.CONFIRMED
+
+    @property
+    def confirmed(self):
+        return self.status == Statement.CONFIRMED
+
+    def status_badge(self):
+        code = Statement.STATUS_CSS_CLASS[self.status]
+        return format_html(f'<span class="statement-{code}">{Statement.STATUS_CHOICES[self.status][1]}</span>')
+    status_badge.short_description = _('Status')
+    status_badge.allow_tags = True
+    status_badge.admin_order_field = 'status'
+
     def submit(self, submitter=None):
-        self.submitted = True
+        self.status = self.SUBMITTED
         self.submitted_date = timezone.now()
         self.submitted_by = submitter
         self.save()
@@ -231,7 +254,7 @@ class Statement(CommonModel):
         if not self.validity == Statement.VALID:
             return False
 
-        self.confirmed = True
+        self.status = self.CONFIRMED
         self.confirmed_date = timezone.now()
         self.confirmed_by = confirmer
         for trans in self.transaction_set.all():
@@ -496,6 +519,7 @@ class Statement(CommonModel):
     def total_pretty(self):
         return "{}€".format(self.total)
     total_pretty.short_description = _('Total')
+    total_pretty.admin_order_field = 'total'
 
     def template_context(self):
         context = {
@@ -567,9 +591,23 @@ class Statement(CommonModel):
                   attachments=[media_path(filename)])
 
 
+class StatementOnExcursionProxy(Statement):
+    class Meta(CommonModel.Meta):
+        proxy = True
+        verbose_name = _('Statement')
+        verbose_name_plural = _('Statements')
+        rules_permissions = {
+            # This is used as an inline on excursions, so we check for excursion permissions.
+            'add_obj': is_leader,
+            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
+            'change_obj': is_leader & statement_not_submitted,
+            'delete_obj': is_leader & statement_not_submitted,
+        }
+
+
 class StatementUnSubmittedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(submitted=False, confirmed=False)
+        return super().get_queryset().filter(status=Statement.UNSUBMITTED)
 
 
 class StatementUnSubmitted(Statement):
@@ -589,7 +627,7 @@ class StatementUnSubmitted(Statement):
 
 class StatementSubmittedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(submitted=True, confirmed=False)
+        return super().get_queryset().filter(status=Statement.SUBMITTED)
 
 
 class StatementSubmitted(Statement):
@@ -606,7 +644,7 @@ class StatementSubmitted(Statement):
 
 class StatementConfirmedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(confirmed=True)
+        return super().get_queryset().filter(status=Statement.CONFIRMED)
 
 
 class StatementConfirmed(Statement):
@@ -623,7 +661,7 @@ class StatementConfirmed(Statement):
 
 class Bill(CommonModel):
     statement = models.ForeignKey(Statement, verbose_name=_('Statement'), on_delete=models.CASCADE)
-    short_description = models.CharField(verbose_name=_('Short description'), max_length=30)
+    short_description = models.CharField(verbose_name=_('Short description'), max_length=30, blank=False)
     explanation = models.TextField(verbose_name=_('Explanation'), blank=True)
 
     amount = models.DecimalField(verbose_name=_('Amount'), max_digits=6, decimal_places=2, default=0)

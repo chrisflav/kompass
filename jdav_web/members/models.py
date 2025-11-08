@@ -652,7 +652,9 @@ class Member(Person):
         elif name == "NewMemberOnList":
             return queryset
         elif name == "Statement":
-            return queryset
+            return self.filter_statements_by_permissions(queryset, annotate)
+        elif name == "StatementOnExcursionProxy":
+            return self.filter_statements_by_permissions(queryset, annotate)
         elif name == "BillOnExcursionProxy":
             return queryset
         elif name == "Intervention":
