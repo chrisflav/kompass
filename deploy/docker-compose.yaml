@@ -13,7 +13,7 @@ services:
     master:
         <<: *kompass
         build:
-            context: git@git.jdav-hd.merten.dev:digitales/kompass#main
+            context: https://github.com/chrisflav/kompass.git#main
             dockerfile: docker/production/Dockerfile
         entrypoint: /app/docker/production/entrypoint-master.sh
         volumes:
@@ -28,7 +28,7 @@ services:
           - "host:10.26.42.1"
 
     nginx:
-        build: git@git.jdav-hd.merten.dev:digitales/kompass#main:docker/production/nginx
+        build: https://github.com/chrisflav/kompass.git#main:docker/production/nginx
         restart: always
         volumes:
           - uwsgi_data:/tmp/uwsgi/
