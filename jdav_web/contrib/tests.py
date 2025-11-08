@@ -53,17 +53,6 @@ class DummyWithExcludeAdmin(CommonAdminMixin, admin.ModelAdmin):
         self.opts = self.model._meta
         self.admin_site = AdminSite()
 
-class DummyWithExcludeAdmin(CommonAdminMixin, admin.ModelAdmin):
-    model = DummyModel
-    fieldsets = (
-        ("Group1", {"fields": ("field1", "field2", "field5")}),
-        ("Group2", {"fields": ("field3", "field4")}),
-    )
-    exclude = ["field5"]
-
-    def __init__(self):
-        self.opts = self.model._meta
-        self.admin_site = AdminSite()
 
 User = get_user_model()
 
@@ -353,43 +342,6 @@ class CommonAdminMixinTestCase(TestCase):
 
         fields = admin_instance.get_fields(self.request)
         self.assertEqual(fields, ["field5", "field3"])
-
-        exclude = admin_instance.get_exclude(self.request)
-        self.assertEqual(set(exclude), {"field1", "field2", "field4"})
-
-    def test_default_with_exclude(self):
-        admin_instance = DummyWithExcludeAdmin()
-
-        fields = admin_instance.get_fields(self.request)
-        self.assertEqual(fields, ["field1", "field2", "field3", "field4"])
-
-        exclude = admin_instance.get_exclude(self.request)
-        self.assertEqual(set(exclude), {"field5"})
-
-    @override_settings(
-        CUSTOM_MODEL_FIELDS={"contrib_dummymodel": {"fields": ["field2", "field4"]}}
-    )
-    def test_override_exclude_with_fields(self):
-        """Test that custom included fields override admin exclude and
-        is reflected in get_exclude.
-        """
-        admin_instance = DummyWithExcludeAdmin()
-
-        fields = admin_instance.get_fields(self.request)
-        self.assertEqual(fields, ["field2", "field4"])
-
-        exclude = admin_instance.get_exclude(self.request)
-        self.assertEqual(set(exclude), {"field5"})
-
-    @override_settings(
-        CUSTOM_MODEL_FIELDS={"contrib_dummymodel": {"exclude": ["field2", "field4"]}}
-    )
-    def test_override_exclude_with_exclude(self):
-        """Test that custom excluded fields are combined with admin exclude"""
-        admin_instance = DummyWithExcludeAdmin()
-
-        fields = admin_instance.get_fields(self.request)
-        self.assertEqual(fields, ["field1", "field3"])
 
         exclude = admin_instance.get_exclude(self.request)
         self.assertEqual(set(exclude), {"field1", "field2", "field4"})
