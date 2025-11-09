@@ -32,20 +32,22 @@ jobs:
             git fetch origin ${{ github.base_ref }} --depth=1
             CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           else
-            # For push to main, check changes in the latest commit
             CHANGED_FILES=$(git diff --name-only HEAD~1)
           fi
 
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          # Save to output (for use in next step)
-          echo "files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+          # Convert to space-separated string to be safe for GitHub output
+          CHANGED_FILES=$(echo "$CHANGED_FILES" | tr '\n' ' ')
+
+          echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
 
       - name: Run pre-commit on changed files only
         if: steps.changed-files.outputs.files != ''
         run: |
-          echo "${{ steps.changed-files.outputs.files }}" | tr ' ' '\n' | xargs pre-commit run --files || true
+          echo "Running pre-commit on changed files..."
+          pre-commit run --files ${{ steps.changed-files.outputs.files }}
 
       - name: No changed files
         if: steps.changed-files.outputs.files == ''
