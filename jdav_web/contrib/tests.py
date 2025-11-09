@@ -11,7 +11,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.translation import gettext_lazy as _
 from unittest.mock import Mock, patch
 from rules.contrib.models import RulesModelMixin, RulesModelBase
-from contrib.admin import CommonAdminMixin
+from contrib.admin import CommonAdminMixin, FieldCustomizationMixin
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from utils import file_size_validator, RestrictedFileField, cvt_to_decimal, get_member, normalize_name, normalize_filename, coming_midnight, mondays_until_nth
@@ -41,7 +41,7 @@ class DummyAdmin(CommonAdminMixin, admin.ModelAdmin):
         self.admin_site = AdminSite()
 
 
-class DummyWithExcludeAdmin(CommonAdminMixin, admin.ModelAdmin):
+class DummyWithExcludeAdmin(FieldCustomizationMixin, admin.ModelAdmin):
     model = DummyModel
     fieldsets = (
         ("Group1", {"fields": ("field1", "field2", "field5")}),
