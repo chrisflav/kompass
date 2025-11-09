@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django.shortcuts import render
 from django.conf import settings
 
-from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin
+from contrib.admin import CommonAdminInlineMixin, CommonAdminMixin, FieldCustomizationMixin
 from utils import get_member, RestrictedFileField
 
 from rules.contrib.admin import ObjectPermissionsModelAdmin
@@ -323,7 +323,7 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
     statement_summary_view.short_description = _('Download summary')
 
 
-class TransactionOnSubmittedStatementInline(admin.TabularInline):
+class TransactionOnSubmittedStatementInline(FieldCustomizationMixin, admin.TabularInline):
     model = Transaction
     fields = ['amount', 'member', 'reference', 'text_length_warning', 'ledger']
     formfield_overrides = {
@@ -357,7 +357,7 @@ class BillOnSubmittedStatementInline(BillOnStatementInline):
 
 
 @admin.register(Transaction)
-class TransactionAdmin(admin.ModelAdmin):
+class TransactionAdmin(FieldCustomizationMixin, admin.ModelAdmin):
     """The transaction admin site. This is only used to display transactions. All editing
     is disabled on this site. All transactions should be changed on the respective statement
     at the correct stage of the approval chain."""
@@ -386,7 +386,7 @@ class TransactionAdmin(admin.ModelAdmin):
 
 
 @admin.register(Bill)
-class BillAdmin(admin.ModelAdmin):
+class BillAdmin(FieldCustomizationMixin, admin.ModelAdmin):
     list_display = ['__str__', 'statement', 'explanation', 'pretty_amount', 'paid_by', 'refunded']
     list_filter = ('statement', 'paid_by', 'refunded')
     search_fields = ('reference', 'statement')
