@@ -14,7 +14,7 @@ from .models import Message, Attachment, MessageForm, EmailAddress, EmailAddress
 from .mailutils import NOT_SENT, PARTLY_SENT
 from members.models import Member
 from members.admin import FilteredMemberFieldMixin
-from contrib.admin import CommonAdminMixin, CommonAdminInlineMixin
+from contrib.admin import CommonAdminMixin, CommonAdminInlineMixin, FieldCustomizationMixin
 
 
 class AttachmentInline(CommonAdminInlineMixin, admin.TabularInline):
@@ -22,7 +22,7 @@ class AttachmentInline(CommonAdminInlineMixin, admin.TabularInline):
     extra = 0
 
 
-class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
+class EmailAddressAdmin(FieldCustomizationMixin, FilteredMemberFieldMixin, admin.ModelAdmin):
     list_display = ('email', 'internal_only')
     fields = ('name', 'to_members', 'to_groups', 'internal_only')
     #formfield_overrides = {
