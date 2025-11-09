@@ -347,6 +347,13 @@ class MemberTestCase(BasicMemberTestCase):
         self.lisa.waitinglist_application_date = timezone.now()
         self.lisa.demote_to_waiter()
 
+    def test_filter_queryset_by_permissions_message(self):
+        """Test filtering of Message objects via filter_queryset_by_permissions"""
+        message = Message.objects.create(subject='Test Message', content='Content', created_by=self.fritz)
+        queryset = Message.objects.all()
+        filtered = self.fritz.filter_queryset_by_permissions(queryset=queryset, model=Message)
+        self.assertQuerysetEqual(filtered, [message], ordered=False)
+
 
 class PDFTestCase(TestCase):
     def setUp(self):
@@ -1665,6 +1672,15 @@ class MailConfirmationTestCase(BasicMemberTestCase):
             self.assertTrue(em.confirmed_mail,
                             msg='Mail of every emergency contact should be confirmed after manually confirming.')
 
+    def test_request_mail_confirmation_skips_empty_email(self):
+        """Ensure request_mail_confirmation continues when email field is empty."""
+        # set emergency contact email to empty -> should be skipped
+        self.father.email = ''
+        self.father.save()
+        requested = self.father.request_mail_confirmation()
+        self.assertFalse(requested)
+        # no key should have been generated
+        self.assertEqual(getattr(self.father, 'confirm_mail_key', ''), '')
 
 class RegisterWaitingListViewTestCase(BasicMemberTestCase):
     def test_register_waiting_list_get(self):
