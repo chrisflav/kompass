@@ -162,6 +162,18 @@ class Statement(CommonModel):
 
     @property
     def transaction_issues(self):
+        """
+        Returns a list of critical problems with the currently configured transactions. This is done
+        by calculating a list of required paiments. From this list, we deduce the total amount
+        every member should receive (this amount can be negative, due to org fees).
+        Finally, the amounts are compared to the total amounts paid out by currently setup transactions.
+
+        The list of required paiments is generated from:
+        - All covered bills that have a configured payer.
+          (Note: This means that `transaction_issues` might return an empty list, but the calculated
+          total still differs from the transaction total.)
+        - If the statement is associated with an excursion: allowances, subsidies, LJP paiment and org fee.
+        """
         needed_paiments = [(b.paid_by, b.amount) for b in self.bill_set.all() if b.costs_covered and b.paid_by]
 
         if self.excursion is not None:
@@ -206,6 +218,7 @@ class Statement(CommonModel):
 
     @property
     def transactions_match_expenses(self):
+        """Returns true iff there are no transaction issues."""
         return len(self.transaction_issues) == 0
 
     @property
@@ -223,7 +236,11 @@ class Statement(CommonModel):
 
     @property
     def total_valid(self):
-        """Checks if the calculated total agrees with the total amount of all transactions."""
+        """
+        Checks if the calculated total agrees with the total amount of all transactions.
+        Note: This is not the same as `transactions_match_expenses`. For details see the
+        docstring of `transaction_issues`.
+        """
         total_transactions = 0
         for transaction in self.transaction_set.all():
             total_transactions += transaction.amount
@@ -231,6 +248,19 @@ class Statement(CommonModel):
 
     @property
     def validity(self):
+        """
+        Returns the validity status of the statement. This is one of:
+        - `Statement.VALID`:
+          Everything is correct.
+        - `Statement.NON_MATCHING_TRANSACTIONS`:
+          There is a transaction issue (in the sense of `transaction_issues`).
+        - `Statement.MISSING_LEDGER`:
+          At least one transaction has no ledger configured.
+        - `Statement.INVALID_ALLOWANCE_TO`:
+          The members receiving allowance don't match the regulations.
+        - `Statement.INVALID_TOTAL`:
+          The total amount of transactions differs from the calculated total payout.
+        """
         if not self.transactions_match_expenses:
             return Statement.NON_MATCHING_TRANSACTIONS
         if not self.ledgers_configured:
