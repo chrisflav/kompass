@@ -26,9 +26,7 @@ JET_SIDE_MENU_ITEMS = [
         {'name': 'emailaddress', 'permissions': ['mailer.view_emailaddress']},
     ]},
     {'app_label': 'finance', 'items': [
-        {'name': 'statementunsubmitted', 'permissions': ['finance.view_statementunsubmitted']},
-        {'name': 'statementsubmitted', 'permissions': ['finance.view_statementsubmitted']},
-        {'name': 'statementconfirmed', 'permissions': ['finance.view_statementconfirmed']},
+        {'name': 'statement', 'permissions': ['finance.view_statement']},
         {'name': 'ledger', 'permissions': ['finance.view_ledger']},
         {'name': 'bill', 'permissions': ['finance.view_bill', 'finance.view_bill_admin']},
         {'name': 'transaction', 'permissions': ['finance.view_transaction']},
