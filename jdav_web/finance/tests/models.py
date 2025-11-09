@@ -147,6 +147,9 @@ class StatementTestCase(TestCase):
             refunded=False
         )
 
+        self.st6 = Statement.objects.create(night_cost=self.night_cost)
+        Bill.objects.create(statement=self.st6, amount='42', costs_covered=True)
+
     def test_org_fee(self):
         # org fee should be collected if participants are older than 26
         self.assertEqual(self.st5.excursion.old_participant_count, 3, 'Calculation of number of old people in excursion is incorrect.')
@@ -487,6 +490,11 @@ class StatementTestCase(TestCase):
 
         ljp_contrib = self.st_small.paid_ljp_contributions
         self.assertEqual(ljp_contrib, 0)
+
+    def test_validity_paid_by_none(self):
+        # st6 has one covered bill with no payer, so no transaction issues,
+        # but total transaction amount (= 0) differs from actual total (> 0).
+        self.assertEqual(self.st6.validity, Statement.INVALID_TOTAL)
 
 
 class LedgerTestCase(TestCase):
