@@ -1,11 +1,20 @@
-from django.test import TestCase, RequestFactory
-from django.utils import timezone
-from datetime import date, datetime
+from datetime import date
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
-from material.models import MaterialCategory, MaterialPart, Ownership, yearsago
-from material.admin import NotTooOldFilter, MaterialAdmin
-from members.models import Member, MALE, FEMALE, DIVERSE
+
+from django.test import RequestFactory
+from django.test import TestCase
+from django.utils import timezone
+from material.admin import MaterialAdmin
+from material.admin import NotTooOldFilter
+from material.models import MaterialCategory
+from material.models import MaterialPart
+from material.models import Ownership
+from material.models import yearsago
+from members.models import FEMALE
+from members.models import MALE
+from members.models import Member
 
 
 class MaterialCategoryTestCase(TestCase):
@@ -19,8 +28,8 @@ class MaterialCategoryTestCase(TestCase):
     def test_verbose_names(self):
         """Test verbose names are set correctly"""
         meta = MaterialCategory._meta
-        self.assertTrue(hasattr(meta, 'verbose_name'))
-        self.assertTrue(hasattr(meta, 'verbose_name_plural'))
+        self.assertTrue(hasattr(meta, "verbose_name"))
+        self.assertTrue(hasattr(meta, "verbose_name_plural"))
 
 
 class MaterialPartTestCase(TestCase):
@@ -31,7 +40,7 @@ class MaterialPartTestCase(TestCase):
             description="60m dynamic climbing rope",
             quantity=5,
             buy_date=date(2020, 1, 15),
-            lifetime=Decimal('8')
+            lifetime=Decimal("8"),
         )
         self.material_part.material_cat.add(self.category)
 
@@ -40,7 +49,7 @@ class MaterialPartTestCase(TestCase):
             lastname="Doe",
             birth_date=date(1990, 1, 1),
             email="john@example.com",
-            gender=MALE
+            gender=MALE,
         )
 
     def test_str(self):
@@ -54,27 +63,27 @@ class MaterialPartTestCase(TestCase):
 
     def test_quantity_real_with_ownership(self):
         """Test quantity_real with ownership records"""
-        Ownership.objects.create(
-            material=self.material_part,
-            owner=self.member,
-            count=3
-        )
-        Ownership.objects.create(
-            material=self.material_part,
-            owner=self.member,
-            count=1
-        )
+        Ownership.objects.create(material=self.material_part, owner=self.member, count=3)
+        Ownership.objects.create(material=self.material_part, owner=self.member, count=1)
         result = self.material_part.quantity_real()
         self.assertEqual(result, "4/5")
 
     def test_verbose_names(self):
         """Test field verbose names"""
         # Just test that verbose names exist, since they might be translated
-        field_names = ['name', 'description', 'quantity', 'buy_date', 'lifetime', 'photo', 'material_cat']
+        field_names = [
+            "name",
+            "description",
+            "quantity",
+            "buy_date",
+            "lifetime",
+            "photo",
+            "material_cat",
+        ]
 
         for field_name in field_names:
             field = self.material_part._meta.get_field(field_name)
-            self.assertTrue(hasattr(field, 'verbose_name'))
+            self.assertTrue(hasattr(field, "verbose_name"))
             self.assertIsNotNone(field.verbose_name)
 
     def test_admin_thumbnail_with_photo(self):
@@ -104,7 +113,7 @@ class MaterialPartTestCase(TestCase):
         # Set a buy_date that makes the material old
         old_date = date(2000, 1, 1)
         self.material_part.buy_date = old_date
-        self.material_part.lifetime = Decimal('5')
+        self.material_part.lifetime = Decimal("5")
         result = self.material_part.not_too_old()
         self.assertFalse(result)
 
@@ -117,7 +126,7 @@ class OwnershipTestCase(TestCase):
             description="Lightweight aluminum carabiners",
             quantity=10,
             buy_date=date(2021, 6, 1),
-            lifetime=Decimal('10')
+            lifetime=Decimal("10"),
         )
 
         self.member = Member.objects.create(
@@ -125,13 +134,11 @@ class OwnershipTestCase(TestCase):
             lastname="Smith",
             birth_date=date(1985, 3, 15),
             email="alice@example.com",
-            gender=FEMALE
+            gender=FEMALE,
         )
 
         self.ownership = Ownership.objects.create(
-            material=self.material_part,
-            owner=self.member,
-            count=6
+            material=self.material_part, owner=self.member, count=6
         )
 
     def test_ownership_creation(self):
@@ -183,8 +190,11 @@ class NotTooOldFilterTestCase(TestCase):
 
         # Create test data
         self.member = Member.objects.create(
-            prename="Test", lastname="User", birth_date=date(1990, 1, 1),
-            email="test@example.com", gender=MALE
+            prename="Test",
+            lastname="User",
+            birth_date=date(1990, 1, 1),
+            email="test@example.com",
+            gender=MALE,
         )
 
         # Create old material (should be too old)
@@ -193,7 +203,7 @@ class NotTooOldFilterTestCase(TestCase):
             description="Old material",
             quantity=1,
             buy_date=date(2000, 1, 1),  # Very old
-            lifetime=Decimal('5')
+            lifetime=Decimal("5"),
         )
 
         # Create new material (should not be too old)
@@ -202,21 +212,21 @@ class NotTooOldFilterTestCase(TestCase):
             description="New material",
             quantity=1,
             buy_date=date.today(),  # Today
-            lifetime=Decimal('10')
+            lifetime=Decimal("10"),
         )
 
     def test_not_too_old_filter_lookups(self):
         """Test NotTooOldFilter lookups method"""
-        request = self.factory.get('/')
+        request = self.factory.get("/")
         lookups = self.filter.lookups(request, None)
         self.assertEqual(len(lookups), 2)
-        self.assertEqual(lookups[0][0], 'too_old')
-        self.assertEqual(lookups[1][0], 'not_too_old')
+        self.assertEqual(lookups[0][0], "too_old")
+        self.assertEqual(lookups[1][0], "not_too_old")
 
     def test_not_too_old_filter_queryset_too_old(self):
         """Test NotTooOldFilter queryset method with 'too_old' value"""
-        request = self.factory.get('/?age=too_old')
-        self.filter.used_parameters = {'age': 'too_old'}
+        request = self.factory.get("/?age=too_old")
+        self.filter.used_parameters = {"age": "too_old"}
 
         queryset = MaterialPart.objects.all()
         filtered = self.filter.queryset(request, queryset)
@@ -227,8 +237,8 @@ class NotTooOldFilterTestCase(TestCase):
 
     def test_not_too_old_filter_queryset_not_too_old(self):
         """Test NotTooOldFilter queryset method with 'not_too_old' value"""
-        request = self.factory.get('/?age=not_too_old')
-        self.filter.used_parameters = {'age': 'not_too_old'}
+        request = self.factory.get("/?age=not_too_old")
+        self.filter.used_parameters = {"age": "not_too_old"}
 
         queryset = MaterialPart.objects.all()
         filtered = self.filter.queryset(request, queryset)

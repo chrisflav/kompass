@@ -3,5 +3,5 @@ from django.utils.translation import gettext_lazy as _
 
 
 class MaterialConfig(AppConfig):
-    name = 'material'
-    verbose_name = _('material')
+    name = "material"
+    verbose_name = _("material")
