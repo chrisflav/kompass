@@ -1,8 +1,8 @@
+import logging
+
+from django.conf import settings
 from django.core import mail
 from django.core.mail import EmailMessage
-from django.conf import settings
-import logging
-import os
 
 
 logger = logging.getLogger(__name__)
@@ -10,14 +10,16 @@ logger = logging.getLogger(__name__)
 
 NOT_SENT, SENT, PARTLY_SENT = 0, 1, 2
 
-def send(subject, content, sender, recipients, message_id=None, reply_to=None,
-         attachments=None, cc=None):
+
+def send(
+    subject, content, sender, recipients, message_id=None, reply_to=None, attachments=None, cc=None
+):
     failed, succeeded = False, False
-    if type(recipients) != list:
+    if type(recipients) is not list:
         recipients = [recipients]
     if not cc:
         cc = []
-    elif type(cc) != list:
+    elif type(cc) is not list:
         cc = [cc]
     if reply_to is not None:
         kwargs = {"reply_to": reply_to}
@@ -26,15 +28,16 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
     if sender == settings.DEFAULT_SENDING_MAIL:
         sender = addr_with_name(settings.DEFAULT_SENDING_MAIL, settings.DEFAULT_SENDING_NAME)
     url = prepend_base_url("/newsletter/unsubscribe")
-    headers = {'List-Unsubscribe': '<{unsubscribe_url}>'.format(unsubscribe_url=url)}
+    headers = {"List-Unsubscribe": "<{unsubscribe_url}>".format(unsubscribe_url=url)}
     if message_id is not None:
-        headers['Message-ID'] = message_id
+        headers["Message-ID"] = message_id
 
     # construct mails
     mails = []
     for recipient in set(recipients):
-        email = EmailMessage(subject, content, sender, [recipient], cc=cc,
-                             headers=headers, **kwargs)
+        email = EmailMessage(
+            subject, content, sender, [recipient], cc=cc, headers=headers, **kwargs
+        )
         if attachments is not None:
             for attach in attachments:
                 email.attach_file(attach)
@@ -50,15 +53,16 @@ def send(subject, content, sender, recipients, message_id=None, reply_to=None,
     else:
         succeeded = True
 
-    return NOT_SENT if failed and not succeeded else SENT if not failed\
-        and succeeded else PARTLY_SENT
+    return (
+        NOT_SENT if failed and not succeeded else SENT if not failed and succeeded else PARTLY_SENT
+    )
 
 
 def get_content(content, registration_complete=True):
-    url = prepend_base_url("/newsletter/unsubscribe")
     prepend = settings.PREPEND_INCOMPLETE_REGISTRATION_TEXT
-    text = "{prepend}{content}".format(prepend="" if registration_complete else prepend,
-                                       content=content)
+    text = "{prepend}{content}".format(
+        prepend="" if registration_complete else prepend, content=content
+    )
     return text
 
 
@@ -102,7 +106,9 @@ def get_invite_as_user_key(key):
 
 
 def prepend_base_url(absolutelink):
-    return "{protocol}://{base}{link}".format(protocol=settings.PROTOCOL, base=settings.BASE_URL, link=absolutelink)
+    return "{protocol}://{base}{link}".format(
+        protocol=settings.PROTOCOL, base=settings.BASE_URL, link=absolutelink
+    )
 
 
 def addr_with_name(addr, name):

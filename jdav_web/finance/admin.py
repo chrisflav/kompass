@@ -65,11 +65,12 @@ def decorate_statement_view(model, perm=None):
 @admin.register(Statement)
 class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
     fields = ['short_description', 'explanation', 'excursion', 'status']
-    list_display = ['__str__', 'total_pretty', 'created_by', 'submitted_date', 'is_valid', 'status_badge']
+    list_display = ['__str__', 'total_pretty', 'created_by', 'submitted_date', 'status_badge']
     list_filter = ['status']
     search_fields = ('excursion__name', 'short_description')
     ordering = ['-submitted_date']
     inlines = [BillOnStatementInline]
+    list_per_page = 25
 
     def has_change_permission(self, request, obj=None):
         if obj is None:
