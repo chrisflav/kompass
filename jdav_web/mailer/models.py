@@ -20,7 +20,6 @@ from .mailutils import send
 from .mailutils import SENT
 from .rules import is_creator
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -4,18 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('finance', '0010_statement_status'),
+        ("finance", "0010_statement_status"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='statement',
-            name='confirmed',
+            model_name="statement",
+            name="confirmed",
         ),
         migrations.RemoveField(
-            model_name='statement',
-            name='submitted',
+            model_name="statement",
+            name="submitted",
         ),
     ]

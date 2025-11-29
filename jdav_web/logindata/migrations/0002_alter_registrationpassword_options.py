@@ -4,14 +4,16 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('logindata', '0001_initial'),
+        ("logindata", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='registrationpassword',
-            options={'verbose_name': 'Active registration password', 'verbose_name_plural': 'Active registration passwords'},
+            name="registrationpassword",
+            options={
+                "verbose_name": "Active registration password",
+                "verbose_name_plural": "Active registration passwords",
+            },
         ),
     ]

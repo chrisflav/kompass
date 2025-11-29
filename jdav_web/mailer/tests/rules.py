@@ -1,23 +1,26 @@
-from django.test import TestCase
 from django.conf import settings
 from django.contrib.auth.models import User
-from mailer.rules import is_creator
+from django.test import TestCase
 from mailer.models import Message
-from members.models import Member, MALE
+from mailer.rules import is_creator
+from members.models import MALE
+from members.models import Member
 
 
 class MailerRulesTestCase(TestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(username="alice", password="test123")
         self.member1 = Member.objects.create(
-            prename="Alice", lastname="Smith", birth_date="1990-01-01",
-            email=settings.TEST_MAIL, gender=MALE, user=self.user1
+            prename="Alice",
+            lastname="Smith",
+            birth_date="1990-01-01",
+            email=settings.TEST_MAIL,
+            gender=MALE,
+            user=self.user1,
         )
 
         self.message = Message.objects.create(
-            subject="Test Message",
-            content="Test content",
-            created_by=self.member1
+            subject="Test Message", content="Test content", created_by=self.member1
         )
 
     def test_is_creator_returns_true_when_user_created_message(self):
