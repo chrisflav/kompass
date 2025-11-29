@@ -11,13 +11,13 @@ jdav Kompass
 Der Kompass ist dein Kompass in der Jugendarbeit in deiner JDAV Sektion. Wenn du das
 erste mal hier bist, schau doch mal :ref:`user_manual/getstarted` an.
 
-.. attention:: 
+.. attention::
    Die Dokumentation befindet sich noch im Aufbau.  --  The documentation is still under construction.
 
    (Stand: 08.01.2025)
 
 
-Nutzer Dokumentation 
+Nutzer Dokumentation
 --------------------
 
 - auf deutsch
@@ -29,7 +29,7 @@ Nutzer Dokumentation
    user_manual/index
 
 
-Development Documentation 
+Development Documentation
 -------------------------
 
 - auf englisch
@@ -39,4 +39,3 @@ Development Documentation
    :titlesonly:
 
    development_manual/index
-
