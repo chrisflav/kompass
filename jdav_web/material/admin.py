@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from .models import MaterialCategory
 from .models import MaterialPart
 from .models import Ownership
+
 # from easy_select2 import apply_select2
 
 

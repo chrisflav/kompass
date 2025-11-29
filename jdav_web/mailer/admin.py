@@ -7,14 +7,10 @@ from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin import helpers
 from django.shortcuts import render
-from django.utils.translation import (
-    gettext_lazy as _,
-)
+from django.utils.translation import gettext_lazy as _
 from members.admin import FilteredMemberFieldMixin
 from members.models import Member
-from rules.contrib.admin import (
-    ObjectPermissionsModelAdmin,
-)
+from rules.contrib.admin import ObjectPermissionsModelAdmin
 
 from .mailutils import NOT_SENT
 from .mailutils import PARTLY_SENT
@@ -23,6 +19,7 @@ from .models import EmailAddress
 from .models import EmailAddressForm
 from .models import Message
 from .models import MessageForm
+
 # from easy_select2 import apply_select2
 
 

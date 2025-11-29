@@ -1,20 +1,19 @@
+from django.conf import settings
 from django.core.management.base import BaseCommand
-from mailer.models import Message
-from members.models import Member, annotate_activity_score
-from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import send
-from django.conf import settings
-
-import re
+from members.models import annotate_activity_score
+from members.models import Member
 
 
 class Command(BaseCommand):
-    help = 'Congratulates the most active members'
+    help = "Congratulates the most active members"
     requires_system_checks = False
 
     def handle(self, *args, **options):
-        qs = list(reversed(annotate_activity_score(Member.objects.all()).order_by('_activity_score')))[:settings.CONGRATULATE_MEMBERS_MAX]
+        qs = list(
+            reversed(annotate_activity_score(Member.objects.all()).order_by("_activity_score"))
+        )[: settings.CONGRATULATE_MEMBERS_MAX]
         for position, member in enumerate(qs):
             positiontext = "{}. ".format(position + 1) if position > 0 else ""
             score = member._activity_score
@@ -28,11 +27,17 @@ class Command(BaseCommand):
                 level = 4
             else:
                 level = 5
-            content = settings.NOTIFY_MOST_ACTIVE_TEXT.format(name=member.prename,
-                                                     congratulate_max=CONGRATULATE_MEMBERS_MAX,
-                                                     score=score,
-                                                     level=level,
-                                                     position=positiontext)
-            send(_("Congratulation %(name)s") % { 'name': member.prename },
-                 content, settings.DEFAULT_SENDING_ADDRESS, [member.email],
-                 reply_to=[settings.RESPONSIBLE_MAIL])
+            content = settings.NOTIFY_MOST_ACTIVE_TEXT.format(
+                name=member.prename,
+                congratulate_max=settings.CONGRATULATE_MEMBERS_MAX,
+                score=score,
+                level=level,
+                position=positiontext,
+            )
+            send(
+                _("Congratulation %(name)s") % {"name": member.prename},
+                content,
+                settings.DEFAULT_SENDING_ADDRESS,
+                [member.email],
+                reply_to=[settings.RESPONSIBLE_MAIL],
+            )

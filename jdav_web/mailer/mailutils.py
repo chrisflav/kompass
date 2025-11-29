@@ -4,7 +4,6 @@ from django.conf import settings
 from django.core import mail
 from django.core.mail import EmailMessage
 
-
 logger = logging.getLogger(__name__)
 
 

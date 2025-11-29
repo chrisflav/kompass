@@ -1,11 +1,21 @@
-from django.test import TestCase
-from django.utils import timezone
+from unittest.mock import Mock
+
 from django.conf import settings
 from django.contrib.auth.models import User
-from unittest.mock import Mock
-from finance.rules import is_creator, not_submitted, leads_excursion
-from finance.models import Statement, Ledger
-from members.models import Member, Group, Freizeit, GEMEINSCHAFTS_TOUR, MUSKELKRAFT_ANREISE, MALE, FEMALE
+from django.test import TestCase
+from django.utils import timezone
+from finance.models import Ledger
+from finance.models import Statement
+from finance.rules import is_creator
+from finance.rules import leads_excursion
+from finance.rules import not_submitted
+from members.models import FEMALE
+from members.models import Freizeit
+from members.models import GEMEINSCHAFTS_TOUR
+from members.models import Group
+from members.models import MALE
+from members.models import Member
+from members.models import MUSKELKRAFT_ANREISE
 
 
 class FinanceRulesTestCase(TestCase):
@@ -15,15 +25,23 @@ class FinanceRulesTestCase(TestCase):
 
         self.user1 = User.objects.create_user(username="alice", password="test123")
         self.member1 = Member.objects.create(
-            prename="Alice", lastname="Smith", birth_date=timezone.now().date(),
-            email=settings.TEST_MAIL, gender=FEMALE, user=self.user1
+            prename="Alice",
+            lastname="Smith",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=FEMALE,
+            user=self.user1,
         )
         self.member1.group.add(self.group)
 
         self.user2 = User.objects.create_user(username="bob", password="test123")
         self.member2 = Member.objects.create(
-            prename="Bob", lastname="Jones", birth_date=timezone.now().date(),
-            email=settings.TEST_MAIL, gender=MALE, user=self.user2
+            prename="Bob",
+            lastname="Jones",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=MALE,
+            user=self.user2,
         )
         self.member2.group.add(self.group)
 
@@ -32,7 +50,7 @@ class FinanceRulesTestCase(TestCase):
             kilometers_traveled=100,
             tour_type=GEMEINSCHAFTS_TOUR,
             tour_approach=MUSKELKRAFT_ANREISE,
-            difficulty=2
+            difficulty=2,
         )
         self.freizeit.jugendleiter.add(self.member1)
 
@@ -41,7 +59,7 @@ class FinanceRulesTestCase(TestCase):
             explanation="Test explanation",
             night_cost=27,
             created_by=self.member1,
-            excursion=self.freizeit
+            excursion=self.freizeit,
         )
         self.statement.allowance_to.add(self.member1)
 
@@ -68,8 +86,8 @@ class FinanceRulesTestCase(TestCase):
         # Create a mock Freizeit that truly doesn't have the statement attribute
         mock_freizeit = Mock(spec=Freizeit)
         # Remove the statement attribute entirely
-        if hasattr(mock_freizeit, 'statement'):
-            delattr(mock_freizeit, 'statement')
+        if hasattr(mock_freizeit, "statement"):
+            delattr(mock_freizeit, "statement")
         self.assertTrue(not_submitted(self.user1, mock_freizeit))
 
     def test_leads_excursion_freizeit_user_is_leader(self):
@@ -96,7 +114,7 @@ class FinanceRulesTestCase(TestCase):
             explanation="Test explanation",
             night_cost=27,
             created_by=self.member1,
-            excursion=None
+            excursion=None,
         )
         result = leads_excursion(self.user1, statement_no_excursion)
         self.assertFalse(result)
