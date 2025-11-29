@@ -1,10 +1,12 @@
-import os
+# ruff: noqa F821
 
-DJANGO_LOG_LEVEL = get_var('logging', 'django_level', default='INFO')
-ROOT_LOG_LEVEL = get_var('logging', 'level', default='INFO')
-LOG_ERROR_TO_EMAIL = get_var('logging', 'email_admins', default=False)
-LOG_EMAIL_BACKEND = EMAIL_BACKEND if LOG_ERROR_TO_EMAIL else "django.core.mail.backends.console.EmailBackend"
-LOG_ERROR_INCLUDE_HTML = get_var('logging', 'error_report_include_html', default=False)
+DJANGO_LOG_LEVEL = get_var("logging", "django_level", default="INFO")
+ROOT_LOG_LEVEL = get_var("logging", "level", default="INFO")
+LOG_ERROR_TO_EMAIL = get_var("logging", "email_admins", default=False)
+LOG_EMAIL_BACKEND = (
+    EMAIL_BACKEND if LOG_ERROR_TO_EMAIL else "django.core.mail.backends.console.EmailBackend"
+)
+LOG_ERROR_INCLUDE_HTML = get_var("logging", "error_report_include_html", default=False)
 
 LOGGING = {
     "version": 1,

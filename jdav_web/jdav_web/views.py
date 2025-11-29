@@ -1,11 +1,12 @@
-from django.http import HttpResponse
-from django.views.static import serve
-from django.conf import settings
-from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib import admin
-from django.shortcuts import render
-from startpage.models import Link
 import re
+
+from django.conf import settings
+from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.views.static import serve
+from startpage.models import Link
 
 
 def media_unprotected(request, path):
@@ -15,8 +16,8 @@ def media_unprotected(request, path):
     # otherwise create a redirect to the internal nginx endpoint at /protected
     response = HttpResponse()
     # Content-type will be detected by nginx
-    del response['Content-Type']
-    response['X-Accel-Redirect'] = '/protected/' + path
+    del response["Content-Type"]
+    response["X-Accel-Redirect"] = "/protected/" + path
     return response
 
 
@@ -26,7 +27,7 @@ def media_protected(request, path):
 
 
 def media_access(request, path):
-    if re.match('^(people|images)/', path):
+    if re.match("^(people|images)/", path):
         return media_unprotected(request, path)
     else:
         return media_protected(request, path)
@@ -38,11 +39,12 @@ def custom_admin_view(request):
     """
     app_list = admin.site.get_app_list(request)
     context = {
-        'app_list': app_list,
-        'site_header': admin.site.site_header,
-        'site_title': admin.site.site_title,
-        'external_links': Link.objects.all()
+        "app_list": app_list,
+        "site_header": admin.site.site_header,
+        "site_title": admin.site.site_title,
+        "external_links": Link.objects.all(),
     }
-    return render(request, 'admin/index.html', context)
+    return render(request, "admin/index.html", context)
+
 
 admin.site.index = custom_admin_view

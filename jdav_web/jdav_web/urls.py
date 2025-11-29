@@ -13,40 +13,44 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.urls import path, re_path, include
-from django.contrib import admin
-from django.conf.urls.static import static
+
 from django.conf.urls.i18n import i18n_patterns
-from django.conf import settings
+from django.contrib import admin
+from django.urls import include
+from django.urls import path
+from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
 from oauth2_provider import urls as oauth2_urls
+
 from .views import media_access
 
-admin.site.index_title = _('Startpage')
-admin.site.site_header = 'Kompass'
+admin.site.index_title = _("Startpage")
+admin.site.site_header = "Kompass"
 
 urlpatterns = i18n_patterns(
-    re_path(r'^media/(?P<path>.*)', media_access, name='media'),
-    re_path(r'^kompass/?', admin.site.urls, name='kompass'),
-    re_path(r'^jet/', include('jet.urls', 'jet')), # Django JET URLS
-    re_path(r'^admin/?', RedirectView.as_view(url='/kompass')),
-    re_path(r'^newsletter/', include('mailer.urls', namespace="mailer")),
-    re_path(r'^members/', include('members.urls', namespace="members")),
-    re_path(r'^login/', include('logindata.urls', namespace="logindata")),
-    re_path(r'^LBAlpin/Programm(/)?(20)?[0-9]{0,2}', include('ludwigsburgalpin.urls',
-            namespace="ludwigsburgalpin")),
-    re_path(r'^_nested_admin/', include('nested_admin.urls')),
-    path('o/', include(oauth2_urls)),
-    re_path(r'^', include('startpage.urls', namespace="startpage")),
+    re_path(r"^media/(?P<path>.*)", media_access, name="media"),
+    re_path(r"^kompass/?", admin.site.urls, name="kompass"),
+    re_path(r"^jet/", include("jet.urls", "jet")),  # Django JET URLS
+    re_path(r"^admin/?", RedirectView.as_view(url="/kompass")),
+    re_path(r"^newsletter/", include("mailer.urls", namespace="mailer")),
+    re_path(r"^members/", include("members.urls", namespace="members")),
+    re_path(r"^login/", include("logindata.urls", namespace="logindata")),
+    re_path(
+        r"^LBAlpin/Programm(/)?(20)?[0-9]{0,2}",
+        include("ludwigsburgalpin.urls", namespace="ludwigsburgalpin"),
+    ),
+    re_path(r"^_nested_admin/", include("nested_admin.urls")),
+    path("o/", include(oauth2_urls)),
+    re_path(r"^", include("startpage.urls", namespace="startpage")),
 )
 
 urlpatterns += [
-    re_path(r'^markdownx/', include('markdownx.urls')),
+    re_path(r"^markdownx/", include("markdownx.urls")),
 ]
 
-handler404 = 'startpage.views.handler404'
-handler500 = 'startpage.views.handler500'
+handler404 = "startpage.views.handler404"
+handler500 = "startpage.views.handler500"
 
 # TODO: django serving from MEDIA_URL should be disabled in production stage
 # see
