@@ -19,7 +19,6 @@ services:
           - uwsgi_data:/tmp/uwsgi/
           - web_static:/app/static/
           - web_static:/var/www/jdav_web/static/
-          - ./media:/var/www/jdav_web/media/
           - ./config:/app/config:ro
 
     nginx:
@@ -28,7 +27,6 @@ services:
         volumes:
           - uwsgi_data:/tmp/uwsgi/
           - web_static:/var/www/jdav_web/static/:ro
-          - ./media:/var/www/jdav_web/media/:ro
         ports:
           - "3000:80"
         depends_on:
@@ -37,9 +35,6 @@ services:
     db:
         restart: always
         image: mariadb:latest
-        volumes:
-          - ./db:/var/lib/mysql
-          - ./provision/mysql/init:/docker-entrypoint-initdb.d
         env_file: docker.env
 
     cache:
