@@ -1,40 +1,60 @@
-from datetime import datetime, timedelta, date
-import uuid
 import math
-import pytz
-import unicodedata
 import re
+import uuid
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
+
+import rules
+from contrib.media import media_path
+from contrib.models import CommonModel
+from contrib.rules import has_global_perm
+from dateutil.relativedelta import relativedelta
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
+from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import TextField, ManyToManyField, ForeignKey, Count,\
-    Sum, Case, Q, F, When, Value, IntegerField, Subquery, OuterRef
+from django.db.models import Case
+from django.db.models import Count
+from django.db.models import F
+from django.db.models import IntegerField
+from django.db.models import OuterRef
+from django.db.models import Q
+from django.db.models import Subquery
+from django.db.models import Sum
+from django.db.models import Value
+from django.db.models import When
 from django.db.models.functions import Cast
-from django.utils.translation import gettext_lazy as _
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
-from django.urls import reverse
-from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
-from django.contrib.contenttypes.models import ContentType
-from utils import RestrictedFileField, normalize_name
-import os
-from mailer.mailutils import send as send_mail, get_mail_confirmation_link,\
-    prepend_base_url, get_registration_link, get_wait_confirmation_link,\
-    get_invitation_reject_link, get_invite_as_user_key, get_leave_waitinglist_link,\
-    get_invitation_confirm_link
-from django.contrib.auth.models import User
-from django.conf import settings
-from django.core.validators import MinValueValidator
-
-from .rules import may_view, may_change, may_delete, is_own_training, is_oneself, is_leader, is_leader_of_excursion,\
-    is_leader_of_relevant_invitation
-from .pdf import render_tex
-import rules
-from contrib.models import CommonModel
-from contrib.media import media_path
-from contrib.rules import memberize_user, has_global_perm
-from utils import cvt_to_decimal, coming_midnight
-
-from dateutil.relativedelta import relativedelta
+from django.utils.translation import gettext_lazy as _
+from mailer.mailutils import get_invitation_confirm_link
+from mailer.mailutils import get_invitation_reject_link
+from mailer.mailutils import get_invite_as_user_key
+from mailer.mailutils import get_leave_waitinglist_link
+from mailer.mailutils import get_mail_confirmation_link
+from mailer.mailutils import get_registration_link
+from mailer.mailutils import get_wait_confirmation_link
+from mailer.mailutils import prepend_base_url
+from mailer.mailutils import send as send_mail
 from schwifty import IBAN
+from utils import coming_midnight
+from utils import cvt_to_decimal
+from utils import normalize_name
+from utils import RestrictedFileField
+
+from .pdf import render_tex
+from .rules import is_leader
+from .rules import is_leader_of_excursion
+from .rules import is_leader_of_relevant_invitation
+from .rules import is_oneself
+from .rules import may_change
+from .rules import may_delete
+from .rules import may_view
 
 
 GEMEINSCHAFTS_TOUR = MUSKELKRAFT_ANREISE = MALE = 0
@@ -42,13 +62,13 @@ FUEHRUNGS_TOUR = OEFFENTLICHE_ANREISE = FEMALE = 1
 AUSBILDUNGS_TOUR = FAHRGEMEINSCHAFT_ANREISE = DIVERSE = 2
 
 WEEKDAYS = (
-    (0, _('Monday')),
-    (1, _('Tuesday')),
-    (2, _('Wednesday')),
-    (3, _('Thursday')),
-    (4, _('Friday')),
-    (5, _('Saturday')),
-    (6, _('Sunday')),
+    (0, _("Monday")),
+    (1, _("Tuesday")),
+    (2, _("Wednesday")),
+    (3, _("Thursday")),
+    (4, _("Friday")),
+    (5, _("Saturday")),
+    (6, _("Sunday")),
 )
 
 
@@ -56,25 +76,30 @@ class ActivityCategory(models.Model):
     """
     Describes one kind of activity
     """
-    LJP_CATEGORIES = [('Winter', _('winter')),
-                      ('Skibergsteigen', _('ski mountaineering')),
-                      ('Klettern', _('climbing')),
-                      ('Bergsteigen', _('mountaineering')),
-                      ('Theorie', _('theory')),
-                      ('Sonstiges', _('others'))]
-    name = models.CharField(max_length=20, verbose_name=_('Name'))
-    ljp_category = models.CharField(choices=LJP_CATEGORIES,
-                                    verbose_name=_('LJP category'),
-                                    max_length=20,
-                                    help_text=_('The official category for LJP applications associated with this activity.'))
-    description = models.TextField(_('Description'))
+
+    LJP_CATEGORIES = [
+        ("Winter", _("winter")),
+        ("Skibergsteigen", _("ski mountaineering")),
+        ("Klettern", _("climbing")),
+        ("Bergsteigen", _("mountaineering")),
+        ("Theorie", _("theory")),
+        ("Sonstiges", _("others")),
+    ]
+    name = models.CharField(max_length=20, verbose_name=_("Name"))
+    ljp_category = models.CharField(
+        choices=LJP_CATEGORIES,
+        verbose_name=_("LJP category"),
+        max_length=20,
+        help_text=_("The official category for LJP applications associated with this activity."),
+    )
+    description = models.TextField(_("Description"))
 
     def __str__(self):
         return self.name
 
     class Meta:
-        verbose_name = _('Activity')
-        verbose_name_plural = _('Activities')
+        verbose_name = _("Activity")
+        verbose_name_plural = _("Activities")
 
 
 class Group(models.Model):
@@ -82,34 +107,40 @@ class Group(models.Model):
     Represents one group of the association
     e.g: J1, J2, Jugendleiter, etc.
     """
-    name = models.CharField(max_length=50, verbose_name=_('name'))  # e.g: J1
-    description = models.TextField(verbose_name=_('description'), default='', blank=True)
-    show_website = models.BooleanField(verbose_name=_('show on website'), default=False)
-    year_from = models.IntegerField(verbose_name=_('lowest year'), default=2010)
-    year_to = models.IntegerField(verbose_name=_('highest year'), default=2011)
-    leiters = models.ManyToManyField('members.Member', verbose_name=_('youth leaders'),
-                                     related_name='leited_groups', blank=True)
-    weekday = models.IntegerField(verbose_name=_('week day'), choices=WEEKDAYS, null=True, blank=True)
-    start_time = models.TimeField(verbose_name=_('Starting time'), null=True, blank=True)
-    end_time = models.TimeField(verbose_name=_('Ending time'), null=True, blank=True)
-    contact_email = models.ForeignKey('mailer.EmailAddress',
-                                      verbose_name=_('Contact email'),
-                                      null=True,
-                                      blank=True,
-                                      on_delete=models.SET_NULL)
+
+    name = models.CharField(max_length=50, verbose_name=_("name"))  # e.g: J1
+    description = models.TextField(verbose_name=_("description"), default="", blank=True)
+    show_website = models.BooleanField(verbose_name=_("show on website"), default=False)
+    year_from = models.IntegerField(verbose_name=_("lowest year"), default=2010)
+    year_to = models.IntegerField(verbose_name=_("highest year"), default=2011)
+    leiters = models.ManyToManyField(
+        "members.Member", verbose_name=_("youth leaders"), related_name="leited_groups", blank=True
+    )
+    weekday = models.IntegerField(
+        verbose_name=_("week day"), choices=WEEKDAYS, null=True, blank=True
+    )
+    start_time = models.TimeField(verbose_name=_("Starting time"), null=True, blank=True)
+    end_time = models.TimeField(verbose_name=_("Ending time"), null=True, blank=True)
+    contact_email = models.ForeignKey(
+        "mailer.EmailAddress",
+        verbose_name=_("Contact email"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
 
     def __str__(self):
         """String representation"""
         return self.name
 
     class Meta:
-        verbose_name = _('group')
-        verbose_name_plural = _('groups')
-        
+        verbose_name = _("group")
+        verbose_name_plural = _("groups")
+
     @property
     def sorted_members(self):
         """Returns the members of this group sorted by their last name."""
-        return self.member_set.all().order_by('lastname')
+        return self.member_set.all().order_by("lastname")
 
     def has_time_info(self):
         # return if the group has all relevant time slot information filled
@@ -117,18 +148,20 @@ class Group(models.Model):
 
     def get_time_info(self):
         if self.has_time_info():
-            return settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[self.weekday][1],
-                                                             start_time=self.start_time.strftime('%H:%M'),
-                                                             end_time=self.end_time.strftime('%H:%M'))
+            return settings.GROUP_TIME_AVAILABLE_TEXT.format(
+                weekday=WEEKDAYS[self.weekday][1],
+                start_time=self.start_time.strftime("%H:%M"),
+                end_time=self.end_time.strftime("%H:%M"),
+            )
         else:
             return ""
-    
+
     def has_age_info(self):
         return self.year_from and self.year_to
-    
+
     def get_age_info(self):
         if self.has_age_info():
-            return _("years %(from)s to %(to)s") % {'from':self.year_from, 'to':self.year_to}
+            return _("years %(from)s to %(to)s") % {"from": self.year_from, "to": self.year_to}
         else:
             return ""
 
@@ -136,23 +169,29 @@ class Group(models.Model):
         """The text template used to invite waiters to this group. This contains
         placeholders for the name of the waiter and personalized links."""
         if self.show_website:
-            group_link = '({url}) '.format(url=prepend_base_url(reverse('startpage:gruppe_detail', args=[self.name])))
+            group_link = "({url}) ".format(
+                url=prepend_base_url(reverse("startpage:gruppe_detail", args=[self.name]))
+            )
         else:
-            group_link = ''
+            group_link = ""
         if self.has_time_info():
             group_time = self.get_time_info()
         else:
-            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=self.contact_email)
+            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(
+                contact_email=self.contact_email
+            )
         if self.has_age_info():
             group_age = self.get_age_info()
         else:
             group_age = _("no information available")
 
-        return settings.INVITE_TEXT.format(group_time=group_time,
-                                           group_name=self.name,
-                                           group_age=group_age,
-                                           group_link=group_link,
-                                           contact_email=self.contact_email)
+        return settings.INVITE_TEXT.format(
+            group_time=group_time,
+            group_name=self.name,
+            group_age=group_age,
+            group_link=group_link,
+            contact_email=self.contact_email,
+        )
 
 
 class MemberManager(models.Manager):
@@ -164,11 +203,12 @@ class Contact(CommonModel):
     """
     Represents an abstract person with only absolutely necessary contact information.
     """
-    prename = models.CharField(max_length=20, verbose_name=_('prename'))
-    lastname = models.CharField(max_length=20, verbose_name=_('last name'))
+
+    prename = models.CharField(max_length=20, verbose_name=_("prename"))
+    lastname = models.CharField(max_length=20, verbose_name=_("last name"))
 
     email = models.EmailField(max_length=100, default="")
-    confirmed_mail = models.BooleanField(default=False, verbose_name=_('Email confirmed'))
+    confirmed_mail = models.BooleanField(default=False, verbose_name=_("Email confirmed"))
     confirm_mail_key = models.CharField(max_length=32, default="")
 
     class Meta(CommonModel.Meta):
@@ -181,26 +221,28 @@ class Contact(CommonModel):
     @property
     def name(self):
         """Returning whole name (prename + lastname)"""
-        return "{0} {1}".format(self.prename, self.lastname)
+        return "{} {}".format(self.prename, self.lastname)
 
     def phone_number_tel_link(self):
         """Returns the phone number as tel link."""
         return format_html('<a href="tel:{tel}">{tel}</a>'.format(tel=self.phone_number))
-    phone_number_tel_link.short_description = _('phone number')
-    phone_number_tel_link.admin_order_field = 'phone_number'
+
+    phone_number_tel_link.short_description = _("phone number")
+    phone_number_tel_link.admin_order_field = "phone_number"
 
     def email_mailto_link(self):
         """Returns the emails as a mailto link."""
         return format_html('<a href="mailto:{email}">{email}</a>'.format(email=self.email))
-    email_mailto_link.short_description = 'Email'
-    email_mailto_link.admin_order_field = 'email'
+
+    email_mailto_link.short_description = "Email"
+    email_mailto_link.admin_order_field = "email"
 
     @property
     def email_fields(self):
         """Returns all tuples of emails and confirmation data related to this contact.
         By default, this is only the principal email field, but extending classes can add
         more email fields and then override this method."""
-        return [('email', 'confirmed_mail', 'confirm_mail_key')]
+        return [("email", "confirmed_mail", "confirm_mail_key")]
 
     def request_mail_confirmation(self, rerequest=True):
         """Request mail confirmation for every mail field. If `rerequest` is false, then only
@@ -211,19 +253,23 @@ class Contact(CommonModel):
         for email_fd, confirmed_email_fd, confirm_mail_key_fd in self.email_fields:
             if getattr(self, confirmed_email_fd) and not rerequest:
                 continue
-            if not getattr(self, email_fd): # pragma: no cover
+            if not getattr(self, email_fd):  # pragma: no cover
                 # Only reachable with misconfigured `email_fields`
                 continue
             requested_confirmation = True
             setattr(self, confirmed_email_fd, False)
             confirm_mail_key = uuid.uuid4().hex
             setattr(self, confirm_mail_key_fd, confirm_mail_key)
-            send_mail(_('Email confirmation needed'),
-                      settings.CONFIRM_MAIL_TEXT.format(name=self.prename,
-                                                        link=get_mail_confirmation_link(confirm_mail_key),
-                                                        whattoconfirm='deiner Emailadresse'),
-                      settings.DEFAULT_SENDING_MAIL,
-                      getattr(self, email_fd))
+            send_mail(
+                _("Email confirmation needed"),
+                settings.CONFIRM_MAIL_TEXT.format(
+                    name=self.prename,
+                    link=get_mail_confirmation_link(confirm_mail_key),
+                    whattoconfirm="deiner Emailadresse",
+                ),
+                settings.DEFAULT_SENDING_MAIL,
+                getattr(self, email_fd),
+            )
         self.save()
         return requested_confirmation
 
@@ -237,13 +283,19 @@ class Contact(CommonModel):
         return None
 
     def send_mail(self, subject, content, cc=None):
-        send_mail(subject, content, settings.DEFAULT_SENDING_MAIL,
-            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields], cc=cc)
+        send_mail(
+            subject,
+            content,
+            settings.DEFAULT_SENDING_MAIL,
+            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields],
+            cc=cc,
+        )
 
 
 def confirm_mail_by_key(key):
-    matching_unconfirmed = MemberUnconfirmedProxy.objects.filter(confirm_mail_key=key) \
-                         | MemberUnconfirmedProxy.objects.filter(confirm_alternative_mail_key=key)
+    matching_unconfirmed = MemberUnconfirmedProxy.objects.filter(
+        confirm_mail_key=key
+    ) | MemberUnconfirmedProxy.objects.filter(confirm_alternative_mail_key=key)
     matching_waiter = MemberWaitingList.objects.filter(confirm_mail_key=key)
     matching_emergency_contact = EmergencyContact.objects.filter(confirm_mail_key=key)
     matches = list(matching_unconfirmed) + list(matching_waiter) + list(matching_emergency_contact)
@@ -258,7 +310,8 @@ class ContactWithPhoneNumber(Contact):
     """
     A contact with a phone number.
     """
-    phone_number = models.CharField(max_length=100, verbose_name=_('phone number'))
+
+    phone_number = models.CharField(max_length=100, verbose_name=_("phone number"))
 
     class Meta(CommonModel.Meta):
         abstract = True
@@ -268,13 +321,11 @@ class Person(Contact):
     """
     Represents an abstract person. Not necessarily a member of any group.
     """
-    birth_date = models.DateField(_('birth date'), null=True, blank=True)  # to determine the age
-    gender_choices = ((MALE, 'Männlich'),
-                      (FEMALE, 'Weiblich'),
-                      (DIVERSE, 'Divers'))
-    gender = models.IntegerField(choices=gender_choices,
-                                 verbose_name=_('Gender'))
-    comments = models.TextField(_('comments'), default='', blank=True)
+
+    birth_date = models.DateField(_("birth date"), null=True, blank=True)  # to determine the age
+    gender_choices = ((MALE, "Männlich"), (FEMALE, "Weiblich"), (DIVERSE, "Divers"))
+    gender = models.IntegerField(choices=gender_choices, verbose_name=_("Gender"))
+    comments = models.TextField(_("comments"), default="", blank=True)
 
     class Meta(CommonModel.Meta):
         abstract = True
@@ -282,8 +333,9 @@ class Person(Contact):
     def age(self):
         """Age of member"""
         return relativedelta(datetime.today(), self.birth_date).years
-    age.admin_order_field = 'birth_date'
-    age.short_description = _('age')
+
+    age.admin_order_field = "birth_date"
+    age.short_description = _("age")
 
     def age_at(self, date: date):
         """Age of member at a given date"""
@@ -305,114 +357,146 @@ class Member(Person):
     Represents a member of the association
     Might be a member of different groups: e.g. J1, J2, Jugendleiter, etc.
     """
+
     alternative_email = models.EmailField(max_length=100, default=None, blank=True, null=True)
-    confirmed_alternative_mail = models.BooleanField(default=True,
-        verbose_name=_('Alternative email confirmed'))
+    confirmed_alternative_mail = models.BooleanField(
+        default=True, verbose_name=_("Alternative email confirmed")
+    )
     confirm_alternative_mail_key = models.CharField(max_length=32, default="")
 
-    phone_number = models.CharField(max_length=100, verbose_name=_('phone number'), default='', blank=True)
-    street = models.CharField(max_length=30, verbose_name=_('street and house number'), default='', blank=True)
-    plz = models.CharField(max_length=10, verbose_name=_('Postcode'),
-                           default='', blank=True)
-    town = models.CharField(max_length=30, verbose_name=_('town'), default='', blank=True)
-    address_extra = models.CharField(max_length=100, verbose_name=_('Address extra'), default='', blank=True)
-    country = models.CharField(max_length=30, verbose_name=_('Country'), default='', blank=True)
+    phone_number = models.CharField(
+        max_length=100, verbose_name=_("phone number"), default="", blank=True
+    )
+    street = models.CharField(
+        max_length=30, verbose_name=_("street and house number"), default="", blank=True
+    )
+    plz = models.CharField(max_length=10, verbose_name=_("Postcode"), default="", blank=True)
+    town = models.CharField(max_length=30, verbose_name=_("town"), default="", blank=True)
+    address_extra = models.CharField(
+        max_length=100, verbose_name=_("Address extra"), default="", blank=True
+    )
+    country = models.CharField(max_length=30, verbose_name=_("Country"), default="", blank=True)
 
-    good_conduct_certificate_presented_date = models.DateField(_('Good conduct certificate presented on'), default=None, blank=True, null=True)
-    join_date = models.DateField(_('Joined on'), default=None, blank=True, null=True)
-    leave_date = models.DateField(_('Left on'), default=None, blank=True, null=True)
-    has_key = models.BooleanField(_('Has key'), default=False)
-    has_free_ticket_gym = models.BooleanField(_('Has a free ticket for the climbing gym'), default=False)
-    dav_badge_no = models.CharField(max_length=20, verbose_name=_('DAV badge number'), default='', blank=True)
-    
+    good_conduct_certificate_presented_date = models.DateField(
+        _("Good conduct certificate presented on"), default=None, blank=True, null=True
+    )
+    join_date = models.DateField(_("Joined on"), default=None, blank=True, null=True)
+    leave_date = models.DateField(_("Left on"), default=None, blank=True, null=True)
+    has_key = models.BooleanField(_("Has key"), default=False)
+    has_free_ticket_gym = models.BooleanField(
+        _("Has a free ticket for the climbing gym"), default=False
+    )
+    dav_badge_no = models.CharField(
+        max_length=20, verbose_name=_("DAV badge number"), default="", blank=True
+    )
+
     # use this to store a climbing gym customer or membership id, used to print on meeting checklists
-    ticket_no = models.CharField(max_length=20, verbose_name=_('entrance ticket number'), default='', blank=True)   
-    swimming_badge = models.BooleanField(verbose_name=_('Knows how to swim'), default=False)
-    climbing_badge = models.CharField(max_length=100, verbose_name=_('Climbing badge'), default='', blank=True)
-    alpine_experience = models.TextField(verbose_name=_('Alpine experience'), default='', blank=True)
-    allergies = models.TextField(verbose_name=_('Allergies'), default='', blank=True)
-    medication = models.TextField(verbose_name=_('Medication'), default='', blank=True)
-    tetanus_vaccination = models.CharField(max_length=50, verbose_name=_('Tetanus vaccination'), default='', blank=True)
-    photos_may_be_taken = models.BooleanField(verbose_name=_('Photos may be taken'), default=False)
-    legal_guardians = models.CharField(max_length=100, verbose_name=_('Legal guardians'), default='', blank=True)
-    may_cancel_appointment_independently =\
-        models.BooleanField(verbose_name=_('May cancel a group appointment independently'), null=True,
-                            blank=True, default=None)
+    ticket_no = models.CharField(
+        max_length=20, verbose_name=_("entrance ticket number"), default="", blank=True
+    )
+    swimming_badge = models.BooleanField(verbose_name=_("Knows how to swim"), default=False)
+    climbing_badge = models.CharField(
+        max_length=100, verbose_name=_("Climbing badge"), default="", blank=True
+    )
+    alpine_experience = models.TextField(
+        verbose_name=_("Alpine experience"), default="", blank=True
+    )
+    allergies = models.TextField(verbose_name=_("Allergies"), default="", blank=True)
+    medication = models.TextField(verbose_name=_("Medication"), default="", blank=True)
+    tetanus_vaccination = models.CharField(
+        max_length=50, verbose_name=_("Tetanus vaccination"), default="", blank=True
+    )
+    photos_may_be_taken = models.BooleanField(verbose_name=_("Photos may be taken"), default=False)
+    legal_guardians = models.CharField(
+        max_length=100, verbose_name=_("Legal guardians"), default="", blank=True
+    )
+    may_cancel_appointment_independently = models.BooleanField(
+        verbose_name=_("May cancel a group appointment independently"),
+        null=True,
+        blank=True,
+        default=None,
+    )
 
-    group = models.ManyToManyField(Group, verbose_name=_('group'))
+    group = models.ManyToManyField(Group, verbose_name=_("group"))
 
-    iban = models.CharField(max_length=30, blank=True, verbose_name='IBAN')
+    iban = models.CharField(max_length=30, blank=True, verbose_name="IBAN")
 
-    gets_newsletter = models.BooleanField(_('receives newsletter'),
-                                          default=True)
+    gets_newsletter = models.BooleanField(_("receives newsletter"), default=True)
     unsubscribe_key = models.CharField(max_length=32, default="")
     unsubscribe_expire = models.DateTimeField(default=timezone.now)
-    created = models.DateField(default=timezone.now, verbose_name=_('created'))
-    active = models.BooleanField(default=True, verbose_name=_('Active'))
-    registration_form = RestrictedFileField(verbose_name=_('registration form'),
-                                            upload_to='registration_forms',
-                                            blank=True,
-                                            max_upload_size=5,
-                                            content_types=['application/pdf',
-                                                           'image/jpeg',
-                                                           'image/png',
-                                                           'image/gif'])
+    created = models.DateField(default=timezone.now, verbose_name=_("created"))
+    active = models.BooleanField(default=True, verbose_name=_("Active"))
+    registration_form = RestrictedFileField(
+        verbose_name=_("registration form"),
+        upload_to="registration_forms",
+        blank=True,
+        max_upload_size=5,
+        content_types=["application/pdf", "image/jpeg", "image/png", "image/gif"],
+    )
     upload_registration_form_key = models.CharField(max_length=32, default="")
-    image = RestrictedFileField(verbose_name=_('image'),
-                                upload_to='people',
-                                blank=True,
-                                max_upload_size=5,
-                                content_types=['image/jpeg',
-                                               'image/png',
-                                               'image/gif'])
+    image = RestrictedFileField(
+        verbose_name=_("image"),
+        upload_to="people",
+        blank=True,
+        max_upload_size=5,
+        content_types=["image/jpeg", "image/png", "image/gif"],
+    )
     echo_key = models.CharField(max_length=32, default="")
     echo_expire = models.DateTimeField(default=timezone.now)
-    echoed = models.BooleanField(default=True, verbose_name=_('Echoed'))
-    confirmed = models.BooleanField(default=True, verbose_name=_('Confirmed'))
-    user = models.OneToOneField(User, blank=True, null=True, on_delete=models.SET_NULL,
-                                verbose_name=_('Login data'))
+    echoed = models.BooleanField(default=True, verbose_name=_("Echoed"))
+    confirmed = models.BooleanField(default=True, verbose_name=_("Confirmed"))
+    user = models.OneToOneField(
+        User, blank=True, null=True, on_delete=models.SET_NULL, verbose_name=_("Login data")
+    )
     invite_as_user_key = models.CharField(max_length=32, default="")
-    waitinglist_application_date = models.DateTimeField(verbose_name=_('waitinglist application date'),
-                                                        null=True, blank=True,
-                                                        help_text=_('If the person registered from the waitinglist, this is their application date.'))
+    waitinglist_application_date = models.DateTimeField(
+        verbose_name=_("waitinglist application date"),
+        null=True,
+        blank=True,
+        help_text=_(
+            "If the person registered from the waitinglist, this is their application date."
+        ),
+    )
 
     objects = MemberManager()
     all_objects = models.Manager()
 
     @property
     def email_fields(self):
-        return [('email', 'confirmed_mail', 'confirm_mail_key'),
-                ('alternative_email', 'confirmed_alternative_mail', 'confirm_alternative_mail_key')]
+        return [
+            ("email", "confirmed_mail", "confirm_mail_key"),
+            ("alternative_email", "confirmed_alternative_mail", "confirm_alternative_mail_key"),
+        ]
 
     @property
     def place(self):
         """Returning the whole place (plz + town)"""
-        return "{0} {1}".format(self.plz, self.town)
-    
+        return "{} {}".format(self.plz, self.town)
+
     @property
     def ticket_tag(self):
         """Returning the ticket number stripped of strings and spaces"""
-        return "{" + ''.join(re.findall(r'\d', self.ticket_no)) + "}"
+        return "{" + "".join(re.findall(r"\d", self.ticket_no)) + "}"
 
     @property
     def iban_valid(self):
         return IBAN(self.iban, allow_invalid=True).is_valid
-    
+
     @property
     def address(self):
         """Returning the whole address"""
         if not self.street and not self.town and not self.plz:
             return "---"
         else:
-            return "{0}, {1}".format(self.street, self.place)
-        
+            return "{}, {}".format(self.street, self.place)
+
     @property
     def address_multiline(self):
         """Returning the whole address with a linebreak between street and town"""
         if not self.street and not self.town and not self.plz:
             return "---"
         else:
-            return "{0},\\linebreak[1] {1}".format(self.street, self.place)
+            return "{},\\linebreak[1] {}".format(self.street, self.place)
 
     def good_conduct_certificate_valid(self):
         """Returns if a good conduct certificate is still valid, depending on the last presentation."""
@@ -420,8 +504,9 @@ class Member(Person):
             return False
         delta = datetime.now().date() - self.good_conduct_certificate_presented_date
         return delta.days // 30 <= settings.MAX_AGE_GOOD_CONDUCT_CERTIFICATE_MONTHS
+
     good_conduct_certificate_valid.boolean = True
-    good_conduct_certificate_valid.short_description = _('Good conduct certificate valid')
+    good_conduct_certificate_valid.short_description = _("Good conduct certificate valid")
 
     def generate_key(self):
         self.unsubscribe_key = uuid.uuid4().hex
@@ -448,8 +533,7 @@ class Member(Person):
         self.save()
 
     def unsubscribe(self, key):
-        if self.unsubscribe_key == key and timezone.now() <\
-                self.unsubscribe_expire:
+        if self.unsubscribe_key == key and timezone.now() < self.unsubscribe_expire:
             for member in Member.objects.filter(email=self.email):
                 member.gets_newsletter = False
                 member.save()
@@ -496,42 +580,44 @@ class Member(Person):
         """Check if all necessary fields are set."""
         # TODO: implement a proper predicate here
         return True
+
     registration_complete.boolean = True
-    registration_complete.short_description = _('Registration complete')
+    registration_complete.short_description = _("Registration complete")
 
     def get_group(self):
         """Returns a string of groups in which the member is."""
-        groupstring = ''.join(g.name + ',\n' for g in self.group.all())
+        groupstring = "".join(g.name + ",\n" for g in self.group.all())
         groupstring = groupstring[:-2]
         return groupstring
-    get_group.short_description = _('Group')
+
+    get_group.short_description = _("Group")
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('member')
-        verbose_name_plural = _('members')
+        verbose_name = _("member")
+        verbose_name_plural = _("members")
         permissions = (
-            ('may_see_qualities', 'Is allowed to see the quality overview'),
-            ('may_set_auth_user', 'Is allowed to set auth user member connections.'),
-            ('may_change_member_group', 'Can change the group field'),
-            ('may_invite_as_user', 'Is allowed to invite a member to set login data.'),
-            ('may_change_organizationals', 'Is allowed to set organizational settings on members.'),
+            ("may_see_qualities", "Is allowed to see the quality overview"),
+            ("may_set_auth_user", "Is allowed to set auth user member connections."),
+            ("may_change_member_group", "Can change the group field"),
+            ("may_invite_as_user", "Is allowed to invite a member to set login data."),
+            ("may_change_organizationals", "Is allowed to set organizational settings on members."),
         )
         rules_permissions = {
-            'members': rules.always_allow,
-            'add_obj': has_global_perm('members.add_global_member'),
-            'view_obj': may_view | has_global_perm('members.view_global_member'),
-            'change_obj': may_change | has_global_perm('members.change_global_member'),
-            'delete_obj': may_delete | has_global_perm('members.delete_global_member'),
+            "members": rules.always_allow,
+            "add_obj": has_global_perm("members.add_global_member"),
+            "view_obj": may_view | has_global_perm("members.view_global_member"),
+            "change_obj": may_change | has_global_perm("members.change_global_member"),
+            "delete_obj": may_delete | has_global_perm("members.delete_global_member"),
         }
 
     def get_skills(self):
         # get skills by summing up all the activities taken part in
         skills = {}
         for kind in ActivityCategory.objects.all():
-            lists = Freizeit.objects.filter(activity=kind,
-                                            membersonlist__member=self)
-            skills[kind.name] = sum([l.difficulty * 3 for l in lists
-                                     if l.date < timezone.now()])
+            lists = Freizeit.objects.filter(activity=kind, membersonlist__member=self)
+            skills[kind.name] = sum(
+                [lst.difficulty * 3 for lst in lists if lst.date < timezone.now()]
+            )
         return skills
 
     def get_activities(self):
@@ -568,15 +654,20 @@ class Member(Person):
 
     def registration_form_uploaded(self):
         print(self.registration_form.name)
-        return not self.registration_form.name is None and self.registration_form.name != ""
+        return self.registration_form.name is not None and self.registration_form.name != ""
+
     registration_form_uploaded.boolean = True
-    registration_form_uploaded.short_description = _('Registration form')
+    registration_form_uploaded.short_description = _("Registration form")
 
     def registration_ready(self):
         """Returns if the member is currently unconfirmed and all email addresses
         are confirmed."""
-        return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail\
-                and self.registration_form
+        return (
+            not self.confirmed
+            and self.confirmed_alternative_mail
+            and self.confirmed_mail
+            and self.registration_form
+        )
 
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
@@ -585,22 +676,26 @@ class Member(Person):
         return ret
 
     def validate_registration_form(self):
-        self.upload_registration_form_key = ''
+        self.upload_registration_form_key = ""
         self.save()
         if self.registration_ready():
             self.notify_jugendleiters_about_confirmed_mail()
 
     def get_upload_registration_form_link(self):
-        return prepend_base_url(reverse('members:upload_registration_form') + "?key="\
-            + self.upload_registration_form_key)
+        return prepend_base_url(
+            reverse("members:upload_registration_form")
+            + "?key="
+            + self.upload_registration_form_key
+        )
 
     def send_upload_registration_form_link(self):
         if not self.upload_registration_form_key:
             return
         link = self.get_upload_registration_form_link()
-        self.send_mail(_('Upload registration form'),
-                       settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
-                                                                     link=link))
+        self.send_mail(
+            _("Upload registration form"),
+            settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename, link=link),
+        )
 
     def request_registration_form(self):
         """Ask the member to upload a registration form via email."""
@@ -612,16 +707,21 @@ class Member(Person):
         # notify jugendleiters of group of registration
         jls = [jl for group in self.group.all() for jl in group.leiters.all()]
         for jl in jls:
-            link = prepend_base_url(reverse('admin:members_memberunconfirmedproxy_change',
-                                            args=[str(self.id)]))
-            send_mail(_('New unconfirmed registration for group %(group)s') % {'group': group},
-                      settings.NEW_UNCONFIRMED_REGISTRATION.format(name=jl.prename,
-                                                                   group=group,
-                                                                   link=link),
-                      settings.DEFAULT_SENDING_MAIL,
-                      jl.email)
+            link = prepend_base_url(
+                reverse("admin:members_memberunconfirmedproxy_change", args=[str(self.id)])
+            )
+            send_mail(
+                _("New unconfirmed registration for group %(group)s") % {"group": group},
+                settings.NEW_UNCONFIRMED_REGISTRATION.format(
+                    name=jl.prename, group=group, link=link
+                ),
+                settings.DEFAULT_SENDING_MAIL,
+                jl.email,
+            )
 
-    def filter_queryset_by_permissions(self, queryset=None, annotate=False, model=None): # pragma: no cover
+    def filter_queryset_by_permissions(
+        self, queryset=None, annotate=False, model=None
+    ):  # pragma: no cover
         """
         Filter the given queryset of objects of type `model` by the permissions of `self`.
         For example, only returns `Message`s created by `self`.
@@ -675,64 +775,74 @@ class Member(Person):
             raise ValueError(name)
 
     def filter_members_by_permissions(self, queryset, annotate=False):
-        #mems = Member.objects.all().prefetch_related('group')
+        # mems = Member.objects.all().prefetch_related('group')
 
-        #list_pks = [ m.pk for m in mems if self.may_list(m) ]
-        #view_pks = [ m.pk for m in mems if self.may_view(m) ]
+        # list_pks = [ m.pk for m in mems if self.may_list(m) ]
+        # view_pks = [ m.pk for m in mems if self.may_view(m) ]
 
         ## every member may list themself
         pks = [self.pk]
         view_pks = [self.pk]
 
-
-        if hasattr(self, 'permissions'):
-            pks += [ m.pk for m in self.permissions.list_members.all() ]
-            view_pks += [ m.pk for m in self.permissions.view_members.all() ]
+        if hasattr(self, "permissions"):
+            pks += [m.pk for m in self.permissions.list_members.all()]
+            view_pks += [m.pk for m in self.permissions.view_members.all()]
 
             for group in self.permissions.list_groups.all():
-                pks += [ m.pk for m in group.member_set.all() ]
+                pks += [m.pk for m in group.member_set.all()]
 
             for group in self.permissions.view_groups.all():
-                view_pks += [ m.pk for m in group.member_set.all() ]
+                view_pks += [m.pk for m in group.member_set.all()]
 
         for group in self.group.all():
-            if hasattr(group, 'permissions'):
-                pks += [ m.pk for m in group.permissions.list_members.all() ]
-                view_pks += [ m.pk for m in group.permissions.view_members.all() ]
+            if hasattr(group, "permissions"):
+                pks += [m.pk for m in group.permissions.list_members.all()]
+                view_pks += [m.pk for m in group.permissions.view_members.all()]
 
                 for gr in group.permissions.list_groups.all():
-                    pks += [ m.pk for m in gr.member_set.all()]
+                    pks += [m.pk for m in gr.member_set.all()]
 
                 for gr in group.permissions.view_groups.all():
-                    view_pks += [ m.pk for m in gr.member_set.all()]
+                    view_pks += [m.pk for m in gr.member_set.all()]
 
         filtered = queryset.filter(pk__in=pks)
         if not annotate:
             return filtered
 
-        return filtered.annotate(_viewable=Case(When(pk__in=view_pks, then=Value(True)), default=Value(False), output_field=models.BooleanField()))
+        return filtered.annotate(
+            _viewable=Case(
+                When(pk__in=view_pks, then=Value(True)),
+                default=Value(False),
+                output_field=models.BooleanField(),
+            )
+        )
 
     def annotate_view_permission(self, queryset, model):
         name = model._meta.object_name
-        if name != 'Member':
+        if name != "Member":
             return queryset
         view_pks = [self.pk]
 
-        if hasattr(self, 'permissions'):
-            view_pks += [ m.pk for m in self.permissions.view_members.all() ]
+        if hasattr(self, "permissions"):
+            view_pks += [m.pk for m in self.permissions.view_members.all()]
 
             for group in self.permissions.view_groups.all():
-                view_pks += [ m.pk for m in group.member_set.all() ]
+                view_pks += [m.pk for m in group.member_set.all()]
 
         for group in self.group.all():
-            if hasattr(group, 'permissions'):
-                view_pks += [ m.pk for m in group.permissions.view_members.all() ]
+            if hasattr(group, "permissions"):
+                view_pks += [m.pk for m in group.permissions.view_members.all()]
 
                 for gr in group.permissions.view_groups.all():
-                    view_pks += [ m.pk for m in gr.member_set.all()]
+                    view_pks += [m.pk for m in gr.member_set.all()]
 
-        return queryset.annotate(_viewable=Case(When(pk__in=view_pks, then=Value(True)), default=Value(False), output_field=models.BooleanField()))
-
+        return queryset.annotate(
+            _viewable=Case(
+                When(pk__in=view_pks, then=Value(True)),
+                default=Value(False),
+                output_field=models.BooleanField(),
+            )
+        )
 
     def filter_messages_by_permissions(self, queryset, annotate=False):
         # ignores annotate
@@ -759,7 +869,7 @@ class Member(Person):
         if self.pk == other.pk:
             return True
 
-        if hasattr(self, 'permissions'):
+        if hasattr(self, "permissions"):
             if other in self.permissions.list_members.all():
                 return True
 
@@ -767,7 +877,7 @@ class Member(Person):
                 return True
 
         for group in self.group.all():
-            if hasattr(group, 'permissions'):
+            if hasattr(group, "permissions"):
                 if other in group.permissions.list_members.all():
                     return True
 
@@ -780,7 +890,7 @@ class Member(Person):
         if self.pk == other.pk:
             return True
 
-        if hasattr(self, 'permissions'):
+        if hasattr(self, "permissions"):
             if other in self.permissions.view_members.all():
                 return True
 
@@ -788,7 +898,7 @@ class Member(Person):
                 return True
 
         for group in self.group.all():
-            if hasattr(group, 'permissions'):
+            if hasattr(group, "permissions"):
                 if other in group.permissions.view_members.all():
                     return True
 
@@ -801,7 +911,7 @@ class Member(Person):
         if self.pk == other.pk:
             return True
 
-        if hasattr(self, 'permissions'):
+        if hasattr(self, "permissions"):
             if other in self.permissions.change_members.all():
                 return True
 
@@ -809,7 +919,7 @@ class Member(Person):
                 return True
 
         for group in self.group.all():
-            if hasattr(group, 'permissions'):
+            if hasattr(group, "permissions"):
                 if other in group.permissions.change_members.all():
                     return True
 
@@ -822,7 +932,7 @@ class Member(Person):
         if self.pk == other.pk:
             return True
 
-        if hasattr(self, 'permissions'):
+        if hasattr(self, "permissions"):
             if other in self.permissions.delete_members.all():
                 return True
 
@@ -830,7 +940,7 @@ class Member(Person):
                 return True
 
         for group in self.group.all():
-            if hasattr(group, 'permissions'):
+            if hasattr(group, "permissions"):
                 if other in group.permissions.delete_members.all():
                     return True
 
@@ -841,16 +951,18 @@ class Member(Person):
 
     def suggested_username(self):
         """Returns a suggested username given by {prename}.{lastname}."""
-        raw = "{0}.{1}".format(self.prename.lower(), self.lastname.lower())
+        raw = "{}.{}".format(self.prename.lower(), self.lastname.lower())
         return normalize_name(raw)
 
     def has_internal_email(self):
         """Returns if the configured e-mail address is a DAV360 email address."""
-        match = re.match('(^[^@]*)@(.*)$', self.email)
+        match = re.match("(^[^@]*)@(.*)$", self.email)
         if not match:
             return False
-        return match.group(2) in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER or\
-            "*" in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
+        return (
+            match.group(2) in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
+            or "*" in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
+        )
 
     def invite_as_user(self):
         """Invites the member to join Kompass as a user."""
@@ -862,9 +974,12 @@ class Member(Person):
             return False
         self.invite_as_user_key = uuid.uuid4().hex
         self.save()
-        self.send_mail(_('Set login data for Kompass'),
-                       settings.INVITE_AS_USER_TEXT.format(name=self.prename,
-                                                           link=get_invite_as_user_key(self.invite_as_user_key)))
+        self.send_mail(
+            _("Set login data for Kompass"),
+            settings.INVITE_AS_USER_TEXT.format(
+                name=self.prename, link=get_invite_as_user_key(self.invite_as_user_key)
+            ),
+        )
         return True
 
     def led_groups(self):
@@ -878,14 +993,16 @@ class Member(Person):
     def demote_to_waiter(self):
         """Demote this member to a waiter by creating a waiter from the data and removing
         this member."""
-        waiter = MemberWaitingList(prename=self.prename,
-                                   lastname=self.lastname,
-                                   email=self.email,
-                                   birth_date=self.birth_date,
-                                   gender=self.gender,
-                                   comments=self.comments,
-                                   confirmed_mail=self.confirmed_mail,
-                                   confirm_mail_key=self.confirm_mail_key)
+        waiter = MemberWaitingList(
+            prename=self.prename,
+            lastname=self.lastname,
+            email=self.email,
+            birth_date=self.birth_date,
+            gender=self.gender,
+            comments=self.comments,
+            confirmed_mail=self.confirmed_mail,
+            confirm_mail_key=self.confirm_mail_key,
+        )
         # if this member was created from the waitinglist, keep the original application date
         if self.waitinglist_application_date:
             waiter.application_date = self.waitinglist_application_date
@@ -897,20 +1014,21 @@ class EmergencyContact(ContactWithPhoneNumber):
     """
     Emergency contact of a member
     """
-    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
-    email = models.EmailField(max_length=100, default='', blank=True)
+
+    member = models.ForeignKey(Member, verbose_name=_("Member"), on_delete=models.CASCADE)
+    email = models.EmailField(max_length=100, default="", blank=True)
 
     def __str__(self):
         return str(self.member)
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('Emergency contact')
-        verbose_name_plural = _('Emergency contacts')
+        verbose_name = _("Emergency contact")
+        verbose_name_plural = _("Emergency contacts")
         rules_permissions = {
-            'add_obj': may_change | has_global_perm('members.change_global_member'),
-            'view_obj': may_view | has_global_perm('members.view_global_member'),
-            'change_obj': may_change | has_global_perm('members.change_global_member'),
-            'delete_obj': may_delete | has_global_perm('members.delete_global_member'),
+            "add_obj": may_change | has_global_perm("members.change_global_member"),
+            "view_obj": may_view | has_global_perm("members.view_global_member"),
+            "change_obj": may_change | has_global_perm("members.change_global_member"),
+            "delete_obj": may_delete | has_global_perm("members.delete_global_member"),
         }
 
 
@@ -921,17 +1039,20 @@ class MemberUnconfirmedManager(models.Manager):
 
 class MemberUnconfirmedProxy(Member):
     """Proxy to show unconfirmed members seperately in admin"""
+
     objects = MemberUnconfirmedManager()
 
     class Meta:
         proxy = True
-        verbose_name = _('Unconfirmed registration')
-        verbose_name_plural = _('Unconfirmed registrations')
-        permissions = (('may_manage_all_registrations', 'Can view and manage all unconfirmed registrations.'),)
+        verbose_name = _("Unconfirmed registration")
+        verbose_name_plural = _("Unconfirmed registrations")
+        permissions = (
+            ("may_manage_all_registrations", "Can view and manage all unconfirmed registrations."),
+        )
         rules_permissions = {
-            'view_obj': may_view | has_global_perm('members.may_manage_all_registrations'),
-            'change_obj': may_change | has_global_perm('members.may_manage_all_registrations'),
-            'delete_obj': may_delete | has_global_perm('members.may_manage_all_registrations'),
+            "view_obj": may_view | has_global_perm("members.may_manage_all_registrations"),
+            "change_obj": may_change | has_global_perm("members.may_manage_all_registrations"),
+            "delete_obj": may_delete | has_global_perm("members.may_manage_all_registrations"),
         }
 
     def __str__(self):
@@ -945,25 +1066,32 @@ def gen_key():
 
 class InvitationToGroup(CommonModel):
     """An invitation of a waiter to a group."""
-    waiter = models.ForeignKey('MemberWaitingList', verbose_name=_('Waiter'), on_delete=models.CASCADE)
-    group = models.ForeignKey(Group, verbose_name=_('Group'), on_delete=models.CASCADE)
-    date = models.DateField(default=timezone.now, verbose_name=_('Invitation date'))
-    rejected = models.BooleanField(verbose_name=_('Invitation rejected'), default=False)
+
+    waiter = models.ForeignKey(
+        "MemberWaitingList", verbose_name=_("Waiter"), on_delete=models.CASCADE
+    )
+    group = models.ForeignKey(Group, verbose_name=_("Group"), on_delete=models.CASCADE)
+    date = models.DateField(default=timezone.now, verbose_name=_("Invitation date"))
+    rejected = models.BooleanField(verbose_name=_("Invitation rejected"), default=False)
     key = models.CharField(max_length=32, default=gen_key)
-    created_by = models.ForeignKey(Member, verbose_name=_('Created by'),
-                                   blank=True,
-                                   null=True,
-                                   on_delete=models.SET_NULL,
-                                   related_name='created_group_invitations')
+    created_by = models.ForeignKey(
+        Member,
+        verbose_name=_("Created by"),
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="created_group_invitations",
+    )
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('Invitation to group')
-        verbose_name_plural = _('Invitations to groups')
+        verbose_name = _("Invitation to group")
+        verbose_name_plural = _("Invitations to groups")
         rules_permissions = {
-            'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
-            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
-            'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
-            'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
+            "add_obj": has_global_perm("members.add_global_memberwaitinglist"),
+            "view_obj": is_leader_of_relevant_invitation
+            | has_global_perm("members.view_global_memberwaitinglist"),
+            "change_obj": has_global_perm("members.change_global_memberwaitinglist"),
+            "delete_obj": has_global_perm("members.delete_global_memberwaitinglist"),
         }
 
     def is_expired(self):
@@ -971,43 +1099,54 @@ class InvitationToGroup(CommonModel):
 
     def status(self):
         if self.rejected:
-            return _('Rejected')
+            return _("Rejected")
         elif self.is_expired():
-            return _('Expired')
+            return _("Expired")
         else:
-            return _('Undecided')
-    status.short_description = _('Status')
+            return _("Undecided")
+
+    status.short_description = _("Status")
 
     def send_left_waitinglist_notification_to(self, recipient):
-        send_mail(_('%(waiter)s left the waiting list') % {'waiter': self.waiter},
-                  settings.GROUP_INVITATION_LEFT_WAITINGLIST.format(name=recipient.prename,
-                                                                    waiter=self.waiter,
-                                                                    group=self.group),
-                  settings.DEFAULT_SENDING_MAIL,
-                  recipient.email)
+        send_mail(
+            _("%(waiter)s left the waiting list") % {"waiter": self.waiter},
+            settings.GROUP_INVITATION_LEFT_WAITINGLIST.format(
+                name=recipient.prename, waiter=self.waiter, group=self.group
+            ),
+            settings.DEFAULT_SENDING_MAIL,
+            recipient.email,
+        )
 
     def send_reject_notification_to(self, recipient):
-        send_mail(_('Group invitation rejected by %(waiter)s') % {'waiter': self.waiter},
-                  settings.GROUP_INVITATION_REJECTED.format(name=recipient.prename,
-                                                            waiter=self.waiter,
-                                                            group=self.group),
-                  settings.DEFAULT_SENDING_MAIL,
-                  recipient.email)
+        send_mail(
+            _("Group invitation rejected by %(waiter)s") % {"waiter": self.waiter},
+            settings.GROUP_INVITATION_REJECTED.format(
+                name=recipient.prename, waiter=self.waiter, group=self.group
+            ),
+            settings.DEFAULT_SENDING_MAIL,
+            recipient.email,
+        )
 
     def send_confirm_notification_to(self, recipient):
-        send_mail(_('Group invitation confirmed by %(waiter)s') % {'waiter': self.waiter},
-                  settings.GROUP_INVITATION_CONFIRMED_TEXT.format(name=recipient.prename,
-                                                                  waiter=self.waiter,
-                                                                  group=self.group),
-                  settings.DEFAULT_SENDING_MAIL,
-                  recipient.email)
+        send_mail(
+            _("Group invitation confirmed by %(waiter)s") % {"waiter": self.waiter},
+            settings.GROUP_INVITATION_CONFIRMED_TEXT.format(
+                name=recipient.prename, waiter=self.waiter, group=self.group
+            ),
+            settings.DEFAULT_SENDING_MAIL,
+            recipient.email,
+        )
 
     def send_confirm_confirmation(self):
-        self.waiter.send_mail(_('Trial group meeting confirmed'),
-                              settings.TRIAL_GROUP_MEETING_CONFIRMED_TEXT.format(name=self.waiter.prename,
-                                                                                 group=self.group,
-                                                                                 contact_email=self.group.contact_email,
-                                                                                 timeinfo=self.group.get_time_info()))
+        self.waiter.send_mail(
+            _("Trial group meeting confirmed"),
+            settings.TRIAL_GROUP_MEETING_CONFIRMED_TEXT.format(
+                name=self.waiter.prename,
+                group=self.group,
+                contact_email=self.group.contact_email,
+                timeinfo=self.group.get_time_info(),
+            ),
+        )
 
     def notify_left_waitinglist(self):
         """
@@ -1050,46 +1189,56 @@ class MemberWaitingList(Person):
     WAITING_CONFIRMATION_EXPIRED = 1
     WAITING_CONFIRMED = 2
 
-    application_text = models.TextField(_('Do you want to tell us something else?'), default='', blank=True)
-    application_date = models.DateTimeField(verbose_name=_('application date'), default=timezone.now)
+    application_text = models.TextField(
+        _("Do you want to tell us something else?"), default="", blank=True
+    )
+    application_date = models.DateTimeField(
+        verbose_name=_("application date"), default=timezone.now
+    )
 
-    last_wait_confirmation = models.DateField(default=timezone.now, verbose_name=_('Last wait confirmation'))
+    last_wait_confirmation = models.DateField(
+        default=timezone.now, verbose_name=_("Last wait confirmation")
+    )
     wait_confirmation_key = models.CharField(max_length=32, default="")
     wait_confirmation_key_expire = models.DateTimeField(default=timezone.now)
 
     leave_key = models.CharField(max_length=32, default="")
 
-    last_reminder = models.DateTimeField(default=timezone.now, verbose_name=_('Last reminder'))
-    sent_reminders = models.IntegerField(default=0, verbose_name=_('Missed reminders'))
+    last_reminder = models.DateTimeField(default=timezone.now, verbose_name=_("Last reminder"))
+    sent_reminders = models.IntegerField(default=0, verbose_name=_("Missed reminders"))
 
     registration_key = models.CharField(max_length=32, default="")
     registration_expire = models.DateTimeField(default=timezone.now)
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('Waiter')
-        verbose_name_plural = _('Waiters')
-        permissions = (('may_manage_waiting_list', 'Can view and manage the waiting list.'),)
+        verbose_name = _("Waiter")
+        verbose_name_plural = _("Waiters")
+        permissions = (("may_manage_waiting_list", "Can view and manage the waiting list."),)
         rules_permissions = {
-            'add_obj': has_global_perm('members.add_global_memberwaitinglist'),
-            'view_obj': is_leader_of_relevant_invitation | has_global_perm('members.view_global_memberwaitinglist'),
-            'change_obj': has_global_perm('members.change_global_memberwaitinglist'),
-            'delete_obj': has_global_perm('members.delete_global_memberwaitinglist'),
+            "add_obj": has_global_perm("members.add_global_memberwaitinglist"),
+            "view_obj": is_leader_of_relevant_invitation
+            | has_global_perm("members.view_global_memberwaitinglist"),
+            "change_obj": has_global_perm("members.change_global_memberwaitinglist"),
+            "delete_obj": has_global_perm("members.delete_global_memberwaitinglist"),
         }
 
     def latest_group_invitation(self):
-        gi = self.invitationtogroup_set.order_by('-pk').first()
+        gi = self.invitationtogroup_set.order_by("-pk").first()
         if gi:
             return "{group}: {status}".format(group=gi.group.name, status=gi.status())
         else:
             return "-"
-    latest_group_invitation.short_description = _('Latest group invitation')
+
+    latest_group_invitation.short_description = _("Latest group invitation")
 
     @property
     def waiting_confirmation_needed(self):
         """Returns if person should be asked to confirm waiting status."""
-        return not self.wait_confirmation_key \
-            and self.last_wait_confirmation < timezone.now() -\
-                timezone.timedelta(days=settings.WAITING_CONFIRMATION_FREQUENCY)
+        return (
+            not self.wait_confirmation_key
+            and self.last_wait_confirmation
+            < timezone.now() - timezone.timedelta(days=settings.WAITING_CONFIRMATION_FREQUENCY)
+        )
 
     def waiting_confirmed(self):
         """Returns if the persons waiting status is considered to be confirmed."""
@@ -1104,9 +1253,10 @@ class MemberWaitingList(Person):
         else:
             # if there exist no pending or expired reminders, the waiter remains confirmed
             return True
-    waiting_confirmed.admin_order_field = 'last_wait_confirmation'
+
+    waiting_confirmed.admin_order_field = "last_wait_confirmation"
     waiting_confirmed.boolean = True
-    waiting_confirmed.short_description = _('Waiting status confirmed')
+    waiting_confirmed.short_description = _("Waiting status confirmed")
 
     def ask_for_wait_confirmation(self):
         """Sends an email to the person asking them to confirm their intention to wait."""
@@ -1114,12 +1264,16 @@ class MemberWaitingList(Person):
         self.sent_reminders += 1
         self.leave_key = gen_key()
         self.save()
-        self.send_mail(_('Waiting confirmation needed'),
-                       settings.WAIT_CONFIRMATION_TEXT.format(name=self.prename,
-                                                              link=get_wait_confirmation_link(self),
-                                                              leave_link=get_leave_waitinglist_link(self.leave_key),
-                                                              reminder=self.sent_reminders,
-                                                              max_reminder_count=settings.MAX_REMINDER_COUNT))
+        self.send_mail(
+            _("Waiting confirmation needed"),
+            settings.WAIT_CONFIRMATION_TEXT.format(
+                name=self.prename,
+                link=get_wait_confirmation_link(self),
+                leave_link=get_leave_waitinglist_link(self.leave_key),
+                reminder=self.sent_reminders,
+                max_reminder_count=settings.MAX_REMINDER_COUNT,
+            ),
+        )
 
     def confirm_waiting(self, key):
         # if a wrong key is supplied, we return invalid
@@ -1131,7 +1285,7 @@ class MemberWaitingList(Person):
             self.last_wait_confirmation = timezone.now()
             self.wait_confirmation_key_expire = timezone.now()
             self.sent_reminders = 0
-            self.leave_key = ''
+            self.leave_key = ""
             self.save()
             return self.WAITING_CONFIRMATION_SUCCESS
 
@@ -1145,15 +1299,19 @@ class MemberWaitingList(Person):
 
     def generate_wait_confirmation_key(self):
         self.wait_confirmation_key = uuid.uuid4().hex
-        self.wait_confirmation_key_expire = timezone.now() \
-            + timezone.timedelta(days=settings.GRACE_PERIOD_WAITING_CONFIRMATION)
+        self.wait_confirmation_key_expire = timezone.now() + timezone.timedelta(
+            days=settings.GRACE_PERIOD_WAITING_CONFIRMATION
+        )
         self.save()
         return self.wait_confirmation_key
 
     def may_register(self, key):
         try:
             invitation = InvitationToGroup.objects.get(key=key)
-            return self.pk == invitation.waiter.pk and timezone.now().date() < invitation.date + timezone.timedelta(days=30)
+            return (
+                self.pk == invitation.waiter.pk
+                and timezone.now().date() < invitation.date + timezone.timedelta(days=30)
+            )
         except InvitationToGroup.DoesNotExist:
             return False
 
@@ -1168,24 +1326,32 @@ class MemberWaitingList(Person):
             text_template = group.get_invitation_text_template()
         invitation = InvitationToGroup(group=group, waiter=self, created_by=creator)
         invitation.save()
-        self.send_mail(_("Invitation to trial group meeting"),
-            text_template.format(name=self.prename,
-                                 link=get_registration_link(invitation.key),
-                                 invitation_reject_link=get_invitation_reject_link(invitation.key),
-                                 invitation_confirm_link=get_invitation_confirm_link(invitation.key)),
-            cc=group.contact_email.email)
+        self.send_mail(
+            _("Invitation to trial group meeting"),
+            text_template.format(
+                name=self.prename,
+                link=get_registration_link(invitation.key),
+                invitation_reject_link=get_invitation_reject_link(invitation.key),
+                invitation_confirm_link=get_invitation_confirm_link(invitation.key),
+            ),
+            cc=group.contact_email.email,
+        )
 
     def unregister(self):
         """Delete the waiter and inform them about the deletion via email."""
-        self.send_mail(_("Unregistered from waiting list"),
-                       settings.LEAVE_WAITINGLIST_TEXT.format(name=self.prename))
+        self.send_mail(
+            _("Unregistered from waiting list"),
+            settings.LEAVE_WAITINGLIST_TEXT.format(name=self.prename),
+        )
         self.delete()
 
     def confirm_mail(self, key):
         ret = super().confirm_mail(key)
         if ret:
-            self.send_mail(_("Successfully registered for the waitinglist"),
-                           settings.JOIN_WAITINGLIST_CONFIRMATION_TEXT.format(name=self.prename))
+            self.send_mail(
+                _("Successfully registered for the waitinglist"),
+                settings.JOIN_WAITINGLIST_CONFIRMATION_TEXT.format(name=self.prename),
+            )
         return ret
 
 
@@ -1193,24 +1359,26 @@ class NewMemberOnList(CommonModel):
     """
     Connects members to a list of members.
     """
-    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE,
-                                     default=ContentType('members', 'Freizeit').pk)
+
+    member = models.ForeignKey(Member, verbose_name=_("Member"), on_delete=models.CASCADE)
+    content_type = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE, default=ContentType("members", "Freizeit").pk
+    )
     object_id = models.PositiveIntegerField()
-    memberlist = GenericForeignKey('content_type', 'object_id')
-    comments = models.TextField(_('Comment'), default='', blank=True)
+    memberlist = GenericForeignKey("content_type", "object_id")
+    comments = models.TextField(_("Comment"), default="", blank=True)
 
     def __str__(self):
         return str(self.member)
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('Member')
-        verbose_name_plural = _('Members')
+        verbose_name = _("Member")
+        verbose_name_plural = _("Members")
         rules_permissions = {
-            'add_obj': is_leader,
-            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
-            'change_obj': is_leader,
-            'delete_obj': is_leader,
+            "add_obj": is_leader,
+            "view_obj": is_leader | has_global_perm("members.view_global_freizeit"),
+            "change_obj": is_leader,
+            "delete_obj": is_leader,
         }
 
     @property
@@ -1230,56 +1398,74 @@ class NewMemberOnList(CommonModel):
     def qualities_tex(self):
         qualities = []
         for activity, value in self.skills.items():
-            qualities.append("\\textit{%s:} %s" % (activity, value))
+            qualities.append("\\textit{{{}:}} {}".format(activity, value))
         return ", ".join(qualities)
 
 
 class Freizeit(CommonModel):
-    """Lets the user create a 'Freizeit' and generate a members overview in pdf format. """
+    """Lets the user create a 'Freizeit' and generate a members overview in pdf format."""
 
-    name = models.CharField(verbose_name=_('Activity'), default='',
-                            max_length=50)
-    place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
-    postcode = models.CharField(verbose_name=_('Postcode'), default='', max_length=30)
-    destination = models.CharField(verbose_name=_('Destination (optional)'),
-                                   default='', max_length=50, blank=True,
-                                   help_text=_('e.g. a peak'))
-    date = models.DateTimeField(default=timezone.now, verbose_name=_('Begin'))
-    end = models.DateTimeField(verbose_name=_('End (optional)'), default=timezone.now)
-    description = models.TextField(verbose_name=_('Description'), blank=True, default='')
+    name = models.CharField(verbose_name=_("Activity"), default="", max_length=50)
+    place = models.CharField(verbose_name=_("Place"), default="", max_length=50)
+    postcode = models.CharField(verbose_name=_("Postcode"), default="", max_length=30)
+    destination = models.CharField(
+        verbose_name=_("Destination (optional)"),
+        default="",
+        max_length=50,
+        blank=True,
+        help_text=_("e.g. a peak"),
+    )
+    date = models.DateTimeField(default=timezone.now, verbose_name=_("Begin"))
+    end = models.DateTimeField(verbose_name=_("End (optional)"), default=timezone.now)
+    description = models.TextField(verbose_name=_("Description"), blank=True, default="")
     # comment = models.TextField(_('Comments'), default='', blank=True)
-    groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
+    groups = models.ManyToManyField(Group, verbose_name=_("Groups"))
     jugendleiter = models.ManyToManyField(Member)
-    approved_extra_youth_leader_count = models.PositiveIntegerField(verbose_name=_('Number of additional approved youth leaders'),
-                                                                    default=0,
-                                                                    help_text=_('The number of approved youth leaders per excursion is determined by the number of participants. In special circumstances, e.g. in case of a technically demanding excursion, more youth leaders may be approved.'))
-    tour_type_choices = ((GEMEINSCHAFTS_TOUR, 'Gemeinschaftstour'),
-                         (FUEHRUNGS_TOUR, 'Führungstour'),
-                         (AUSBILDUNGS_TOUR, 'Ausbildung'))
+    approved_extra_youth_leader_count = models.PositiveIntegerField(
+        verbose_name=_("Number of additional approved youth leaders"),
+        default=0,
+        help_text=_(
+            "The number of approved youth leaders per excursion is determined by the number of participants. In special circumstances, e.g. in case of a technically demanding excursion, more youth leaders may be approved."
+        ),
+    )
+    tour_type_choices = (
+        (GEMEINSCHAFTS_TOUR, "Gemeinschaftstour"),
+        (FUEHRUNGS_TOUR, "Führungstour"),
+        (AUSBILDUNGS_TOUR, "Ausbildung"),
+    )
     # verbose_name is overriden by form, label is set in admin.py
     tour_type = models.IntegerField(choices=tour_type_choices)
-    tour_approach_choices = ((MUSKELKRAFT_ANREISE, 'Muskelkraft'),
-                             (OEFFENTLICHE_ANREISE, 'ÖPNV'),
-                             (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
-    tour_approach = models.IntegerField(choices=tour_approach_choices,
-                                        default=MUSKELKRAFT_ANREISE,
-                                        verbose_name=_('Means of transportation'))
-    kilometers_traveled = models.IntegerField(verbose_name=_('Kilometers traveled'),
-                                              validators=[MinValueValidator(0)])
-    activity = models.ManyToManyField(ActivityCategory, default=None,
-                                      verbose_name=_('Categories'))
-    difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
+    tour_approach_choices = (
+        (MUSKELKRAFT_ANREISE, "Muskelkraft"),
+        (OEFFENTLICHE_ANREISE, "ÖPNV"),
+        (FAHRGEMEINSCHAFT_ANREISE, "Fahrgemeinschaften"),
+    )
+    tour_approach = models.IntegerField(
+        choices=tour_approach_choices,
+        default=MUSKELKRAFT_ANREISE,
+        verbose_name=_("Means of transportation"),
+    )
+    kilometers_traveled = models.IntegerField(
+        verbose_name=_("Kilometers traveled"), validators=[MinValueValidator(0)]
+    )
+    activity = models.ManyToManyField(ActivityCategory, default=None, verbose_name=_("Categories"))
+    difficulty_choices = [(1, _("easy")), (2, _("medium")), (3, _("hard"))]
     # verbose_name is overriden by form, label is set in admin.py
     difficulty = models.IntegerField(choices=difficulty_choices)
     membersonlist = GenericRelation(NewMemberOnList)
 
     # approval: None means no decision taken, False means rejected
-    approved = models.BooleanField(verbose_name=_('Approved'),
-                                   null=True,
-                                   default=None,
-                                   help_text=_('Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided.'))
-    approval_comments = models.TextField(verbose_name=_('Approval comments'),
-                                         blank=True, default='')
+    approved = models.BooleanField(
+        verbose_name=_("Approved"),
+        null=True,
+        default=None,
+        help_text=_(
+            "Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided."
+        ),
+    )
+    approval_comments = models.TextField(
+        verbose_name=_("Approval comments"), blank=True, default=""
+    )
 
     # automatic sending of crisis intervention list
     crisis_intervention_list_sent = models.BooleanField(default=False)
@@ -1290,17 +1476,17 @@ class Freizeit(CommonModel):
         return self.name
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('Excursion')
-        verbose_name_plural = _('Excursions')
+        verbose_name = _("Excursion")
+        verbose_name_plural = _("Excursions")
         permissions = (
-            ('manage_approval_excursion', 'Can edit the approval status of excursions.'),
-            ('view_approval_excursion', 'Can view the approval status of excursions.'),
+            ("manage_approval_excursion", "Can edit the approval status of excursions."),
+            ("view_approval_excursion", "Can view the approval status of excursions."),
         )
         rules_permissions = {
-            'add_obj': has_global_perm('members.add_global_freizeit'),
-            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
-            'change_obj': is_leader | has_global_perm('members.change_global_freizeit'),
-            'delete_obj': is_leader | has_global_perm('members.delete_global_freizeit'),
+            "add_obj": has_global_perm("members.add_global_freizeit"),
+            "view_obj": is_leader | has_global_perm("members.view_global_freizeit"),
+            "change_obj": is_leader | has_global_perm("members.change_global_freizeit"),
+            "delete_obj": is_leader | has_global_perm("members.delete_global_freizeit"),
         }
 
     @property
@@ -1311,8 +1497,9 @@ class Freizeit(CommonModel):
     def filter_queryset_date_next_n_hours(hours, queryset=None):
         if queryset is None:
             queryset = Freizeit.objects.all()
-        return queryset.filter(date__lte=timezone.now() + timezone.timedelta(hours=hours),
-                               date__gte=timezone.now())
+        return queryset.filter(
+            date__lte=timezone.now() + timezone.timedelta(hours=hours), date__gte=timezone.now()
+        )
 
     @staticmethod
     def to_notify_crisis_intervention_list():
@@ -1341,7 +1528,7 @@ class Freizeit(CommonModel):
             return "Fahrgemeinschaften"
 
     def get_absolute_url(self):
-        return reverse('admin:members_freizeit_change', args=[str(self.id)])
+        return reverse("admin:members_freizeit_change", args=[str(self.id)])
 
     @property
     def night_count(self):
@@ -1378,7 +1565,7 @@ class Freizeit(CommonModel):
 
     @property
     def total_intervention_hours(self):
-        if hasattr(self, 'ljpproposal'):
+        if hasattr(self, "ljpproposal"):
             return sum([i.duration for i in self.ljpproposal.intervention_set.all()])
         else:
             return 0
@@ -1387,33 +1574,34 @@ class Freizeit(CommonModel):
     def total_seminar_days(self):
         """calculate seminar days based on intervention hours in every day"""
         # TODO: add tests for this
-        if hasattr(self, 'ljpproposal'):
+        if hasattr(self, "ljpproposal"):
             hours_per_day = self.seminar_time_per_day
             # Calculate the total number of seminar days
             # Each day is counted as 1 if total_duration is >= 5 hours, as 0.5 if total_duration is >= 2.5
             # otherwise 0
-            sum_days = sum([h['sum_days'] for h in hours_per_day])
+            sum_days = sum([h["sum_days"] for h in hours_per_day])
 
             return sum_days
         else:
             return 0
 
-
     @property
     def seminar_time_per_day(self):
-        if hasattr(self, 'ljpproposal'):
+        if hasattr(self, "ljpproposal"):
             return (
-                self.ljpproposal.intervention_set
-                .annotate(day=Cast('date_start', output_field=models.DateField()))  # Force it to date
-                .values('day')  # Group by day
-                .annotate(total_duration=Sum('duration'))# Sum durations for each day
+                self.ljpproposal.intervention_set.annotate(
+                    day=Cast("date_start", output_field=models.DateField())
+                )  # Force it to date
+                .values("day")  # Group by day
+                .annotate(total_duration=Sum("duration"))  # Sum durations for each day
                 .annotate(
                     sum_days=Case(
                         When(total_duration__gte=5.0, then=Value(1.0)),
                         When(total_duration__gte=2.5, then=Value(0.5)),
-                        default=Value(0.0),)
+                        default=Value(0.0),
+                    )
                 )
-                .order_by('day')  # Sort results by date
+                .order_by("day")  # Sort results by date
             )
         else:
             return []
@@ -1486,13 +1674,15 @@ class Freizeit(CommonModel):
         # non-youth leader participants
         ps_only = ps - jls
         # participants of the correct age
-        ps_correct_age = {m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27}
+        ps_correct_age = {
+            m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27
+        }
         # m = the official non-youth-leader participant count
         # and, assuming there exist enough participants, unrounded m satisfies the equation
         # len(ps_correct_age) + 1/5 * m = m
         # if there are not enough participants,
         # m = len(ps_only)
-        m = min(len(ps_only), math.floor(5/4 * len(ps_correct_age)))
+        m = min(len(ps_only), math.floor(5 / 4 * len(ps_correct_age)))
         return m + len(jls)
 
     @property
@@ -1515,28 +1705,37 @@ class Freizeit(CommonModel):
     def maximal_ljp_contributions(self):
         """This is the maximal amount of LJP contributions that can be requested given participants and length
         This calculation if intended for the LJP application, not for the payout."""
-        return cvt_to_decimal(settings.LJP_CONTRIBUTION_PER_DAY * self.ljp_participant_count * self.duration)
+        return cvt_to_decimal(
+            settings.LJP_CONTRIBUTION_PER_DAY * self.ljp_participant_count * self.duration
+        )
 
     @property
     def potential_ljp_contributions(self):
         """The maximal amount can be reduced if the actual costs are lower than the maximal amount
         This calculation if intended for the LJP application, not for the payout."""
-        if not hasattr(self, 'statement'):
+        if not hasattr(self, "statement"):
             return cvt_to_decimal(0)
-        return cvt_to_decimal(min(self.maximal_ljp_contributions,
-                                  0.9 * float(self.statement.total_bills_theoretic) + float(self.statement.total_staff)))
+        return cvt_to_decimal(
+            min(
+                self.maximal_ljp_contributions,
+                0.9 * float(self.statement.total_bills_theoretic)
+                + float(self.statement.total_staff),
+            )
+        )
 
     @property
     def payable_ljp_contributions(self):
         """the payable contributions can differ from potential contributions if a tax is deducted for risk reduction.
         the actual payout depends on more factors, e.g. the actual costs that had to be paid by the trip organisers."""
-        if hasattr(self, 'statement') and self.statement.ljp_to:
+        if hasattr(self, "statement") and self.statement.ljp_to:
             return self.statement.paid_ljp_contributions
-        return cvt_to_decimal(self.potential_ljp_contributions * cvt_to_decimal(1 - settings.LJP_TAX))
+        return cvt_to_decimal(
+            self.potential_ljp_contributions * cvt_to_decimal(1 - settings.LJP_TAX)
+        )
 
     @property
     def total_relative_costs(self):
-        if not hasattr(self, 'statement'):
+        if not hasattr(self, "statement"):
             return 0
         total_costs = self.statement.total_bills_theoretic
         total_contributions = self.statement.total_subsidies + self.payable_ljp_contributions
@@ -1544,18 +1743,18 @@ class Freizeit(CommonModel):
 
     @property
     def time_period_str(self):
-        time_period = self.date.strftime('%d.%m.%Y')
+        time_period = self.date.strftime("%d.%m.%Y")
         if self.end != self.date:
-            time_period += " - " + self.end.strftime('%d.%m.%Y')
+            time_period += " - " + self.end.strftime("%d.%m.%Y")
         return time_period
 
     @property
     def groups_str(self):
-        return ', '.join(g.name for g in self.groups.all())
+        return ", ".join(g.name for g in self.groups.all())
 
     @property
     def staff_str(self):
-        return ', '.join(yl.name for yl in self.jugendleiter.all())
+        return ", ".join(yl.name for yl in self.jugendleiter.all())
 
     @property
     def skill_summary(self):
@@ -1569,128 +1768,152 @@ class Freizeit(CommonModel):
                 if activity not in activities:
                     continue
                 skills[activity].append(value)
-                qualities.append("\\textit{%s:} %s" % (activity, value))
-            people.append(dict(name=m.name, qualities=", ".join(qualities), comments=memberonlist.comments_tex))
+                qualities.append("\\textit{{{}:}} {}".format(activity, value))
+            people.append(
+                dict(
+                    name=m.name, qualities=", ".join(qualities), comments=memberonlist.comments_tex
+                )
+            )
 
         sks = []
         for activity in activities:
-            skill_avg = 0 if len(skills[activity]) == 0 else\
-                sum(skills[activity]) / len(skills[activity])
-            skill_min = 0 if len(skills[activity]) == 0 else\
-                min(skills[activity])
-            skill_max = 0 if len(skills[activity]) == 0 else\
-                max(skills[activity])
-            sks.append(dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max))
+            skill_avg = (
+                0 if len(skills[activity]) == 0 else sum(skills[activity]) / len(skills[activity])
+            )
+            skill_min = 0 if len(skills[activity]) == 0 else min(skills[activity])
+            skill_max = 0 if len(skills[activity]) == 0 else max(skills[activity])
+            sks.append(
+                dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max)
+            )
         return (people, sks)
 
     def sjr_application_numbers(self):
         members = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         participants = members - jls
-        b27_local = len([m for m in participants
-                         if m.age_at(self.date) <= 27 and settings.SEKTION in m.town])
-        b27_non_local = len([m for m in participants
-                             if m.age_at(self.date) <= 27 and not settings.SEKTION in m.town])
+        b27_local = len(
+            [m for m in participants if m.age_at(self.date) <= 27 and settings.SEKTION in m.town]
+        )
+        b27_non_local = len(
+            [
+                m
+                for m in participants
+                if m.age_at(self.date) <= 27 and settings.SEKTION not in m.town
+            ]
+        )
         staff = len(jls)
         total = b27_local + b27_non_local + len(jls)
-        relevant_b27 = min(b27_local + b27_non_local, math.floor(3/2 * b27_local))
+        relevant_b27 = min(b27_local + b27_non_local, math.floor(3 / 2 * b27_local))
         subsidizable = relevant_b27 + min(math.ceil(relevant_b27 / 7), staff)
         duration = self.night_count + 1
         return {
-            'b27_local': b27_local,
-            'b27_non_local': b27_non_local,
-            'staff': staff,
-            'total': total,
-            'relevant_b27': relevant_b27,
-            'subsidizable': subsidizable,
-            'subsidized_days': duration * subsidizable,
-            'duration': duration
+            "b27_local": b27_local,
+            "b27_non_local": b27_non_local,
+            "staff": staff,
+            "total": total,
+            "relevant_b27": relevant_b27,
+            "subsidizable": subsidizable,
+            "subsidized_days": duration * subsidizable,
+            "duration": duration,
         }
 
     def sjr_application_fields(self):
         members = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         numbers = self.sjr_application_numbers()
-        title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
-        base = {'Haushaltsjahr': str(datetime.now().year),
-                'Art / Thema / Titel': title,
-                'Ort': self.place,
-                'Datum von': self.date.strftime('%d.%m.%Y'),
-                'Datum bis': self.end.strftime('%d.%m.%Y'),
-                'Dauer': str(numbers['duration']),
-                'Teilnehmenden gesamt': str(numbers['total']),
-                'bis 27 aus HD': str(numbers['b27_local']),
-                'bis 27 nicht aus HD': str(numbers['b27_non_local']),
-                'Verpflegungstage': str(numbers['subsidized_days']).replace('.', ','),
-                'Betreuer/in': str(numbers['staff']),
-                'Auswahl Veranstaltung': 'Auswahl2',
-                'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
+        title = self.ljpproposal.title if hasattr(self, "ljpproposal") else self.name
+        base = {
+            "Haushaltsjahr": str(datetime.now().year),
+            "Art / Thema / Titel": title,
+            "Ort": self.place,
+            "Datum von": self.date.strftime("%d.%m.%Y"),
+            "Datum bis": self.end.strftime("%d.%m.%Y"),
+            "Dauer": str(numbers["duration"]),
+            "Teilnehmenden gesamt": str(numbers["total"]),
+            "bis 27 aus HD": str(numbers["b27_local"]),
+            "bis 27 nicht aus HD": str(numbers["b27_non_local"]),
+            "Verpflegungstage": str(numbers["subsidized_days"]).replace(".", ","),
+            "Betreuer/in": str(numbers["staff"]),
+            "Auswahl Veranstaltung": "Auswahl2",
+            "Ort, Datum": "{p}, {d}".format(
+                p=settings.SEKTION, d=datetime.now().strftime("%d.%m.%Y")
+            ),
+        }
         for i, m in enumerate(members):
-            suffix = str(' {}'.format(i + 1))
+            suffix = str(" {}".format(i + 1))
             # indexing starts at zero, but the listing in the pdf starts at 1
             if i + 1 == 1:
-                suffix = ''
+                suffix = ""
             elif i + 1 >= 13:
                 suffix = str(i + 1)
-            base['Vor- und Nachname' + suffix] = m.name
-            base['Anschrift' + suffix] = m.address
-            base['Alter' + suffix] = str(m.age_at(self.date))
-            base['Status' + str(i+1)] = '2' if m in jls else 'Auswahl1' if settings.SEKTION in m.address else 'Auswahl2'
+            base["Vor- und Nachname" + suffix] = m.name
+            base["Anschrift" + suffix] = m.address
+            base["Alter" + suffix] = str(m.age_at(self.date))
+            base["Status" + str(i + 1)] = (
+                "2" if m in jls else "Auswahl1" if settings.SEKTION in m.address else "Auswahl2"
+            )
         return base
 
     def v32_fields(self):
-        title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
+        title = self.ljpproposal.title if hasattr(self, "ljpproposal") else self.name
         base = {
             # AntragstellerIn
-            'Textfeld 2':  settings.ADDRESS,
+            "Textfeld 2": settings.ADDRESS,
             # Dachorganisation
-            'Textfeld 3':  settings.V32_HEAD_ORGANISATION,
+            "Textfeld 3": settings.V32_HEAD_ORGANISATION,
             # Datum der Maßnahme am/vom
-            'Textfeld 20': self.date.strftime('%d.%m.%Y'),
+            "Textfeld 20": self.date.strftime("%d.%m.%Y"),
             # bis
-            'Textfeld 28': self.end.strftime('%d.%m.%Y'),
+            "Textfeld 28": self.end.strftime("%d.%m.%Y"),
             # Thema der Maßnahme
-            'Textfeld 22': title,
+            "Textfeld 22": title,
             # IBAN
-            'Textfeld 36': settings.SEKTION_IBAN,
+            "Textfeld 36": settings.SEKTION_IBAN,
             # Kontoinhaber
-            'Textfeld 37': settings.SEKTION_ACCOUNT_HOLDER,
+            "Textfeld 37": settings.SEKTION_ACCOUNT_HOLDER,
             # Zahl der zuwendungsfähigen Teilnehemr
-            'Textfeld 43': str(self.ljp_participant_count),
+            "Textfeld 43": str(self.ljp_participant_count),
             # Teilnahmetage
-            'Textfeld 46': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            "Textfeld 46": str(round(self.duration * self.ljp_participant_count, 1)).replace(
+                ".", ","
+            ),
             # Euro Tagessatz
-            'Textfeld 48': str(settings.LJP_CONTRIBUTION_PER_DAY),
+            "Textfeld 48": str(settings.LJP_CONTRIBUTION_PER_DAY),
             # Erbetener Zuschuss
-            'Textfeld 50': str(self.maximal_ljp_contributions).replace('.', ','),
+            "Textfeld 50": str(self.maximal_ljp_contributions).replace(".", ","),
             # Stunden Bildungsprogramm
-            'Textfeld 52': '??',
+            "Textfeld 52": "??",
             # Tage
-            'Textfeld 53': str(round(self.duration, 1)).replace('.', ','),
+            "Textfeld 53": str(round(self.duration, 1)).replace(".", ","),
             # Haushaltsjahr
-            'Textfeld 54': str(datetime.now().year),
+            "Textfeld 54": str(datetime.now().year),
             # nicht anrechenbare Teilnahmetage
-            'Textfeld 55': '0',
+            "Textfeld 55": "0",
             # Gesamt-Teilnahmetage
-            'Textfeld 56': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            "Textfeld 56": str(round(self.duration * self.ljp_participant_count, 1)).replace(
+                ".", ","
+            ),
             # Ort, Datum
-            'DatumOrt 2': '{place}, {date}'.format(place=settings.SEKTION,
-                                                   date=datetime.now().strftime('%d.%m.%Y'))
+            "DatumOrt 2": "{place}, {date}".format(
+                place=settings.SEKTION, date=datetime.now().strftime("%d.%m.%Y")
+            ),
         }
-        if hasattr(self, 'statement'):
+        if hasattr(self, "statement"):
             possible_contributions = self.maximal_ljp_contributions
             total_contributions = min(self.statement.total_theoretic, possible_contributions)
-            self_participation = max(cvt_to_decimal(0), self.statement.total_theoretic - possible_contributions)
+            self_participation = max(
+                cvt_to_decimal(0), self.statement.total_theoretic - possible_contributions
+            )
             # Gesamtkosten von
-            base['Textfeld 62'] = str(self.statement.total_theoretic).replace('.', ',')
+            base["Textfeld 62"] = str(self.statement.total_theoretic).replace(".", ",")
             # Eigenmittel und Teilnahmebeiträge
-            base['Textfeld 59'] = str(self_participation).replace('.', ',')
+            base["Textfeld 59"] = str(self_participation).replace(".", ",")
             # Drittmittel
-            base['Textfeld 60'] = '0,00'
+            base["Textfeld 60"] = "0,00"
             # Erbetener Zuschuss
-            base['Textfeld 61'] = str(total_contributions).replace('.', ',')
+            base["Textfeld 61"] = str(total_contributions).replace(".", ",")
             # Ergibt wieder
-            base['Textfeld 58'] = base['Textfeld 62']
+            base["Textfeld 58"] = base["Textfeld 62"]
         return base
 
     def get_ljp_activity_category(self):
@@ -1716,25 +1939,32 @@ class Freizeit(CommonModel):
         responsible and the youth leaders of this excursion.
         """
         context = dict(memberlist=self, settings=settings)
-        start_date= timezone.localtime(self.date).strftime('%d.%m.%Y')
-        filename = render_tex(f"{self.code}_{self.name}_Krisenliste",
-                              'members/crisis_intervention_list.tex', context,
-                              date=self.date, save_only=True)
+        start_date = timezone.localtime(self.date).strftime("%d.%m.%Y")
+        filename = render_tex(
+            f"{self.code}_{self.name}_Krisenliste",
+            "members/crisis_intervention_list.tex",
+            context,
+            date=self.date,
+            save_only=True,
+        )
         leaders = ", ".join([yl.name for yl in self.jugendleiter.all()])
-        start_date = timezone.localtime(self.date).strftime('%d.%m.%Y')
-        end_date = timezone.localtime(self.end).strftime('%d.%m.%Y')
+        start_date = timezone.localtime(self.date).strftime("%d.%m.%Y")
+        end_date = timezone.localtime(self.end).strftime("%d.%m.%Y")
         # create email with attachment
-        send_mail(_('Crisis intervention list for %(excursion)s from %(start)s to %(end)s') %\
-                    { 'excursion': self.name,
-                      'start': start_date,
-                      'end': end_date },
-                  settings.SEND_EXCURSION_CRISIS_LIST.format(excursion=self.name, leaders=leaders,
-                                                             excursion_start=start_date,
-                                                             excursion_end=end_date),
-                  sender=settings.DEFAULT_SENDING_MAIL,
-                  recipients=[settings.SEKTION_CRISIS_INTERVENTION_MAIL],
-                  cc=[settings.RESPONSIBLE_MAIL] + [yl.email for yl in self.jugendleiter.all()],
-                  attachments=[media_path(filename)])
+        send_mail(
+            _("Crisis intervention list for %(excursion)s from %(start)s to %(end)s")
+            % {"excursion": self.name, "start": start_date, "end": end_date},
+            settings.SEND_EXCURSION_CRISIS_LIST.format(
+                excursion=self.name,
+                leaders=leaders,
+                excursion_start=start_date,
+                excursion_end=end_date,
+            ),
+            sender=settings.DEFAULT_SENDING_MAIL,
+            recipients=[settings.SEKTION_CRISIS_INTERVENTION_MAIL],
+            cc=[settings.RESPONSIBLE_MAIL] + [yl.email for yl in self.jugendleiter.all()],
+            attachments=[media_path(filename)],
+        )
         self.crisis_intervention_list_sent = True
         self.save()
 
@@ -1749,19 +1979,21 @@ class Freizeit(CommonModel):
             sending_time = coming_midnight().strftime("%d.%m.%y %H:%M")
         elif not isinstance(sending_time, str):
             sending_time = sending_time.strftime("%d.%m.%y %H:%M")
-        start_date = timezone.localtime(self.date).strftime('%d.%m.%Y')
-        end_date = timezone.localtime(self.end).strftime('%d.%m.%Y')
+        start_date = timezone.localtime(self.date).strftime("%d.%m.%Y")
+        end_date = timezone.localtime(self.end).strftime("%d.%m.%Y")
         excursion_link = prepend_base_url(self.get_absolute_url())
         for yl in self.jugendleiter.all():
-            yl.send_mail(_('Participant list for %(excursion)s from %(start)s to %(end)s') %\
-                            { 'excursion': self.name,
-                              'start': start_date,
-                              'end': end_date },
-                         settings.NOTIFY_EXCURSION_PARTICIPANT_LIST.format(name=yl.prename,
-                                                                           excursion=self.name,
-                                                                           participants=participants,
-                                                                           sending_time=sending_time,
-                                                                           excursion_link=excursion_link))
+            yl.send_mail(
+                _("Participant list for %(excursion)s from %(start)s to %(end)s")
+                % {"excursion": self.name, "start": start_date, "end": end_date},
+                settings.NOTIFY_EXCURSION_PARTICIPANT_LIST.format(
+                    name=yl.prename,
+                    excursion=self.name,
+                    participants=participants,
+                    sending_time=sending_time,
+                    excursion_link=excursion_link,
+                ),
+            )
         self.notification_crisis_intervention_list_sent = True
         self.save()
 
@@ -1770,8 +2002,9 @@ class MemberNoteList(models.Model):
     """
     A member list with a title and a bunch of members to take some notes.
     """
-    title = models.CharField(verbose_name=_('Title'), default='', max_length=50)
-    date = models.DateField(default=datetime.today, verbose_name=_('Date'), null=True, blank=True)
+
+    title = models.CharField(verbose_name=_("Title"), default="", max_length=50)
+    date = models.DateField(default=datetime.today, verbose_name=_("Date"), null=True, blank=True)
     membersonlist = GenericRelation(NewMemberOnList)
 
     def __str__(self):
@@ -1784,28 +2017,29 @@ class MemberNoteList(models.Model):
 
 
 class Klettertreff(models.Model):
-    """ This model represents a Klettertreff event.
+    """This model represents a Klettertreff event.
 
     A Klettertreff can take a date, location, Jugendleiter, attending members
     as input.
     """
-    date = models.DateField(_('Date'), default=datetime.today)
-    location = models.CharField(_('Location'), default='', max_length=60)
-    topic = models.CharField(_('Topic'), default='', max_length=60)
+
+    date = models.DateField(_("Date"), default=datetime.today)
+    location = models.CharField(_("Location"), default="", max_length=60)
+    topic = models.CharField(_("Topic"), default="", max_length=60)
     jugendleiter = models.ManyToManyField(Member)
-    group = models.ForeignKey(Group, default='', verbose_name=_('Group'), on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, default="", verbose_name=_("Group"), on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.location + ' ' + self.date.strftime('%d.%m.%Y')
+        return self.location + " " + self.date.strftime("%d.%m.%Y")
 
     def get_jugendleiter(self):
-        jl_string = ', '.join(j.name for j in self.jugendleiter.all())
+        jl_string = ", ".join(j.name for j in self.jugendleiter.all())
         return jl_string
 
     def has_attendee(self, member):
         queryset = KlettertreffAttendee.objects.filter(
-                member__id__contains=member.id,
-                klettertreff__id__contains=self.id)
+            member__id__contains=member.id, klettertreff__id__contains=self.id
+        )
         if queryset:
             return True
         return False
@@ -1815,119 +2049,139 @@ class Klettertreff(models.Model):
             return True
         return False
 
-    get_jugendleiter.short_description = _('Jugendleiter')
+    get_jugendleiter.short_description = _("Jugendleiter")
 
     class Meta:
-        verbose_name = _('Klettertreff')
-        verbose_name_plural = _('Klettertreffs')
+        verbose_name = _("Klettertreff")
+        verbose_name_plural = _("Klettertreffs")
 
 
 class KlettertreffAttendee(models.Model):
     """Connects members to Klettertreffs."""
-    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
+
+    member = models.ForeignKey(Member, verbose_name=_("Member"), on_delete=models.CASCADE)
     klettertreff = models.ForeignKey(Klettertreff, on_delete=models.CASCADE)
 
     def __str__(self):
         return str(self.member)
 
     class Meta:
-        verbose_name = _('Member')
-        verbose_name_plural = _('Members')
+        verbose_name = _("Member")
+        verbose_name_plural = _("Members")
 
 
 class RegistrationPassword(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
-    password = models.CharField(_('Password'), default='', max_length=20, unique=True)
+    password = models.CharField(_("Password"), default="", max_length=20, unique=True)
 
     class Meta:
-        verbose_name = _('registration password')
-        verbose_name_plural = _('registration passwords')
+        verbose_name = _("registration password")
+        verbose_name_plural = _("registration passwords")
 
 
 class LJPProposal(CommonModel):
     """A proposal for LJP"""
-    title = models.CharField(verbose_name=_('Title'), max_length=100,
-                             blank=True, default='',
-                             help_text=_('Official title of your seminar, this can differ from the informal title. Use e.g. sports climbing course instead of climbing weekend for fun.'))
+
+    title = models.CharField(
+        verbose_name=_("Title"),
+        max_length=100,
+        blank=True,
+        default="",
+        help_text=_(
+            "Official title of your seminar, this can differ from the informal title. Use e.g. sports climbing course instead of climbing weekend for fun."
+        ),
+    )
 
     LJP_STAFF_TRAINING, LJP_EDUCATIONAL = 1, 2
     LJP_CATEGORIES = [
-        (LJP_EDUCATIONAL, _('Educational programme')),
-        (LJP_STAFF_TRAINING, _('Staff training'))
+        (LJP_EDUCATIONAL, _("Educational programme")),
+        (LJP_STAFF_TRAINING, _("Staff training")),
     ]
-    category = models.IntegerField(verbose_name=_('Category'),
-                                   choices=LJP_CATEGORIES,
-                                   default=2,
-                                   help_text=_('Type of seminar. Usually the correct choice is educational programme.'))
+    category = models.IntegerField(
+        verbose_name=_("Category"),
+        choices=LJP_CATEGORIES,
+        default=2,
+        help_text=_("Type of seminar. Usually the correct choice is educational programme."),
+    )
     LJP_QUALIFICATION, LJP_PARTICIPATION, LJP_DEVELOPMENT, LJP_ENVIRONMENT = 1, 2, 3, 4
     LJP_GOALS = [
-        (LJP_QUALIFICATION, _('Qualification')),
-        (LJP_PARTICIPATION, _('Participation')),
-        (LJP_DEVELOPMENT, _('Personality development')),
-        (LJP_ENVIRONMENT, _('Environment')),
+        (LJP_QUALIFICATION, _("Qualification")),
+        (LJP_PARTICIPATION, _("Participation")),
+        (LJP_DEVELOPMENT, _("Personality development")),
+        (LJP_ENVIRONMENT, _("Environment")),
     ]
-    goal = models.IntegerField(verbose_name=_('Learning goal'),
-                               choices=LJP_GOALS,
-                               default=1,
-                               help_text=_('Official learning goal according to LJP regulations.'))
-    goal_strategy = models.TextField(verbose_name=_('Strategy'),
-                                     help_text=_('How do you want to reach the learning goal? Has the goal been reached? If not, why not? If yes, what helped you to reach the goal?'),
-                                     blank=True, default='')
+    goal = models.IntegerField(
+        verbose_name=_("Learning goal"),
+        choices=LJP_GOALS,
+        default=1,
+        help_text=_("Official learning goal according to LJP regulations."),
+    )
+    goal_strategy = models.TextField(
+        verbose_name=_("Strategy"),
+        help_text=_(
+            "How do you want to reach the learning goal? Has the goal been reached? If not, why not? If yes, what helped you to reach the goal?"
+        ),
+        blank=True,
+        default="",
+    )
 
     NOT_BW_CONTENT, NOT_BW_ROOMS, NOT_BW_CLOSE_BORDER, NOT_BW_ECONOMIC = 1, 2, 3, 4
     NOT_BW_REASONS = [
-        (NOT_BW_CONTENT, _('Course content')),
-        (NOT_BW_ROOMS, _('Available rooms')),
-        (NOT_BW_CLOSE_BORDER, _('Close to the border')),
-        (NOT_BW_ECONOMIC, _('Economic reasons')),
+        (NOT_BW_CONTENT, _("Course content")),
+        (NOT_BW_ROOMS, _("Available rooms")),
+        (NOT_BW_CLOSE_BORDER, _("Close to the border")),
+        (NOT_BW_ECONOMIC, _("Economic reasons")),
     ]
-    not_bw_reason = models.IntegerField(verbose_name=_('Explanation if excursion not in Baden-Württemberg'),
-                                        choices=NOT_BW_REASONS,
-                                        default=None,
-                                        blank=True,
-                                        null=True,
-                                        help_text=_('If the excursion takes place outside of Baden-Württemberg, please explain. Otherwise, leave this empty.'))
+    not_bw_reason = models.IntegerField(
+        verbose_name=_("Explanation if excursion not in Baden-Württemberg"),
+        choices=NOT_BW_REASONS,
+        default=None,
+        blank=True,
+        null=True,
+        help_text=_(
+            "If the excursion takes place outside of Baden-Württemberg, please explain. Otherwise, leave this empty."
+        ),
+    )
 
-    excursion = models.OneToOneField(Freizeit,
-                                     verbose_name=_('Excursion'),
-                                     blank=True,
-                                     null=True,
-                                     on_delete=models.SET_NULL)
+    excursion = models.OneToOneField(
+        Freizeit, verbose_name=_("Excursion"), blank=True, null=True, on_delete=models.SET_NULL
+    )
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('LJP Proposal')
-        verbose_name_plural = _('LJP Proposals')
+        verbose_name = _("LJP Proposal")
+        verbose_name_plural = _("LJP Proposals")
         rules_permissions = {
-            'add_obj': is_leader,
-            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
-            'change_obj': is_leader,
-            'delete_obj': is_leader,
+            "add_obj": is_leader,
+            "view_obj": is_leader | has_global_perm("members.view_global_freizeit"),
+            "change_obj": is_leader,
+            "delete_obj": is_leader,
         }
 
     def __str__(self):
         return self.title
 
+
 class Intervention(CommonModel):
     """An intervention during a seminar as part of a LJP proposal"""
-    date_start = models.DateTimeField(verbose_name=_('Starting time'))
-    duration = models.DecimalField(verbose_name=_('Duration in hours'),
-                                   max_digits=4,
-                                   decimal_places=2)
-    activity = models.TextField(verbose_name=_('Activity and method'))
 
-    ljp_proposal = models.ForeignKey(LJPProposal,
-                                     verbose_name=_('LJP Proposal'),
-                                     blank=False,
-                                     on_delete=models.CASCADE)
+    date_start = models.DateTimeField(verbose_name=_("Starting time"))
+    duration = models.DecimalField(
+        verbose_name=_("Duration in hours"), max_digits=4, decimal_places=2
+    )
+    activity = models.TextField(verbose_name=_("Activity and method"))
+
+    ljp_proposal = models.ForeignKey(
+        LJPProposal, verbose_name=_("LJP Proposal"), blank=False, on_delete=models.CASCADE
+    )
 
     class Meta:
-        verbose_name = _('Intervention')
-        verbose_name_plural = _('Interventions')
+        verbose_name = _("Intervention")
+        verbose_name_plural = _("Interventions")
         rules_permissions = {
-            'add_obj': is_leader_of_excursion,
-            'view_obj': is_leader_of_excursion | has_global_perm('members.view_global_freizeit'),
-            'change_obj': is_leader_of_excursion,
-            'delete_obj': is_leader_of_excursion,
+            "add_obj": is_leader_of_excursion,
+            "view_obj": is_leader_of_excursion | has_global_perm("members.view_global_freizeit"),
+            "change_obj": is_leader_of_excursion,
+            "delete_obj": is_leader_of_excursion,
         }
 
 
@@ -1935,15 +2189,14 @@ def annotate_activity_score(queryset):
     one_year_ago = timezone.now() - timedelta(days=365)
     queryset = queryset.annotate(
         _jugendleiter_freizeit_score_calc=Subquery(
-            Freizeit.objects.filter(jugendleiter=OuterRef('pk'),
-                                    date__gte=one_year_ago)
-                .values('jugendleiter')
-                .annotate(cnt=Count('pk', distinct=True))
-                .values('cnt'),
-            output_field=IntegerField()
-            ),
+            Freizeit.objects.filter(jugendleiter=OuterRef("pk"), date__gte=one_year_ago)
+            .values("jugendleiter")
+            .annotate(cnt=Count("pk", distinct=True))
+            .values("cnt"),
+            output_field=IntegerField(),
+        ),
         # better solution but does not work in production apparently
-        #_jugendleiter_freizeit_score=Sum(Case(
+        # _jugendleiter_freizeit_score=Sum(Case(
         #    When(
         #        freizeit__date__gte=one_year_ago,
         #        then=1),
@@ -1952,15 +2205,14 @@ def annotate_activity_score(queryset):
         #    ),
         #    distinct=True),
         _jugendleiter_klettertreff_score_calc=Subquery(
-            Klettertreff.objects.filter(jugendleiter=OuterRef('pk'),
-                                        date__gte=one_year_ago)
-                .values('jugendleiter')
-                .annotate(cnt=Count('pk', distinct=True))
-                .values('cnt'),
-            output_field=IntegerField()
-            ),
+            Klettertreff.objects.filter(jugendleiter=OuterRef("pk"), date__gte=one_year_ago)
+            .values("jugendleiter")
+            .annotate(cnt=Count("pk", distinct=True))
+            .values("cnt"),
+            output_field=IntegerField(),
+        ),
         # better solution but does not work in production apparently
-        #_jugendleiter_klettertreff_score=Sum(Case(
+        # _jugendleiter_klettertreff_score=Sum(Case(
         #    When(
         #        klettertreff__date__gte=one_year_ago,
         #        then=1),
@@ -1969,125 +2221,171 @@ def annotate_activity_score(queryset):
         #    ),
         #    distinct=True),
         _freizeit_score_calc=Subquery(
-            Freizeit.objects.filter(membersonlist__member=OuterRef('pk'),
-                                    date__gte=one_year_ago)
-                .values('membersonlist__member')
-                .annotate(cnt=Count('pk', distinct=True))
-                .values('cnt'),
-            output_field=IntegerField()
-            ),
+            Freizeit.objects.filter(membersonlist__member=OuterRef("pk"), date__gte=one_year_ago)
+            .values("membersonlist__member")
+            .annotate(cnt=Count("pk", distinct=True))
+            .values("cnt"),
+            output_field=IntegerField(),
+        ),
         _klettertreff_score_calc=Subquery(
-            KlettertreffAttendee.objects.filter(member=OuterRef('pk'),
-                                                klettertreff__date__gte=one_year_ago)
-                .values('member')
-                .annotate(cnt=Count('pk', distinct=True))
-                .values('cnt'),
-            output_field=IntegerField()))
+            KlettertreffAttendee.objects.filter(
+                member=OuterRef("pk"), klettertreff__date__gte=one_year_ago
+            )
+            .values("member")
+            .annotate(cnt=Count("pk", distinct=True))
+            .values("cnt"),
+            output_field=IntegerField(),
+        ),
+    )
     queryset = queryset.annotate(
         _jugendleiter_freizeit_score=Case(
-            When(
-                _jugendleiter_freizeit_score_calc=None,
-                then=0
-            ),
-            default=F('_jugendleiter_freizeit_score_calc'),
-            output_field=IntegerField()),
+            When(_jugendleiter_freizeit_score_calc=None, then=0),
+            default=F("_jugendleiter_freizeit_score_calc"),
+            output_field=IntegerField(),
+        ),
         _jugendleiter_klettertreff_score=Case(
-            When(
-                _jugendleiter_klettertreff_score_calc=None,
-                then=0
-            ),
-            default=F('_jugendleiter_klettertreff_score_calc'),
-            output_field=IntegerField()),
+            When(_jugendleiter_klettertreff_score_calc=None, then=0),
+            default=F("_jugendleiter_klettertreff_score_calc"),
+            output_field=IntegerField(),
+        ),
         _klettertreff_score=Case(
-            When(
-                _klettertreff_score_calc=None,
-                then=0
-            ),
-            default=F('_klettertreff_score_calc'),
-            output_field=IntegerField()),
+            When(_klettertreff_score_calc=None, then=0),
+            default=F("_klettertreff_score_calc"),
+            output_field=IntegerField(),
+        ),
         _freizeit_score=Case(
-            When(
-                _freizeit_score_calc=None,
-                then=0
-            ),
-            default=F('_freizeit_score_calc'),
-            output_field=IntegerField()))
+            When(_freizeit_score_calc=None, then=0),
+            default=F("_freizeit_score_calc"),
+            output_field=IntegerField(),
+        ),
+    )
     queryset = queryset.annotate(
-        #_activity_score=F('_jugendleiter_freizeit_score')
-        _activity_score=(F('_klettertreff_score') + 3 * F('_freizeit_score')
-            + F('_jugendleiter_klettertreff_score') + 3 * F('_jugendleiter_freizeit_score'))
+        # _activity_score=F('_jugendleiter_freizeit_score')
+        _activity_score=(
+            F("_klettertreff_score")
+            + 3 * F("_freizeit_score")
+            + F("_jugendleiter_klettertreff_score")
+            + 3 * F("_jugendleiter_freizeit_score")
+        )
     )
     return queryset
 
 
 class PermissionMember(models.Model):
-    member = models.OneToOneField(Member, on_delete=models.CASCADE, related_name='permissions')
+    member = models.OneToOneField(Member, on_delete=models.CASCADE, related_name="permissions")
     # every member of view_members may view this member
-    list_members = models.ManyToManyField(Member, related_name='listable_by', blank=True,
-                                          verbose_name=_('May list members'))
-    view_members = models.ManyToManyField(Member, related_name='viewable_by', blank=True,
-                                          verbose_name=_('May view members'))
-    change_members = models.ManyToManyField(Member, related_name='changeable_by', blank=True,
-                                            verbose_name=_('May change members'))
-    delete_members = models.ManyToManyField(Member, related_name='deletable_by', blank=True,
-                                            verbose_name=_('May delete members'))
+    list_members = models.ManyToManyField(
+        Member, related_name="listable_by", blank=True, verbose_name=_("May list members")
+    )
+    view_members = models.ManyToManyField(
+        Member, related_name="viewable_by", blank=True, verbose_name=_("May view members")
+    )
+    change_members = models.ManyToManyField(
+        Member, related_name="changeable_by", blank=True, verbose_name=_("May change members")
+    )
+    delete_members = models.ManyToManyField(
+        Member, related_name="deletable_by", blank=True, verbose_name=_("May delete members")
+    )
 
     # every member in any view_group may view this member
-    list_groups = models.ManyToManyField(Group, related_name='listable_by', blank=True,
-                                         verbose_name=_('May list members of groups'))
-    view_groups = models.ManyToManyField(Group, related_name='viewable_by', blank=True,
-                                         verbose_name=_('May view members of groups'))
-    change_groups = models.ManyToManyField(Group, related_name='changeable_by', blank=True,
-                                           verbose_name=_('May change members of groups'))
-    delete_groups = models.ManyToManyField(Group, related_name='deletable_by', blank=True,
-                                           verbose_name=_('May delete members of groups'))
+    list_groups = models.ManyToManyField(
+        Group, related_name="listable_by", blank=True, verbose_name=_("May list members of groups")
+    )
+    view_groups = models.ManyToManyField(
+        Group, related_name="viewable_by", blank=True, verbose_name=_("May view members of groups")
+    )
+    change_groups = models.ManyToManyField(
+        Group,
+        related_name="changeable_by",
+        blank=True,
+        verbose_name=_("May change members of groups"),
+    )
+    delete_groups = models.ManyToManyField(
+        Group,
+        related_name="deletable_by",
+        blank=True,
+        verbose_name=_("May delete members of groups"),
+    )
 
     class Meta:
-        verbose_name = _('Permissions')
-        verbose_name_plural = _('Permissions')
+        verbose_name = _("Permissions")
+        verbose_name_plural = _("Permissions")
 
     def __str__(self):
-        return str(_('Permissions'))
+        return str(_("Permissions"))
 
 
 class PermissionGroup(models.Model):
-    group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name='permissions')
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name="permissions")
     # every member of view_members may view all members of group
-    list_members = models.ManyToManyField(Member, related_name='group_members_listable_by', blank=True,
-                                          verbose_name=_('May list members'))
-    view_members = models.ManyToManyField(Member, related_name='group_members_viewable_by', blank=True,
-                                          verbose_name=_('May view members'))
-    change_members = models.ManyToManyField(Member, related_name='group_members_changeable_by_group', blank=True,
-                                            verbose_name=_('May change members'))
-    delete_members = models.ManyToManyField(Member, related_name='group_members_deletable_by', blank=True,
-                                            verbose_name=_('May delete members'))
+    list_members = models.ManyToManyField(
+        Member,
+        related_name="group_members_listable_by",
+        blank=True,
+        verbose_name=_("May list members"),
+    )
+    view_members = models.ManyToManyField(
+        Member,
+        related_name="group_members_viewable_by",
+        blank=True,
+        verbose_name=_("May view members"),
+    )
+    change_members = models.ManyToManyField(
+        Member,
+        related_name="group_members_changeable_by_group",
+        blank=True,
+        verbose_name=_("May change members"),
+    )
+    delete_members = models.ManyToManyField(
+        Member,
+        related_name="group_members_deletable_by",
+        blank=True,
+        verbose_name=_("May delete members"),
+    )
 
     # every member in any view_group may view all members of group
-    list_groups = models.ManyToManyField(Group, related_name='group_members_listable_by', blank=True,
-                                         verbose_name=_('May list members of groups'))
-    view_groups = models.ManyToManyField(Group, related_name='group_members_viewable_by', blank=True,
-                                         verbose_name=_('May view members of groups'))
-    change_groups = models.ManyToManyField(Group, related_name='group_members_changeable_by', blank=True,
-                                           verbose_name=_('May change members of groups'))
-    delete_groups = models.ManyToManyField(Group, related_name='group_members_deletable_by', blank=True,
-                                           verbose_name=_('May delete members of groups'))
+    list_groups = models.ManyToManyField(
+        Group,
+        related_name="group_members_listable_by",
+        blank=True,
+        verbose_name=_("May list members of groups"),
+    )
+    view_groups = models.ManyToManyField(
+        Group,
+        related_name="group_members_viewable_by",
+        blank=True,
+        verbose_name=_("May view members of groups"),
+    )
+    change_groups = models.ManyToManyField(
+        Group,
+        related_name="group_members_changeable_by",
+        blank=True,
+        verbose_name=_("May change members of groups"),
+    )
+    delete_groups = models.ManyToManyField(
+        Group,
+        related_name="group_members_deletable_by",
+        blank=True,
+        verbose_name=_("May delete members of groups"),
+    )
 
     class Meta:
-        verbose_name = _('Group permissions')
-        verbose_name_plural = _('Group permissions')
+        verbose_name = _("Group permissions")
+        verbose_name_plural = _("Group permissions")
 
     def __str__(self):
-        return str(_('Group permissions'))
+        return str(_("Group permissions"))
 
 
 class TrainingCategory(models.Model):
     """Represents a type of training, e.g. Grundausbildung, Fortbildung, Aufbaumodul, etc."""
-    name = models.CharField(verbose_name=_('Name'), max_length=50)
-    permission_needed = models.BooleanField(verbose_name=_('Permission needed'))
+
+    name = models.CharField(verbose_name=_("Name"), max_length=50)
+    permission_needed = models.BooleanField(verbose_name=_("Permission needed"))
 
     class Meta:
-        verbose_name = _('Training category')
-        verbose_name_plural = _('Training categories')
+        verbose_name = _("Training category")
+        verbose_name_plural = _("Training categories")
 
     def __str__(self):
         return self.name
@@ -2095,46 +2393,47 @@ class TrainingCategory(models.Model):
 
 class MemberTraining(CommonModel):
     """Represents a training planned or attended by a member."""
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='traininigs', verbose_name=_('Member'))
-    title = models.CharField(verbose_name=_('Title'), max_length=150)
-    date = models.DateField(verbose_name=_('Date'), null=True, blank=True)
-    category = models.ForeignKey(TrainingCategory, on_delete=models.PROTECT, verbose_name=_('Category'))
-    activity = models.ManyToManyField(ActivityCategory, verbose_name=_('Activity'))
-    comments = models.TextField(verbose_name=_('Comments'), blank=True)
-    participated = models.BooleanField(verbose_name=_('Participated'), null=True)
-    passed = models.BooleanField(verbose_name=_('Passed'), null=True)
-    certificate = RestrictedFileField(verbose_name=_('certificate of attendance'),
-                                      upload_to='training_forms',
-                                      blank=True,
-                                      max_upload_size=5,
-                                      content_types=['application/pdf',
-                                                      'image/jpeg',
-                                                      'image/png',
-                                                      'image/gif'])
-    
+
+    member = models.ForeignKey(
+        Member, on_delete=models.CASCADE, related_name="traininigs", verbose_name=_("Member")
+    )
+    title = models.CharField(verbose_name=_("Title"), max_length=150)
+    date = models.DateField(verbose_name=_("Date"), null=True, blank=True)
+    category = models.ForeignKey(
+        TrainingCategory, on_delete=models.PROTECT, verbose_name=_("Category")
+    )
+    activity = models.ManyToManyField(ActivityCategory, verbose_name=_("Activity"))
+    comments = models.TextField(verbose_name=_("Comments"), blank=True)
+    participated = models.BooleanField(verbose_name=_("Participated"), null=True)
+    passed = models.BooleanField(verbose_name=_("Passed"), null=True)
+    certificate = RestrictedFileField(
+        verbose_name=_("certificate of attendance"),
+        upload_to="training_forms",
+        blank=True,
+        max_upload_size=5,
+        content_types=["application/pdf", "image/jpeg", "image/png", "image/gif"],
+    )
+
     def __str__(self):
         if self.date:
-            return self.title + ' ' + self.date.strftime('%d.%m.%Y')
-        return self.title + ' ' + str(_('(no date)'))
-    
+            return self.title + " " + self.date.strftime("%d.%m.%Y")
+        return self.title + " " + str(_("(no date)"))
+
     def get_activities(self):
-        activity_string = ', '.join(a.name for a in self.activity.all())
+        activity_string = ", ".join(a.name for a in self.activity.all())
         return activity_string
 
-    get_activities.short_description = _('Activities')
+    get_activities.short_description = _("Activities")
 
-  
     class Meta(CommonModel.Meta):
-        verbose_name = _('Training')
-        verbose_name_plural = _('Trainings')
-        
-        permissions = (
-            ('manage_success_trainings', 'Can edit the success status of trainings.'),
-        )
+        verbose_name = _("Training")
+        verbose_name_plural = _("Trainings")
+
+        permissions = (("manage_success_trainings", "Can edit the success status of trainings."),)
         rules_permissions = {
             # sine this is used in an inline, the member and not the training is passed
-            'add_obj': is_oneself | has_global_perm('members.add_global_membertraining'),
-            'view_obj': is_oneself | has_global_perm('members.view_global_membertraining'),
-            'change_obj': is_oneself | has_global_perm('members.change_global_membertraining'),
-            'delete_obj': is_oneself | has_global_perm('members.delete_global_membertraining'),
+            "add_obj": is_oneself | has_global_perm("members.add_global_membertraining"),
+            "view_obj": is_oneself | has_global_perm("members.view_global_membertraining"),
+            "change_obj": is_oneself | has_global_perm("members.change_global_membertraining"),
+            "delete_obj": is_oneself | has_global_perm("members.delete_global_membertraining"),
         }
