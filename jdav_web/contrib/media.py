@@ -1,9 +1,9 @@
 import os
+from wsgiref.util import FileWrapper
+
+from django import template
 from django.conf import settings
 from django.http import HttpResponse
-from django import template
-from django.template.loader import get_template
-from wsgiref.util import FileWrapper
 
 
 def find_template(template_name):
@@ -27,12 +27,15 @@ def serve_media(filename, content_type):
     """
     Serve the media file with the given `filename` as an HTTP response.
     """
-    with open(media_path(filename), 'rb') as f:
+    with open(media_path(filename), "rb") as f:
         response = HttpResponse(FileWrapper(f))
-        response['Content-Type'] = content_type
+        response["Content-Type"] = content_type
         # download other files than pdf, show pdfs in the browser
-        response['Content-Disposition'] = 'filename='+filename if content_type == 'application/pdf' else 'attachment; filename='+filename
-        
+        response["Content-Disposition"] = (
+            "filename=" + filename
+            if content_type == "application/pdf"
+            else "attachment; filename=" + filename
+        )
 
     return response
 

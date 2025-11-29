@@ -7,7 +7,7 @@ class CustomOAuth2Validator(OAuth2Validator):
 
     def get_additional_claims(self, request):
         if request.user.member:
-            context = {'email': request.user.member.email}
+            context = {"email": request.user.member.email}
         else:
             context = {}
         return dict(context, preferred_username=request.user.username)
