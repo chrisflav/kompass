@@ -55,7 +55,7 @@ If you need to rebuild the container (e.g. after changing the ``requirements.txt
     docker compose up --build
 
 5. Setup admin user: in a separate shell, while the docker container is running, execute
-   
+
 .. code-block:: bash
 
     cd docker/development

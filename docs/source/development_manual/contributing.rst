@@ -52,9 +52,9 @@ If you want to contribute to the documentation, please follow the steps below.
 
 Online (latest release version): https://jdav-hd.de/static/docs/
 
-- This documentation is build `sphinx <https://www.sphinx-doc.org/>`_ and `awsome sphinx theme <https://sphinxawesome.xyz/>`_ the source code is located in ``docs/``. 
+- This documentation is build `sphinx <https://www.sphinx-doc.org/>`_ and `awsome sphinx theme <https://sphinxawesome.xyz/>`_ the source code is located in ``docs/``.
 - All documentation is written in `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_ and uses the `sphinx directives <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html>`_.
-    - The directives can vary due to the theme, see the `awesome sphinx theme documentation <https://sphinxawesome.xyz/demo/notes/>`_. 
+    - The directives can vary due to the theme, see the `awesome sphinx theme documentation <https://sphinxawesome.xyz/demo/notes/>`_.
 - All technical documentation is written in english, user documentation is written in german.
 
 To read the documentation build it locally and view it in your browser:
@@ -65,9 +65,9 @@ To read the documentation build it locally and view it in your browser:
     make html
 
     # MacOS (with firefox)
-    open -a firefox $(pwd)/docs/build/html/index.html 
+    open -a firefox $(pwd)/docs/build/html/index.html
     # Linux (I guess?!?)
-    firefox ${pwd}/docs/build/html/index.html 
+    firefox ${pwd}/docs/build/html/index.html
 
 Code
 ----
@@ -75,11 +75,10 @@ Code
 If you want to contribute code, please follow the inital setup steps in the :ref:`development_manual/setup` section. And dont forget to :ref:`document <development_manual/contributing/documentation>` your code properly and write tests.
 
 
-.. note:: 
-    
+.. note::
+
     Still open / to decide:
 
-    - linting 
+    - linting
     - (auto) formatting
     - reliable tests via ci/cd pipeline
-

@@ -52,4 +52,3 @@ Im Nachhinein trägst du deine Ausgaben ein, lädst Belege hoch und reichst dein
 
 .. _anlegen: https://jdav-hd.de/kompassmembers/freizeit/add/
 .. _Teilnehmer\*innen: https://jdav-hd.de/kompassmembers/member/
-
