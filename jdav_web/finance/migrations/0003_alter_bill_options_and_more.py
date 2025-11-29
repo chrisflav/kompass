@@ -4,38 +4,121 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('finance', '0002_alter_permissions'),
+        ("finance", "0002_alter_permissions"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='bill',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'Bill', 'verbose_name_plural': 'Bills'},
+            name="bill",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "Bill",
+                "verbose_name_plural": "Bills",
+            },
         ),
         migrations.AlterModelOptions(
-            name='billonexcursionproxy',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'Bill', 'verbose_name_plural': 'Bills'},
+            name="billonexcursionproxy",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "Bill",
+                "verbose_name_plural": "Bills",
+            },
         ),
         migrations.AlterModelOptions(
-            name='billonstatementproxy',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'Bill', 'verbose_name_plural': 'Bills'},
+            name="billonstatementproxy",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "Bill",
+                "verbose_name_plural": "Bills",
+            },
         ),
         migrations.AlterModelOptions(
-            name='statement',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'permissions': [('may_edit_submitted_statements', 'Is allowed to edit submitted statements')], 'verbose_name': 'Statement', 'verbose_name_plural': 'Statements'},
+            name="statement",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "permissions": [
+                    ("may_edit_submitted_statements", "Is allowed to edit submitted statements")
+                ],
+                "verbose_name": "Statement",
+                "verbose_name_plural": "Statements",
+            },
         ),
         migrations.AlterModelOptions(
-            name='statementconfirmed',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'permissions': [('may_manage_confirmed_statements', 'Can view and manage confirmed statements.')], 'verbose_name': 'Paid statement', 'verbose_name_plural': 'Paid statements'},
+            name="statementconfirmed",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "permissions": [
+                    ("may_manage_confirmed_statements", "Can view and manage confirmed statements.")
+                ],
+                "verbose_name": "Paid statement",
+                "verbose_name_plural": "Paid statements",
+            },
         ),
         migrations.AlterModelOptions(
-            name='statementsubmitted',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'permissions': [('process_statementsubmitted', 'Can manage submitted statements.')], 'verbose_name': 'Submitted statement', 'verbose_name_plural': 'Submitted statements'},
+            name="statementsubmitted",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "permissions": [("process_statementsubmitted", "Can manage submitted statements.")],
+                "verbose_name": "Submitted statement",
+                "verbose_name_plural": "Submitted statements",
+            },
         ),
         migrations.AlterModelOptions(
-            name='statementunsubmitted',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'Statement in preparation', 'verbose_name_plural': 'Statements in preparation'},
+            name="statementunsubmitted",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "Statement in preparation",
+                "verbose_name_plural": "Statements in preparation",
+            },
         ),
     ]

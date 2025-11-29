@@ -4,25 +4,30 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('finance', '0011_remove_statement_confirmed_and_submitted'),
+        ("finance", "0011_remove_statement_confirmed_and_submitted"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='StatementOnExcursionProxy',
-            fields=[
-            ],
+            name="StatementOnExcursionProxy",
+            fields=[],
             options={
-                'verbose_name': 'Statement',
-                'verbose_name_plural': 'Statements',
-                'abstract': False,
-                'proxy': True,
-                'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'),
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "Statement",
+                "verbose_name_plural": "Statements",
+                "abstract": False,
+                "proxy": True,
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('finance.statement',),
+            bases=("finance.statement",),
         ),
     ]
