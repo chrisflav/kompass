@@ -39,7 +39,7 @@ Aufnahme von neuen Mitgliedern und die Pflege der Daten durch
 Feedback
 --------
 
-Wenn Du Feedback hast, schreibe uns gerne eine E-Mail an: `digitales@jdav-hd.de <mailto:digitales@jdav-hd.de?subject=Kompass Feedback>`_. 
+Wenn Du Feedback hast, schreibe uns gerne eine E-Mail an: `digitales@jdav-hd.de <mailto:digitales@jdav-hd.de?subject=Kompass Feedback>`_.
 Der Kompass lebt davon, dass er genau unsere Probleme löst und nicht nur ein weiteres Tool ist.
 
 Feedback könnte sein:
