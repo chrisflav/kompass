@@ -32,11 +32,9 @@ Documentation
 
 Structure
 
-- :ref:`Nutzer Dokumentation <user_manual/index>` auf deutsch 
+- :ref:`Nutzer Dokumentation <user_manual/index>` auf deutsch
 - :ref:`Development Documentation <development_manual/index>` auf englisch
 
 .. seealso::
 
    :ref:`Contributing #Documentation <development_manual/contributing/documentation>`
-
-
