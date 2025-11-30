@@ -1,15 +1,15 @@
 name: Deploy PR to Remote Server
 
 on:
-  pull_request:
-    types: [labeled]
-  workflow_run:
-    workflows: ["Build and test"]
-    types:
-      - completed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to deploy'
+        required: true
+        type: number
 
 concurrency:
-  group: deploy-pr-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
+  group: deploy-pr-${{ inputs.pr_number }}
   cancel-in-progress: true
 
 env:
@@ -25,76 +25,19 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Check if deployment should proceed
-        id: check
-        uses: actions/github-script@v7
-        with:
-          script: |
-            let prNumber;
-            let shouldDeploy = false;
-
-            // Get PR number based on trigger type
-            if (context.eventName === 'pull_request') {
-              prNumber = context.payload.pull_request.number;
-              // Only proceed if the label is 'awaiting-deployment'
-              shouldDeploy = context.payload.label?.name === 'awaiting-deployment';
-            } else if (context.eventName === 'workflow_run') {
-              // Get PR from workflow_run
-              const prs = context.payload.workflow_run.pull_requests;
-              if (!prs || prs.length === 0) {
-                console.log('No pull request associated with this workflow run');
-                core.setOutput('should_deploy', 'false');
-                return;
-              }
-              prNumber = prs[0].number;
-
-              // Check if build succeeded
-              if (context.payload.workflow_run.conclusion !== 'success') {
-                console.log('Build workflow did not succeed');
-                core.setOutput('should_deploy', 'false');
-                return;
-              }
-
-              // Check if PR has awaiting-deployment label
-              const { data: pr } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber
-              });
-
-              shouldDeploy = pr.labels.some(label => label.name === 'awaiting-deployment');
-              if (!shouldDeploy) {
-                console.log('PR does not have awaiting-deployment label');
-              }
-            }
-
-            core.setOutput('pr_number', prNumber);
-            core.setOutput('should_deploy', shouldDeploy ? 'true' : 'false');
-            console.log(`PR: ${prNumber}, Should deploy: ${shouldDeploy}`);
-
-      - name: Exit if deployment should not proceed
-        if: steps.check.outputs.should_deploy != 'true'
-        run: |
-          echo "Deployment skipped - conditions not met"
-          exit 0
-
       - name: Get PR details
-        if: steps.check.outputs.should_deploy == 'true'
         id: pr
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = ${{ steps.check.outputs.pr_number }};
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: prNumber
+              pull_number: ${{ inputs.pr_number }}
             });
             core.setOutput('head_ref', pr.head.ref);
-            core.setOutput('number', prNumber);
 
       - name: Setup SSH
-        if: steps.check.outputs.should_deploy == 'true'
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
@@ -102,10 +45,9 @@ jobs:
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to remote server
-        if: steps.check.outputs.should_deploy == 'true'
         id: deploy
         run: |
-          OUTPUT=$(ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} ${{ steps.check.outputs.pr_number }})
+          OUTPUT=$(ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} ${{ inputs.pr_number }})
           echo "$OUTPUT"
           DEPLOY_URL=$(echo "$OUTPUT" | tail -n 1)
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
@@ -116,10 +58,9 @@ jobs:
           rm -f ~/.ssh/deploy_key
 
       - name: Comment deployment and documentation links
-        if: steps.check.outputs.should_deploy == 'true'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          number: ${{ steps.check.outputs.pr_number }}
+          number: ${{ inputs.pr_number }}
           header: deployment
           message: |
             🚀 **PR deployed successfully!**
@@ -129,11 +70,11 @@ jobs:
             **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ steps.pr.outputs.head_ref }}/
 
             **Docker Images:**
-            - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ steps.check.outputs.pr_number }}`
-            - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ steps.check.outputs.pr_number }}`
+            - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ inputs.pr_number }}`
+            - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ inputs.pr_number }}`
 
       - name: Remove awaiting-deployment label
-        if: steps.check.outputs.should_deploy == 'true'
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
@@ -141,7 +82,7 @@ jobs:
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: ${{ steps.check.outputs.pr_number }},
+                issue_number: ${{ inputs.pr_number }},
                 name: 'awaiting-deployment'
               });
             } catch (error) {

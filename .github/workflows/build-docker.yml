@@ -22,6 +22,7 @@ jobs:
       contents: write
       packages: write
       pull-requests: write
+      actions: write
 
     steps:
       - name: Checkout repository
@@ -158,3 +159,34 @@ jobs:
           echo ""
           echo "Nginx image tags:"
           echo "${{ steps.meta-nginx.outputs.tags }}"
+
+      - name: Check for awaiting-deployment label and trigger deploy
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+
+            // Check if PR has awaiting-deployment label
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const hasLabel = pr.labels.some(label => label.name === 'awaiting-deployment');
+
+            if (hasLabel) {
+              console.log('PR has awaiting-deployment label, triggering deployment');
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'deploy-pr.yml',
+                ref: context.payload.repository.default_branch,
+                inputs: {
+                  pr_number: prNumber.toString()
+                }
+              });
+            } else {
+              console.log('PR does not have awaiting-deployment label, skipping deployment');
+            }

@@ -1,0 +1,89 @@
+name: Check Deployment Readiness
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'awaiting-deployment'
+    permissions:
+      actions: write
+      pull-requests: read
+
+    steps:
+      - name: Check build workflow status
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const headSha = context.payload.pull_request.head.sha;
+
+            // Get workflow runs for the build workflow
+            const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-docker.yml',
+              head_sha: headSha,
+              per_page: 1
+            });
+
+            if (runs.total_count === 0) {
+              console.log('No build workflow found for this commit');
+              core.setOutput('should_deploy', 'false');
+              core.setOutput('reason', 'No build workflow found');
+              return;
+            }
+
+            const buildRun = runs.workflow_runs[0];
+            console.log(`Build workflow status: ${buildRun.status}, conclusion: ${buildRun.conclusion}`);
+
+            // Check if build is still running
+            if (buildRun.status !== 'completed') {
+              console.log('Build workflow is still running');
+              core.setOutput('should_deploy', 'false');
+              core.setOutput('reason', 'Build workflow is still running');
+              return;
+            }
+
+            // Check if build failed
+            if (buildRun.conclusion !== 'success') {
+              console.log(`Build workflow failed with conclusion: ${buildRun.conclusion}`);
+              core.setOutput('should_deploy', 'false');
+              core.setOutput('reason', `Build workflow ${buildRun.conclusion}`);
+              return;
+            }
+
+            // Build completed successfully
+            console.log('Build workflow completed successfully, ready to deploy');
+            core.setOutput('should_deploy', 'true');
+
+      - name: Trigger deployment
+        if: steps.check.outputs.should_deploy == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy-pr.yml',
+              ref: context.payload.repository.default_branch,
+              inputs: {
+                pr_number: context.payload.pull_request.number.toString()
+              }
+            });
+            console.log('Deployment workflow triggered');
+
+      - name: Comment if deployment skipped
+        if: steps.check.outputs.should_deploy != 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: deployment
+          message: |
+            ⏸️ **Deployment skipped**
+
+            Reason: ${{ steps.check.outputs.reason }}
+
+            The deployment will automatically start when the build workflow completes successfully.
