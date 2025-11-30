@@ -6,9 +6,9 @@ on:
     types:
       - completed
 
-concurrency:
-  group: deploy-pr-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: true
+      #concurrency:
+      #  group: deploy-pr-${{ github.event.workflow_run.head_branch }}
+      #  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -18,11 +18,11 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: deploy-web
+    # environment: deploy-web
     # Only run if the build workflow succeeded and it was a PR
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request'
+    #if: >
+    #  github.event.workflow_run.conclusion == 'success' &&
+    #  github.event.workflow_run.event == 'pull_request'
 
     steps:
       - name: Get PR number
