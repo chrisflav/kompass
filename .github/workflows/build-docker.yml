@@ -95,7 +95,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs-output
-          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.ref_name }}
+          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.head_ref || github.ref_name }}
           keep_files: true
 
       - name: Comment documentation link
@@ -106,7 +106,7 @@ jobs:
           message: |
             📚 **Documentation deployed!**
 
-            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref || github.ref_name }}/
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref }}/
 
             **Docker Images:**
             - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
@@ -193,7 +193,7 @@ jobs:
 
             **Website:** Check deployment logs for the assigned staging URL (staging0-staging4.${{ secrets.BASE_DOMAIN || 'staging.dev' }})
 
-            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref || github.ref_name }}/
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref }}/
 
             **Docker Images:**
             - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
