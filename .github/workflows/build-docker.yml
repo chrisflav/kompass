@@ -176,8 +176,12 @@ jobs:
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to remote server
+        id: deploy
         run: |
-          ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} ${{ github.event.pull_request.number }}
+          OUTPUT=$(ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} ${{ github.event.pull_request.number }})
+          echo "$OUTPUT"
+          DEPLOY_URL=$(echo "$OUTPUT" | tail -n 1)
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
 
       - name: Cleanup SSH
         if: always()
@@ -191,7 +195,7 @@ jobs:
           message: |
             🚀 **PR deployed successfully!**
 
-            **Website:** Check deployment logs for the assigned staging URL (staging0-staging4.${{ secrets.BASE_DOMAIN || 'staging.dev' }})
+            **Website:** ${{ steps.deploy.outputs.url }}
 
             **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref }}/
 
