@@ -1,11 +1,15 @@
 name: Deploy PR to Remote Server
 
 on:
-  repository_dispatch:
-    types: [deploy-pr]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to deploy'
+        required: true
+        type: number
 
 concurrency:
-  group: deploy-pr-${{ github.event.client_payload.pr_number }}
+  group: deploy-pr-${{ inputs.pr_number }}
   cancel-in-progress: true
 
 env:
@@ -26,7 +30,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = ${{ github.event.client_payload.pr_number }};
+            const prNumber = ${{ inputs.pr_number }};
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -45,7 +49,7 @@ jobs:
       - name: Deploy to remote server
         id: deploy
         run: |
-          OUTPUT=$(ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} ${{ github.event.client_payload.pr_number }})
+          OUTPUT=$(ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} ${{ inputs.pr_number }})
           echo "$OUTPUT"
           DEPLOY_URL=$(echo "$OUTPUT" | tail -n 1)
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT

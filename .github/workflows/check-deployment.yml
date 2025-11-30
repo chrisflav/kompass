@@ -66,12 +66,13 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.repos.createDispatchEvent({
+            await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              event_type: 'deploy-pr',
-              client_payload: {
-                pr_number: context.payload.pull_request.number
+              workflow_id: 'deploy-pr.yml',
+              ref: 'master',
+              inputs: {
+                pr_number: context.payload.pull_request.number.toString()
               }
             });
             console.log('Deployment workflow triggered');
