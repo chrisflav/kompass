@@ -164,22 +164,3 @@ jobs:
         if: always()
         run: |
           rm -f ~/.ssh/deploy_key
-
-      - name: Comment on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = ${{ github.event.pull_request.number }};
-            const baseDomain = '${{ secrets.BASE_DOMAIN || 'staging.dev' }}';
-
-            // Find which staging slot was assigned
-            // This is a simple estimate - the script handles the actual assignment
-            const stagingSlot = (prNumber % 5);
-            const deployUrl = `https://staging${stagingSlot}.${baseDomain}`;
-
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `🚀 **PR deployment started!**\n\nYour changes are being deployed. Check the deployment logs for the final URL.\n\nExpected URL (may vary): ${deployUrl}\n\n**Images:**\n- App: \`${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${prNumber}\`\n- Nginx: \`${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${prNumber}\``
-            });
