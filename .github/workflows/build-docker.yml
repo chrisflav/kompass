@@ -182,7 +182,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'deploy-pr.yml',
-                ref: 'master',
+                ref: 'main',
                 inputs: {
                   pr_number: prNumber.toString()
                 }
