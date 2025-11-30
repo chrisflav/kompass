@@ -191,7 +191,7 @@ jobs:
           message: |
             🚀 **PR deployed successfully!**
 
-            **Website:** https://staging${{ github.event.pull_request.number % 5 }}.${{ secrets.BASE_DOMAIN || 'staging.dev' }}
+            **Website:** Check deployment logs for the assigned staging URL (staging0-staging4.${{ secrets.BASE_DOMAIN || 'staging.dev' }})
 
             **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref || github.ref_name }}/
 
