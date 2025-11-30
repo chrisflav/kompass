@@ -178,13 +178,12 @@ jobs:
 
             if (hasLabel) {
               console.log('PR has awaiting-deployment label, triggering deployment');
-              await github.rest.actions.createWorkflowDispatch({
+              await github.rest.repos.createDispatchEvent({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                workflow_id: 'deploy-pr.yml',
-                ref: context.payload.repository.default_branch,
-                inputs: {
-                  pr_number: prNumber.toString()
+                event_type: 'deploy-pr',
+                client_payload: {
+                  pr_number: prNumber
                 }
               });
             } else {
