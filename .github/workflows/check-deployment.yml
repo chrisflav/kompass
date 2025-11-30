@@ -75,15 +75,3 @@ jobs:
               }
             });
             console.log('Deployment workflow triggered');
-
-      - name: Comment if deployment skipped
-        if: steps.check.outputs.should_deploy != 'true'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: deployment
-          message: |
-            ⏸️ **Deployment skipped**
-
-            Reason: ${{ steps.check.outputs.reason }}
-
-            The deployment will automatically start when the build workflow completes successfully.
