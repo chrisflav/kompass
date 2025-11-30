@@ -1,6 +1,7 @@
 from contrib.rules import memberize_user
 from rules import predicate
 
+
 @predicate
 @memberize_user
 def is_creator(self, message):

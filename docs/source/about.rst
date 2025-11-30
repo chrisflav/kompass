@@ -10,11 +10,11 @@ About
 
 .. rst-class:: lead
 
-.. attention:: 
+.. attention::
    Die Seite befindet sich noch im Aufbau.  --  The page is still under construction.
 
    (Stand: 08.01.2025)
 
 
 - About the kompass project
-- About this documentation 
+- About this documentation

@@ -1,9 +1,11 @@
-from django.test import TestCase
-from django.contrib.auth.models import User
-from django.conf import settings
 from unittest.mock import Mock
+
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.test import TestCase
 from logindata.oauth import CustomOAuth2Validator
-from members.models import Member, MALE
+from members.models import MALE
+from members.models import Member
 
 
 class CustomOAuth2ValidatorTestCase(TestCase):
@@ -13,8 +15,12 @@ class CustomOAuth2ValidatorTestCase(TestCase):
         # Create user with member
         self.user_with_member = User.objects.create_user(username="alice", password="test123")
         self.member = Member.objects.create(
-            prename="Alice", lastname="Smith", birth_date="1990-01-01",
-            email=settings.TEST_MAIL, gender=MALE, user=self.user_with_member
+            prename="Alice",
+            lastname="Smith",
+            birth_date="1990-01-01",
+            email=settings.TEST_MAIL,
+            gender=MALE,
+            user=self.user_with_member,
         )
 
         # Create user without member
@@ -27,8 +33,8 @@ class CustomOAuth2ValidatorTestCase(TestCase):
 
         result = self.validator.get_additional_claims(request)
 
-        self.assertEqual(result['email'], settings.TEST_MAIL)
-        self.assertEqual(result['preferred_username'], 'alice')
+        self.assertEqual(result["email"], settings.TEST_MAIL)
+        self.assertEqual(result["preferred_username"], "alice")
 
     def test_get_additional_claims_without_member(self):
         """Test get_additional_claims when user has no member"""

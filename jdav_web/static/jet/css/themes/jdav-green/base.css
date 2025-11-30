@@ -3,7 +3,7 @@
  * Customizable variables
  * Update these variable to create theme
  */
-/* 
+/*
  * Colors
  */
 /*
@@ -9759,17 +9759,17 @@ ul.actionlist li {
         text-transform: uppercase;
         vertical-align: middle;
         margin-bottom: 5px;
-  
+
         @include for-mobile {
           display: block;
           width: 100%;
         }
-  
+
         &:hover, &:focus {
           background-color: $button-hover-background-color;
           color: $button-hover-text-color;
         }
-  
+
         &:active {
           background-color: $button-active-background-color;
           color: $button-active-text-color;

@@ -1,12 +1,12 @@
-from django.contrib.auth import get_permission_codename
 import rules.contrib.admin
-import rules
+
 
 def memberize_user(func):
     def inner(user, other):
-        if not hasattr(user, 'member'):
+        if not hasattr(user, "member"):
             return False
         return func(user.member, other)
+
     return inner
 
 

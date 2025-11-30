@@ -1,7 +1,7 @@
-from members.models import Freizeit
 from contrib.rules import memberize_user
-from rules import predicate
+from members.models import Freizeit
 from members.rules import _is_leader
+from rules import predicate
 
 
 @predicate
@@ -16,7 +16,7 @@ def is_creator(self, statement):
 def not_submitted(self, statement):
     assert statement is not None
     if isinstance(statement, Freizeit):
-        if hasattr(statement, 'statement'):
+        if hasattr(statement, "statement"):
             return not statement.statement.submitted
         else:
             return True
@@ -29,7 +29,7 @@ def leads_excursion(self, statement):
     assert statement is not None
     if isinstance(statement, Freizeit):
         return _is_leader(self, statement)
-    if not hasattr(statement, 'excursion'):
+    if not hasattr(statement, "excursion"):
         return False
     if statement.excursion is None:
         return False

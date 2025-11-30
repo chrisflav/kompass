@@ -4,6 +4,6 @@ from . import views
 
 app_name = "mailer"
 urlpatterns = [
-    re_path(r'^$', views.index, name='index'),
-    re_path(r'^unsubscribe', views.unsubscribe, name='unsubscribe'),
+    re_path(r"^$", views.index, name="index"),
+    re_path(r"^unsubscribe", views.unsubscribe, name="unsubscribe"),
 ]
