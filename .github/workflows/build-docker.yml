@@ -21,6 +21,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -97,6 +98,22 @@ jobs:
           destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.ref_name }}
           keep_files: true
 
+      - name: Comment documentation link
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: deployment
+          message: |
+            📚 **Documentation deployed!**
+
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref || github.ref_name }}/
+
+            **Docker Images:**
+            - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
+            - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
+
+            ⏳ Deployment to staging in progress...
+
       - name: Run tests
         run: make test-only
 
@@ -147,6 +164,8 @@ jobs:
     needs: build
     if: github.event_name == 'pull_request'
     environment: deploy-web
+    permissions:
+      pull-requests: write
 
     steps:
       - name: Setup SSH
@@ -164,3 +183,18 @@ jobs:
         if: always()
         run: |
           rm -f ~/.ssh/deploy_key
+
+      - name: Comment deployment and documentation links
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: deployment
+          message: |
+            🚀 **PR deployed successfully!**
+
+            **Website:** https://staging${{ github.event.pull_request.number % 5 }}.${{ secrets.BASE_DOMAIN || 'staging.dev' }}
+
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref || github.ref_name }}/
+
+            **Docker Images:**
+            - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
+            - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
