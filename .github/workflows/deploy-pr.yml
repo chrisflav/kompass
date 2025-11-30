@@ -1,0 +1,82 @@
+name: Deploy PR to Remote Server
+
+on:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: deploy-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  APP_IMAGE_NAME: ${{ github.repository }}
+  NGINX_IMAGE_NAME: ${{ github.repository }}-nginx
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'awaiting-deployment'
+    environment: deploy-web
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Wait for build workflow to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'build'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to remote server
+        id: deploy
+        run: |
+          OUTPUT=$(ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} ${{ github.event.pull_request.number }})
+          echo "$OUTPUT"
+          DEPLOY_URL=$(echo "$OUTPUT" | tail -n 1)
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+
+      - name: Cleanup SSH
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+
+      - name: Comment deployment and documentation links
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: deployment
+          message: |
+            🚀 **PR deployed successfully!**
+
+            **Website:** ${{ steps.deploy.outputs.url }}
+
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.event.pull_request.head.ref }}/
+
+            **Docker Images:**
+            - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
+            - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
+
+      - name: Remove awaiting-deployment label
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ github.event.pull_request.number }},
+                name: 'awaiting-deployment'
+              });
+            } catch (error) {
+              console.log('Label may have already been removed');
+            }

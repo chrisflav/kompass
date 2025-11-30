@@ -16,11 +16,12 @@ env:
   NGINX_IMAGE_NAME: ${{ github.repository }}-nginx
 
 jobs:
-  build-test-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -32,7 +33,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -47,7 +47,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix={{branch}}-,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Extract metadata for nginx image
@@ -58,7 +58,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha,prefix={{branch}}-,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build application image
@@ -95,8 +95,24 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs-output
-          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.ref_name }}
+          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || github.head_ref || github.ref_name }}
           keep_files: true
+
+      - name: Comment documentation link
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: deployment
+          message: |
+            📚 **Documentation deployed!**
+
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref }}/
+
+            **Docker Images:**
+            - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
+            - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}`
+
+            Add the `awaiting-deployment` label to deploy this PR to a staging server.
 
       - name: Run tests
         run: make test-only
@@ -111,7 +127,6 @@ jobs:
           fi
 
       - name: Tag and push application image
-        if: github.event_name != 'pull_request'
         run: |
           # Tag the built image with all required tags
           echo "${{ steps.meta-app.outputs.tags }}" | while read -r tag; do
@@ -120,7 +135,6 @@ jobs:
           done
 
       - name: Build and push nginx image
-        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
         with:
           context: docker/production/nginx
@@ -138,7 +152,6 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
 
       - name: Output image tags
-        if: github.event_name != 'pull_request'
         run: |
           echo "Application image tags:"
           echo "${{ steps.meta-app.outputs.tags }}"

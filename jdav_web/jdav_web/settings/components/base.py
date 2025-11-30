@@ -142,7 +142,7 @@ DEFAULT_STATIC_PATH = get_var("django", "default_static_path", default="/app/jda
 LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
 
 # Celery and Redis setup
-BROKER_URL = get_var("django", "broker_url", default="redis://localhost:6379/0")
+BROKER_URL = get_var("django", "broker_url", default="redis://redis:6379/0")
 
 # password hash algorithms used
 

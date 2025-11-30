@@ -1,0 +1,62 @@
+x-kompass:
+    &kompass
+    image: ghcr.io/chrisflav/kompass:latest
+    env_file: docker.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=jdav_web.settings
+      - KOMPASS_CONFIG_DIR_PATH=/app/config/
+    restart: always
+    depends_on:
+      - db
+      - redis
+      - cache
+
+services:
+    master:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-master.sh
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/app/static/
+          - web_static:/var/www/jdav_web/static/
+          - ./config:/app/config:ro
+
+    nginx:
+        image: ghcr.io/chrisflav/kompass-nginx:latest
+        restart: always
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/var/www/jdav_web/static/:ro
+        ports:
+          - "3000:80"
+        depends_on:
+          - master
+
+    db:
+        restart: always
+        image: mariadb:latest
+        env_file: docker.env
+
+    cache:
+        restart: always
+        image: memcached:alpine
+
+    redis:
+        restart: always
+        image: redis:6-alpine
+
+    celery_worker:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-celery-worker.sh
+        volumes:
+          - ./config:/app/config:ro
+
+    celery_beat:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-celery-beat.sh
+        volumes:
+          - ./config:/app/config:ro
+
+volumes:
+  uwsgi_data:
+  web_static:
