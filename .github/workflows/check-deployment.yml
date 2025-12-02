@@ -22,13 +22,13 @@ jobs:
             const prNumber = context.payload.pull_request.number;
             const headSha = context.payload.pull_request.head.sha;
 
-            // Get workflow runs for the build workflow
+            // Get workflow runs for the build workflow (get more runs to filter out cancelled ones)
             const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'build-docker.yml',
               head_sha: headSha,
-              per_page: 1
+              per_page: 10
             });
 
             if (runs.total_count === 0) {
@@ -38,7 +38,16 @@ jobs:
               return;
             }
 
-            const buildRun = runs.workflow_runs[0];
+            // Find the most recent non-cancelled workflow run
+            const buildRun = runs.workflow_runs.find(run => run.conclusion !== 'cancelled');
+
+            if (!buildRun) {
+              console.log('No non-cancelled build workflow found for this commit');
+              core.setOutput('should_deploy', 'false');
+              core.setOutput('reason', 'No non-cancelled build workflow found');
+              return;
+            }
+
             console.log(`Build workflow status: ${buildRun.status}, conclusion: ${buildRun.conclusion}`);
 
             // Check if build is still running
