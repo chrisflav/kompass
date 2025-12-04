@@ -254,7 +254,32 @@ class Member(Person):
             return self.filter_excursions_by_permissions(queryset, annotate)
         elif name == "MemberWaitingList":
             return self.filter_waiters_by_permissions(queryset, annotate)
-        return queryset
+        elif name == "LJPProposal":
+            return queryset
+        elif name == "MemberTraining":
+            return queryset
+        elif name == "NewMemberOnList":
+            return queryset
+        elif name == "Statement":
+            return queryset
+        elif name == "BillOnExcursionProxy":
+            return queryset
+        elif name == "Intervention":
+            return queryset
+        elif name == "BillOnStatementProxy":
+            return queryset
+        elif name == "Attachment":
+            return queryset
+        elif name == "Group":
+            return queryset
+        elif name == "EmergencyContact":
+            return queryset
+        elif name == "MemberUnconfirmedProxy":
+            return queryset
+        elif name == "InvitationToGroup":
+            return queryset
+        else:
+            raise ValueError(name)
 
     def filter_members_by_permissions(self, queryset, annotate=False):
         pks = [self.pk]
