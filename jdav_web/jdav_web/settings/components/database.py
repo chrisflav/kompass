@@ -6,10 +6,10 @@
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": get_var("database", "database", default="jdav_db"),
-        "USER": get_var("database", "user", default="user"),
+        "NAME": get_var("database", "database", default="kompass"),
+        "USER": get_var("database", "user", default="kompass"),
         "PASSWORD": get_var("database", "password", default="secret"),
-        "HOST": get_var("database", "host", default="127.0.0.1"),
-        "PORT": get_var("database", "port", default=5432),
+        "HOST": get_var("database", "host", default="db"),
+        "PORT": get_var("database", "port", default=3306),
     }
 }
