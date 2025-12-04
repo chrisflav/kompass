@@ -250,24 +250,6 @@ class Member(Person):
         return groupstring
     get_group.short_description = _('Group')
 
-    class Meta(CommonModel.Meta):
-        verbose_name = _('member')
-        verbose_name_plural = _('members')
-        permissions = (
-            ('may_see_qualities', 'Is allowed to see the quality overview'),
-            ('may_set_auth_user', 'Is allowed to set auth user member connections.'),
-            ('may_change_member_group', 'Can change the group field'),
-            ('may_invite_as_user', 'Is allowed to invite a member to set login data.'),
-            ('may_change_organizationals', 'Is allowed to set organizational settings on members.'),
-        )
-        rules_permissions = {
-            'members': rules.always_allow,
-            'add_obj': has_global_perm('members.add_global_member'),
-            'view_obj': may_view | has_global_perm('members.view_global_member'),
-            'change_obj': may_change | has_global_perm('members.change_global_member'),
-            'delete_obj': may_delete | has_global_perm('members.delete_global_member'),
-        }
-
     def get_skills(self):
         # get skills by summing up all the activities taken part in
         skills = {}
