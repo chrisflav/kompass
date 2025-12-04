@@ -31,8 +31,10 @@ class MemberManager(models.Manager):
 
 
 class Member(Person):
-    """Represents a member of the association."""
-    
+    """
+    Represents a member of the association
+    Might be a member of different groups: e.g. J1, J2, Jugendleiter, etc.
+    """
     alternative_email = models.EmailField(max_length=100, default=None, blank=True, null=True)
     confirmed_alternative_mail = models.BooleanField(default=True,
         verbose_name=_('Alternative email confirmed'))
@@ -130,12 +132,14 @@ class Member(Person):
         return [('email', 'confirmed_mail', 'confirm_mail_key'),
                 ('alternative_email', 'confirmed_alternative_mail', 'confirm_alternative_mail_key')]
 
-    @property 
+    @property
     def place(self):
+        """Returning the whole place (plz + town)"""
         return "{0} {1}".format(self.plz, self.town)
     
     @property
     def ticket_tag(self):
+        """Returning the ticket number stripped of strings and spaces"""
         return "{" + ''.join(re.findall(r'\d', self.ticket_no)) + "}"
 
     @property
@@ -144,17 +148,20 @@ class Member(Person):
     
     @property
     def address(self):
+        """Returning the whole address"""
         if not self.street and not self.town and not self.plz:
             return "---"
         return "{0}, {1}".format(self.street, self.place)
         
     @property
     def address_multiline(self):
+        """Returning the whole address with a linebreak between street and town"""
         if not self.street and not self.town and not self.plz:
             return "---"
         return "{0},\\linebreak[1] {1}".format(self.street, self.place)
 
     def good_conduct_certificate_valid(self):
+        """Returns if a good conduct certificate is still valid, depending on the last presentation."""
         if not self.good_conduct_certificate_presented_date:
             return False
         delta = datetime.now().date() - self.good_conduct_certificate_presented_date
@@ -204,32 +211,65 @@ class Member(Person):
 
     @property
     def contact_phone_number(self):
-        return str(self.phone_number) if self.phone_number else "---"
+        """Synonym for phone number field."""
+        if self.phone_number:
+            return str(self.phone_number)
+        else:
+            return "---"
 
     @property
     def contact_email(self):
+        """A synonym for the email field."""
         return self.email
 
     @property
     def username(self):
-        return self.user.username if self.user else self.suggested_username()
+        """Return the username. Either this the name of the linked user, or
+        it is the suggested username."""
+        if not self.user:
+            return self.suggested_username()
+        else:
+            return self.user.username
 
     @property
     def association_email(self):
+        """Returning the association email of the member"""
         return "{username}@{domain}".format(username=self.username, domain=settings.DOMAIN)
 
     def registration_complete(self):
+        """Check if all necessary fields are set."""
+        # TODO: implement a proper predicate here
         return True
     registration_complete.boolean = True
     registration_complete.short_description = _('Registration complete')
 
     def get_group(self):
+        """Returns a string of groups in which the member is."""
         groupstring = ''.join(g.name + ',\n' for g in self.group.all())
         groupstring = groupstring[:-2]
         return groupstring
     get_group.short_description = _('Group')
 
+    class Meta(CommonModel.Meta):
+        verbose_name = _('member')
+        verbose_name_plural = _('members')
+        permissions = (
+            ('may_see_qualities', 'Is allowed to see the quality overview'),
+            ('may_set_auth_user', 'Is allowed to set auth user member connections.'),
+            ('may_change_member_group', 'Can change the group field'),
+            ('may_invite_as_user', 'Is allowed to invite a member to set login data.'),
+            ('may_change_organizationals', 'Is allowed to set organizational settings on members.'),
+        )
+        rules_permissions = {
+            'members': rules.always_allow,
+            'add_obj': has_global_perm('members.add_global_member'),
+            'view_obj': may_view | has_global_perm('members.view_global_member'),
+            'change_obj': may_change | has_global_perm('members.change_global_member'),
+            'delete_obj': may_delete | has_global_perm('members.delete_global_member'),
+        }
+
     def get_skills(self):
+        # get skills by summing up all the activities taken part in
         skills = {}
         for kind in ActivityCategory.objects.all():
             lists = Freizeit.objects.filter(activity=kind, membersonlist__member=self)
@@ -237,9 +277,102 @@ class Member(Person):
         return skills
 
     def get_activities(self):
+        # get activity overview
         return Freizeit.objects.filter(membersonlist__member=self)
 
-    def filter_queryset_by_permissions(self, queryset=None, annotate=False, model=None):
+    def generate_upload_registration_form_key(self):
+        self.upload_registration_form_key = uuid.uuid4().hex
+        self.save()
+
+    def create_from_registration(self, waiter, group):
+        """Given a member, a corresponding waiting-list object and a group, this completes
+        the registration and requests email confirmations if necessary.
+        Returns if any mail confirmation requests have been sent out."""
+        self.group.add(group)
+        self.confirmed = False
+        if waiter:
+            if self.email == waiter.email:
+                self.confirmed_mail = waiter.confirmed_mail
+                self.confirm_mail_key = waiter.confirm_mail_key
+            # store waitinglist application date in member, this will be used
+            # if the member is later demoted to waiter again
+            self.waitinglist_application_date = waiter.application_date
+        if self.alternative_email:
+            self.confirmed_alternative_mail = False
+        self.upload_registration_form_key = uuid.uuid4().hex
+        self.save()
+
+        if self.registration_ready():
+            self.notify_jugendleiters_about_confirmed_mail()
+        if waiter:
+            waiter.delete()
+        return self.request_mail_confirmation(rerequest=False)
+
+    def registration_form_uploaded(self):
+        print(self.registration_form.name)
+        return not self.registration_form.name is None and self.registration_form.name != ""
+    registration_form_uploaded.boolean = True
+    registration_form_uploaded.short_description = _('Registration form')
+
+    def registration_ready(self):
+        """Returns if the member is currently unconfirmed and all email addresses
+        are confirmed."""
+        return not self.confirmed and self.confirmed_alternative_mail and self.confirmed_mail\
+                and self.registration_form
+
+    def confirm_mail(self, key):
+        ret = super().confirm_mail(key)
+        if self.registration_ready():
+            self.notify_jugendleiters_about_confirmed_mail()
+        return ret
+
+    def validate_registration_form(self):
+        self.upload_registration_form_key = ''
+        self.save()
+        if self.registration_ready():
+            self.notify_jugendleiters_about_confirmed_mail()
+
+    def get_upload_registration_form_link(self):
+        return prepend_base_url(reverse('members:upload_registration_form') + "?key="\
+            + self.upload_registration_form_key)
+
+    def send_upload_registration_form_link(self):
+        if not self.upload_registration_form_key:
+            return
+        link = self.get_upload_registration_form_link()
+        self.send_mail(_('Upload registration form'),
+                       settings.UPLOAD_REGISTRATION_FORM_TEXT.format(name=self.prename,
+                                                                     link=link))
+
+    def request_registration_form(self):
+        """Ask the member to upload a registration form via email."""
+        self.generate_upload_registration_form_key()
+        self.send_upload_registration_form_link()
+
+    def notify_jugendleiters_about_confirmed_mail(self):
+        group = ", ".join([g.name for g in self.group.all()])
+        # notify jugendleiters of group of registration
+        jls = [jl for group in self.group.all() for jl in group.leiters.all()]
+        for jl in jls:
+            link = prepend_base_url(reverse('admin:members_memberunconfirmedproxy_change',
+                                            args=[str(self.id)]))
+            send_mail(_('New unconfirmed registration for group %(group)s') % {'group': group},
+                      settings.NEW_UNCONFIRMED_REGISTRATION.format(name=jl.prename,
+                                                                   group=group,
+                                                                   link=link),
+                      settings.DEFAULT_SENDING_MAIL,
+                      jl.email)
+
+    def filter_queryset_by_permissions(self, queryset=None, annotate=False, model=None): # pragma: no cover
+        """
+        Filter the given queryset of objects of type `model` by the permissions of `self`.
+        For example, only returns `Message`s created by `self`.
+
+        This method is used by the `FilteredMemberFieldMixin` to filter the selection
+        in `ForeignKey` and `ManyToMany` fields.
+        """
+        # This method is not used by all models listed below, so covering all cases in tests
+        # is hard and not useful. It is therefore exempt from testing.
         name = model._meta.object_name
         if queryset is None:
             queryset = Member.objects.all()
@@ -261,7 +394,9 @@ class Member(Person):
         elif name == "NewMemberOnList":
             return queryset
         elif name == "Statement":
-            return queryset
+            return self.filter_statements_by_permissions(queryset, annotate)
+        elif name == "StatementOnExcursionProxy":
+            return self.filter_statements_by_permissions(queryset, annotate)
         elif name == "BillOnExcursionProxy":
             return queryset
         elif name == "Intervention":
@@ -282,36 +417,42 @@ class Member(Person):
             raise ValueError(name)
 
     def filter_members_by_permissions(self, queryset, annotate=False):
+        #mems = Member.objects.all().prefetch_related('group')
+
+        #list_pks = [ m.pk for m in mems if self.may_list(m) ]
+        #view_pks = [ m.pk for m in mems if self.may_view(m) ]
+
+        ## every member may list themself
         pks = [self.pk]
         view_pks = [self.pk]
 
+
         if hasattr(self, 'permissions'):
-            pks += [m.pk for m in self.permissions.list_members.all()]
-            view_pks += [m.pk for m in self.permissions.view_members.all()]
-            
+            pks += [ m.pk for m in self.permissions.list_members.all() ]
+            view_pks += [ m.pk for m in self.permissions.view_members.all() ]
+
             for group in self.permissions.list_groups.all():
-                pks += [m.pk for m in group.member_set.all()]
+                pks += [ m.pk for m in group.member_set.all() ]
+
             for group in self.permissions.view_groups.all():
-                view_pks += [m.pk for m in group.member_set.all()]
+                view_pks += [ m.pk for m in group.member_set.all() ]
 
         for group in self.group.all():
             if hasattr(group, 'permissions'):
-                pks += [m.pk for m in group.permissions.list_members.all()]
-                view_pks += [m.pk for m in group.permissions.view_members.all()]
-                
+                pks += [ m.pk for m in group.permissions.list_members.all() ]
+                view_pks += [ m.pk for m in group.permissions.view_members.all() ]
+
                 for gr in group.permissions.list_groups.all():
-                    pks += [m.pk for m in gr.member_set.all()]
+                    pks += [ m.pk for m in gr.member_set.all()]
+
                 for gr in group.permissions.view_groups.all():
-                    view_pks += [m.pk for m in gr.member_set.all()]
+                    view_pks += [ m.pk for m in gr.member_set.all()]
 
         filtered = queryset.filter(pk__in=pks)
         if not annotate:
             return filtered
 
-        return filtered.annotate(_viewable=Case(
-            When(pk__in=view_pks, then=Value(True)), 
-            default=Value(False),
-            output_field=models.BooleanField()))
+        return filtered.annotate(_viewable=Case(When(pk__in=view_pks, then=Value(True)), default=Value(False), output_field=models.BooleanField()))
 
     def annotate_view_permission(self, queryset, model):
         name = model._meta.object_name
@@ -336,16 +477,24 @@ class Member(Person):
 
 
     def filter_messages_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
         return queryset.filter(created_by=self)
 
     def filter_statements_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
         return queryset.filter(Q(created_by=self) | Q(excursion__jugendleiter=self))
 
     def filter_excursions_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
         groups = self.leited_groups.all()
-        return queryset.filter(Q(groups__in=groups) | Q(jugendleiter=self)).distinct()
+        # one may view all excursions by leited groups and leited excursions
+        queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter=self)).distinct()
+        return queryset
 
     def filter_waiters_by_permissions(self, queryset, annotate=False):
+        # ignores annotate
+        # return waiters that have a pending, expired or rejected group invitation for a group
+        # led by the member
         return queryset.filter(invitationtogroup__group__leiters=self)
 
     def may_list(self, other):
@@ -355,6 +504,7 @@ class Member(Person):
         if hasattr(self, 'permissions'):
             if other in self.permissions.list_members.all():
                 return True
+
             if any([gr in other.group.all() for gr in self.permissions.list_groups.all()]):
                 return True
 
@@ -362,6 +512,7 @@ class Member(Person):
             if hasattr(group, 'permissions'):
                 if other in group.permissions.list_members.all():
                     return True
+
                 if any([gr in other.group.all() for gr in group.permissions.list_groups.all()]):
                     return True
 
@@ -374,6 +525,7 @@ class Member(Person):
         if hasattr(self, 'permissions'):
             if other in self.permissions.view_members.all():
                 return True
+
             if any([gr in other.group.all() for gr in self.permissions.view_groups.all()]):
                 return True
 
@@ -381,6 +533,7 @@ class Member(Person):
             if hasattr(group, 'permissions'):
                 if other in group.permissions.view_members.all():
                     return True
+
                 if any([gr in other.group.all() for gr in group.permissions.view_groups.all()]):
                     return True
 
@@ -393,6 +546,7 @@ class Member(Person):
         if hasattr(self, 'permissions'):
             if other in self.permissions.change_members.all():
                 return True
+
             if any([gr in other.group.all() for gr in self.permissions.change_groups.all()]):
                 return True
 
@@ -400,6 +554,7 @@ class Member(Person):
             if hasattr(group, 'permissions'):
                 if other in group.permissions.change_members.all():
                     return True
+
                 if any([gr in other.group.all() for gr in group.permissions.change_groups.all()]):
                     return True
 
@@ -412,6 +567,7 @@ class Member(Person):
         if hasattr(self, 'permissions'):
             if other in self.permissions.delete_members.all():
                 return True
+
             if any([gr in other.group.all() for gr in self.permissions.delete_groups.all()]):
                 return True
 
@@ -419,16 +575,19 @@ class Member(Person):
             if hasattr(group, 'permissions'):
                 if other in group.permissions.delete_members.all():
                     return True
+
                 if any([gr in other.group.all() for gr in group.permissions.delete_groups.all()]):
                     return True
 
         return False
 
     def suggested_username(self):
+        """Returns a suggested username given by {prename}.{lastname}."""
         raw = "{0}.{1}".format(self.prename.lower(), self.lastname.lower())
         return normalize_name(raw)
 
     def has_internal_email(self):
+        """Returns if the configured e-mail address is a DAV360 email address."""
         match = re.match('(^[^@]*)@(.*)$', self.email)
         if not match:
             return False
@@ -436,100 +595,42 @@ class Member(Person):
             "*" in settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER
 
     def invite_as_user(self):
-        if not self.has_internal_email() or self.user:
+        """Invites the member to join Kompass as a user."""
+        if not self.has_internal_email():
+            # dont invite if the email address is not an internal one
+            return False
+        if self.user:
+            # don't reinvite if there is already userdata attached
             return False
         self.invite_as_user_key = uuid.uuid4().hex
         self.save()
         self.send_mail(_('Set login data for Kompass'),
-                       settings.INVITE_AS_USER_TEXT.format(
-                           name=self.prename,
-                           link=get_invite_as_user_key(self.invite_as_user_key)))
+                       settings.INVITE_AS_USER_TEXT.format(name=self.prename,
+                                                           link=get_invite_as_user_key(self.invite_as_user_key)))
         return True
 
     def led_groups(self):
+        """Returns a queryset of groups that this member is a youth leader of."""
         return Group.objects.filter(leiters__pk=self.pk)
 
     def led_freizeiten(self, limit=5):
+        """Returns a queryset of freizeiten that this member is a youth leader of."""
         return Freizeit.objects.filter(jugendleiter__pk=self.pk)[:limit]
 
-    def generate_upload_registration_form_key(self):
-        self.upload_registration_form_key = uuid.uuid4().hex
-        self.save()
-
-    def create_from_registration(self, waiter, group):
-        self.group.add(group)
-        self.confirmed = False
-        if waiter:
-            if self.email == waiter.email:
-                self.confirmed_mail = waiter.confirmed_mail
-                self.confirm_mail_key = waiter.confirm_mail_key
-            self.waitinglist_application_date = waiter.application_date
-        if self.alternative_email:
-            self.confirmed_alternative_mail = False
-        self.upload_registration_form_key = uuid.uuid4().hex
-        self.save()
-
-        if self.registration_ready():
-            self.notify_jugendleiters_about_confirmed_mail()
-        if waiter:
-            waiter.delete()
-        return self.request_mail_confirmation(rerequest=False)
-
-    def registration_form_uploaded(self):
-        return bool(self.registration_form.name)
-    registration_form_uploaded.boolean = True
-    registration_form_uploaded.short_description = _('Registration form')
-
-    def registration_ready(self):
-        return not self.confirmed and self.confirmed_alternative_mail and\
-               self.confirmed_mail and self.registration_form
-
-    def validate_registration_form(self):
-        self.upload_registration_form_key = ''
-        self.save()
-        if self.registration_ready():
-            self.notify_jugendleiters_about_confirmed_mail()
-
-    def get_upload_registration_form_link(self):
-        return prepend_base_url(reverse('members:upload_registration_form') +\
-               "?key=" + self.upload_registration_form_key)
-
-    def send_upload_registration_form_link(self):
-        if not self.upload_registration_form_key:
-            return
-        link = self.get_upload_registration_form_link()
-        self.send_mail(_('Upload registration form'),
-                       settings.UPLOAD_REGISTRATION_FORM_TEXT.format(
-                           name=self.prename, link=link))
-
-    def request_registration_form(self):
-        """Ask the member to upload a registration form via email."""
-        self.generate_upload_registration_form_key()
-        self.send_upload_registration_form_link()
-
-    def notify_jugendleiters_about_confirmed_mail(self):
-        group = ", ".join([g.name for g in self.group.all()])
-        jls = [jl for group in self.group.all() for jl in group.leiters.all()]
-        for jl in jls:
-            link = prepend_base_url(reverse('admin:members_memberunconfirmedproxy_change',
-                                            args=[str(self.id)]))
-            send_mail(_('New unconfirmed registration for group %(group)s') % {'group': group},
-                      settings.NEW_UNCONFIRMED_REGISTRATION.format(
-                          name=jl.prename, group=group, link=link),
-                      settings.DEFAULT_SENDING_MAIL,
-                      jl.email)
-
     def demote_to_waiter(self):
-        waiter = MemberWaitingList(
-            prename=self.prename,
-            lastname=self.lastname,
-            email=self.email,
-            birth_date=self.birth_date,
-            gender=self.gender,
-            comments=self.comments,
-            confirmed_mail=self.confirmed_mail,
-            confirm_mail_key=self.confirm_mail_key)
+        """Demote this member to a waiter by creating a waiter from the data and removing
+        this member."""
+        waiter = MemberWaitingList(prename=self.prename,
+                                   lastname=self.lastname,
+                                   email=self.email,
+                                   birth_date=self.birth_date,
+                                   gender=self.gender,
+                                   comments=self.comments,
+                                   confirmed_mail=self.confirmed_mail,
+                                   confirm_mail_key=self.confirm_mail_key)
+        # if this member was created from the waitinglist, keep the original application date
         if self.waitinglist_application_date:
             waiter.application_date = self.waitinglist_application_date
         waiter.save()
         self.delete()
+

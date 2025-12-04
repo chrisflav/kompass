@@ -6,8 +6,11 @@ from mailer.mailutils import prepend_base_url
 from .constants import WEEKDAYS
 
 class Group(models.Model):
-    """Represents one group of the association e.g: J1, J2, Jugendleiter, etc."""
-    name = models.CharField(max_length=50, verbose_name=_('name'))
+    """
+    Represents one group of the association
+    e.g: J1, J2, Jugendleiter, etc.
+    """
+    name = models.CharField(max_length=50, verbose_name=_('name'))  # e.g: J1
     description = models.TextField(verbose_name=_('description'), default='', blank=True)
     show_website = models.BooleanField(verbose_name=_('show on website'), default=False)
     year_from = models.IntegerField(verbose_name=_('lowest year'), default=2010)
@@ -23,28 +26,31 @@ class Group(models.Model):
                                       blank=True,
                                       on_delete=models.SET_NULL)
 
+    def __str__(self):
+        """String representation"""
+        return self.name
+
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
-
-    def __str__(self):
-        return self.name
-
+        
     @property
     def sorted_members(self):
+        """Returns the members of this group sorted by their last name."""
         return self.member_set.all().order_by('lastname')
 
     def has_time_info(self):
-        return self.weekday is not None and self.start_time is not None and self.end_time is not None
+        # return if the group has all relevant time slot information filled
+        return self.weekday and self.start_time and self.end_time
 
     def get_time_info(self):
         if self.has_time_info():
-            return settings.GROUP_TIME_AVAILABLE_TEXT.format(
-                weekday=WEEKDAYS[self.weekday][1],
-                start_time=self.start_time.strftime('%H:%M'),
-                end_time=self.end_time.strftime('%H:%M'))
-        return ""
-
+            return settings.GROUP_TIME_AVAILABLE_TEXT.format(weekday=WEEKDAYS[self.weekday][1],
+                                                             start_time=self.start_time.strftime('%H:%M'),
+                                                             end_time=self.end_time.strftime('%H:%M'))
+        else:
+            return ""
+    
     def has_age_info(self):
         return self.year_from and self.year_to
     
@@ -54,26 +60,24 @@ class Group(models.Model):
         return ""
 
     def get_invitation_text_template(self):
+        """The text template used to invite waiters to this group. This contains
+        placeholders for the name of the waiter and personalized links."""
         if self.show_website:
-            group_link = '({url}) '.format(
-                url=prepend_base_url(reverse('startpage:gruppe_detail', args=[self.name])))
+            group_link = '({url}) '.format(url=prepend_base_url(reverse('startpage:gruppe_detail', args=[self.name])))
         else:
             group_link = ''
-
         if self.has_time_info():
             group_time = self.get_time_info()
         else:
-            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(
-                contact_email=self.contact_email)
-
+            group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(contact_email=self.contact_email)
         if self.has_age_info():
             group_age = self.get_age_info()
         else:
             group_age = _("no information available")
 
-        return settings.INVITE_TEXT.format(
-            group_time=group_time,
-            group_name=self.name,
-            group_age=group_age,
-            group_link=group_link,
-            contact_email=self.contact_email)
+        return settings.INVITE_TEXT.format(group_time=group_time,
+                                           group_name=self.name,
+                                           group_age=group_age,
+                                           group_link=group_link,
+                                           contact_email=self.contact_email)
+

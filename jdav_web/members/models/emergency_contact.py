@@ -4,10 +4,13 @@ from contrib.models import CommonModel
 from members.rules import may_view, may_change, may_delete
 from contrib.rules import has_global_perm
 from .base import ContactWithPhoneNumber
+from .member import Member
 
 class EmergencyContact(ContactWithPhoneNumber):
-    """Emergency contact of a member"""
-    member = models.ForeignKey('Member', verbose_name=_('Member'), on_delete=models.CASCADE)
+    """
+    Emergency contact of a member
+    """
+    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
     email = models.EmailField(max_length=100, default='', blank=True)
 
     def __str__(self):

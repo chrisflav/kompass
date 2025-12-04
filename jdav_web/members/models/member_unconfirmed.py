@@ -9,7 +9,7 @@ class MemberUnconfirmedManager(models.Manager):
         return super().get_queryset().filter(confirmed=False)
 
 class MemberUnconfirmedProxy(Member):
-    """Proxy to show unconfirmed members separately in admin"""
+    """Proxy to show unconfirmed members seperately in admin"""
     objects = MemberUnconfirmedManager()
 
     class Meta:
@@ -24,4 +24,5 @@ class MemberUnconfirmedProxy(Member):
         }
 
     def __str__(self):
+        """String representation"""
         return self.name

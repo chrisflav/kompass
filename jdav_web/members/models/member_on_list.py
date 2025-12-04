@@ -7,7 +7,9 @@ from members.rules import is_leader
 from contrib.rules import has_global_perm
 
 class NewMemberOnList(CommonModel):
-    """Connects members to a list of members."""
+    """
+    Connects members to a list of members.
+    """
     member = models.ForeignKey('Member', verbose_name=_('Member'), on_delete=models.CASCADE)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE,
                                      default=ContentType('members', 'Freizeit').pk)

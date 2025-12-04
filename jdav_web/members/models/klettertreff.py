@@ -1,29 +1,42 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime
+from .member import Member
+from .group import Group
 
 class Klettertreff(models.Model):
-    """This model represents a Klettertreff event."""
+    """ This model represents a Klettertreff event.
+
+    A Klettertreff can take a date, location, Jugendleiter, attending members
+    as input.
+    """
     date = models.DateField(_('Date'), default=datetime.today)
     location = models.CharField(_('Location'), default='', max_length=60)
     topic = models.CharField(_('Topic'), default='', max_length=60)
-    jugendleiter = models.ManyToManyField('Member')
-    group = models.ForeignKey('Group', default='', verbose_name=_('Group'), on_delete=models.CASCADE)
+    jugendleiter = models.ManyToManyField(Member)
+    group = models.ForeignKey(Group, default='', verbose_name=_('Group'), on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.location} {self.date:%d.%m.%Y}"
+        return self.location + ' ' + self.date.strftime('%d.%m.%Y')
 
     def get_jugendleiter(self):
-        return ', '.join(j.name for j in self.jugendleiter.all())
-    get_jugendleiter.short_description = _('Jugendleiter')
+        jl_string = ', '.join(j.name for j in self.jugendleiter.all())
+        return jl_string
 
     def has_attendee(self, member):
-        return KlettertreffAttendee.objects.filter(
-            member__id__contains=member.id,
-            klettertreff__id__contains=self.id).exists()
+        queryset = KlettertreffAttendee.objects.filter(
+                member__id__contains=member.id,
+                klettertreff__id__contains=self.id)
+        if queryset:
+            return True
+        return False
 
     def has_jugendleiter(self, jugendleiter):
-        return jugendleiter in self.jugendleiter.all()
+        if jugendleiter in self.jugendleiter.all():
+            return True
+        return False
+
+    get_jugendleiter.short_description = _('Jugendleiter')
 
     class Meta:
         verbose_name = _('Klettertreff')
@@ -31,7 +44,7 @@ class Klettertreff(models.Model):
 
 class KlettertreffAttendee(models.Model):
     """Connects members to Klettertreffs."""
-    member = models.ForeignKey('Member', verbose_name=_('Member'), on_delete=models.CASCADE)
+    member = models.ForeignKey(Member, verbose_name=_('Member'), on_delete=models.CASCADE)
     klettertreff = models.ForeignKey(Klettertreff, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -40,3 +53,4 @@ class KlettertreffAttendee(models.Model):
     class Meta:
         verbose_name = _('Member')
         verbose_name_plural = _('Members')
+
