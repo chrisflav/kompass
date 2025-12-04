@@ -278,6 +278,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 continue
             member.send_mail(_("Echo required"),
                 settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)))
+            
+            member.log_admin_action(
+                user=request.user,
+                message=_("Requested echo.")
+                )
+            
         messages.success(request, _("Successfully requested echo from selected members."))
     request_echo.short_description = _('Request echo from selected members')
 
@@ -285,10 +291,15 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         failures = []
         for member in queryset:
             success = member.invite_as_user()
+            
+                
             if not success:
                 failures.append(member)
                 messages.error(request,
                                _('%(name)s does not have a DAV360 email address or is already registered.') % {'name': member.name})
+            else:
+                member.log_admin_action(user=request.user, message=_("Invited as user."))
+                
         if queryset.count() == 1 and len(failures) == 0:
             messages.success(request, _('Successfully invited %(name)s as user.') % {'name': queryset[0].name})
         elif len(failures) == 0:
@@ -481,6 +492,13 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
     def request_required_mail_confirmation(self, request, queryset):
         for member in queryset:
             member.request_mail_confirmation(rerequest=False)
+            
+            member.log_admin_action(
+                user=request.user,
+                model_cls=MemberUnconfirmedProxy,
+                message=_("Re-requested missing mail confirmation.")
+            )
+            
         messages.success(request, _("Successfully re-requested missing mail confirmations from selected registrations."))
     request_required_mail_confirmation.short_description = _('Re-request missing mail confirmations from selected registrations.')
 
@@ -661,6 +679,12 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             waiter.ask_for_wait_confirmation()
             messages.success(request,
                     _("Successfully asked %(name)s to confirm their waiting status.") % {'name': waiter.name})
+            
+            waiter.log_admin_action(
+                user=request.user,
+                message=_("Asked to confirm their waiting status.")
+            )
+            
     ask_for_wait_confirmation.short_description = _('Ask selected waiters to confirm their waiting status')
     ask_for_wait_confirmation.allowed_permissions = ('action',)
 
@@ -675,6 +699,9 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     def request_mail_confirmation(self, request, queryset):
         for member in queryset:
             member.request_mail_confirmation()
+            
+            member.log_admin_action(user=request.user, message=_("Requested mail confirmation."))
+            
         messages.success(request, _("Successfully requested mail confirmation from selected waiters."))
     request_mail_confirmation.short_description = _('Request mail confirmation from selected waiters.')
     request_mail_confirmation.allowed_permissions = ('action',)
@@ -779,6 +806,12 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
             for w in queryset:
                 w.invite_to_group(group, text_template=text_template,
                                   creator=request.user.member if hasattr(request.user, 'member') else None)
+                
+                w.log_admin_action(
+                    user=request.user,
+                    message=_("Invited to group %(group)s.") % {'group': group.name}
+                )
+                
                 messages.success(request,
                         _("Successfully invited %(name)s to %(group)s.") % {'name': w.name, 'group': w.invited_for_group.name})
 

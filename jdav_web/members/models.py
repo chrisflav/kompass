@@ -1132,6 +1132,7 @@ class MemberWaitingList(Person):
             self.wait_confirmation_key_expire = timezone.now()
             self.sent_reminders = 0
             self.leave_key = ''
+            self.log_admin_action(user=None, message=_('User confirmed waiting status.'))
             self.save()
             return self.WAITING_CONFIRMATION_SUCCESS
 
