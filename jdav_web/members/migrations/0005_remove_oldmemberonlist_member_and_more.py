@@ -4,24 +4,23 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('members', '0004_add_training_data_alter_required_flags'),
+        ("members", "0004_add_training_data_alter_required_flags"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='oldmemberonlist',
-            name='member',
+            model_name="oldmemberonlist",
+            name="member",
         ),
         migrations.RemoveField(
-            model_name='oldmemberonlist',
-            name='memberlist',
+            model_name="oldmemberonlist",
+            name="memberlist",
         ),
         migrations.DeleteModel(
-            name='MemberList',
+            name="MemberList",
         ),
         migrations.DeleteModel(
-            name='OldMemberOnList',
+            name="OldMemberOnList",
         ),
     ]
