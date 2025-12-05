@@ -8,7 +8,7 @@ from django.conf import settings
 from utils import normalize_filename
 
 from .models import LJPProposal
-from .models.constants import WEEKDAYS
+from .models import WEEKDAYS
 
 
 def generate_group_overview(all_groups, limit_to_public=True):

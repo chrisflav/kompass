@@ -34,6 +34,16 @@ from .registration import RegistrationPassword
 from .training import MemberTraining
 from .training import TrainingCategory
 from .waiting_list import MemberWaitingList
+from .constants import GEMEINSCHAFTS_TOUR
+from .constants import MUSKELKRAFT_ANREISE
+from .constants import MALE
+from .constants import FUEHRUNGS_TOUR
+from .constants import OEFFENTLICHE_ANREISE
+from .constants import FEMALE
+from .constants import AUSBILDUNGS_TOUR
+from .constants import FAHRGEMEINSCHAFT_ANREISE
+from .constants import DIVERSE
+from .constants import WEEKDAYS
 
 __all__ = [
     "ActivityCategory",
@@ -61,6 +71,16 @@ __all__ = [
     "TrainingCategory",
     "MemberTraining",
     "gen_key",
+    "GEMEINSCHAFTS_TOUR",
+    "MUSKELKRAFT_ANREISE",
+    "MALE",
+    "FUEHRUNGS_TOUR",
+    "OEFFENTLICHE_ANREISE",
+    "FEMALE",
+    "AUSBILDUNGS_TOUR",
+    "FAHRGEMEINSCHAFT_ANREISE",
+    "DIVERSE",
+    "WEEKDAYS",
 ]
 
 

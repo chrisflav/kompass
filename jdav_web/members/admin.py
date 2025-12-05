@@ -58,7 +58,7 @@ from .models import PermissionGroup
 from .models import PermissionMember
 from .models import RegistrationPassword
 from .models import TrainingCategory
-from .models.constants import WEEKDAYS
+from .models import WEEKDAYS
 from .pdf import fill_pdf_form
 from .pdf import render_docx
 from .pdf import render_tex
