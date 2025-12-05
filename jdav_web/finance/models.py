@@ -14,8 +14,8 @@ from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import send as send_mail
 from members.models import Freizeit
 from members.models import Member
-from members.models import MUSKELKRAFT_ANREISE
-from members.models import OEFFENTLICHE_ANREISE
+from members.models.constants import MUSKELKRAFT_ANREISE
+from members.models.constants import OEFFENTLICHE_ANREISE
 from members.pdf import render_tex_with_attachments
 from members.rules import is_leader
 from members.rules import statement_not_submitted
