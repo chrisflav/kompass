@@ -14,6 +14,16 @@ from .base import Contact
 from .base import ContactWithPhoneNumber
 from .base import gen_key
 from .base import Person
+from .constants import AUSBILDUNGS_TOUR
+from .constants import DIVERSE
+from .constants import FAHRGEMEINSCHAFT_ANREISE
+from .constants import FEMALE
+from .constants import FUEHRUNGS_TOUR
+from .constants import GEMEINSCHAFTS_TOUR
+from .constants import MALE
+from .constants import MUSKELKRAFT_ANREISE
+from .constants import OEFFENTLICHE_ANREISE
+from .constants import WEEKDAYS
 from .emergency_contact import EmergencyContact
 from .excursion import Freizeit
 from .group import Group
@@ -34,16 +44,6 @@ from .registration import RegistrationPassword
 from .training import MemberTraining
 from .training import TrainingCategory
 from .waiting_list import MemberWaitingList
-from .constants import GEMEINSCHAFTS_TOUR
-from .constants import MUSKELKRAFT_ANREISE
-from .constants import MALE
-from .constants import FUEHRUNGS_TOUR
-from .constants import OEFFENTLICHE_ANREISE
-from .constants import FEMALE
-from .constants import AUSBILDUNGS_TOUR
-from .constants import FAHRGEMEINSCHAFT_ANREISE
-from .constants import DIVERSE
-from .constants import WEEKDAYS
 
 __all__ = [
     "ActivityCategory",
