@@ -1,74 +1,104 @@
-from datetime import datetime, timedelta
 import math
+from datetime import datetime
+
+from contrib.media import media_path
+from contrib.models import CommonModel
+from contrib.rules import has_global_perm
+from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
+from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Case
+from django.db.models import Q
+from django.db.models import Sum
+from django.db.models import Value
+from django.db.models import When
+from django.db.models.functions import Cast
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.urls import reverse
-from django.conf import settings
-from django.db.models import Q, F, When, Value, IntegerField, Case, Sum
-from django.db.models.functions import Cast
-from django.core.validators import MinValueValidator
-from django.contrib.contenttypes.fields import GenericRelation
-from contrib.models import CommonModel
-from members.rules import is_leader
-from contrib.rules import has_global_perm
-from utils import cvt_to_decimal, coming_midnight
-from mailer.mailutils import send as send_mail, prepend_base_url
-from contrib.media import media_path
+from mailer.mailutils import prepend_base_url
+from mailer.mailutils import send as send_mail
 from members.pdf import render_tex
-from .constants import (GEMEINSCHAFTS_TOUR, FUEHRUNGS_TOUR, AUSBILDUNGS_TOUR,
-                       MUSKELKRAFT_ANREISE, OEFFENTLICHE_ANREISE, FAHRGEMEINSCHAFT_ANREISE)
+from members.rules import is_leader
+from utils import coming_midnight
+from utils import cvt_to_decimal
+
+from .activity import ActivityCategory
+from .constants import AUSBILDUNGS_TOUR
+from .constants import FAHRGEMEINSCHAFT_ANREISE
+from .constants import FUEHRUNGS_TOUR
+from .constants import GEMEINSCHAFTS_TOUR
+from .constants import MUSKELKRAFT_ANREISE
+from .constants import OEFFENTLICHE_ANREISE
 from .group import Group
 from .member_on_list import NewMemberOnList
-from .activity import ActivityCategory
 
 
 class Freizeit(CommonModel):
-    """Lets the user create a 'Freizeit' and generate a members overview in pdf format. """
+    """Lets the user create a 'Freizeit' and generate a members overview in pdf format."""
 
-    name = models.CharField(verbose_name=_('Activity'), default='',
-                            max_length=50)
-    place = models.CharField(verbose_name=_('Place'), default='', max_length=50)
-    postcode = models.CharField(verbose_name=_('Postcode'), default='', max_length=30)
-    destination = models.CharField(verbose_name=_('Destination (optional)'),
-                                   default='', max_length=50, blank=True,
-                                   help_text=_('e.g. a peak'))
-    date = models.DateTimeField(default=timezone.now, verbose_name=_('Begin'))
-    end = models.DateTimeField(verbose_name=_('End (optional)'), default=timezone.now)
-    description = models.TextField(verbose_name=_('Description'), blank=True, default='')
+    name = models.CharField(verbose_name=_("Activity"), default="", max_length=50)
+    place = models.CharField(verbose_name=_("Place"), default="", max_length=50)
+    postcode = models.CharField(verbose_name=_("Postcode"), default="", max_length=30)
+    destination = models.CharField(
+        verbose_name=_("Destination (optional)"),
+        default="",
+        max_length=50,
+        blank=True,
+        help_text=_("e.g. a peak"),
+    )
+    date = models.DateTimeField(default=timezone.now, verbose_name=_("Begin"))
+    end = models.DateTimeField(verbose_name=_("End (optional)"), default=timezone.now)
+    description = models.TextField(verbose_name=_("Description"), blank=True, default="")
     # comment = models.TextField(_('Comments'), default='', blank=True)
-    groups = models.ManyToManyField(Group, verbose_name=_('Groups'))
-    jugendleiter = models.ManyToManyField('Member')
-    approved_extra_youth_leader_count = models.PositiveIntegerField(verbose_name=_('Number of additional approved youth leaders'),
-                                                                    default=0,
-                                                                    help_text=_('The number of approved youth leaders per excursion is determined by the number of participants. In special circumstances, e.g. in case of a technically demanding excursion, more youth leaders may be approved.'))
-    tour_type_choices = ((GEMEINSCHAFTS_TOUR, 'Gemeinschaftstour'),
-                         (FUEHRUNGS_TOUR, 'Führungstour'),
-                         (AUSBILDUNGS_TOUR, 'Ausbildung'))
+    groups = models.ManyToManyField(Group, verbose_name=_("Groups"))
+    jugendleiter = models.ManyToManyField("Member")
+    approved_extra_youth_leader_count = models.PositiveIntegerField(
+        verbose_name=_("Number of additional approved youth leaders"),
+        default=0,
+        help_text=_(
+            "The number of approved youth leaders per excursion is determined by the number of participants. In special circumstances, e.g. in case of a technically demanding excursion, more youth leaders may be approved."
+        ),
+    )
+    tour_type_choices = (
+        (GEMEINSCHAFTS_TOUR, "Gemeinschaftstour"),
+        (FUEHRUNGS_TOUR, "Führungstour"),
+        (AUSBILDUNGS_TOUR, "Ausbildung"),
+    )
     # verbose_name is overriden by form, label is set in admin.py
     tour_type = models.IntegerField(choices=tour_type_choices)
-    tour_approach_choices = ((MUSKELKRAFT_ANREISE, 'Muskelkraft'),
-                             (OEFFENTLICHE_ANREISE, 'ÖPNV'),
-                             (FAHRGEMEINSCHAFT_ANREISE, 'Fahrgemeinschaften'))
-    tour_approach = models.IntegerField(choices=tour_approach_choices,
-                                        default=MUSKELKRAFT_ANREISE,
-                                        verbose_name=_('Means of transportation'))
-    kilometers_traveled = models.IntegerField(verbose_name=_('Kilometers traveled'),
-                                              validators=[MinValueValidator(0)])
-    activity = models.ManyToManyField(ActivityCategory, default=None,
-                                      verbose_name=_('Categories'))
-    difficulty_choices = [(1, _('easy')), (2, _('medium')), (3, _('hard'))]
+    tour_approach_choices = (
+        (MUSKELKRAFT_ANREISE, "Muskelkraft"),
+        (OEFFENTLICHE_ANREISE, "ÖPNV"),
+        (FAHRGEMEINSCHAFT_ANREISE, "Fahrgemeinschaften"),
+    )
+    tour_approach = models.IntegerField(
+        choices=tour_approach_choices,
+        default=MUSKELKRAFT_ANREISE,
+        verbose_name=_("Means of transportation"),
+    )
+    kilometers_traveled = models.IntegerField(
+        verbose_name=_("Kilometers traveled"), validators=[MinValueValidator(0)]
+    )
+    activity = models.ManyToManyField(ActivityCategory, default=None, verbose_name=_("Categories"))
+    difficulty_choices = [(1, _("easy")), (2, _("medium")), (3, _("hard"))]
     # verbose_name is overriden by form, label is set in admin.py
     difficulty = models.IntegerField(choices=difficulty_choices)
     membersonlist = GenericRelation(NewMemberOnList)
 
     # approval: None means no decision taken, False means rejected
-    approved = models.BooleanField(verbose_name=_('Approved'),
-                                   null=True,
-                                   default=None,
-                                   help_text=_('Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided.'))
-    approval_comments = models.TextField(verbose_name=_('Approval comments'),
-                                         blank=True, default='')
+    approved = models.BooleanField(
+        verbose_name=_("Approved"),
+        null=True,
+        default=None,
+        help_text=_(
+            "Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided."
+        ),
+    )
+    approval_comments = models.TextField(
+        verbose_name=_("Approval comments"), blank=True, default=""
+    )
 
     # automatic sending of crisis intervention list
     crisis_intervention_list_sent = models.BooleanField(default=False)
@@ -79,17 +109,17 @@ class Freizeit(CommonModel):
         return self.name
 
     class Meta(CommonModel.Meta):
-        verbose_name = _('Excursion')
-        verbose_name_plural = _('Excursions')
+        verbose_name = _("Excursion")
+        verbose_name_plural = _("Excursions")
         permissions = (
-            ('manage_approval_excursion', 'Can edit the approval status of excursions.'),
-            ('view_approval_excursion', 'Can view the approval status of excursions.'),
+            ("manage_approval_excursion", "Can edit the approval status of excursions."),
+            ("view_approval_excursion", "Can view the approval status of excursions."),
         )
         rules_permissions = {
-            'add_obj': has_global_perm('members.add_global_freizeit'),
-            'view_obj': is_leader | has_global_perm('members.view_global_freizeit'),
-            'change_obj': is_leader | has_global_perm('members.change_global_freizeit'),
-            'delete_obj': is_leader | has_global_perm('members.delete_global_freizeit'),
+            "add_obj": has_global_perm("members.add_global_freizeit"),
+            "view_obj": is_leader | has_global_perm("members.view_global_freizeit"),
+            "change_obj": is_leader | has_global_perm("members.change_global_freizeit"),
+            "delete_obj": is_leader | has_global_perm("members.delete_global_freizeit"),
         }
 
     @property
@@ -100,8 +130,9 @@ class Freizeit(CommonModel):
     def filter_queryset_date_next_n_hours(hours, queryset=None):
         if queryset is None:
             queryset = Freizeit.objects.all()
-        return queryset.filter(date__lte=timezone.now() + timezone.timedelta(hours=hours),
-                               date__gte=timezone.now())
+        return queryset.filter(
+            date__lte=timezone.now() + timezone.timedelta(hours=hours), date__gte=timezone.now()
+        )
 
     @staticmethod
     def to_notify_crisis_intervention_list():
@@ -128,7 +159,7 @@ class Freizeit(CommonModel):
         return "Fahrgemeinschaften"
 
     def get_absolute_url(self):
-        return reverse('admin:members_freizeit_change', args=[str(self.id)])
+        return reverse("admin:members_freizeit_change", args=[str(self.id)])
 
     @property
     def night_count(self):
@@ -154,7 +185,7 @@ class Freizeit(CommonModel):
 
     @property
     def total_intervention_hours(self):
-        if hasattr(self, 'ljpproposal'):
+        if hasattr(self, "ljpproposal"):
             return sum([i.duration for i in self.ljpproposal.intervention_set.all()])
         else:
             return 0
@@ -163,33 +194,34 @@ class Freizeit(CommonModel):
     def total_seminar_days(self):
         """calculate seminar days based on intervention hours in every day"""
         # TODO: add tests for this
-        if hasattr(self, 'ljpproposal'):
+        if hasattr(self, "ljpproposal"):
             hours_per_day = self.seminar_time_per_day
             # Calculate the total number of seminar days
             # Each day is counted as 1 if total_duration is >= 5 hours, as 0.5 if total_duration is >= 2.5
             # otherwise 0
-            sum_days = sum([h['sum_days'] for h in hours_per_day])
+            sum_days = sum([h["sum_days"] for h in hours_per_day])
 
             return sum_days
         else:
             return 0
 
-
     @property
     def seminar_time_per_day(self):
-        if hasattr(self, 'ljpproposal'):
+        if hasattr(self, "ljpproposal"):
             return (
-                self.ljpproposal.intervention_set
-                .annotate(day=Cast('date_start', output_field=models.DateField()))  # Force it to date
-                .values('day')  # Group by day
-                .annotate(total_duration=Sum('duration'))# Sum durations for each day
+                self.ljpproposal.intervention_set.annotate(
+                    day=Cast("date_start", output_field=models.DateField())
+                )  # Force it to date
+                .values("day")  # Group by day
+                .annotate(total_duration=Sum("duration"))  # Sum durations for each day
                 .annotate(
                     sum_days=Case(
                         When(total_duration__gte=5.0, then=Value(1.0)),
                         When(total_duration__gte=2.5, then=Value(0.5)),
-                        default=Value(0.0),)
+                        default=Value(0.0),
+                    )
                 )
-                .order_by('day')  # Sort results by date
+                .order_by("day")  # Sort results by date
             )
         else:
             return []
@@ -262,13 +294,15 @@ class Freizeit(CommonModel):
         # non-youth leader participants
         ps_only = ps - jls
         # participants of the correct age
-        ps_correct_age = {m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27}
+        ps_correct_age = {
+            m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27
+        }
         # m = the official non-youth-leader participant count
         # and, assuming there exist enough participants, unrounded m satisfies the equation
         # len(ps_correct_age) + 1/5 * m = m
         # if there are not enough participants,
         # m = len(ps_only)
-        m = min(len(ps_only), math.floor(5/4 * len(ps_correct_age)))
+        m = min(len(ps_only), math.floor(5 / 4 * len(ps_correct_age)))
         return m + len(jls)
 
     @property
@@ -290,28 +324,37 @@ class Freizeit(CommonModel):
     def maximal_ljp_contributions(self):
         """This is the maximal amount of LJP contributions that can be requested given participants and length
         This calculation if intended for the LJP application, not for the payout."""
-        return cvt_to_decimal(settings.LJP_CONTRIBUTION_PER_DAY * self.ljp_participant_count * self.duration)
+        return cvt_to_decimal(
+            settings.LJP_CONTRIBUTION_PER_DAY * self.ljp_participant_count * self.duration
+        )
 
     @property
     def potential_ljp_contributions(self):
         """The maximal amount can be reduced if the actual costs are lower than the maximal amount
         This calculation if intended for the LJP application, not for the payout."""
-        if not hasattr(self, 'statement'):
+        if not hasattr(self, "statement"):
             return cvt_to_decimal(0)
-        return cvt_to_decimal(min(self.maximal_ljp_contributions,
-                                  0.9 * float(self.statement.total_bills_theoretic) + float(self.statement.total_staff)))
+        return cvt_to_decimal(
+            min(
+                self.maximal_ljp_contributions,
+                0.9 * float(self.statement.total_bills_theoretic)
+                + float(self.statement.total_staff),
+            )
+        )
 
     @property
     def payable_ljp_contributions(self):
         """the payable contributions can differ from potential contributions if a tax is deducted for risk reduction.
         the actual payout depends on more factors, e.g. the actual costs that had to be paid by the trip organisers."""
-        if hasattr(self, 'statement') and self.statement.ljp_to:
+        if hasattr(self, "statement") and self.statement.ljp_to:
             return self.statement.paid_ljp_contributions
-        return cvt_to_decimal(self.potential_ljp_contributions * cvt_to_decimal(1 - settings.LJP_TAX))
+        return cvt_to_decimal(
+            self.potential_ljp_contributions * cvt_to_decimal(1 - settings.LJP_TAX)
+        )
 
     @property
     def total_relative_costs(self):
-        if not hasattr(self, 'statement'):
+        if not hasattr(self, "statement"):
             return 0
         total_costs = self.statement.total_bills_theoretic
         total_contributions = self.statement.total_subsidies + self.payable_ljp_contributions
@@ -319,18 +362,18 @@ class Freizeit(CommonModel):
 
     @property
     def time_period_str(self):
-        time_period = self.date.strftime('%d.%m.%Y')
+        time_period = self.date.strftime("%d.%m.%Y")
         if self.end != self.date:
-            time_period += " - " + self.end.strftime('%d.%m.%Y')
+            time_period += " - " + self.end.strftime("%d.%m.%Y")
         return time_period
 
     @property
     def groups_str(self):
-        return ', '.join(g.name for g in self.groups.all())
+        return ", ".join(g.name for g in self.groups.all())
 
     @property
     def staff_str(self):
-        return ', '.join(yl.name for yl in self.jugendleiter.all())
+        return ", ".join(yl.name for yl in self.jugendleiter.all())
 
     @property
     def skill_summary(self):
@@ -344,128 +387,152 @@ class Freizeit(CommonModel):
                 if activity not in activities:
                     continue
                 skills[activity].append(value)
-                qualities.append("\\textit{%s:} %s" % (activity, value))
-            people.append(dict(name=m.name, qualities=", ".join(qualities), comments=memberonlist.comments_tex))
+                qualities.append("\\textit{{{}:}} {}".format(activity, value))
+            people.append(
+                dict(
+                    name=m.name, qualities=", ".join(qualities), comments=memberonlist.comments_tex
+                )
+            )
 
         sks = []
         for activity in activities:
-            skill_avg = 0 if len(skills[activity]) == 0 else\
-                sum(skills[activity]) / len(skills[activity])
-            skill_min = 0 if len(skills[activity]) == 0 else\
-                min(skills[activity])
-            skill_max = 0 if len(skills[activity]) == 0 else\
-                max(skills[activity])
-            sks.append(dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max))
+            skill_avg = (
+                0 if len(skills[activity]) == 0 else sum(skills[activity]) / len(skills[activity])
+            )
+            skill_min = 0 if len(skills[activity]) == 0 else min(skills[activity])
+            skill_max = 0 if len(skills[activity]) == 0 else max(skills[activity])
+            sks.append(
+                dict(name=activity, skill_avg=skill_avg, skill_min=skill_min, skill_max=skill_max)
+            )
         return (people, sks)
 
     def sjr_application_numbers(self):
         members = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         participants = members - jls
-        b27_local = len([m for m in participants
-                         if m.age_at(self.date) <= 27 and settings.SEKTION in m.town])
-        b27_non_local = len([m for m in participants
-                             if m.age_at(self.date) <= 27 and not settings.SEKTION in m.town])
+        b27_local = len(
+            [m for m in participants if m.age_at(self.date) <= 27 and settings.SEKTION in m.town]
+        )
+        b27_non_local = len(
+            [
+                m
+                for m in participants
+                if m.age_at(self.date) <= 27 and settings.SEKTION not in m.town
+            ]
+        )
         staff = len(jls)
         total = b27_local + b27_non_local + len(jls)
-        relevant_b27 = min(b27_local + b27_non_local, math.floor(3/2 * b27_local))
+        relevant_b27 = min(b27_local + b27_non_local, math.floor(3 / 2 * b27_local))
         subsidizable = relevant_b27 + min(math.ceil(relevant_b27 / 7), staff)
         duration = self.night_count + 1
         return {
-            'b27_local': b27_local,
-            'b27_non_local': b27_non_local,
-            'staff': staff,
-            'total': total,
-            'relevant_b27': relevant_b27,
-            'subsidizable': subsidizable,
-            'subsidized_days': duration * subsidizable,
-            'duration': duration
+            "b27_local": b27_local,
+            "b27_non_local": b27_non_local,
+            "staff": staff,
+            "total": total,
+            "relevant_b27": relevant_b27,
+            "subsidizable": subsidizable,
+            "subsidized_days": duration * subsidizable,
+            "duration": duration,
         }
 
     def sjr_application_fields(self):
         members = set(map(lambda x: x.member, self.membersonlist.distinct()))
         jls = set(self.jugendleiter.distinct())
         numbers = self.sjr_application_numbers()
-        title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
-        base = {'Haushaltsjahr': str(datetime.now().year),
-                'Art / Thema / Titel': title,
-                'Ort': self.place,
-                'Datum von': self.date.strftime('%d.%m.%Y'),
-                'Datum bis': self.end.strftime('%d.%m.%Y'),
-                'Dauer': str(numbers['duration']),
-                'Teilnehmenden gesamt': str(numbers['total']),
-                'bis 27 aus HD': str(numbers['b27_local']),
-                'bis 27 nicht aus HD': str(numbers['b27_non_local']),
-                'Verpflegungstage': str(numbers['subsidized_days']).replace('.', ','),
-                'Betreuer/in': str(numbers['staff']),
-                'Auswahl Veranstaltung': 'Auswahl2',
-                'Ort, Datum': '{p}, {d}'.format(p=settings.SEKTION, d=datetime.now().strftime('%d.%m.%Y'))}
+        title = self.ljpproposal.title if hasattr(self, "ljpproposal") else self.name
+        base = {
+            "Haushaltsjahr": str(datetime.now().year),
+            "Art / Thema / Titel": title,
+            "Ort": self.place,
+            "Datum von": self.date.strftime("%d.%m.%Y"),
+            "Datum bis": self.end.strftime("%d.%m.%Y"),
+            "Dauer": str(numbers["duration"]),
+            "Teilnehmenden gesamt": str(numbers["total"]),
+            "bis 27 aus HD": str(numbers["b27_local"]),
+            "bis 27 nicht aus HD": str(numbers["b27_non_local"]),
+            "Verpflegungstage": str(numbers["subsidized_days"]).replace(".", ","),
+            "Betreuer/in": str(numbers["staff"]),
+            "Auswahl Veranstaltung": "Auswahl2",
+            "Ort, Datum": "{p}, {d}".format(
+                p=settings.SEKTION, d=datetime.now().strftime("%d.%m.%Y")
+            ),
+        }
         for i, m in enumerate(members):
-            suffix = str(' {}'.format(i + 1))
+            suffix = str(" {}".format(i + 1))
             # indexing starts at zero, but the listing in the pdf starts at 1
             if i + 1 == 1:
-                suffix = ''
+                suffix = ""
             elif i + 1 >= 13:
                 suffix = str(i + 1)
-            base['Vor- und Nachname' + suffix] = m.name
-            base['Anschrift' + suffix] = m.address
-            base['Alter' + suffix] = str(m.age_at(self.date))
-            base['Status' + str(i+1)] = '2' if m in jls else 'Auswahl1' if settings.SEKTION in m.address else 'Auswahl2'
+            base["Vor- und Nachname" + suffix] = m.name
+            base["Anschrift" + suffix] = m.address
+            base["Alter" + suffix] = str(m.age_at(self.date))
+            base["Status" + str(i + 1)] = (
+                "2" if m in jls else "Auswahl1" if settings.SEKTION in m.address else "Auswahl2"
+            )
         return base
 
     def v32_fields(self):
-        title = self.ljpproposal.title if hasattr(self, 'ljpproposal') else self.name
+        title = self.ljpproposal.title if hasattr(self, "ljpproposal") else self.name
         base = {
             # AntragstellerIn
-            'Textfeld 2':  settings.ADDRESS,
+            "Textfeld 2": settings.ADDRESS,
             # Dachorganisation
-            'Textfeld 3':  settings.V32_HEAD_ORGANISATION,
+            "Textfeld 3": settings.V32_HEAD_ORGANISATION,
             # Datum der Maßnahme am/vom
-            'Textfeld 20': self.date.strftime('%d.%m.%Y'),
+            "Textfeld 20": self.date.strftime("%d.%m.%Y"),
             # bis
-            'Textfeld 28': self.end.strftime('%d.%m.%Y'),
+            "Textfeld 28": self.end.strftime("%d.%m.%Y"),
             # Thema der Maßnahme
-            'Textfeld 22': title,
+            "Textfeld 22": title,
             # IBAN
-            'Textfeld 36': settings.SEKTION_IBAN,
+            "Textfeld 36": settings.SEKTION_IBAN,
             # Kontoinhaber
-            'Textfeld 37': settings.SEKTION_ACCOUNT_HOLDER,
+            "Textfeld 37": settings.SEKTION_ACCOUNT_HOLDER,
             # Zahl der zuwendungsfähigen Teilnehemr
-            'Textfeld 43': str(self.ljp_participant_count),
+            "Textfeld 43": str(self.ljp_participant_count),
             # Teilnahmetage
-            'Textfeld 46': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            "Textfeld 46": str(round(self.duration * self.ljp_participant_count, 1)).replace(
+                ".", ","
+            ),
             # Euro Tagessatz
-            'Textfeld 48': str(settings.LJP_CONTRIBUTION_PER_DAY),
+            "Textfeld 48": str(settings.LJP_CONTRIBUTION_PER_DAY),
             # Erbetener Zuschuss
-            'Textfeld 50': str(self.maximal_ljp_contributions).replace('.', ','),
+            "Textfeld 50": str(self.maximal_ljp_contributions).replace(".", ","),
             # Stunden Bildungsprogramm
-            'Textfeld 52': '??',
+            "Textfeld 52": "??",
             # Tage
-            'Textfeld 53': str(round(self.duration, 1)).replace('.', ','),
+            "Textfeld 53": str(round(self.duration, 1)).replace(".", ","),
             # Haushaltsjahr
-            'Textfeld 54': str(datetime.now().year),
+            "Textfeld 54": str(datetime.now().year),
             # nicht anrechenbare Teilnahmetage
-            'Textfeld 55': '0',
+            "Textfeld 55": "0",
             # Gesamt-Teilnahmetage
-            'Textfeld 56': str(round(self.duration * self.ljp_participant_count, 1)).replace('.', ','),
+            "Textfeld 56": str(round(self.duration * self.ljp_participant_count, 1)).replace(
+                ".", ","
+            ),
             # Ort, Datum
-            'DatumOrt 2': '{place}, {date}'.format(place=settings.SEKTION,
-                                                   date=datetime.now().strftime('%d.%m.%Y'))
+            "DatumOrt 2": "{place}, {date}".format(
+                place=settings.SEKTION, date=datetime.now().strftime("%d.%m.%Y")
+            ),
         }
-        if hasattr(self, 'statement'):
+        if hasattr(self, "statement"):
             possible_contributions = self.maximal_ljp_contributions
             total_contributions = min(self.statement.total_theoretic, possible_contributions)
-            self_participation = max(cvt_to_decimal(0), self.statement.total_theoretic - possible_contributions)
+            self_participation = max(
+                cvt_to_decimal(0), self.statement.total_theoretic - possible_contributions
+            )
             # Gesamtkosten von
-            base['Textfeld 62'] = str(self.statement.total_theoretic).replace('.', ',')
+            base["Textfeld 62"] = str(self.statement.total_theoretic).replace(".", ",")
             # Eigenmittel und Teilnahmebeiträge
-            base['Textfeld 59'] = str(self_participation).replace('.', ',')
+            base["Textfeld 59"] = str(self_participation).replace(".", ",")
             # Drittmittel
-            base['Textfeld 60'] = '0,00'
+            base["Textfeld 60"] = "0,00"
             # Erbetener Zuschuss
-            base['Textfeld 61'] = str(total_contributions).replace('.', ',')
+            base["Textfeld 61"] = str(total_contributions).replace(".", ",")
             # Ergibt wieder
-            base['Textfeld 58'] = base['Textfeld 62']
+            base["Textfeld 58"] = base["Textfeld 62"]
         return base
 
     def get_ljp_activity_category(self):
@@ -491,25 +558,32 @@ class Freizeit(CommonModel):
         responsible and the youth leaders of this excursion.
         """
         context = dict(memberlist=self, settings=settings)
-        start_date= timezone.localtime(self.date).strftime('%d.%m.%Y')
-        filename = render_tex(f"{self.code}_{self.name}_Krisenliste",
-                              'members/crisis_intervention_list.tex', context,
-                              date=self.date, save_only=True)
+        start_date = timezone.localtime(self.date).strftime("%d.%m.%Y")
+        filename = render_tex(
+            f"{self.code}_{self.name}_Krisenliste",
+            "members/crisis_intervention_list.tex",
+            context,
+            date=self.date,
+            save_only=True,
+        )
         leaders = ", ".join([yl.name for yl in self.jugendleiter.all()])
-        start_date = timezone.localtime(self.date).strftime('%d.%m.%Y')
-        end_date = timezone.localtime(self.end).strftime('%d.%m.%Y')
+        start_date = timezone.localtime(self.date).strftime("%d.%m.%Y")
+        end_date = timezone.localtime(self.end).strftime("%d.%m.%Y")
         # create email with attachment
-        send_mail(_('Crisis intervention list for %(excursion)s from %(start)s to %(end)s') %\
-                    { 'excursion': self.name,
-                      'start': start_date,
-                      'end': end_date },
-                  settings.SEND_EXCURSION_CRISIS_LIST.format(excursion=self.name, leaders=leaders,
-                                                             excursion_start=start_date,
-                                                             excursion_end=end_date),
-                  sender=settings.DEFAULT_SENDING_MAIL,
-                  recipients=[settings.SEKTION_CRISIS_INTERVENTION_MAIL],
-                  cc=[settings.RESPONSIBLE_MAIL] + [yl.email for yl in self.jugendleiter.all()],
-                  attachments=[media_path(filename)])
+        send_mail(
+            _("Crisis intervention list for %(excursion)s from %(start)s to %(end)s")
+            % {"excursion": self.name, "start": start_date, "end": end_date},
+            settings.SEND_EXCURSION_CRISIS_LIST.format(
+                excursion=self.name,
+                leaders=leaders,
+                excursion_start=start_date,
+                excursion_end=end_date,
+            ),
+            sender=settings.DEFAULT_SENDING_MAIL,
+            recipients=[settings.SEKTION_CRISIS_INTERVENTION_MAIL],
+            cc=[settings.RESPONSIBLE_MAIL] + [yl.email for yl in self.jugendleiter.all()],
+            attachments=[media_path(filename)],
+        )
         self.crisis_intervention_list_sent = True
         self.save()
 
@@ -524,19 +598,20 @@ class Freizeit(CommonModel):
             sending_time = coming_midnight().strftime("%d.%m.%y %H:%M")
         elif not isinstance(sending_time, str):
             sending_time = sending_time.strftime("%d.%m.%y %H:%M")
-        start_date = timezone.localtime(self.date).strftime('%d.%m.%Y')
-        end_date = timezone.localtime(self.end).strftime('%d.%m.%Y')
+        start_date = timezone.localtime(self.date).strftime("%d.%m.%Y")
+        end_date = timezone.localtime(self.end).strftime("%d.%m.%Y")
         excursion_link = prepend_base_url(self.get_absolute_url())
         for yl in self.jugendleiter.all():
-            yl.send_mail(_('Participant list for %(excursion)s from %(start)s to %(end)s') %\
-                            { 'excursion': self.name,
-                              'start': start_date,
-                              'end': end_date },
-                         settings.NOTIFY_EXCURSION_PARTICIPANT_LIST.format(name=yl.prename,
-                                                                           excursion=self.name,
-                                                                           participants=participants,
-                                                                           sending_time=sending_time,
-                                                                           excursion_link=excursion_link))
+            yl.send_mail(
+                _("Participant list for %(excursion)s from %(start)s to %(end)s")
+                % {"excursion": self.name, "start": start_date, "end": end_date},
+                settings.NOTIFY_EXCURSION_PARTICIPANT_LIST.format(
+                    name=yl.prename,
+                    excursion=self.name,
+                    participants=participants,
+                    sending_time=sending_time,
+                    excursion_link=excursion_link,
+                ),
+            )
         self.notification_crisis_intervention_list_sent = True
         self.save()
-

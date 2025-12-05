@@ -4,14 +4,30 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('members', '0024_member_invite_as_user_key'),
+        ("members", "0024_member_invite_as_user_key"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='member',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'permissions': (('may_see_qualities', 'Is allowed to see the quality overview'), ('may_set_auth_user', 'Is allowed to set auth user member connections.'), ('change_member_group', 'Can change the group field'), ('may_invite_as_user', 'Is allowed to invite a member to set login data.')), 'verbose_name': 'member', 'verbose_name_plural': 'members'},
+            name="member",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "permissions": (
+                    ("may_see_qualities", "Is allowed to see the quality overview"),
+                    ("may_set_auth_user", "Is allowed to set auth user member connections."),
+                    ("change_member_group", "Can change the group field"),
+                    ("may_invite_as_user", "Is allowed to invite a member to set login data."),
+                ),
+                "verbose_name": "member",
+                "verbose_name_plural": "members",
+            },
         ),
     ]
