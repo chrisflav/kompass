@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Needed to compare branches properly
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,30 +23,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install pre-commit
 
-      - name: Get changed files
-        id: changed-files
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin ${{ github.base_ref }} --depth=1
-            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
-          else
-            CHANGED_FILES=$(git diff --name-only HEAD~1)
-          fi
-
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          # Convert to space-separated string to be safe for GitHub output
-          CHANGED_FILES=$(echo "$CHANGED_FILES" | tr '\n' ' ')
-
-          echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
-
-      - name: Run pre-commit on changed files only
-        if: steps.changed-files.outputs.files != ''
-        run: |
-          echo "Running pre-commit on changed files..."
-          pre-commit run --files ${{ steps.changed-files.outputs.files }}
-
-      - name: No changed files
-        if: steps.changed-files.outputs.files == ''
-        run: echo "No changed files to lint or format."
+      - name: Run pre-commit on all files
+        run: pre-commit run --all-files
