@@ -1079,7 +1079,7 @@ msgstr "Passwort"
 
 #: members/models.py
 msgid "registration password"
-msgstr "Registrierungspassort"
+msgstr "Registrierungspasswort"
 
 #: members/models.py
 msgid "registration passwords"
