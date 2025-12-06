@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import admin
@@ -17,7 +18,7 @@ def media_unprotected(request, path):
     response = HttpResponse()
     # Content-type will be detected by nginx
     del response["Content-Type"]
-    response["X-Accel-Redirect"] = "/protected/" + path
+    response["X-Accel-Redirect"] = "/protected/" + quote(path, safe="/")
     return response
 
 
