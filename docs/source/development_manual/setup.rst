@@ -47,16 +47,16 @@ Alternative: Using docker compose directly
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you prefer to use ``docker compose`` commands directly instead of the Make targets, you need to manually
-export the UID, GID, and USER environment variables. These variables ensure that the owner of the
+export the USER_ID, GROUP_ID, and USERNAME environment variables. These variables ensure that the owner of the
 ``/app/jdav_web`` directory in the Docker container matches your user, allowing automatic rebuilding upon
 changes in the source.
 
 .. code-block:: bash
 
     cd docker/development
-    export UID=$(id -u)
-    export GID=$(id -g)
-    export USER=$(id -un)
+    export USER_ID=$(id -u)
+    export GROUP_ID=$(id -g)
+    export USERNAME=$(id -un)
     docker compose up
 
 You will need to export these variables every time you open a new shell before running ``docker compose`` commands.
@@ -104,7 +104,7 @@ The following Make commands are available for development:
 Known Issues
 ------------
 
-- If you use ``docker compose`` directly without exporting the ``UID``, ``GID``, and ``USER`` variables,
+- If you use ``docker compose`` directly without exporting the ``USER_ID``, ``GROUP_ID``, and ``USERNAME`` variables,
   you will encounter the following error message after running ``docker compose up``:
 
 .. code-block:: bash
