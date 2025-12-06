@@ -58,6 +58,7 @@ user = 'user@jdav-town.de'
 password = 'password'
 default_sending_address = 'info@jdav-town.de'
 default_sending_name = 'JDAV Town'
+use_console_backend = true
 
 [database]
 host = 'db'
