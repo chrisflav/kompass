@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-06 13:52+0100\n"
+"POT-Creation-Date: 2025-12-06 16:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -66,10 +66,6 @@ msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
 
 #: members/admin.py
-msgid "Echo required"
-msgstr "Rückmeldung erforderlich"
-
-#: members/admin.py
 msgid "Successfully requested echo from selected members."
 msgstr ""
 "Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer*innen "
@@ -78,6 +74,18 @@ msgstr ""
 #: members/admin.py
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
+
+#: members/admin.py members/tests/basic.py
+msgid "Member not found."
+msgstr "Teilnehmer*in nicht gefunden."
+
+#: members/admin.py
+msgid "%(name)s does not receive the newsletter."
+msgstr "%(name)s erhält den Newsletter nicht"
+
+#: members/admin.py
+msgid "Successfully requested echo from %(name)s."
+msgstr "Rückmeldungsaufforderung erfolgreich an %(name)s verschickt."
 
 #: members/admin.py
 #, python-format
@@ -111,10 +119,6 @@ msgstr "Kompass Zugangsdaten wählen lassen"
 #: members/admin.py
 msgid "Invite selected members to join Kompass as users."
 msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
-
-#: members/admin.py members/tests/basic.py
-msgid "Member not found."
-msgstr "Teilnehmer*in nicht gefunden."
 
 #: members/admin.py members/tests/basic.py
 #, python-format
@@ -1130,6 +1134,10 @@ msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 #: members/models/member.py
 msgid "Set login data for Kompass"
 msgstr "Zugangsdaten für Kompass wählen"
+
+#: members/models/member.py
+msgid "Echo required"
+msgstr "Rückmeldung erforderlich"
 
 #: members/models/member_on_list.py
 msgid "Comment"
