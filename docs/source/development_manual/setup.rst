@@ -12,7 +12,7 @@ Initial installation
 --------------------
 
 A working ``docker`` setup (with ``docker compose``) is required. For installation instructions see the
-`docker manual <https://docs.docker.com/engine/install/>`_.  
+`docker manual <https://docs.docker.com/engine/install/>`_.
 
 1. Clone the repository and change into the directory of the repository.
 
