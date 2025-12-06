@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-01 21:35+0100\n"
+"POT-Creation-Date: 2025-12-06 16:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,7 +22,7 @@ msgstr ""
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: mailer/admin.py
+#: mailer/admin.py mailer/tests/admin.py
 msgid ""
 "Your account is not connected to a member. Please contact your system "
 "administrator."
@@ -30,7 +30,7 @@ msgstr ""
 "Dein Account ist nicht mit eine*r Teilnehmer*in verknüpft. Bitte kontaktiere "
 "deine*n Systemadministrator*in."
 
-#: mailer/admin.py
+#: mailer/admin.py mailer/tests/admin.py
 #, python-format
 msgid ""
 "Your email address is not an internal email address. Please use an email "
@@ -39,15 +39,15 @@ msgstr ""
 "Deine E-Mail Adresse ist keine DAV360 E-Mail Adresse. Bitte stelle sicher, "
 "dass deine E-Mail Adresse eine der folgenden Domains hat: %(domains)s."
 
-#: mailer/admin.py
+#: mailer/admin.py mailer/tests/admin.py
 msgid "Failed to send message"
 msgstr "Fehler beim Senden der Email"
 
-#: mailer/admin.py
+#: mailer/admin.py mailer/tests/admin.py
 msgid "Failed to send some messages"
 msgstr "Fehler beim Senden der Emails"
 
-#: mailer/admin.py
+#: mailer/admin.py mailer/tests/admin.py
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
@@ -155,7 +155,7 @@ msgstr "Gesendet"
 msgid "Created by"
 msgstr "Erstellt von"
 
-#: mailer/models.py
+#: mailer/models.py mailer/tests/models.py
 msgid "Some other members"
 msgstr "Andere Teilnehmer*innen"
 
@@ -186,7 +186,7 @@ msgstr ""
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py
+#: mailer/models.py mailer/tests/models.py
 msgid "Empty"
 msgstr "Leer"
 
@@ -230,7 +230,7 @@ msgstr "Abbruch"
 msgid "Unsubscribe"
 msgstr "Vom Newsletter abmelden"
 
-#: mailer/templates/mailer/confirmation_sent.html
+#: mailer/templates/mailer/confirmation_sent.html mailer/tests/views.py
 msgid "Sent confirmation mail to"
 msgstr "Bestätigungsmail gesendet an"
 
@@ -274,7 +274,7 @@ msgstr "Vorname"
 msgid "Lastname"
 msgstr "Nachname"
 
-#: mailer/templates/mailer/subscribe.html mailer/views.py
+#: mailer/templates/mailer/subscribe.html
 msgid "Birthdate"
 msgstr "Geburtsdatum"
 
@@ -291,19 +291,19 @@ msgstr "Registrieren"
 msgid "Subscribed successfully"
 msgstr "Erfolgreich angemeldet"
 
-#: mailer/templates/mailer/unsubscribe.html
+#: mailer/templates/mailer/unsubscribe.html mailer/tests/views.py
 msgid "Here you can unsubscribe from the newsletter"
 msgstr "Hier kannst du dich vom Newsletter abmelden"
 
-#: mailer/templates/mailer/unsubscribed.html
+#: mailer/templates/mailer/unsubscribed.html mailer/tests/views.py
 msgid "Successfully unsubscribed from the newsletter for "
 msgstr "Newsletter erfolgreich abbestellt für "
 
-#: mailer/views.py
+#: mailer/tests/views.py mailer/views.py
 msgid "Can't verify this link. Try again!"
 msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 
-#: mailer/views.py
+#: mailer/tests/views.py mailer/views.py
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"
 
@@ -311,13 +311,11 @@ msgstr "Bitte jedes Feld ausfüllen!"
 msgid "Unsubscription confirmation"
 msgstr "Abmeldebestätigung"
 
-#: mailer/views.py
-msgid "Please fill in every field!"
-msgstr "Bitte jedes Feld ausfüllen!"
+#~ msgid "Please fill in every field!"
+#~ msgstr "Bitte jedes Feld ausfüllen!"
 
-#: mailer/views.py
-msgid "Member already exists"
-msgstr "Mitglied schon vorhanden"
+#~ msgid "Member already exists"
+#~ msgstr "Mitglied schon vorhanden"
 
 #~ msgid ""
 #~ "At least one reply-to recipient is required. Use the info mail if you "
