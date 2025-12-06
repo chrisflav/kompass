@@ -92,11 +92,16 @@ Make commands reference
 The following Make commands are available for development:
 
 - ``make dev build`` - Build the development containers
+- ``make dev build BUILD_ARGS=--no-cache`` - Build without using cached layers (useful when dependencies change)
+- ``make dev build BUILD_ARGS="--no-cache --pull"`` - Build with multiple docker compose arguments
 - ``make dev up`` - Start the development environment in foreground
 - ``make dev up detach=true`` - Start the development environment in background
 - ``make dev down`` - Stop the development environment
 - ``make dev shell`` - Open a bash shell in the running container
 - ``make dev manage <command>`` - Run a Django management command (e.g., ``make dev manage migrate``)
+
+Additional docker compose build arguments can be passed using the ``BUILD_ARGS`` variable, such as ``--no-cache``,
+``--pull``, or ``--progress=plain``. For multiple arguments, quote them: ``BUILD_ARGS="--no-cache --pull"``.
 
 
 

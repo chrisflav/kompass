@@ -190,12 +190,16 @@ you can run Django management commands directly:</p>
 <p>The following Make commands are available for development:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">build</span></code> - Build the development containers</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">build</span> <span class="pre">BUILD_ARGS=--no-cache</span></code> - Build without using cached layers (useful when dependencies change)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">build</span> <span class="pre">BUILD_ARGS="--no-cache</span> <span class="pre">--pull"</span></code> - Build with multiple docker compose arguments</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">up</span></code> - Start the development environment in foreground</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">up</span> <span class="pre">detach=true</span></code> - Start the development environment in background</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">down</span></code> - Stop the development environment</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">shell</span></code> - Open a bash shell in the running container</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">manage</span> <span class="pre">&lt;command&gt;</span></code> - Run a Django management command (e.g., <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">manage</span> <span class="pre">migrate</span></code>)</p></li>
 </ul>
+<p>Additional docker compose build arguments can be passed using the <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS</span></code> variable, such as <code class="docutils literal notranslate"><span class="pre">--no-cache</span></code>,
+<code class="docutils literal notranslate"><span class="pre">--pull</span></code>, or <code class="docutils literal notranslate"><span class="pre">--progress=plain</span></code>. For multiple arguments, quote them: <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS="--no-cache</span> <span class="pre">--pull"</span></code>.</p>
 </section>
 </section>
 <section id="known-issues">
