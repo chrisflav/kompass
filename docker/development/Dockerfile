@@ -13,7 +13,10 @@ ARG GID
 ARG UID
 ARG USER
 
-RUN groupadd -g $GID $USER && useradd -g $GID -u $UID -m -d /app $USER
+RUN if ! getent group $GID > /dev/null 2>&1; then \
+        groupadd -g $GID $USER; \
+    fi && \
+    useradd -g $GID -u $UID -m -d /app $USER
 
 USER $USER
 
