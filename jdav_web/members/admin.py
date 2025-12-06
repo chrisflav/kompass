@@ -321,7 +321,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     request_echo.short_description = _("Request echo from selected members")
 
     def request_echo_view(self, request, object_id):
-        """Request echo from a single member from Button in single member view."""   
+        """Request echo from a single member from Button in single member view."""
         try:
             member = Member.objects.get(pk=object_id)
         except Member.DoesNotExist:
@@ -329,13 +329,17 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             return HttpResponseRedirect(
                 reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
             )
-        
+
         if not member.gets_newsletter:
-            messages.warning(request, _("%(name)s does not receive the newsletter.") % {"name": member.name})
+            messages.warning(
+                request, _("%(name)s does not receive the newsletter.") % {"name": member.name}
+            )
         else:
             member.request_echo()
-            messages.success(request, _("Successfully requested echo from %(name)s.") % {"name": member.name})
-        
+            messages.success(
+                request, _("Successfully requested echo from %(name)s.") % {"name": member.name}
+            )
+
         return HttpResponseRedirect(
             reverse(
                 "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
