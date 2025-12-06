@@ -26,6 +26,27 @@ class ViewsTestCase(TestCase):
             media_unprotected(request, "test.jpg")
             mock_serve.assert_called_once()
 
+    @override_settings(DEBUG=False)
+    def test_media_unprotected_debug_false(self):
+        request = self.factory.get("/media/test.jpg")
+        response = media_unprotected(request, "test.jpg")
+        self.assertEqual(response["X-Accel-Redirect"], "/protected/test.jpg")
+        self.assertNotIn("Content-Type", response)
+
+    @override_settings(DEBUG=False)
+    def test_media_unprotected_with_umlauts(self):
+        request = self.factory.get("/media/testäöü.jpg")
+        response = media_unprotected(request, "testäöü.jpg")
+        self.assertEqual(response["X-Accel-Redirect"], "/protected/test%C3%A4%C3%B6%C3%BC.jpg")
+        self.assertNotIn("Content-Type", response)
+
+    @override_settings(DEBUG=False)
+    def test_media_unprotected_with_path_and_umlauts(self):
+        request = self.factory.get("/media/folder/testäöü.jpg")
+        response = media_unprotected(request, "folder/testäöü.jpg")
+        self.assertEqual(response["X-Accel-Redirect"], "/protected/folder/test%C3%A4%C3%B6%C3%BC.jpg")
+        self.assertNotIn("Content-Type", response)
+
     def test_custom_admin_view(self):
         request = self.factory.get("/admin/")
         request.user = self.user
