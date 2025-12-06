@@ -130,6 +130,10 @@
 <li class="toctree-l1"><a class="reference internal" href="deployment.html">Production Deployment</a></li>
 </ul>
 </div>
+<section id="getting-started">
+<h2>Getting started<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#getting-started" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#getting-started'">¶</a></h2>
+<p>To get started, head to the <a class="reference internal" href="setup.html#development-manual-setup"><span class="std std-ref">Development Setup</span></a>.</p>
+</section>
 <section id="contributing">
 <h2>Contributing<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#contributing" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#contributing'">¶</a></h2>
 <p>Any form of contribution is appreciated!</p>
@@ -171,6 +175,7 @@
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
+<li><a :data-current="activeSection === '#getting-started'" class="reference internal" href="#getting-started">Getting started</a></li>
 <li><a :data-current="activeSection === '#contributing'" class="reference internal" href="#contributing">Contributing</a></li>
 <li><a :data-current="activeSection === '#documentation'" class="reference internal" href="#documentation">Documentation</a></li>
 </ul>

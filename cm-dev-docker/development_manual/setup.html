@@ -154,13 +154,13 @@ database.</p>
 <section id="alternative-using-docker-compose-directly">
 <h3>Alternative: Using docker compose directly<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#alternative-using-docker-compose-directly" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#alternative-using-docker-compose-directly'">¶</a></h3>
 <p>If you prefer to use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> commands directly instead of the Make targets, you need to manually
-export the UID, GID, and USER environment variables. These variables ensure that the owner of the
+export the USER_ID, GROUP_ID, and USERNAME environment variables. These variables ensure that the owner of the
 <code class="docutils literal notranslate"><span class="pre">/app/jdav_web</span></code> directory in the Docker container matches your user, allowing automatic rebuilding upon
 changes in the source.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nb">cd</span><span class="w"> </span>docker/development
-</span><span id="line-2"><span class="nb">export</span><span class="w"> </span><span class="nv">UID</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>
-</span><span id="line-3"><span class="nb">export</span><span class="w"> </span><span class="nv">GID</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span>
-</span><span id="line-4"><span class="nb">export</span><span class="w"> </span><span class="nv">USER</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-un<span class="k">)</span>
+</span><span id="line-2"><span class="nb">export</span><span class="w"> </span><span class="nv">USER_ID</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>
+</span><span id="line-3"><span class="nb">export</span><span class="w"> </span><span class="nv">GROUP_ID</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span>
+</span><span id="line-4"><span class="nb">export</span><span class="w"> </span><span class="nv">USERNAME</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-un<span class="k">)</span>
 </span><span id="line-5">docker<span class="w"> </span>compose<span class="w"> </span>up
 </span></code></pre></div>
 </div>
@@ -201,7 +201,7 @@ you can run Django management commands directly:</p>
 <section id="known-issues">
 <h2>Known Issues<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#known-issues" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#known-issues'">¶</a></h2>
 <ul class="simple">
-<li><p>If you use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> directly without exporting the <code class="docutils literal notranslate"><span class="pre">UID</span></code>, <code class="docutils literal notranslate"><span class="pre">GID</span></code>, and <code class="docutils literal notranslate"><span class="pre">USER</span></code> variables,
+<li><p>If you use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> directly without exporting the <code class="docutils literal notranslate"><span class="pre">USER_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">GROUP_ID</span></code>, and <code class="docutils literal notranslate"><span class="pre">USERNAME</span></code> variables,
 you will encounter the following error message after running <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span></code>:</p></li>
 </ul>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="o">=</span>&gt;<span class="w"> </span>ERROR<span class="w"> </span><span class="o">[</span>master<span class="w"> </span><span class="m">6</span>/7<span class="o">]</span><span class="w"> </span>RUN<span class="w"> </span>groupadd<span class="w"> </span>-g<span class="w">  </span>fritze<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>useradd<span class="w"> </span>-g<span class="w">  </span>-u<span class="w">  </span>-m<span class="w"> </span>-d<span class="w"> </span>/app<span class="w"> </span>fritze<span class="w">                                                                                                                </span><span class="m">0</span>.2s
