@@ -130,6 +130,7 @@ external services are needed for running the development container.</p>
 <a class="reference external" href="https://docs.docker.com/engine/install/">docker manual</a>.</p>
 <ol class="arabic simple">
 <li><p>Clone the repository and change into the directory of the repository.</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">docker/development/docker.env</span></code> (you may copy and rename the provided <code class="docutils literal notranslate"><span class="pre">docker.env.example</span></code>) and <code class="docutils literal notranslate"><span class="pre">docker/development/config/settings.toml</span></code> file (you may copy and rename the provided <code class="docutils literal notranslate"><span class="pre">settings.toml.example</span></code>).</p></li>
 <li><p>Start docker using Make (recommended)</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>up
@@ -144,7 +145,7 @@ database.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>build
 </span></code></pre></div>
 </div>
-<ol class="arabic simple" start="3">
+<ol class="arabic simple" start="4">
 <li><p>Setup admin user: in a separate shell, while the docker container is running, execute</p></li>
 </ol>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>createsuperuser
