@@ -317,7 +317,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             if not member.gets_newsletter:
                 continue
             if not member.birth_date:
-                messages.error(request, _("Member {name} doesn't have a birthdate set, which is mandatory for echo requests").format(name=member.name))
+                messages.error(
+                    request,
+                    _(
+                        "Member {name} doesn't have a birthdate set, which is mandatory for echo requests"
+                    ).format(name=member.name),
+                )
             else:
                 member.send_mail(
                     _("Echo required"),
