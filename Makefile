@@ -6,19 +6,19 @@ endif
 
 dev:
 ifeq ($(DEV_CMD),build)
-	cd docker/development; UID=$$(id -u) GID=$$(id -g) USER=$$(id -un) docker compose build
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose build
 else ifeq ($(DEV_CMD),up)
 ifeq ($(detach), true)
-	cd docker/development; UID=$$(id -u) GID=$$(id -g) USER=$$(id -un) docker compose up -d
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose up -d
 else
-	cd docker/development; UID=$$(id -u) GID=$$(id -g) USER=$$(id -un) docker compose up
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose up
 endif
 else ifeq ($(DEV_CMD),down)
-	cd docker/development; UID=$$(id -u) GID=$$(id -g) USER=$$(id -un) docker compose down
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose down
 else ifeq ($(DEV_CMD),shell)
-	cd docker/development; UID=$$(id -u) GID=$$(id -g) USER=$$(id -un) docker compose exec master bash
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash
 else ifeq ($(firstword $(DEV_CMD)),manage)
-	cd docker/development; UID=$$(id -u) GID=$$(id -g) USER=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py $(wordlist 2,$(words $(DEV_CMD)),$(DEV_CMD))"
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py $(wordlist 2,$(words $(DEV_CMD)),$(DEV_CMD))"
 else
 	@echo "Usage: make dev [build|up|down|shell|manage]"
 	@echo "  make dev build              - Build development containers"

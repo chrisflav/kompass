@@ -5,9 +5,9 @@ x-kompass:
         context: ./../../
         dockerfile: docker/development/Dockerfile
         args:
-            UID: ${UID}
-            GID: ${UID}
-            USER: ${USER}
+            UID: ${USER_ID}
+            GID: ${GROUP_ID}
+            USER: ${USERNAME}
     environment:
       - KOMPASS_CONFIG_DIR_PATH=/app/config/
       - DJANGO_SETTINGS_MODULE=jdav_web.settings
