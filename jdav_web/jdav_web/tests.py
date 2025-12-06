@@ -44,7 +44,9 @@ class ViewsTestCase(TestCase):
     def test_media_unprotected_with_path_and_umlauts(self):
         request = self.factory.get("/media/folder/testäöü.jpg")
         response = media_unprotected(request, "folder/testäöü.jpg")
-        self.assertEqual(response["X-Accel-Redirect"], "/protected/folder/test%C3%A4%C3%B6%C3%BC.jpg")
+        self.assertEqual(
+            response["X-Accel-Redirect"], "/protected/folder/test%C3%A4%C3%B6%C3%BC.jpg"
+        )
         self.assertNotIn("Content-Type", response)
 
     def test_custom_admin_view(self):

@@ -18,7 +18,7 @@ def media_unprotected(request, path):
     response = HttpResponse()
     # Content-type will be detected by nginx
     del response["Content-Type"]
-    response["X-Accel-Redirect"] = "/protected/" + quote(path, safe='/')
+    response["X-Accel-Redirect"] = "/protected/" + quote(path, safe="/")
     return response
 
 
