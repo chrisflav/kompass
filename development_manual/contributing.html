@@ -122,20 +122,12 @@
 <section id="contributing">
 <span id="development-manual-contributing"></span><h1>Contributing<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#contributing">¶</a></h1>
 <p>Any form of contribution is appreciated. If you found a bug or have a feature request, please file an
-<a class="reference external" href="https://git.jdav-hd.merten.dev/digitales/kompass/issues">issue</a>. If you want to help with the documentation or
-want to contribute code, please open a <a class="reference external" href="https://git.jdav-hd.merten.dev/digitales/kompass/pulls">pull request</a>.</p>
+<a class="reference external" href="https://github.com/chrisflav/kompass/issues">issue</a>. If you want to help with the documentation or
+want to contribute code, please open a <a class="reference external" href="https://github.com/chrisflav/kompass/pulls">pull request</a>.</p>
 <div class="admonition note">
 <p class="admonition-title">Bemerkung</p>
 <p>Please read this page carefully before contributing.</p>
 </div>
-<section id="miscellaneous">
-<h2>Miscellaneous<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#miscellaneous" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#miscellaneous'">¶</a></h2>
-<ul class="simple">
-<li><p>version control with <a class="reference external" href="https://git-scm.com/">git</a></p></li>
-<li><p>own gitea instance at <a class="reference external" href="https://git.jdav-hd.merten.dev/">https://git.jdav-hd.merten.dev/</a></p></li>
-<li><p>protected <code class="docutils literal notranslate"><span class="pre">main</span></code> branch</p></li>
-</ul>
-</section>
 <section id="organization-and-branches">
 <h2>Organization and branches<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#organization-and-branches" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#organization-and-branches'">¶</a></h2>
 <p>The stable development happens on the <code class="docutils literal notranslate"><span class="pre">main</span></code>-branch for which only maintainers have write access. Any pull request
@@ -143,14 +135,12 @@ should hence be targeted at <code class="docutils literal notranslate"><span cla
 in particular these are considered to be stable.</p>
 <p>If you have standard write access to the repository, feel free to create new branches.  To make organization
 easier, please follow the branch naming convention: <code class="docutils literal notranslate"><span class="pre">&lt;username&gt;/&lt;feature&gt;</span></code>.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">testing</span></code>-branch is deployed on the development instances. No development should happen there, this branch
-is regularly reset to the <code class="docutils literal notranslate"><span class="pre">main</span></code>-branch.</p>
 </section>
 <section id="workflow">
 <h2>Workflow<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#workflow" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#workflow'">¶</a></h2>
 <ul class="simple">
 <li><p>request a gitea account from the project maintainers</p></li>
-<li><p>decide on an <a class="reference external" href="https://git.jdav-hd.merten.dev/digitales/kompass/issues">issue</a> to work on or create a new one</p></li>
+<li><p>decide on an <a class="reference external" href="https://github.com/chrisflav/kompass/issues">issue</a> to work on or create a new one</p></li>
 <li><p>branch out to an own branch (naming convention: <code class="docutils literal notranslate"><span class="pre">&lt;username&gt;/&lt;feature&gt;</span></code>) from the <code class="docutils literal notranslate"><span class="pre">main</span></code>-branch</p></li>
 <li><p>work on the issue and commit your changes</p></li>
 <li><p>create a pull request from your branch to the <code class="docutils literal notranslate"><span class="pre">main</span></code>-branch</p></li>
@@ -159,7 +149,7 @@ is regularly reset to the <code class="docutils literal notranslate"><span class
 <section id="documentation">
 <span id="development-manual-contributing-documentation"></span><h2>Documentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#documentation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#documentation'">¶</a></h2>
 <p>If you want to contribute to the documentation, please follow the steps below.</p>
-<p>Online (latest release version): <a class="reference external" href="https://jdav-hd.de/static/docs/">https://jdav-hd.de/static/docs/</a></p>
+<p>Online (latest release version): <a class="reference external" href="https://chrisflav.github.io/kompass">https://chrisflav.github.io/kompass</a></p>
 <ul class="simple">
 <li><p>This documentation is build <a class="reference external" href="https://www.sphinx-doc.org/">sphinx</a> and <a class="reference external" href="https://sphinxawesome.xyz/">awsome sphinx theme</a> the source code is located in <code class="docutils literal notranslate"><span class="pre">docs/</span></code>.</p></li>
 <li><dl class="simple">
@@ -169,7 +159,7 @@ is regularly reset to the <code class="docutils literal notranslate"><span class
 </dd>
 </dl>
 </li>
-<li><p>All technical documentation is written in english, user documentation is written in german.</p></li>
+<li><p>All technical documentation is written in English, user documentation is written in German.</p></li>
 </ul>
 <p>To read the documentation build it locally and view it in your browser:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nb">cd</span><span class="w"> </span>docs/
@@ -177,23 +167,35 @@ is regularly reset to the <code class="docutils literal notranslate"><span class
 </span><span id="line-3">
 </span><span id="line-4"><span class="c1"># MacOS (with firefox)</span>
 </span><span id="line-5">open<span class="w"> </span>-a<span class="w"> </span>firefox<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/docs/build/html/index.html
-</span><span id="line-6"><span class="c1"># Linux (I guess?!?)</span>
-</span><span id="line-7">firefox<span class="w"> </span><span class="si">${</span><span class="nv">pwd</span><span class="si">}</span>/docs/build/html/index.html
+</span><span id="line-6"><span class="c1"># Linux</span>
+</span><span id="line-7">firefox<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/docs/build/html/index.html
 </span></code></pre></div>
 </div>
 </section>
 <section id="code">
 <h2>Code<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#code" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#code'">¶</a></h2>
 <p>If you want to contribute code, please follow the inital setup steps in the <a class="reference internal" href="setup.html#development-manual-setup"><span class="std std-ref">Development Setup</span></a> section. And dont forget to <a class="reference internal" href="#development-manual-contributing-documentation"><span class="std std-ref">document</span></a> your code properly and write tests.</p>
-<div class="admonition note">
-<p class="admonition-title">Bemerkung</p>
-<p>Still open / to decide:</p>
-<ul class="simple">
-<li><p>linting</p></li>
-<li><p>(auto) formatting</p></li>
-<li><p>reliable tests via ci/cd pipeline</p></li>
-</ul>
+<section id="linting-and-formatting">
+<h3>Linting and formatting<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#linting-and-formatting" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#linting-and-formatting'">¶</a></h3>
+<p>We use <a class="reference external" href="https://pre-commit.com">pre-commit</a> to automatically lint and format the (python) code. To locally run
+<code class="docutils literal notranslate"><span class="pre">pre-commit</span></code>, install:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">pip<span class="w"> </span>install<span class="w"> </span>pre-commit
+</span></code></pre></div>
 </div>
+<p>Then you can manually run the linters and formatters:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">pre-commit
+</span></code></pre></div>
+</div>
+<p>This runs the suite on all staged files. If you want to run it on all files, use</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">pre-commit<span class="w"> </span>run<span class="w"> </span>--all-files
+</span></code></pre></div>
+</div>
+</section>
+<section id="tests">
+<h3>Tests<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#tests" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#tests'">¶</a></h3>
+<p>Full test coverage is enforced by continuous integration, for more information see
+<a class="reference internal" href="testing.html#development-manual-testing"><span class="std std-ref">Testing</span></a>.</p>
+</section>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
@@ -216,11 +218,14 @@ is regularly reset to the <code class="docutils literal notranslate"><span class
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#miscellaneous'" class="reference internal" href="#miscellaneous">Miscellaneous</a></li>
 <li><a :data-current="activeSection === '#organization-and-branches'" class="reference internal" href="#organization-and-branches">Organization and branches</a></li>
 <li><a :data-current="activeSection === '#workflow'" class="reference internal" href="#workflow">Workflow</a></li>
 <li><a :data-current="activeSection === '#documentation'" class="reference internal" href="#documentation">Documentation</a></li>
-<li><a :data-current="activeSection === '#code'" class="reference internal" href="#code">Code</a></li>
+<li><a :data-current="activeSection === '#code'" class="reference internal" href="#code">Code</a><ul>
+<li><a :data-current="activeSection === '#linting-and-formatting'" class="reference internal" href="#linting-and-formatting">Linting and formatting</a></li>
+<li><a :data-current="activeSection === '#tests'" class="reference internal" href="#tests">Tests</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </aside>

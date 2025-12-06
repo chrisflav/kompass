@@ -5,19 +5,12 @@ Contributing
 ============
 
 Any form of contribution is appreciated. If you found a bug or have a feature request, please file an
-`issue <https://git.jdav-hd.merten.dev/digitales/kompass/issues>`_. If you want to help with the documentation or
-want to contribute code, please open a `pull request <https://git.jdav-hd.merten.dev/digitales/kompass/pulls>`_.
+`issue <https://github.com/chrisflav/kompass/issues>`_. If you want to help with the documentation or
+want to contribute code, please open a `pull request <https://github.com/chrisflav/kompass/pulls>`_.
 
 .. note::
 
     Please read this page carefully before contributing.
-
-Miscellaneous
--------------
-
-- version control with `git <https://git-scm.com/>`_
-- own gitea instance at https://git.jdav-hd.merten.dev/
-- protected ``main`` branch
 
 Organization and branches
 -------------------------
@@ -29,15 +22,12 @@ in particular these are considered to be stable.
 If you have standard write access to the repository, feel free to create new branches.  To make organization
 easier, please follow the branch naming convention: ``<username>/<feature>``.
 
-The ``testing``-branch is deployed on the development instances. No development should happen there, this branch
-is regularly reset to the ``main``-branch.
-
 
 Workflow
 --------
 
 - request a gitea account from the project maintainers
-- decide on an `issue <https://git.jdav-hd.merten.dev/digitales/kompass/issues>`_ to work on or create a new one
+- decide on an `issue <https://github.com/chrisflav/kompass/issues>`_ to work on or create a new one
 - branch out to an own branch (naming convention: ``<username>/<feature>``) from the ``main``-branch
 - work on the issue and commit your changes
 - create a pull request from your branch to the ``main``-branch
@@ -50,12 +40,12 @@ Documentation
 
 If you want to contribute to the documentation, please follow the steps below.
 
-Online (latest release version): https://jdav-hd.de/static/docs/
+Online (latest release version): https://chrisflav.github.io/kompass
 
 - This documentation is build `sphinx <https://www.sphinx-doc.org/>`_ and `awsome sphinx theme <https://sphinxawesome.xyz/>`_ the source code is located in ``docs/``.
 - All documentation is written in `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_ and uses the `sphinx directives <https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html>`_.
     - The directives can vary due to the theme, see the `awesome sphinx theme documentation <https://sphinxawesome.xyz/demo/notes/>`_.
-- All technical documentation is written in english, user documentation is written in german.
+- All technical documentation is written in English, user documentation is written in German.
 
 To read the documentation build it locally and view it in your browser:
 
@@ -66,19 +56,38 @@ To read the documentation build it locally and view it in your browser:
 
     # MacOS (with firefox)
     open -a firefox $(pwd)/docs/build/html/index.html
-    # Linux (I guess?!?)
-    firefox ${pwd}/docs/build/html/index.html
+    # Linux
+    firefox $(pwd)/docs/build/html/index.html
 
 Code
 ----
 
 If you want to contribute code, please follow the inital setup steps in the :ref:`development_manual/setup` section. And dont forget to :ref:`document <development_manual/contributing/documentation>` your code properly and write tests.
 
+Linting and formatting
+^^^^^^^^^^^^^^^^^^^^^^
 
-.. note::
+We use `pre-commit <https://pre-commit.com>`_ to automatically lint and format the (python) code. To locally run
+``pre-commit``, install:
 
-    Still open / to decide:
+.. code-block:: bash
 
-    - linting
-    - (auto) formatting
-    - reliable tests via ci/cd pipeline
+    pip install pre-commit
+
+Then you can manually run the linters and formatters:
+
+.. code-block:: bash
+
+    pre-commit
+
+This runs the suite on all staged files. If you want to run it on all files, use
+
+.. code-block:: bash
+
+    pre-commit run --all-files
+
+Tests
+^^^^^
+
+Full test coverage is enforced by continuous integration, for more information see
+:ref:`development_manual/testing`.

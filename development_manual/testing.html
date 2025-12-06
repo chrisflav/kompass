@@ -121,7 +121,19 @@
 <div id="content" role="main">
 <section id="testing">
 <span id="development-manual-testing"></span><h1>Testing<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#testing">¶</a></h1>
-<p>To run the tests, you can use the docker setup under <code class="docutils literal notranslate"><span class="pre">docker/test</span></code>.</p>
+<p>Every line of python code is covered by tests. The tests are a mixture of unit and integration tests.</p>
+<p>To run the test suite locally, run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span><span class="nb">test</span>
+</span></code></pre></div>
+</div>
+<p>If you don’t want to test on a clean database everytime, you can pass the option <code class="docutils literal notranslate"><span class="pre">keepdb=true</span></code> to preserve the
+state of the database. This saves some time, because the migrations don’t have to be re-applied. Note that
+all migrations will be flagged as uncovered in the coverage report.</p>
+<section id="continuous-integration">
+<h2>Continuous integration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#continuous-integration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#continuous-integration'">¶</a></h2>
+<p>The test suite is run by continuous integration on every pull request and every commit on <code class="docutils literal notranslate"><span class="pre">main</span></code>. If
+a test fails or the coverage report detects an uncovered line, the job will fail.</p>
+</section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
@@ -140,7 +152,13 @@
 </svg>
 </a>
 </div>
-</div></div>
+</div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
+<div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
+<ul>
+<li><a :data-current="activeSection === '#continuous-integration'" class="reference internal" href="#continuous-integration">Continuous integration</a></li>
+</ul>
+</div>
+</aside>
 </main>
 </div>
 </div><footer class="py-6 border-t border-border md:py-0">
