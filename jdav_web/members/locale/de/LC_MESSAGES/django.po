@@ -127,11 +127,10 @@ msgid "The configured email address for %(name)s is not an internal one."
 msgstr "Die für %(name)s eingestellte E-Mail Adresse ist keine DAV360 Adresse."
 
 #: members/admin.py members/tests/basic.py
-#, fuzzy, python-brace-format
-#| msgid "%(name)s already has a pending invitation as user."
+#, python-brace-format
 msgid "{name} already has a pending invitation as user."
 msgstr ""
-"%(name)s hat bereits eine ausstehende Aufforderung Zugangsdaten zu wählen."
+"{name} hat bereits eine ausstehende Aufforderung Zugangsdaten zu wählen."
 
 #: members/admin.py
 msgid "activity"
