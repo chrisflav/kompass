@@ -60,7 +60,6 @@ def export_generalized_csv(queryset, file_handle):
         "join_date",
         "leave_date",
         "good_conduct_certificate_presented_date",
-        "confirmed",
         "active",
         "groups",
         "emergency_contacts",
@@ -117,7 +116,6 @@ def export_generalized_csv(queryset, file_handle):
             "good_conduct_certificate_presented_date": member.good_conduct_certificate_presented_date.isoformat()
             if member.good_conduct_certificate_presented_date
             else "",
-            "confirmed": member.confirmed,
             "active": member.active,
             "groups": groups,
             "emergency_contacts": json.dumps(ecs),
