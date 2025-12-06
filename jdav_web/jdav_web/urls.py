@@ -23,6 +23,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
 from oauth2_provider import urls as oauth2_urls
 
+from members.api import email_forward_lookup
 from .views import media_access
 
 admin.site.index_title = _("Startpage")
@@ -47,6 +48,7 @@ urlpatterns = i18n_patterns(
 
 urlpatterns += [
     re_path(r"^markdownx/", include("markdownx.urls")),
+    path("api/email-forward/", email_forward_lookup, name="email-forward-lookup"),
 ]
 
 handler404 = "startpage.views.handler404"

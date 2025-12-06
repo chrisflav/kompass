@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     "rules",
     "jet",
     "oauth2_provider",
+    "rest_framework",
+    "rest_framework.authtoken",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -207,3 +209,14 @@ STARTPAGE_URL_NAME_PATTERN = r"[\w\-: *]"
 ADMINS = get_var("section", "admins", default=[])
 
 LOGIN_URL = "/de/kompass/login/"
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+}
