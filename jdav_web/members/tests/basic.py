@@ -954,6 +954,25 @@ class MemberAdminTestCase(AdminTestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_request_echo_view(self):
+        # expect: successful echo request
+        c = self._login("superuser")
+        url = reverse("admin:members_member_requestecho", args=(self.fritz.pk,))
+        self.fritz.gets_newsletter = False
+        self.fritz.save()
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        url = reverse("admin:members_member_requestecho", args=(self.peter.pk,))
+        self.peter.gets_newsletter = True
+        self.peter.save()
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        url = reverse("admin:members_member_requestecho", args=(12345,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
     def test_activity_score(self):
         # manually set activity score
         for i in range(5):
