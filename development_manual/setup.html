@@ -130,63 +130,83 @@ external services are needed for running the development container.</p>
 <a class="reference external" href="https://docs.docker.com/engine/install/">docker manual</a>.</p>
 <ol class="arabic simple">
 <li><p>Clone the repository and change into the directory of the repository.</p></li>
-<li><p>Fetch submodules</p></li>
+<li><p>Start docker using Make (recommended)</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init
-</span></code></pre></div>
-</div>
-<ol class="arabic simple" id="step-3" start="3">
-<li><p>Prepare development environment: to allow automatic rebuilding upon changes in the source,
-the owner of the <code class="docutils literal notranslate"><span class="pre">/app/jdav_web</span></code> directory in the Docker container must match your
-user. For this, make sure that the output of <code class="docutils literal notranslate"><span class="pre">echo</span> <span class="pre">UID</span></code> and <code class="docutils literal notranslate"><span class="pre">echo</span> <span class="pre">UID</span></code> is not empty. Then run</p></li>
-</ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nb">export</span><span class="w"> </span><span class="nv">GID</span><span class="o">=</span><span class="si">${</span><span class="nv">GID</span><span class="si">}</span>
-</span><span id="line-2"><span class="nb">export</span><span class="w"> </span><span class="nv">UID</span><span class="o">=</span><span class="si">${</span><span class="nv">UID</span><span class="si">}</span>
-</span></code></pre></div>
-</div>
-<ol class="arabic simple" start="4">
-<li><p>Start docker</p></li>
-</ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nb">cd</span><span class="w"> </span>docker/development
-</span><span id="line-2">docker<span class="w"> </span>compose<span class="w"> </span>up
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>up
 </span></code></pre></div>
 </div>
 <p>This runs the docker in your current shell, which is useful to see any log output. If you want to run
-the development server in the background instead, use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span></code>.</p>
+the development server in the background instead, use <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">up</span> <span class="pre">detach=true</span></code>.</p>
 <p>During the initial run, the container is built and all dependencies are installed which can take a few minutes.
 After successful installation, the Kompass initialization runs, which in particular sets up all tables in the
 database.</p>
 <p>If you need to rebuild the container (e.g. after changing the <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code>), execute</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>--build
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>build
 </span></code></pre></div>
 </div>
-<ol class="arabic simple" start="5">
+<ol class="arabic simple" start="3">
 <li><p>Setup admin user: in a separate shell, while the docker container is running, execute</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nb">cd</span><span class="w"> </span>docker/development
-</span><span id="line-2">docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>master<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s2">"cd jdav_web &amp;&amp; python3 manage.py createsuperuser"</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>createsuperuser
 </span></code></pre></div>
 </div>
 <p>This creates an admin user for the administration interface.</p>
+<section id="alternative-using-docker-compose-directly">
+<h3>Alternative: Using docker compose directly<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#alternative-using-docker-compose-directly" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#alternative-using-docker-compose-directly'">¶</a></h3>
+<p>If you prefer to use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> commands directly instead of the Make targets, you need to manually
+export the USER_ID, GROUP_ID, and USERNAME environment variables. These variables ensure that the owner of the
+<code class="docutils literal notranslate"><span class="pre">/app/jdav_web</span></code> directory in the Docker container matches your user, allowing automatic rebuilding upon
+changes in the source.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nb">cd</span><span class="w"> </span>docker/development
+</span><span id="line-2"><span class="nb">export</span><span class="w"> </span><span class="nv">USER_ID</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>
+</span><span id="line-3"><span class="nb">export</span><span class="w"> </span><span class="nv">GROUP_ID</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span>
+</span><span id="line-4"><span class="nb">export</span><span class="w"> </span><span class="nv">USERNAME</span><span class="o">=</span><span class="k">$(</span>id<span class="w"> </span>-un<span class="k">)</span>
+</span><span id="line-5">docker<span class="w"> </span>compose<span class="w"> </span>up
+</span></code></pre></div>
+</div>
+<p>You will need to export these variables every time you open a new shell before running <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> commands.
+The Make targets handle this automatically, which is why they are the recommended approach.</p>
+</section>
 </section>
 <section id="development">
 <h2>Development<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#development" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#development'">¶</a></h2>
 <p>If the initial installation was successful, you can start developing. Changes to files cause an automatic
 reload of the development server. If you need to generate and perform database migrations or generate locale files,
-use</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nb">cd</span><span class="w"> </span>docker/development
-</span><span id="line-2">docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>master<span class="w"> </span>bash
-</span><span id="line-3"><span class="nb">cd</span><span class="w"> </span>jdav_web
+you can run Django management commands directly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>migrate
+</span><span id="line-2">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>makemigrations
+</span><span id="line-3">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>createsuperuser
 </span></code></pre></div>
 </div>
-<p>This starts a shell in the container, where you can execute any django maintenance commands via
-<code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">manage.py</span> <span class="pre">&lt;command&gt;</span></code>. For more information, see the <a class="reference external" href="https://docs.djangoproject.com/en/4.0/ref/django-admin">https://docs.djangoproject.com/en/4.0/ref/django-admin</a>.</p>
+<p>For more complex tasks requiring multiple commands, you can open a shell in the container:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>shell
+</span><span id="line-2"><span class="nb">cd</span><span class="w"> </span>jdav_web
+</span><span id="line-3">python3<span class="w"> </span>manage.py<span class="w"> </span>&lt;command&gt;
+</span></code></pre></div>
+</div>
+<p>For more information on Django management commands, see the <a class="reference external" href="https://docs.djangoproject.com/en/4.0/ref/django-admin">https://docs.djangoproject.com/en/4.0/ref/django-admin</a>.</p>
+<section id="make-commands-reference">
+<h3>Make commands reference<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#make-commands-reference" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#make-commands-reference'">¶</a></h3>
+<p>The following Make commands are available for development:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">build</span></code> - Build the development containers</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">build</span> <span class="pre">BUILD_ARGS=--no-cache</span></code> - Build without using cached layers (useful when dependencies change)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">build</span> <span class="pre">BUILD_ARGS="--no-cache</span> <span class="pre">--pull"</span></code> - Build with multiple docker compose arguments</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">up</span></code> - Start the development environment in foreground</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">up</span> <span class="pre">detach=true</span></code> - Start the development environment in background</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">down</span></code> - Stop the development environment</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">shell</span></code> - Open a bash shell in the running container</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">manage</span> <span class="pre">&lt;command&gt;</span></code> - Run a Django management command (e.g., <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">manage</span> <span class="pre">migrate</span></code>)</p></li>
+</ul>
+<p>Additional docker compose build arguments can be passed using the <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS</span></code> variable, such as <code class="docutils literal notranslate"><span class="pre">--no-cache</span></code>,
+<code class="docutils literal notranslate"><span class="pre">--pull</span></code>, or <code class="docutils literal notranslate"><span class="pre">--progress=plain</span></code>. For multiple arguments, quote them: <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS="--no-cache</span> <span class="pre">--pull"</span></code>.</p>
+</section>
 </section>
 <section id="known-issues">
 <h2>Known Issues<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#known-issues" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#known-issues'">¶</a></h2>
 <ul class="simple">
-<li><p>If the <code class="docutils literal notranslate"><span class="pre">UID</span></code> and <code class="docutils literal notranslate"><span class="pre">GID</span></code> variables are not setup properly, you will encounter the following error message
-after running <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span></code>.</p></li>
+<li><p>If you use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> directly without exporting the <code class="docutils literal notranslate"><span class="pre">USER_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">GROUP_ID</span></code>, and <code class="docutils literal notranslate"><span class="pre">USERNAME</span></code> variables,
+you will encounter the following error message after running <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span></code>:</p></li>
 </ul>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="o">=</span>&gt;<span class="w"> </span>ERROR<span class="w"> </span><span class="o">[</span>master<span class="w"> </span><span class="m">6</span>/7<span class="o">]</span><span class="w"> </span>RUN<span class="w"> </span>groupadd<span class="w"> </span>-g<span class="w">  </span>fritze<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>useradd<span class="w"> </span>-g<span class="w">  </span>-u<span class="w">  </span>-m<span class="w"> </span>-d<span class="w"> </span>/app<span class="w"> </span>fritze<span class="w">                                                                                                                </span><span class="m">0</span>.2s
 </span><span id="line-2">------
@@ -196,7 +216,11 @@ after running <code class="docutils literal notranslate"><span class="pre">docke
 </span><span id="line-6">failed<span class="w"> </span>to<span class="w"> </span>solve:<span class="w"> </span>process<span class="w"> </span><span class="s2">"/bin/sh -c groupadd -g </span><span class="nv">$GID</span><span class="s2"> </span><span class="nv">$USER</span><span class="s2"> &amp;&amp; useradd -g </span><span class="nv">$GID</span><span class="s2"> -u </span><span class="nv">$UID</span><span class="s2"> -m -d /app </span><span class="nv">$USER</span><span class="s2">"</span><span class="w"> </span>did<span class="w"> </span>not<span class="w"> </span><span class="nb">complete</span><span class="w"> </span>successfully:<span class="w"> </span><span class="nb">exit</span><span class="w"> </span>code:<span class="w"> </span><span class="m">3</span>
 </span></code></pre></div>
 </div>
-<p>In this case repeat <a class="reference internal" href="#step-3"><span class="std std-ref">step 3</span></a> above.</p>
+<p>In this case, either:</p>
+<ul class="simple">
+<li><p>Use the Make commands (<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">up</span></code>) which handle variable exports automatically (recommended), or</p></li>
+<li><p>Export the required variables as shown in the „Alternative: Using docker compose directly“ section above</p></li>
+</ul>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
@@ -219,8 +243,14 @@ after running <code class="docutils literal notranslate"><span class="pre">docke
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#initial-installation'" class="reference internal" href="#initial-installation">Initial installation</a></li>
-<li><a :data-current="activeSection === '#development'" class="reference internal" href="#development">Development</a></li>
+<li><a :data-current="activeSection === '#initial-installation'" class="reference internal" href="#initial-installation">Initial installation</a><ul>
+<li><a :data-current="activeSection === '#alternative-using-docker-compose-directly'" class="reference internal" href="#alternative-using-docker-compose-directly">Alternative: Using docker compose directly</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#development'" class="reference internal" href="#development">Development</a><ul>
+<li><a :data-current="activeSection === '#make-commands-reference'" class="reference internal" href="#make-commands-reference">Make commands reference</a></li>
+</ul>
+</li>
 <li><a :data-current="activeSection === '#known-issues'" class="reference internal" href="#known-issues">Known Issues</a></li>
 </ul>
 </div>

@@ -16,33 +16,14 @@ A working ``docker`` setup (with ``docker compose``) is required. For installati
 
 1. Clone the repository and change into the directory of the repository.
 
-2. Fetch submodules
+2. Start docker using Make (recommended)
 
 .. code-block:: bash
 
-    git submodule update --init
-
-
-.. _step-3:
-
-3. Prepare development environment: to allow automatic rebuilding upon changes in the source,
-   the owner of the ``/app/jdav_web`` directory in the Docker container must match your
-   user. For this, make sure that the output of ``echo UID`` and ``echo UID`` is not empty. Then run
-
-.. code-block:: bash
-
-    export GID=${GID}
-    export UID=${UID}
-
-4. Start docker
-
-.. code-block:: bash
-
-    cd docker/development
-    docker compose up
+    make dev up
 
 This runs the docker in your current shell, which is useful to see any log output. If you want to run
-the development server in the background instead, use ``docker compose up -d``.
+the development server in the background instead, use ``make dev up detach=true``.
 
 During the initial run, the container is built and all dependencies are installed which can take a few minutes.
 After successful installation, the Kompass initialization runs, which in particular sets up all tables in the
@@ -52,16 +33,34 @@ If you need to rebuild the container (e.g. after changing the ``requirements.txt
 
 .. code-block:: bash
 
-    docker compose up --build
+    make dev build
 
-5. Setup admin user: in a separate shell, while the docker container is running, execute
+3. Setup admin user: in a separate shell, while the docker container is running, execute
+
+.. code-block:: bash
+
+    make dev manage createsuperuser
+
+This creates an admin user for the administration interface.
+
+Alternative: Using docker compose directly
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you prefer to use ``docker compose`` commands directly instead of the Make targets, you need to manually
+export the USER_ID, GROUP_ID, and USERNAME environment variables. These variables ensure that the owner of the
+``/app/jdav_web`` directory in the Docker container matches your user, allowing automatic rebuilding upon
+changes in the source.
 
 .. code-block:: bash
 
     cd docker/development
-    docker compose exec master bash -c "cd jdav_web && python3 manage.py createsuperuser"
+    export USER_ID=$(id -u)
+    export GROUP_ID=$(id -g)
+    export USERNAME=$(id -un)
+    docker compose up
 
-This creates an admin user for the administration interface.
+You will need to export these variables every time you open a new shell before running ``docker compose`` commands.
+The Make targets handle this automatically, which is why they are the recommended approach.
 
 
 Development
@@ -69,16 +68,40 @@ Development
 
 If the initial installation was successful, you can start developing. Changes to files cause an automatic
 reload of the development server. If you need to generate and perform database migrations or generate locale files,
-use
+you can run Django management commands directly:
 
 .. code-block:: bash
 
-    cd docker/development
-    docker compose exec master bash
-    cd jdav_web
+    make dev manage migrate
+    make dev manage makemigrations
+    make dev manage createsuperuser
 
-This starts a shell in the container, where you can execute any django maintenance commands via
-``python3 manage.py <command>``. For more information, see the https://docs.djangoproject.com/en/4.0/ref/django-admin.
+For more complex tasks requiring multiple commands, you can open a shell in the container:
+
+.. code-block:: bash
+
+    make dev shell
+    cd jdav_web
+    python3 manage.py <command>
+
+For more information on Django management commands, see the https://docs.djangoproject.com/en/4.0/ref/django-admin.
+
+Make commands reference
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following Make commands are available for development:
+
+- ``make dev build`` - Build the development containers
+- ``make dev build BUILD_ARGS=--no-cache`` - Build without using cached layers (useful when dependencies change)
+- ``make dev build BUILD_ARGS="--no-cache --pull"`` - Build with multiple docker compose arguments
+- ``make dev up`` - Start the development environment in foreground
+- ``make dev up detach=true`` - Start the development environment in background
+- ``make dev down`` - Stop the development environment
+- ``make dev shell`` - Open a bash shell in the running container
+- ``make dev manage <command>`` - Run a Django management command (e.g., ``make dev manage migrate``)
+
+Additional docker compose build arguments can be passed using the ``BUILD_ARGS`` variable, such as ``--no-cache``,
+``--pull``, or ``--progress=plain``. For multiple arguments, quote them: ``BUILD_ARGS="--no-cache --pull"``.
 
 
 
@@ -86,8 +109,8 @@ This starts a shell in the container, where you can execute any django maintenan
 Known Issues
 ------------
 
-- If the ``UID`` and ``GID`` variables are not setup properly, you will encounter the following error message
-  after running ``docker compose up``.
+- If you use ``docker compose`` directly without exporting the ``USER_ID``, ``GROUP_ID``, and ``USERNAME`` variables,
+  you will encounter the following error message after running ``docker compose up``:
 
 .. code-block:: bash
 
@@ -98,4 +121,7 @@ Known Issues
     ------
     failed to solve: process "/bin/sh -c groupadd -g $GID $USER && useradd -g $GID -u $UID -m -d /app $USER" did not complete successfully: exit code: 3
 
-In this case repeat :ref:`step 3 <step-3>` above.
+In this case, either:
+
+- Use the Make commands (``make dev up``) which handle variable exports automatically (recommended), or
+- Export the required variables as shown in the "Alternative: Using docker compose directly" section above
