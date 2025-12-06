@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-06 13:52+0100\n"
+"POT-Creation-Date: 2025-12-06 13:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -64,6 +64,15 @@ msgstr "Organisatorisches"
 #: members/admin.py
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
+
+#: members/admin.py
+#, python-brace-format
+msgid ""
+"Member {name} doesn't have a birthdate set, which is mandatory for echo "
+"requests"
+msgstr ""
+"Teilnehmer*in {name} hat kein Geburtsdatum. Dieses muss für die "
+"Rückmeldungsanforderung gesetzt sein."
 
 #: members/admin.py
 msgid "Echo required"
