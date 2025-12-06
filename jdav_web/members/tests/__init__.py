@@ -5,3 +5,4 @@ from .rules import *
 from .tasks import *
 from .templatetags import *
 from .views import *
+from .test_csv import *
