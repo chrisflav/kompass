@@ -15,6 +15,11 @@ This part of the documentation describes the development and maintenance of the 
    testing
    deployment
 
+Getting started
+---------------
+
+To get started, head to the :ref:`development_manual/setup`.
+
 
 Contributing
 ------------

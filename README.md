@@ -5,7 +5,7 @@
 Kompass is an administration platform designed for local sections of the Young German Alpine Club. It provides
 tools to contact and (automatically) manage members, groups, material, excursions and statements.
 
-For more details on the features, see the (German) [documentation](https://jdav-hd.de/static/docs/index.html).
+For more details on the features, see the (German) [documentation](https://chrisflav.github.io/kompass/).
 
 If you are interested in using the Kompass in your own local section, please get in touch via
 email at `name of this project`@`merten.dev`. We are very happy to discuss how the Kompass can be used in
@@ -35,7 +35,7 @@ The sphinx documentation contains information about:
 - and much more...
 
 For further details on the implementation, please head to the
-[developer documentation](https://jdav-hd.de/static/docs/development_manual/index.html).
+[developer documentation](https://chrisflav.github.io/kompass/development_manual/index.html).
 
 # License
 
