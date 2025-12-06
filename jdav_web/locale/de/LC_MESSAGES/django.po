@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-15 23:05+0200\n"
+"POT-Creation-Date: 2025-12-06 00:00+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -134,6 +134,18 @@ msgstr ""
 #: logindata/views.py
 msgid "You entered a wrong password."
 msgstr "Das eingegebene Passwort ist falsch."
+
+#: templates/admin/base.html
+msgid "My Profile"
+msgstr "Mein Profil"
+
+#: templates/admin/base.html
+msgid "Change password"
+msgstr "Passwort ändern"
+
+#: templates/admin/base.html
+msgid "Log out"
+msgstr "Abmelden"
 
 #: templates/admin/delete_confirmation.html
 #, python-format

@@ -75,6 +75,9 @@ django.gettext = window.gettext
                         <a href="{{ docsroot }}">{% trans 'Documentation' %}</a> /
                     {% endif %}
                 {% endif %}
+                {% if user.member %}
+                <a href="{% url 'admin:members_member_change' user.member.pk %}">{% trans 'My Profile' %}</a> /
+                {% endif %}
                 {% if user.has_usable_password %}
                 <a href="{% url 'admin:password_change' %}">{% trans 'Change password' %}</a> /
                 {% endif %}
@@ -198,6 +201,14 @@ django.gettext = window.gettext
                         </a>
                     {% endif %}
                     {% if user.is_active and user.is_staff %}
+                        {% if user.member %}
+                        <a href="{% url 'admin:members_member_change' user.member.pk %}" class="sidebar-link icon">
+                            <span class="sidebar-link-label">
+                                <span class="sidebar-link-icon icon-user"></span>
+                                {% trans 'My Profile' %}
+                            </span>
+                        </a>
+                        {% endif %}
                         {% if user.has_usable_password %}
                         <a href="{% url 'admin:password_change' %}" class="sidebar-link icon">
                             <span class="sidebar-link-label">
