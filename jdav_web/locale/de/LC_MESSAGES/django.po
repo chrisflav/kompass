@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-15 23:05+0200\n"
+"POT-Creation-Date: 2025-12-06 16:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,8 +20,29 @@ msgstr ""
 
 #: contrib/admin.py
 #, python-format
+msgid "%(modelname)s not found."
+msgstr ""
+
+#: contrib/admin.py
+msgid "Insufficient permissions."
+msgstr ""
+
+#: contrib/admin.py
+#, python-format
 msgid "You are not allowed to view %(name)s."
 msgstr "Du hast nicht die notwendigen Berechtigungen um %(name)s zu sehen."
+
+#: contrib/tests.py utils.py
+msgid "Please keep filesize under {} MiB. Current filesize: {:10.2f} MiB."
+msgstr "Maximale Dateigröße {} MiB. Aktuelle Dateigröße: {:10.2f} MiB."
+
+#: contrib/tests.py utils.py
+msgid "Filetype not supported."
+msgstr "Dateityp nicht unterstützt."
+
+#: contrib/tests.py utils.py
+msgid "Please keep filesize under {}. Current filesize: {}"
+msgstr "Maximale Dateigröße {}. Aktuelle Dateigröße: {}."
 
 #: jdav_web/urls.py
 msgid "Startpage"
@@ -74,11 +95,11 @@ msgstr "Registrierung"
 #: logindata/templates/logindata/register_failed.html
 #: logindata/templates/logindata/register_form.html
 #: logindata/templates/logindata/register_password.html
-#: logindata/templates/logindata/register_success.html
+#: logindata/templates/logindata/register_success.html logindata/tests/views.py
 msgid "Set login data"
 msgstr "Zugangsdaten wählen"
 
-#: logindata/templates/logindata/register_failed.html
+#: logindata/templates/logindata/register_failed.html logindata/tests/views.py
 msgid "Something went wrong. The registration key is invalid or has expired."
 msgstr ""
 "Etwas ist schief gegangen. Der Registrierungscode ist ungültig oder ist "
@@ -99,6 +120,7 @@ msgstr "Registrieren"
 
 #: logindata/templates/logindata/register_form.html
 #: logindata/templates/logindata/register_password.html
+#: logindata/tests/views.py
 msgid "Welcome, "
 msgstr "Willkommen, "
 
@@ -126,14 +148,112 @@ msgstr ""
 msgid "Registration successful"
 msgstr "Zugangsdaten erfolgreich festgelegt"
 
-#: logindata/templates/logindata/register_success.html
+#: logindata/templates/logindata/register_success.html logindata/tests/views.py
 msgid "You successfully set your login data. You can now proceed to"
 msgstr ""
 "Du hast deine Zugangsdaten erfolgreich festgelegt. Du kannst nun weiter zum"
 
-#: logindata/views.py
+#: logindata/tests/views.py logindata/views.py
 msgid "You entered a wrong password."
 msgstr "Das eingegebene Passwort ist falsch."
+
+#: templates/admin/base.html
+#, fuzzy
+#| msgid "Welcome, "
+msgid "Welcome,"
+msgstr "Willkommen, "
+
+#: templates/admin/base.html
+#, fuzzy
+#| msgid "View on site"
+msgid "View site"
+msgstr "Auf der Website anzeigen"
+
+#: templates/admin/base.html
+#, fuzzy
+#| msgid "Authentication"
+msgid "Documentation"
+msgstr "Authentifizierung"
+
+#: templates/admin/base.html
+#, fuzzy
+#| msgid "Password"
+msgid "Change password"
+msgstr "Passwort"
+
+#: templates/admin/base.html
+msgid "Log out"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "Home"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "back"
+msgstr ""
+
+#: templates/admin/base.html
+#, fuzzy
+#| msgid "Authentication"
+msgid "Applications"
+msgstr "Authentifizierung"
+
+#: templates/admin/base.html
+#, fuzzy
+#| msgid "Generate SJR application"
+msgid "Hide applications"
+msgstr "SJR Antrag erstellen"
+
+#: templates/admin/base.html
+msgid "Show hidden"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "Add bookmark"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "Title"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "URL"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "Delete bookmark"
+msgstr ""
+
+#: templates/admin/base.html
+#, fuzzy
+#| msgid ""
+#| "Are you sure you want to delete the %(object_name)s "
+#| "\"%(escaped_object)s\"?"
+msgid "Are you sure want to delete this bookmark?"
+msgstr ""
+"Bist du sicher, dass du %(object_name)s \"%(escaped_object)s\" und alle "
+"davon abhängigen Objekte löschen möchtest? "
+
+#: templates/admin/base.html
+msgid "bookmarks"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "Remove"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "Search"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "Application page"
+msgstr ""
+
+#: templates/admin/base.html
+msgid "current theme"
+msgstr ""
 
 #: templates/admin/delete_confirmation.html
 #, python-format
@@ -232,22 +352,27 @@ msgstr "Auf der Website anzeigen"
 msgid "Delete?"
 msgstr "Löschen?"
 
+#: templates/admin/finance/statement/change_form_object_tools.html
 #: templates/admin/finance/statementconfirmed/change_form_object_tools.html
 msgid "Unconfirm"
 msgstr "Bestätigung zurücknehmen"
 
+#: templates/admin/finance/statement/change_form_object_tools.html
 #: templates/admin/finance/statementconfirmed/change_form_object_tools.html
 msgid "Download summary"
 msgstr "Beleg herunterladen"
 
+#: templates/admin/finance/statement/change_form_object_tools.html
 #: templates/admin/finance/statementsubmitted/change_form_object_tools.html
 msgid "Reduce transactions"
 msgstr "Überweisungen minimieren"
 
+#: templates/admin/finance/statement/change_form_object_tools.html
 #: templates/admin/finance/statementsubmitted/change_form_object_tools.html
 msgid "Overview"
 msgstr "Übersicht"
 
+#: templates/admin/finance/statement/change_form_object_tools.html
 #: templates/admin/finance/statementunsubmitted/change_form_object_tools.html
 msgid "Submit"
 msgstr "Einreichen"
@@ -281,8 +406,18 @@ msgid "Generate group checklist"
 msgstr "Gruppencheckliste erstellen"
 
 #: templates/admin/members/member/change_form_object_tools.html
+msgid "Request echo"
+msgstr "Rückmeldungsaufforderung verschicken"
+
+#: templates/admin/members/member/change_form_object_tools.html
 msgid "Invite as user"
 msgstr "Als Kompassbenutzer*in einladen"
+
+#: templates/admin/members/memberunconfirmedproxy/change_form_object_tools.html
+#, fuzzy
+#| msgid "Registration"
+msgid "Request registration form"
+msgstr "Registrierung"
 
 #: templates/admin/members/memberunconfirmedproxy/change_form_object_tools.html
 msgid "Demote to waiter"
@@ -297,18 +432,6 @@ msgstr "Zu Gruppe einladen"
 #, python-format
 msgid "Add another %(verbose_name)s"
 msgstr "%(verbose_name)s hinzufügen"
-
-#: utils.py
-msgid "Please keep filesize under {} MiB. Current filesize: {:10.2f} MiB."
-msgstr "Maximale Dateigröße {} MiB. Aktuelle Dateigröße: {:10.2f} MiB."
-
-#: utils.py
-msgid "Filetype not supported."
-msgstr "Dateityp nicht unterstützt."
-
-#: utils.py
-msgid "Please keep filesize under {}. Current filesize: {}"
-msgstr "Maximale Dateigröße {}. Aktuelle Dateigröße: {}."
 
 #~ msgid "Submit statement"
 #~ msgstr "Abrechnung einreichen"

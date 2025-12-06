@@ -7,7 +7,7 @@ EMAIL_PORT = get_var("mail", "port", default=587 if deployed else 25)
 EMAIL_HOST_USER = get_var("mail", "user", default="user")
 EMAIL_HOST_PASSWORD = get_var("mail", "password", default="secret")
 EMAIL_USE_TLS = get_var("mail", "tls", default=True if deployed else False)
-EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Celery Email Setup
 
