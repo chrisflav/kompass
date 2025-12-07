@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 00:07+0100\n"
+"POT-Creation-Date: 2025-12-07 09:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,125 +18,91 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: contrib/admin.py
 #, python-format
 msgid "%(modelname)s not found."
 msgstr ""
 
-#: contrib/admin.py
 msgid "Insufficient permissions."
 msgstr ""
 
-#: contrib/admin.py
 #, python-format
 msgid "You are not allowed to view %(name)s."
 msgstr "Du hast nicht die notwendigen Berechtigungen um %(name)s zu sehen."
 
-#: contrib/tests.py utils.py
 msgid "Please keep filesize under {} MiB. Current filesize: {:10.2f} MiB."
 msgstr "Maximale Dateigröße {} MiB. Aktuelle Dateigröße: {:10.2f} MiB."
 
-#: contrib/tests.py utils.py
 msgid "Filetype not supported."
 msgstr "Dateityp nicht unterstützt."
 
-#: contrib/tests.py utils.py
 msgid "Please keep filesize under {}. Current filesize: {}"
 msgstr "Maximale Dateigröße {}. Aktuelle Dateigröße: {}."
 
-#: jdav_web/urls.py
 msgid "Startpage"
 msgstr "Startseite"
 
-#: logindata/admin.py
 msgid "Permissions"
 msgstr "Berechtigungen"
 
-#: logindata/admin.py
 msgid "Important dates"
 msgstr "Wichtigen Daten"
 
-#: logindata/apps.py
 msgid "Authentication"
 msgstr "Authentifizierung"
 
-#: logindata/models.py
 msgid "Permission group"
 msgstr "Berechtigungsgruppe"
 
-#: logindata/models.py
 msgid "Permission groups"
 msgstr "Berechtigungsgruppen"
 
-#: logindata/models.py
 msgid "Login Datum"
 msgstr "Zugangsdaten"
 
-#: logindata/models.py
 msgid "Login Data"
 msgstr "Zugangsdaten"
 
-#: logindata/models.py
 msgid "Password"
 msgstr "Passwort"
 
-#: logindata/models.py
 msgid "Active registration password"
 msgstr "Aktives Registrierungspasswort"
 
-#: logindata/models.py
 msgid "Active registration passwords"
 msgstr "Aktive Registrierungspasswörter"
 
-#: logindata/templates/logindata/register_failed.html
 msgid "Registration"
 msgstr "Registrierung"
 
-#: logindata/templates/logindata/register_failed.html
-#: logindata/templates/logindata/register_form.html
-#: logindata/templates/logindata/register_password.html
-#: logindata/templates/logindata/register_success.html logindata/tests/views.py
 msgid "Set login data"
 msgstr "Zugangsdaten wählen"
 
-#: logindata/templates/logindata/register_failed.html logindata/tests/views.py
 msgid "Something went wrong. The registration key is invalid or has expired."
 msgstr ""
 "Etwas ist schief gegangen. Der Registrierungscode ist ungültig oder ist "
 "abgelaufen."
 
-#: logindata/templates/logindata/register_failed.html
 msgid "If you think this is a mistake, please"
 msgstr "Falls du denkst, dass das ein Fehler ist, bitte"
 
-#: logindata/templates/logindata/register_failed.html
 msgid "contact us."
 msgstr "kontaktiere uns."
 
-#: logindata/templates/logindata/register_form.html
-#: logindata/templates/logindata/register_password.html
 msgid "Register"
 msgstr "Registrieren"
 
-#: logindata/templates/logindata/register_form.html
-#: logindata/templates/logindata/register_password.html
-#: logindata/tests/views.py
 msgid "Welcome, "
 msgstr "Willkommen, "
 
-#: logindata/templates/logindata/register_form.html
 msgid ""
 "To set your personal login data, please enter the password that you received."
 msgstr ""
 "Um deine persönlichen Zugansdaten festzulegen, gib bitte das Passwort ein, "
 "das du erhalten hast."
 
-#: logindata/templates/logindata/register_form.html
-#: logindata/templates/logindata/register_password.html
 msgid "submit"
 msgstr "Einreichen"
 
-#: logindata/templates/logindata/register_password.html
 msgid ""
 "To set your personal login data for Kompass, please enter the password that "
 "you received."
@@ -144,90 +110,71 @@ msgstr ""
 "Um deine persönlichen Zugangsdaten festzulegen, gib bitte das Passwort ein, "
 "das du erhalten hast."
 
-#: logindata/templates/logindata/register_success.html
 msgid "Registration successful"
 msgstr "Zugangsdaten erfolgreich festgelegt"
 
-#: logindata/templates/logindata/register_success.html logindata/tests/views.py
 msgid "You successfully set your login data. You can now proceed to"
 msgstr ""
 "Du hast deine Zugangsdaten erfolgreich festgelegt. Du kannst nun weiter zum"
 
-#: logindata/tests/views.py logindata/views.py
 msgid "You entered a wrong password."
 msgstr "Das eingegebene Passwort ist falsch."
 
-#: templates/admin/base.html
 #, fuzzy
 #| msgid "Welcome, "
 msgid "Welcome,"
 msgstr "Willkommen, "
 
-#: templates/admin/base.html
 #, fuzzy
 #| msgid "View on site"
 msgid "View site"
 msgstr "Auf der Website anzeigen"
 
-#: templates/admin/base.html
 #, fuzzy
 #| msgid "Authentication"
 msgid "Documentation"
 msgstr "Authentifizierung"
 
-#: templates/admin/base.html
 msgid "My Profile"
 msgstr "Mein Profil"
 
-#: templates/admin/base.html
 msgid "Change password"
 msgstr "Passwort ändern"
 
-#: templates/admin/base.html
 msgid "Log out"
 msgstr "Abmelden"
 
-#: templates/admin/base.html
 msgid "Home"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "back"
 msgstr ""
 
-#: templates/admin/base.html
 #, fuzzy
 #| msgid "Authentication"
 msgid "Applications"
 msgstr "Authentifizierung"
 
-#: templates/admin/base.html
 #, fuzzy
 #| msgid "Generate SJR application"
 msgid "Hide applications"
 msgstr "SJR Antrag erstellen"
 
-#: templates/admin/base.html
 msgid "Show hidden"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "Add bookmark"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "Title"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "URL"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "Delete bookmark"
 msgstr ""
 
-#: templates/admin/base.html
 #, fuzzy
 #| msgid ""
 #| "Are you sure you want to delete the %(object_name)s "
@@ -237,27 +184,21 @@ msgstr ""
 "Bist du sicher, dass du %(object_name)s \"%(escaped_object)s\" und alle "
 "davon abhängigen Objekte löschen möchtest? "
 
-#: templates/admin/base.html
 msgid "bookmarks"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "Remove"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "Search"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "Application page"
 msgstr ""
 
-#: templates/admin/base.html
 msgid "current theme"
 msgstr ""
 
-#: templates/admin/delete_confirmation.html
 #, python-format
 msgid ""
 "Deleting the %(object_name)s '%(escaped_object)s' would result in deleting "
@@ -268,7 +209,6 @@ msgstr ""
 "folgenden verknüpften Objekte führen, aber du hast nicht die Berechtigung "
 "die folgenden Typen von Objekten zu löschen:"
 
-#: templates/admin/delete_confirmation.html
 #, python-format
 msgid ""
 "Deleting the %(object_name)s '%(escaped_object)s' would require deleting the "
@@ -277,7 +217,6 @@ msgstr ""
 "Löschen von %(object_name)s '%(escaped_object)s' würde zur Löschung der "
 "folgenden geschützten verknüpften Objekte führen:"
 
-#: templates/admin/delete_confirmation.html
 #, python-format
 msgid ""
 "Are you sure you want to delete the %(object_name)s \"%(escaped_object)s\"?"
@@ -285,17 +224,12 @@ msgstr ""
 "Bist du sicher, dass du %(object_name)s \"%(escaped_object)s\" und alle "
 "davon abhängigen Objekte löschen möchtest? "
 
-#: templates/admin/delete_confirmation.html
-#: templates/admin/delete_selected_confirmation.html
 msgid "Yes, I’m sure"
 msgstr "Ja, ich bin sicher"
 
-#: templates/admin/delete_confirmation.html
-#: templates/admin/delete_selected_confirmation.html
 msgid "No, take me back"
 msgstr "Nein, bitte abbrechen"
 
-#: templates/admin/delete_selected_confirmation.html
 #, python-format
 msgid ""
 "Deleting the selected %(objects_name)s would result in deleting related "
@@ -306,7 +240,6 @@ msgstr ""
 "verknüpften Objekte führen, aber du hast nicht die Berechtigung die "
 "folgenden Typen von Objekten zu löschen:"
 
-#: templates/admin/delete_selected_confirmation.html
 #, python-format
 msgid ""
 "Deleting the selected %(objects_name)s would require deleting the following "
@@ -315,7 +248,6 @@ msgstr ""
 "Löschen der ausgewählten %(objects_name)s würde zur Löschung der folgenden "
 "geschützten verknüpften Objekte führen:"
 
-#: templates/admin/delete_selected_confirmation.html
 #, python-format
 msgid ""
 "Are you sure you want to delete the selected %(objects_name)s? All of the "
@@ -324,116 +256,77 @@ msgstr ""
 "Bist du sicher, dass du die ausgewählten %(objects_name)s löschen möchtest? "
 "Alle folgenden Objekte und alle davon abhängigen Objekte werden gelöscht:"
 
-#: templates/admin/delete_selected_confirmation.html
 msgid "Summary"
 msgstr "Zusammenfassung"
 
-#: templates/admin/delete_selected_confirmation.html
 msgid "Objects"
 msgstr "Objekte"
 
-#: templates/admin/edit_inline/stacked.html
-#: templates/admin/edit_inline/tabular.html
-#: templates/nesting/admin/inlines/stacked.html
 msgid "Change"
 msgstr "Ändern"
 
-#: templates/admin/edit_inline/stacked.html
-#: templates/admin/edit_inline/tabular.html
-#: templates/nesting/admin/inlines/stacked.html
 msgid "View"
 msgstr "Anzeigen"
 
-#: templates/admin/edit_inline/stacked.html
-#: templates/admin/edit_inline/tabular.html
-#: templates/nesting/admin/inlines/stacked.html
 msgid "View on site"
 msgstr "Auf der Website anzeigen"
 
-#: templates/admin/edit_inline/tabular.html
 msgid "Delete?"
 msgstr "Löschen?"
 
-#: templates/admin/finance/statement/change_form_object_tools.html
-#: templates/admin/finance/statementconfirmed/change_form_object_tools.html
 msgid "Unconfirm"
 msgstr "Bestätigung zurücknehmen"
 
-#: templates/admin/finance/statement/change_form_object_tools.html
-#: templates/admin/finance/statementconfirmed/change_form_object_tools.html
 msgid "Download summary"
 msgstr "Beleg herunterladen"
 
-#: templates/admin/finance/statement/change_form_object_tools.html
-#: templates/admin/finance/statementsubmitted/change_form_object_tools.html
 msgid "Reduce transactions"
 msgstr "Überweisungen minimieren"
 
-#: templates/admin/finance/statement/change_form_object_tools.html
-#: templates/admin/finance/statementsubmitted/change_form_object_tools.html
 msgid "Overview"
 msgstr "Übersicht"
 
-#: templates/admin/finance/statement/change_form_object_tools.html
-#: templates/admin/finance/statementunsubmitted/change_form_object_tools.html
 msgid "Submit"
 msgstr "Einreichen"
 
-#: templates/admin/members/freizeit/change_form_object_tools.html
 msgid "Generate crisis intervention list"
 msgstr "Kriseninterventionsliste erstellen"
 
-#: templates/admin/members/freizeit/change_form_object_tools.html
 msgid "Generate SJR application"
 msgstr "SJR Antrag erstellen"
 
-#: templates/admin/members/freizeit/change_form_object_tools.html
 msgid "Generate seminar report"
 msgstr "Landesjugendplan Antrag erstellen"
 
-#: templates/admin/members/freizeit/change_form_object_tools.html
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter*innen erstellen"
 
-#: templates/admin/members/freizeit/change_form_object_tools.html
 msgid "Finance overview"
 msgstr "Kostenübersicht"
 
-#: templates/admin/members/group/change_list.html
 msgid "Generate group overview"
 msgstr "Gruppenübersicht erstellen"
 
-#: templates/admin/members/group/change_list.html
 msgid "Generate group checklist"
 msgstr "Gruppencheckliste erstellen"
 
-#: templates/admin/members/member/change_form_object_tools.html
 msgid "Request echo"
 msgstr "Rückmeldungsaufforderung verschicken"
 
-#: templates/admin/members/member/change_form_object_tools.html
 msgid "Invite as user"
 msgstr "Als Kompassbenutzer*in einladen"
 
-#: templates/admin/members/memberunconfirmedproxy/change_form_object_tools.html
 #, fuzzy
 #| msgid "Registration"
 msgid "Request registration form"
 msgstr "Registrierung"
 
-#: templates/admin/members/memberunconfirmedproxy/change_form_object_tools.html
 msgid "Demote to waiter"
 msgstr "Zurück auf die Warteliste setzen"
 
-#: templates/admin/members/memberwaitinglist/change_form_object_tools.html
-#: templates/admin/members/memberwaitinglist/submit_line.html
 msgid "Invite to group"
 msgstr "Zu Gruppe einladen"
 
-#: templates/nesting/admin/inlines/stacked.html
 #, python-format
 msgid "Add another %(verbose_name)s"
 msgstr "%(verbose_name)s hinzufügen"
-
-#~ msgid "Submit statement"
-#~ msgstr "Abrechnung einreichen"
