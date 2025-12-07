@@ -41,7 +41,9 @@ class MemberForm(ModelForm):
             "prename": _("Prename of the member."),
             "lastname": _("Lastname of the member."),
             "phone_number": _("phone number of child or parent"),
-            "photos_may_be_taken": _("Are we allowed to take photos of you during activities? We use them for our public relations work."),
+            "photos_may_be_taken": _(
+                "Are we allowed to take photos of you during activities? We use them for our public relations work."
+            ),
         }
 
 
@@ -77,7 +79,9 @@ class MemberRegistrationForm(ModelForm):
             "phone_number": _("phone number of child or parent"),
             "email": _("email of child if available, otherwise parental email address"),
             "alternative_email": _("optional additional email address"),
-            "photos_may_be_taken": _("Are we allowed to take photos of you during activities? We use them for our public relations work."),
+            "photos_may_be_taken": _(
+                "Are we allowed to take photos of you during activities? We use them for our public relations work."
+            ),
         }
         required = ["street", "plz", "town"]
 
