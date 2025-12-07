@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-06 16:07+0100\n"
+"POT-Creation-Date: 2025-12-07 09:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,9 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: mailer/admin.py
 msgid "Send message"
 msgstr "Nachricht verschicken"
 
-#: mailer/admin.py mailer/tests/admin.py
 msgid ""
 "Your account is not connected to a member. Please contact your system "
 "administrator."
@@ -30,7 +28,6 @@ msgstr ""
 "Dein Account ist nicht mit eine*r Teilnehmer*in verknüpft. Bitte kontaktiere "
 "deine*n Systemadministrator*in."
 
-#: mailer/admin.py mailer/tests/admin.py
 #, python-format
 msgid ""
 "Your email address is not an internal email address. Please use an email "
@@ -39,48 +36,37 @@ msgstr ""
 "Deine E-Mail Adresse ist keine DAV360 E-Mail Adresse. Bitte stelle sicher, "
 "dass deine E-Mail Adresse eine der folgenden Domains hat: %(domains)s."
 
-#: mailer/admin.py mailer/tests/admin.py
 msgid "Failed to send message"
 msgstr "Fehler beim Senden der Email"
 
-#: mailer/admin.py mailer/tests/admin.py
 msgid "Failed to send some messages"
 msgstr "Fehler beim Senden der Emails"
 
-#: mailer/admin.py mailer/tests/admin.py
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
 
-#: mailer/apps.py
 msgid "mailer"
 msgstr "Verteiler"
 
-#: mailer/management/commands/notify_active.py
 #, python-format
 msgid "Congratulation %(name)s"
 msgstr "Herzlichen Glückwunsch %(name)s"
 
-#: mailer/models.py
 msgid "Only alphanumeric characters, ., - and _ are allowed"
 msgstr "Nur Buchstaben, Zahlen, ., . und _ sind erlaubt"
 
-#: mailer/models.py
 msgid "name"
 msgstr "Name"
 
-#: mailer/models.py
 msgid "Forward to participants"
 msgstr "Weiterleitung an Teilnehmer*innen"
 
-#: mailer/models.py
 msgid "Forward to group"
 msgstr "Weiterleitung an Gruppe"
 
-#: mailer/models.py
 msgid "Restrict to internal email addresses"
 msgstr "Weiterleitung nur von internen E-Mail Adressen erlaubt"
 
-#: mailer/models.py
 #, python-format
 msgid ""
 "Only allow forwarding to this e-mail address from one of the following "
@@ -89,11 +75,9 @@ msgstr ""
 "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt "
 "wurden: %(domains)s."
 
-#: mailer/models.py
 msgid "Allowed sender"
 msgstr "Erlaubte Absender:innen"
 
-#: mailer/models.py
 msgid ""
 "Only forward e-mails of members of selected groups. Leave empty to allow all "
 "senders."
@@ -101,226 +85,160 @@ msgstr ""
 "Leite nur E-Mails von Mitgliedern dieser Gruppen weiter. Lasse dieses Feld "
 "frei, um alle Absender*innen zu erlauben."
 
-#: mailer/models.py
 msgid "email address"
 msgstr "Email-Adresse"
 
-#: mailer/models.py
 msgid "email addresses"
 msgstr "Email-Adressen"
 
-#: mailer/models.py
 msgid "Either a group or at least one member is required as forward recipient."
 msgstr ""
 "Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
 "Empfänger*in ausgewählt werden."
 
-#: mailer/models.py
 msgid "subject"
 msgstr "Betreff"
 
-#: mailer/models.py
 msgid "content"
 msgstr "Inhalt"
 
-#: mailer/models.py
 msgid "to group"
 msgstr "An Gruppe"
 
-#: mailer/models.py
 msgid "to freizeit"
 msgstr "An Ausfahrt"
 
-#: mailer/models.py
 msgid "to notes list"
 msgstr "An Notizliste"
 
-#: mailer/models.py
 msgid "to member"
 msgstr "An Teilnehmer*innen"
 
-#: mailer/models.py
 msgid "reply to participant"
 msgstr "Antwort an Teilnehmer*innen"
 
-#: mailer/models.py
 msgid "reply to custom email address"
 msgstr "Antwort an Email-Adresse"
 
-#: mailer/models.py
 msgid "sent"
 msgstr "Gesendet"
 
-#: mailer/models.py
 msgid "Created by"
 msgstr "Erstellt von"
 
-#: mailer/models.py mailer/tests/models.py
 msgid "Some other members"
 msgstr "Andere Teilnehmer*innen"
 
-#: mailer/models.py
 msgid "recipients"
 msgstr "Empfänger"
 
-#: mailer/models.py
 msgid "message"
 msgstr "Nachricht"
 
-#: mailer/models.py
 msgid "messages"
 msgstr "Nachrichten"
 
-#: mailer/models.py
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-#: mailer/models.py
 msgid ""
 "Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
 "Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
 "ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
 
-#: mailer/models.py
 msgid "file"
 msgstr "Datei"
 
-#: mailer/models.py mailer/tests/models.py
 msgid "Empty"
 msgstr "Leer"
 
-#: mailer/models.py
 msgid "attachment"
 msgstr "Anhang"
 
-#: mailer/models.py
 msgid "attachments"
 msgstr "Anhänge"
 
-#: mailer/templates/mailer/change_form.html
 msgid "Save and send mail"
 msgstr "Speichern und Email senden"
 
-#: mailer/templates/mailer/confirm_send.html
 msgid "Do you really want to send these mails?"
 msgstr "Möchtest du diese Emails wirklich verschicken?"
 
-#: mailer/templates/mailer/confirm_send.html
 msgid "already sent"
 msgstr "schon verschickt"
 
-#: mailer/templates/mailer/confirm_send.html
 msgid ""
 "Some messages have already been sent! Do you really want to resend them?"
 msgstr ""
 "Einige Emails wurden schon versendet! Möchtest du diese wirklich nochmal "
 "senden?"
 
-#: mailer/templates/mailer/confirm_send.html
 msgid "Send"
 msgstr "Senden"
 
-#: mailer/templates/mailer/confirm_send.html
 msgid "Cancel"
 msgstr "Abbruch"
 
-#: mailer/templates/mailer/confirmation_sent.html
-#: mailer/templates/mailer/unsubscribe.html
 msgid "Unsubscribe"
 msgstr "Vom Newsletter abmelden"
 
-#: mailer/templates/mailer/confirmation_sent.html mailer/tests/views.py
 msgid "Sent confirmation mail to"
 msgstr "Bestätigungsmail gesendet an"
 
-#: mailer/templates/mailer/confirmation_sent.html
 msgid "Follow the link in your mail to confirm your unsubscription."
 msgstr "Folge dem Link in der Email, um die Abmeldung zu bestätigen."
 
-#: mailer/templates/mailer/index.html
 msgid "This is the mailer app!"
 msgstr "Das ist die Mailer App!"
 
-#: mailer/templates/mailer/send.html
 msgid "Here you can send new emails!"
 msgstr "Hier kannst du neue Emails verschicken!"
 
-#: mailer/templates/mailer/send.html
 msgid "Subject:"
 msgstr "Betreff"
 
-#: mailer/templates/mailer/send.html
 msgid "Content:"
 msgstr "Inhalt:"
 
-#: mailer/templates/mailer/send.html
 msgid "Receiving group:"
 msgstr "Erhaltende Gruppe"
 
-#: mailer/templates/mailer/send.html
 msgid "Send mail"
 msgstr "Email senden"
 
-#: mailer/templates/mailer/subscribe.html
 msgid "Here you can register yourself to the newsletter"
 msgstr "Hier kannst du dich für den Newsletter anmelden."
 
-#: mailer/templates/mailer/subscribe.html
 msgid "Prename"
 msgstr "Vorname"
 
-#: mailer/templates/mailer/subscribe.html
 msgid "Lastname"
 msgstr "Nachname"
 
-#: mailer/templates/mailer/subscribe.html
 msgid "Birthdate"
 msgstr "Geburtsdatum"
 
-#: mailer/templates/mailer/subscribe.html
-#: mailer/templates/mailer/unsubscribe.html
 msgid "Email address"
 msgstr "Email-Adresse"
 
-#: mailer/templates/mailer/subscribe.html
 msgid "Register"
 msgstr "Registrieren"
 
-#: mailer/templates/mailer/subscribed.html
 msgid "Subscribed successfully"
 msgstr "Erfolgreich angemeldet"
 
-#: mailer/templates/mailer/unsubscribe.html mailer/tests/views.py
 msgid "Here you can unsubscribe from the newsletter"
 msgstr "Hier kannst du dich vom Newsletter abmelden"
 
-#: mailer/templates/mailer/unsubscribed.html mailer/tests/views.py
 msgid "Successfully unsubscribed from the newsletter for "
 msgstr "Newsletter erfolgreich abbestellt für "
 
-#: mailer/tests/views.py mailer/views.py
 msgid "Can't verify this link. Try again!"
 msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 
-#: mailer/tests/views.py mailer/views.py
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"
 
-#: mailer/views.py
 msgid "Unsubscription confirmation"
 msgstr "Abmeldebestätigung"
-
-#~ msgid "Please fill in every field!"
-#~ msgstr "Bitte jedes Feld ausfüllen!"
-
-#~ msgid "Member already exists"
-#~ msgstr "Mitglied schon vorhanden"
-
-#~ msgid ""
-#~ "At least one reply-to recipient is required. Use the info mail if you "
-#~ "really want no reply-to recipient."
-#~ msgstr ""
-#~ "Es muss mindestens ein Antwort-An Empfänger angegeben werden. Nutze die "
-#~ "info Email-Adresse falls du wirklich keinen Antwort-An Empfänger haben "
-#~ "möchtest."
