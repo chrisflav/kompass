@@ -139,11 +139,54 @@ versucht dir von diesem Aufwand so viel wie möglich abzunehmen.</p>
 <h2>Stammdaten<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#stammdaten" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#stammdaten'">¶</a></h2>
 <p>Sobald du mit deinen Co-Jugendleiter*innen eine Ausfahrt angedacht hast, kannst du diese im Kompass <a class="reference external" href="https://jdav-hd.de/kompassmembers/freizeit/add/">anlegen</a>.
 Alternativ kannst du in der Seitenleiste „Ausfahrten“ auswählen und dort auf „Ausfahrt hinzufügen“ klicken.</p>
-<a class="reference internal image-reference" href="../_images/Ausfahrt_allgemein.png"><img alt="Screenshot der Ausfahrt-Ansicht" class="align-center" src="../_images/Ausfahrt_allgemein.png" style="width: 685.1999999999999px; height: 402.59999999999997px;"/>
+<a class="reference internal image-reference" href="../_images/Ausfahrt_allgemein.png"><img alt="Screenshot der Ausfahrt-Ansicht" class="align-center" src="../_images/Ausfahrt_allgemein.png" style="width: 691.1999999999999px; height: 435.59999999999997px;"/>
 </a>
 <p>Dann kommst du zuerst auf den Reiter <em>Allgemein</em>, wo du die grundlegenden Informationen zur Ausfahrt
-einträgst. Die noch unbekannten Informationen kannst du später jederzeit ergänzen oder ändern.</p>
-<p>Wenn du weißt wer mitkommt, trägst du im Tab <em>Teilnehmer*innen</em> alle ein, die zur Ausfahrt kommen.</p>
+einträgst. Wenn du dir bei manchen Informationen unsicher bist, kannst du sie vorläufig eintragen und kannst sie später jederzeit ergänzen oder ändern.</p>
+<p>Im Tab <em>Teilnehmer*innen</em> kannst du jederzeit Personen hinzufügen oder entfernen, die an der Ausfahrt teilnehmen.
+Hierfür klickst du auf „Teilnehmer*innen hinzufügen“ und suchst die gewünschten Personen aus der Mitgliederliste heraus.</p>
+<dl>
+<dt>. table::</dt><dd><dl class="field-list simple">
+<dt class="field-odd">align<span class="colon">:</span></dt>
+<dd class="field-odd"><p>center</p>
+</dd>
+</dl>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td><a class="reference internal image-reference" href="../_images/Ausfahrt_Teilnehmer_hinzufügen.png"><img alt="Teilnehmer hinzufügen (1)" src="../_images/Ausfahrt_Teilnehmer_hinzuf%C3%BCgen.png" style="width: 377.0px; height: 248.0px;"/>
+</a>
+</td>
+<td><a class="reference internal image-reference" href="../_images/Ausfahrt_Teilnehmer_hinzufügen2.png"><img alt="Teilnehmer hinzufügen (2)" src="../_images/Ausfahrt_Teilnehmer_hinzuf%C3%BCgen2.png" style="width: 718.0px; height: 305.0px;"/>
+</a>
+</td>
+</tr>
+</tbody>
+</table>
+</dd>
+</dl>
+<p>Abschließend klickst du unten auf „Speichern“, um die Ausfahrt zu erstellen.</p>
+</section>
+<section id="wie-finde-ich-meine-erstellte-ausfahrt-wieder">
+<h2>Wie finde ich meine erstellte Ausfahrt wieder?<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#wie-finde-ich-meine-erstellte-ausfahrt-wieder" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#wie-finde-ich-meine-erstellte-ausfahrt-wieder'">¶</a></h2>
+<ul class="simple">
+<li><p>Öffne in der Seitenleiste den Eintrag „Ausfahrten“.</p></li>
+<li><p>Nutze das Suchfeld oder die Filter (z. B. Name, Datum), um deine Ausfahrt schneller zu finden.</p></li>
+<li><p>Alternativ kannst du nach dem Organisator oder dem Status filtern und dann in der Ergebnisliste auf den Eintrag klicken, um die Detailansicht zu öffnen.</p></li>
+</ul>
+<dl class="simple">
+<dt>..image:: /_static/Ausfahrt_Übersicht.png</dt><dd><dl class="field-list simple">
+<dt class="field-odd">alt<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Screenshot der Ausfahrten-Übersicht</p>
+</dd>
+<dt class="field-even">scale<span class="colon">:</span></dt>
+<dd class="field-even"><p>60%</p>
+</dd>
+<dt class="field-odd">align<span class="colon">:</span></dt>
+<dd class="field-odd"><p>center</p>
+</dd>
+</dl>
+</dd>
+</dl>
 </section>
 <section id="kriseninterventionsliste">
 <span id="crisis-intervention-list"></span><h2>Kriseninterventionsliste<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kriseninterventionsliste" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kriseninterventionsliste'">¶</a></h2>
@@ -185,6 +228,7 @@ Seminarbericht direkt ein und lass dir den Papierkram vom Kompass erledigen.</p>
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
 <li><a :data-current="activeSection === '#stammdaten'" class="reference internal" href="#stammdaten">Stammdaten</a></li>
+<li><a :data-current="activeSection === '#wie-finde-ich-meine-erstellte-ausfahrt-wieder'" class="reference internal" href="#wie-finde-ich-meine-erstellte-ausfahrt-wieder">Wie finde ich meine erstellte Ausfahrt wieder?</a></li>
 <li><a :data-current="activeSection === '#kriseninterventionsliste'" class="reference internal" href="#kriseninterventionsliste">Kriseninterventionsliste</a></li>
 <li><a :data-current="activeSection === '#landesjugendplanantrag'" class="reference internal" href="#landesjugendplanantrag">Landesjugendplanantrag</a></li>
 <li><a :data-current="activeSection === '#sjr-antrag'" class="reference internal" href="#sjr-antrag">SJR Antrag</a></li>
