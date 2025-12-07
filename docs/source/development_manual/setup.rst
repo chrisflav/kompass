@@ -41,7 +41,7 @@ If you need to rebuild the container (e.g. after changing the ``requirements.txt
 
 .. code-block:: bash
 
-    make dev manage createsuperuser
+    make dev createsuperuser
 
 This creates an admin user for the administration interface.
 
@@ -69,22 +69,25 @@ Development
 -----------
 
 If the initial installation was successful, you can start developing. Changes to files cause an automatic
-reload of the development server. If you need to generate and perform database migrations or generate locale files,
-you can run Django management commands directly:
+reload of the development server. If you need to generate and perform database migrations, generate locale files,
+or run tests, you can use make commands. The most common command generates and compiles translation files:
 
 .. code-block:: bash
 
-    make dev manage migrate
-    make dev manage makemigrations
-    make dev manage createsuperuser
+    make dev translate # generate and compile translation files
 
-For more complex tasks requiring multiple commands, you can open a shell in the container:
+For more Info about the translation workflow, see https://docs.djangoproject.com/en/5.2/ref/django-admin/#django-admin-makemessages
+For less common tasks, you can use the ``shell`` command, to enter the container shell and run any Django management commands:
 
 .. code-block:: bash
 
-    make dev shell
-    cd jdav_web
-    python3 manage.py <command>
+    make dev shell # enter the container terminal
+    % python3 manage.py makemigrations # run when you made changes to the data models
+    % python3 manage.py migrate # run to apply database migrations
+    % python3 manage.py import_members members/test_data/members.csv # import example members data from CSV file
+    % python3 manage.py test members.tests.view.ConfirmInvitationViewTestCase # run specific tests or test modules
+    % python3 manage.py <command>
+
 
 For more information on Django management commands, see the https://docs.djangoproject.com/en/4.0/ref/django-admin.
 
@@ -100,12 +103,12 @@ The following Make commands are available for development:
 - ``make dev up detach=true`` - Start the development environment in background
 - ``make dev down`` - Stop the development environment
 - ``make dev shell`` - Open a bash shell in the running container
-- ``make dev manage <command>`` - Run a Django management command (e.g., ``make dev manage migrate``)
+- ``make dev shell`` - Open the container shell to run Django management commands
+- ``make dev createsuperuser`` - Create a Django superuser account
+- ``make dev translate`` - Generate and compile translation files (runs ``makemessages`` and ``compilemessages``)
 
 Additional docker compose build arguments can be passed using the ``BUILD_ARGS`` variable, such as ``--no-cache``,
 ``--pull``, or ``--progress=plain``. For multiple arguments, quote them: ``BUILD_ARGS="--no-cache --pull"``.
-
-
 
 
 Known Issues

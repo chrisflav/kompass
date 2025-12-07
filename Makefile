@@ -16,19 +16,21 @@ endif
 else ifeq ($(DEV_CMD),down)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose down
 else ifeq ($(DEV_CMD),shell)
-	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash
-else ifeq ($(firstword $(DEV_CMD)),manage)
-	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py $(wordlist 2,$(words $(DEV_CMD)),$(DEV_CMD))"
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && bash"
+else ifeq ($(DEV_CMD),translate)
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py makemessages --locale de --no-location --no-obsolete && python3 manage.py compilemessages"
+else ifeq ($(DEV_CMD),createsuperuser)
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py createsuperuser"
 else
-	@echo "Usage: make dev [build|up|down|shell|manage]"
+	@echo "Usage: make dev [build|up|down|shell|manage|translate|createsuperuser]"
 	@echo "  make dev build                        - Build development containers"
 	@echo "  make dev build BUILD_ARGS=--no-cache  - Build with docker compose args"
 	@echo "  make dev up                           - Start development environment"
 	@echo "  make dev up detach=true               - Start in background"
 	@echo "  make dev down                         - Stop development environment"
 	@echo "  make dev shell                        - Open shell in running container"
-	@echo "  make dev manage <command>             - Run Django management command"
-	@echo "                                          (e.g., make dev manage migrate)"
+	@echo "  make dev translate                    - Generate and compile translation files"
+	@echo "  make dev createsuperuser              - Create a superuser account"
 endif
 
 build-test:
