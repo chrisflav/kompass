@@ -29,11 +29,34 @@ Alternativ kannst du in der Seitenleiste "Ausfahrten" auswählen und dort auf "A
    :align: center
 
 Dann kommst du zuerst auf den Reiter *Allgemein*, wo du die grundlegenden Informationen zur Ausfahrt
-einträgst. Die noch unbekannten Informationen kannst du später jederzeit ergänzen oder ändern.
+einträgst. Wenn du dir bei manchen Informationen unsicher bist, kannst du sie vorläufig eintragen und kannst sie später jederzeit ergänzen oder ändern.
 
+Im Tab *Teilnehmer\*innen* kannst du jederzeit Personen hinzufügen oder entfernen, die an der Ausfahrt teilnehmen.
+Hierfür klickst du auf "Teilnehmer\*innen hinzufügen" und suchst die gewünschten Personen aus der Mitgliederliste heraus.
 
+. table::
+   :align: center
 
-Wenn du weißt wer mitkommt, trägst du im Tab *Teilnehmer\*innen* alle ein, die zur Ausfahrt kommen.
+   +-------------------------------------------+-------------------------------------------+
+   | .. image:: /_static/Ausfahrt_Teilnehmer   | .. image:: /_static/Ausfahrt_Teilnehmer   |
+   |    _hinzufügen.png                        |    _hinzufügen2.png                       |
+   |    :alt: Teilnehmer hinzufügen (1)        |    :alt: Teilnehmer hinzufügen (2)        |
+   |    :scale: 100%                           |    :scale: 100%                           |
+   +-------------------------------------------+-------------------------------------------+
+
+Abschließend klickst du unten auf "Speichern", um die Ausfahrt zu erstellen.
+
+Wie finde ich meine erstellte Ausfahrt wieder?
+-----------------------------------------------
+- Öffne in der Seitenleiste den Eintrag "Ausfahrten".
+- Nutze das Suchfeld oder die Filter (z. B. Name, Datum), um deine Ausfahrt schneller zu finden.
+- Alternativ kannst du nach dem Organisator oder dem Status filtern und dann in der Ergebnisliste auf den Eintrag klicken, um die Detailansicht zu öffnen.
+
+..image:: /_static/Ausfahrt_Übersicht.png
+   :alt: Screenshot der Ausfahrten-Übersicht
+   :scale: 60%
+   :align: center
+
 
 .. _crisis-intervention-list:
 
