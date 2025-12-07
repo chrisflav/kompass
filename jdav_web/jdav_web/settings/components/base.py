@@ -24,6 +24,9 @@ MEDIA_ROOT = get_var(
     "django", "media_root", default=os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 )
 
+# Use Open ID Connect if possible
+OIDC_ENABLED = get_var("oidc", "enabled", default=False)
+
 # default primary key auto field type
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -77,8 +80,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.cache.FetchFromCacheMiddleware",
-    "mozilla_django_oidc.middleware.SessionRefresh",
 ]
+
+if OIDC_ENABLED:
+    MIDDLEWARE += ["mozilla_django_oidc.middleware.SessionRefresh"]
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
@@ -184,5 +189,3 @@ STARTPAGE_URL_NAME_PATTERN = r"[\w\-: *]"
 
 # admins to contact on error messages
 ADMINS = get_var("section", "admins", default=[])
-
-LOGIN_URL = "/de/kompass/login/"

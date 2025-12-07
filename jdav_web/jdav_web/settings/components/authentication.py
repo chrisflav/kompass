@@ -8,9 +8,6 @@ AUTHENTICATION_BACKENDS = (
     "rules.permissions.ObjectPermissionBackend",
 )
 
-# Use Open ID Connect if possible
-OIDC_ENABLED = get_var("oidc", "enabled", default=False)
-
 # OIDC configuration
 OIDC_RP_CLIENT_ID = get_var("oidc", "rp_client_id", default="")
 OIDC_RP_CLIENT_SECRET = get_var("oidc", "rp_client_secret", default="")

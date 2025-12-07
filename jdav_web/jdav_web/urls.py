@@ -39,7 +39,7 @@ logger.error(f"{settings.OIDC_ENABLED}, {type(settings.OIDC_ENABLED)}")
 urlpatterns = []
 
 if settings.OIDC_ENABLED:
-    logger.error(f"Enabling OIDC.")
+    logger.error("Enabling OIDC.")
     admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
     urlpatterns += i18n_patterns(
         re_path(r"^oidc/", include("mozilla_django_oidc.urls")),
