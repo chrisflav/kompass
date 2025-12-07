@@ -1148,10 +1148,6 @@ msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 msgid "Set login data for Kompass"
 msgstr "Zugangsdaten für Kompass wählen"
 
-#: members/models/member.py
-msgid "Echo required"
-msgstr "Rückmeldung erforderlich"
-
 #: members/models/member_on_list.py
 msgid "Comment"
 msgstr "Kommentar"
