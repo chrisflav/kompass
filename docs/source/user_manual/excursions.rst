@@ -21,8 +21,17 @@ Stammdaten
 ----------
 
 Sobald du mit deinen Co-Jugendleiter\*innen eine Ausfahrt angedacht hast, kannst du diese im Kompass `anlegen`_.
-Die bekannten Informationen trägst du schon ein, die noch unbekannten lässt du leer oder trägst
-vorläufige Daten ein.
+Alternativ kannst du in der Seitenleiste "Ausfahrten" auswählen und dort auf "Ausfahrt hinzufügen" klicken.
+
+.. image:: /_static/Ausfahrt_allgemein.png
+   :alt: Screenshot der Ausfahrt-Ansicht
+   :scale: 60%
+   :align: center
+
+Dann kommst du zuerst auf den Reiter *Allgemein*, wo du die grundlegenden Informationen zur Ausfahrt
+einträgst. Die noch unbekannten Informationen kannst du später jederzeit ergänzen oder ändern.
+
+
 
 Wenn du weißt wer mitkommt, trägst du im Tab *Teilnehmer\*innen* alle ein, die zur Ausfahrt kommen.
 
