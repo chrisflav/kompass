@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("members", "0046_alter_invitationtogroup_options"),
+        ("members", "0045_statement_permissions"),
     ]
 
     operations = [
