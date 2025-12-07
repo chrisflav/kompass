@@ -26,15 +26,6 @@ msgid "Insufficient permissions."
 msgstr "Unzureichende Berechtigungen"
 
 #, python-format
-msgid "%(modelname)s not found."
-msgstr ""
-
-#: contrib/admin.py
-msgid "Insufficient permissions."
-msgstr ""
-
-#: contrib/admin.py
-#, python-format
 msgid "You are not allowed to view %(name)s."
 msgstr "Du hast nicht die notwendigen Berechtigungen um %(name)s zu sehen."
 
