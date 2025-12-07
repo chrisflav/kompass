@@ -182,15 +182,14 @@ For less common tasks, you can use the <code class="docutils literal notranslate
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>shell
 </span></code></pre></div>
 </div>
-<p>In the container shell, you can run Django management commands, such as:
-.. code-block:: bash</p>
-<blockquote>
-<div><p>% python3 manage.py makemigrations # run when you made changes to the data models
-% python3 manage.py migrate # run to apply database migrations
-% python3 manage.py import_members members/test_data/members.csv # import example members data from CSV file
-% python3 manage.py test members.tests.view.ConfirmInvitationViewTestCase # run specific tests or test modules
-% python3 manage.py &lt;command&gt;</p>
-</div></blockquote>
+<p>In the container shell, you can run Django management commands, such as:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">python3<span class="w"> </span>manage.py<span class="w"> </span>makemigrations<span class="w"> </span><span class="c1"># run when you made changes to the data models</span>
+</span><span id="line-2">python3<span class="w"> </span>manage.py<span class="w"> </span>migrate<span class="w"> </span><span class="c1"># run to apply database migrations</span>
+</span><span id="line-3">python3<span class="w"> </span>manage.py<span class="w"> </span>import_members<span class="w"> </span>members/test_data/members.csv<span class="w"> </span><span class="c1"># import example members data from CSV file</span>
+</span><span id="line-4">python3<span class="w"> </span>manage.py<span class="w"> </span><span class="nb">test</span><span class="w"> </span>members.tests.view.ConfirmInvitationViewTestCase<span class="w"> </span><span class="c1"># run specific tests or test modules</span>
+</span><span id="line-5">python3<span class="w"> </span>manage.py<span class="w"> </span>&lt;command&gt;
+</span></code></pre></div>
+</div>
 <p>For more information on Django management commands, see the <a class="reference external" href="https://docs.djangoproject.com/en/4.0/ref/django-admin">https://docs.djangoproject.com/en/4.0/ref/django-admin</a>.</p>
 <section id="make-commands-reference">
 <h3>Make commands reference<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#make-commands-reference" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#make-commands-reference'">¶</a></h3>
