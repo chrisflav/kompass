@@ -1,0 +1,16 @@
+{% extends "members/base.html" %}
+{% load i18n static common %}
+
+{% block title %}
+{% trans "Registration" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Set login data" %}</h1>
+
+<p>{% trans "Something went wrong. The registration key is invalid or has expired." %}</p>
+
+<p>{% trans "If you think this is a mistake, please" %} <a href="mailto:{% settings_value 'RESPONSIBLE_MAIL' %}">{% trans "contact us." %}</a></p>
+
+{% endblock %}

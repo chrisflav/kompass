@@ -12,45 +12,8 @@
 
 <h1>{% trans "Register" %}</h1>
 
-<p>{% trans "Here you can register for group" %} {{ pwd.group.name }}.</p>
+<p>{% trans "Here you can register for group" %} {{ group.name }}.</p>
 
-{% if error_message %}
-	<p><b>{{ error_message }}</b></p>
-{% endif %}
-
-<form action="" method="post" enctype="multipart/form-data">
-    <table class="termine">
-    {% csrf_token %}
-    {{form}}
-    </table>
-    <p>
-    <input type="checkbox" required>
-    {% blocktrans %}I am member of the DAV {{ sektion }}.{% endblocktrans %}<br>
-    <input type="checkbox" required>
-    {% blocktrans %}I agree that my data is stored and processed on the server of the JDAV {{ sektion }}.{% endblocktrans %}
-    </p>
-    <input type="hidden" name="password" value="{{ pwd.password }}">
-    <input type="hidden" name="waiter_key" value="{{ waiter_key }}">
-    <input type="hidden" name="save">
-    <p><input type="submit" value="{% trans "submit" %}"/></p>
-</form>
-
-<script>
-
-var checkBox = document.querySelector('input[id="id_cc_email_parents"]');
-var textInput = document.querySelector('input[id="id_email_parents"]');
-
-function toggleRequired() {
-    if (checkBox.checked ) {
-        textInput.setAttribute('required','required');
-    }
-    else {
-        textInput.removeAttribute('required');
-    }
-}
-
-checkBox.addEventListener('change',toggleRequired,false);
-
-</script>
+{% include "members/member_form.html" %}
 
 {% endblock %}

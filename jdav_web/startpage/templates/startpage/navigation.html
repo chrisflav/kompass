@@ -1,4 +1,4 @@
-{% load static %}
+{% load static common %}
 
 <script>
 window.onscroll = () => {
@@ -36,34 +36,44 @@ window.onclick = function(event) {
 }
 
 </script>
+{% settings_value 'STARTPAGE_REDIRECT_URL' as redirect_url %}
 
 <div class="navigation">
     <div id="myNavbar" class="navbar">
-        <a href="/"><img style="margin: 0; padding: 0;"src="{% static 'startpage/img/jdav_logo.png' %}"></a>
+        <a href="/"><img style="margin: 0; padding: 0;"src="{% static 'general/img/jdav_logo_sektion.png' %}"></a>
+        {% if not redirect_url %}
         <div>
         <button onclick="myFunction()"class="dropbtn">Menü</button>
-        <a class="nav" href="/kompass">Login</a>
+        <a class="dropbtn" href="/kompass">Login</a>
         </div>
+        {% endif %}
     </div>
 
     <div class="dropdown">
         <div id="myDropdown" class="dropdown-content">
+{% if not redirect_url %}
             <div class="menu-level-1">
                 <ul>
                     <li>
-                        <a href="{% url 'startpage:index' %}">jdav Heidelberg</a>
+                        <a href="{% url 'startpage:index' %}">{{ root_section.title }}</a>
                       <div class="menu-level-2">
                       <ul>
                           <li>
-                              <a href="{% url 'startpage:jugendleiterinnen' %}">Unsere Jugendleiter:innen</a>
-                          </li>
-                          <li>
                               <a href="{% url 'startpage:aktuelles' %}">Aktuelles</a>
                           </li>
+                          <li>
+                              <a href="{% url 'startpage:berichte' %}">Berichte</a>
+                          </li>
+                          {% for post in root_section.post_set.all %}
+                          <li>
+                              <a href="{% url 'startpage:post' post_name=post.urlname section_name=root_section.urlname %}">{{ post.title }}</a>
+                          </li>
+                          {% endfor %}
                       </ul>
                       </div>
                     </li>
                     {% for section in sections %}
+                    {% if section.show_in_navigation %}
                     <li>
                     <a href="{% url 'startpage:section' section_name=section.urlname %}">{{ section.title }}</a>
                       <div class="menu-level-2">
@@ -76,6 +86,7 @@ window.onclick = function(event) {
                       </ul>
                       </div>
                     </li>
+                    {% endif %}
                     {% endfor %}
                     <li>
                     <a href="{% url 'startpage:gruppen' %}">Gruppen</a>
@@ -110,6 +121,7 @@ window.onclick = function(event) {
                     </li>
                 </ul>
             </div>
+{% endif %}
         </div>
     </div>
 </div>

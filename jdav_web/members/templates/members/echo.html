@@ -12,19 +12,12 @@
 
 <h1>{% trans "Echo" %}</h1>
 
-<p>{% trans "Thanks for echoing back. Here is your current data:" %}</p>
+<p>{% trans "Here is your current data. Please check if it is up to date and change accordingly." %}</p>
 
 {% if error_message %}
 	<p><b>{{ error_message }}</b></p>
 {% endif %}
 
-<form action="" method="post">
-    <table class="termine">
-    {% csrf_token %}
-    {{form}}
-    </table>
-    <input type="hidden" name="key" value="{{ key }}">
-    <p><input type="submit" value="{% trans "submit" %}"/></p>
-</form>
+{% include "members/member_form.html" %}
 
 {% endblock %}

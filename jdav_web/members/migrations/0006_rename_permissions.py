@@ -2,28 +2,36 @@
 
 from django.db import migrations
 
+
 def rename_permissions(apps, schema_editor):
     Permission = apps.get_model("auth", "Permission")
 
     for modelcodename in ["klettertreffattendee", "member", "newmemberonlist"]:
         for action in ["view", "add", "change", "delete"]:
-            Permission.objects \
-                .filter(codename="{action}_{modelcodename}".format(action=action, modelcodename=modelcodename)) \
-                .update(name='Can {action} {modelcodename}'.format(action=action, modelcodename=modelcodename))
+            Permission.objects.filter(
+                codename="{action}_{modelcodename}".format(
+                    action=action, modelcodename=modelcodename
+                )
+            ).update(
+                name="Can {action} {modelcodename}".format(
+                    action=action, modelcodename=modelcodename
+                )
+            )
 
 
 def remove_old_memberlist_permissions(apps, schema_editor):
     Permission = apps.get_model("auth", "Permission")
 
     for action in ["view", "add", "change", "delete"]:
-        Permission.objects.filter(codename="{action}_oldmemberonlist".format(action=action)).delete()
+        Permission.objects.filter(
+            codename="{action}_oldmemberonlist".format(action=action)
+        ).delete()
         Permission.objects.filter(codename="{action}_memberlist".format(action=action)).delete()
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('members', '0005_remove_oldmemberonlist_member_and_more'),
+        ("members", "0005_remove_oldmemberonlist_member_and_more"),
     ]
 
     operations = [

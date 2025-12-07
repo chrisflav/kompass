@@ -1,0 +1,283 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+{% load overview_extras %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
+&rsaquo; {% translate 'Finance overview' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h2>{% trans 'Excursion' %}: {{ memberlist.name }}</h2>
+
+<p>
+{% blocktrans %}
+Here you see an estimate on the expected costs and contributions by the association. This is not a guaranteed
+cost plan!
+{% endblocktrans %}
+</p>
+<h3>{% translate "Expenses" %}</h3>
+{% blocktrans %}You listed the following expenses:{% endblocktrans %}
+<p>
+<table>
+    <th>
+        <td>{% trans "Explanation" %}</td>
+        <td>{% trans "Amount" %}</td>
+        <td>{% trans "Paid by" %}</td>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
+    {% for bill in memberlist.statement.bill_set.all %}
+        <tr>
+            <td>
+            {{bill.short_description}}
+            </td>
+            <td>
+            {{bill.explanation}}
+            </td>
+            <td>
+            {{ bill.amount }}€
+            </td>
+            <td>
+                {{ bill.paid_by.name }}
+            </td>
+            <td>
+                {{ bill.paid_by.iban_valid|render_bool }}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+</p>
+
+<p>{% blocktrans %}The total expected expenses are {{ total_bills_theoretic }} €.{% endblocktrans %}</p>
+
+<h3>{% trans "Contributions by the association" %}</h3>
+
+<p>
+{% blocktrans %}According to the contribution guidelines,
+{{ staff_count }} youth leader(s) receive contributions. Each of them receives{% endblocktrans %}
+</p>
+<p>
+<ul>
+    <li>
+        {% blocktrans %}{{ nights }} nights for {{ price_per_night }}€ per night making a total of {{ nights_per_yl }}€.{% endblocktrans %}
+    </li>
+    <li>
+        {% blocktrans %}{{ duration }} days for {{ allowance_per_day }}€ per day making a total of {{ allowance_per_yl }}€.{% endblocktrans %}
+    </li>
+    <li>
+        {% blocktrans %}{{ kilometers_traveled }} km by {{ means_of_transport }} ({{euro_per_km}} € / km) making a total of {{ transportation_per_yl }}€.{% endblocktrans %}
+    </li>
+</ul>
+</p>
+<p>
+{% if allowances_paid > 0 %}
+{% blocktrans %}The allowance of {{ allowance_per_yl }}€ per person is configured to be paid to:{% endblocktrans %}
+<table>
+    <th>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
+    {% for member in memberlist.statement.allowance_to.all %}
+    <tr>
+        <td>{{ member.name }}</td>
+        <td>{{ member.iban_valid|render_bool }}</td>
+    </tr>
+    {% endfor %}
+</table>
+</p>
+{% if memberlist.statement.allowances_paid < memberlist.statement.real_staff_count %}
+<p>{% blocktrans %}Only {{ allowances_paid }} of the {{ real_staff_count }} youth leaders have requested the outpayment of their allowance.{% endblocktrans %}</p>
+{% endif %}
+
+{% else %}
+<p>{% blocktrans %}No receivers of the allowance were provided. Allowance will not be used.{% endblocktrans %}</p>
+{% endif %}
+{% if memberlist.statement.subsidy_to %}
+<p>
+{% blocktrans %}The subsidies for night and transportation costs of {{ total_subsidies }}€ is configured to be paid to:{% endblocktrans %}
+<table>
+    <th>
+        <td>{% trans "IBAN valid" %}</td>
+    </th>
+    <tr>
+        <td>{{ memberlist.statement.subsidy_to.name }}</td>
+        <td>{{ memberlist.statement.subsidy_to.iban_valid|render_bool }}</td>
+    </tr>
+</table>
+</p>
+{% else %}
+<p>{% blocktrans %}No receivers of the subsidies were provided. Subsidies will not be used.{% endblocktrans %}</p>
+{% endif %}
+
+{% if total_org_fee %}
+<h3>{% trans "Org fee" %}</h3>
+<p>
+{% blocktrans %}Warning: {{ old_participant_count }} participant(s) of the excursion are 27 or older. For each of them, an organisation fee of {{ org_fee }} € per day has to be paid to the account. With a duration of {{ duration }} days, a total of {{ total_org_fee_theoretical }} € is charged against the other transactions.{% endblocktrans %}
+</p>
+{% endif %}
+
+{% if not memberlist.statement.allowance_to_valid %}
+<p>
+{% blocktrans %}Warning: The configured recipients of the allowance don't match the regulations. This might be because the number of recipients is bigger then the number of admissable youth leaders for this excursion.{% endblocktrans %}
+</p>
+{% endif %}
+
+<h3>{% trans "LJP contributions" %}</h3>
+{% if memberlist.statement.ljp_to %}
+
+
+<p>
+{% blocktrans %}By submitting the given seminar report, you will receive LJP contributions.
+You have documented interventions worth of {{ total_seminar_days }} seminar days for {{ participant_count }} participants.
+This results in a total contribution of {{ ljp_contributions }}€.
+To receive them, you need to submit the LJP-Proposal within 3 weeks after your excursion and have it approved by the finance office.{% endblocktrans %}
+</p>
+
+<table>
+    <tr>
+        <td></td>
+        <td>{% trans "Seminar hours" %}</td>
+        <td>{% trans "Seminar days" %}</td>
+    </tr>
+{% for day in memberlist.seminar_time_per_day %}
+    <tr>
+        <td>{{ day.day }}</td>
+        <td>{{ day.total_duration }}</td>
+        <td>{{ day.sum_days }}</td>
+    </tr>
+    {% endfor %}
+    <tr>
+        <td><b>{% trans "Sum" %}</b></td>
+        <td></td>
+        <td>{{ total_seminar_days }}</td>
+    </tr>
+</table>
+
+<p>
+    {% blocktrans %}The LJP contributions are configured to be paid to:{% endblocktrans %}
+    <table>
+        <th>
+            <td>{% trans "IBAN valid" %}</td>
+        </th>
+        <tr>
+            <td>{{ memberlist.statement.ljp_to.name }}</td>
+            <td>{{ memberlist.statement.ljp_to.iban_valid|render_bool }}</td>
+        </tr>
+    </table>
+</p>
+
+{% else %}
+<p>
+{% blocktrans %}By submitting a seminar report, you may apply for LJP contributions. In this case,
+you may obtain up to 25€ times {{ duration }} days for {{ theoretic_ljp_participant_count }} participants but only up to
+90% of the total costs. This results in a total of {{ ljp_contributions }}€. If you have created a seminar report, you need to specify who should receive the contributions in order to make use of them.{% endblocktrans %}
+</p>
+
+{% endif %}
+
+{% if memberlist.theoretic_ljp_participant_count < 5 %}
+<p>
+    {% blocktrans %} Warning: LJP contributions can only be claimed for activities with at least 5 participants and one leader. This activity currently has only {{ theoretic_ljp_participant_count }} participants.{% endblocktrans %}
+</p>
+{% endif %}
+
+<h3>{% trans "Summary" %}</h3>
+
+<p>
+{% blocktrans %}This is the estimated cost and contribution summary:{% endblocktrans %}
+</p>
+
+<table>
+    <tr>
+        <td>
+            {% trans "Expenses" %}
+        </td>
+        <td>
+            {{ total_bills_theoretic }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Organisation fees" %}
+        </td>
+        <td>
+            {{ total_org_fee }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Contributions by the association" %}
+        </td>
+        <td>
+            -{{ total_subsidies }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% if memberlist.statement.ljp_to %}{% trans "LJP contributions" %}{% else %}{% trans "Potential LJP contributions" %}{% endif %}
+        </td>
+        <td>
+            -{{ ljp_contributions }}€
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {% trans "Remaining costs" %}
+        </td>
+        <td>
+            {{ total_relative_costs }}€
+        </td>
+    </tr>
+</table>
+<br>
+<p>
+{% blocktrans %}Positive remaining costs indicate that the estimated costs exceed the estimated contributions, while negative
+remaining costs indicate that the estimated contributions exceed the estimated costs.{% endblocktrans %}
+</p>
+<p>
+{% blocktrans %}Note that this cost calculation expects you to apply for LJP contributions. On the
+excursions main page, you can generate a template for a seminar report.{% endblocktrans %}
+</p>
+
+{% if not memberlist.statement.submitted %}
+<h3>{% trans "Submit statement" %}</h3>
+<p>
+{% blocktrans %}Did you already complete this excursion? If yes, please check if all listed expenses are correct
+and people who want their money back have valid bank account numbers. Then submit the statement for processing by the finance department. If you proceed,
+no further changes to the statement are possible.{% endblocktrans %}
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="finance_overview">
+    <input type="hidden" name="finance_overview">
+    <input class="default" style="color: $default-link-color" type="submit" name="apply" value="{% translate 'Submit' %}">
+    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+</form>
+{% else %}
+<br>
+<h3>{% trans "Statement submitted" %}</h3>
+<p>
+{% blocktrans %}The statement for this excursion was already submitted. The finance department is currently processing your
+data and you will receive a response shortly.{% endblocktrans %}
+</p>
+<a href="#" class="button cancel-link">{% translate "Back" %}</a>
+
+{% endif %}
+
+{% endblock %}

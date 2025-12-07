@@ -1,0 +1,15 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+
+{% block title %}
+{% trans "Registration successful" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Set login data" %}</h1>
+
+<p>{% blocktrans %}You successfully set your login data. You can now proceed to{% endblocktrans%}
+<a href="/kompass">login</a>.</p>
+
+{% endblock %}

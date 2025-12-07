@@ -1,30 +1,45 @@
-# kompass
+# jdav Kompass
 
-[![Build Status](https://jenkins.merten.dev/buildStatus/icon?job=gitea%2Fkompass%2Fmain)](https://jenkins.merten.dev/job/gitea/job/kompass/job/main/)
+![Build Status](https://github.com/chrisflav/kompass/actions/workflows/build-docker.yml/badge.svg?branch=main)
 
-This repository has the purpose to develop a webapplication that can be used by
-JDAV to send newsletters, manage user lists and keep material lists up to date.
-As this repository is also meant to be a base for exchange during development, feel free
-to contribute ideas in form of edits to this README, issues, landmarks, projects, wiki entries, ...
+Kompass is an administration platform designed for local sections of the Young German Alpine Club. It provides
+tools to contact and (automatically) manage members, groups, material, excursions and statements.
 
-# Docker
+For more details on the features, see the (German) [documentation](https://chrisflav.github.io/kompass/).
 
-In the `docker` subfolder, there are `docker-compose.yaml`s for development and production use. For the development
-version, no further setup is needed.
+If you are interested in using the Kompass in your own local section, please get in touch via
+email at `name of this project`@`merten.dev`. We are very happy to discuss how the Kompass can be used in
+your setting.
 
-# Production
+# Contributing
 
-In production, the docker setup needs an external database. The exact access credentials are configured in the respective
-docker.env files.
+Any form of contribution is appreciated. If you found a bug or have a feature request, please file an
+[issue](https://github.com/chrisflav/kompass/issues). If you want to help with the documentation or
+want to contribute code, please open a [pull request](https://github.com/chrisflav/kompass/pulls).
 
-# Useful stuff
+If you don't have a github account or don't want to open an issue or pull request here, there is
+also a [Gitea repository](https://git.jdav-hd.merten.dev/digitales/kompass).
 
-## Reset database for certain app
+The following is a short description of where to find the documentation with more information.
 
-The following can be useful in case that automatic migrations throw errors.
+# Documentation
 
-1. delete everything in the migrations folder except for __init__.py.
-2. drop into my MySQL console and do: DELETE FROM django_migrations WHERE app='my_app'
-3. while at the MySQL console, drop all of the tables associated with my_app.
-4. re-run ./manage.py makemigrations my_app - this generates a 0001_initial.py file in my migrations folder.
-5. run ./manage migrate my_app - I expect this command to re-build all my tables, but instead it says: "No migrations to apply."
+Documentation is handled by [sphinx](https://www.sphinx-doc.org/) and located in `docs/`.
+
+The sphinx documentation contains information about:
+- Development Setup
+- Architecture
+- Testing
+- Production Deployment
+- End user documentation
+- and much more...
+
+For further details on the implementation, please head to the
+[developer documentation](https://chrisflav.github.io/kompass/development_manual/index.html).
+
+# License
+
+This code is licensed under the [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html).
+For the full license text, see `LICENCSE`.
+
+See the `NOTICE.txt` file for attributions.

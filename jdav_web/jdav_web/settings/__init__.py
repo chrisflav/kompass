@@ -10,19 +10,58 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
-from split_settings.tools import optional, include
 import os
 
+import tomli
+from split_settings.tools import include
+
+CONFIG_DIR_PATH = os.environ.get("KOMPASS_CONFIG_DIR_PATH", "")
+SETTINGS_FILE = os.environ.get("KOMPASS_SETTINGS_FILE", "settings.toml")
+TEXTS_FILE = os.environ.get("KOMPASS_TEXTS_FILE", "texts.toml")
+
+with open(os.path.join(CONFIG_DIR_PATH, SETTINGS_FILE), "rb") as f:
+    config = tomli.load(f)
+
+if os.path.exists(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE)):
+    with open(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE), "rb") as f:
+        texts = tomli.load(f)
+else:
+    texts = {}  # pragma: no cover
+
+
+def get_var(*keys, default="", dictionary=config):
+    """
+    Get a variable from given config dictionary. The passed keys are used
+    for nested retrieval from the dictionary.
+    """
+    cfg = dictionary
+    for key in keys:
+        if key not in cfg:
+            return default
+        else:
+            cfg = cfg[key]
+    return cfg
+
+
+def get_text(*keys, default=""):
+    """
+    Get a text from the `texts.toml`.
+    """
+    return get_var(*keys, default=default, dictionary=texts)
+
+
 base_settings = [
-    'local.py',
-    'components/base.py',
-    'components/authentication.py',
-    'components/database.py',
-    'components/cache.py',
-    'components/jet.py',
-    'components/emails.py',
-    'components/texts.py',
-    'components/locale.py',
+    "local.py",
+    "components/authentication.py",
+    "components/base.py",
+    "components/database.py",
+    "components/cache.py",
+    "components/jet.py",
+    "components/emails.py",
+    "components/texts.py",
+    "components/locale.py",
+    "components/logging.py",
+    "components/oauth.py",
 ]
 
 include(*base_settings)

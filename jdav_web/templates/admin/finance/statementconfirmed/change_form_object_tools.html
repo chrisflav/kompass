@@ -4,10 +4,13 @@
 {% block object-tools-items %}
 
 <li>
-    {% url opts|admin_urlname:'submit' original.pk|admin_urlquote as invite_url %}
+    {% url opts|admin_urlname:'unconfirm' original.pk|admin_urlquote as invite_url %}
     <a class="historylink" href="{% add_preserved_filters invite_url %}">{% trans 'Unconfirm' %}</a>
 </li>
-
+<li>
+    {% url opts|admin_urlname:'summary' original.pk|admin_urlquote as invite_url %}
+    <a class="historylink" target="_blank" href="{% add_preserved_filters invite_url %}">{% trans 'Download summary' %}</a>
+</li>
 {{block.super}}
 
 {% endblock %}

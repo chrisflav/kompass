@@ -1,0 +1,86 @@
+x-kompass:
+    &kompass
+    image: kompass:production
+    environment:
+      - DJANGO_SETTINGS_MODULE=jdav_web.settings
+      - KOMPASS_CONFIG_DIR_PATH=/app/config/
+    restart: always
+    depends_on:
+      - redis
+      - cache
+
+services:
+    master:
+        <<: *kompass
+        build:
+            context: https://github.com/chrisflav/kompass.git#main
+            dockerfile: docker/production/Dockerfile
+        entrypoint: /app/docker/production/entrypoint-master.sh
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/app/static/
+          - web_static:/var/www/jdav_web/static/
+          - ./media:/var/www/jdav_web/media/
+          - ./config:/app/config:ro
+        networks:
+          - main
+        extra_hosts:
+          - "host:10.26.42.1"
+
+    nginx:
+        build: https://github.com/chrisflav/kompass.git#main:docker/production/nginx
+        restart: always
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/var/www/jdav_web/static/:ro
+          - ./media:/var/www/jdav_web/media/:ro
+        ports:
+          - "3000:80"
+        depends_on:
+          - master
+        networks:
+          - main
+
+    cache:
+        restart: always
+        image: memcached:alpine
+        networks:
+          - main
+
+    redis:
+        restart: always
+        image: redis:6-alpine
+        networks:
+          - main
+
+    celery_worker:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-celery-worker.sh
+        volumes:
+          - ./config:/app/config:ro
+        networks:
+          - main
+        extra_hosts:
+          - "host:10.26.42.1"
+
+    celery_beat:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-celery-beat.sh
+        volumes:
+          - ./config:/app/config:ro
+        networks:
+          - main
+        extra_hosts:
+          - "host:10.26.42.1"
+
+volumes:
+  uwsgi_data:
+  web_static:
+
+networks:
+  main:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.26.42.0/24
+          gateway: 10.26.42.1

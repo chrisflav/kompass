@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-20 18:48+0100\n"
+"POT-Creation-Date: 2025-09-07 02:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,6 +18,149 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: startpage/templates/startpage/index.html:2
-msgid "Awesome JDAV website being able to do a lot!"
-msgstr "Tolle JDAV Webseite die ganz viel kann!"
+#: startpage/admin.py startpage/models.py
+msgid "URL"
+msgstr "URL"
+
+#: startpage/admin.py
+msgid "The url may only consist of letters, numerals, _, -, :, * and spaces."
+msgstr ""
+"Die URL darf nur aus Buchstaben, Zahlen, _, -, :, * oder Leerzeichen "
+"bestehen."
+
+#: startpage/models.py
+msgid "Title"
+msgstr "Titel"
+
+#: startpage/models.py
+msgid "website text"
+msgstr "Webseitentext"
+
+#: startpage/models.py
+msgid "Show in navigation"
+msgstr "In Navigation anzeigen"
+
+#: startpage/models.py
+msgid "Section"
+msgstr "Abschnitt"
+
+#: startpage/models.py
+msgid "Sections"
+msgstr "Abschnitte"
+
+#: startpage/models.py startpage/tests.py
+msgid "deactivated"
+msgstr "deaktiviert"
+
+#: startpage/models.py
+msgid "Date"
+msgstr "Datum"
+
+#: startpage/models.py
+msgid "Groups"
+msgstr "Gruppen"
+
+#: startpage/models.py
+msgid "detailed"
+msgstr "detailliert"
+
+#: startpage/models.py
+msgid "section"
+msgstr "Abschnitt"
+
+#: startpage/models.py
+msgid "Post"
+msgstr "Eintrag"
+
+#: startpage/models.py
+msgid "Posts"
+msgstr "Einträge"
+
+#: startpage/models.py
+msgid "file"
+msgstr "Datei"
+
+#: startpage/models.py startpage/tests.py
+msgid "Empty"
+msgstr "Leer"
+
+#: startpage/models.py
+msgid "image"
+msgstr "Bild"
+
+#: startpage/models.py
+msgid "images"
+msgstr "Bilder"
+
+#: startpage/models.py
+msgid "Member"
+msgstr "Teilnehmer*in"
+
+#: startpage/models.py
+msgid "Description"
+msgstr "Beschreibung"
+
+#: startpage/models.py
+msgid "Tag"
+msgstr "Tag"
+
+#: startpage/models.py
+msgid "Person"
+msgstr "Person"
+
+#: startpage/models.py
+msgid "Persons"
+msgstr "Personen"
+
+#: startpage/models.py
+msgid "Link Icon"
+msgstr "Link Logo"
+
+#: startpage/models.py
+msgid "Visible"
+msgstr "Sichtbar"
+
+#: startpage/models.py
+msgid "Link"
+msgstr "Link"
+
+#: startpage/models.py
+msgid "Links"
+msgstr "Links"
+
+#: startpage/templates/startpage/faq_content.html
+#: startpage/templates/startpage/group_introduction.html
+#: startpage/templates/startpage/impressum_content.html
+msgid ""
+"This is only a placeholder. Please override this placeholder with a custom "
+"text as described in the documentation."
+msgstr ""
+"Dies ist nur ein Platzhalter. Bitte überschreibe diesen Platzhalter wie in "
+"der Dokumentation beschrieben mit einem benutzerdefinierten Text."
+
+#: startpage/templates/startpage/impressum.html
+msgid "Attributions"
+msgstr "Copyright Informationen"
+
+#: startpage/templates/startpage/impressum.html
+msgid "The source code of this website is licensed under"
+msgstr "Der Quelltext dieser Webseite ist lizenziert unter"
+
+#: startpage/templates/startpage/impressum.html
+msgid "Copyright © 2025 JDAV Sektion "
+msgstr "Copyright © 2025 JDAV Sektion "
+
+#: startpage/templates/startpage/impressum.html
+msgid "for the content of this website."
+msgstr "für den Inhalt dieser Webseite."
+
+#: startpage/templates/startpage/impressum.html
+msgid "External assets used on this website:"
+msgstr "Lizenzhinweise für Ressourcen Dritter:"
+
+#: startpage/templates/startpage/impressum.html
+msgid "Background image"
+msgstr "Hintergrundbild"
+
+#~ msgid "Awesome JDAV website being able to do a lot!"
+#~ msgstr "Tolle JDAV Webseite die ganz viel kann!"

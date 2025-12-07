@@ -1,0 +1,3 @@
+- `climber.png`:
+  Paul Sherman (https://commons.wikimedia.org/wiki/File:Rock_climbing_vector.svg),
+  Public Domain, via Wikimedia Commons

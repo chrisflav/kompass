@@ -1,0 +1,25 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Invitation rejected" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Invitation rejected" %}</h1>
+
+<p>
+{% if leave_waitinglist %}
+{% blocktrans %}You successfully unregistered from the waitinglist. If you want to rejoin the waitinglist
+at a later time, please do so on our website.
+{% endblocktrans %}
+{% else %}
+{% blocktrans %}You successfully rejected the invitation to a trial group meeting of the group
+{{ groupname }}. If there is a slot in a different group available, you will receive a new invitation.
+{% endblocktrans %}
+{% endif %}
+</p>
+
+{% endblock %}

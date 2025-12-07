@@ -4,46 +4,50 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
-    #replaces = [('finance', '0002_billonexcursionproxy_billonstatementproxy_and_more'), ('finance', '0003_alter_statementunsubmitted_options'), ('finance', '0004_alter_billonexcursionproxy_options'), ('finance', '0005_alter_billonstatementproxy_options'), ('finance', '0006_alter_statementsubmitted_options'), ('finance', '0007_alter_billonexcursionproxy_options_and_more')]
+    # replaces = [('finance', '0002_billonexcursionproxy_billonstatementproxy_and_more'), ('finance', '0003_alter_statementunsubmitted_options'), ('finance', '0004_alter_billonexcursionproxy_options'), ('finance', '0005_alter_billonstatementproxy_options'), ('finance', '0006_alter_statementsubmitted_options'), ('finance', '0007_alter_billonexcursionproxy_options_and_more')]
 
     dependencies = [
-        ('finance', '0001_initial'),
+        ("finance", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='statementsubmitted',
-            options={'permissions': [('process_statementsubmitted', 'Can manage submitted statements.')], 'verbose_name': 'Submitted statement', 'verbose_name_plural': 'Submitted statements'},
+            name="statementsubmitted",
+            options={
+                "permissions": [("process_statementsubmitted", "Can manage submitted statements.")],
+                "verbose_name": "Submitted statement",
+                "verbose_name_plural": "Submitted statements",
+            },
         ),
         migrations.CreateModel(
-            name='BillOnExcursionProxy',
-            fields=[
-            ],
+            name="BillOnExcursionProxy",
+            fields=[],
             options={
-                'verbose_name': 'Bill',
-                'verbose_name_plural': 'Bills',
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "Bill",
+                "verbose_name_plural": "Bills",
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('finance.bill',),
+            bases=("finance.bill",),
         ),
         migrations.CreateModel(
-            name='BillOnStatementProxy',
-            fields=[
-            ],
+            name="BillOnStatementProxy",
+            fields=[],
             options={
-                'verbose_name': 'Bill',
-                'verbose_name_plural': 'Bills',
-                'proxy': True,
-                'indexes': [],
-                'constraints': [],
+                "verbose_name": "Bill",
+                "verbose_name_plural": "Bills",
+                "proxy": True,
+                "indexes": [],
+                "constraints": [],
             },
-            bases=('finance.bill',),
+            bases=("finance.bill",),
         ),
         migrations.AlterModelOptions(
-            name='statementunsubmitted',
-            options={'verbose_name': 'Statement in preparation', 'verbose_name_plural': 'Statements in preparation'},
+            name="statementunsubmitted",
+            options={
+                "verbose_name": "Statement in preparation",
+                "verbose_name_plural": "Statements in preparation",
+            },
         ),
     ]

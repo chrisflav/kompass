@@ -1,72 +1,18 @@
-{% load tex_extras %}
+{% extends "members/tex_base.tex" %}
+{% load static common tex_extras %}
 
-\documentclass{article}
+{% block title %}Teilnehmer*innenliste Sektionsveranstaltung{% endblock %}
 
-\usepackage[utf8]{inputenc}
-\usepackage{booktabs}
-\usepackage{amssymb}
-\usepackage{cmbright}
-\usepackage{graphicx}
-\usepackage{textpos}
-\usepackage[colorlinks, breaklinks]{hyperref}
-\usepackage{float}
-\usepackage[margin=1in]{geometry}
-\usepackage{array}
-\usepackage{tabularx}
-
-\newcommand{\picpos}[4]{
-  \begin{textblock*}{#1}(#2, #3)
-    \includegraphics[width=\textwidth]{#4}
-  \end{textblock*}
-}
-
-% custom url command for properly formatting emails
-\DeclareUrlCommand\Email{\urlstyle{same}}
-% allow linebreak after every character
-\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks  
-\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
-\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
-\do\w\do\x\do\y\do\z
-\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
-\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
-\do\W\do\X\do\Y\do\Z}
-
-\renewcommand{\arraystretch}{1.5}
-
-\newcolumntype{L}{>{\hspace{0pt}}X}
-\newcommand{\tickedbox}{
-    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
-}
-\newcommand{\checkbox}{
-    \makebox[0pt][l]{$\square$}
-}
-\begin{document}
-% HEADER RIGHT
-\picpos{4.5cm}{11.5cm}{0cm}{/app/jdav_web/static/general/img/dav_logo.png}
-\begin{textblock*}{5cm}(11.5cm, 2.3cm)
-    \begin{flushright}
-        \small
-        \noindent Deutscher Alpenverein e. V. \\
-        Sektion {{ settings.SEKTION }} \\
-        {{ settings.SEKTION_STREET }} \\
-        {{ settings.SEKTION_TOWN }} \\
-        Tel.: {{ settings.SEKTION_TELEPHONE }} \\
-        Fax: {{ settings.SEKTION_TELEFAX }} \\
-        {{ settings.SEKTION_CONTACT_MAIL }} \\
-    \end{flushright}
-\end{textblock*}
-
-% HEADLINE
-{\noindent\LARGE{Teilnehmer:innenliste\\[2mm]Sektionsveranstaltung}}\\[1mm]
-\textit{Erstellt: {{ creation_date }} }\\
+{% block content %}
 
 % DESCRIPTION TABLE
 \begin{table}[H]
     \begin{tabular}{ll}
         \large Aktivität: & {{ memberlist.name|esc_all }} \\
+        \large Ordnungsnummer & {{ memberlist.code|esc_all }} \\
         \large Gruppe: & {{ memberlist.groups_str|esc_all }}  \\
-        \large Ziel: & {{ memberlist.place|esc_all }} \\
-        \large Stützpunkt: & {{ memberlist.destination|esc_all }} \\
+        \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }} \\
+        \large ggf. Ziel: & {{ memberlist.destination|esc_all }} \\
         \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
         \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }} \\
         \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' memberlist.get_tour_type %}
@@ -78,22 +24,30 @@
     \end{tabular}
 \end{table}
 
-\begin{table}[H]
-    \begin{tabularx}{1\linewidth}{@{\extracolsep{\fill}}lLlL}
+\begin{tabularx}{.97\linewidth}{lXXXX}
     \toprule
-    \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{E-Mail} \\
+    \# & \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{Notfallkontakte} \\
     \midrule
-    {% for m in memberlist.membersonlist.all %}
-        {{ m.member.name|esc_all }} & {{ m.member.address|esc_all }} & {{ m.member.contact_phone_number|esc_all }} & \Email{ {{ m.member.contact_email }} } \\
-    {% endfor %}
+    \endhead
     \bottomrule
-  \end{tabularx}
-\end{table}
+    \endfoot
+
+    {% for m in memberlist.membersonlist.all %}
+        {{ forloop.counter }} &
+        {{ m.member.name|esc_all }} &
+        {{ m.member.address_multiline|esc_all }} &
+        {{ m.member.contact_phone_number|esc_all }} &
+        {% for c in m.member.emergencycontact_set.all %}
+            {{ c.name|esc_all }} \newline
+            Tel.: {{ c.phone_number|esc_all }}
+        {% endfor %} \\
+    {% endfor %}
+
+\end{tabularx}
 
 \vspace{1cm}
 
 \noindent Bitte die ausgefüllte Teilnehmerliste vor Antritt der Aktivität per E-Mail an
-\href{mailto:{{ settings.SEKTION_CONTACT_MAIL }} }{ {{ settings.SEKTION_CONTACT_MAIL }} } und
-\href{mailto:{{ settings.SEKTION_BOARD_MAIL }} }{ {{ settings.SEKTION_BOARD_MAIL }} } senden.
+\href{mailto:{{ settings.SEKTION_CRISIS_INTERVENTION_MAIL }}}{ {{ settings.SEKTION_CRISIS_INTERVENTION_MAIL }} } senden.
 
-\end{document}
+{% endblock content %}

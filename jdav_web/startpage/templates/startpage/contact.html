@@ -1,0 +1,20 @@
+{% load common %}
+
+
+<h2>Ansprechpersonen</h2>
+{% comment %}
+Nicht alles im Leben ist ein automatisierter Prozess. Falls du trotz KOMPASS nicht mehr
+weiterweißt oder sonst der Schuh drückt, schreibe eine E-Mail an eine der folgenden Personen:
+{% endcomment %}
+<div>
+<table>
+    <tr>
+        <td>
+            Jugendreferat
+        </td>
+        <td>
+            <a href="mailto:{% settings_value 'RESPONSIBLE_MAIL' %}">jugendreferat@jdav-hd.de</a>
+        </td>
+    </tr>
+</table>
+</div>

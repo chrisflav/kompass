@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-04-01 05:46-0500\n"
+"POT-Creation-Date: 2025-12-06 16:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,790 +18,2050 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: members/admin.py:108 members/models.py:199
-msgid "Registration complete"
-msgstr "Anmeldung vollständig"
+#: members/admin.py
+msgid ""
+"Please enter all training courses and further education courses that you "
+"have already attended or will be attending soon. Please also upload your "
+"confirmation of participation so that the responsible person can fill in the "
+"'Attended' and 'Passed' fields. If the activity selection does not match "
+"your training, please describe it in the comment field."
+msgstr ""
+"Bitte trage alle Ausbildungen und Fortbildungen ein, die du bereits besucht "
+"hast oder bald besuchst. Lade auch deine Teilnahmebestätigung hoch, damit "
+"von der verantwortlichen Person die Felder 'Teilgenommen' und 'Bestanden' "
+"gepflegt werden können. Wenn die Aktivitätsauswahl nicht zu deiner "
+"Ausbildung passt, dann beschreibe sie im Kommentarfeld."
 
-#: members/admin.py:114
-msgid "True"
-msgstr "Ja"
+#: members/admin.py
+msgid ""
+"Please enter at least one emergency contact with contact details here. These "
+"are necessary for crisis intervention during trips."
+msgstr ""
+"Trage hier bitte mindestens einen Notfallkontakt mit Kontaktdaten ein. Diese "
+"sind notwendig für die Krisenintervention auf Ausfahrten und bei "
+"Veranstaltungen."
 
-#: members/admin.py:115
-msgid "False"
-msgstr "Nein"
+#: members/admin.py
+msgid "The entered IBAN is not valid."
+msgstr "Die eingegebene IBAN ist ungültig."
 
-#: members/admin.py:116
-msgid "All"
-msgstr "Alle"
+#: members/admin.py
+msgid "Contact information"
+msgstr "Kontaktinformationen"
 
-#: members/admin.py:246
-#, python-format
-msgid "You are not allowed to view %(name)s."
-msgstr "Du hast nicht die notwendigen Rechte um %(name)s anzuschauen."
+#: members/admin.py
+msgid "Skills"
+msgstr "Fähigkeiten"
 
-#: members/admin.py:253
+#: members/admin.py
+msgid "Others"
+msgstr "Sonstiges"
+
+#: members/admin.py
+msgid "Organizational"
+msgstr "Organisatorisches"
+
+#: members/admin.py
 msgid "Compose new mail to selected members"
-msgstr "Neue Nachricht an ausgewählte Teilnehmer verfassen"
+msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
 
-#: members/admin.py:259
-msgid "Echo required"
-msgstr "Rückmeldung erforderlich"
-
-#: members/admin.py:264
+#: members/admin.py
 msgid "Successfully requested echo from selected members."
 msgstr ""
-"Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer verschickt."
+"Rückmeldungsaufforderung erfolgreich an ausgewählte Teilnehmer*innen "
+"verschickt."
 
-#: members/admin.py:265
+#: members/admin.py
 msgid "Request echo from selected members"
-msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer verschicken"
+msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
 
-#: members/admin.py:282
+#: members/admin.py members/tests/basic.py
+msgid "Member not found."
+msgstr "Teilnehmer*in nicht gefunden."
+
+#: members/admin.py
+msgid "%(name)s does not receive the newsletter."
+msgstr "%(name)s erhält den Newsletter nicht"
+
+#: members/admin.py
+msgid "Successfully requested echo from %(name)s."
+msgstr "Rückmeldungsaufforderung erfolgreich an %(name)s verschickt."
+
+#: members/admin.py
+#, python-format
+msgid "%(name)s does not have a DAV360 email address or is already registered."
+msgstr "%(name)s hat keine DAV360 E-Mail Adresse oder ist bereits registriert."
+
+#: members/admin.py
+#, python-format
+msgid "Successfully invited %(name)s as user."
+msgstr "Erfolgreich %(name)s aufgefordert Zugangsdaten zu wählen."
+
+#: members/admin.py members/tests/basic.py
+msgid "Successfully invited selected members to join as users."
+msgstr ""
+"Erfolgreich ausgewählte Teilnehmer*innen aufgefordert Zugangsdaten zu wählen."
+
+#: members/admin.py members/tests/basic.py
+msgid "Some members have been invited, others could not be invited."
+msgstr ""
+"Manche Teilnehmer*innen wurden eingeladen, andere konnten nicht eingeladen "
+"werden."
+
+#: members/admin.py members/tests/basic.py
+msgid "Permission denied."
+msgstr "Fehlende Berechtigungen."
+
+#: members/admin.py members/templates/admin/invite_as_user.html
+msgid "Invite as user"
+msgstr "Kompass Zugangsdaten wählen lassen"
+
+#: members/admin.py
+msgid "Invite selected members to join Kompass as users."
+msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
+
+#: members/admin.py members/tests/basic.py
+#, python-format
+msgid "%(name)s already has login data."
+msgstr "%(name)s hat schon Zugangsdaten."
+
+#: members/admin.py members/tests/basic.py
+#, python-format
+msgid "The configured email address for %(name)s is not an internal one."
+msgstr "Die für %(name)s eingestellte E-Mail Adresse ist keine DAV360 Adresse."
+
+#: members/admin.py members/tests/basic.py
+#, python-brace-format
+msgid "{name} already has a pending invitation as user."
+msgstr ""
+"{name} hat bereits eine ausstehende Aufforderung Zugangsdaten zu wählen."
+
+#: members/admin.py
 msgid "activity"
 msgstr "Aktivität"
 
-#: members/admin.py:292 members/models.py:36 members/models.py:1085
+#: members/admin.py members/models/activity.py members/models/training.py
 msgid "Name"
 msgstr "Name"
 
-#: members/admin.py:321
+#: members/admin.py
+msgid "Successfully unconfirmed selected members."
+msgstr ""
+"Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurückgesetzt."
+
+#: members/admin.py
+msgid "Unconfirm selected members."
+msgstr ""
+"Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
+
+#: members/admin.py members/tests/basic.py
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 
-#: members/admin.py:322
+#: members/admin.py
 msgid "Request mail confirmation from selected registrations"
 msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
 
-#: members/admin.py:329 members/admin.py:367
+#: members/admin.py members/tests/basic.py
+msgid ""
+"Successfully re-requested missing mail confirmations from selected "
+"registrations."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versendet."
+
+#: members/admin.py
+msgid "Re-request missing mail confirmations from selected registrations."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versenden."
+
+#: members/admin.py
 #, python-format
 msgid "Successfully confirmed %(name)s."
 msgstr "Registrierung von %(name)s erfolgreich bestätigt."
 
-#: members/admin.py:333 members/admin.py:370
+#: members/admin.py
 #, python-format
 msgid "Can't confirm. %(name)s has unconfirmed email addresses."
 msgstr "Bestätigung nicht möglich. %(name)s hat unbestätigte Emailadressen."
 
-#: members/admin.py:338
+#: members/admin.py members/tests/basic.py
 msgid "Successfully confirmed multiple registrations."
 msgstr "Erfolgreich mehrere Registrierungen bestätigt."
 
-#: members/admin.py:340
+#: members/admin.py members/tests/basic.py
 msgid ""
 "Failed to confirm some registrations because of unconfirmed email addresses."
 msgstr ""
 "Einige Bestätigungen fehlgeschlagen, weil Emailadressen noch nicht bestätigt "
 "sind."
 
-#: members/admin.py:341
+#: members/admin.py
 msgid "Confirm selected registrations"
 msgstr "Ausgewählte Registrierungen bestätigen"
 
-#: members/admin.py:361
+#: members/admin.py
+msgid "Demote selected registrations to waiters."
+msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
+
+#: members/admin.py members/tests/basic.py
+msgid "Demote member to waiter"
+msgstr "Ausgewählte Registrierung zurück auf die Warteliste setzen."
+
+#: members/admin.py
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
 
-#: members/admin.py:362
-msgid "Demote selected registrations to waiters."
-msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
+#: members/admin.py
+#, python-format
+msgid "Requested registration form for %(name)s."
+msgstr "Anmeldeformular für %(name)s angefragt."
 
-#: members/admin.py:377 members/models.py:294 members/models.py:842
+#: members/admin.py
+msgid "Request upload registration form"
+msgstr "Anmeldeformular anfragen"
+
+#: members/admin.py members/models/invitation.py members/models/klettertreff.py
+#: members/models/member.py
 msgid "Group"
 msgstr "Gruppe"
 
-#: members/admin.py:397
+#: members/admin.py
+msgid "Invitation text"
+msgstr "Einladungstext"
+
+#: members/admin.py
+msgid "Age"
+msgstr "Alter"
+
+#: members/admin.py
+msgid "Pending group invitation for group"
+msgstr "Ausstehende Gruppeneinladung für Gruppe"
+
+#: members/admin.py members/models/base.py
+msgid "age"
+msgstr "Alter"
+
+#: members/admin.py
 #, python-format
 msgid "Successfully asked %(name)s to confirm their waiting status."
 msgstr "Erfolgreich %(name)s aufgefordert den Wartelistenplatz zu bestätigen."
 
-#: members/admin.py:398
+#: members/admin.py
 msgid "Ask selected waiters to confirm their waiting status"
 msgstr "Wartende auffordern den Wartelistenplatz zu bestätigen"
 
-#: members/admin.py:407 members/admin.py:463
+#: members/admin.py
+msgid "Successfully requested mail confirmation from selected waiters."
+msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
+
+#: members/admin.py
+msgid "Request mail confirmation from selected waiters."
+msgstr "Aufforderung zur Bestätigung der Email Adresse versenden"
+
+#: members/admin.py
+msgid ""
+"Successfully re-requested missing mail confirmations from selected waiters."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versendet."
+
+#: members/admin.py
+msgid "Re-request missing mail confirmations from selected waiters."
+msgstr ""
+"Erinnerung zur Bestätigung von noch nicht bestätigten Email Adressen "
+"versenden."
+
+#: members/admin.py
+msgid "Offer waiter a place in a group."
+msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
+
+#: members/admin.py members/tests/basic.py
+msgid "A waiter with this ID does not exist."
+msgstr "Es existiert keine wartende Person mit dieser ID."
+
+#: members/admin.py
 msgid ""
 "An error occurred while trying to invite said members. Please try again."
 msgstr ""
 "Beim Einladen dieser Personen ist ein Fehler aufgetreten. Bitte versuche es "
 "nochmal. "
 
-#: members/admin.py:415 members/admin.py:470
+#: members/admin.py
+msgid ""
+"The selected group does not have a contact email. Please first set a contact "
+"email and then try again."
+msgstr ""
+"Die ausgewählte Gruppe hat keine Kontakt E-Mail Adresse. Bitte stelle eine "
+"Kontakt E-Mail Adresse ein und versuche es erneut."
+
+#: members/admin.py
+msgid "Select group for invitation"
+msgstr "Wähle Gruppe für Einladung aus"
+
+#: members/admin.py
 #, python-format
 msgid "Successfully invited %(name)s to %(group)s."
 msgstr "Erfolgreich %(name)s zu Gruppe %(group)s eingeladen."
 
-#: members/admin.py:419 members/admin.py:475
-msgid "Select group for invitation"
-msgstr "Wähle Gruppe für Einladung aus"
-
-#: members/admin.py:426
-msgid "Offer waiter a place in a group."
-msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
-
-#: members/admin.py:515
-msgid "Difficulty"
-msgstr "Schwierigkeit"
-
-#: members/admin.py:518
-msgid "Tour type"
-msgstr "Art der Tour"
-
-#: members/admin.py:521 members/models.py:693
-msgid "Means of transportation"
-msgstr "Verkehrsmittel"
-
-#: members/admin.py:773
-#, python-format
-msgid "You are not allowed to view all members on excursion %(name)s."
-msgstr ""
-"Du hast nicht die nötigen Rechte um alle Teilnehmer:innen der Freizeit "
-"%(name)s anzusehen."
-
-#: members/admin.py:783
-msgid "Generate crisis intervention list"
-msgstr "Kriseninterventionsliste erstellen"
-
-#: members/admin.py:793
-msgid "Generate overview"
-msgstr "Hinweise für Jugendleiter erstellen"
-
-#: members/admin.py:803
-msgid "Generate seminar report"
-msgstr "Seminarbericht erstellen"
-
-#: members/apps.py:7 members/models.py:298
-msgid "members"
-msgstr "Teilnehmer"
-
-#: members/models.py:37
-msgid "Description"
-msgstr "Beschreibung"
-
-#: members/models.py:43 members/models.py:574 members/models.py:673
-#: members/templates/members/change_member.html:17
-msgid "Activity"
-msgstr "Aktivität"
-
-#: members/models.py:44
-msgid "Activities"
-msgstr "Aktivitäten"
-
-#: members/models.py:52
+#: members/admin.py members/models/group.py
 msgid "name"
 msgstr "Name"
 
-#: members/models.py:53
-msgid "lowest year"
-msgstr "Ab Jahrgang"
+#: members/admin.py
+msgid ""
+"The group name may only consist of letters, numerals, _, -, :, * and spaces."
+msgstr ""
+"Der Gruppenname darf nur aus Buchstaben, Zahlen, _, -, :, * oder Leerzeichen "
+"bestehen."
 
-#: members/models.py:54
-msgid "highest year"
-msgstr "Bis Jahrgang"
+#: members/admin.py
+msgid "You are not allowed to create a group overview."
+msgstr ""
+"Du hast nicht die notwendigen Rechte um eine Gruppenübersicht zu erstellen."
 
-#: members/models.py:55
-msgid "youth leaders"
-msgstr "Jugendleiter"
+#: members/admin.py
+msgid "You are not allowed to create a group checklist."
+msgstr ""
+"Du hast nicht die notwendigen Rechte um eine Gruppencheckliste zu erstellen."
 
-#: members/models.py:63 members/models.py:189
-msgid "group"
-msgstr "Gruppe"
+#: members/admin.py
+msgid "Difficulty"
+msgstr "Schwierigkeit"
 
-#: members/models.py:64
-msgid "groups"
-msgstr "Gruppen"
+#: members/admin.py
+msgid "Tour type"
+msgstr "Art der Tour"
 
-#: members/models.py:76
+#: members/admin.py members/models/excursion.py
+msgid "Means of transportation"
+msgstr "Verkehrsmittel"
+
+#: members/admin.py
+#, python-format
+msgid ""
+"This excursion only has up to %(approved_count)s approved youth leaders, but "
+"you listed %(entered_count)s."
+msgstr ""
+"Diese Ausfahrt hat nur bis zu %(approved_count)s zugelassene "
+"Jugendleiter*innen, aber du hast %(entered_count)s eingetragen."
+
+#: members/admin.py
+msgid ""
+"Please list here all expenses in relation with this excursion and upload "
+"relevant bills. These have to be permanently stored for the application of "
+"LJP contributions. The short descriptions are used in the seminar report "
+"cost overview (possible descriptions are e.g. food, material, etc.)."
+msgstr ""
+"Gib hier bitte alle deine Ausgaben in Zusammenhang mit der Ausfahrt an und "
+"lade entsprechende Belege/Quittungen hoch. Diese müssen für die Beantragung "
+"von LJP-Zuschüssen langfristig aufbewahrt werden. Die Kurzbeschreibung der "
+"einzelnen Posten wird dabei auf der LJP-Kostenübersicht angezeigt (sinnvoll "
+"wären z.B. Anreise, Verpflegung, Material etc.)."
+
+#: members/admin.py
+msgid ""
+"Here you can work on a seminar report for applying for financial "
+"contributions from Landesjugendplan (LJP). More information on creating a "
+"seminar report can be found in the wiki. The seminar report or only a "
+"participant list and cost overview can be consequently downloaded."
+msgstr ""
+"Hier kannst du an einem Seminarbericht für die Beantragung von Zuschüssen "
+"des Landesjugendplans (LJP) arbeiten. Weitere Informationen zur Gestaltung "
+"von Seminarberichten findest du im JL-Wiki. Den Seminarbericht oder "
+"wahlweise nur TN-Liste und Kostenübersicht kannst du anschließend "
+"herunterladen."
+
+#: members/admin.py
+msgid ""
+"Please list all participants (also youth leaders) of this excursion. Here "
+"you can still make changes just before departure and hence generate the "
+"latest participant list for crisis intervention at all times."
+msgstr ""
+"Gib hier bitte alle Personen an, die bei der Ausfahrt dabei sind (auch JL). "
+"Hier kannst du auch spontan kurz vor Abfahrt noch Änderungen machen und so "
+"jederzeit die aktuelle Teilnehmer*innenliste für die Krisenintervention "
+"generieren."
+
+#: members/admin.py
+#, python-format
+msgid "You are not allowed to view all members on note list %(name)s."
+msgstr ""
+"Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Notizliste "
+"%(name)s anzusehen."
+
+#: members/admin.py
+msgid "Generate PDF summary"
+msgstr "Übersicht erstellen"
+
+#: members/admin.py
+msgid "Invoice"
+msgstr "Beleg"
+
+#: members/admin.py members/tests/basic.py
+msgid "Excursion not found."
+msgstr "Ausfahrt nicht gefunden."
+
+#: members/admin.py members/tests/basic.py
+msgid ""
+"This excursion does not have a LJP proposal. Please add one and try again."
+msgstr ""
+"Diese Ausfahrt hat keinen Seminarbericht. Bitte füge einen hinzu und "
+"versuche es erneut."
+
+#: members/admin.py
+msgid ""
+"General information on your excursion. These are partly relevant for the "
+"amount of financial compensation (means of transport, travel distance, etc.)."
+msgstr ""
+"Hier kannst du allgemein Angaben zu deiner Ausfahrt machen. Diese sind "
+"teilweise relevant für die Zuschüsse aus dem Jugendetat (Verkehrsmittel, "
+"Fahrstrecke in km)."
+
+#: members/admin.py
+msgid "Approval"
+msgstr "Genehmigung"
+
+#: members/admin.py
+msgid ""
+"Information on the approval status of this excursion. Everything here is not "
+"editable by standard users."
+msgstr ""
+"Informationen zum Genehmigungszustand der Ausfahrt. Die Felder hier sind "
+"nicht sichtbar für Standardbenutzer*innen, nur der Genehmigungszustand wird "
+"in der Übersicht alle Ausfahrten angezeigt."
+
+#: members/admin.py members/tests/basic.py
+#, python-format
+msgid "You are not allowed to view all members on excursion %(name)s."
+msgstr ""
+"Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Ausfahrt "
+"%(name)s anzusehen."
+
+#: members/admin.py
+msgid "Generate crisis intervention list"
+msgstr "Kriseninterventionsliste erstellen"
+
+#: members/admin.py
+msgid "Generate overview"
+msgstr "Hinweise für Jugendleiter erstellen"
+
+#: members/admin.py members/templates/admin/generate_seminar_report.html
+msgid "Generate seminar report"
+msgstr "Landesjugendplan Antrag erstellen"
+
+#: members/admin.py members/templates/admin/generate_sjr_application.html
+msgid "Generate SJR application"
+msgstr "SJR Antrag erstellen"
+
+#: members/admin.py members/tests/basic.py
+msgid "Please select an invoice."
+msgstr "Bitte wähle einen Beleg aus."
+
+#: members/admin.py members/tests/basic.py
+msgid "No statement found. Please add a statement and then retry."
+msgstr ""
+"Keine Abrechnung angelegt. Bitte lege eine Abrechnung and und versuche es "
+"erneut."
+
+#: members/admin.py members/tests/basic.py
+msgid ""
+"The configured recipients of the allowance don't match the regulations. "
+"Please correct this and try again."
+msgstr ""
+"Die ausgewählten Empfänger*innen der Aufwandsentschädigung stimmen nicht mit "
+"den Richtlinien überein. Bitte korrigiere das und versuche es erneut. "
+
+#: members/admin.py members/tests/basic.py
+msgid ""
+"The excursion is configured to claim LJP contributions. In that case, for "
+"all bills, a proof must be uploaded. Please correct this and try again."
+msgstr ""
+"Für die Ausfahrt werden LJP-Zuschüsse beantragt. Dafür müssen für alle "
+"Ausgaben Belege hochgeladen werden. Bitte lade für alle Ausgaben einen Beleg "
+"hoch und versuche es erneut. "
+
+#: members/admin.py
+msgid ""
+"Successfully submited statement. The finance department will notify you as "
+"soon as possible."
+msgstr ""
+"Abrechnung erfolgreich eingereicht. Die Finanzabteilung wird sich bei dir so "
+"schnell wie möglich melden."
+
+#: members/admin.py members/templates/admin/freizeit_finance_overview.html
+msgid "Finance overview"
+msgstr "Kostenübersicht"
+
+#: members/apps.py
+msgid "member administration"
+msgstr "Teilnehmer*innenverwaltung"
+
+#: members/models/activity.py
+msgid "winter"
+msgstr "Winter"
+
+#: members/models/activity.py
+msgid "ski mountaineering"
+msgstr "Skibergsteigen"
+
+#: members/models/activity.py
+msgid "climbing"
+msgstr "Klettern"
+
+#: members/models/activity.py
+msgid "mountaineering"
+msgstr "Bergsteigen"
+
+#: members/models/activity.py
+msgid "theory"
+msgstr "Theorie"
+
+#: members/models/activity.py
+msgid "others"
+msgstr "Sonstiges"
+
+#: members/models/activity.py
+msgid "LJP category"
+msgstr "LJP Spielart"
+
+#: members/models/activity.py
+msgid ""
+"The official category for LJP applications associated with this activity."
+msgstr "Die offizielle Spielart für LJP Anträge mit dieser Aktivität."
+
+#: members/models/activity.py members/models/excursion.py
+msgid "Description"
+msgstr "Beschreibung"
+
+#: members/models/activity.py members/models/excursion.py
+#: members/models/training.py members/templates/members/change_member.html
+msgid "Activity"
+msgstr "Aktivität"
+
+#: members/models/activity.py members/models/training.py
+msgid "Activities"
+msgstr "Aktivitäten"
+
+#: members/models/base.py
 msgid "prename"
 msgstr "Vorname"
 
-#: members/models.py:77
+#: members/models/base.py
 msgid "last name"
 msgstr "Nachname"
 
-#: members/models.py:80
-msgid "Parents' Email"
-msgstr "Email der Eltern"
-
-#: members/models.py:81
-msgid "Also send mails to parents"
-msgstr "Emails auch an Eltern schicken"
-
-#: members/models.py:83
-msgid "birth date"
-msgstr "Geburtsdatum"
-
-#: members/models.py:85
-msgid "comments"
-msgstr "Kommentare"
-
-#: members/models.py:87
+#: members/models/base.py
 msgid "Email confirmed"
 msgstr "Emailadresse bestätigt"
 
-#: members/models.py:88
-msgid "Parents email confirmed"
-msgstr "Emailadresse der Eltern bestätigt"
+#: members/models/base.py members/models/member.py
+msgid "phone number"
+msgstr "Telefonnummer (mobil)"
 
-#: members/models.py:116 members/models.py:125
+#: members/models/base.py
 msgid "Email confirmation needed"
 msgstr "Email Bestätigung erforderlich"
 
-#: members/models.py:160
-msgid "street and house number"
-msgstr "Straße und Hausnummer"
+#: members/models/base.py
+msgid "birth date"
+msgstr "Geburtsdatum"
 
-#: members/models.py:161
-msgid "Postcode"
-msgstr "PLZ"
-
-#: members/models.py:163
-msgid "town"
-msgstr "Stadt"
-
-#: members/models.py:164
-msgid "Address extra"
-msgstr "Adress-Zusatz"
-
-#: members/models.py:165
-msgid "Country"
-msgstr "Land"
-
-#: members/models.py:167
-msgid "Good conduct certificate presentation needed"
-msgstr "Vorlage Führungszeugnis notwendig"
-
-#: members/models.py:168
-msgid "Good conduct certificate presented on"
-msgstr "Führungszeugnis vorgelegt am"
-
-#: members/models.py:169
+#: members/models/base.py
 msgid "Gender"
 msgstr "Gender"
 
-#: members/models.py:170
-msgid "Nationality"
-msgstr "Nationalität"
+#: members/models/base.py
+msgid "comments"
+msgstr "Kommentare"
 
-#: members/models.py:171
+#: members/models/constants.py
+msgid "Monday"
+msgstr "Montag"
+
+#: members/models/constants.py
+msgid "Tuesday"
+msgstr "Dienstag"
+
+#: members/models/constants.py
+msgid "Wednesday"
+msgstr "Mittwoch"
+
+#: members/models/constants.py
+msgid "Thursday"
+msgstr "Donnerstag"
+
+#: members/models/constants.py
+msgid "Friday"
+msgstr "Freitag"
+
+#: members/models/constants.py
+msgid "Saturday"
+msgstr "Samstag"
+
+#: members/models/constants.py
+msgid "Sunday"
+msgstr "Sonntag"
+
+#: members/models/emergency_contact.py members/models/klettertreff.py
+#: members/models/member_on_list.py members/models/training.py
+msgid "Member"
+msgstr "Teilnehmer*in"
+
+#: members/models/emergency_contact.py
+msgid "Emergency contact"
+msgstr "Notfallkontakt"
+
+#: members/models/emergency_contact.py
+msgid "Emergency contacts"
+msgstr "Notfallkontakte"
+
+#: members/models/excursion.py
+msgid "Place"
+msgstr "Stützpunkt / Ort"
+
+#: members/models/excursion.py members/models/member.py
+msgid "Postcode"
+msgstr "PLZ"
+
+#: members/models/excursion.py
+msgid "Destination (optional)"
+msgstr "ggf. Ziel"
+
+#: members/models/excursion.py
+msgid "e.g. a peak"
+msgstr "z.B. ein Gipfel"
+
+#: members/models/excursion.py
+msgid "Begin"
+msgstr "Anfang"
+
+#: members/models/excursion.py
+msgid "End (optional)"
+msgstr "Ende"
+
+#: members/models/excursion.py
+msgid "Groups"
+msgstr "Gruppen"
+
+#: members/models/excursion.py
+msgid "Number of additional approved youth leaders"
+msgstr "Anzahl zusätzlich genehmigter Jugendleiter*innen"
+
+#: members/models/excursion.py
+msgid ""
+"The number of approved youth leaders per excursion is determined by the "
+"number of participants. In special circumstances, e.g. in case of a "
+"technically demanding excursion, more youth leaders may be approved."
+msgstr ""
+"Die Anzahl der genehmigten Jugendleiter*innen pro Ausfahrt wird "
+"grundsätzlich durch die Anzahl der Teilnehmer*innen festgelegt. In "
+"besonderen Fällen, zum Beispiel bei einer fachlich herausfordernden "
+"Ausfahrt, können zusätzliche Jugendleiter*innen genehmigt werden."
+
+#: members/models/excursion.py
+msgid "Kilometers traveled"
+msgstr "Fahrstrecke in Kilometer"
+
+#: members/models/excursion.py
+msgid "Categories"
+msgstr "Kategorien"
+
+#: members/models/excursion.py
+msgid "easy"
+msgstr "leicht"
+
+#: members/models/excursion.py
+msgid "medium"
+msgstr "mittel"
+
+#: members/models/excursion.py
+msgid "hard"
+msgstr "schwer"
+
+#: members/models/excursion.py
+msgid "Approved"
+msgstr "Genehmigt"
+
+#: members/models/excursion.py
+msgid ""
+"Choose no in case of rejection or yes in case of approval. Leave empty, if "
+"not yet decided."
+msgstr ""
+"Wähle Ja bei Genehmigung, Nein bei Ablehung und Unbekannt, falls noch keine "
+"Entscheidung getroffen wurde."
+
+#: members/models/excursion.py
+msgid "Approval comments"
+msgstr "Kommentare oder Auflagen zur Genehmigung"
+
+#: members/models/excursion.py members/models/ljp.py
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Excursion"
+msgstr "Ausfahrt"
+
+#: members/models/excursion.py
+msgid "Excursions"
+msgstr "Ausfahrten"
+
+#: members/models/excursion.py
+#, python-format
+msgid "Crisis intervention list for %(excursion)s from %(start)s to %(end)s"
+msgstr "Kriseninterventionsliste für %(excursion)s vom %(start)s bis %(end)s"
+
+#: members/models/excursion.py
+#, python-format
+msgid "Participant list for %(excursion)s from %(start)s to %(end)s"
+msgstr "Teilnehmendenliste für %(excursion)s vom %(start)s bis %(end)s"
+
+#: members/models/group.py
+msgid "description"
+msgstr "Beschreibung"
+
+#: members/models/group.py
+msgid "show on website"
+msgstr "Auf der Webseite anzeigen"
+
+#: members/models/group.py
+msgid "lowest year"
+msgstr "Ab Jahrgang"
+
+#: members/models/group.py
+msgid "highest year"
+msgstr "Bis Jahrgang"
+
+#: members/models/group.py
+msgid "youth leaders"
+msgstr "Jugendleiter"
+
+#: members/models/group.py
+msgid "week day"
+msgstr "Wochentag"
+
+#: members/models/group.py members/models/ljp.py
+msgid "Starting time"
+msgstr "Zeitpunkt"
+
+#: members/models/group.py
+msgid "Ending time"
+msgstr "Endzeitpunkt"
+
+#: members/models/group.py
+msgid "Contact email"
+msgstr "Kontakt Email"
+
+#: members/models/group.py members/models/member.py
+msgid "group"
+msgstr "Gruppe"
+
+#: members/models/group.py
+msgid "groups"
+msgstr "Gruppen"
+
+#: members/models/group.py
+#, python-format
+msgid "years %(from)s to %(to)s"
+msgstr "Jahrgang %(from)s bis %(to)s"
+
+#: members/models/group.py
+msgid "no information available"
+msgstr "keine Angabe"
+
+#: members/models/invitation.py members/models/waiting_list.py
+msgid "Waiter"
+msgstr "Wartende Person"
+
+#: members/models/invitation.py
+msgid "Invitation date"
+msgstr "Einladungsdatum"
+
+#: members/models/invitation.py members/templates/members/reject_success.html
+msgid "Invitation rejected"
+msgstr "Einladung abgelehnt"
+
+#: members/models/invitation.py
+msgid "Created by"
+msgstr "Erstellt von"
+
+#: members/models/invitation.py
+msgid "Invitation to group"
+msgstr "Gruppeneinladung"
+
+#: members/models/invitation.py
+msgid "Invitations to groups"
+msgstr "Gruppeneinladungen"
+
+#: members/models/invitation.py members/tests/basic.py
+msgid "Rejected"
+msgstr "Abgelehnt"
+
+#: members/models/invitation.py members/tests/basic.py
+msgid "Expired"
+msgstr "Abgelaufen"
+
+#: members/models/invitation.py members/tests/basic.py
+msgid "Undecided"
+msgstr "Ausstehend"
+
+#: members/models/invitation.py
+msgid "Status"
+msgstr "Status"
+
+#: members/models/invitation.py
+#, python-format
+msgid "%(waiter)s left the waiting list"
+msgstr "%(waiter)s hat die Warteliste verlassen"
+
+#: members/models/invitation.py
+#, python-format
+msgid "Group invitation rejected by %(waiter)s"
+msgstr "Einladung zur Schnupperstunde von %(waiter)s abgelehnt"
+
+#: members/models/invitation.py
+#, python-format
+msgid "Group invitation confirmed by %(waiter)s"
+msgstr "Teilnahme an Schnupperstunde von %(waiter)s bestätigt"
+
+#: members/models/invitation.py
+msgid "Trial group meeting confirmed"
+msgstr "Teilnahme an Schnupperstunde bestätigt"
+
+#: members/models/klettertreff.py members/models/member_note_list.py
+#: members/models/training.py
+msgid "Date"
+msgstr "Datum"
+
+#: members/models/klettertreff.py
+msgid "Location"
+msgstr "Ort"
+
+#: members/models/klettertreff.py
+msgid "Topic"
+msgstr "Thema"
+
+#: members/models/klettertreff.py
+msgid "Jugendleiter"
+msgstr "Jugendleiter"
+
+#: members/models/klettertreff.py
+msgid "Klettertreff"
+msgstr "Klettertreff"
+
+#: members/models/klettertreff.py
+msgid "Klettertreffs"
+msgstr "Klettertreffs"
+
+#: members/models/klettertreff.py members/models/member_on_list.py
+msgid "Members"
+msgstr "Teilnehmer*innen"
+
+#: members/models/ljp.py members/models/member_note_list.py
+#: members/models/training.py
+msgid "Title"
+msgstr "Titel"
+
+#: members/models/ljp.py
+msgid ""
+"Official title of your seminar, this can differ from the informal title. Use "
+"e.g. sports climbing course instead of climbing weekend for fun."
+msgstr ""
+"Offizieller Titel des Seminars, dieser weicht in der Regel vom informellen "
+"Titel ab. Verwende zum Beispiel Sportkletterkurs statt Kletterfreizeit."
+
+#: members/models/ljp.py
+msgid "Educational programme"
+msgstr "Themenorientierte Bildungsmaßnahme"
+
+#: members/models/ljp.py
+msgid "Staff training"
+msgstr "Jugendleiter*innenweiterbildung"
+
+#: members/models/ljp.py members/models/training.py
+msgid "Category"
+msgstr "Kategorie"
+
+#: members/models/ljp.py
+msgid "Type of seminar. Usually the correct choice is educational programme."
+msgstr "Kurstyp. In der Regel Themenorientierte Bildungsmaßnahme."
+
+#: members/models/ljp.py
+msgid "Qualification"
+msgstr "Qualifizierung"
+
+#: members/models/ljp.py
+msgid "Participation"
+msgstr "Partizipation"
+
+#: members/models/ljp.py
+msgid "Personality development"
+msgstr "Persönlichkeitsentwicklung"
+
+#: members/models/ljp.py
+msgid "Environment"
+msgstr "Umwelt"
+
+#: members/models/ljp.py
+msgid "Learning goal"
+msgstr "Bildungsziel"
+
+#: members/models/ljp.py
+msgid "Official learning goal according to LJP regulations."
+msgstr "Offizielles Bildungsziel gemäß LJP Richtlinien."
+
+#: members/models/ljp.py
+msgid "Strategy"
+msgstr "Zielverfolgung- und Erreichung"
+
+#: members/models/ljp.py
+msgid ""
+"How do you want to reach the learning goal? Has the goal been reached? If "
+"not, why not? If yes, what helped you to reach the goal?"
+msgstr ""
+"Wie wolltet ihr das Bildungsziel erreichen? Ist das Ziel so erreicht worden? "
+"Wenn nicht, warum nicht? Wenn ja, was hat geholfen, das Ziel zu erreichen?"
+
+#: members/models/ljp.py
+msgid "Course content"
+msgstr "aufgrund der Lehrgangsinhalte"
+
+#: members/models/ljp.py
+msgid "Available rooms"
+msgstr "trägereigene Räumlichkeiten"
+
+#: members/models/ljp.py
+msgid "Close to the border"
+msgstr "Grenznähe"
+
+#: members/models/ljp.py
+msgid "Economic reasons"
+msgstr "wirtschaftliche Sparsamkeit"
+
+#: members/models/ljp.py
+msgid "Explanation if excursion not in Baden-Württemberg"
+msgstr "Begründung, falls Kursort nicht in Baden-Württemberg"
+
+#: members/models/ljp.py
+msgid ""
+"If the excursion takes place outside of Baden-Württemberg, please explain. "
+"Otherwise, leave this empty."
+msgstr ""
+"Falls die Ausfahrt außerhalb von Baden-Württemberg stattfindet, gib bitte "
+"eine Begründung an. Sonst lass dieses Feld frei."
+
+#: members/models/ljp.py
+msgid "LJP Proposal"
+msgstr "Seminarbericht"
+
+#: members/models/ljp.py
+msgid "LJP Proposals"
+msgstr "Seminarberichte"
+
+#: members/models/ljp.py
+msgid "Duration in hours"
+msgstr "Dauer in Stunden"
+
+#: members/models/ljp.py
+msgid "Activity and method"
+msgstr "Art der Aktion inkl. Methode"
+
+#: members/models/ljp.py
+msgid "Intervention"
+msgstr "Aktion"
+
+#: members/models/ljp.py
+msgid "Interventions"
+msgstr "Aktionen"
+
+#: members/models/member.py
+msgid "Alternative email confirmed"
+msgstr "Alternative E-Mail Adresse bestätigt"
+
+#: members/models/member.py
+msgid "street and house number"
+msgstr "Straße und Hausnummer"
+
+#: members/models/member.py
+msgid "town"
+msgstr "Stadt"
+
+#: members/models/member.py
+msgid "Address extra"
+msgstr "Adress-Zusatz"
+
+#: members/models/member.py
+msgid "Country"
+msgstr "Land"
+
+#: members/models/member.py
+msgid "Good conduct certificate presented on"
+msgstr "Führungszeugnis vorgelegt am"
+
+#: members/models/member.py
 msgid "Joined on"
 msgstr "Eintritt"
 
-#: members/models.py:172
+#: members/models/member.py
 msgid "Left on"
 msgstr "Austritt"
 
-#: members/models.py:173
-msgid "Civil status"
-msgstr "Zivilstand"
-
-#: members/models.py:174
+#: members/models/member.py
 msgid "Has key"
 msgstr "Hat Jugendraumschlüssel"
 
-#: members/models.py:175
+#: members/models/member.py
 msgid "Has a free ticket for the climbing gym"
 msgstr "Hat Freikarte für Kletterhalle"
 
-#: members/models.py:176
+#: members/models/member.py
 msgid "DAV badge number"
 msgstr "DAV Mitgliedsnummer"
 
-#: members/models.py:177
-msgid "Swimming badge"
-msgstr "Schwimmabzeichen"
+#: members/models/member.py
+msgid "entrance ticket number"
+msgstr "Eintrittskarten Nummer"
 
-#: members/models.py:178
+#: members/models/member.py
+msgid "Knows how to swim"
+msgstr "Kann schwimmen"
+
+#: members/models/member.py
 msgid "Climbing badge"
 msgstr "Kletterschein"
 
-#: members/models.py:179
-msgid "Rock experience"
-msgstr "Felserfahrung"
+#: members/models/member.py
+msgid "Alpine experience"
+msgstr "Alpine Erfahrung"
 
-#: members/models.py:180
+#: members/models/member.py
 msgid "Allergies"
 msgstr "Allergieen"
 
-#: members/models.py:181
+#: members/models/member.py
 msgid "Medication"
 msgstr "Medikamente"
 
-#: members/models.py:182
+#: members/models/member.py
 msgid "Tetanus vaccination"
 msgstr "Tetanusimpfung"
 
-#: members/models.py:183
+#: members/models/member.py
 msgid "Photos may be taken"
 msgstr "Fotoerlaubnis"
 
-#: members/models.py:184
+#: members/models/member.py
 msgid "Legal guardians"
 msgstr "Erziehungsberechtigte"
 
-#: members/models.py:186
-msgid "phone number private"
-msgstr "Telefonnummer (privat)"
+#: members/models/member.py
+msgid "May cancel a group appointment independently"
+msgstr "Darf sich allein von der Gruppenstunde abmelden"
 
-#: members/models.py:187
-msgid "phone number mobile"
-msgstr "Telefonnummer (mobil)"
-
-#: members/models.py:188
-msgid "parents phone number"
-msgstr "Telefonnummer der Eltern"
-
-#: members/models.py:193
-msgid "Technical comments"
-msgstr "Technische Kommentare"
-
-#: members/models.py:194
+#: members/models/member.py
 msgid "receives newsletter"
 msgstr "Erhält den Newsletter"
 
-#: members/models.py:198
+#: members/models/member.py
 msgid "created"
 msgstr "erstellt"
 
-#: members/models.py:200
+#: members/models/member.py
 msgid "Active"
 msgstr "Aktiv"
 
-#: members/models.py:202
+#: members/models/member.py
 msgid "registration form"
 msgstr "Anmeldeformular"
 
-#: members/models.py:212
+#: members/models/member.py
+msgid "image"
+msgstr "Bild"
+
+#: members/models/member.py
 msgid "Echoed"
 msgstr "Rückgemeldet"
 
-#: members/models.py:213
+#: members/models/member.py
 msgid "Confirmed"
 msgstr "Bestätigt"
 
-#: members/models.py:297
-msgid "member"
-msgstr "Teilnehmer"
+#: members/models/member.py
+msgid "Login data"
+msgstr "Zugangsdaten"
 
-#: members/models.py:329
+#: members/models/member.py
+msgid "waitinglist application date"
+msgstr "Wartelistenbewerbungsdatum"
+
+#: members/models/member.py
+msgid ""
+"If the person registered from the waitinglist, this is their application "
+"date."
+msgstr ""
+"Falls sich die Person über die Warteliste angemeldet hat ist dies ihr "
+"Bewerbungsdatum."
+
+#: members/models/member.py
+msgid "member"
+msgstr "Teilnehmer*in"
+
+#: members/models/member.py
+msgid "members"
+msgstr "Teilnehmer*innen"
+
+#: members/models/member.py
+msgid "Good conduct certificate valid"
+msgstr "Führungszeugnis gültig"
+
+#: members/models/member.py
+msgid "Registration complete"
+msgstr "Anmeldung vollständig"
+
+#: members/models/member.py
+msgid "Registration form"
+msgstr "Anmeldeformular"
+
+#: members/models/member.py
+msgid "Upload registration form"
+msgstr "Anmeldeformular hochladen"
+
+#: members/models/member.py
 #, python-format
 msgid "New unconfirmed registration for group %(group)s"
 msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 
-#: members/models.py:466
-msgid "Unconfirmed registration"
-msgstr "Unbestätigte Registrierung"
+#: members/models/member.py
+msgid "Set login data for Kompass"
+msgstr "Zugangsdaten für Kompass wählen"
 
-#: members/models.py:467
-msgid "Unconfirmed registrations"
-msgstr "Unbestätigte Registrierungen"
+#: members/models/member.py
+msgid "Echo required"
+msgstr "Rückmeldung erforderlich"
 
-#: members/models.py:483
-msgid "Last wait confirmation"
-msgstr "Letzte Wartebestätigung"
-
-#: members/models.py:494
-msgid "Invited for group"
-msgstr "Einladung zu Gruppe austehend"
-
-#: members/models.py:497
-msgid "Waiter"
-msgstr "Wartende Person"
-
-#: members/models.py:498
-msgid "Waiters"
-msgstr "Warteliste"
-
-#: members/models.py:515
-msgid "Waiting status confirmed"
-msgstr "Wartelistenplatz bestätigt"
-
-#: members/models.py:519
-msgid "Waiting confirmation needed"
-msgstr "Wartelistenplatzbestätigung erforderlich"
-
-#: members/models.py:560
-msgid "Good news"
-msgstr "Gute Neuigkeiten"
-
-#: members/models.py:576 members/models.py:675
-msgid "Place"
-msgstr "Ort"
-
-#: members/models.py:577 members/models.py:676
-msgid "Destination (optional)"
-msgstr "Ziel (optional)"
-
-#: members/models.py:579 members/models.py:820 members/models.py:838
-#: members/models.py:1100
-msgid "Date"
-msgstr "Datum"
-
-#: members/models.py:580 members/models.py:679
-msgid "End (optional)"
-msgstr "Ende"
-
-#: members/models.py:582 members/models.py:681
-msgid "Groups"
-msgstr "Gruppen"
-
-#: members/models.py:590 members/models.py:697
-msgid "Categories"
-msgstr "Kategorien"
-
-#: members/models.py:591 members/models.py:698
-msgid "easy"
-msgstr "leicht"
-
-#: members/models.py:591 members/models.py:698
-msgid "medium"
-msgstr "mittel"
-
-#: members/models.py:591 members/models.py:698
-msgid "hard"
-msgstr "schwer"
-
-#: members/models.py:600
-msgid "Memberlist"
-msgstr "Teilnehmerliste"
-
-#: members/models.py:601
-msgid "Memberlists"
-msgstr "Teilnehmerlisten"
-
-#: members/models.py:619 members/models.py:627 members/models.py:635
-#: members/models.py:646 members/models.py:873 members/models.py:880
-msgid "Member"
-msgstr "Teilnehmer"
-
-#: members/models.py:621 members/models.py:640
+#: members/models/member_on_list.py
 msgid "Comment"
 msgstr "Kommentar"
 
-#: members/models.py:628 members/models.py:647 members/models.py:881
-msgid "Members"
-msgstr "Teilnehmer"
+#: members/models/member_unconfirmed.py
+msgid "Unconfirmed registration"
+msgstr "Unbestätigte Registrierung"
 
-#: members/models.py:678
-msgid "Begin"
-msgstr "Anfang"
+#: members/models/member_unconfirmed.py
+msgid "Unconfirmed registrations"
+msgstr "Unbestätigte Registrierungen"
 
-#: members/models.py:694
-msgid "Kilometers traveled"
-msgstr "Fahrstrecke in Kilometer"
-
-#: members/models.py:819 members/models.py:895 members/models.py:1099
-msgid "Title"
-msgstr "Titel"
-
-#: members/models.py:839
-msgid "Location"
-msgstr "Ort"
-
-#: members/models.py:840
-msgid "Topic"
-msgstr "Thema"
-
-#: members/models.py:864
-msgid "Jugendleiter"
-msgstr "Jugendleiter"
-
-#: members/models.py:867
-msgid "Klettertreff"
-msgstr "Klettertreff"
-
-#: members/models.py:868
-msgid "Klettertreffs"
-msgstr "Klettertreffs"
-
-#: members/models.py:886
-msgid "Password"
-msgstr "Passwort"
-
-#: members/models.py:889
-msgid "registration password"
-msgstr "Registrierungspassort"
-
-#: members/models.py:890
-msgid "registration passwords"
-msgstr "Registrierungspasswörter"
-
-#: members/models.py:897
-msgid "Alpinistic goals"
-msgstr "Alpintechnische Ziele"
-
-#: members/models.py:898
-msgid "Pedagogic goals"
-msgstr "Pädagogische Ziele"
-
-#: members/models.py:899
-msgid "Content and methods"
-msgstr "Inhalte und Methoden"
-
-#: members/models.py:900
-msgid "Evaluation"
-msgstr "Wertung"
-
-#: members/models.py:901
-msgid "Experiences and possible improvements"
-msgstr "Erfahrungen und Verbesserungsvorschläge"
-
-#: members/models.py:904
-msgid "Excursion"
-msgstr "Freizeit"
-
-#: members/models.py:910 members/models.py:925
-msgid "LJP Proposal"
-msgstr "Seminarbericht"
-
-#: members/models.py:911
-msgid "LJP Proposals"
-msgstr "Seminarberichte"
-
-#: members/models.py:918
-msgid "Starting time"
-msgstr "Zeitpunkt"
-
-#: members/models.py:919
-msgid "Duration in hours"
-msgstr "Dauer in Stunden"
-
-#: members/models.py:922
-msgid "Activity and method"
-msgstr "Art der Aktion inkl. Methode"
-
-#: members/models.py:930
-msgid "Intervention"
-msgstr "Aktion"
-
-#: members/models.py:931
-msgid "Interventions"
-msgstr "Aktionen"
-
-#: members/models.py:1027 members/models.py:1057
+#: members/models/permission.py
 msgid "May list members"
-msgstr "Darf folgende Teilnehmer:innen listen"
+msgstr "Darf folgende Teilnehmer*innen listen"
 
-#: members/models.py:1029 members/models.py:1059
+#: members/models/permission.py
 msgid "May view members"
-msgstr "Darf folgende Teilnehmer:innen anzeigen"
+msgstr "Darf folgende Teilnehmer*innen anzeigen"
 
-#: members/models.py:1031 members/models.py:1061
+#: members/models/permission.py
 msgid "May change members"
-msgstr "Darf folgende Teilnehmer:innen ändern"
+msgstr "Darf folgende Teilnehmer*innen ändern"
 
-#: members/models.py:1033 members/models.py:1063
+#: members/models/permission.py
 msgid "May delete members"
-msgstr "Darf folgende Teilnehmer:innen löschen"
+msgstr "Darf folgende Teilnehmer*innen löschen"
 
-#: members/models.py:1037 members/models.py:1067
+#: members/models/permission.py
 msgid "May list members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen listen"
+msgstr "Darf Teilnehmer*innen folgender Gruppen listen"
 
-#: members/models.py:1039 members/models.py:1069
+#: members/models/permission.py
 msgid "May view members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen anzeigen"
+msgstr "Darf Teilnehmer*innen folgender Gruppen anzeigen"
 
-#: members/models.py:1041 members/models.py:1071
+#: members/models/permission.py
 msgid "May change members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen ändern"
+msgstr "Darf Teilnehmer*innen folgender Gruppen ändern"
 
-#: members/models.py:1043 members/models.py:1073
+#: members/models/permission.py
 msgid "May delete members of groups"
-msgstr "Darf Teilnehmer:innen folgender Gruppen löschen"
+msgstr "Darf Teilnehmer*innen folgender Gruppen löschen"
 
-#: members/models.py:1046 members/models.py:1047 members/models.py:1050
+#: members/models/permission.py members/tests/basic.py
 msgid "Permissions"
 msgstr "Berechtigungen"
 
-#: members/models.py:1076 members/models.py:1077 members/models.py:1080
+#: members/models/permission.py members/tests/basic.py
 msgid "Group permissions"
 msgstr "Gruppenberechtigungen"
 
-#: members/models.py:1086
+#: members/models/registration.py
+msgid "Password"
+msgstr "Passwort"
+
+#: members/models/registration.py
+msgid "registration password"
+msgstr "Registrierungspasswort"
+
+#: members/models/registration.py
+msgid "registration passwords"
+msgstr "Registrierungspasswörter"
+
+#: members/models/training.py
 msgid "Permission needed"
 msgstr "Freigabe erforderlich"
 
-#: members/models.py:1089
+#: members/models/training.py
 msgid "Training category"
 msgstr "Fortbildungstyp"
 
-#: members/models.py:1090
+#: members/models/training.py
 msgid "Training categories"
 msgstr "Fortbildungstypen"
 
-#: members/models.py:1101
-msgid "Category"
-msgstr "Kategorien"
-
-#: members/models.py:1102
+#: members/models/training.py
 msgid "Comments"
 msgstr "Kommentar"
 
-#: members/models.py:1103
+#: members/models/training.py
 msgid "Participated"
 msgstr "Teilgenommmen"
 
-#: members/models.py:1104
+#: members/models/training.py
 msgid "Passed"
 msgstr "Bestanden"
 
-#: members/models.py:1107
+#: members/models/training.py
+msgid "certificate of attendance"
+msgstr "Teilnahmebestätigung"
+
+#: members/models/training.py members/tests/basic.py
+msgid "(no date)"
+msgstr "(ohne Datum)"
+
+#: members/models/training.py
 msgid "Training"
 msgstr "Fortbildung"
 
-#: members/models.py:1108
+#: members/models/training.py
 msgid "Trainings"
 msgstr "Fortbildungen"
 
-#: members/templates/admin/invite_for_group.html:17
-#: members/templates/admin/invite_selected_for_group.html:17
+#: members/models/waiting_list.py
+msgid "Do you want to tell us something else?"
+msgstr "Möchtest du uns noch etwas mitteilen?"
+
+#: members/models/waiting_list.py
+msgid "application date"
+msgstr "Bewerbungsdatum"
+
+#: members/models/waiting_list.py
+msgid "Last wait confirmation"
+msgstr "Letzte Wartebestätigung"
+
+#: members/models/waiting_list.py
+msgid "Last reminder"
+msgstr "Letzte Erinnerung"
+
+#: members/models/waiting_list.py
+msgid "Missed reminders"
+msgstr "Verpasste Erinnerungen"
+
+#: members/models/waiting_list.py
+msgid "Waiters"
+msgstr "Warteliste"
+
+#: members/models/waiting_list.py
+msgid "Latest group invitation"
+msgstr "Letzte Gruppeneinladung"
+
+#: members/models/waiting_list.py
+msgid "Waiting status confirmed"
+msgstr "Wartelistenplatz bestätigt"
+
+#: members/models/waiting_list.py
+msgid "Waiting confirmation needed"
+msgstr "Wartelistenplatzbestätigung erforderlich"
+
+#: members/models/waiting_list.py
+msgid "Invitation to trial group meeting"
+msgstr "Einladung zu Schnupperstunde"
+
+#: members/models/waiting_list.py
+msgid "Unregistered from waiting list"
+msgstr "Von der Warteliste abgemeldet"
+
+#: members/models/waiting_list.py
+msgid "Successfully registered for the waitinglist"
+msgstr "Erfolgreich für die Warteliste registriert"
+
+#: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/freizeit_finance_overview.html
+#: members/templates/admin/generate_seminar_report.html
+#: members/templates/admin/generate_sjr_application.html
+#: members/templates/admin/invite_as_user.html
+#: members/templates/admin/invite_for_group.html
+#: members/templates/admin/invite_for_group_text.html
+#: members/templates/admin/invite_selected_as_user.html
+#: members/templates/admin/invite_selected_for_group.html
+#: members/templates/admin/request_registration_form.html
+#: members/templates/admin/request_registratoin_form.html
 msgid "Home"
 msgstr "Start"
 
-#: members/templates/admin/invite_for_group.html:21
+#: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/request_registration_form.html
+#: members/templates/admin/request_registratoin_form.html
+msgid "Demote to waiter"
+msgstr "Zurück auf die Warteliste setzen"
+
+#: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/request_registratoin_form.html
+msgid ""
+"Do you want to demote the following unconfirmed registrations to waiters?"
+msgstr "Möchtest du die folgenden Personen zurück auf die Warteliste setzen?"
+
+#: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/request_registratoin_form.html
+msgid "Demote"
+msgstr "Zurück auf die Warteliste setzen"
+
+#: members/templates/admin/demote_to_waiter.html
+#: members/templates/admin/freizeit_finance_overview.html
+#: members/templates/admin/generate_sjr_application.html
+#: members/templates/admin/invite_as_user.html
+#: members/templates/admin/invite_for_group.html
+#: members/templates/admin/invite_selected_as_user.html
+#: members/templates/admin/invite_selected_for_group.html
+#: members/templates/admin/request_registration_form.html
+#: members/templates/admin/request_registratoin_form.html
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"\n"
+"Here you see an estimate on the expected costs and contributions by the "
+"association. This is not a guaranteed\n"
+"cost plan!\n"
+msgstr ""
+"\n"
+"Hier siehst du eine Schätzung der erwarteten Kosten und Zuschüsse. Dies ist "
+"kein garantierter Kostenplan.\n"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Expenses"
+msgstr "Ausgaben"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "You listed the following expenses:"
+msgstr "Du hast die folgenden Ausgaben angegeben:"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Explanation"
+msgstr "Erklärung"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Amount"
+msgstr "Betrag"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Paid by"
+msgstr "Bezahlt von"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "IBAN valid"
+msgstr "IBAN gültig"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid "The total expected expenses are %(total_bills_theoretic)s €."
+msgstr ""
+"Insgesamt belaufen sich die geschätzten Ausgaben auf "
+"%(total_bills_theoretic)s €."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Contributions by the association"
+msgstr "Sektionszuschüsse"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"According to the contribution guidelines,\n"
+"%(staff_count)s youth leader(s) receive contributions. Each of them receives"
+msgstr ""
+"Gemäß den Zuschussrichtlinien erhalten %(staff_count)s Jugendleiter*innen "
+"Zuschüsse. Jeweils sind das"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"%(nights)s nights for %(price_per_night)s€ per night making a total of "
+"%(nights_per_yl)s€."
+msgstr ""
+"%(nights)s Nächte zum Preis von %(price_per_night)s€ pro Nacht. Das ergibt "
+"eine Gesamtsumme von %(nights_per_yl)s€."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"%(duration)s days for %(allowance_per_day)s€ per day making a total of "
+"%(allowance_per_yl)s€."
+msgstr ""
+"%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
+"Gesamtsumme von %(allowance_per_yl)s€."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
+"km) making a total of %(transportation_per_yl)s€."
+msgstr ""
+"%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
+"km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"The allowance of %(allowance_per_yl)s€ per person is configured to be paid "
+"to:"
+msgstr ""
+"Die Aufwandsentschädigung von %(allowance_per_yl)s€ pro Person wird "
+"ausgezahlt an:"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"Only %(allowances_paid)s of the %(real_staff_count)s youth leaders have "
+"requested the outpayment of their allowance."
+msgstr ""
+"Achtung: Nur für %(allowances_paid)s der %(real_staff_count)s "
+"Jugendleiter*innen wird die Aufwandsentschädigung abgerufen."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"No receivers of the allowance were provided. Allowance will not be used."
+msgstr ""
+"Keine Empfänger*innen für eine Aufwandsentschädigung angegeben. Es wird "
+"daher keine Aufwandsentschädigung ausbezahlt."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"The subsidies for night and transportation costs of %(total_subsidies)s€ is "
+"configured to be paid to:"
+msgstr ""
+"Die Zuschüsse für Übernachtungs- und Fahrtkosten von %(total_subsidies)s€ "
+"für alle Jugendleiter*innen werden ausgezahlt an:"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"No receivers of the subsidies were provided. Subsidies will not be used."
+msgstr ""
+"Keine Empfänger*innen für Sektionszuschüsse angegeben. Es werden daher keine "
+"Sektionszuschüsse ausbezahlt."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Org fee"
+msgstr "Organisationsbeitrag"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"Warning: %(old_participant_count)s participant(s) of the excursion are 27 or "
+"older. For each of them, an organisation fee of %(org_fee)s € per day has to "
+"be paid to the account. With a duration of %(duration)s days, a total of "
+"%(total_org_fee_theoretical)s € is charged against the other transactions."
+msgstr ""
+"Achtung: %(old_participant_count)s Teilnehmende der Ausfahrt sind 27 oder "
+"älter. Für diese Teilnehmende(n) ist ein Org-Beitrag von %(org_fee)s € pro "
+"Tag fällig. Durch die Länge der Ausfahrt von %(duration)s Tagen werden "
+"insgesamt %(total_org_fee_theoretical)s € mit den Zuschüssen und "
+"Aufwandsentschädigungen verrechnet, sofern diese in Anspruch genommen werden."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"Warning: The configured recipients of the allowance don't match the "
+"regulations. This might be because the number of recipients is bigger then "
+"the number of admissable youth leaders for this excursion."
+msgstr ""
+"Warnung: Die ausgewählten Empfänger*innen der Aufwandsentschädigung stimmen "
+"nicht mit den Richtlinien überein. Das kann daran liegen, dass die Anzahl "
+"der ausgewählten Empfänger*innen die Anzahl genehmigter Jugendleiter*innen "
+"übersteigt."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "LJP contributions"
+msgstr "LJP Zuschüsse"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"By submitting the given seminar report, you will receive LJP contributions.\n"
+"You have documented interventions worth of %(total_seminar_days)s seminar "
+"days for %(participant_count)s participants.\n"
+"This results in a total contribution of %(ljp_contributions)s€.\n"
+"To receive them, you need to submit the LJP-Proposal within 3 weeks after "
+"your excursion and have it approved by the finance office."
+msgstr ""
+"Wenn du den erstellten LJP-Antrag einreichst, erhältst du LJP-Zuschüsse. Du "
+"hast Lehreinheiten für insgesamt %(total_seminar_days)s Seminartage und für "
+"%(participant_count)s Teilnehmende dokumentiert.\n"
+"Daraus ergibt sich ein auszahlbarer LJP-Zuschuss von %(ljp_contributions)s€. "
+"Um den zu erhalten, musst du den LJP-Antrag innerhalb von 3 Wochen nach der "
+"Ausfahrt beim Jugendreferat einreichen und formal genehmigt bekommen."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Seminar hours"
+msgstr "Seminar-Stunden"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Seminar days"
+msgstr "Seminar-Tage"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Sum"
+msgstr "Summe"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "The LJP contributions are configured to be paid to:"
+msgstr "Die LJP-Zuschüsse werden ausgezahlt an:"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+"By submitting a seminar report, you may apply for LJP contributions. In this "
+"case,\n"
+"you may obtain up to 25€ times %(duration)s days for "
+"%(theoretic_ljp_participant_count)s participants but only up to\n"
+"90%% of the total costs. This results in a total of %(ljp_contributions)s€. "
+"If you have created a seminar report, you need to specify who should receive "
+"the contributions in order to make use of them."
+msgstr ""
+"Indem du einen Seminarbericht anfertigst, kannst du Landesjugendplan (LJP) "
+"Zuschüsse beantragen. In diesem Fall kannst du bis zu 25€ mal %(duration)s "
+"Tage für %(theoretic_ljp_participant_count)s Teilnehmende, aber nicht mehr "
+"als 90%% der Gesamtausgaben erhalten. Das resultiert in einem Gesamtzuschuss "
+"von %(ljp_contributions)s€. Wenn du schon einen Seminarbericht erstellt "
+"hast, musst du im Tab 'Abrechnungen' noch angeben, an wen die LJP-Zuschüsse "
+"ausgezahlt werden sollen."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#, python-format
+msgid ""
+" Warning: LJP contributions can only be claimed for activities with at least "
+"5 participants and one leader. This activity currently has only "
+"%(theoretic_ljp_participant_count)s participants."
+msgstr ""
+"Achtung: Nur für Aktivitäten mit mindestens 5 Teilnehmenden und einer "
+"Leitungsperson kann ein LJP-Antrag gestellt werden. Diese Ausfahrt hat "
+"aktuell nur %(theoretic_ljp_participant_count)s Teilnehmende."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Summary"
+msgstr "Zusammenfassung"
+
+#: members/templates/admin/freizeit_finance_overview.html
+#: members/tests/basic.py
+msgid "This is the estimated cost and contribution summary:"
+msgstr "Das ist die geschätzte Kosten- und Zuschussübersicht."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Organisation fees"
+msgstr "Org-Beitrag"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Potential LJP contributions"
+msgstr "Mögliche LJP Zuschüsse"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Remaining costs"
+msgstr "Verbleibende Kosten"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"Positive remaining costs indicate that the estimated costs exceed the "
+"estimated contributions, while negative\n"
+"remaining costs indicate that the estimated contributions exceed the "
+"estimated costs."
+msgstr ""
+"Positive verbleibende Kosten bedeuten, dass die geschätzten Kosten die "
+"geschätzten Zuschüsse übersteigen, während negative Kosten\n"
+" bedeuten, dass die geschätzten Zuschüsse die geschätzten Kosten übersteigen."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"Note that this cost calculation expects you to apply for LJP contributions. "
+"On the\n"
+"excursions main page, you can generate a template for a seminar report."
+msgstr ""
+"Beachte dass diese Kostenkalkulation davon ausgeht, dass du LJP Zuschüsse "
+"beantragst. Auf der Hauptseite dieser Ausfahrt kannst du dir eine Vorlage "
+"und alle Formblätter für einen solchen Antrag erstellen lassen."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Submit statement"
+msgstr "Abrechnung einreichen"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"Did you already complete this excursion? If yes, please check if all listed "
+"expenses are correct\n"
+"and people who want their money back have valid bank account numbers. Then "
+"submit the statement for processing by the finance department. If you "
+"proceed,\n"
+"no further changes to the statement are possible."
+msgstr ""
+"Hat die Ausfahrt bereits stattgefunden? Wenn ja, prüfe bitte ob alle "
+"aufgelisteten Kosten korrekt sind, alle notwendigen Belege hochgeladen sind "
+"und ob alle Personen, die Geld ausbezahlt bekommen sollen, eine gültige IBAN "
+"haben. Reiche deine Abrechnung dann beim Finanzreferat ein. Wenn du "
+"fortschreitest, sind keine weiteren Änderungen an der Abrechnung mehr "
+"möglich."
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Submit"
+msgstr "Einreichen"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid "Statement submitted"
+msgstr "Abrechnung eingereicht"
+
+#: members/templates/admin/freizeit_finance_overview.html
+msgid ""
+"The statement for this excursion was already submitted. The finance "
+"department is currently processing your\n"
+"data and you will receive a response shortly."
+msgstr ""
+"Die Abrechnung für diese Ausfahrt wurde bereits eingereicht. Das "
+"Finanzreferat bearbeitet deine Abrechnung zur Zeit und kommt "
+"schnellstmöglich auf dich zurück."
+
+#: members/templates/admin/freizeit_finance_overview.html
+#: members/templates/admin/generate_seminar_report.html
+#: members/templates/admin/invite_for_group_text.html
+msgid "Back"
+msgstr "Zurück"
+
+#: members/templates/admin/generate_seminar_report.html
+msgid "LJP application for"
+msgstr "Landesjugendplan Antrag für"
+
+#: members/templates/admin/generate_seminar_report.html
+msgid ""
+"For applying for contributions by the LJP, a seminar report is required. "
+"From the information\n"
+"that you entered in the excursion, you can automatically generate such a "
+"report here."
+msgstr ""
+"Um Zuschüsse vom Landesjugendplan (LJP) zu beantragen, ist ein Antrag "
+"notwendig. Aus den Informationen, die du in der Ausfahrt angegeben hast, "
+"kann automatisch ein solcher Antrag erstellt werden."
+
+#: members/templates/admin/generate_seminar_report.html members/tests/basic.py
+msgid "A seminar report consists of multiple components:"
+msgstr "Ein LJP Antrag besteht aus verschiedenen Komponenten:"
+
+#: members/templates/admin/generate_seminar_report.html
+msgid ""
+"An excel sheet containing the basic data of the seminar. This is also called "
+"the V-BK form."
+msgstr ""
+"Eine Excel Tabelle mit den Basisdaten des Kurses. Fachbegriff: V-BK Formular."
+
+#: members/templates/admin/generate_seminar_report.html
+msgid "Download"
+msgstr "Herunterladen"
+
+#: members/templates/admin/generate_seminar_report.html
+msgid ""
+"A pedagocial report on the strategy and outcome of the seminar with respect "
+"to achieving the\n"
+"learning goal.\n"
+"This also includes a detailed, tabularized time schedule and is produced as "
+"an editable Microsoft Word document."
+msgstr ""
+"Ein pädagogischer Bericht zur Planung, zum Ablauf und zur Auswertung des "
+"Kurses. Dies beinhaltet auch einen detaillierten, tabellarischen, zeitlichen "
+"Ablauf und wird als veränderbares Word Dokument erstellt."
+
+#: members/templates/admin/generate_seminar_report.html
+msgid ""
+"A cost and participants overview. This is not required for the actual "
+"application, but is provided for convience as a PDF document."
+msgstr ""
+"Eine Kosten- und Teilnehmendenübersicht. Dies ist nicht notwendig für den "
+"eigentlichen Bericht, muss aber langfristig aufbewahrt werden."
+
+#: members/templates/admin/generate_sjr_application.html members/tests/basic.py
+msgid "Here you can generate an allowance application for the SJR."
+msgstr "Hier kannst du einen SJR-Zuschussantrag erstellen."
+
+#: members/templates/admin/generate_sjr_application.html
+msgid ""
+"The application needs to be complemented with an invoice from the trip as "
+"proof."
+msgstr ""
+"An den Antrag muss ein Ausgabenbeleg angehängt werden, der beweist, dass die "
+"Aktivität stattgefunden hat."
+
+#: members/templates/admin/generate_sjr_application.html
+msgid ""
+"Please send this application form to the jdav finance officer via email."
+msgstr "Bitte sende diesen Antrag an den/die JDAV-Finanzwart*in per E-Mail."
+
+#: members/templates/admin/generate_sjr_application.html
+msgid "Generate"
+msgstr "Erstellen"
+
+#: members/templates/admin/invite_as_user.html
+#, python-format
+msgid ""
+"Do you want to invite %(member)s to set their login data for Kompass? They "
+"will\n"
+"receive an email with a link to set their username and password after "
+"entering one of the current\n"
+"active registration passwords."
+msgstr ""
+"Möchtest du %(member)s auffordern Zugangsdaten für den Kompass zu wählen? "
+"%(member)s wird eine E-Mail mit einem Link erhalten, um, nach Eingabe eines "
+"der aktiven Registrierungspasswörter, Benutzername und Passwort zu setzen."
+
+#: members/templates/admin/invite_as_user.html
+#: members/templates/admin/invite_for_group.html
+#: members/templates/admin/invite_selected_as_user.html
+#: members/templates/admin/invite_selected_for_group.html
+#: members/tests/basic.py
+msgid "Invite"
+msgstr "Einladen"
+
+#: members/templates/admin/invite_for_group.html
+#: members/templates/admin/invite_for_group_text.html
 msgid "Invite to group"
 msgstr "Zu Gruppe einladen"
 
-#: members/templates/admin/invite_for_group.html:26
-#: members/templates/admin/invite_selected_for_group.html:25
+#: members/templates/admin/invite_for_group.html
+#: members/templates/admin/invite_for_group_text.html
+#: members/templates/admin/invite_selected_for_group.html
 msgid "Invite to a group"
 msgstr "Zu einer Gruppe einladen"
 
-#: members/templates/admin/invite_for_group.html:28
+#: members/templates/admin/invite_for_group.html
 msgid "You are inviting:"
 msgstr "Du lädst die folgende Person ein:"
 
-#: members/templates/admin/invite_for_group.html:39
+#: members/templates/admin/invite_for_group.html
+msgid "You are inviting the following waiters for registration:"
+msgstr "Du lädst die folgenden Wartenden zur Schnupperstunde ein:"
+
+#: members/templates/admin/invite_for_group.html
 #, python-format
 msgid "Please choose the group that you want to invite %(waiter)s to."
 msgstr "Bitte wähle die Gruppe aus zu der du %(waiter)s einladen möchtest."
 
-#: members/templates/admin/invite_for_group.html:51
-#: members/templates/admin/invite_selected_for_group.html:52
-msgid "Invite"
-msgstr "Einladen"
+#: members/templates/admin/invite_for_group.html
+msgid "To which group do you want to invite these waiters?"
+msgstr "Zu welcher Gruppe möchtest du diese Wartenden einladen?"
 
-#: members/templates/admin/invite_for_group.html:52
-#: members/templates/admin/invite_selected_for_group.html:53
-msgid "Cancel"
-msgstr "Abbrechen"
+#: members/templates/admin/invite_for_group_text.html
+#, python-format
+msgid ""
+"You are inviting the following waiter for registration in group %(group)s."
+msgstr ""
+"Du lädst den*die folgende Wartende*n zu einer Schnupperstunde in der Gruppe "
+"%(group)s ein:"
 
-#: members/templates/admin/invite_selected_for_group.html:20
+#: members/templates/admin/invite_for_group_text.html
+#, python-format
+msgid ""
+"You are inviting the following waiters for registration in group %(group)s."
+msgstr ""
+"Du lädst die folgenden Wartenden zu einer Schnupperstunde in der Gruppe "
+"%(group)s ein:"
+
+#: members/templates/admin/invite_for_group_text.html
+#, python-brace-format
+msgid ""
+"The following text will be sent as an invitation email. The patterns\n"
+"{name}, {link} and {invitation_reject_link} will be automatically replaced "
+"by personalized\n"
+"data upon sending. Please adapt if needed and confirm."
+msgstr ""
+"Der folgende Text wird in der Einladungsmail verschickt. Die Platzhalter "
+"{name}, {link} und {invitation_reject_link} werden beim Senden automatisch "
+"durch personalisierte Daten ersetzt. Bitte passe den Text falls nötig an und "
+"schicke die Einladung anschließend ab."
+
+#: members/templates/admin/invite_for_group_text.html
+msgid "Send"
+msgstr "Senden"
+
+#: members/templates/admin/invite_selected_as_user.html
+msgid "Invite multiple members as users"
+msgstr "Mehrere Teilnehmer*innen Zugangsdaten wählen lassen"
+
+#: members/templates/admin/invite_selected_as_user.html
+msgid "You selected the following members:"
+msgstr "Du hast die folgenden Teilnehmer*innen ausgewählt:"
+
+#: members/templates/admin/invite_selected_as_user.html
+msgid ""
+"Do you want to invite these members to set their login data for Kompass? "
+"They will\n"
+"receive an email with a link to set their username and password after "
+"entering one of the current\n"
+"active registration passwords."
+msgstr ""
+"Möchtest du diese Teilnehmer*innen auffordern Zugangsdaten für den Kompass "
+"zu wählen?Sie werden eine E-Mail mit einem Link erhalten, um, nach Eingabe "
+"eines der aktiven Registrierungspasswörter, Benutzername und Passwort zu "
+"setzen."
+
+#: members/templates/admin/invite_selected_for_group.html
 msgid "Invite multiple waiters"
 msgstr "Mehrere Wartende einladen"
 
-#: members/templates/admin/invite_selected_for_group.html:27
+#: members/templates/admin/invite_selected_for_group.html
 msgid "You selected the following waiters:"
 msgstr "Du hast die folgenden Wartenden ausgewählt:"
 
-#: members/templates/admin/invite_selected_for_group.html:40
+#: members/templates/admin/invite_selected_for_group.html
 msgid "Please choose the group you want these waiters to be invited for."
 msgstr ""
 "Bitte wähle die Gruppe aus zu der du die obigen Wartenden einladen möchtest."
 
-#: members/templates/admin/klettertreff_overview.html:9
+#: members/templates/admin/klettertreff_overview.html
 msgid "date"
 msgstr "Datum"
 
-#: members/templates/members/change_member.html:6
-msgid "Participations:"
-msgstr "Freizeitteilnahmen:"
+#: members/templates/admin/members/freizeit/memberonlistinline.html
+msgid "Number of persons:"
+msgstr "Anzahl Personen:"
 
-#: members/templates/members/change_member.html:14
+#: members/templates/admin/members/freizeit/memberonlistinline.html
+msgid "thereof leaders:"
+msgstr "davon Leitung:"
+
+#: members/templates/admin/request_registration_form.html
+#: members/tests/basic.py
+msgid "Request registration form"
+msgstr "Anmeldeformular anfragen"
+
+#: members/templates/admin/request_registration_form.html
+#, python-format
+msgid "Do you want to ask %(member)s to upload their registration form?"
+msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
+
+#: members/templates/admin/request_registration_form.html
+#, python-format
+msgid "Warning: %(member)s has already uploaded a registration form."
+msgstr "Warnung: %(member)s hat bereits ein Anmeldeformular hochgeladen."
+
+#: members/templates/members/change_member.html
+msgid "Participations:"
+msgstr "Ausfahrtteilnahmen:"
+
+#: members/templates/members/change_member.html
 msgid "Qualities:"
 msgstr "Fähigkeiten:"
 
-#: members/templates/members/change_member.html:18
+#: members/templates/members/change_member.html
 msgid "Skill level"
 msgstr "Fähigkeitsniveau"
 
-#: members/templates/members/change_member_unconfirmed.html:11
+#: members/templates/members/change_member_unconfirmed.html
 msgid "Save and confirm registration"
 msgstr "Speichern und Registrierung bestätigen"
 
-#: members/templates/members/echo.html:6 members/templates/members/echo.html:13
-#: members/templates/members/echo_failed.html:11
-#: members/templates/members/echo_success.html:10
+#: members/templates/members/confirm_invalid.html
+msgid "Confirm invitation"
+msgstr "Teilnahme bestätigen"
+
+#: members/templates/members/confirm_invalid.html
+#: members/templates/members/reject_invalid.html members/tests/basic.py
+#: members/tests/views.py
+msgid "This invitation is invalid or expired."
+msgstr "Diese Einladung ist ungültig oder abgelaufen."
+
+#: members/templates/members/confirm_invitation.html members/tests/views.py
+msgid "Confirm trial group meeting invitation"
+msgstr "Teilnahme bestätigen"
+
+#: members/templates/members/confirm_invitation.html
+#, python-format
+msgid "You were invited to a trial group meeting of the group %(groupname)s."
+msgstr ""
+"Du wurdest zu einer Schnupperstunde in der Gruppe %(groupname)s eingeladen."
+
+#: members/templates/members/confirm_invitation.html
+msgid ""
+"Do you want to take part in the trial group meeting? If yes, please confirm "
+"your attendance by clicking on the following button."
+msgstr ""
+"Möchtest du an der Schnupperstunde teilnehmen? Falls ja, bitte bestätige "
+"deine Teilnahme durch das Betätigen des folgenden Knopfes."
+
+#: members/templates/members/confirm_invitation.html
+msgid "Confirm trial group meeting"
+msgstr "Teilnahme bestätigen"
+
+#: members/templates/members/confirm_success.html members/tests/views.py
+msgid "Invitation confirmed"
+msgstr "Teilnahme bestätigt"
+
+#: members/templates/members/confirm_success.html
+#, python-format
+msgid ""
+"You successfully confirmed the invitation to the trial group meeting of the "
+"group %(groupname)s."
+msgstr ""
+"Deine Teilnahme an der Schnupperstunde der Gruppe %(groupname)s wurde "
+"erfolgreich bestätigt."
+
+#: members/templates/members/confirm_success.html
+msgid ""
+"We have informed the group leaders about your confirmation. If for some "
+"reason you can not make it,\n"
+"please contact the group leaders at"
+msgstr ""
+"Wir haben die Jugendleiter*innen der Jugendgruppe über deine Bestätigung "
+"informiert. Falls du doch nicht zur Schnupperstunde kommen kannst, "
+"informiere bitte die Jugendleiter*innen unter"
+
+#: members/templates/members/echo.html
+#: members/templates/members/echo_failed.html
+#: members/templates/members/echo_password.html
+#: members/templates/members/echo_success.html
+#: members/templates/members/echo_wrong_password.html
+#: members/templates/members/upload_registration_form.html
+#: members/templates/members/upload_registration_form_success.html
 msgid "Echo"
 msgstr "Rückmeldung"
 
-#: members/templates/members/echo.html:15
-msgid "Thanks for echoing back. Here is your current data:"
+#: members/templates/members/echo.html members/tests/basic.py
+msgid ""
+"Here is your current data. Please check if it is up to date and change "
+"accordingly."
 msgstr ""
-"Vielen Dank, dass du dich rückmeldest. Hier siehst du deine aktuellen Daten. "
-"Falls sich etwas geändert hat, trage das bitte hier ein."
+"Hier siehst du deine aktuellen Daten. Bitte überprüfe alles und passe es bei "
+"Bedarf an."
 
-#: members/templates/members/echo.html:27
-#: members/templates/members/register.html:35
-#: members/templates/members/register_password.html:22
-#: members/templates/members/register_waiting_list.html:31
-msgid "submit"
-msgstr "Bestätigen"
-
-#: members/templates/members/echo_failed.html:6
+#: members/templates/members/echo_failed.html members/tests/basic.py
 msgid "Echo failed"
 msgstr "Rückmeldung fehlgeschlagen"
 
-#: members/templates/members/echo_failed.html:13
-#: members/templates/members/invited_registration_failed.html:13
+#: members/templates/members/echo_failed.html
+#: members/templates/members/invited_registration_failed.html
 msgid "Something went wrong. The key you supplied is"
 msgstr "Etwas ist schief gegangen. Der verwendete Code ist"
 
-#: members/templates/members/echo_failed.html:15
-#: members/templates/members/invited_registration_failed.html:15
-#: members/templates/members/register_failed.html:15
+#: members/templates/members/echo_failed.html
+#: members/templates/members/invited_registration_failed.html
+#: members/templates/members/register_failed.html
 msgid "If you think this is a mistake, please"
 msgstr "Wenn du denkst, dass das ein Fehler ist, "
 
-#: members/templates/members/echo_failed.html:15
-#: members/templates/members/invited_registration_failed.html:15
-#: members/templates/members/register_failed.html:15
+#: members/templates/members/echo_failed.html
+#: members/templates/members/invited_registration_failed.html
+#: members/templates/members/register_failed.html
 msgid "contact us."
 msgstr "kontaktiere uns."
 
-#: members/templates/members/echo_success.html:5
+#: members/templates/members/echo_password.html members/tests/basic.py
+msgid ""
+"Thanks for echoing back. Please enter the password, which you can find in "
+"the email we sent you.\n"
+msgstr ""
+"Bitte gib dein Passwort ein. Weitere Informationen zur Rückmeldung findest "
+"du in der E-Mail.\n"
+
+#: members/templates/members/echo_password.html
+#: members/templates/members/register_password.html
+#: members/templates/members/register_waiting_list.html
+msgid "submit"
+msgstr "Bestätigen"
+
+#: members/templates/members/echo_success.html
 msgid "Echo successful"
 msgstr "Rückmeldung erfolgreich"
 
-#: members/templates/members/echo_success.html:12
+#: members/templates/members/echo_success.html
 msgid "Thank you"
 msgstr "Danke"
 
-#: members/templates/members/echo_success.html:12
+#: members/templates/members/echo_success.html members/tests/basic.py
 msgid "Your data was successfully updated."
 msgstr "Deine Daten wurden erfolgreich aktualisiert."
 
-#: members/templates/members/invited_registration_failed.html:6
-#: members/templates/members/register_failed.html:6
+#: members/templates/members/echo_wrong_password.html
+msgid "You entered a wrong password to often."
+msgstr ""
+"Du hast zu oft ein falsches Passwort eingegeben. Bitte frage deinen "
+"Jugendleiter nach einem korrekten Passwort."
+
+#: members/templates/members/invited_registration_failed.html
+#: members/templates/members/register_failed.html members/tests/basic.py
 msgid "Registration failed"
 msgstr "Registrierung fehlgeschlagen"
 
-#: members/templates/members/invited_registration_failed.html:11
-#: members/templates/members/register.html:6
-#: members/templates/members/register_failed.html:11
-#: members/templates/members/register_password.html:6
-#: members/templates/members/register_success.html:6
-#: members/templates/members/register_wrong_password.html:6
+#: members/templates/members/invited_registration_failed.html
+#: members/templates/members/register.html
+#: members/templates/members/register_failed.html
+#: members/templates/members/register_password.html
+#: members/templates/members/register_success.html
+#: members/templates/members/register_wrong_password.html
+#: members/templates/members/upload_registration_form.html
+#: members/templates/members/upload_registration_form_invalid.html
+#: members/templates/members/upload_registration_form_success.html
 msgid "Registration"
 msgstr "Registrierung"
 
-#: members/templates/members/mail_confirmation_invalid.html:6
-#: members/templates/members/mail_confirmation_invalid.html:11
+#: members/templates/members/leave_waitinglist.html members/tests/basic.py
+msgid "Leave waitinglist"
+msgstr "Warteliste verlassen"
+
+#: members/templates/members/leave_waitinglist.html
+msgid ""
+"Are you sure you want to leave the waitinglist? This can't be undone and\n"
+"you need to requeue if you change your mind later."
+msgstr ""
+"Bist du sicher, dass du die Warteliste verlassen möchtest? Dies kann nicht "
+"rückgängig gemacht werden. Falls du später wieder der Warteliste beitreten "
+"möchtest, musst du dich neu registrieren."
+
+#: members/templates/members/leave_waitinglist.html
+msgid "Yes, leave the waitinglist"
+msgstr "Ja, Warteliste verlassen"
+
+#: members/templates/members/leave_waitinglist_success.html
+#: members/tests/basic.py
+msgid "Left waitinglist"
+msgstr "Warteliste verlassen"
+
+#: members/templates/members/leave_waitinglist_success.html
+#: members/templates/members/reject_success.html
+msgid ""
+"You successfully unregistered from the waitinglist. If you want to rejoin "
+"the waitinglist\n"
+"at a later time, please do so on our website.\n"
+msgstr ""
+"Du hast dich erfolgreich von der Warteliste abgemeldet. Falls du dich zu "
+"einem späteren Zeitpunkt wieder auf die Warteliste setzen lassen möchtest "
+"kannst du das auf unserer Webseite machen.\n"
+
+#: members/templates/members/mail_confirmation_invalid.html
+#: members/tests/basic.py
 msgid "Mail confirmation failed"
 msgstr "Emailbestätigung fehlgeschlagen"
 
-#: members/templates/members/mail_confirmation_invalid.html:13
-#: members/templates/members/waiting_confirmation_invalid.html:19
+#: members/templates/members/mail_confirmation_invalid.html
+#: members/templates/members/waiting_confirmation_invalid.html
+#: members/tests/basic.py
 msgid "The supplied link is invalid."
 msgstr "Der verwendete Link ist ungültig."
 
-#: members/templates/members/mail_confirmation_success.html:6
-#: members/templates/members/mail_confirmation_success.html:11
+#: members/templates/members/mail_confirmation_success.html
+#: members/tests/basic.py
 msgid "Mail confirmed"
 msgstr "Emailadresse bestätigt"
 
-#: members/templates/members/mail_confirmation_success.html:14
+#: members/templates/members/mail_confirmation_success.html
 #, python-format
 msgid ""
 "The email address %(email)s was successfully confirmed as parents email of "
@@ -810,7 +2070,7 @@ msgstr ""
 "Die Emailadresse %(email)s wurde erfolgreich als Emailadresse der Eltern von "
 "%(name)s bestätigt."
 
-#: members/templates/members/mail_confirmation_success.html:17
+#: members/templates/members/mail_confirmation_success.html
 #, python-format
 msgid ""
 "The email address %(email)s was successfully confirmed as personal email of "
@@ -819,24 +2079,27 @@ msgstr ""
 "Die Emailadresse %(email)s wurde erfolgreich als persönliche Emailadresse "
 "von %(name)s bestätigt."
 
-#: members/templates/members/register.html:13
-#: members/templates/members/register_password.html:11
-#: members/templates/members/register_success.html:11
-#: members/templates/members/register_wrong_password.html:11
-msgid "Register"
-msgstr "Registrieren"
+#: members/templates/members/member_form.html
+msgid "Emergency contacts:"
+msgstr "Notfallkontakte:"
 
-#: members/templates/members/register.html:15
-msgid "Here you can register for group"
-msgstr "Hier kannst du dich registrieren für die Gruppe"
+#: members/templates/members/member_form.html
+msgid "Remove"
+msgstr "Entfernen"
 
-#: members/templates/members/register.html:28
+#: members/templates/members/member_form.html
+msgid "Add more"
+msgstr "Weiteren hinzufügen"
+
+#: members/templates/members/member_form.html
 #, python-format
-msgid "I am member of the DAV %(sektion)s."
-msgstr "Ich bin Mitglied des DAV %(sektion)s."
+msgid "I am already or will become a member of the DAV %(sektion)s soon."
+msgstr ""
+"Ich bin bereits Mitglied des DAV %(sektion)s, oder beantrage die "
+"Mitgliedschaft zeitnah."
 
-#: members/templates/members/register.html:30
-#: members/templates/members/register_waiting_list.html:28
+#: members/templates/members/member_form.html
+#: members/templates/members/register_waiting_list.html
 #, python-format
 msgid ""
 "I agree that my data is stored and processed on the server of the JDAV "
@@ -845,11 +2108,33 @@ msgstr ""
 "Ich bin einverstanden, dass meine Daten auf dem Server der JDAV %(sektion)s "
 "gespeichert und verarbeitet werden."
 
-#: members/templates/members/register_failed.html:13
+#: members/templates/members/member_form.html
+msgid "Save"
+msgstr "Speichern"
+
+#: members/templates/members/member_form.html
+msgid "This file is bigger than the maximal allowed file size of 5 MiB."
+msgstr "Diese Datei ist größer als die maximal erlaubte Dateigröße von 5 MiB."
+
+#: members/templates/members/register.html
+#: members/templates/members/register_password.html
+#: members/templates/members/register_success.html
+#: members/templates/members/register_wrong_password.html
+#: members/templates/members/upload_registration_form.html
+#: members/templates/members/upload_registration_form_invalid.html
+#: members/templates/members/upload_registration_form_success.html
+msgid "Register"
+msgstr "Registrieren"
+
+#: members/templates/members/register.html
+msgid "Here you can register for group"
+msgstr "Hier kannst du dich registrieren für die Gruppe"
+
+#: members/templates/members/register_failed.html members/tests/basic.py
 msgid "Something went wrong while processing your registration."
 msgstr "Etwas ist schief gelaufen, bei der Verarbeitung deiner Registrierung."
 
-#: members/templates/members/register_password.html:13
+#: members/templates/members/register_password.html
 #, python-format
 msgid ""
 "Thanks for your interest in participating in the JDAV %(sektion)s. Please "
@@ -858,15 +2143,25 @@ msgstr ""
 "Danke für dein Interesse bei der JDAV %(sektion)s teilzunehmen. Bitte gib "
 "das Passwort ein, das du von deinem Jugendleiter erhalten hast."
 
-#: members/templates/members/register_success.html:13
-msgid "Your registration succeeded."
-msgstr "Deine Registrierung war erfolgreich."
+#: members/templates/members/register_success.html
+msgid ""
+"Your registration succeeded. We summarized your registration in this "
+"registration\n"
+"form. Please download it, fill in the remaining fields and read the general "
+"conditions. If you agree,\n"
+"please sign the document and upload a scan or image here."
+msgstr ""
+"Deine Registrierung war erfolgreich. Wir haben deine Daten in diesem "
+"Anmeldeformular zusammengefasst\n"
+"Bitte lade es herunter, fülle die verbleibenden Felder aus und lese die "
+"allgemeinen Teilnahmebedingungen. Falls du zustimmst,\n"
+"unterschreibe das Formular und lade hier einen Scan oder ein Bild hoch."
 
-#: members/templates/members/register_success.html:16
+#: members/templates/members/register_success.html
 msgid "Please remember to confirm your email address."
 msgstr "Bitte denk daran, deine E-Mail Adresse(n) zu bestätigen."
 
-#: members/templates/members/register_success.html:17
+#: members/templates/members/register_success.html
 msgid ""
 "The coordinating team will process your registration when your email address "
 "is confirmed."
@@ -874,57 +2169,162 @@ msgstr ""
 "Unser Jugendleiterteam wird deine Registrierung bearbeiten, wenn deine "
 "Emailadressen bestätigt sind."
 
-#: members/templates/members/register_success.html:19
+#: members/templates/members/register_success.html
 msgid ""
 "The coordinating team will process your registration as soon as possible."
 msgstr ""
 "Unser Jugendleiterteam wird deine Registrierung so schnell wie möglich "
 "bearbeiten."
 
-#: members/templates/members/register_waiting_list.html:6
+#: members/templates/members/register_waiting_list.html
 msgid "Registration for waiting list"
 msgstr "Registrierung für die Warteliste"
 
-#: members/templates/members/register_waiting_list.html:13
-msgid "Register for waiting list"
-msgstr "Für die Warteliste registrieren"
+#: members/templates/members/register_waiting_list_introduction.html
+msgid ""
+"This is only a placeholder. Please override this placeholder with a custom "
+"text as described in the documentation."
+msgstr ""
+"Dies ist nur ein Platzhalter. Bitte überschreibe diesen Platzhalter wie in "
+"der Dokumentation beschrieben mit einem benutzerdefinierten Text."
 
-#: members/templates/members/register_waiting_list.html:15
-msgid "Here you can register for the waiting list."
-msgstr "Hier kannst du dich auf die Warteliste eintragen."
-
-#: members/templates/members/register_waiting_list_success.html:6
-#: members/templates/members/register_waiting_list_success.html:11
+#: members/templates/members/register_waiting_list_success.html
 msgid "Registration for waiting list."
 msgstr "Registrierung für die Warteliste."
 
-#: members/templates/members/register_waiting_list_success.html:13
+#: members/templates/members/register_waiting_list_success.html
+#: members/tests/basic.py
 msgid "Your registration for the waiting list was successful."
 msgstr "Du wurdest auf die Warteliste gesetzt."
 
-#: members/templates/members/register_waiting_list_success.html:14
+#: members/templates/members/register_waiting_list_success.html
 msgid "Please remember to confirm all email addresses that you entered."
 msgstr "Bitte denk daran, deine E-Mail Adresse(n) zu bestätigen."
 
-#: members/templates/members/register_waiting_list_success.html:15
+#: members/templates/members/register_waiting_list_success.html
 msgid "We will notify you if there is a vacant place in one of our groups."
 msgstr ""
 "Wir werden dich umgehend benachrichtigen, wenn es einen freien Platz in "
 "einer unserer Gruppen gibt."
 
-#: members/templates/members/register_wrong_password.html:13
+#: members/templates/members/register_wrong_password.html
 msgid ""
 "You entered a wrong password to often. Please ask your youth leader again."
 msgstr ""
 "Du hast zu oft ein falsches Passwort eingegeben. Bitte frage deinen "
 "Jugendleiter nach einem korrekten Passwort."
 
-#: members/templates/members/waiting_confirmation_invalid.html:6
-#: members/templates/members/waiting_confirmation_invalid.html:11
+#: members/templates/members/reject_invalid.html
+#: members/templates/members/reject_invitation.html
+msgid "Reject invitation"
+msgstr "Einladung ablehnen"
+
+#: members/templates/members/reject_invitation.html
+#, python-format
+msgid ""
+"You were invited to a trial group meeting of the group %(groupname)s. On "
+"this\n"
+"page you can reject this invitation."
+msgstr ""
+"Du wurdest zu einer Schnupperstunde in der Gruppe %(groupname)s eingeladen. "
+"Auf dieser Seite kannst du die Einladung ablehnen."
+
+#: members/templates/members/reject_invitation.html
+msgid ""
+"You may either reject this specific invitation, because\n"
+"the time of the group does not fit your calendear, or unregister from the "
+"mailing list altogether."
+msgstr ""
+"Du kannst entweder die Einladung zu dieser Gruppe ablehnen, weil du zu dem "
+"Termin keine Zeit hast, oder dich ganz von der Warteliste abmelden. Achtung: "
+"Das kann nicht rückgängig gemacht werden!"
+
+#: members/templates/members/reject_invitation.html
+msgid "Reject this invitation and stay on the waitinglist"
+msgstr "Diese Einladung ablehnen und auf der Warteliste bleiben"
+
+#: members/templates/members/reject_invitation.html
+msgid "Leave the waitinglist"
+msgstr "Warteliste verlassen"
+
+#: members/templates/members/reject_success.html
+#, python-format
+msgid ""
+"You successfully rejected the invitation to a trial group meeting of the "
+"group\n"
+"%(groupname)s. If there is a slot in a different group available, you will "
+"receive a new invitation.\n"
+msgstr ""
+"Du hast die Einladung zur Schnupperstunde in der Gruppe %(groupname)s "
+"abgelehnt. Wenn ein Platz in einer anderen Gruppe frei wird, erhältst du "
+"eine neue Einladung.\n"
+
+#: members/templates/members/upload_registration_form.html
+#, python-format
+msgid ""
+"Thank you for echoing back, your data was updated. For legal\n"
+"reasons, we also need a signed participation form. In your case, a recent\n"
+"participation form is missing. Please <a href=\"%(download_url)s?"
+"key=%(key)s\">download</a>\n"
+"the pre-filled form, fill in the remaining fields and read the general "
+"conditions. If you agree,\n"
+"please sign the document and upload a scan or image here."
+msgstr ""
+"Danke für das Aktualisieren deiner Daten. Aus rechtlichen Gründen, benötigen "
+"wir zusätzlich ein schriftliches Anmeldeformular. Für dich liegt uns kein "
+"aktuelles Formular vor. Bitte <a href=\"%(download_url)s?key=%(key)s\">lade "
+"das Formular herunter</a>, fülle die verbleibenden Felder aus und lese "
+"unsere Teilnahmebedingungen. Falls du zustimmst, unterschreibe bitte das "
+"Formular und lade hier einen Scan oder ein Bild hoch."
+
+#: members/templates/members/upload_registration_form.html
+#, python-format
+msgid ""
+"We summarized your registration in our registration\n"
+"form. Please <a href=\"%(download_url)s?key=%(key)s\">download</a> it,\n"
+"fill in the remaining fields and read the general conditions. If you agree,\n"
+"please sign the document and upload a scan or image here."
+msgstr ""
+"Wir haben deine Anmeldung in unserem Anmeldeformular zusammgengefasst. Bitte "
+"<a href=\"%(download_url)s?key=%(key)s\">lade es herunter</a>, fülle die "
+"verbleibenden Felder aus und lese unsere Teilnahmebedingungen. Falls du "
+"zustimmst, unterschreibe bitte das Formular und lade hier einen Scan oder "
+"ein Bild hoch."
+
+#: members/templates/members/upload_registration_form.html
+#: members/tests/basic.py
+msgid ""
+"If you are not an adult yet, please let someone responsible for you sign the "
+"agreement."
+msgstr ""
+"Bist du noch nicht volljährig? Dann lass bitte eine erziehungsberechtigte "
+"Person das Anmeldeformular unterschreiben."
+
+#: members/templates/members/upload_registration_form.html
+msgid "Upload"
+msgstr "Hochladen"
+
+#: members/templates/members/upload_registration_form_invalid.html
+#: members/tests/basic.py
+msgid "The supplied key for uploading a registration form is invalid."
+msgstr "Der verwendete Link zum Hochladen eines Anmeldeformulars ist ungültig."
+
+#: members/templates/members/upload_registration_form_success.html
+msgid "Thank you for uploading the registration form."
+msgstr "Danke für das Hochladen des Anmeldeformulars."
+
+#: members/templates/members/upload_registration_form_success.html
+#: members/tests/basic.py
+msgid "Our team will process your registration shortly."
+msgstr ""
+"Unser Jugendleiter*innenteam wird deine Registrierung so schnell wie möglich "
+"bearbeiten."
+
+#: members/templates/members/waiting_confirmation_invalid.html
 msgid "Waiting confirmation failed"
 msgstr "Wartelistenplatzbestätigung fehlgeschlagen"
 
-#: members/templates/members/waiting_confirmation_invalid.html:15
+#: members/templates/members/waiting_confirmation_invalid.html
 msgid ""
 "Unfortunately, you did not confirm your intention to stay on the waiting "
 "list in time. You lost your spot on the list. You can"
@@ -932,16 +2332,17 @@ msgstr ""
 "Leider hast du deinen Wartelistenplatz nicht rechtzeitig bestätigt und hast "
 "somit deinen Platz verloren. Du kannst"
 
-#: members/templates/members/waiting_confirmation_invalid.html:16
+#: members/templates/members/waiting_confirmation_invalid.html
+#: members/tests/basic.py
 msgid "rejoin the waiting list"
 msgstr "der Warteliste erneut beitreten"
 
-#: members/templates/members/waiting_confirmation_success.html:6
-#: members/templates/members/waiting_confirmation_success.html:11
+#: members/templates/members/waiting_confirmation_success.html
+#: members/tests/basic.py
 msgid "Waiting confirmed"
 msgstr "Wartelistenplatz bestätigt"
 
-#: members/templates/members/waiting_confirmation_success.html:14
+#: members/templates/members/waiting_confirmation_success.html
 #, python-format
 msgid ""
 "Thank you %(prename)s for your interest in staying on the waiting list.\n"
@@ -950,7 +2351,7 @@ msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz ist bereits bestätigt."
 
-#: members/templates/members/waiting_confirmation_success.html:18
+#: members/templates/members/waiting_confirmation_success.html
 #, python-format
 msgid ""
 "Thank you %(prename)s for your interest in staying on the waiting list.\n"
@@ -959,14 +2360,234 @@ msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
 
-#: members/views.py:85 members/views.py:106 members/views.py:272
+#: members/tests/basic.py
+msgid "Insufficient permissions."
+msgstr "Unzureichende Berechtigungen."
+
+#: members/tests/basic.py
+msgid "This field is required."
+msgstr ""
+
+#: members/tests/basic.py members/views.py
+msgid "The entered password is wrong."
+msgstr "Das eingegebene Passwort ist falsch."
+
+#: members/tests/basic.py members/views.py
 msgid "invalid"
 msgstr "ungültig"
 
-#: members/views.py:87 members/views.py:274
+#: members/tests/basic.py members/views.py
 msgid "expired"
 msgstr "abgelaufen"
 
-#: members/views.py:117
-msgid "The entered password is wrong."
-msgstr "Das eingegebene Passwort ist falsch."
+#: members/views.py
+msgid "Prename of the member."
+msgstr "Vorname des*der Teilnehmenden"
+
+#: members/views.py
+msgid "Lastname of the member."
+msgstr "Nachname des*der Teilnehmenden"
+
+#: members/views.py
+msgid "phone number of child or parent"
+msgstr "Telefonnummer des*der Teilnehmenden oder einer Kontaktperson"
+
+#: members/views.py
+msgid "email of child if available, otherwise parental email address"
+msgstr ""
+"Falls verfügbar, E-Mailadresse des*der Teilnehmenden, sonst einer "
+"Kontaktperson"
+
+#: members/views.py
+msgid "optional additional email address"
+msgstr "Optionale zusätzliche E-Mailadresse"
+
+#: members/views.py
+msgid "Invalid emergency contacts"
+msgstr "Ungültige Notfallkontakte"
+
+#~ msgid "True"
+#~ msgstr "Ja"
+
+#~ msgid "False"
+#~ msgstr "Nein"
+
+#~ msgid "All"
+#~ msgstr "Alle"
+
+#~ msgid "Inform youth leaders about sending of crisis intervention list."
+#~ msgstr ""
+#~ "Informiere Jugendleiter:innen über Versand der Kriseninterventionsliste."
+
+#~ msgid "Send crisis intervention list."
+#~ msgstr "Kriseninterventionsliste verschicken"
+
+#~ msgid "You may also choose to include the V32 attachment."
+#~ msgstr ""
+#~ "Ein LJP Antrag benötigt immer ein Formblatt (in unserem Fall V32-1 "
+#~ "Themenorientierte Bildungsmaßnahmen). Dieses kannst du automatisch "
+#~ "vorausfüllen lassen und dem Antrag hinzufügen. Bitte fülle die "
+#~ "verbleibenden Felder im Formblatt selbst aus und unterschreibe das PDF."
+
+#~ msgid "Please select a mode."
+#~ msgstr "Bitte wähle einen Modus aus."
+
+#~ msgid ""
+#~ "Full mode is only available, if the seminar report section is filled out."
+#~ msgstr ""
+#~ "Der vollständiger Modus ist nur verfügbar, wenn der Seminarbericht "
+#~ "ausgefüllt ist. "
+
+#~ msgid "Generate LJP V-BK form"
+#~ msgstr "Erzeuge LJP V-BK Formular"
+
+#~ msgid ""
+#~ "Every LJP application needs a V-BK form containing the most important "
+#~ "facts about the seminar.\n"
+#~ "Here you can automatically generate such a form in Excel format."
+#~ msgstr ""
+#~ "Jeder LJP Antrag benötigt ein V-BK Formular, das die wichtigsten "
+#~ "Randdaten des Seminars enthält. Hier kannst du automatisch ein solches "
+#~ "Formular im Excel Format erstellen."
+
+#~ msgid ""
+#~ "Your excursion currently has no cost-plan attached, hence the total costs "
+#~ "can't be automatically\n"
+#~ "calculated and added to the form."
+#~ msgstr ""
+#~ "Deine Ausfahrt hat zur Zeit keinen Kostenplan. Daher können die "
+#~ "Gesamtkosten nicht automatisch berechnet und dem Formular hinzugefügt "
+#~ "werden."
+
+#~ msgid ""
+#~ "Depending on the type of seminar, please select one of the two options "
+#~ "below."
+#~ msgstr "Bitte wähle aus, um welche Art von Seminar es sich handelt."
+
+#~ msgid "Full report"
+#~ msgstr "Vollständiger Seminarbericht"
+
+#~ msgid "Costs and participants only"
+#~ msgstr "Nur Kosten und Teilnehmende"
+
+#~ msgid "Mode"
+#~ msgstr "Modus"
+
+#~ msgid "Prepend V32"
+#~ msgstr "V32 Formblatt einfügen"
+
+#~ msgid "Please select a category."
+#~ msgstr "Bitte wähle eine Kategorie aus."
+
+#~ msgid "Alpinistic goals"
+#~ msgstr "Alpintechnische Ziele"
+
+#~ msgid "Pedagogic goals"
+#~ msgstr "Pädagogische Ziele"
+
+#~ msgid "Content and methods"
+#~ msgstr "Inhalte und Methoden"
+
+#~ msgid "Evaluation"
+#~ msgstr "Wertung"
+
+#~ msgid "Experiences and possible improvements"
+#~ msgstr "Erfahrungen und Verbesserungsvorschläge"
+
+#~ msgid ""
+#~ "Here you can generate a seminar report suitable for the LJP. A report\n"
+#~ "always contains a head page with the basic information on the seminar."
+#~ msgstr ""
+#~ "Hier kannst du einen Zuschussantrag für den Landesjugendplan (LJP) "
+#~ "erstellen. Ein solcher Antrag besteht immer aus zwei Teilen: Einem "
+#~ "Formblatt und einem Seminarbericht. Ein Bericht enthält immer einen Kopf "
+#~ "mit den Stammdaten des Seminars. Darüber hinaus muss der Seminarbericht "
+#~ "eine Teilnehemendenliste, eine Kostenübersicht und eine detaillierte "
+#~ "didaktische Planung enthalten. "
+
+#~ msgid ""
+#~ "Expenses with same short description are automatically summed up and "
+#~ "shown as one expense in the\n"
+#~ "expense overview."
+#~ msgstr ""
+#~ "In der Kostenübersicht werden Ausgaben mit der gleichen Kurzbeschreibung "
+#~ "automatisch aufsummiert und zu einer Ausgabe zusammengefasst."
+
+#~ msgid ""
+#~ "Full report: Include learning goals and a detailed, tabularized time "
+#~ "schedule. This requires\n"
+#~ "the seminar report section to be filled out."
+#~ msgstr ""
+#~ "Vollständiger Bericht: Stelle Lernziele und einen detaillierten, "
+#~ "tabellierten Zeitplan dar. Dies benötigt, dass der Seminarbericht in der "
+#~ "Ausfahrt ausgefüllt ist."
+
+#~ msgid ""
+#~ "Costs and participants only: Only show a list of participants and costs. "
+#~ "In this case you\n"
+#~ "have to add learning goals and a time schedule manually."
+#~ msgstr ""
+#~ "Nur Kosten und Teilnehmende: Zeige nur eine Liste von Teilnehmenden und "
+#~ "Kosten an. In diesem Fall musst du Lernziele und einen Zeitplan manuell "
+#~ "hinzufügen."
+
+#, python-format
+#~ msgid ""
+#~ "This excursion has %(approved_count)s approved youth leaders, but you "
+#~ "listed only %(entered_count)s."
+#~ msgstr ""
+#~ "Diese Ausfahrt hat %(approved_count)s zugelassene Jugendleiter*innen, "
+#~ "aber du hast nur %(entered_count)s eingetragen."
+
+#, python-format
+#~ msgid ""
+#~ "In total these are contributions of %(total_per_yl)s€ times "
+#~ "%(staff_count)s, giving %(total_staff)s€."
+#~ msgstr ""
+#~ "Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
+#~ "insgesamt also %(total_staff)s€."
+
+#~ msgid "Your registration succeeded."
+#~ msgstr "Deine Registrierung war erfolgreich."
+
+#~ msgid "Please choose one of the listed modes."
+#~ msgstr "Bitte wähle einen der obigen Modi."
+
+#~ msgid "Good conduct certificate presentation needed"
+#~ msgstr "Vorlage Führungszeugnis notwendig"
+
+#~ msgid "Yes, reject invitation"
+#~ msgstr "Ja, Einladung ablehnen."
+
+#~ msgid "Invited for group"
+#~ msgstr "Einladung zu Gruppe austehend"
+
+#~ msgid "Parents' Email"
+#~ msgstr "Email der Eltern"
+
+#~ msgid "Also send mails to parents"
+#~ msgstr "Emails auch an Eltern schicken"
+
+#~ msgid "Nationality"
+#~ msgstr "Nationalität"
+
+#~ msgid "Civil status"
+#~ msgstr "Zivilstand"
+
+#~ msgid "Swimming badge"
+#~ msgstr "Schwimmabzeichen"
+
+#~ msgid "parents phone number"
+#~ msgstr "Telefonnummer der Eltern"
+
+#~ msgid "Technical comments"
+#~ msgstr "Technische Kommentare"
+
+#~ msgid "Good news"
+#~ msgstr "Gute Neuigkeiten"
+
+#~ msgid "Memberlist"
+#~ msgstr "Teilnehmerliste"
+
+#~ msgid "Memberlists"
+#~ msgstr "Teilnehmerlisten"

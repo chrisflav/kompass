@@ -4,34 +4,107 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('members', '0008_change_default_permissions'),
+        ("members", "0008_change_default_permissions"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='freizeit',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'Freizeit', 'verbose_name_plural': 'Freizeiten'},
+            name="freizeit",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "Freizeit",
+                "verbose_name_plural": "Freizeiten",
+            },
         ),
         migrations.AlterModelOptions(
-            name='ljpproposal',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'LJP Proposal', 'verbose_name_plural': 'LJP Proposals'},
+            name="ljpproposal",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "LJP Proposal",
+                "verbose_name_plural": "LJP Proposals",
+            },
         ),
         migrations.AlterModelOptions(
-            name='member',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'permissions': (('may_see_qualities', 'Is allowed to see the quality overview'), ('may_set_auth_user', 'Is allowed to set auth user member connections.'), ('change_member_group', 'Can change the group field')), 'verbose_name': 'member', 'verbose_name_plural': 'members'},
+            name="member",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "permissions": (
+                    ("may_see_qualities", "Is allowed to see the quality overview"),
+                    ("may_set_auth_user", "Is allowed to set auth user member connections."),
+                    ("change_member_group", "Can change the group field"),
+                ),
+                "verbose_name": "member",
+                "verbose_name_plural": "members",
+            },
         ),
         migrations.AlterModelOptions(
-            name='membertraining',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'Training', 'verbose_name_plural': 'Trainings'},
+            name="membertraining",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "Training",
+                "verbose_name_plural": "Trainings",
+            },
         ),
         migrations.AlterModelOptions(
-            name='memberwaitinglist',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'permissions': (('may_manage_waiting_list', 'Can view and manage the waiting list.'),), 'verbose_name': 'Waiter', 'verbose_name_plural': 'Waiters'},
+            name="memberwaitinglist",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "permissions": (
+                    ("may_manage_waiting_list", "Can view and manage the waiting list."),
+                ),
+                "verbose_name": "Waiter",
+                "verbose_name_plural": "Waiters",
+            },
         ),
         migrations.AlterModelOptions(
-            name='newmemberonlist',
-            options={'default_permissions': ('add_global', 'change_global', 'view_global', 'delete_global', 'list_global', 'view'), 'verbose_name': 'Member', 'verbose_name_plural': 'Members'},
+            name="newmemberonlist",
+            options={
+                "default_permissions": (
+                    "add_global",
+                    "change_global",
+                    "view_global",
+                    "delete_global",
+                    "list_global",
+                    "view",
+                ),
+                "verbose_name": "Member",
+                "verbose_name_plural": "Members",
+            },
         ),
     ]

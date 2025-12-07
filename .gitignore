@@ -106,9 +106,6 @@ jdav_web/my.cnf
 # sass cache
 jdav_web/static/jet/css/themes/*/.sass-cache/*
 
-# test config
-config
-
 # celerybeat schedule database
 jdav_web/celerybeat-schedule.db
 
@@ -124,3 +121,18 @@ docker/test/db
 docker/development/media
 docker/production/media
 docker/test/media
+
+# configuration folders
+docker/development/config/*
+!docker/development/config/settings.toml.example
+docker/production/config
+
+*.csv
+
+jdav_web/static/docs
+
+# mac files
+.DS_Store
+
+# Claude configuration file
+CLAUDE.md

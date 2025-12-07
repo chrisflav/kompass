@@ -1,10 +1,11 @@
 {% extends "startpage/base_subsite.html" %}
+{% load markdown_extras markdownify %}
 
 {% block content %}
 <h1>{{ group.name }}</h1>
 
 <p>
-{{ group.description }}
+{{ group.description|markdownify }}
 </p>
 
 <h2>Gruppenleitung</h2>

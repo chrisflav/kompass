@@ -1,24 +1,23 @@
-import os
-
-from django.contrib import admin
-from wsgiref.util import FileWrapper
-from django.http import HttpResponse
-from django.conf import settings
-from .models import Termin
-
 import xlsxwriter
+from contrib.media import ensure_media_dir
+from contrib.media import media_path
+from contrib.media import serve_media
+from django.contrib import admin
+
+from .models import Termin
 
 
 class TerminAdmin(admin.ModelAdmin):
-    list_display = ('title','start_date', 'end_date', 'group', 'category', 'responsible')
-    list_filter = ('group',)
-    ordering = ('start_date','end_date')
-    actions = ['make_overview']
+    list_display = ("title", "start_date", "end_date", "group", "category", "responsible")
+    list_filter = ("group",)
+    ordering = ("start_date", "end_date")
+    actions = ["make_overview"]
 
     def make_overview(self, request, queryset):
-        filename = 'termine.xlsx'
+        ensure_media_dir()
+        filename = "termine.xlsx"
         workbook = xlsxwriter.Workbook(media_path(filename))
-        bold = workbook.add_format({'bold': True})
+        bold = workbook.add_format({"bold": True})
         worksheet = workbook.add_worksheet()
         worksheet.write(0, 0, "Titel", bold)
         worksheet.write(0, 1, "Untertitel", bold)
@@ -42,39 +41,32 @@ class TerminAdmin(admin.ModelAdmin):
         worksheet.write(0, 19, "Telefonnummer", bold)
         worksheet.write(0, 20, "Emailadresse", bold)
         for row, termin in enumerate(queryset):
-            worksheet.write(row+2, 0, termin.title)
-            worksheet.write(row+2, 1, termin.subtitle)
-            worksheet.write(row+2, 2, termin.start_date.strftime('%d.%m.%Y'))
-            worksheet.write(row+2, 3, termin.end_date.strftime('%d.%m.%Y'))
-            worksheet.write(row+2, 4, termin.group)
-            worksheet.write(row+2, 5, termin.category)
-            worksheet.write(row+2, 6, termin.technik)
-            worksheet.write(row+2, 7, termin.condition)
-            worksheet.write(row+2, 8, termin.saison)
-            worksheet.write(row+2, 9, termin.eventart)
-            worksheet.write(row+2, 10, termin.klassifizierung)
-            worksheet.write(row+2, 11, termin.anforderung_hoehe)
-            worksheet.write(row+2, 12, termin.anforderung_strecke)
-            worksheet.write(row+2, 13, termin.anforderung_dauer)
-            worksheet.write(row+2, 14, termin.voraussetzungen)
-            worksheet.write(row+2, 15, termin.description)
-            worksheet.write(row+2, 16, termin.equipment)
-            worksheet.write(row+2, 17, termin.max_participants)
-            worksheet.write(row+2, 18, termin.responsible)
-            worksheet.write(row+2, 19, termin.phone)
-            worksheet.write(row+2, 20, termin.email)
+            worksheet.write(row + 2, 0, termin.title)
+            worksheet.write(row + 2, 1, termin.subtitle)
+            worksheet.write(row + 2, 2, termin.start_date.strftime("%d.%m.%Y"))
+            worksheet.write(row + 2, 3, termin.end_date.strftime("%d.%m.%Y"))
+            worksheet.write(row + 2, 4, termin.group)
+            worksheet.write(row + 2, 5, termin.category)
+            worksheet.write(row + 2, 6, termin.technik)
+            worksheet.write(row + 2, 7, termin.condition)
+            worksheet.write(row + 2, 8, termin.saison)
+            worksheet.write(row + 2, 9, termin.eventart)
+            worksheet.write(row + 2, 10, termin.klassifizierung)
+            worksheet.write(row + 2, 11, termin.anforderung_hoehe)
+            worksheet.write(row + 2, 12, termin.anforderung_strecke)
+            worksheet.write(row + 2, 13, termin.anforderung_dauer)
+            worksheet.write(row + 2, 14, termin.voraussetzungen)
+            worksheet.write(row + 2, 15, termin.description)
+            worksheet.write(row + 2, 16, termin.equipment)
+            worksheet.write(row + 2, 17, termin.max_participants)
+            worksheet.write(row + 2, 18, termin.responsible)
+            worksheet.write(row + 2, 19, termin.phone)
+            worksheet.write(row + 2, 20, termin.email)
         workbook.close()
-        with open(media_path(filename), 'rb') as xls:
-            response = HttpResponse(FileWrapper(xls))
-            response['Content-Type'] = 'application/xlsx'
-            response['Content-Disposition'] = 'attachment; filename='+filename
+        return serve_media(filename, "application/xlsx")
 
-        return response
     make_overview.short_description = "Termine in Excel Liste überführen"
+
 
 # Register your models here.
 admin.site.register(Termin, TerminAdmin)
-
-
-def media_path(fp):
-    return os.path.join(os.path.join(settings.MEDIA_MEMBERLISTS, "memberlists"), fp)

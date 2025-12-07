@@ -1,0 +1,23 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Invitation confirmed" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Invitation confirmed" %}</h1>
+
+<p>
+{% blocktrans %}You successfully confirmed the invitation to the trial group meeting of the group {{ groupname }}.{% endblocktrans %}
+{{ timeinfo }}
+</p>
+<p>
+{% blocktrans %}We have informed the group leaders about your confirmation. If for some reason you can not make it,
+please contact the group leaders at{% endblocktrans %}
+<a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.
+</p>
+
+{% endblock %}

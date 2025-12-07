@@ -1,54 +1,37 @@
-{% load tex_extras %}
+{% extends "members/tex_base.tex" %}
+{% load static common tex_extras %}
 
-\documentclass{article}
+{% block title %}Teilnehmer*innenübersicht{% endblock %}
 
-\usepackage[utf8]{inputenc}
-\usepackage{booktabs}
-\usepackage{tabularx}
-\usepackage{ragged2e}
-\usepackage{amssymb}
-\usepackage{cmbright}
-\usepackage{graphicx}
-\usepackage{textpos}
-\usepackage[colorlinks]{hyperref}
-\usepackage{float}
-\usepackage[margin=1cm]{geometry}
-
-\renewcommand{\arraystretch}{1.5}
-
-\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
-\begin{document}
-
-% HEADLINE
-{\noindent\LARGE{Teilnehmer:innenübersicht}}\\[1mm]
-\textit{Erstellt: {{ creation_date }} }\\
+{% block content %}
 
 % DESCRIPTION
 \begin{table}[H]
     \begin{tabular}{ll}
         \large Aktivität: & {{ memberlist.name|esc_all }} \\
+        \large Ordnungsnummer & {{ memberlist.code|esc_all }} \\
         \large Gruppe: & {{ memberlist.groups_str|esc_all }} \\
-        \large Ziel: & {{ memberlist.place|esc_all }} \\
-        \large Stützpunkt: & {{ memberlist.destination|esc_all }} \\
+        \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }} \\
+        \large ggf. Ziel: & {{ memberlist.destination|esc_all }} \\
         \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
     \end{tabular}
 \end{table}
 
-\begin{table}[H]
-	\begin{tabularx}{\textwidth}{@{} l l Y @{}}
+\begin{tabularx}{.97\linewidth}{lXXX}
     \toprule
-	\textbf{Name} & \textbf{Fähigkeiten (max. 100)} & \textbf{Kommentare} \\
+	\# & \textbf{Name} & \textbf{Fähigkeiten (max. 100)} & \textbf{Kommentare} \\
     \midrule
-    {% for p in people %}
-        {{ p.name|esc_all }} & {{ p.qualities|esc_all }} & {{ p.comments|esc_all }} \\
-    {% endfor %}
+    \endhead
     \bottomrule
-  \end{tabularx}
-\end{table}
+    \endfoot
 
-\noindent\large Fähigkeiten der Gruppe\\
-\begin{table}[H]
-    \begin{tabular*}{1\linewidth}{@{\extracolsep{\fill}}llll}
+    {% for p in people %}
+        {{ forloop.counter }} & {{ p.name|esc_all }} & {{ p.qualities|esc_all }} & {{ p.comments|esc_all }} \\
+    {% endfor %}
+\end{tabularx}
+
+\noindent{\large Fähigkeiten der Gruppe}\\
+\begin{tabularx}{.97\linewidth}{Xlll}
 	\toprule
     \textbf{Name} & \textbf{Durchschnitt} & \textbf{Minimum} & \textbf{Maximum} \\
 	\midrule
@@ -56,9 +39,6 @@
         {{ skill.name|esc_all }} & {{ skill.skill_avg|esc_all }} & {{ skill.skill_min|esc_all }} & {{ skill.skill_max|esc_all }} \\
     {% endfor %}
 	\bottomrule
-  \end{tabular*}
-\end{table}
+\end{tabularx}
 
-\vspace{1cm}
-
-\end{document}
+{% endblock %}

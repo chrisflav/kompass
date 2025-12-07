@@ -1,0 +1,15 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Reject invitation" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Reject invitation" %}</h1>
+
+<p>{% trans "This invitation is invalid or expired." %}</p>
+
+{% endblock %}

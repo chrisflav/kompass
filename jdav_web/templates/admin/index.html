@@ -1,0 +1,212 @@
+{% extends "admin/index.html" %}
+{% load i18n static common %}
+
+{% block content %}
+<script>
+/*
+Remove breadcrumbs from index page. We can't just override the breadcrumbs block in
+this template, because this also removes breadcrumbs from all descendents.
+TODO: Find a better solution.
+*/
+var els = document.getElementsByClassName('breadcrumbs');
+for (var i = 0; i < els.length; ++i) {
+    var item = els[i];
+    item.remove();
+}
+</script>
+
+<div id="content-main">
+<div>
+<p>
+<h2>Willkommen, {% firstof user.member.prename user.get_username %}!</h2>
+</p>
+<p>
+Der KOMPASS ist dein Kompass in der Jugendarbeit der JDAV {% settings_value 'SEKTION' %}. Hier hast du Zugriff
+auf deine Jugendgruppen, deine letzten
+<a href="{% url 'admin:members_freizeit_changelist' %}">Ausfahrten</a> und deine
+<a href="{% url 'admin:finance_statement_changelist' %}">Abrechnungen</a>.
+</p>
+</div>
+
+{% if user.member %}
+
+<div class="module">
+<h3>Deine Jugendgruppen</h3>
+<p>
+Hier siehst du alle von dir geleiteten Jugendgruppen.
+</p>
+<p>
+<table>
+    {% for group in user.member.led_groups %}
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:members_member_changelist' %}?group__id__exact={{group.pk}}'>{{ group.name }}</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    {% endfor %}
+</table>
+</p>
+</div>
+
+<div class="module">
+<h3>Deine letzten Ausfahrten</h3>
+<p>
+Hier siehst du alle von dir geleiteten Ausfahrten.
+</p>
+<p>
+<table>
+    {% for freizeit in user.member.led_freizeiten %}
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:members_freizeit_change' freizeit.pk %}'>{{freizeit.name}}</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    {% endfor %}
+</table>
+</p>
+</div>
+
+{% endif %}
+
+<div class="module current-app">
+
+<h3>E-Mail Verteiler</h3>
+<p>
+Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV {% settings_value 'SEKTION' %} schicken.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_add' %}'>Verfassen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_changelist' %}?sent__exact=1'>Gesendet</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <th scope="row">
+            <a href='{% url 'admin:mailer_message_changelist' %}?sent__exact=0'>Entwürfe</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+
+</div>
+</div>
+
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+<div class="module" id="recent-actions-module">
+<div>
+
+    <h2>Links</h2>
+
+
+<div class="icon-gallery">
+        {% for link in external_links %}
+        {% if link.visible %}
+
+        <a href="{{ link.url }}" class="icon-item" target="_blank">
+            {% if link.icon %}
+                <img src="{{ link.icon.url }}" alt="">
+                {% else %}
+                <img src="{% static 'admin/img/favicon.svg' %}" style="transform: scale(0.8);" alt="">
+                {% endif %}
+            <div class="icon-text">
+                <span class="icon-title">{{ link.title }}</span>
+                <span class="icon-subtext">{{ link.description }}</span>
+            </div>
+        </a>
+        {% endif %}
+        {% endfor %}
+
+        <a href="{% settings_value 'DOCS_LINK' %}" class="icon-item" target="_blank">
+            <img src="{% static 'admin/img/favicon.svg' %}" style="transform: scale(0.8);" alt="">
+            <div class="icon-text">
+                <span class="icon-title">Kompass-Dokumentation</span>
+                <span class="icon-subtext">Anleitung zur Benutzung des Kompasses</span>
+            </div>
+        </a>
+</div>
+
+<style>
+    .icon-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive columns */
+        grid-auto-rows: minmax(150px, auto); /* Prevents overlap by enforcing row height */
+        gap: 15px;
+        justify-content: center;
+        padding: 0 0 20px 0;
+        min-width: 484px;
+        /* max-width: 800px; Optional: Adjust based on design */
+        margin: auto; /* Centers the grid */
+    }
+
+    .icon-item {
+        text-decoration: none;
+        text-align: center;
+        background: white;
+        padding: 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between; /* Ensures even spacing */
+        /*height: 100%;  Forces uniform height */
+        /*min-height: 150px;  Ensures all boxes have at least this height */
+    }
+
+    .icon-item img {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        margin-bottom: 8px;
+    }
+
+    .icon-text {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex-grow: 1; /* Ensures text takes up available space */
+    }
+
+    .icon-title {
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .icon-subtext {
+        font-size: 12px;
+        color: #666;
+    }
+
+    .icon-item:hover {
+
+        transform: translateY(-3px);
+    }
+    </style>
+
+</div>
+
+{% include "startpage/contact.html" %}
+
+</div>
+</div>
+{% endblock %}

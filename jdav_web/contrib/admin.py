@@ -1,43 +1,102 @@
 import copy
-from django.contrib.auth import get_permission_codename
 
+from django.contrib import messages
+from django.contrib.auth import get_permission_codename
 from django.core.exceptions import PermissionDenied
-from django.contrib import admin, messages
-from django.utils.translation import gettext_lazy as _
-from django.http import HttpResponse, HttpResponseRedirect
-from django.urls import path, reverse
 from django.db import models
-from django.contrib.admin import helpers, widgets
-import rules.contrib.admin
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 from rules.permissions import perm_exists
 
 
+def decorate_admin_view(model, perm=None):
+    """
+    Decorator for wrapping admin views.
+    """
+
+    def decorator(fun):
+        def aux(self, request, object_id):
+            try:
+                obj = model.objects.get(pk=object_id)
+            except model.DoesNotExist:
+                messages.error(
+                    request, _("%(modelname)s not found.") % {"modelname": self.opts.verbose_name}
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
+                    )
+                )
+            permitted = (
+                self.has_change_permission(request, obj)
+                if not perm
+                else request.user.has_perm(perm)
+            )
+            if not permitted:
+                messages.error(request, _("Insufficient permissions."))
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
+                    )
+                )
+            return fun(self, request, obj)
+
+        return aux
+
+    return decorator
+
+
 class FieldPermissionsAdminMixin:
-    field_permissions = {}
+    field_change_permissions = {}
+    field_view_permissions = {}
+
+    def may_view_field(self, field_desc, request, obj=None):
+        if type(field_desc) is not tuple:
+            field_desc = (field_desc,)
+        for fd in field_desc:
+            if fd not in self.field_view_permissions:
+                continue
+            if not request.user.has_perm(self.field_view_permissions[fd]):
+                return False
+        return True
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        d = []
+        for title, attrs in fieldsets:
+            allowed = [f for f in attrs["fields"] if self.may_view_field(f, request, obj)]
+            if len(allowed) == 0:
+                continue
+            d.append((title, dict(attrs, **{"fields": allowed})))
+        return d
 
     def get_fields(self, request, obj=None):
-        fields = super(FieldPermissionsAdminMixin, self).get_fields(request, obj)
+        fields = super().get_fields(request, obj)
+        return [fd for fd in fields if self.may_view_field(fd, request, obj)]
 
-        def may_field(field):
-            if field not in self.field_permissions:
-                return True
-            return request.user.has_perm(self.field_permissions[field], obj)
-
-        return list(filter(may_field, fields))
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        return list(readonly_fields) + [
+            fd
+            for fd, perm in self.field_change_permissions.items()
+            if not request.user.has_perm(perm)
+        ]
 
 
 class ChangeViewAdminMixin:
     def change_view(self, request, object_id, form_url="", extra_context=None):
         try:
-            return super(ChangeViewAdminMixin, self).change_view(request, object_id,
-                                                                 form_url=form_url,
-                                                                 extra_context=extra_context)
+            return super().change_view(
+                request, object_id, form_url=form_url, extra_context=extra_context
+            )
         except PermissionDenied:
             opts = self.opts
             obj = self.model.objects.get(pk=object_id)
-            messages.error(request,
-                    _("You are not allowed to view %(name)s.") % {'name': str(obj)})
-            return HttpResponseRedirect(reverse('admin:%s_%s_changelist' % (opts.app_label, opts.model_name)))
+            messages.error(request, _("You are not allowed to view %(name)s.") % {"name": str(obj)})
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(opts.app_label, opts.model_name))
+            )
 
 
 class FilteredQuerysetAdminMixin:
@@ -51,28 +110,34 @@ class FilteredQuerysetAdminMixin:
         if ordering:
             qs = qs.order_by(*ordering)
         queryset = qs
-        list_global_perm = '%s.list_global_%s' % (self.opts.app_label, self.opts.model_name)
+        list_global_perm = "{}.list_global_{}".format(self.opts.app_label, self.opts.model_name)
         if request.user.has_perm(list_global_perm):
-            view_global_perm = '%s.view_global_%s' % (self.opts.app_label, self.opts.model_name)
+            view_global_perm = "{}.view_global_{}".format(self.opts.app_label, self.opts.model_name)
             if request.user.has_perm(view_global_perm):
-               return queryset
-            if hasattr(request.user, 'member'):
+                return queryset
+            if hasattr(request.user, "member"):
                 return request.user.member.annotate_view_permission(queryset, model=self.model)
             return queryset.annotate(_viewable=models.Value(False))
 
-        if not hasattr(request.user, 'member'):
+        if not hasattr(request.user, "member"):
             return self.model.objects.none()
 
-        return request.user.member.filter_queryset_by_permissions(queryset, annotate=True, model=self.model)
+        return request.user.member.filter_queryset_by_permissions(
+            queryset, annotate=True, model=self.model
+        )
 
-#class ObjectPermissionsInlineModelAdminMixin(rules.contrib.admin.ObjectPermissionsInlineModelAdminMixin):
 
-class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, FilteredQuerysetAdminMixin):
+# class ObjectPermissionsInlineModelAdminMixin(rules.contrib.admin.ObjectPermissionsInlineModelAdminMixin):
+
+
+class CommonAdminMixin(
+    FieldPermissionsAdminMixin, ChangeViewAdminMixin, FilteredQuerysetAdminMixin
+):
     def has_add_permission(self, request, obj=None):
         assert obj is None
         opts = self.opts
         codename = get_permission_codename("add_global", opts)
-        perm = "%s.%s" % (opts.app_label, codename)
+        perm = "{}.{}".format(opts.app_label, codename)
         return request.user.has_perm(perm, obj)
 
     def has_view_permission(self, request, obj=None):
@@ -81,7 +146,7 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
             codename = get_permission_codename("view", opts)
         else:
             codename = get_permission_codename("view_obj", opts)
-        perm = "%s.%s" % (opts.app_label, codename)
+        perm = "{}.{}".format(opts.app_label, codename)
         if perm_exists(perm):
             return request.user.has_perm(perm, obj)
         else:
@@ -93,7 +158,7 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
             codename = get_permission_codename("view", opts)
         else:
             codename = get_permission_codename("change_obj", opts)
-        return request.user.has_perm("%s.%s" % (opts.app_label, codename), obj)
+        return request.user.has_perm("{}.{}".format(opts.app_label, codename), obj)
 
     def has_delete_permission(self, request, obj=None):
         opts = self.opts
@@ -101,7 +166,7 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
             codename = get_permission_codename("delete_global", opts)
         else:
             codename = get_permission_codename("delete_obj", opts)
-        return request.user.has_perm("%s.%s" % (opts.app_label, codename), obj)
+        return request.user.has_perm("{}.{}".format(opts.app_label, codename), obj)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """
@@ -136,7 +201,7 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
             # extra HTML -- the "add other" interface -- to the end of the
             # rendered output. formfield can be None if it came from a
             # OneToOneField with parent_link=True or a M2M intermediary.
-            #if formfield and db_field.name not in self.raw_id_fields:
+            # if formfield and db_field.name not in self.raw_id_fields:
             #    formfield.widget = widgets.RelatedFieldWidgetWrapper(
             #        formfield.widget,
             #        db_field.remote_field,
@@ -158,13 +223,13 @@ class CommonAdminMixin(FieldPermissionsAdminMixin, ChangeViewAdminMixin, Filtere
 
 class CommonAdminInlineMixin(CommonAdminMixin):
     def has_add_permission(self, request, obj):
-        #assert obj is not None
+        # assert obj is not None
         if obj is None:
             return True
         if obj.pk is None:
             return True
         codename = get_permission_codename("add_obj", self.opts)
-        return request.user.has_perm('%s.%s' % (self.opts.app_label, codename), obj)
+        return request.user.has_perm("{}.{}".format(self.opts.app_label, codename), obj)
 
     def has_view_permission(self, request, obj=None):  # pragma: no cover
         if obj is None:
@@ -176,7 +241,7 @@ class CommonAdminInlineMixin(CommonAdminMixin):
             codename = get_permission_codename("view", opts)
         else:
             codename = get_permission_codename("view_obj", opts)
-        perm = "%s.%s" % (opts.app_label, codename)
+        perm = "{}.{}".format(opts.app_label, codename)
         if perm_exists(perm):
             return request.user.has_perm(perm, obj)
         else:
@@ -194,7 +259,7 @@ class CommonAdminInlineMixin(CommonAdminMixin):
                     opts = field.rel.to._meta
                     break
         codename = get_permission_codename("change_obj", opts)
-        return request.user.has_perm("%s.%s" % (opts.app_label, codename), obj)
+        return request.user.has_perm("{}.{}".format(opts.app_label, codename), obj)
 
     def has_delete_permission(self, request, obj=None):  # pragma: no cover
         if obj is None:

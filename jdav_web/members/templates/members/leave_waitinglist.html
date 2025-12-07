@@ -1,0 +1,25 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Leave waitinglist" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Leave waitinglist" %}</h1>
+
+<p>{% blocktrans %}Are you sure you want to leave the waitinglist? This can't be undone and
+you need to requeue if you change your mind later.{% endblocktrans %}
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="key" value="{{waiter.leave_key}}">
+    <p>
+    <input type="submit" name="leave_waitinglist" value="{% trans "Yes, leave the waitinglist" %}"/>
+    </p>
+</form>
+
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "members/base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+{% trans "Reject invitation" %}
+{% endblock %}
+
+{% block content %}
+
+<h1>{% trans "Reject invitation" %}</h1>
+
+<p>{% blocktrans %}You were invited to a trial group meeting of the group {{ groupname }}. On this
+page you can reject this invitation.{% endblocktrans %}
+</p>
+
+<p>{% blocktrans %}You may either reject this specific invitation, because
+the time of the group does not fit your calendear, or unregister from the mailing list altogether.{% endblocktrans %}
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="key" value="{{invitation.key}}">
+    <p>
+    <input type="submit" name="reject_invitation"
+        value="{% trans "Reject this invitation and stay on the waitinglist" %}"/>
+    <input type="submit" name="leave_waitinglist" value="{% trans "Leave the waitinglist" %}"/>
+    </p>
+</form>
+
+{% endblock %}

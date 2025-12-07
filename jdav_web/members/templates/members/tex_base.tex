@@ -1,0 +1,98 @@
+{% load static common tex_extras %}
+
+\documentclass[a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+% remove all undefined unicode characters instead of throwing an error
+\makeatletter
+\def\UTFviii@undefined@err#1{}
+\makeatother
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{cmbright}
+\usepackage{graphicx}
+\usepackage{textpos}
+\usepackage[colorlinks, breaklinks]{hyperref}
+\usepackage{float}
+\usepackage[margin=2cm]{geometry}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ltablex}
+\usepackage{ragged2e}
+\usepackage{titlesec}
+
+\keepXColumns
+
+\titleformat{\section}
+  {\Large\slshape}{\thesection\;}
+  {0em}{}
+
+\newcommand{\picpos}[4]{
+  \begin{textblock*}{#1}(#2, #3)
+    \includegraphics[width=\textwidth]{#4}
+  \end{textblock*}
+}
+
+% custom url command for properly formatting emails
+\DeclareUrlCommand\Email{\urlstyle{same}}
+% allow linebreak after every character
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks
+\do\/\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k
+\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v
+\do\w\do\x\do\y\do\z
+\do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K
+\do\L\do\M\do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V
+\do\W\do\X\do\Y\do\Z}
+
+\renewcommand{\arraystretch}{1.5}
+
+\newcolumntype{L}{>{\hspace{0pt}\raggedright\arraybackslash}X}
+\newcolumntype{S}{>{\raggedright\arraybackslash\hsize=0.7\hsize}X}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}p{0.4\linewidth}}
+
+\newcommand{\tickedbox}{
+    \makebox[0pt][l]{$\square$}\raisebox{.15ex}{\hspace{0.1em}$\checkmark$}
+}
+\newcommand{\checkbox}{
+    \makebox[0pt][l]{$\square$}
+}
+
+{% block extra-preamble %}
+{% endblock extra-preamble %}
+
+\begin{document}
+
+{% block contact %}
+
+% HEADER RIGHT
+{% settings_value 'DEFAULT_STATIC_PATH' as static_root %}
+\picpos{4.5cm}{11.7cm}{0cm}{%
+{{ static_root }}/general/img/dav_logo_sektion.png%
+}
+\begin{textblock*}{5cm}(11.7cm, 2.3cm)
+    \begin{flushright}
+        \small
+        \noindent Deutscher Alpenverein e. V. \\
+        Sektion {{ settings.SEKTION }} \\
+        {{ settings.SEKTION_STREET }} \\
+        {{ settings.SEKTION_TOWN }} \\
+        Tel.: {{ settings.SEKTION_TELEPHONE }} \\
+        Fax: {{ settings.SEKTION_TELEFAX }} \\
+        {{ settings.RESPONSIBLE_MAIL }} \\
+    \end{flushright}
+\end{textblock*}
+
+{% endblock contact %}
+
+{% block headline %}
+
+% HEADLINE
+{\LARGE{\noindent {% block title %}{% endblock title %} }}\\[1mm]
+\textit{Erstellt: {{ creation_date }} }\\
+
+{% endblock headline %}
+
+{% block content %}
+{% endblock content %}
+
+\end{document}
