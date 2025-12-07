@@ -55,9 +55,9 @@ To read the documentation build it locally and view it in your browser:
     make html
 
     # MacOS (with firefox)
-    open -a firefox $(pwd)/docs/build/html/index.html
+    open -a firefox $(pwd)/build/html/index.html
     # Linux
-    firefox $(pwd)/docs/build/html/index.html
+    firefox $(pwd)/build/html/index.html
 
 Code
 ----

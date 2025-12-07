@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-06 13:50+0100\n"
+"POT-Creation-Date: 2025-12-06 16:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -88,6 +88,18 @@ msgstr ""
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
 
+#: members/admin.py members/tests/basic.py
+msgid "Member not found."
+msgstr "Teilnehmer*in nicht gefunden."
+
+#: members/admin.py
+msgid "%(name)s does not receive the newsletter."
+msgstr "%(name)s erhält den Newsletter nicht"
+
+#: members/admin.py
+msgid "Successfully requested echo from %(name)s."
+msgstr "Rückmeldungsaufforderung erfolgreich an %(name)s verschickt."
+
 #: members/admin.py
 #, python-format
 msgid "%(name)s does not have a DAV360 email address or is already registered."
@@ -122,10 +134,6 @@ msgid "Invite selected members to join Kompass as users."
 msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
 
 #: members/admin.py members/tests/basic.py
-msgid "Member not found."
-msgstr "Teilnehmer*in nicht gefunden."
-
-#: members/admin.py members/tests/basic.py
 #, python-format
 msgid "%(name)s already has login data."
 msgstr "%(name)s hat schon Zugangsdaten."
@@ -136,11 +144,10 @@ msgid "The configured email address for %(name)s is not an internal one."
 msgstr "Die für %(name)s eingestellte E-Mail Adresse ist keine DAV360 Adresse."
 
 #: members/admin.py members/tests/basic.py
-#, fuzzy, python-brace-format
-#| msgid "%(name)s already has a pending invitation as user."
+#, python-brace-format
 msgid "{name} already has a pending invitation as user."
 msgstr ""
-"%(name)s hat bereits eine ausstehende Aufforderung Zugangsdaten zu wählen."
+"{name} hat bereits eine ausstehende Aufforderung Zugangsdaten zu wählen."
 
 #: members/admin.py
 msgid "activity"
@@ -1141,6 +1148,10 @@ msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 msgid "Set login data for Kompass"
 msgstr "Zugangsdaten für Kompass wählen"
 
+#: members/models/member.py
+msgid "Echo required"
+msgstr "Rückmeldung erforderlich"
+
 #: members/models/member_on_list.py
 msgid "Comment"
 msgstr "Kommentar"
@@ -1199,7 +1210,7 @@ msgstr "Passwort"
 
 #: members/models/registration.py
 msgid "registration password"
-msgstr "Registrierungspassort"
+msgstr "Registrierungspasswort"
 
 #: members/models/registration.py
 msgid "registration passwords"

@@ -15,6 +15,7 @@ from django.db.models import When
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from mailer.mailutils import get_echo_link
 from mailer.mailutils import get_invite_as_user_key
 from mailer.mailutils import prepend_base_url
 from mailer.mailutils import send as send_mail
@@ -690,3 +691,9 @@ class Member(Person):
             waiter.application_date = self.waitinglist_application_date
         waiter.save()
         self.delete()
+
+    def request_echo(self):
+        self.send_mail(
+            _("Echo required"),
+            settings.ECHO_TEXT.format(name=self.prename, link=get_echo_link(self)),
+        )

@@ -16,7 +16,9 @@ A working ``docker`` setup (with ``docker compose``) is required. For installati
 
 1. Clone the repository and change into the directory of the repository.
 
-2. Start docker using Make (recommended)
+2. Add ``docker/development/docker.env`` (you may copy and rename the provided ``docker.env.example``) and ``docker/development/config/settings.toml`` file (you may copy and rename the provided ``settings.toml.example``).
+
+3. Start docker using Make (recommended)
 
 .. code-block:: bash
 
@@ -35,7 +37,7 @@ If you need to rebuild the container (e.g. after changing the ``requirements.txt
 
     make dev build
 
-3. Setup admin user: in a separate shell, while the docker container is running, execute
+4. Setup admin user: in a separate shell, while the docker container is running, execute
 
 .. code-block:: bash
 
