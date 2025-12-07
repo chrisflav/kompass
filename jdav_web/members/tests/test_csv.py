@@ -17,7 +17,7 @@ class CSVRoundtripTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.test_csv_path = os.path.join(settings.BASE_DIR, "members", "test_data", "members.csv")
+        cls.test_csv_path = os.path.join(settings.BASE_DIR, "test_data", "members.csv")
 
     def test_csv_file_exists(self):
         """Verify the test CSV file exists"""
