@@ -470,16 +470,7 @@ msgstr ""
 msgid "LJP contributions"
 msgstr "LJP-Zuschüsse"
 
-#, fuzzy, python-format
-#| msgid ""
-#| " The youth leaders have documented interventions worth of "
-#| "%(total_seminar_days)s seminar \n"
-#| "days for %(participant_count)s eligible participants. Taking into account "
-#| "the maximum contribution quota \n"
-#| "of 90%% and possible taxes (%(ljp_tax)s%%), this results in a total of "
-#| "%(paid_ljp_contributions)s€. \n"
-#| "Once their proposal was approved, the ljp contributions of should be paid "
-#| "to:"
+#, python-format
 msgid ""
 " The youth leaders have documented interventions worth of "
 "%(total_seminar_days)s seminar\n"

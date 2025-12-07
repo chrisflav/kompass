@@ -120,20 +120,14 @@ msgstr ""
 msgid "You entered a wrong password."
 msgstr "Das eingegebene Passwort ist falsch."
 
-#, fuzzy
-#| msgid "Welcome, "
 msgid "Welcome,"
 msgstr "Willkommen, "
 
-#, fuzzy
-#| msgid "View on site"
 msgid "View site"
 msgstr "Auf der Website anzeigen"
 
-#, fuzzy
-#| msgid "Authentication"
 msgid "Documentation"
-msgstr "Authentifizierung"
+msgstr "Dokumentation"
 
 msgid "My Profile"
 msgstr "Mein Profil"
@@ -150,15 +144,11 @@ msgstr ""
 msgid "back"
 msgstr ""
 
-#, fuzzy
-#| msgid "Authentication"
 msgid "Applications"
-msgstr "Authentifizierung"
+msgstr "Anwendungen"
 
-#, fuzzy
-#| msgid "Generate SJR application"
 msgid "Hide applications"
-msgstr "SJR Antrag erstellen"
+msgstr "Anwendungen verstecken"
 
 msgid "Show hidden"
 msgstr ""
@@ -175,14 +165,8 @@ msgstr ""
 msgid "Delete bookmark"
 msgstr ""
 
-#, fuzzy
-#| msgid ""
-#| "Are you sure you want to delete the %(object_name)s "
-#| "\"%(escaped_object)s\"?"
 msgid "Are you sure want to delete this bookmark?"
-msgstr ""
-"Bist du sicher, dass du %(object_name)s \"%(escaped_object)s\" und alle "
-"davon abhängigen Objekte löschen möchtest? "
+msgstr "Bist du sicher, dass du dieses Lesezeichen entfernen möchtest?"
 
 msgid "bookmarks"
 msgstr ""
@@ -316,10 +300,8 @@ msgstr "Rückmeldungsaufforderung verschicken"
 msgid "Invite as user"
 msgstr "Als Kompassbenutzer*in einladen"
 
-#, fuzzy
-#| msgid "Registration"
 msgid "Request registration form"
-msgstr "Registrierung"
+msgstr "Anmeldeformular anfragen"
 
 msgid "Demote to waiter"
 msgstr "Zurück auf die Warteliste setzen"
