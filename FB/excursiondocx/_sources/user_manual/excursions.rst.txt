@@ -34,15 +34,15 @@ einträgst. Wenn du dir bei manchen Informationen unsicher bist, kannst du sie v
 Im Tab *Teilnehmer\*innen* kannst du jederzeit Personen hinzufügen oder entfernen, die an der Ausfahrt teilnehmen.
 Hierfür klickst du auf "Teilnehmer\*innen hinzufügen" und suchst die gewünschten Personen aus der Mitgliederliste heraus.
 
-. table::
-   :align: center
+.. container:: image-row
 
-   +-------------------------------------------+-------------------------------------------+
-   | .. image:: /_static/Ausfahrt_Teilnehmer   | .. image:: /_static/Ausfahrt_Teilnehmer   |
-   |    _hinzufügen.png                        |    _hinzufügen2.png                       |
-   |    :alt: Teilnehmer hinzufügen (1)        |    :alt: Teilnehmer hinzufügen (2)        |
-   |    :scale: 100%                           |    :scale: 100%                           |
-   +-------------------------------------------+-------------------------------------------+
+   .. figure:: /_static/Ausfahrt_Teilnehmer_hinzufügen.png
+      :alt: Teilnehmer hinzufügen (1)
+      :width: 48%
+
+   .. figure:: /_static/Ausfahrt_Teilnehmer_hinzufügen2.png
+      :alt: Teilnehmer hinzufügen (2)
+      :width: 48%
 
 Abschließend klickst du unten auf "Speichern", um die Ausfahrt zu erstellen.
 
