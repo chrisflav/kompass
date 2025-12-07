@@ -81,7 +81,11 @@ For less common tasks, you can use the ``shell`` command, to enter the container
 
 .. code-block:: bash
 
-    make dev shell # enter the container terminal
+    make dev shell
+
+In the container shell, you can run Django management commands, such as:
+.. code-block:: bash
+
     % python3 manage.py makemigrations # run when you made changes to the data models
     % python3 manage.py migrate # run to apply database migrations
     % python3 manage.py import_members members/test_data/members.csv # import example members data from CSV file
