@@ -93,7 +93,6 @@ In the container shell, you can run Django management commands, such as:
     python3 manage.py test members.tests.view.ConfirmInvitationViewTestCase # run specific tests or test modules
     python3 manage.py <command>
 
-
 For more information on Django management commands, see the https://docs.djangoproject.com/en/4.0/ref/django-admin.
 
 Make commands reference
