@@ -103,6 +103,16 @@ Hier kannst du E-Mails an deine Gruppe oder an andere Menschen in der JDAV {% se
 </table>
 
 </div>
+
+<div>
+    {% for event in events %}
+    <div class="module">
+        <h3>Bevorstehende Veranstaltung: {{ event.name }}</h3>
+        <p>{{ event.description }}</p>
+        <p><strong>Datum:</strong> {{ event.start_datetime|date:"d.m.Y H:i" }}{% if event.end_datetime %} - {{ event.end_datetime|date:"d.m.Y H:i" }}{% endif %}</p>
+
+    {% endfor %}
+</div>
 </div>
 
 {% endblock %}

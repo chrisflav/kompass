@@ -45,6 +45,14 @@ JET_SIDE_MENU_ITEMS = [
         ],
     },
     {
+        "app_label": "calendarevents",
+        "items": [
+            {"name": "calendar", "permissions": ["calendarevents.view_calendar"]},
+            {"name": "manualevent", "permissions": ["calendarevents.view_manualevent"]},
+            {"name": "repeatedevent", "permissions": ["calendarevents.view_repeatedevent"]},
+        ],
+    },
+    {
         "app_label": "mailer",
         "items": [
             {"name": "message", "permissions": ["mailer.view_message"]},

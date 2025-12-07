@@ -41,6 +41,7 @@ USE_X_FORWARDED_HOST = True
 INSTALLED_APPS = [
     "logindata.apps.LoginDataConfig",
     "contrib.apps.ContribConfig",
+    "calendarevents.apps.CalendareventsConfig",
     "startpage.apps.StartpageConfig",
     "material.apps.MaterialConfig",
     "members.apps.MembersConfig",

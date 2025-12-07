@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 09:35+0100\n"
+"POT-Creation-Date: 2025-12-07 17:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,72 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Name"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invite to group"
+msgid "Visible to groups"
+msgstr "Zu Gruppe einladen"
+
+msgid "Visible to members"
+msgstr ""
+
+msgid "Calendar"
+msgstr "Kalender"
+
+msgid "Calendars"
+msgstr "Kalender"
+
+#, fuzzy
+#| msgid "Registration"
+msgid "Description"
+msgstr "Registrierung"
+
+#, fuzzy
+#| msgid "Startpage"
+msgid "Start"
+msgstr "Startseite"
+
+msgid "End"
+msgstr "Ende"
+
+msgid "Event"
+msgstr "Ereignis"
+
+msgid "Events"
+msgstr "Ereignisse"
+
+msgid "Manual Event"
+msgstr "Manuelles Ereignis"
+
+msgid "Manual Events"
+msgstr "Manuelle Ereignisse"
+
+msgid "Daily"
+msgstr "täglich"
+
+msgid "Weekly"
+msgstr "wöchentlich"
+
+msgid "Biweekly"
+msgstr "zweiwöchentlich"
+
+msgid "Monthly"
+msgstr "monatlich"
+
+msgid "Repeat"
+msgstr "wiederholen"
+
+msgid "Repeat Interval"
+msgstr "Wiederholungsintervall"
+
+msgid "Repeated Event"
+msgstr "Wiederholtes Ereignis"
+
+msgid "Repeated Events"
+msgstr "Wiederholte Ereignisse"
 
 #, python-format
 msgid "%(modelname)s not found."
