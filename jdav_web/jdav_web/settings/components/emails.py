@@ -9,8 +9,8 @@ EMAIL_HOST_PASSWORD = get_var("mail", "password", default="secret")
 EMAIL_USE_TLS = get_var("mail", "tls", default=True if deployed else False)
 
 # Use console backend if configured, otherwise use Celery backend
-use_console_backend = get_var("mail", "use_console_backend", default=False)
-if use_console_backend:
+EMAIL_USE_CONSOLE_BACKEND = get_var("mail", "use_console_backend", default=False)
+if EMAIL_USE_CONSOLE_BACKEND:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:
     EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
