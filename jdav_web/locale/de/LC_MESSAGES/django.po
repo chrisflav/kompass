@@ -20,10 +20,10 @@ msgstr ""
 
 #, python-format
 msgid "%(modelname)s not found."
-msgstr ""
+msgstr "%(modelname)s nicht gefunden."
 
 msgid "Insufficient permissions."
-msgstr ""
+msgstr "Unzureichende Berechtigungen"
 
 #, python-format
 msgid "You are not allowed to view %(name)s."
@@ -139,10 +139,10 @@ msgid "Log out"
 msgstr "Abmelden"
 
 msgid "Home"
-msgstr ""
+msgstr "Start"
 
 msgid "back"
-msgstr ""
+msgstr "zurück"
 
 msgid "Applications"
 msgstr "Anwendungen"
@@ -151,37 +151,37 @@ msgid "Hide applications"
 msgstr "Anwendungen verstecken"
 
 msgid "Show hidden"
-msgstr ""
+msgstr "Zeige Verstecktes"
 
 msgid "Add bookmark"
-msgstr ""
+msgstr "Lesezeichen hinzufügen"
 
 msgid "Title"
-msgstr ""
+msgstr "Titel"
 
 msgid "URL"
-msgstr ""
+msgstr "URL"
 
 msgid "Delete bookmark"
-msgstr ""
+msgstr "Lesezeichen entfernen"
 
 msgid "Are you sure want to delete this bookmark?"
 msgstr "Bist du sicher, dass du dieses Lesezeichen entfernen möchtest?"
 
 msgid "bookmarks"
-msgstr ""
+msgstr "Lesezeichen"
 
 msgid "Remove"
-msgstr ""
+msgstr "Löschen"
 
 msgid "Search"
-msgstr ""
+msgstr "Suchen"
 
 msgid "Application page"
-msgstr ""
+msgstr "Anwendungsseite"
 
 msgid "current theme"
-msgstr ""
+msgstr "Aktuelles Thema"
 
 #, python-format
 msgid ""
