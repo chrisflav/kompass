@@ -1846,7 +1846,7 @@ msgid "Insufficient permissions."
 msgstr "Unzureichende Berechtigungen."
 
 msgid "This field is required."
-msgstr "Dieses Feld wird benötigt."
+msgstr "Dieses Feld ist zwingend erforderlich."
 
 msgid "The entered password is wrong."
 msgstr "Das eingegebene Passwort ist falsch."
