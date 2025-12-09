@@ -20,9 +20,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--force',
-            action='store_true',
-            help='Force population even if members already exist',
+            "--force",
+            action="store_true",
+            help="Force population even if members already exist",
         )
 
     def handle(self, *args, **options):
@@ -33,7 +33,7 @@ class Command(BaseCommand):
             sys.path.insert(0, parent_dir)
 
         # Check if members already exist
-        if Member.objects.exists() and not options['force']:
+        if Member.objects.exists() and not options["force"]:
             self.stdout.write(
                 self.style.WARNING(
                     "Members already exist in the database. Skipping test data population."
