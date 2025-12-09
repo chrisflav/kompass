@@ -34,7 +34,17 @@ class MemberForm(ModelForm):
             "address_extra",
             "phone_number",
             "dav_badge_no",
+            "photos_may_be_taken",
         ]
+
+        help_texts = {
+            "prename": _("Prename of the member."),
+            "lastname": _("Lastname of the member."),
+            "phone_number": _("phone number of child or parent"),
+            "photos_may_be_taken": _(
+                "Are we allowed to take photos of you during activities? We use them for our public relations work."
+            ),
+        }
 
 
 class MemberRegistrationForm(ModelForm):
@@ -58,6 +68,7 @@ class MemberRegistrationForm(ModelForm):
             "gender",
             "email",
             "alternative_email",
+            "photos_may_be_taken",
         ]
         widgets = {
             "birth_date": DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
@@ -68,6 +79,9 @@ class MemberRegistrationForm(ModelForm):
             "phone_number": _("phone number of child or parent"),
             "email": _("email of child if available, otherwise parental email address"),
             "alternative_email": _("optional additional email address"),
+            "photos_may_be_taken": _(
+                "Are we allowed to take photos of you during activities? We use them for our public relations work."
+            ),
         }
         required = ["street", "plz", "town"]
 
