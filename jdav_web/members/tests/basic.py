@@ -954,6 +954,44 @@ class MemberAdminTestCase(AdminTestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_request_echo_fail_on_missing_birthdate(self):
+        self.peter.birth_date = None
+        self.peter.save()
+
+        c = self._login("superuser")
+        url = reverse("admin:members_member_changelist")
+        response = c.post(
+            url,
+            data={"action": "request_echo", "_selected_action": [self.peter.pk]},
+            follow=True,
+        )
+
+        self.assertContains(
+            response,
+            _(
+                "Member {name} doesn't have a birthdate set, which is mandatory for echo requests"
+            ).format(name=self.peter.name),
+        )
+
+    def test_request_echo_view(self):
+        # expect: successful echo request
+        c = self._login("superuser")
+        url = reverse("admin:members_member_requestecho", args=(self.fritz.pk,))
+        self.fritz.gets_newsletter = False
+        self.fritz.save()
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        url = reverse("admin:members_member_requestecho", args=(self.peter.pk,))
+        self.peter.gets_newsletter = True
+        self.peter.save()
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        url = reverse("admin:members_member_requestecho", args=(12345,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
     def test_activity_score(self):
         # manually set activity score
         for i in range(5):

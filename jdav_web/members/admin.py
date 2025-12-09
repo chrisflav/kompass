@@ -30,7 +30,6 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
-from mailer.mailutils import get_echo_link
 from schwifty import IBAN
 from utils import get_member
 from utils import mondays_until_nth
@@ -282,6 +281,11 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 wrap(self.invite_as_user_view),
                 name="{}_{}_inviteasuser".format(self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "<path:object_id>/requestecho/",
+                wrap(self.request_echo_view),
+                name="{}_{}_requestecho".format(self.opts.app_label, self.opts.model_name),
+            ),
         ]
         return custom_urls + urls
 
@@ -308,16 +312,55 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     send_mail_to.short_description = _("Compose new mail to selected members")
 
     def request_echo(self, request, queryset):
+        # make sure to show the successful banner only if any successful
+        # emails were actually scheduled. If only one person is about to get echoed
+        # but hasn't set a birthdate, don't show success
+        success = False
+
         for member in queryset:
             if not member.gets_newsletter:
                 continue
-            member.send_mail(
-                _("Echo required"),
-                settings.ECHO_TEXT.format(name=member.prename, link=get_echo_link(member)),
-            )
-        messages.success(request, _("Successfully requested echo from selected members."))
+            if not member.birth_date:
+                messages.error(
+                    request,
+                    _(
+                        "Member {name} doesn't have a birthdate set, which is mandatory for echo requests"
+                    ).format(name=member.name),
+                )
+            else:
+                member.request_echo()
+                success = True
+        if success:
+            messages.success(request, _("Successfully requested echo from selected members."))
 
     request_echo.short_description = _("Request echo from selected members")
+
+    def request_echo_view(self, request, object_id):
+        """Request echo from a single member from Button in single member view."""
+        try:
+            member = Member.objects.get(pk=object_id)
+        except Member.DoesNotExist:
+            messages.error(request, _("Member not found."))
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        if not member.gets_newsletter:
+            messages.warning(
+                request, _("%(name)s does not receive the newsletter.") % {"name": member.name}
+            )
+        else:
+            member.request_echo()
+            messages.success(
+                request, _("Successfully requested echo from %(name)s.") % {"name": member.name}
+            )
+
+        return HttpResponseRedirect(
+            reverse(
+                "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                args=(object_id,),
+            )
+        )
 
     def invite_as_user(self, request, queryset):
         failures = []
