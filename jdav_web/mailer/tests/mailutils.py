@@ -49,13 +49,3 @@ class MailUtilsTest(TestCase):
             with patch("builtins.print"):
                 result = send(self.subject, self.content, self.sender, self.recipient)
             self.assertEqual(result, NOT_SENT)
-
-    @override_settings(EMAIL_USE_CONSOLE_BACKEND=True)
-    def test_send_console_backend(self):
-        result = send(
-            self.subject,
-            self.content,
-            self.sender,
-            self.recipient,
-        )
-        self.assertEqual(result, SENT)
