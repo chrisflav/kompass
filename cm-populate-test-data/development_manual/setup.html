@@ -209,6 +209,30 @@ For less common tasks, you can use the <code class="docutils literal notranslate
 <p>Additional docker compose build arguments can be passed using the <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS</span></code> variable, such as <code class="docutils literal notranslate"><span class="pre">--no-cache</span></code>,
 <code class="docutils literal notranslate"><span class="pre">--pull</span></code>, or <code class="docutils literal notranslate"><span class="pre">--progress=plain</span></code>. For multiple arguments, quote them: <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS="--no-cache</span> <span class="pre">--pull"</span></code>.</p>
 </section>
+<section id="email-configuration">
+<h3>Email Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#email-configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#email-configuration'">¶</a></h3>
+<p>By default, the development environment is configured to use the <strong>console email backend</strong>, which means that
+emails are not actually sent but instead are printed to the console output. This is useful for development
+as it allows you to see what emails would be sent without requiring a mail server or risking accidentally
+sending emails during development.</p>
+<p>To switch from the console backend to actually sending emails via SMTP, you need to modify the
+<code class="docutils literal notranslate"><span class="pre">docker/development/config/settings.toml</span></code> file:</p>
+<ol class="arabic simple">
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">use_console_backend</span> <span class="pre">=</span> <span class="pre">false</span></code> in the <code class="docutils literal notranslate"><span class="pre">[mail]</span></code> section</p></li>
+<li><p>Configure the SMTP server credentials:</p></li>
+</ol>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">[mail]</span>
+</span><span id="line-2"><span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'smtp.example.com'</span>
+</span><span id="line-3"><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'user@example.com'</span>
+</span><span id="line-4"><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'your-password'</span>
+</span><span id="line-5"><span class="n">default_sending_address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'info@example.com'</span>
+</span><span id="line-6"><span class="n">default_sending_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'Your Organization'</span>
+</span><span id="line-7"><span class="n">use_console_backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">  </span><span class="c1"># Set to false to send actual emails</span>
+</span></code></pre></div>
+</div>
+<p>When <code class="docutils literal notranslate"><span class="pre">use_console_backend</span> <span class="pre">=</span> <span class="pre">true</span></code> (the default for development), the SMTP configuration is ignored and
+all emails are printed to the console where you can inspect their content.</p>
+</section>
 </section>
 <section id="known-issues">
 <h2>Known Issues<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#known-issues" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#known-issues'">¶</a></h2>
@@ -257,6 +281,7 @@ you will encounter the following error message after running <code class="docuti
 </li>
 <li><a :data-current="activeSection === '#development'" class="reference internal" href="#development">Development</a><ul>
 <li><a :data-current="activeSection === '#make-commands-reference'" class="reference internal" href="#make-commands-reference">Make commands reference</a></li>
+<li><a :data-current="activeSection === '#email-configuration'" class="reference internal" href="#email-configuration">Email Configuration</a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#known-issues'" class="reference internal" href="#known-issues">Known Issues</a></li>
