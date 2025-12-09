@@ -1878,7 +1878,7 @@ msgid ""
 "Are we allowed to take photos of you during activities? We use them for our "
 "public relations work."
 msgstr ""
-"Dürfen wir Fotos von des*der Teilnehmenden bei JDAV-Aktivitäten für unsere "
+"Dürfen wir Fotos des*der Teilnehmenden bei JDAV-Aktivitäten für unsere "
 "Öffentlichkeitsarbeit (z.B. Social Media) verwenden?"
 
 msgid "email of child if available, otherwise parental email address"
