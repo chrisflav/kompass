@@ -115,6 +115,14 @@ jobs:
 
             Add the `awaiting-deployment` label to deploy this PR to a staging server.
 
+      - name: Tag and push application image
+        run: |
+          # Tag the built image with all required tags
+          echo "${{ steps.meta-app.outputs.tags }}" | while read -r tag; do
+            docker tag kompass:test "$tag"
+            docker push "$tag"
+          done
+
       - name: Run tests
         run: make test-only
 
@@ -126,14 +134,6 @@ jobs:
             echo "Error: Coverage is ${COVERAGE}%, must be 100%"
             exit 1
           fi
-
-      - name: Tag and push application image
-        run: |
-          # Tag the built image with all required tags
-          echo "${{ steps.meta-app.outputs.tags }}" | while read -r tag; do
-            docker tag kompass:test "$tag"
-            docker push "$tag"
-          done
 
       - name: Build and push nginx image
         uses: docker/build-push-action@v5

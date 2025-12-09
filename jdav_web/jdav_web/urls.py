@@ -14,8 +14,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 
+import logging
+
+from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
 from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import include
 from django.urls import path
 from django.urls import re_path
@@ -25,10 +29,23 @@ from oauth2_provider import urls as oauth2_urls
 
 from .views import media_access
 
+logger = logging.getLogger(__name__)
+
 admin.site.index_title = _("Startpage")
 admin.site.site_header = "Kompass"
 
-urlpatterns = i18n_patterns(
+logger.error(f"{settings.OIDC_ENABLED}, {type(settings.OIDC_ENABLED)}")
+
+urlpatterns = []
+
+if settings.OIDC_ENABLED:
+    logger.error("Enabling OIDC.")
+    admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
+    urlpatterns += i18n_patterns(
+        re_path(r"^oidc/", include("mozilla_django_oidc.urls")),
+    )
+
+urlpatterns += i18n_patterns(
     re_path(r"^media/(?P<path>.*)", media_access, name="media"),
     re_path(r"^kompass/?", admin.site.urls, name="kompass"),
     re_path(r"^jet/", include("jet.urls", "jet")),  # Django JET URLS

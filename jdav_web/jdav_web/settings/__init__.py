@@ -52,6 +52,7 @@ def get_text(*keys, default=""):
 
 base_settings = [
     "local.py",
+    "components/authentication.py",
     "components/base.py",
     "components/database.py",
     "components/cache.py",
