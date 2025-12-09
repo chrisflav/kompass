@@ -115,6 +115,34 @@ Additional docker compose build arguments can be passed using the ``BUILD_ARGS``
 ``--pull``, or ``--progress=plain``. For multiple arguments, quote them: ``BUILD_ARGS="--no-cache --pull"``.
 
 
+Email Configuration
+~~~~~~~~~~~~~~~~~~~
+
+By default, the development environment is configured to use the **console email backend**, which means that
+emails are not actually sent but instead are printed to the console output. This is useful for development
+as it allows you to see what emails would be sent without requiring a mail server or risking accidentally
+sending emails during development.
+
+To switch from the console backend to actually sending emails via SMTP, you need to modify the
+``docker/development/config/settings.toml`` file:
+
+1. Set ``use_console_backend = false`` in the ``[mail]`` section
+2. Configure the SMTP server credentials:
+
+.. code-block:: toml
+
+    [mail]
+    host = 'smtp.example.com'
+    user = 'user@example.com'
+    password = 'your-password'
+    default_sending_address = 'info@example.com'
+    default_sending_name = 'Your Organization'
+    use_console_backend = false  # Set to false to send actual emails
+
+When ``use_console_backend = true`` (the default for development), the SMTP configuration is ignored and
+all emails are printed to the console where you can inspect their content.
+
+
 Known Issues
 ------------
 
