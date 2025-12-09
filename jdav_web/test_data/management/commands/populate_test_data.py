@@ -3,6 +3,7 @@ Management command to populate the database with test data.
 
 Usage:
     python manage.py populate_test_data
+    python manage.py populate_test_data --force  # Force population even if members exist
 """
 
 import os
@@ -10,11 +11,19 @@ import sys
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from members.models import Member
 from test_data.populate import populate_test_data
 
 
 class Command(BaseCommand):
     help = "Populate the database with test data from members CSV and create sample excursions and statements"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Force population even if members already exist',
+        )
 
     def handle(self, *args, **options):
         # Add parent directory to path
@@ -22,6 +31,18 @@ class Command(BaseCommand):
         parent_dir = os.path.dirname(test_data_dir)
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
+
+        # Check if members already exist
+        if Member.objects.exists() and not options['force']:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Members already exist in the database. Skipping test data population."
+                )
+            )
+            self.stdout.write(
+                "Use --force flag to populate test data anyway: python manage.py populate_test_data --force"
+            )
+            return
 
         self.stdout.write("Populating database with test data...")
         try:
