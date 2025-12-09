@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from django.test import override_settings
 from django.test import TestCase
 from mailer.mailutils import NOT_SENT
 from mailer.mailutils import send
