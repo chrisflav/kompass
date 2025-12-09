@@ -312,11 +312,26 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     send_mail_to.short_description = _("Compose new mail to selected members")
 
     def request_echo(self, request, queryset):
+        # make sure to show the successful banner only if any successful
+        # emails were actually scheduled. If only one person is about to get echoed
+        # but hasn't set a birthdate, don't show success
+        success = False
+
         for member in queryset:
             if not member.gets_newsletter:
                 continue
-            member.request_echo()
-        messages.success(request, _("Successfully requested echo from selected members."))
+            if not member.birth_date:
+                messages.error(
+                    request,
+                    _(
+                        "Member {name} doesn't have a birthdate set, which is mandatory for echo requests"
+                    ).format(name=member.name),
+                )
+            else:
+                member.request_echo()
+                success = True
+        if success:
+            messages.success(request, _("Successfully requested echo from selected members."))
 
     request_echo.short_description = _("Request echo from selected members")
 
