@@ -24,6 +24,9 @@ MEDIA_ROOT = get_var(
     "django", "media_root", default=os.path.join((os.path.join(BASE_DIR, os.pardir)), "media")
 )
 
+# Use Open ID Connect if possible
+OIDC_ENABLED = get_var("oidc", "enabled", default=False)
+
 # default primary key auto field type
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -54,6 +57,7 @@ INSTALLED_APPS = [
     "djcelery_email",
     "nested_admin",
     "django_celery_beat",
+    "mozilla_django_oidc",
     "rules",
     "jet",
     "oauth2_provider",
@@ -79,6 +83,9 @@ MIDDLEWARE = [
     "django.middleware.cache.FetchFromCacheMiddleware",
 ]
 
+if OIDC_ENABLED:
+    MIDDLEWARE += ["mozilla_django_oidc.middleware.SessionRefresh"]
+
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
 ROOT_URLCONF = "jdav_web.urls"
@@ -100,29 +107,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "jdav_web.wsgi.application"
-
-AUTHENTICATION_BACKENDS = (
-    "django.contrib.auth.backends.ModelBackend",
-    "rules.permissions.ObjectPermissionBackend",
-)
-
-# Password validation
-# https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
-]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
@@ -206,5 +190,3 @@ STARTPAGE_URL_NAME_PATTERN = r"[\w\-: *]"
 
 # admins to contact on error messages
 ADMINS = get_var("section", "admins", default=[])
-
-LOGIN_URL = "/de/kompass/login/"

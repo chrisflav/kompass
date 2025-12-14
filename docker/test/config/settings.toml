@@ -32,3 +32,7 @@ reports_section = 'berichte'
 
 [misc]
 allowed_email_domains_for_invite_as_user = ['test-organization.org']
+
+[oidc]
+# Enable OIDC authentication
+enabled = true

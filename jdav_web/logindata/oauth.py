@@ -1,3 +1,8 @@
+"""
+This file contains code for using the Kompass as an OAuth2 provider. For the reverse
+direction see `jdav_web/logindata/oidc.py`.
+"""
+
 from oauth2_provider.oauth2_validators import OAuth2Validator
 
 
