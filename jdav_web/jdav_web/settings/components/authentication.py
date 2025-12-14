@@ -3,7 +3,7 @@
 # Authentication
 
 AUTHENTICATION_BACKENDS = (
-    "jdav_web.oidc.MyOIDCAB",
+    "logindata.oidc.MyOIDCAB",
     "django.contrib.auth.backends.ModelBackend",
     "rules.permissions.ObjectPermissionBackend",
 )
