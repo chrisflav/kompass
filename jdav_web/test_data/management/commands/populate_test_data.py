@@ -59,9 +59,6 @@ class Command(BaseCommand):
             self.stdout.write("  - 3 excursions")
             self.stdout.write("  - 2 financial statements with bills")
             self.stdout.write("")
-            self.stdout.write("Superuser associated with member: Tobias Werner")
-            self.stdout.write("Email: tobias.werner@alpenverein-heidelberg.de")
-            self.stdout.write("")
             self.stdout.write(self.style.WARNING("Note: Members are imported from the CSV file."))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error populating database: {e}"))

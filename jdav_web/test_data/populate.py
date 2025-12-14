@@ -9,6 +9,7 @@ import os
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
@@ -89,10 +90,11 @@ def create_members_and_contacts():
         "members.csv",
     )
 
-    # Import members from CSV
+    # Import members from CSV with test data domain override
     if os.path.exists(csv_file_path):
+        domain = settings.TEST_DATA_RECIPIENT_DOMAIN
         with open(csv_file_path, encoding="utf-8") as f:
-            import_generalized_csv(f)
+            import_generalized_csv(f, email_domain_override=domain)
 
 
 def create_excursions():
@@ -101,9 +103,10 @@ def create_excursions():
     klettergruppe = Group.objects.filter(name="Klettergruppe").first()
 
     # Get youth leaders
-    tobias = Member.objects.filter(email="tobias.werner@alpenverein-heidelberg.de").first()
-    victoria = Member.objects.filter(email="v.schneider@alpenverein-heidelberg.de").first()
-    charlotte = Member.objects.filter(email="charlotte.sommer@yahoo.com").first()
+    domain = settings.TEST_DATA_RECIPIENT_DOMAIN
+    tobias = Member.objects.filter(email=f"tobias.werner@{domain}").first()
+    victoria = Member.objects.filter(email=f"v.schneider@{domain}").first()
+    charlotte = Member.objects.filter(email=f"charlotte.sommer@{domain}").first()
 
     # Get some members from different groups to add as participants
     alpingruppe_members = list(Member.objects.filter(group__name="Alpingruppe", active=True)[:5])
@@ -196,8 +199,9 @@ def create_excursions():
 
 def create_statements():
     """Create test financial statements."""
-    tobias = Member.objects.filter(email="tobias.werner@alpenverein-heidelberg.de").first()
-    victoria = Member.objects.filter(email="v.schneider@alpenverein-heidelberg.de").first()
+    domain = settings.TEST_DATA_RECIPIENT_DOMAIN
+    tobias = Member.objects.filter(email=f"tobias.werner@{domain}").first()
+    victoria = Member.objects.filter(email=f"v.schneider@{domain}").first()
 
     # Create statement for the first excursion (Pfalz tour)
     excursion1 = Freizeit.objects.filter(name="Klettertour Pfalz").first()
@@ -280,12 +284,20 @@ def create_statements():
         )
 
 
-def associate_superuser_with_member():
+def associate_superuser_with_member():  # pragma: no cover
     """Associate the superuser with a member."""
     superuser = User.objects.filter(is_superuser=True).first()
+    if not superuser:
+        logger.warning("No superuser exists, not linking to member.")
+        return
+
+    if hasattr(superuser, "member") and superuser.member is not None:
+        logger.warning("Superuser is already connected to a member.")
+        return
 
     # Get Tobias Werner as the admin member
-    member = Member.objects.filter(email="tobias.werner@alpenverein-heidelberg.de").first()
+    domain = settings.TEST_DATA_RECIPIENT_DOMAIN
+    member = Member.objects.filter(email=f"tobias.werner@{domain}").first()
     member.user = superuser
     member.save()
 

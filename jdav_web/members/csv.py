@@ -123,9 +123,26 @@ def export_generalized_csv(queryset, file_handle):
         writer.writerow(row)
 
 
-def import_generalized_csv(file_handle):
+def import_generalized_csv(file_handle, email_domain_override=None):
+    """
+    Import members from a CSV file.
+
+    Args:
+        file_handle: File handle for the CSV file
+        email_domain_override: Optional domain to replace all email domains with
+    """
     reader = csv.DictReader(file_handle)
     created_members = []
+
+    def override_email_domain(email):
+        """Replace email domain if override is specified."""
+        if not email or not email_domain_override:
+            return email
+        if "@" in email:
+            local_part = email.split("@")[0]
+            return f"{local_part}@{email_domain_override}"
+        return email  # pragma: no cover
+
     for row in reader:
         birth_date = None
         if row.get("birth_date"):
@@ -155,9 +172,9 @@ def import_generalized_csv(file_handle):
             prename=row.get("prename", "fehlt"),
             lastname=row.get("lastname", "fehlt"),
             birth_date=birth_date,
-            email=row.get("email", ""),
+            email=override_email_domain(row.get("email", "")),
             gender=get_gender_from_char(row.get("gender", "d")),
-            alternative_email=row.get("alternative_email") or None,
+            alternative_email=override_email_domain(row.get("alternative_email")) if row.get("alternative_email") else None,
             phone_number=row.get("phone_number", ""),
             street=row.get("street", ""),
             plz=row.get("plz", ""),
@@ -202,7 +219,7 @@ def import_generalized_csv(file_handle):
                         prename=ec_data.get("prename", ""),
                         lastname=ec_data.get("lastname", ""),
                         phone_number=ec_data.get("phone_number", ""),
-                        email=ec_data.get("email", ""),
+                        email=override_email_domain(ec_data.get("email", "")),
                     )
             except json.JSONDecodeError:  # pragma: no cover
                 pass
