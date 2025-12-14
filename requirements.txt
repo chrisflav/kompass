@@ -17,7 +17,7 @@ click-plugins==1.1.1
 click-repl==0.2.0
 coverage==7.5.4
 cron-descriptor==1.2.35
-cryptography
+cryptography==41.0.7
 Deprecated==1.2.13
 Django==4.2.20
 django-appconf==1.0.5

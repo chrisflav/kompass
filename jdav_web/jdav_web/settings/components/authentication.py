@@ -20,8 +20,6 @@ OIDC_RP_SIGN_ALGO = get_var("oidc", "rp_sign_algo", default="RS256")
 OIDC_RP_SCOPES = get_var("oidc", "rp_scopes", default="openid email profile")
 
 OIDC_CLAIM_USERNAME = get_var("oidc", "claim_username", default="username")
-OIDC_CLAIM_FIRST_NAME = get_var("oidc", "claim_first_name", default="given_name")
-OIDC_CLAIM_LAST_NAME = get_var("oidc", "claim_last_name", default="last_name")
 OIDC_GROUP_STAFF = get_var("oidc", "group_staff", default="staff")
 OIDC_GROUP_SUPERUSER = get_var("oidc", "group_superuser", default="superuser")
 

@@ -87,10 +87,6 @@ rp_sign_algo = 'RS256'
 rp_scopes = 'openid email profile'
 # Claim name in the ID token containing the username
 claim_username = 'username'
-# Claim name in the ID token containing the user's first name
-claim_first_name = 'given_name'
-# Claim name in the ID token containing the user's last name
-claim_last_name = 'last_name'
 # Group name in the ID token that grants staff permissions
 group_staff = 'staff'
 # Group name in the ID token that grants superuser permissions

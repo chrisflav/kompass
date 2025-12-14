@@ -3,31 +3,38 @@ from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 
 class MyOIDCAB(OIDCAuthenticationBackend):
-    def filter_users_by_claims(self, claims):
-        username = claims.get(settings.OIDC_CLAIM_USERNAME)
-        if not username:
-            return self.UserModel.objects.none()
-
-        return self.UserModel.objects.filter(username=username)
-
     def get_username(self, claims):
-        username = claims.get(settings.OIDC_CLAIM_USERNAME, "")
+        """
+        Extract the username from the given claims by looking for
+        an entry with key OIDC_CLAIM_USERNAME.
+        If the claims don't contain the username, a hash is produced.
+        """
+        username = claims.get(settings.OIDC_CLAIM_USERNAME)
 
-        if not username:
+        if username is None:
             return super().get_username(claims)
 
         return username
 
-    def get_userinfo(self, access_token, id_token, payload):
-        return super().get_userinfo(access_token, id_token, payload)
+    def filter_users_by_claims(self, claims):
+        """
+        Return the users matching the username obtained from the claims.
+        """
+        username = self.get_username(claims)
+        return self.UserModel.objects.filter(username=username)
 
     def create_user(self, claims):
+        """
+        Create a user from the given claims.
+        """
         user = super().create_user(claims)
         return self.update_user(user, claims)
 
     def update_user(self, user, claims):
-        user.first_name = claims.get(settings.OIDC_CLAIM_FIRST_NAME, "")
-        user.last_name = claims.get(settings.OIDC_CLAIM_LAST_NAME, "")
+        """
+        Update an existing user with the given claims.
+        This sets the staff (resp. superuser) access if the claims contain the respective groups.
+        """
         groups = claims.get("groups", [])
 
         if settings.OIDC_GROUP_STAFF in groups:
@@ -36,5 +43,4 @@ class MyOIDCAB(OIDCAuthenticationBackend):
             user.is_superuser = True
 
         user.save()
-
         return user
