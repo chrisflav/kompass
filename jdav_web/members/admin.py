@@ -1086,7 +1086,7 @@ class GroupAdminForm(forms.ModelForm):
             self.fields["leiters"].queryset = Member.objects.filter(group__name="Jugendleiter")
 
 
-class GroupAdmin(CommonAdminMixin, admin.ModelAdmin):
+class GroupAdmin(admin.ModelAdmin):
     fields = [
         "name",
         "description",
