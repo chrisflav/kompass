@@ -9,9 +9,9 @@ from django.test import RequestFactory
 from django.test import TestCase
 from startpage.models import Link
 
+from jdav_web.oidc import MyOIDCAB
 from jdav_web.views import custom_admin_view
 from jdav_web.views import media_unprotected
-from jdav_web.oidc import MyOIDCAB
 
 
 class ViewsTestCase(TestCase):
@@ -62,7 +62,9 @@ class MyOIDCABTestCase(TestCase):
 
     def test_create_user(self):
         self.ab.create_user(CLAIMS2)
-        self.assertTrue(User.objects.filter(username=CLAIMS2[settings.OIDC_CLAIM_USERNAME]).exists())
+        self.assertTrue(
+            User.objects.filter(username=CLAIMS2[settings.OIDC_CLAIM_USERNAME]).exists()
+        )
 
     def test_update_user(self):
         self.ab.update_user(self.user, CLAIMS)
