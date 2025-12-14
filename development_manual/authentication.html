@@ -7,16 +7,16 @@
 <meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Development Documentation | Kompass 2.0 Dokumentation</title>
-<meta content="Development Documentation | Kompass 2.0 Dokumentation" property="og:title"/>
-<meta content="Development Documentation | Kompass 2.0 Dokumentation" name="twitter:title"/>
+<title>Authentication | Kompass 2.0 Dokumentation</title>
+<meta content="Authentication | Kompass 2.0 Dokumentation" property="og:title"/>
+<meta content="Authentication | Kompass 2.0 Dokumentation" name="twitter:title"/>
 <link href="../_static/pygments.css?v=4bdb26dd" rel="stylesheet" type="text/css"/>
 <link href="../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
 <link href="../_static/favicon.svg" rel="icon"/>
 <link href="../search.html" rel="search" title="Suche"/>
 <link href="../genindex.html" rel="index" title="Stichwortverzeichnis"/>
-<link href="contributing.html" rel="next" title="Contributing"/>
-<link href="../user_manual/finance.html" rel="prev" title="Finanzen"/>
+<link href="testing.html" rel="next" title="Testing"/>
+<link href="architecture.html" rel="prev" title="Architecture"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
       const userPreference = localStorage.getItem('darkMode');
@@ -88,11 +88,11 @@
 </li>
 </ul>
 <ul class="current">
-<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="current reference internal expandable" href="#">Development Documentation<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="index.html">Development Documentation<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="contributing.html">Contributing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="setup.html">Development Setup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="authentication.html">Authentication</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Authentication</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="deployment.html">Production Deployment</a></li>
 </ul>
@@ -116,59 +116,102 @@
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
 </a>
-<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Development Documentation</span>
+<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="index.html">Development Documentation</a>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Authentication</span>
 </nav>
 <div id="content" role="main">
-<section id="development-documentation">
-<span id="development-manual-index"></span><h1>Development Documentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#development-documentation">¶</a></h1>
-<p>This part of the documentation describes the development and maintenance of the Kompass project.</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="setup.html">Development Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="authentication.html">Authentication</a></li>
-<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="deployment.html">Production Deployment</a></li>
-</ul>
+<section id="authentication">
+<span id="development-manual-authentication"></span><h1>Authentication<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#authentication">¶</a></h1>
+<p>By default, Kompass uses Django’s builtin authentication backend for logging into
+the admin pages. For integrating third-party services, Kompass can both authenticate
+against a third-party service or provide authentication for third-party services.</p>
+<section id="using-kompass-as-an-oauth2-provider">
+<h2>Using Kompass as an OAuth2 Provider<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#using-kompass-as-an-oauth2-provider" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#using-kompass-as-an-oauth2-provider'">¶</a></h2>
+<p>Kompass can act as an OAuth2/OIDC provider for other applications.</p>
+<section id="configuration">
+<h3>Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#configuration'">¶</a></h3>
+<p>Generate an RSA key pair:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">openssl<span class="w"> </span>genrsa<span class="w"> </span>-out<span class="w"> </span>oidc_private.key<span class="w"> </span><span class="m">4096</span>
+</span><span id="line-2">cat<span class="w"> </span>oidc_private.key<span class="w">  </span><span class="c1"># Copy to settings.toml</span>
+</span></code></pre></div>
 </div>
-<section id="getting-started">
-<h2>Getting started<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#getting-started" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#getting-started'">¶</a></h2>
-<p>To get started, head to the <a class="reference internal" href="setup.html#development-manual-setup"><span class="std std-ref">Development Setup</span></a>.</p>
-</section>
-<section id="contributing">
-<h2>Contributing<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#contributing" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#contributing'">¶</a></h2>
-<p>Any form of contribution is appreciated!</p>
-<div class="admonition seealso">
-<p class="admonition-title">Siehe auch</p>
-<p><a class="reference internal" href="contributing.html#development-manual-contributing"><span class="std std-ref">Contributing</span></a></p>
+<p>Then add your private key to <code class="docutils literal notranslate"><span class="pre">settings.toml</span></code>:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">[oauth]</span>
+</span><span id="line-2"><span class="n">oidc_rsa_private_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"""</span>
+</span><span id="line-3"><span class="s2">-----BEGIN PRIVATE KEY-----</span>
+</span><span id="line-4"><span class="s2">your-private-key-here</span>
+</span><span id="line-5"><span class="s2">-----END PRIVATE KEY-----</span>
+</span><span id="line-6"><span class="s2">"""</span>
+</span></code></pre></div>
 </div>
 </section>
-<section id="documentation">
-<h2>Documentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#documentation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#documentation'">¶</a></h2>
-<p>Structure</p>
+<section id="registering-client-applications">
+<h3>Registering Client Applications<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#registering-client-applications" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#registering-client-applications'">¶</a></h3>
+<p>To add a new client application, navigate to <code class="docutils literal notranslate"><span class="pre">https://your-domain.de/o/applications/</span></code>
+and follow the instructions.</p>
+</section>
+</section>
+<section id="using-third-party-oidc-authentication">
+<h2>Using Third-Party OIDC Authentication<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#using-third-party-oidc-authentication" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#using-third-party-oidc-authentication'">¶</a></h2>
+<p>Kompass can authenticate users against an external OpenID Connect provider
+(e.g., Authentik, Keycloak, Auth0, Okta).</p>
+<section id="id1">
+<h3>Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id1" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#id1'">¶</a></h3>
+<p>Add the following section to your <code class="docutils literal notranslate"><span class="pre">settings.toml</span></code> file:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">[oidc]</span>
+</span><span id="line-2"><span class="c1"># Enable OIDC authentication</span>
+</span><span id="line-3"><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="line-4"><span class="c1"># Relying Party (RP) client ID from your OIDC provider</span>
+</span><span id="line-5"><span class="n">rp_client_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'your-client-id'</span>
+</span><span id="line-6"><span class="c1"># Relying Party (RP) client secret from your OIDC provider</span>
+</span><span id="line-7"><span class="n">rp_client_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'your-client-secret'</span>
+</span><span id="line-8"><span class="c1"># OIDC Provider (OP) authorization endpoint URL</span>
+</span><span id="line-9"><span class="n">op_authorization_endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'https://your-provider.example.com/application/o/authorize/'</span>
+</span><span id="line-10"><span class="c1"># OIDC Provider (OP) token endpoint URL</span>
+</span><span id="line-11"><span class="n">op_token_endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'https://your-provider.example.com/application/o/token/'</span>
+</span><span id="line-12"><span class="c1"># OIDC Provider (OP) user info endpoint URL</span>
+</span><span id="line-13"><span class="n">op_user_endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'https://your-provider.example.com/application/o/userinfo/'</span>
+</span><span id="line-14"><span class="c1"># OIDC Provider (OP) JSON Web Key Set (JWKS) endpoint URL</span>
+</span><span id="line-15"><span class="n">op_jwks_endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'https://your-provider.example.com/application/o/jwks/'</span>
+</span><span id="line-16"><span class="c1"># Signature algorithm for verifying ID tokens (typically RS256)</span>
+</span><span id="line-17"><span class="n">rp_sign_algo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'RS256'</span>
+</span><span id="line-18"><span class="c1"># Space-separated list of OAuth scopes to request</span>
+</span><span id="line-19"><span class="n">rp_scopes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'openid email profile'</span>
+</span><span id="line-20"><span class="c1"># Claim name in the ID token containing the username</span>
+</span><span id="line-21"><span class="n">claim_username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'preferred_username'</span>
+</span><span id="line-22"><span class="c1"># Group name in the ID token that grants staff permissions</span>
+</span><span id="line-23"><span class="n">group_staff</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'kompass-staff'</span>
+</span><span id="line-24"><span class="c1"># Group name in the ID token that grants superuser permissions</span>
+</span><span id="line-25"><span class="n">group_superuser</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'kompass-admins'</span>
+</span></code></pre></div>
+</div>
+<p>When OIDC is enabled, the Django admin login redirects to the OIDC provider. Users are automatically created or updated based on the ID token claims. Staff and superuser permissions are granted based on group membership in the <code class="docutils literal notranslate"><span class="pre">groups</span></code> claim.</p>
+</section>
+<section id="oidc-provider-setup">
+<h3>OIDC Provider Setup<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#oidc-provider-setup" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#oidc-provider-setup'">¶</a></h3>
+<p>When registering Kompass in your OIDC provider:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="../user_manual/index.html#user-manual-index"><span class="std std-ref">Nutzer Dokumentation</span></a> auf deutsch</p></li>
-<li><p><a class="reference internal" href="#development-manual-index"><span class="std std-ref">Development Documentation</span></a> auf englisch</p></li>
+<li><p>Set the <strong>Redirect URI</strong> to: <code class="docutils literal notranslate"><span class="pre">https://your-kompass-domain.com/oidc/callback/</span></code></p></li>
+<li><p>Use <strong>Confidential</strong> client type</p></li>
+<li><p>Enable <strong>Authorization Code</strong> grant type</p></li>
+<li><p>Include scopes: <code class="docutils literal notranslate"><span class="pre">openid</span></code>, <code class="docutils literal notranslate"><span class="pre">email</span></code>, <code class="docutils literal notranslate"><span class="pre">profile</span></code></p></li>
+<li><p>Ensure the provider sends <code class="docutils literal notranslate"><span class="pre">groups</span></code> claim if using permission groups</p></li>
 </ul>
-<div class="admonition seealso">
-<p class="admonition-title">Siehe auch</p>
-<p><a class="reference internal" href="contributing.html#development-manual-contributing-documentation"><span class="std std-ref">Contributing #Documentation</span></a></p>
-</div>
+</section>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../user_manual/finance.html">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="architecture.html">
 <svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="15 18 9 12 15 6"></polyline>
 </svg>
-        Finanzen
+        Architecture
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="contributing.html">
-        Contributing
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="testing.html">
+        Testing
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
@@ -177,9 +220,16 @@
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#getting-started'" class="reference internal" href="#getting-started">Getting started</a></li>
-<li><a :data-current="activeSection === '#contributing'" class="reference internal" href="#contributing">Contributing</a></li>
-<li><a :data-current="activeSection === '#documentation'" class="reference internal" href="#documentation">Documentation</a></li>
+<li><a :data-current="activeSection === '#using-kompass-as-an-oauth2-provider'" class="reference internal" href="#using-kompass-as-an-oauth2-provider">Using Kompass as an OAuth2 Provider</a><ul>
+<li><a :data-current="activeSection === '#configuration'" class="reference internal" href="#configuration">Configuration</a></li>
+<li><a :data-current="activeSection === '#registering-client-applications'" class="reference internal" href="#registering-client-applications">Registering Client Applications</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#using-third-party-oidc-authentication'" class="reference internal" href="#using-third-party-oidc-authentication">Using Third-Party OIDC Authentication</a><ul>
+<li><a :data-current="activeSection === '#id1'" class="reference internal" href="#id1">Configuration</a></li>
+<li><a :data-current="activeSection === '#oidc-provider-setup'" class="reference internal" href="#oidc-provider-setup">OIDC Provider Setup</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </aside>

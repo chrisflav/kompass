@@ -12,6 +12,7 @@ This part of the documentation describes the development and maintenance of the 
    contributing
    setup
    architecture
+   authentication
    testing
    deployment
 
