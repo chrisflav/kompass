@@ -174,7 +174,9 @@ def import_generalized_csv(file_handle, email_domain_override=None):
             birth_date=birth_date,
             email=override_email_domain(row.get("email", "")),
             gender=get_gender_from_char(row.get("gender", "d")),
-            alternative_email=override_email_domain(row.get("alternative_email")) if row.get("alternative_email") else None,
+            alternative_email=override_email_domain(row.get("alternative_email"))
+            if row.get("alternative_email")
+            else None,
             phone_number=row.get("phone_number", ""),
             street=row.get("street", ""),
             plz=row.get("plz", ""),
