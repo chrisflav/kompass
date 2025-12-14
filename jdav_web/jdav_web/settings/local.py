@@ -96,3 +96,7 @@ REPORTS_SECTION = get_var("startpage", "reports_section", default="reports")
 # testing
 
 TEST_MAIL = get_var("testing", "mail", default="test@localhost")
+
+# test data
+
+TEST_DATA_RECIPIENT_DOMAIN = get_var("test_data", "recipient_domain", default="jdav-town.de")
