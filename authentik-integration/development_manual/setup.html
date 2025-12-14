@@ -148,7 +148,7 @@ database.</p>
 <ol class="arabic simple" start="4">
 <li><p>Setup admin user: in a separate shell, while the docker container is running, execute</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>createsuperuser
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>createsuperuser
 </span></code></pre></div>
 </div>
 <p>This creates an admin user for the administration interface.</p>
@@ -172,17 +172,22 @@ The Make targets handle this automatically, which is why they are the recommende
 <section id="development">
 <h2>Development<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#development" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#development'">¶</a></h2>
 <p>If the initial installation was successful, you can start developing. Changes to files cause an automatic
-reload of the development server. If you need to generate and perform database migrations or generate locale files,
-you can run Django management commands directly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>migrate
-</span><span id="line-2">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>makemigrations
-</span><span id="line-3">make<span class="w"> </span>dev<span class="w"> </span>manage<span class="w"> </span>createsuperuser
+reload of the development server. If you need to generate and perform database migrations, generate locale files,
+or run tests, you can use make commands. The most common command generates and compiles translation files:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>translate<span class="w"> </span><span class="c1"># generate and compile translation files</span>
 </span></code></pre></div>
 </div>
-<p>For more complex tasks requiring multiple commands, you can open a shell in the container:</p>
+<p>For more Info about the translation workflow, see <a class="reference external" href="https://docs.djangoproject.com/en/5.2/ref/django-admin/#django-admin-makemessages">https://docs.djangoproject.com/en/5.2/ref/django-admin/#django-admin-makemessages</a>
+For less common tasks, you can use the <code class="docutils literal notranslate"><span class="pre">shell</span></code> command, to enter the container shell and run any Django management commands:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>shell
-</span><span id="line-2"><span class="nb">cd</span><span class="w"> </span>jdav_web
-</span><span id="line-3">python3<span class="w"> </span>manage.py<span class="w"> </span>&lt;command&gt;
+</span></code></pre></div>
+</div>
+<p>In the container shell, you can run Django management commands, such as:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">python3<span class="w"> </span>manage.py<span class="w"> </span>makemigrations<span class="w"> </span><span class="c1"># run when you made changes to the data models</span>
+</span><span id="line-2">python3<span class="w"> </span>manage.py<span class="w"> </span>migrate<span class="w"> </span><span class="c1"># run to apply database migrations</span>
+</span><span id="line-3">python3<span class="w"> </span>manage.py<span class="w"> </span>import_members<span class="w"> </span>members/test_data/members.csv<span class="w"> </span><span class="c1"># import example members data from CSV file</span>
+</span><span id="line-4">python3<span class="w"> </span>manage.py<span class="w"> </span><span class="nb">test</span><span class="w"> </span>members.tests.view.ConfirmInvitationViewTestCase<span class="w"> </span><span class="c1"># run specific tests or test modules</span>
+</span><span id="line-5">python3<span class="w"> </span>manage.py<span class="w"> </span>&lt;command&gt;
 </span></code></pre></div>
 </div>
 <p>For more information on Django management commands, see the <a class="reference external" href="https://docs.djangoproject.com/en/4.0/ref/django-admin">https://docs.djangoproject.com/en/4.0/ref/django-admin</a>.</p>
@@ -197,10 +202,36 @@ you can run Django management commands directly:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">up</span> <span class="pre">detach=true</span></code> - Start the development environment in background</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">down</span></code> - Stop the development environment</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">shell</span></code> - Open a bash shell in the running container</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">manage</span> <span class="pre">&lt;command&gt;</span></code> - Run a Django management command (e.g., <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">manage</span> <span class="pre">migrate</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">shell</span></code> - Open the container shell to run Django management commands</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">createsuperuser</span></code> - Create a Django superuser account</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span> <span class="pre">translate</span></code> - Generate and compile translation files (runs <code class="docutils literal notranslate"><span class="pre">makemessages</span></code> and <code class="docutils literal notranslate"><span class="pre">compilemessages</span></code>)</p></li>
 </ul>
 <p>Additional docker compose build arguments can be passed using the <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS</span></code> variable, such as <code class="docutils literal notranslate"><span class="pre">--no-cache</span></code>,
 <code class="docutils literal notranslate"><span class="pre">--pull</span></code>, or <code class="docutils literal notranslate"><span class="pre">--progress=plain</span></code>. For multiple arguments, quote them: <code class="docutils literal notranslate"><span class="pre">BUILD_ARGS="--no-cache</span> <span class="pre">--pull"</span></code>.</p>
+</section>
+<section id="email-configuration">
+<h3>Email Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#email-configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#email-configuration'">¶</a></h3>
+<p>By default, the development environment is configured to use the <strong>console email backend</strong>, which means that
+emails are not actually sent but instead are printed to the console output. This is useful for development
+as it allows you to see what emails would be sent without requiring a mail server or risking accidentally
+sending emails during development.</p>
+<p>To switch from the console backend to actually sending emails via SMTP, you need to modify the
+<code class="docutils literal notranslate"><span class="pre">docker/development/config/settings.toml</span></code> file:</p>
+<ol class="arabic simple">
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">use_console_backend</span> <span class="pre">=</span> <span class="pre">false</span></code> in the <code class="docutils literal notranslate"><span class="pre">[mail]</span></code> section</p></li>
+<li><p>Configure the SMTP server credentials:</p></li>
+</ol>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">[mail]</span>
+</span><span id="line-2"><span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'smtp.example.com'</span>
+</span><span id="line-3"><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'user@example.com'</span>
+</span><span id="line-4"><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'your-password'</span>
+</span><span id="line-5"><span class="n">default_sending_address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'info@example.com'</span>
+</span><span id="line-6"><span class="n">default_sending_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'Your Organization'</span>
+</span><span id="line-7"><span class="n">use_console_backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">  </span><span class="c1"># Set to false to send actual emails</span>
+</span></code></pre></div>
+</div>
+<p>When <code class="docutils literal notranslate"><span class="pre">use_console_backend</span> <span class="pre">=</span> <span class="pre">true</span></code> (the default for development), the SMTP configuration is ignored and
+all emails are printed to the console where you can inspect their content.</p>
 </section>
 </section>
 <section id="known-issues">
@@ -250,6 +281,7 @@ you will encounter the following error message after running <code class="docuti
 </li>
 <li><a :data-current="activeSection === '#development'" class="reference internal" href="#development">Development</a><ul>
 <li><a :data-current="activeSection === '#make-commands-reference'" class="reference internal" href="#make-commands-reference">Make commands reference</a></li>
+<li><a :data-current="activeSection === '#email-configuration'" class="reference internal" href="#email-configuration">Email Configuration</a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#known-issues'" class="reference internal" href="#known-issues">Known Issues</a></li>
