@@ -1,13 +1,6 @@
-from unittest.mock import Mock
-from unittest.mock import patch
-
 from django.conf import settings
-from django.contrib import admin
 from django.contrib.auth.models import User
-from django.test import override_settings
-from django.test import RequestFactory
 from django.test import TestCase
-
 from logindata.oidc import MyOIDCAB
 
 CLAIMS = {
@@ -23,6 +16,7 @@ class MyOIDCABTestCase(TestCase):
     """
     Test the OpenID Connect authentication backend.
     """
+
     def setUp(self):
         self.user = User.objects.create_user(username=CLAIMS[settings.OIDC_CLAIM_USERNAME])
         self.ab = MyOIDCAB()

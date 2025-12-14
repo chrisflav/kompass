@@ -1,8 +1,18 @@
+"""
+This file contains code for authenticating against an external OpenID Connect provider. For the
+reverse direction see `jdav_web/logindata/oauth.py`.
+"""
+
 from django.conf import settings
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 
 class MyOIDCAB(OIDCAuthenticationBackend):
+    """
+    Customized OpenId Connect (OIDC) authentication backend. This can be used to authenticate
+    against a third party OIDC provider.
+    """
+
     def get_username(self, claims):
         """
         Extract the username from the given claims by looking for
