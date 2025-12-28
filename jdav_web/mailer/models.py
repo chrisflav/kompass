@@ -138,6 +138,10 @@ class Message(CommonModel):
     def __str__(self):
         return self.subject
 
+    def get_dropdown_display(self):
+        """Return a string suitable for display in admin dropdown menus."""
+        return self.subject
+
     def get_recipients(self):
         recipients = [g.name for g in self.to_groups.all()]
         if self.to_freizeit is not None:

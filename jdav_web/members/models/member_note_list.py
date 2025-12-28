@@ -20,6 +20,21 @@ class MemberNoteList(models.Model):
         """String represenation"""
         return self.title
 
+    def get_dropdown_display(self):
+        """Return a string suitable for display in admin dropdown menus."""
+        if self.date:
+            return f"{self.title} - {self.date.strftime('%d.%m.%Y')}"
+        return self.title
+
+    @staticmethod
+    def filter_queryset_by_change_permissions(user, queryset=None):
+        if queryset is None:
+            queryset = MemberNoteList.objects.all()
+        if user.has_perm("members.change_membernotelist"):
+            return queryset
+        else:
+            return MemberNoteList.objects.none()
+
     class Meta:
         verbose_name = "Notizliste"
         verbose_name_plural = "Notizlisten"

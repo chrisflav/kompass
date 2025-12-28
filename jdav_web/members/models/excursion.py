@@ -108,6 +108,10 @@ class Freizeit(CommonModel):
         """String represenation"""
         return self.name
 
+    def get_dropdown_display(self):
+        """Return a string suitable for display in admin dropdown menus."""
+        return f"{self.name} - {self.date.strftime('%d.%m.%Y')}"
+
     class Meta(CommonModel.Meta):
         verbose_name = _("Excursion")
         verbose_name_plural = _("Excursions")
@@ -551,6 +555,16 @@ class Freizeit(CommonModel):
         # one may view all leited groups and oneself
         queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter__pk=member.pk)).distinct()
         return queryset
+
+    @staticmethod
+    def filter_queryset_by_change_permissions(user, queryset=None):
+        if queryset is None:
+            queryset = Freizeit.objects.all()
+        if user.has_perm("members.change_global_freizeit"):
+            return queryset
+        if not hasattr(user, "member"):
+            return Freizeit.objects.none()
+        return Freizeit.filter_queryset_by_permissions(user.member, queryset)
 
     def send_crisis_intervention_list(self, sending_time=None):
         """

@@ -1,3 +1,4 @@
+import json
 from functools import update_wrapper
 
 import nested_admin
@@ -12,6 +13,7 @@ from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin import DateFieldListFilter
 from django.contrib.contenttypes.admin import GenericTabularInline
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models import Case
 from django.db.models import ExpressionWrapper
@@ -30,6 +32,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
+from mailer.models import Message
 from schwifty import IBAN
 from utils import get_member
 from utils import mondays_until_nth
@@ -149,6 +152,10 @@ class TrainingCategoryAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
 
+class CreateObjectFromForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+
+
 class MemberAdminForm(forms.ModelForm):
     class Meta:
         model = Member
@@ -243,7 +250,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     }
     change_form_template = "members/change_member.html"
     ordering = ("lastname",)
-    actions = ["request_echo", "invite_as_user_action", "unconfirm"]
+    actions = ["create_object_from", "request_echo", "invite_as_user_action", "unconfirm"]
     list_per_page = 25
 
     form = MemberAdminForm
@@ -307,9 +314,162 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     def send_mail_to(self, request, queryset):
         member_pks = [m.pk for m in queryset]
         query = str(member_pks).replace(" ", "")
-        return HttpResponseRedirect("/admin/mailer/message/add/?members={}".format(query))
+        return HttpResponseRedirect(
+            reverse("admin:mailer_message_add") + "?members={}".format(query)
+        )
 
     send_mail_to.short_description = _("Compose new mail to selected members")
+
+    def create_object_from(self, request, queryset):
+        """
+        Create an object from the selected members. This can be one of
+        - `MemberNoteList`
+        - `Freizeit`
+        - `Message`
+        """
+        if "create" in request.POST:
+            choice = request.POST.get("choice")
+            if choice:
+                member_pks = [m.pk for m in queryset]
+                query = str(member_pks).replace(" ", "")
+
+                if choice == "Message":
+                    # Redirect to Message add view with members pre-filled
+                    return HttpResponseRedirect(
+                        reverse("admin:mailer_message_add") + "?members={}".format(query)
+                    )
+                elif choice == "Excursion":
+                    # Redirect to Freizeit add view with members pre-filled
+                    return HttpResponseRedirect(
+                        reverse("admin:members_freizeit_add") + "?members={}".format(query)
+                    )
+                elif choice == "MemberNoteList":
+                    # Redirect to MemberNoteList add view with members pre-filled
+                    return HttpResponseRedirect(
+                        reverse("admin:members_membernotelist_add") + "?members={}".format(query)
+                    )
+
+        elif "add_to_selected" in request.POST:
+            choice = request.POST.get("choice")
+            entry_id = request.POST.get("existing_entry")
+
+            if choice and entry_id:
+                if choice == "Message":
+                    try:
+                        message = Message.objects.get(pk=entry_id)
+                        # Add selected members to the message
+                        for member in queryset:
+                            message.to_members.add(member)
+                        message.save()
+
+                        messages.success(
+                            request,
+                            _("Successfully added %(count)s member(s) to message '%(message)s'.")
+                            % {"count": queryset.count(), "message": message.subject},
+                        )
+                        return HttpResponseRedirect(
+                            reverse("admin:mailer_message_change", args=(entry_id,))
+                        )
+                    except Message.DoesNotExist:
+                        messages.error(request, _("Selected message does not exist."))
+
+                elif choice == "Excursion":
+                    try:
+                        excursion = Freizeit.objects.get(pk=entry_id)
+                        content_type = ContentType.objects.get_for_model(Freizeit)
+
+                        # Add selected members to the excursion
+                        for member in queryset:
+                            NewMemberOnList.objects.get_or_create(
+                                member=member, content_type=content_type, object_id=excursion.pk
+                            )
+
+                        messages.success(
+                            request,
+                            _(
+                                "Successfully added %(count)s member(s) to excursion '%(excursion)s'."
+                            )
+                            % {"count": queryset.count(), "excursion": excursion.name},
+                        )
+                        return HttpResponseRedirect(
+                            reverse("admin:members_freizeit_change", args=(entry_id,))
+                        )
+                    except Freizeit.DoesNotExist:
+                        messages.error(request, _("Selected excursion does not exist."))
+
+                elif choice == "MemberNoteList":
+                    try:
+                        note_list = MemberNoteList.objects.get(pk=entry_id)
+                        content_type = ContentType.objects.get_for_model(MemberNoteList)
+
+                        # Add selected members to the note list
+                        for member in queryset:
+                            NewMemberOnList.objects.get_or_create(
+                                member=member, content_type=content_type, object_id=note_list.pk
+                            )
+
+                        messages.success(
+                            request,
+                            _("Successfully added %(count)s member(s) to note list '%(notelist)s'.")
+                            % {"count": queryset.count(), "notelist": note_list.title},
+                        )
+                        return HttpResponseRedirect(
+                            reverse("admin:members_membernotelist_change", args=(entry_id,))
+                        )
+                    except MemberNoteList.DoesNotExist:
+                        messages.error(request, _("Selected note list does not exist."))
+
+            # If validation failed, return to member list
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        # Check permissions and prepare allowed choices
+        allowed_choices = []
+        existing_entries = {}
+
+        # Check Message permission
+        if request.user.has_perm("mailer.add_global_message"):
+            allowed_choices.append({"value": "Message", "label": _("Message")})
+            existing_entries["Message"] = [
+                {"id": msg.pk, "display": msg.get_dropdown_display()}
+                for msg in Message.objects.filter(sent=False).order_by("-pk")
+            ]
+
+        # Check Excursion permission
+        if request.user.has_perm("members.add_global_freizeit"):
+            allowed_choices.append({"value": "Excursion", "label": _("Excursion")})
+            existing_entries["Excursion"] = [
+                {"id": exc.pk, "display": exc.get_dropdown_display()}
+                for exc in Freizeit.filter_queryset_by_change_permissions(request.user).order_by(
+                    "-date"
+                )
+            ]
+
+        # Check MemberNoteList permission
+        if request.user.has_perm("members.add_global_membernotelist"):
+            allowed_choices.append({"value": "MemberNoteList", "label": _("Note list")})
+            existing_entries["MemberNoteList"] = [
+                {"id": note.pk, "display": note.get_dropdown_display()}
+                for note in MemberNoteList.filter_queryset_by_change_permissions(
+                    request.user
+                ).order_by("-date")
+            ]
+
+        id_list = queryset.values_list("id", flat=True)
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Create object from selected members"),
+            opts=self.opts,
+            queryset=queryset,
+            # Ensures that follow-up requests are still handled by this view
+            form=CreateObjectFromForm(initial={"_selected_action": id_list}),
+            allowed_choices=allowed_choices,
+            existing_entries_json=json.dumps(existing_entries),
+        )
+        return render(request, "admin/create_object_from.html", context=context)
+
+    create_object_from.short_description = _("Create object from selected members.")
 
     def request_echo(self, request, queryset):
         # make sure to show the successful banner only if any successful
@@ -1306,14 +1466,41 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
         return dict(total_people=total_people, organizer_count=organizer_count)
 
     def get_formset(self, request, obj=None, **kwargs):
-        """Override get_formset to add extra context."""
-        formset = super().get_formset(request, obj, **kwargs)
+        """Override get_formset to add extra context and handle initial member data."""
+        # Handle members query parameter for pre-populating members on add view
+        initial_data = []
+        if obj is None:  # Only for add view
+            raw_members = request.GET.get("members", None)
+            if raw_members is not None:
+                try:
+                    m_ids = json.loads(raw_members)
+                    if isinstance(m_ids, list):
+                        members = Member.objects.filter(pk__in=m_ids)
+                        # Set extra forms to match number of members
+                        self.extra = len(members)
+                        # Prepare initial data for formset
+                        initial_data = [{"member": member.pk} for member in members]
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+        FormSet = super().get_formset(request, obj, **kwargs)
 
         if obj:  # Ensure there is an Activity instance
-            formset.total_people = self.people_count(obj)["total_people"]
-            formset.organizer_count = self.people_count(obj)["organizer_count"]
+            FormSet.total_people = self.people_count(obj)["total_people"]
+            FormSet.organizer_count = self.people_count(obj)["organizer_count"]
 
-        return formset
+        # If we have initial data, create a wrapped formset class that uses it
+        if initial_data:
+            original_init = FormSet.__init__
+
+            def new_init(self, *args, **init_kwargs):
+                if "initial" not in init_kwargs:
+                    init_kwargs["initial"] = initial_data
+                original_init(self, *args, **init_kwargs)
+
+            FormSet.__init__ = new_init
+
+        return FormSet
 
 
 class MemberNoteListAdmin(admin.ModelAdmin):
