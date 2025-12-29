@@ -1,6 +1,6 @@
 x-kompass:
     &kompass
-    image: kompass:production
+    image: ghcr.io/chrisflav/kompass:latest
     environment:
       - DJANGO_SETTINGS_MODULE=jdav_web.settings
       - KOMPASS_CONFIG_DIR_PATH=/app/config/
@@ -12,9 +12,6 @@ x-kompass:
 services:
     master:
         <<: *kompass
-        build:
-            context: https://github.com/chrisflav/kompass.git#main
-            dockerfile: docker/production/Dockerfile
         entrypoint: /app/docker/production/entrypoint-master.sh
         volumes:
           - uwsgi_data:/tmp/uwsgi/
@@ -28,7 +25,7 @@ services:
           - "host:10.26.42.1"
 
     nginx:
-        build: https://github.com/chrisflav/kompass.git#main:docker/production/nginx
+        image: ghcr.io/chrisflav/kompass-nginx:latest
         restart: always
         volumes:
           - uwsgi_data:/tmp/uwsgi/

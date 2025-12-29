@@ -14,8 +14,10 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
 from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import include
 from django.urls import path
 from django.urls import re_path
@@ -28,7 +30,15 @@ from .views import media_access
 admin.site.index_title = _("Startpage")
 admin.site.site_header = "Kompass"
 
-urlpatterns = i18n_patterns(
+urlpatterns = []
+
+if settings.OIDC_ENABLED:
+    admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
+    urlpatterns += i18n_patterns(
+        re_path(r"^oidc/", include("mozilla_django_oidc.urls")),
+    )
+
+urlpatterns += i18n_patterns(
     re_path(r"^media/(?P<path>.*)", media_access, name="media"),
     re_path(r"^kompass/?", admin.site.urls, name="kompass"),
     re_path(r"^jet/", include("jet.urls", "jet")),  # Django JET URLS

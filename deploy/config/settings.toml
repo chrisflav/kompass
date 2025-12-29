@@ -64,3 +64,30 @@ port = 3306
 database = 'kompass'
 user = 'kompass'
 password = 'kompass-db-user-password'
+
+# OpenID Connect (OIDC) authentication settings
+[oidc]
+# Enable OIDC authentication
+enabled = false
+# Relying Party (RP) client ID from your OIDC provider
+rp_client_id = ''
+# Relying Party (RP) client secret from your OIDC provider
+rp_client_secret = ''
+# OIDC Provider (OP) authorization endpoint URL
+op_authorization_endpoint = ''
+# OIDC Provider (OP) token endpoint URL
+op_token_endpoint = ''
+# OIDC Provider (OP) user info endpoint URL
+op_user_endpoint = ''
+# OIDC Provider (OP) JSON Web Key Set (JWKS) endpoint URL
+op_jwks_endpoint = ''
+# Signature algorithm for verifying ID tokens (typically RS256)
+rp_sign_algo = 'RS256'
+# Space-separated list of OAuth scopes to request
+rp_scopes = 'openid email profile'
+# Claim name in the ID token containing the username
+claim_username = 'username'
+# Group name in the ID token that grants staff permissions
+group_staff = 'staff'
+# Group name in the ID token that grants superuser permissions
+group_superuser = 'superuser'
