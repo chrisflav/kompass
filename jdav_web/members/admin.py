@@ -1,3 +1,4 @@
+import json
 from functools import update_wrapper
 
 import nested_admin
@@ -30,6 +31,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
+from mailer.models import Message
 from schwifty import IBAN
 from utils import get_member
 from utils import mondays_until_nth
@@ -149,6 +151,10 @@ class TrainingCategoryAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
 
+class CreateObjectFromForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+
+
 class MemberAdminForm(forms.ModelForm):
     class Meta:
         model = Member
@@ -243,7 +249,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     }
     change_form_template = "members/change_member.html"
     ordering = ("lastname",)
-    actions = ["request_echo", "invite_as_user_action", "unconfirm"]
+    actions = ["create_object_from", "request_echo", "invite_as_user_action", "unconfirm"]
     list_per_page = 25
 
     form = MemberAdminForm
@@ -307,9 +313,110 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     def send_mail_to(self, request, queryset):
         member_pks = [m.pk for m in queryset]
         query = str(member_pks).replace(" ", "")
-        return HttpResponseRedirect("/admin/mailer/message/add/?members={}".format(query))
+        return HttpResponseRedirect(
+            reverse("admin:mailer_message_add") + "?members={}".format(query)
+        )
 
     send_mail_to.short_description = _("Compose new mail to selected members")
+
+    def create_object_from(self, request, queryset):
+        """
+        Create an object from the selected members. This can be one of
+        - `MemberNoteList`
+        - `Freizeit`
+        - `Message`
+        """
+        MODELS = {
+            "MemberNoteList": MemberNoteList,
+            "Excursion": Freizeit,
+            "Message": Message,
+        }
+        choice = request.POST.get("choice")
+        model = MODELS.get(choice)
+        if "create" in request.POST and model is not None:
+            member_pks = [m.pk for m in queryset]
+            query = str(member_pks).replace(" ", "")
+
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_add".format(model._meta.app_label, model._meta.model_name))
+                + "?members={}".format(query)
+            )
+
+        elif "add_to_selected" in request.POST:
+            choice = request.POST.get("choice")
+            entry_id = request.POST.get("existing_entry")
+            model = MODELS.get(choice)
+            if entry_id is None or model is None:
+                # If validation failed, return to member list
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
+                    )
+                )
+
+            try:
+                obj = model.objects.get(pk=entry_id)
+                obj.add_members(queryset)
+                messages.success(
+                    request,
+                    _("Successfully added %(count)s member(s) to %(model)s '%(obj)s'.")
+                    % {
+                        "count": queryset.count(),
+                        "model": model._meta.verbose_name,
+                        "obj": str(obj),
+                    },
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_change".format(model._meta.app_label, model._meta.model_name),
+                        args=(entry_id,),
+                    )
+                )
+            except model.DoesNotExist:
+                messages.error(
+                    request,
+                    _("Selected %(model)s does not exist.") % {"model": model._meta.verbose_name},
+                )
+
+        # Check permissions and prepare allowed choices
+        allowed_choices = []
+        existing_entries = {}
+
+        # Configuration for ordering (only thing that varies by model)
+        MODEL_ORDERING = {
+            "MemberNoteList": "-date",
+            "Excursion": "-date",
+            "Message": "-pk",
+        }
+
+        # Iterate through MODELS and set allowed_choices and existing_entries
+        for key, model_class in MODELS.items():
+            permission = f"{model_class._meta.app_label}.add_global_{model_class._meta.model_name}"
+            if request.user.has_perm(permission):
+                allowed_choices.append(
+                    {"value": key, "label": model_class._meta.verbose_name.title()}
+                )
+                existing_entries[key] = [
+                    {"id": obj.pk, "display": obj.get_dropdown_display()}
+                    for obj in model_class.filter_queryset_by_change_permissions(
+                        request.user
+                    ).order_by(MODEL_ORDERING[key])
+                ]
+
+        id_list = queryset.values_list("id", flat=True)
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Create object from selected members"),
+            opts=self.opts,
+            queryset=queryset,
+            # Ensures that follow-up requests are still handled by this view
+            form=CreateObjectFromForm(initial={"_selected_action": id_list}),
+            allowed_choices=allowed_choices,
+            existing_entries_json=json.dumps(existing_entries),
+        )
+        return render(request, "admin/create_object_from.html", context=context)
+
+    create_object_from.short_description = _("Create object from selected members.")
 
     def request_echo(self, request, queryset):
         # make sure to show the successful banner only if any successful
@@ -1306,14 +1413,41 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
         return dict(total_people=total_people, organizer_count=organizer_count)
 
     def get_formset(self, request, obj=None, **kwargs):
-        """Override get_formset to add extra context."""
-        formset = super().get_formset(request, obj, **kwargs)
+        """Override get_formset to add extra context and handle initial member data."""
+        # Handle members query parameter for pre-populating members on add view
+        initial_data = []
+        if obj is None:  # Only for add view
+            raw_members = request.GET.get("members", None)
+            if raw_members is not None:
+                try:
+                    m_ids = json.loads(raw_members)
+                    if isinstance(m_ids, list):
+                        members = Member.objects.filter(pk__in=m_ids)
+                        # Set extra forms to match number of members
+                        self.extra = len(members)
+                        # Prepare initial data for formset
+                        initial_data = [{"member": member.pk} for member in members]
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+        FormSet = super().get_formset(request, obj, **kwargs)
 
         if obj:  # Ensure there is an Activity instance
-            formset.total_people = self.people_count(obj)["total_people"]
-            formset.organizer_count = self.people_count(obj)["organizer_count"]
+            FormSet.total_people = self.people_count(obj)["total_people"]
+            FormSet.organizer_count = self.people_count(obj)["organizer_count"]
 
-        return formset
+        # If we have initial data, create a wrapped formset class that uses it
+        if initial_data:
+            original_init = FormSet.__init__
+
+            def new_init(self, *args, **init_kwargs):
+                if "initial" not in init_kwargs:
+                    init_kwargs["initial"] = initial_data
+                original_init(self, *args, **init_kwargs)
+
+            FormSet.__init__ = new_init
+
+        return FormSet
 
 
 class MemberNoteListAdmin(admin.ModelAdmin):

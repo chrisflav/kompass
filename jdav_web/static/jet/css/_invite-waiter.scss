@@ -1,7 +1,7 @@
 @import "globals";
 
 .invite-waiter {
-  #content > ul, #content > h1 + p + ul {
+  #content ul {
     background: $content-background-color;
     border-radius: 4px;
     box-shadow: 0 2px 0 0 $content-border2-color;

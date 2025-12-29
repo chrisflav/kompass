@@ -82,6 +82,10 @@ class MessageTestCase(BasicMailerTestCase):
     def test_str(self):
         self.assertEqual(str(self.message), "Test Message")
 
+    def test_get_dropdown_display(self):
+        """Test get_dropdown_display returns the subject."""
+        self.assertEqual(self.message.get_dropdown_display(), "Test Message")
+
     def test_get_recipients(self):
         recipients = self.message.get_recipients()
         self.assertIn("My Group", recipients)
@@ -259,6 +263,13 @@ class MessageTestCase(BasicMailerTestCase):
         from_addr = call_args[0][2]  # from_addr is the 3rd positional argument
         expected_from = f"{self.sender.name} <{self.sender.association_email}>"
         self.assertEqual(from_addr, expected_from)
+
+    def test_filter_queryset_by_change_permissions_member(self):
+        """Test filter_queryset_by_change_permissions_member filters by creator"""
+        filtered = Message.filter_queryset_by_change_permissions_member(
+            self.sender, Message.objects.all()
+        )
+        self.assertEqual(filtered.count(), 0)
 
 
 class AttachmentTestCase(BasicMailerTestCase):

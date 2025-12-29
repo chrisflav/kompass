@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 23:04+0100\n"
+"POT-Creation-Date: 2025-12-29 09:00+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,6 +56,21 @@ msgstr "Organisatorisches"
 
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
+
+#, python-format
+msgid "Successfully added %(count)s member(s) to %(model)s '%(obj)s'."
+msgstr ""
+"Erfolgreich %(count)s Teilnehmer*in(nen) zu %(model)s '%(obj)s' hinzugefügt."
+
+#, python-format
+msgid "Selected %(model)s does not exist."
+msgstr "Ausgewählte(s) %(model)s existiert nicht."
+
+msgid "Create object from selected members"
+msgstr "Objekt aus ausgewählten Teilnehmer*innen erstellen"
+
+msgid "Create object from selected members."
+msgstr "Objekt aus ausgewählten Teilnehmer*innen erstellen"
 
 #, python-brace-format
 msgid ""
@@ -1021,6 +1036,39 @@ msgstr "Erfolgreich für die Warteliste registriert"
 msgid "Home"
 msgstr "Start"
 
+msgid "Selected members:"
+msgstr "Ausgewählte Teilnehmer*innen:"
+
+msgid "Select object type:"
+msgstr "Wähle Objekttyp:"
+
+msgid "Select action:"
+msgstr "Wähle Aktion:"
+
+msgid "Create new"
+msgstr "Neu erstellen"
+
+msgid "Add to existing"
+msgstr "Zu Bestehendem hinzufügen"
+
+msgid "Create"
+msgstr "Erstellen"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgid "Select existing entry:"
+msgstr "Wähle bestehenden Eintrag:"
+
+msgid "Add to selected"
+msgstr "Zu Ausgewähltem hinzufügen"
+
+msgid "Please select an object type first."
+msgstr "Bitte wähle zuerst einen Objekttyp."
+
+msgid "Please select an entry."
+msgstr "Bitte wähle einen Eintrag."
+
 msgid "Demote to waiter"
 msgstr "Zurück auf die Warteliste setzen"
 
@@ -1030,9 +1078,6 @@ msgstr "Möchtest du die folgenden Personen zurück auf die Warteliste setzen?"
 
 msgid "Demote"
 msgstr "Zurück auf die Warteliste setzen"
-
-msgid "Cancel"
-msgstr "Abbrechen"
 
 msgid ""
 "\n"

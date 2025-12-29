@@ -1,0 +1,211 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+    <style>
+        li.choice-item {
+            cursor: pointer;
+        }
+        li.choice-item:hover {
+            background-color: #ecf2f6;
+        }
+        li.choice-item.selected {
+            background-color: #7fb1dc;
+            color: #fff;
+            font-weight: 500;
+        }
+        li.choice-item input[type="radio"] {
+            display: none;
+        }
+        li.choice-item label {
+            cursor: pointer;
+            display: block;
+            margin: 0;
+        }
+        .action-buttons {
+            display: none;
+            margin: 20px 0;
+        }
+        .action-buttons.visible {
+            display: block;
+        }
+        .create-buttons {
+            display: none;
+            margin: 20px 0;
+        }
+        .create-buttons.visible {
+            display: block;
+        }
+        .existing-entry-dropdown {
+            display: none;
+            margin: 20px 0;
+        }
+        .existing-entry-dropdown.visible {
+            display: block;
+        }
+    </style>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+{% if object %}
+&rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
+{% endif %}
+&rsaquo; {% translate 'Create object from selected members' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h2>{% translate "Create object from selected members" %}</h2>
+
+<p>{% translate "Selected members:" %}</p>
+<ul>
+{% for member in queryset %}
+    <li>{{ member.name }}</li>
+{% endfor %}
+</ul>
+
+<form action="" method="post">
+    {% csrf_token %}
+    {{ form }}
+    <input type="hidden" name="action" value="create_object_from">
+    <input type="hidden" name="choice" id="choice-value" value="">
+    <input type="hidden" name="existing_entry" id="existing-entry-value" value="">
+
+    <p>{% translate "Select object type:" %}</p>
+    <ul>
+        {% for choice in allowed_choices %}
+        <li class="choice-item" data-choice="{{ choice.value }}">
+            <label>
+                <input type="radio" name="choice_radio" value="{{ choice.value }}">
+                {{ choice.label }}
+            </label>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="action-buttons" id="action-buttons">
+        <p>{% translate "Select action:" %}</p>
+        <ul class="choice-list">
+            <li class="choice-item action-item" data-action="create">
+                <label>
+                    <input type="radio" name="action_radio" value="create">
+                    {% translate "Create new" %}
+                </label>
+            </li>
+            <li class="choice-item action-item" data-action="add">
+                <label>
+                    <input type="radio" name="action_radio" value="add">
+                    {% translate "Add to existing" %}
+                </label>
+            </li>
+        </ul>
+    </div>
+
+    <div class="create-buttons" id="create-buttons">
+        <p>
+            <input type="submit" name="create" value="{% translate 'Create' %}" id="create-btn">
+            <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% translate "Cancel" %}</a>
+        </p>
+    </div>
+
+    <div class="existing-entry-dropdown" id="existing-entry-dropdown">
+        <p>
+            <label for="existing-entry-select">{% translate "Select existing entry:" %}</label><br>
+            <select id="existing-entry-select" name="existing_entry_select">
+                <option value="">---------</option>
+            </select>
+        </p>
+        <p>
+            <input type="submit" name="add_to_selected" value="{% translate 'Add to selected' %}" id="add-to-selected-btn">
+            <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% translate "Cancel" %}</a>
+        </p>
+    </div>
+</form>
+
+<script type="text/javascript">
+(function($) {
+    var existingEntries = {{ existing_entries_json|safe }};
+
+    // Handle object type selection
+    $('.choice-item:not(.action-item)').click(function() {
+        var choice = $(this).data('choice');
+        $('.choice-item:not(.action-item)').removeClass('selected');
+        $(this).addClass('selected');
+        $(this).find('input[type="radio"]').prop('checked', true);
+        $('#choice-value').val(choice);
+        $('#action-buttons').addClass('visible');
+        $('#create-buttons').removeClass('visible');
+        $('#existing-entry-dropdown').removeClass('visible');
+        // Reset action selection
+        $('.action-item').removeClass('selected');
+        $('input[name="action_radio"]').prop('checked', false);
+    });
+
+    // Handle action selection (create vs add to existing)
+    $('.action-item').click(function() {
+        var action = $(this).data('action');
+        var choice = $('#choice-value').val();
+
+        if (!choice) {
+            alert('{% translate "Please select an object type first." %}');
+            return;
+        }
+
+        $('.action-item').removeClass('selected');
+        $(this).addClass('selected');
+        $(this).find('input[type="radio"]').prop('checked', true);
+
+        if (action === 'create') {
+            $('#create-buttons').addClass('visible');
+            $('#existing-entry-dropdown').removeClass('visible');
+        } else if (action === 'add') {
+            $('#create-buttons').removeClass('visible');
+
+            // Populate dropdown with existing entries
+            var entries = existingEntries[choice] || [];
+            var $select = $('#existing-entry-select');
+            $select.empty();
+            $select.append('<option value="">---------</option>');
+
+            $.each(entries, function(i, entry) {
+                $select.append($('<option></option>').attr('value', entry.id).text(entry.display));
+            });
+
+            $('#existing-entry-dropdown').addClass('visible');
+        }
+    });
+
+    $('#add-to-selected-btn').click(function() {
+        var entryId = $('#existing-entry-select').val();
+        if (!entryId) {
+            alert('{% translate "Please select an entry." %}');
+            return false;
+        }
+        $('#existing-entry-value').val(entryId);
+    });
+
+    // Update choice value when form is submitted
+    $('#create-form').submit(function() {
+        var choice = $('input[name="choice_radio"]:checked').val();
+        $('#choice-value').val(choice);
+
+        if ($(document.activeElement).attr('name') === 'add_to_selected') {
+            var entryId = $('#existing-entry-select').val();
+            $('#existing-entry-value').val(entryId);
+        }
+    });
+})(django.jQuery);
+</script>
+{% endblock %}

@@ -138,6 +138,10 @@ class Message(CommonModel):
     def __str__(self):
         return self.subject
 
+    def get_dropdown_display(self):
+        """Return a string suitable for display in admin dropdown menus."""
+        return self.subject
+
     def get_recipients(self):
         recipients = [g.name for g in self.to_groups.all()]
         if self.to_freizeit is not None:
@@ -225,6 +229,20 @@ class Message(CommonModel):
         finally:
             self.save()
         return success
+
+    def add_members(self, queryset):
+        for member in queryset:
+            self.to_members.add(member)
+        self.save()
+
+    @classmethod
+    def filter_queryset_by_change_permissions_member(cls, member, queryset):
+        return member.filter_messages_by_permissions(queryset)
+
+    @classmethod
+    def filter_queryset_by_change_permissions(cls, user, queryset=None):
+        queryset = super().filter_queryset_by_change_permissions(user, queryset)
+        return queryset.filter(sent=False)
 
     class Meta(CommonModel.Meta):
         verbose_name = _("message")

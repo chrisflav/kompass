@@ -6,6 +6,7 @@ from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Case
@@ -107,6 +108,10 @@ class Freizeit(CommonModel):
     def __str__(self):
         """String represenation"""
         return self.name
+
+    def get_dropdown_display(self):
+        """Return a string suitable for display in admin dropdown menus."""
+        return f"{self.name} - {self.date.strftime('%d.%m.%Y')}"
 
     class Meta(CommonModel.Meta):
         verbose_name = _("Excursion")
@@ -552,6 +557,10 @@ class Freizeit(CommonModel):
         queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter__pk=member.pk)).distinct()
         return queryset
 
+    @classmethod
+    def filter_queryset_by_change_permissions_member(cls, member, queryset):
+        return Freizeit.filter_queryset_by_permissions(member, queryset)
+
     def send_crisis_intervention_list(self, sending_time=None):
         """
         Send the crisis intervention list to the crisis invervention email, the
@@ -615,3 +624,12 @@ class Freizeit(CommonModel):
             )
         self.notification_crisis_intervention_list_sent = True
         self.save()
+
+    def add_members(self, queryset):
+        content_type = ContentType.objects.get_for_model(Freizeit)
+
+        # Add selected members to the excursion
+        for member in queryset:
+            NewMemberOnList.objects.get_or_create(
+                member=member, content_type=content_type, object_id=self.pk
+            )
