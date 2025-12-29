@@ -13,21 +13,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterModelOptions(
-            name="invitationtogroup",
-            options={
-                "default_permissions": (
-                    "add_global",
-                    "change_global",
-                    "view_global",
-                    "delete_global",
-                    "list_global",
-                    "view",
-                ),
-                "verbose_name": "Invitation to group",
-                "verbose_name_plural": "Invitations to groups",
-            },
-        ),
         migrations.CreateModel(
             name="MemberDocument",
             fields=[
