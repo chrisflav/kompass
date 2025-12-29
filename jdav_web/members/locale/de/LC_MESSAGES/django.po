@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-29 09:00+0100\n"
+"POT-Creation-Date: 2025-12-29 10:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,6 +38,15 @@ msgstr ""
 "Trage hier bitte mindestens einen Notfallkontakt mit Kontaktdaten ein. Diese "
 "sind notwendig für die Krisenintervention auf Ausfahrten und bei "
 "Veranstaltungen."
+
+msgid ""
+"Upload additional documents (e.g., medical forms, parental consent for "
+"medication). These documents are stored centrally and accessible during "
+"emergencies."
+msgstr ""
+"Lade zusätzliche Dokumente hoch (z.B. medizinische Formulare, "
+"Einverständniserklärung für Medikamentengabe). Diese Dokumente werden "
+"zentral gespeichert und sind im Notfall abrufbar."
 
 msgid "The entered IBAN is not valid."
 msgstr "Die eingegebene IBAN ist ungültig."
@@ -918,6 +927,18 @@ msgstr "Zugangsdaten für Kompass wählen"
 
 msgid "Echo required"
 msgstr "Rückmeldung erforderlich"
+
+msgid "file"
+msgstr "Datei"
+
+msgid "Empty"
+msgstr "Leer"
+
+msgid "Extra document"
+msgstr "Weiteres Dokument"
+
+msgid "Extra documents"
+msgstr "Weitere Dokumente"
 
 msgid "Comment"
 msgstr "Kommentar"

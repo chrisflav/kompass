@@ -61,6 +61,7 @@ from members.models import KlettertreffAttendee
 from members.models import LJPProposal
 from members.models import MALE
 from members.models import Member
+from members.models import MemberDocument
 from members.models import MemberNoteList
 from members.models import MemberTraining
 from members.models import MemberUnconfirmedProxy
@@ -3445,6 +3446,20 @@ class EmergencyContactTestCase(TestCase):
 
     def test_str(self):
         self.assertEqual(str(self.emergency_contact), str(self.member))
+
+
+class MemberDocumentTestCase(TestCase):
+    def setUp(self):
+        self.member = Member.objects.create(**REGISTRATION_DATA)
+        self.document = MemberDocument.objects.create(member=self.member)
+
+    def test_str_with_file(self):
+        # Simulate a file name
+        self.document.f.name = "member_documents/test_medical_form.pdf"
+        self.assertEqual(str(self.document), "test_medical_form.pdf")
+
+    def test_str_without_file(self):
+        self.assertEqual(str(self.document), _("Empty"))
 
 
 class InvitationToGroupAdminTestCase(AdminTestCase):

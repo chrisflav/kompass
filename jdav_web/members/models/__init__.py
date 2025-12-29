@@ -34,6 +34,7 @@ from .ljp import Intervention
 from .ljp import LJPProposal
 from .member import Member
 from .member import MemberManager
+from .member_document import MemberDocument
 from .member_note_list import MemberNoteList
 from .member_on_list import NewMemberOnList
 from .member_unconfirmed import MemberUnconfirmedManager
@@ -50,6 +51,7 @@ __all__ = [
     "Group",
     "Member",
     "MemberManager",
+    "MemberDocument",
     "Contact",
     "ContactWithPhoneNumber",
     "Person",
