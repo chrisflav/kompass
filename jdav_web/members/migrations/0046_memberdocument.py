@@ -31,8 +31,8 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "verbose_name": "member document",
-                "verbose_name_plural": "member documents",
+                "verbose_name": "Extra document",
+                "verbose_name_plural": "Extra documents",
             },
             bases=(models.Model, rules.contrib.models.RulesModelMixin),
         ),

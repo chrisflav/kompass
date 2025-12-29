@@ -17,5 +17,5 @@ class MemberDocument(CommonModel):
         return os.path.basename(self.f.name) if self.f.name else str(_("Empty"))
 
     class Meta:
-        verbose_name = _("member document")
-        verbose_name_plural = _("member documents")
+        verbose_name = _("Extra document")
+        verbose_name_plural = _("Extra documents")

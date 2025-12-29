@@ -934,10 +934,10 @@ msgstr "Datei"
 msgid "Empty"
 msgstr "Leer"
 
-msgid "member document"
+msgid "Extra document"
 msgstr "Weiteres Dokument"
 
-msgid "member documents"
+msgid "Extra documents"
 msgstr "Weitere Dokumente"
 
 msgid "Comment"
