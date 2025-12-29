@@ -1419,6 +1419,24 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     inlines = [InterventionOnLJPInline]
 
 
+class MemberOnListInlineForm(forms.ModelForm):
+    """Custom form for the `MemberOnListInline`"""
+
+    def __init__(self, *args, **kwargs):
+        prefilled = kwargs.pop("prefilled", False)
+        super().__init__(*args, **kwargs)
+        # If prefilled is set, the inline received initial data.
+        # We need to override the `has_changed` method of the `member` field, otherwise
+        # the prefilled data is not saved.
+        if prefilled:
+            member_field = self.fields["member"]
+
+            def new_has_changed(self, data):
+                return data != ""
+
+            member_field.has_changed = new_has_changed
+
+
 class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     model = NewMemberOnList
     extra = 0
@@ -1428,6 +1446,7 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     formfield_overrides = {TextField: {"widget": Textarea(attrs={"rows": 1, "cols": 40})}}
     sortable_options = []
     template = "admin/members/freizeit/memberonlistinline.html"
+    form = MemberOnListInlineForm
 
     def people_count(self, obj):
         if isinstance(obj, Freizeit):
@@ -1469,13 +1488,21 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
         # If we have initial data, create a wrapped formset class that uses it
         if initial_data:
             original_init = FormSet.__init__
+            original_get_form_kwargs = FormSet.get_form_kwargs
 
             def new_init(self, *args, **init_kwargs):
                 if "initial" not in init_kwargs:
                     init_kwargs["initial"] = initial_data
                 original_init(self, *args, **init_kwargs)
 
+            def new_get_form_kwargs(self, index):
+                # we pass the prefilled kwarg to the `MemberOnListInlineForm`
+                kwargs = original_get_form_kwargs(self, index)
+                kwargs["prefilled"] = True
+                return kwargs
+
             FormSet.__init__ = new_init
+            FormSet.get_form_kwargs = new_get_form_kwargs
 
         return FormSet
 

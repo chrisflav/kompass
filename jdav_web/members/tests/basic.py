@@ -1978,6 +1978,81 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
         # Should return empty queryset
         self.assertEqual(queryset.count(), 0)
 
+    def test_save_membernotelist_with_prefilled_members(self):
+        """Test saving a MemberNoteList with prefilled NewMemberOnList members."""
+        import json
+
+        c = self._login("superuser")
+
+        # Create test members
+        member1 = Member.objects.create(
+            prename="Test1",
+            lastname="User1",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=MALE,
+        )
+        member2 = Member.objects.create(
+            prename="Test2",
+            lastname="User2",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=FEMALE,
+        )
+
+        # Prepare URL with members parameter
+        url = reverse("admin:members_membernotelist_add")
+        member_ids = [member1.pk, member2.pk]
+        members_json = json.dumps(member_ids)
+
+        # GET the form with prefilled members
+        response = c.get(f"{url}?members={members_json}")
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        # Extract form data from the response
+        form_data = {}
+        for key, value in response.context["adminform"].form.initial.items():
+            form_data[key] = value
+
+        # Extract formset data
+        formset = response.context["inline_admin_formsets"][0].formset
+        for i, form in enumerate(formset.forms):
+            for field_name, field_value in form.initial.items():
+                form_data[f"{formset.prefix}-{i}-{field_name}"] = field_value
+
+        # Add management form data
+        form_data.update(
+            {
+                f"{formset.prefix}-TOTAL_FORMS": str(len(formset.forms)),
+                f"{formset.prefix}-INITIAL_FORMS": str(formset.initial_form_count()),
+                f"{formset.prefix}-MIN_NUM_FORMS": str(formset.min_num),
+                f"{formset.prefix}-MAX_NUM_FORMS": str(formset.max_num),
+            }
+        )
+
+        # Add title for the note list
+        form_data["title"] = "Test List with Prefilled Members"
+
+        # POST the form data to save
+        response = c.post(url, data=form_data, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        # Verify MemberNoteList was created
+        note_list = MemberNoteList.objects.get(title="Test List with Prefilled Members")
+        self.assertIsNotNone(note_list)
+
+        # Verify members were saved (use content_type and object_id for GenericForeignKey)
+        from django.contrib.contenttypes.models import ContentType
+
+        ct = ContentType.objects.get_for_model(MemberNoteList)
+        members_on_list = NewMemberOnList.objects.filter(content_type=ct, object_id=note_list.pk)
+        self.assertEqual(members_on_list.count(), 2)
+
+        # Verify the specific members are in the list
+        member_pks = {m.member.pk for m in members_on_list}
+        self.assertIn(member1.pk, member_pks)
+        self.assertIn(member2.pk, member_pks)
+
 
 class MemberWaitingListAdminTestCase(AdminTestCase):
     def setUp(self):
