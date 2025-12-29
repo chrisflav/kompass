@@ -50,6 +50,7 @@ from .models import Klettertreff
 from .models import KlettertreffAttendee
 from .models import LJPProposal
 from .models import Member
+from .models import MemberDocument
 from .models import MemberNoteList
 from .models import MemberTraining
 from .models import MemberUnconfirmedProxy
@@ -146,6 +147,23 @@ class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
     extra = 0
 
 
+class MemberDocumentInline(CommonAdminInlineMixin, admin.TabularInline):
+    model = MemberDocument
+    description = _(
+        "Upload additional documents (e.g., medical forms, parental consent for medication). "
+        "These documents are stored centrally and accessible during emergencies."
+    )
+    formfield_overrides = {
+        RestrictedFileField: {
+            "widget": forms.ClearableFileInput(
+                attrs={"accept": "application/pdf,image/jpeg,image/png"}
+            )
+        },
+    }
+    fields = ["f"]
+    extra = 0
+
+
 class TrainingCategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "permission_needed")
     ordering = ("name",)
@@ -239,7 +257,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     list_filter = ("echoed", "group")
     list_display_links = None
     readonly_fields = ["echoed", "good_conduct_certificate_valid"]
-    inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
+    inlines = [
+        EmergencyContactInline,
+        MemberDocumentInline,
+        TrainingOnMemberInline,
+        PermissionOnMemberInline,
+    ]
     formfield_overrides = {
         RestrictedFileField: {
             "widget": forms.ClearableFileInput(
