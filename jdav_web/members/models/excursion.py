@@ -6,6 +6,7 @@ from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Case
@@ -556,15 +557,9 @@ class Freizeit(CommonModel):
         queryset = queryset.filter(Q(groups__in=groups) | Q(jugendleiter__pk=member.pk)).distinct()
         return queryset
 
-    @staticmethod
-    def filter_queryset_by_change_permissions(user, queryset=None):
-        if queryset is None:
-            queryset = Freizeit.objects.all()
-        if user.has_perm("members.change_global_freizeit"):
-            return queryset
-        if not hasattr(user, "member"):
-            return Freizeit.objects.none()
-        return Freizeit.filter_queryset_by_permissions(user.member, queryset)
+    @classmethod
+    def filter_queryset_by_change_permissions_member(cls, member, queryset):
+        return Freizeit.filter_queryset_by_permissions(member, queryset)
 
     def send_crisis_intervention_list(self, sending_time=None):
         """
@@ -629,3 +624,12 @@ class Freizeit(CommonModel):
             )
         self.notification_crisis_intervention_list_sent = True
         self.save()
+
+    def add_members(self, queryset):
+        content_type = ContentType.objects.get_for_model(Freizeit)
+
+        # Add selected members to the excursion
+        for member in queryset:
+            NewMemberOnList.objects.get_or_create(
+                member=member, content_type=content_type, object_id=self.pk
+            )

@@ -1,18 +1,16 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Translation file for members app
+# Copyright (C) 2025 JDAV Ludwigsburg
+# This file is distributed under the same license as the jdav_lb_webapp package.
 #
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-28 18:36+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2025-12-29 09:00+0100\n"
+"PO-Revision-Date: 2025-12-29 12:00+0100\n"
+"Last-Translator: Claude Code\n"
+"Language-Team: German\n"
+"Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -58,40 +56,13 @@ msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
 
 #, python-format
-msgid "Successfully added %(count)s member(s) to message '%(message)s'."
+msgid "Successfully added %(count)s member(s) to %(model)s '%(obj)s'."
 msgstr ""
-"Erfolgreich %(count)s Teilnehmer*in(nen) zur Nachricht '%(message)s' "
-"hinzugefügt."
-
-msgid "Selected message does not exist."
-msgstr "Ausgewählte Nachricht existiert nicht."
+"Erfolgreich %(count)s Teilnehmer*in(nen) zu %(model)s '%(obj)s' hinzugefügt."
 
 #, python-format
-msgid "Successfully added %(count)s member(s) to excursion '%(excursion)s'."
-msgstr ""
-"Erfolgreich %(count)s Teilnehmer*in(nen) zur Ausfahrt '%(excursion)s' "
-"hinzugefügt."
-
-msgid "Selected excursion does not exist."
-msgstr "Ausgewählte Ausfahrt existiert nicht."
-
-#, python-format
-msgid "Successfully added %(count)s member(s) to note list '%(notelist)s'."
-msgstr ""
-"Erfolgreich %(count)s Teilnehmer*in(nen) zur Notizliste '%(notelist)s' "
-"hinzugefügt."
-
-msgid "Selected note list does not exist."
-msgstr "Ausgewählte Notizliste existiert nicht."
-
-msgid "Message"
-msgstr "Nachricht"
-
-msgid "Excursion"
-msgstr "Ausfahrt"
-
-msgid "Note list"
-msgstr "Notizliste"
+msgid "Selected %(model)s does not exist."
+msgstr "Ausgewählte(s) %(model)s existiert nicht."
 
 msgid "Create object from selected members"
 msgstr "Objekt aus ausgewählten Teilnehmer*innen erstellen"
@@ -610,6 +581,9 @@ msgstr ""
 
 msgid "Approval comments"
 msgstr "Kommentare oder Auflagen zur Genehmigung"
+
+msgid "Excursion"
+msgstr "Ausfahrt"
 
 msgid "Excursions"
 msgstr "Ausfahrten"

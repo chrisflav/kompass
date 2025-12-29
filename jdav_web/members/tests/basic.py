@@ -1008,6 +1008,254 @@ class MemberAdminTestCase(AdminTestCase):
         self.fritz.refresh_from_db()
         self.assertFalse(self.fritz.confirmed)
 
+    def test_create_object_from_initial_view(self):
+        """Test the initial view of create_object_from action."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action to get to the create_object_from view
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+            },
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, self.fritz.name)
+        self.assertContains(response, self.peter.name)
+
+    def test_create_object_from_create_message(self):
+        """Test creating a new Message from selected members."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'create' and choice='Message'
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+                "create": "create",
+                "choice": "Message",
+            },
+        )
+        # Should redirect to Message add view with members parameter
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn(reverse("admin:mailer_message_add"), response.url)
+        self.assertIn("members=", response.url)
+
+    def test_create_object_from_create_excursion(self):
+        """Test creating a new Excursion from selected members."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'create' and choice='Excursion'
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+                "create": "create",
+                "choice": "Excursion",
+            },
+        )
+        # Should redirect to Freizeit add view with members parameter
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn("members/freizeit/add/", response.url)
+        self.assertIn("members=", response.url)
+
+    def test_create_object_from_create_membernotelist(self):
+        """Test creating a new MemberNoteList from selected members."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'create' and choice='MemberNoteList'
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+                "create": "create",
+                "choice": "MemberNoteList",
+            },
+        )
+        # Should redirect to MemberNoteList add view with members parameter
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn("members/membernotelist/add/", response.url)
+        self.assertIn("members=", response.url)
+
+    def test_create_object_from_add_to_existing_message(self):
+        """Test adding members to an existing Message."""
+        # Create a test message
+        message = Message.objects.create(subject="Test Message", content="Test content")
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'add_to_selected' and existing message
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+                "add_to_selected": "add_to_selected",
+                "choice": "Message",
+                "existing_entry": message.pk,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        # Check that members were added to the message
+        message.refresh_from_db()
+        self.assertEqual(message.to_members.count(), 2)
+        self.assertIn(self.fritz, message.to_members.all())
+        self.assertIn(self.peter, message.to_members.all())
+
+    def test_create_object_from_add_to_existing_excursion(self):
+        """Test adding members to an existing Excursion."""
+        # Create a test excursion
+        excursion = Freizeit.objects.create(
+            name="Test Excursion",
+            date=timezone.now(),
+            end=timezone.now() + timezone.timedelta(days=1),
+            kilometers_traveled=100,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'add_to_selected' and existing excursion
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+                "add_to_selected": "add_to_selected",
+                "choice": "Excursion",
+                "existing_entry": excursion.pk,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        # Check that members were added to the excursion
+        self.assertEqual(excursion.membersonlist.count(), 2)
+
+    def test_create_object_from_add_to_existing_membernotelist(self):
+        """Test adding members to an existing MemberNoteList."""
+        # Create a test note list
+        note_list = MemberNoteList.objects.create(
+            title="Test Note List", date=timezone.now().date()
+        )
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'add_to_selected' and existing note list
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+                "add_to_selected": "add_to_selected",
+                "choice": "MemberNoteList",
+                "existing_entry": note_list.pk,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        # Check that members were added to the note list
+        self.assertEqual(note_list.membersonlist.count(), 2)
+
+    def test_create_object_from_add_to_nonexistent_message(self):
+        """Test error handling when adding to non-existent message."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with non-existent message ID
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk],
+                "add_to_selected": "add_to_selected",
+                "choice": "Message",
+                "existing_entry": 99999,
+            },
+            follow=True,
+        )
+        # Should redirect back to changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+    def test_create_object_from_add_to_nonexistent_excursion(self):
+        """Test error handling when adding to non-existent excursion."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with non-existent excursion ID
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk],
+                "add_to_selected": "add_to_selected",
+                "choice": "Excursion",
+                "existing_entry": 99999,
+            },
+            follow=True,
+        )
+        # Should redirect back to changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+    def test_create_object_from_add_to_nonexistent_membernotelist(self):
+        """Test error handling when adding to non-existent note list."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with non-existent note list ID
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk],
+                "add_to_selected": "add_to_selected",
+                "choice": "MemberNoteList",
+                "existing_entry": 99999,
+            },
+            follow=True,
+        )
+        # Should redirect back to changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+    def test_create_object_from_with_no_choice(self):
+        """Test clicking create button without selecting a choice."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'create' but no choice
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk],
+                "create": "create",
+            },
+        )
+        # Should show the form again (no redirect)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("allowed_choices", response.context)
+
+    def test_create_object_from_add_without_entry_id(self):
+        """Test clicking add_to_selected button without selecting an existing entry."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'add_to_selected' but no entry_id
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk],
+                "add_to_selected": "add_to_selected",
+                "choice": "Message",
+            },
+            follow=True,
+        )
+        # Should redirect back to changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
 
 class FreizeitTestCase(BasicMemberTestCase):
     def setUp(self):
@@ -1246,6 +1494,34 @@ class FreizeitTestCase(BasicMemberTestCase):
         self.assertNotIn(self.ex2, to_send)
         self.assertNotIn(self.ex3, to_send)
         self.assertIn(self.ex2, to_notify)
+
+    def test_get_dropdown_display(self):
+        """Test get_dropdown_display formats name and date correctly."""
+        display = self.ex.get_dropdown_display()
+        self.assertIn("Wild trip", display)
+        self.assertIn("-", display)
+        self.assertRegex(display, r"\d{2}\.\d{2}\.\d{4}")
+
+    def test_filter_queryset_by_change_permissions_without_member_attribute(self):
+        """Test filter_queryset when user has no member attribute."""
+        user = User.objects.create_user(username="no_member", password="secret")
+        queryset = Freizeit.filter_queryset_by_change_permissions(user)
+        self.assertEqual(queryset.count(), 0)
+
+    def test_filter_queryset_by_change_permissions_with_limited_permissions(self):
+        """Test filter_queryset when user has member but limited permissions."""
+        user = User.objects.create_user(username="limited_user", password="secret")
+        member = Member.objects.create(
+            prename="Limited",
+            lastname="User",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=DIVERSE,
+        )
+        member.user = user
+        member.save()
+        queryset = Freizeit.filter_queryset_by_change_permissions(user)
+        self.assertIsNotNone(queryset)
 
 
 class PDFActionMixin:
@@ -1598,6 +1874,34 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self.st.refresh_from_db()
         self.assertEqual(self.st.created_by, user_with_member.member)
 
+    def test_memberonlist_inline_get_formset_with_members_param(self):
+        """Test MemberOnListInline.get_formset with members query parameter."""
+        c = self._login("superuser")
+        url = reverse("admin:members_freizeit_add")
+        member_ids = [self.yl1.pk, self.yl2.pk]
+        import json
+
+        members_json = json.dumps(member_ids)
+        response = c.get(f"{url}?members={members_json}")
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_memberonlist_inline_get_formset_with_invalid_json(self):
+        """Test MemberOnListInline.get_formset with invalid JSON in members parameter."""
+        c = self._login("superuser")
+        url = reverse("admin:members_freizeit_add")
+        response = c.get(f"{url}?members=invalid-json")
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_memberonlist_inline_get_formset_with_non_list_json(self):
+        """Test MemberOnListInline.get_formset with non-list JSON in members parameter."""
+        c = self._login("superuser")
+        url = reverse("admin:members_freizeit_add")
+        import json
+
+        members_json = json.dumps({"not": "a list"})
+        response = c.get(f"{url}?members={members_json}")
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
 
 class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
     def setUp(self):
@@ -1632,6 +1936,31 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
         url = reverse("admin:members_membernotelist_change", args=(self.note.pk,))
         response = c.get(url)
         self.assertEqual(response.status_code, 200, "Response code is not 200.")
+
+    def test_get_dropdown_display_with_date(self):
+        """Test get_dropdown_display when note list has a date."""
+        note_with_date = MemberNoteList.objects.create(
+            title="Test Note", date=timezone.now().date()
+        )
+        display = note_with_date.get_dropdown_display()
+        self.assertIn("Test Note", display)
+        self.assertIn("-", display)
+        # Should contain formatted date
+        self.assertRegex(display, r"\d{2}\.\d{2}\.\d{4}")
+
+    def test_get_dropdown_display_without_date(self):
+        """Test get_dropdown_display when note list has no date."""
+        note_without_date = MemberNoteList.objects.create(title="No Date Note", date=None)
+        display = note_without_date.get_dropdown_display()
+        self.assertEqual(display, "No Date Note")
+
+    def test_filter_queryset_by_change_permissions_without_permission(self):
+        """Test filtering queryset when user lacks change permission."""
+        # Standard user doesn't have change_membernotelist permission
+        user = User.objects.get(username="standard")
+        queryset = MemberNoteList.filter_queryset_by_change_permissions(user)
+        # Should return empty queryset
+        self.assertEqual(queryset.count(), 0)
 
 
 class MemberWaitingListAdminTestCase(AdminTestCase):

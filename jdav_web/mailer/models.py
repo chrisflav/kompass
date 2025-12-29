@@ -230,6 +230,20 @@ class Message(CommonModel):
             self.save()
         return success
 
+    def add_members(self, queryset):
+        for member in queryset:
+            self.to_members.add(member)
+        self.save()
+
+    @classmethod
+    def filter_queryset_by_change_permissions_member(cls, member, queryset):
+        return member.filter_messages_by_permissions(queryset)
+
+    @classmethod
+    def filter_queryset_by_change_permissions(cls, user, queryset=None):
+        queryset = super().filter_queryset_by_change_permissions(user, queryset)
+        return queryset.filter(sent=False)
+
     class Meta(CommonModel.Meta):
         verbose_name = _("message")
         verbose_name_plural = _("messages")

@@ -44,6 +44,10 @@ class CommonModelTestCase(TestCase):
         self.assertTrue(issubclass(CommonModel, RulesModelMixin))
         self.assertEqual(CommonModel.__class__, RulesModelBase)
 
+    def test_filter_queryset_by_change_permissions_member(self):
+        # `filter_queryset_by_change_permissions_member` is a no-op
+        self.assertEqual(CommonModel.filter_queryset_by_change_permissions_member(None, 42), 42)
+
 
 class GlobalPermissionRulesTestCase(TestCase):
     def setUp(self):

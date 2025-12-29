@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -34,6 +35,15 @@ class MemberNoteList(models.Model):
             return queryset
         else:
             return MemberNoteList.objects.none()
+
+    def add_members(self, queryset):
+        content_type = ContentType.objects.get_for_model(MemberNoteList)
+
+        # Add selected members to the note list
+        for member in queryset:
+            NewMemberOnList.objects.get_or_create(
+                member=member, content_type=content_type, object_id=self.pk
+            )
 
     class Meta:
         verbose_name = "Notizliste"
