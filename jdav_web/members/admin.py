@@ -479,6 +479,13 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             messages.warning(
                 request, _("%(name)s does not receive the newsletter.") % {"name": member.name}
             )
+        elif not member.birth_date:
+            messages.error(
+                request,
+                _(
+                    "Member {name} doesn't have a birthdate set, which is mandatory for echo requests"
+                ).format(name=member.name),
+            )
         else:
             member.request_echo()
             messages.success(

@@ -993,6 +993,21 @@ class MemberAdminTestCase(AdminTestCase):
         response = c.get(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_request_echo_view_fail_on_missing_birthdate(self):
+        self.peter.birth_date = None
+        self.peter.save()
+
+        c = self._login("superuser")
+        url = reverse("admin:members_member_requestecho", args=(self.peter.pk,))
+        response = c.get(url, follow=True)
+
+        self.assertContains(
+            response,
+            _(
+                "Member {name} doesn't have a birthdate set, which is mandatory for echo requests"
+            ).format(name=self.peter.name),
+        )
+
     def test_activity_score(self):
         # manually set activity score
         for i in range(5):
