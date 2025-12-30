@@ -39,6 +39,7 @@ from members.admin import KlettertreffAdmin
 from members.admin import MemberAdmin
 from members.admin import MemberAdminForm
 from members.admin import MemberNoteListAdmin
+from members.admin import MemberOnListInlineForm
 from members.admin import MemberTrainingAdmin
 from members.admin import MemberUnconfirmedAdmin
 from members.admin import MemberWaitingListAdmin
@@ -1977,6 +1978,26 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
         queryset = MemberNoteList.filter_queryset_by_change_permissions(user)
         # Should return empty queryset
         self.assertEqual(queryset.count(), 0)
+
+
+class MemberOnListInlineFormTestCase(TestCase):
+    def test_has_changed_with_prefilled(self):
+        """Test that has_changed on member field works correctly when prefilled=True."""
+        # Create a test member
+        member = Member.objects.create(
+            prename="Test",
+            lastname="User",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=MALE,
+        )
+
+        form = MemberOnListInlineForm(prefilled=True)
+
+        # Test that has_changed returns True for non-empty data
+        self.assertTrue(form.fields["member"].has_changed(None, str(member.pk)))
+        # Test that has_changed returns False for empty string
+        self.assertFalse(form.fields["member"].has_changed(None, ""))
 
 
 class MemberWaitingListAdminTestCase(AdminTestCase):
