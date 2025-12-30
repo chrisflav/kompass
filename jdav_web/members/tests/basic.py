@@ -38,8 +38,8 @@ from members.admin import InvitedToGroupFilter
 from members.admin import KlettertreffAdmin
 from members.admin import MemberAdmin
 from members.admin import MemberAdminForm
-from members.admin import MemberOnListInlineForm
 from members.admin import MemberNoteListAdmin
+from members.admin import MemberOnListInlineForm
 from members.admin import MemberTrainingAdmin
 from members.admin import MemberUnconfirmedAdmin
 from members.admin import MemberWaitingListAdmin
