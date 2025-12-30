@@ -1979,8 +1979,10 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
         # Should return empty queryset
         self.assertEqual(queryset.count(), 0)
 
-    def test_memberonlistinlineform_has_changed_with_prefilled(self):
-        """Test that MemberOnListInlineForm.has_changed works correctly when prefilled=True."""
+
+class MemberOnListInlineFormTestCase(TestCase):
+    def test_has_changed_with_prefilled(self):
+        """Test that has_changed on member field works correctly when prefilled=True."""
         # Create a test member
         member = Member.objects.create(
             prename="Test",
