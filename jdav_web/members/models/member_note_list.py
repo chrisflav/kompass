@@ -1,14 +1,10 @@
 from datetime import datetime
 
-from contrib.media import media_path
-from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from mailer.mailutils import send as send_mail
-from members.pdf import render_tex
 
 from .member_on_list import NewMemberOnList
 
@@ -71,43 +67,6 @@ class MemberNoteList(models.Model):
         if self.date:
             return f"N{self.date:%y}-{self.pk}"
         return f"N-{self.pk}"
-
-    def send_crisis_intervention_list(self, recipients=None):
-        """
-        Generate and send the crisis intervention list as PDF.
-
-        Args:
-            recipients: List of email addresses to send to. If None, sends to crisis intervention email.
-        """
-        if recipients is None:
-            recipients = [settings.SEKTION_CRISIS_INTERVENTION_MAIL]
-
-        context = dict(memberlist=self, settings=settings)
-        filename = render_tex(
-            f"{self.code}_{self.title}_Krisenliste",
-            "members/crisis_intervention_list.tex",
-            context,
-            date=self.date if self.date else datetime.today(),
-            save_only=True,
-        )
-
-        # Create email with attachment
-        send_mail(
-            _("Crisis intervention list for %(activity)s") % {"activity": self.title},
-            _(
-                "Please find attached the crisis intervention list for the activity '%(activity)s'.\n\n"
-                "Time period: %(time_period)s\n"
-                "Location: %(location)s"
-            )
-            % {
-                "activity": self.title,
-                "time_period": self.time_period_str,
-                "location": self.location or _("Not specified"),
-            },
-            sender=settings.DEFAULT_SENDING_MAIL,
-            recipients=recipients,
-            attachments=[media_path(filename)],
-        )
 
     @staticmethod
     def filter_queryset_by_change_permissions(user, queryset=None):
