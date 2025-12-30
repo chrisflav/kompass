@@ -1421,6 +1421,7 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
 
 class MemberOnListInlineForm(forms.ModelForm):
     """Custom form for the `MemberOnListInline`"""
+
     class Meta:
         model = NewMemberOnList
         exclude = []
