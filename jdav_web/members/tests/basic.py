@@ -1990,17 +1990,10 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
             gender=MALE,
         )
 
-        # Create form class with model specified and prefilled=True
-        class TestForm(MemberOnListInlineForm):
-            class Meta:
-                model = NewMemberOnList
-                fields = "__all__"
-
-        form = TestForm(prefilled=True)
+        form = MemberOnListInlineForm(prefilled=True)
 
         # Test that has_changed returns True for non-empty data
         self.assertTrue(form.fields["member"].has_changed(None, str(member.pk)))
-
         # Test that has_changed returns False for empty string
         self.assertFalse(form.fields["member"].has_changed(None, ""))
 
