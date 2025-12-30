@@ -8,19 +8,19 @@
 % DESCRIPTION TABLE
 \begin{table}[H]
     \begin{tabular}{ll}
-        \large Aktivität: & {{ memberlist.name|esc_all }} \\
+        \large Aktivität: & {{ memberlist.name|default:memberlist.title|esc_all }} \\
         \large Ordnungsnummer & {{ memberlist.code|esc_all }} \\
-        \large Gruppe: & {{ memberlist.groups_str|esc_all }}  \\
-        \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }} \\
-        \large ggf. Ziel: & {{ memberlist.destination|esc_all }} \\
+        {% if memberlist.groups_str %}\large Gruppe: & {{ memberlist.groups_str|esc_all }}  \\{% endif %}
+        \large Ort / Stützpunkt: & {{ memberlist.place|default:memberlist.location|esc_all }} \\
+        {% if memberlist.destination %}\large ggf. Ziel: & {{ memberlist.destination|esc_all }} \\{% endif %}
         \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
-        \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }} \\
-        \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' memberlist.get_tour_type %}
+        {% if memberlist.staff_str %}\large Betreuer:innen: & {{ memberlist.staff_str|esc_all }} \\{% endif %}
+        {% if memberlist.get_tour_type %}\large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' memberlist.get_tour_type %}
             {% checked_if_true 'Führungstour' memberlist.get_tour_type %}
-            {% checked_if_true 'Ausbildung' memberlist.get_tour_type %} \\
-        \large Anreise: & {% checked_if_true 'ÖPNV' memberlist.get_tour_approach %}
+            {% checked_if_true 'Ausbildung' memberlist.get_tour_type %} \\{% endif %}
+        {% if memberlist.get_tour_approach %}\large Anreise: & {% checked_if_true 'ÖPNV' memberlist.get_tour_approach %}
             {% checked_if_true 'Muskelkraft' memberlist.get_tour_approach %}
-            {% checked_if_true 'Fahrgemeinschaften' memberlist.get_tour_approach %}
+            {% checked_if_true 'Fahrgemeinschaften' memberlist.get_tour_approach %}{% endif %}
     \end{tabular}
 \end{table}
 

@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from functools import update_wrapper
 
 import nested_admin
@@ -1513,10 +1514,16 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
 
 class MemberNoteListAdmin(admin.ModelAdmin):
     inlines = [MemberOnListInline]
-    list_display = ["__str__", "date"]
-    search_fields = ("name",)
+    list_display = ["__str__", "date", "date_end", "location"]
+    search_fields = ("title", "location", "description")
     ordering = ("-date",)
-    actions = ["summary"]
+    actions = ["summary", "generate_crisis_list"]
+    fieldsets = [
+        (
+            None,
+            {"fields": ["title", "date", "date_end", "location", "description"]},
+        ),
+    ]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -1540,6 +1547,8 @@ class MemberNoteListAdmin(admin.ModelAdmin):
     def action_view(self, request, object_id):
         if "summary" in request.POST:
             return self.summary(request, [MemberNoteList.objects.get(pk=object_id)])
+        elif "crisis_list" in request.POST:
+            return self.generate_crisis_list(request, [MemberNoteList.objects.get(pk=object_id)])
         return HttpResponseRedirect(
             reverse(
                 "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
@@ -1579,6 +1588,21 @@ class MemberNoteListAdmin(admin.ModelAdmin):
         )
 
     summary.short_description = _("Generate PDF summary")
+
+    def generate_crisis_list(self, request, queryset):
+        """Generate and download crisis intervention list as PDF."""
+        memberlist = queryset[0]
+        if not self.may_view_notelist(request, memberlist):
+            return self.not_allowed_view(request, memberlist)
+        context = dict(memberlist=memberlist, settings=settings)
+        return render_tex(
+            f"{memberlist.code}_{memberlist.title}_Krisenliste",
+            "members/crisis_intervention_list.tex",
+            context,
+            date=memberlist.date if memberlist.date else datetime.today(),
+        )
+
+    generate_crisis_list.short_description = _("Generate crisis intervention list (PDF)")
 
 
 class GenerateSjrForm(forms.Form):

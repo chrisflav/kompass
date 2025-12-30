@@ -1979,6 +1979,80 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
         # Should return empty queryset
         self.assertEqual(queryset.count(), 0)
 
+    def test_time_period_str_single_day(self):
+        """Test time_period_str property for single day activity."""
+        from datetime import date
+
+        test_date = date(2024, 3, 15)
+        note = MemberNoteList.objects.create(title="Single Day Activity", date=test_date)
+        self.assertEqual(note.time_period_str, "15.03.2024")
+
+    def test_time_period_str_multi_day(self):
+        """Test time_period_str property for multi-day activity."""
+        from datetime import date
+
+        test_date_start = date(2024, 3, 15)
+        test_date_end = date(2024, 3, 17)
+        note = MemberNoteList.objects.create(
+            title="Multi Day Activity", date=test_date_start, date_end=test_date_end
+        )
+        self.assertEqual(note.time_period_str, "15.03.2024 - 17.03.2024")
+
+    def test_time_period_str_no_date(self):
+        """Test time_period_str property when no date is set."""
+        note = MemberNoteList.objects.create(title="No Date Activity", date=None)
+        self.assertEqual(note.time_period_str, "")
+
+    def test_code_with_date(self):
+        """Test code property when date is set."""
+        from datetime import date
+
+        test_date = date(2024, 3, 15)
+        note = MemberNoteList.objects.create(title="Test Activity", date=test_date)
+        note.save()
+        self.assertEqual(note.code, f"N24-{note.pk}")
+
+    def test_code_without_date(self):
+        """Test code property when date is not set."""
+        note = MemberNoteList.objects.create(title="No Date Activity", date=None)
+        note.save()
+        self.assertEqual(note.code, f"N-{note.pk}")
+
+    def test_new_fields(self):
+        """Test that new fields can be set and retrieved."""
+        from datetime import date
+
+        note = MemberNoteList.objects.create(
+            title="Crisis Test",
+            date=date(2024, 3, 15),
+            date_end=date(2024, 3, 17),
+            location="Berghütte Schwarzwald",
+            description="Outdoor climbing activity for youth group",
+        )
+        self.assertEqual(note.location, "Berghütte Schwarzwald")
+        self.assertEqual(note.description, "Outdoor climbing activity for youth group")
+        self.assertEqual(note.date_end, date(2024, 3, 17))
+
+    def test_generate_crisis_list_action(self):
+        """Test generating crisis intervention list PDF."""
+        from datetime import date
+
+        note = MemberNoteList.objects.create(
+            title="Crisis Test", date=date(2024, 3, 15), location="Test Location"
+        )
+        # Add members to the list
+        for i in range(3):
+            m = Member.objects.create(
+                prename=f"Test{i}",
+                lastname="Member",
+                birth_date=date(2010, 1, 1),
+                email=settings.TEST_MAIL,
+                gender=MALE,
+            )
+            NewMemberOnList.objects.create(member=m, memberlist=note)
+
+        self._test_pdf("crisis_list", note.pk, model="membernotelist")
+
 
 class MemberOnListInlineFormTestCase(TestCase):
     def test_has_changed_with_prefilled(self):
