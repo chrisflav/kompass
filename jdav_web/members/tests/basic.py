@@ -2053,6 +2053,34 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
         self.assertIn(member1.pk, member_pks)
         self.assertIn(member2.pk, member_pks)
 
+    def test_memberonlistinlineform_has_changed_with_prefilled(self):
+        """Test that MemberOnListInlineForm.has_changed works correctly when prefilled=True."""
+        from members.admin import MemberOnListInlineForm
+        from members.models import NewMemberOnList
+
+        # Create a test member
+        member = Member.objects.create(
+            prename="Test",
+            lastname="User",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=MALE,
+        )
+
+        # Create form class with model specified and prefilled=True
+        class TestForm(MemberOnListInlineForm):
+            class Meta:
+                model = NewMemberOnList
+                fields = "__all__"
+
+        form = TestForm(prefilled=True)
+
+        # Test that has_changed returns True for non-empty data
+        self.assertTrue(form.fields["member"].has_changed(None, str(member.pk)))
+
+        # Test that has_changed returns False for empty string
+        self.assertFalse(form.fields["member"].has_changed(None, ""))
+
 
 class MemberWaitingListAdminTestCase(AdminTestCase):
     def setUp(self):
