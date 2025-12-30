@@ -25,7 +25,11 @@ else ifeq ($(DEV_CMD),translate)
 else ifeq ($(DEV_CMD),createsuperuser)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py createsuperuser"
 else ifeq ($(DEV_CMD),test)
-	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && coverage run manage.py test --keepdb $(DEV_EXTRA_ARGS)"
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && coverage run manage.py test --keepdb $(DEV_EXTRA_ARGS); coverage html"
+	@echo ""
+	@echo "Generated coverage report. To read it, point your browser to:"
+	@echo ""
+	@echo "file://$$(pwd)/jdav_web/htmlcov/index.html"
 else
 	@echo "Usage: make dev [build|up|down|shell|manage|translate|createsuperuser|test]"
 	@echo "  make dev build                        - Build development containers"

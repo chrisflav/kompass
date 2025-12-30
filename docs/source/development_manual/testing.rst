@@ -43,6 +43,9 @@ This approach is faster because it:
 - Uses the existing development environment (no need to build a separate test container)
 - Preserves the test database between runs with ``--keepdb``
 - Allows you to quickly test specific modules or test cases
+- Automatically generates an HTML coverage report in ``jdav_web/htmlcov/index.html``
+
+The coverage report is generated even if tests fail, so you can always review which lines were covered.
 
 Continuous integration
 ----------------------
