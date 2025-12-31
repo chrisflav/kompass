@@ -35,24 +35,19 @@ For faster iteration during development, you can run tests in the development Do
     # Run a specific test class
     make dev test members.tests.basic.MemberTestCase
 
-    # Run a specific test method
-    make dev test members.tests.basic.MemberTestCase.test_str
+    # Run specific test methods
+    make dev test members.tests.basic.GroupTestCase.test_str members.tests.basic.MemberTestCase.test_place
 
-    # Run tests without keeping the database (clean database each time)
-    make dev test keepdb=false
-    make dev test members.tests keepdb=false
 
-This approach is faster because it:
+By default, the test database is only created once and then reused in follow-up runs. To regenerate
+the database, use ``keepdb=false``:
 
-- Uses the existing development environment (no need to build a separate test container)
-- Preserves the test database between runs with ``--keepdb`` (enabled by default)
-- Allows you to quickly test specific modules or test cases
-- Automatically generates an HTML coverage report in ``jdav_web/htmlcov/index.html``
+.. code-block:: bash
 
-The coverage report is generated even if tests fail, so you can always review which lines were covered.
+   make dev test keepdb=false members.tests.basic.GroupTestCase.test_str
 
-By default, ``keepdb=true`` is used to preserve the test database between runs for faster execution.
-If you need a clean database state, use ``keepdb=false``.
+After running the tests a coverage report is generated, even if the tests fail.
+Keep in mind that when running only a few tests, the coverage report only contains local information.
 
 Continuous integration
 ----------------------
