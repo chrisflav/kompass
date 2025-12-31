@@ -50,10 +50,8 @@ def render_docx(name, template_path, context, date=None, save_only=False):
         capture_output=True,
         text=True,
     )
-    if result.stdout:
-        logger.debug(f"Pandoc stdout: {result.stdout}")
-    if result.stderr:
-        logger.debug(f"Pandoc stderr: {result.stderr}")
+    logger.debug(f"Pandoc stdout: {result.stdout}")
+    logger.debug(f"Pandoc stderr: {result.stderr}")
     time.sleep(1)
     os.chdir(oldwd)
     if save_only:
@@ -90,10 +88,8 @@ def render_tex(name, template_path, context, date=None, save_only=False):
         capture_output=True,
         text=True,
     )
-    if result.stdout:
-        logger.debug(f"pdflatex stdout: {result.stdout}")
-    if result.stderr:
-        logger.debug(f"pdflatex stderr: {result.stderr}")
+    logger.debug(f"pdflatex stdout: {result.stdout}")
+    logger.debug(f"pdflatex stderr: {result.stderr}")
     time.sleep(1)
 
     # do some cleanup
