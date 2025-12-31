@@ -129,9 +129,24 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span><span class="nb">test</span>
 </span></code></pre></div>
 </div>
-<p>If you don’t want to test on a clean database every time, you can pass the option <code class="docutils literal notranslate"><span class="pre">keepdb=true</span></code> to preserve the
-state of the database. This saves some time, because the migrations don’t have to be re-applied. Note that
-all migrations will be flagged as uncovered in the coverage report.</p>
+<p>The test command supports several optional parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">keepdb=true</span></code> - Preserve the database between test runs (default: false)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">verbosity=N</span></code> - Set Django test verbosity level 0-3 (default: 2)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">quiet=true</span></code> - Show only master container output, hide other services (default: false)</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="c1"># Run tests with minimal output</span>
+</span><span id="line-2">make<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="nv">verbosity</span><span class="o">=</span><span class="m">0</span><span class="w"> </span><span class="nv">quiet</span><span class="o">=</span><span class="nb">true</span>
+</span><span id="line-3">
+</span><span id="line-4"><span class="c1"># Preserve database and use verbosity level 1</span>
+</span><span id="line-5">make<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="nv">keepdb</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="nv">verbosity</span><span class="o">=</span><span class="m">1</span>
+</span><span id="line-6">
+</span><span id="line-7"><span class="c1"># Quiet mode to hide database/redis/cache container output</span>
+</span><span id="line-8">make<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="nv">quiet</span><span class="o">=</span><span class="nb">true</span>
+</span></code></pre></div>
+</div>
+<p>Note: When using <code class="docutils literal notranslate"><span class="pre">keepdb=true</span></code>, migrations are not re-applied, which saves time but causes
+all migrations to be flagged as uncovered in the coverage report.</p>
 </section>
 <section id="running-tests-during-development">
 <h2>Running tests during development<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#running-tests-during-development" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#running-tests-during-development'">¶</a></h2>
