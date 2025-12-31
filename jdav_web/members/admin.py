@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin import DateFieldListFilter
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.contenttypes.admin import GenericTabularInline
 from django.core.exceptions import ValidationError
 from django.db.models import Case
@@ -201,14 +202,14 @@ class CrisisInterventionListForm(forms.Form):
         label=_("Youth leaders"),
         help_text=_("Youth leaders supervising the activity"),
         required=False,
-        widget=forms.SelectMultiple(attrs={"size": 8}),
+        widget=FilteredSelectMultiple(_("Youth leaders"), is_stacked=False),
     )
     groups = forms.ModelMultipleChoiceField(
         queryset=Group.objects.all(),
         label=_("Groups"),
         help_text=_("Groups participating in the activity"),
         required=False,
-        widget=forms.SelectMultiple(attrs={"size": 8}),
+        widget=FilteredSelectMultiple(_("Groups"), is_stacked=False),
     )
 
 

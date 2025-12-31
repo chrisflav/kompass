@@ -3,8 +3,10 @@
 
 {% block extrahead %}
     {{ block.super }}
-    {{ media }}
+    {{ form.media }}
     <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
 {% endblock %}
 
 {% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter{% endblock %}
@@ -30,13 +32,13 @@
 
 <p>{% translate "Please enter the details for the activity:" %}</p>
 
-<form action="" method="post">
+<form action="" method="post" id="crisis-intervention-form" target="_blank">
     {% csrf_token %}
     <input type="hidden" name="members" value="{{ members_json }}">
 
-    <div class="form-row">
-        {{ form.as_p }}
-    </div>
+    <table>
+        {{ form.as_table }}
+    </table>
 
     <div class="submit-row">
         <input type="submit" value="{% translate 'Generate Crisis Intervention List' %}" class="default">
