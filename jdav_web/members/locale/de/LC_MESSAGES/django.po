@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-29 10:19+0100\n"
+"POT-Creation-Date: 2025-12-31 16:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,6 +48,30 @@ msgstr ""
 "Einverständniserklärung für Medikamentengabe). Diese Dokumente werden "
 "zentral gespeichert und sind im Notfall abrufbar."
 
+msgid "Location"
+msgstr "Ort"
+
+msgid "Location where the activity takes place"
+msgstr "Ort, an dem die Aktivität stattfindet"
+
+msgid "Start date"
+msgstr "Startdatum"
+
+msgid "Start date of the activity"
+msgstr "Startdatum der Aktivität"
+
+msgid "End date"
+msgstr "Enddatum"
+
+msgid "End date of the activity"
+msgstr "Enddatum der Aktivität"
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "Description of the activity"
+msgstr "Beschreibung der Aktivität"
+
 msgid "The entered IBAN is not valid."
 msgstr "Die eingegebene IBAN ist ungültig."
 
@@ -74,6 +98,9 @@ msgstr ""
 #, python-format
 msgid "Selected %(model)s does not exist."
 msgstr "Ausgewählte(s) %(model)s existiert nicht."
+
+msgid "Crisis Intervention List"
+msgstr "Kriseninterventionsliste"
 
 msgid "Create object from selected members"
 msgstr "Objekt aus ausgewählten Teilnehmer*innen erstellen"
@@ -160,6 +187,17 @@ msgstr ""
 msgid "Unconfirm selected members."
 msgstr ""
 "Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
+
+msgid "No members selected."
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid emergency contacts"
+msgid "Invalid member selection."
+msgstr "Ungültige Notfallkontakte"
+
+msgid "Create Crisis Intervention List"
+msgstr "Kriseninterventionsliste erstellen"
 
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
@@ -468,9 +506,6 @@ msgid ""
 "The official category for LJP applications associated with this activity."
 msgstr "Die offizielle Spielart für LJP Anträge mit dieser Aktivität."
 
-msgid "Description"
-msgstr "Beschreibung"
-
 msgid "Activity"
 msgstr "Aktivität"
 
@@ -694,9 +729,6 @@ msgstr "Teilnahme an Schnupperstunde bestätigt"
 
 msgid "Date"
 msgstr "Datum"
-
-msgid "Location"
-msgstr "Ort"
 
 msgid "Topic"
 msgstr "Thema"
@@ -1060,6 +1092,15 @@ msgstr "Start"
 msgid "Selected members:"
 msgstr "Ausgewählte Teilnehmer*innen:"
 
+msgid "Please enter the details for the activity:"
+msgstr "Bitte gib die Details für die Aktivität ein:"
+
+msgid "Generate Crisis Intervention List"
+msgstr "Kriseninterventionsliste generieren"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
 msgid "Select object type:"
 msgstr "Wähle Objekttyp:"
 
@@ -1074,9 +1115,6 @@ msgstr "Zu Bestehendem hinzufügen"
 
 msgid "Create"
 msgstr "Erstellen"
-
-msgid "Cancel"
-msgstr "Abbrechen"
 
 msgid "Select existing entry:"
 msgstr "Wähle bestehenden Eintrag:"

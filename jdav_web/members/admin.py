@@ -730,6 +730,17 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             form = CrisisInterventionListForm(request.POST)
             if form.is_valid():
                 # Create a temporary object with necessary attributes for the template
+                class MockMemberOnList:
+                    def __init__(self, member):
+                        self.member = member
+
+                class MockMembersOnList:
+                    def __init__(self, members):
+                        self._members = members
+
+                    def all(self):
+                        return self._members
+
                 class CrisisListData:
                     def __init__(self, form_data, members):
                         self.name = form_data["description"]
@@ -748,18 +759,13 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                         self.staff_str = ""
                         self.date = start
                         # Create mock members on list
-                        self.membersonlist = type("MembersOnList", (), {"all": lambda: members})()
+                        self.membersonlist = MockMembersOnList(members)
 
                     def get_tour_type(self):
                         return ""
 
                     def get_tour_approach(self):
                         return ""
-
-                # Create mock member objects with the member attribute
-                class MockMemberOnList:
-                    def __init__(self, member):
-                        self.member = member
 
                 mock_members = [MockMemberOnList(m) for m in members]
                 crisis_list = CrisisListData(form.cleaned_data, mock_members)

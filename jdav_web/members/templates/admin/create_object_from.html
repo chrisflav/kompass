@@ -145,12 +145,20 @@
         $(this).addClass('selected');
         $(this).find('input[type="radio"]').prop('checked', true);
         $('#choice-value').val(choice);
-        $('#action-buttons').addClass('visible');
-        $('#create-buttons').removeClass('visible');
-        $('#existing-entry-dropdown').removeClass('visible');
-        // Reset action selection
-        $('.action-item').removeClass('selected');
-        $('input[name="action_radio"]').prop('checked', false);
+
+        // For Crisis Intervention List, skip action selection and go straight to create
+        if (choice === 'CrisisInterventionList') {
+            $('#action-buttons').removeClass('visible');
+            $('#create-buttons').addClass('visible');
+            $('#existing-entry-dropdown').removeClass('visible');
+        } else {
+            $('#action-buttons').addClass('visible');
+            $('#create-buttons').removeClass('visible');
+            $('#existing-entry-dropdown').removeClass('visible');
+            // Reset action selection
+            $('.action-item').removeClass('selected');
+            $('input[name="action_radio"]').prop('checked', false);
+        }
     });
 
     // Handle action selection (create vs add to existing)
