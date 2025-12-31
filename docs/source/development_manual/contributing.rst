@@ -49,7 +49,7 @@ Pull request descriptions should:
 
 - Be kept short and concise
 - Avoid repetitions
-- Use no formatting beyond backticks for inline code (````code````) or code blocks
+- Use no formatting beyond single backticks for inline code (```code```) or code blocks
 - Explain what changes were made and why
 - Not repeat information already in the title
 - Not include "Generated with Claude" or similar lines
