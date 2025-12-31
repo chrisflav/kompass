@@ -75,3 +75,11 @@ else
 test:
 	@:
 endif
+
+# Only execute the docs target if it's not being called via 'make dev docs'
+ifneq (dev,$(firstword $(MAKECMDGOALS)))
+# No standalone docs target
+else
+docs:
+	@:
+endif
