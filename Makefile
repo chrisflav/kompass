@@ -45,7 +45,7 @@ else
 	@echo "  make dev translate                    - Generate and compile translation files"
 	@echo "  make dev createsuperuser              - Create a superuser account"
 	@echo "  make dev test [<test-args>]           - Run tests with coverage (keepdb=true by default)"
-	@echo "  make dev test [<test-args>] keepdb=false - Run tests without keeping database"
+	@echo "  make dev test keepdb=false [<test-args>] - Run tests without keeping database"
 endif
 
 build-test:
