@@ -111,6 +111,7 @@ The following Make commands are available for development:
 - ``make dev shell`` - Open a bash shell in the running container
 - ``make dev createsuperuser`` - Create a Django superuser account
 - ``make dev translate`` - Generate and compile translation files (runs ``makemessages`` and ``compilemessages``)
+- ``make dev docs`` - Build Sphinx documentation (output: ``docs/build/html/index.html``)
 - ``make dev test`` - Run all tests with coverage in the development environment (uses ``--keepdb`` by default)
 - ``make dev test <test-path>`` - Run specific tests (e.g., ``make dev test members.tests.basic``)
 - ``make dev test keepdb=false`` - Run tests without keeping the database between runs
