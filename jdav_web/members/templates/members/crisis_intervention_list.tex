@@ -14,13 +14,13 @@
         \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }} \\
         \large ggf. Ziel: & {{ memberlist.destination|esc_all }} \\
         \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
-        \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }} \\
+        \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }}{% if memberlist.get_tour_type %} \\
         \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' memberlist.get_tour_type %}
             {% checked_if_true 'Führungstour' memberlist.get_tour_type %}
             {% checked_if_true 'Ausbildung' memberlist.get_tour_type %} \\
         \large Anreise: & {% checked_if_true 'ÖPNV' memberlist.get_tour_approach %}
             {% checked_if_true 'Muskelkraft' memberlist.get_tour_approach %}
-            {% checked_if_true 'Fahrgemeinschaften' memberlist.get_tour_approach %}
+            {% checked_if_true 'Fahrgemeinschaften' memberlist.get_tour_approach %}{% endif %}
     \end{tabular}
 \end{table}
 

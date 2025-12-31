@@ -1299,13 +1299,13 @@ class MemberAdminTestCase(AdminTestCase):
         url += f"?members=[{self.fritz.pk},{self.peter.pk}]"
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, "Create Crisis Intervention List")
+        self.assertContains(response, _("Create Crisis Intervention List"))
         self.assertContains(response, self.fritz.name)
         self.assertContains(response, self.peter.name)
-        self.assertContains(response, "Location")
-        self.assertContains(response, "Start date")
-        self.assertContains(response, "End date")
-        self.assertContains(response, "Description")
+        self.assertContains(response, _("Location"))
+        self.assertContains(response, _("Start date"))
+        self.assertContains(response, _("End date"))
+        self.assertContains(response, _("Description"))
 
     @mock.patch("members.admin.render_tex")
     def test_crisis_intervention_list_form_post_generates_pdf(self, mock_render_tex):
@@ -1324,6 +1324,36 @@ class MemberAdminTestCase(AdminTestCase):
                 "start_date": "2024-01-01",
                 "end_date": "2024-01-02",
                 "description": "Test Activity",
+            },
+        )
+        # Should return PDF
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        # Verify render_tex was called
+        self.assertTrue(mock_render_tex.called)
+
+    @mock.patch("members.admin.render_tex")
+    def test_crisis_intervention_list_form_with_youth_leaders_and_groups(self, mock_render_tex):
+        """Test crisis intervention list form with youth leaders and groups."""
+        # Mock render_tex to return a PDF response
+        mock_response = HttpResponse(content_type="application/pdf")
+        mock_render_tex.return_value = mock_response
+
+        # Get a group to test with
+        cool_kids = Group.objects.get(name="cool kids")
+
+        c = self._login("superuser")
+        url = reverse("admin:members_member_create_crisis_intervention_list")
+        url += f"?members=[{self.fritz.pk},{self.peter.pk}]"
+        response = c.post(
+            url,
+            data={
+                "place": "Test Location",
+                "start_date": "2024-01-01",
+                "end_date": "2024-01-02",
+                "description": "Test Activity",
+                "youth_leaders": [self.fritz.pk],
+                "groups": [cool_kids.pk],
             },
         )
         # Should return PDF

@@ -196,6 +196,20 @@ class CrisisInterventionListForm(forms.Form):
         label=_("Description"),
         help_text=_("Description of the activity"),
     )
+    youth_leaders = forms.ModelMultipleChoiceField(
+        queryset=Member.objects.all(),
+        label=_("Youth leaders"),
+        help_text=_("Youth leaders supervising the activity"),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"size": 8}),
+    )
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(),
+        label=_("Groups"),
+        help_text=_("Groups participating in the activity"),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"size": 8}),
+    )
 
 
 class MemberAdminForm(forms.ModelForm):
@@ -747,7 +761,21 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                         self.code = f"K-{timezone.now():%y%m%d}"
                         self.place = form_data["place"]
                         self.destination = ""
-                        self.groups_str = ""
+
+                        # Format groups string
+                        groups = form_data.get("groups", [])
+                        if groups:
+                            self.groups_str = ", ".join([g.name for g in groups])
+                        else:
+                            self.groups_str = ""
+
+                        # Format staff string (youth leaders)
+                        youth_leaders = form_data.get("youth_leaders", [])
+                        if youth_leaders:
+                            self.staff_str = ", ".join([yl.name for yl in youth_leaders])
+                        else:
+                            self.staff_str = ""
+
                         start = form_data["start_date"]
                         end = form_data["end_date"]
                         if start == end:
@@ -756,7 +784,6 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                             self.time_period_str = (
                                 f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
                             )
-                        self.staff_str = ""
                         self.date = start
                         # Create mock members on list
                         self.membersonlist = MockMembersOnList(members)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-31 16:35+0100\n"
+"POT-Creation-Date: 2025-12-31 16:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,6 +71,18 @@ msgstr "Beschreibung"
 
 msgid "Description of the activity"
 msgstr "Beschreibung der Aktivität"
+
+msgid "Youth leaders"
+msgstr "Jugendleiter*innen"
+
+msgid "Youth leaders supervising the activity"
+msgstr "Jugendleiter*innen, die die Aktivität betreuen"
+
+msgid "Groups"
+msgstr "Gruppen"
+
+msgid "Groups participating in the activity"
+msgstr "Gruppen, die an der Aktivität teilnehmen"
 
 msgid "The entered IBAN is not valid."
 msgstr "Die eingegebene IBAN ist ungültig."
@@ -583,9 +595,6 @@ msgstr "Anfang"
 
 msgid "End (optional)"
 msgstr "Ende"
-
-msgid "Groups"
-msgstr "Gruppen"
 
 msgid "Number of additional approved youth leaders"
 msgstr "Anzahl zusätzlich genehmigter Jugendleiter*innen"
