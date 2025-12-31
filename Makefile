@@ -25,7 +25,11 @@ else ifeq ($(DEV_CMD),translate)
 else ifeq ($(DEV_CMD),createsuperuser)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py createsuperuser"
 else ifeq ($(DEV_CMD),test)
+ifneq ($(keepdb),false)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && coverage run manage.py test --keepdb $(DEV_EXTRA_ARGS); coverage html"
+else
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && coverage run manage.py test $(DEV_EXTRA_ARGS); coverage html"
+endif
 	@echo ""
 	@echo "Generated coverage report. To read it, point your browser to:"
 	@echo ""
@@ -40,7 +44,8 @@ else
 	@echo "  make dev shell                        - Open shell in running container"
 	@echo "  make dev translate                    - Generate and compile translation files"
 	@echo "  make dev createsuperuser              - Create a superuser account"
-	@echo "  make dev test [<test-args>]           - Run tests with coverage"
+	@echo "  make dev test [<test-args>]           - Run tests with coverage (keepdb=true by default)"
+	@echo "  make dev test [<test-args>] keepdb=false - Run tests without keeping database"
 endif
 
 build-test:
