@@ -48,5 +48,5 @@ else
 fi
 coverage html --show-contexts
 coverage json -o htmlcov/coverage.json
-coverage report
+coverage report --show-missing
 coverage report --show-missing > htmlcov/coverage_report.txt
