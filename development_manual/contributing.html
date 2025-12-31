@@ -137,15 +137,35 @@ in particular these are considered to be stable.</p>
 <p>If you have standard write access to the repository, feel free to create new branches.  To make organization
 easier, please follow the branch naming convention: <code class="docutils literal notranslate"><span class="pre">&lt;username&gt;/&lt;feature&gt;</span></code>.</p>
 </section>
-<section id="workflow">
-<h2>Workflow<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#workflow" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#workflow'">¶</a></h2>
+<section id="pull-requests">
+<h2>Pull requests<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#pull-requests" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#pull-requests'">¶</a></h2>
+<p>All pull requests are squash merged into <code class="docutils literal notranslate"><span class="pre">main</span></code>. The pull request description becomes the commit message,
+so it should be clear and concise.</p>
+<section id="title-format">
+<h3>Title format<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#title-format" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#title-format'">¶</a></h3>
+<p>Pull request titles must follow the conventional commit format:</p>
 <ul class="simple">
-<li><p>request a gitea account from the project maintainers</p></li>
-<li><p>decide on an <a class="reference external" href="https://github.com/chrisflav/kompass/issues">issue</a> to work on or create a new one</p></li>
-<li><p>branch out to an own branch (naming convention: <code class="docutils literal notranslate"><span class="pre">&lt;username&gt;/&lt;feature&gt;</span></code>) from the <code class="docutils literal notranslate"><span class="pre">main</span></code>-branch</p></li>
-<li><p>work on the issue and commit your changes</p></li>
-<li><p>create a pull request from your branch to the <code class="docutils literal notranslate"><span class="pre">main</span></code>-branch</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feat(scope):</span> <span class="pre">short</span> <span class="pre">description</span></code> - New features</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fix(scope):</span> <span class="pre">short</span> <span class="pre">description</span></code> - Bug fixes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">docs(scope):</span> <span class="pre">short</span> <span class="pre">description</span></code> - Documentation changes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">chore(scope):</span> <span class="pre">short</span> <span class="pre">description</span></code> - Maintenance tasks</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">refactor(scope):</span> <span class="pre">short</span> <span class="pre">description</span></code> - Code refactoring</p></li>
 </ul>
+<p>The scope should indicate the affected component (e.g., <code class="docutils literal notranslate"><span class="pre">members</span></code>, <code class="docutils literal notranslate"><span class="pre">finance</span></code>, <code class="docutils literal notranslate"><span class="pre">test</span></code>, <code class="docutils literal notranslate"><span class="pre">ci</span></code>).</p>
+</section>
+<section id="description-format">
+<h3>Description format<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#description-format" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#description-format'">¶</a></h3>
+<p>Pull request descriptions should:</p>
+<ul class="simple">
+<li><p>Be kept short and concise</p></li>
+<li><p>Avoid repetitions</p></li>
+<li><p>Use no formatting beyond single backticks for inline code (<code class="docutils literal notranslate"><span class="pre">`code`</span></code>) or code blocks</p></li>
+<li><p>Explain what changes were made and why</p></li>
+<li><p>Not repeat information already in the title</p></li>
+<li><p>Not include „Generated with Claude“ or similar lines</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">Co-authored-by:</span> <span class="pre">Name</span> <span class="pre">&lt;email&gt;</span></code> to indicate co-authors if needed</p></li>
+</ul>
+</section>
 </section>
 <section id="documentation">
 <span id="development-manual-contributing-documentation"></span><h2>Documentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#documentation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#documentation'">¶</a></h2>
@@ -220,7 +240,11 @@ easier, please follow the branch naming convention: <code class="docutils litera
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
 <li><a :data-current="activeSection === '#organization-and-branches'" class="reference internal" href="#organization-and-branches">Organization and branches</a></li>
-<li><a :data-current="activeSection === '#workflow'" class="reference internal" href="#workflow">Workflow</a></li>
+<li><a :data-current="activeSection === '#pull-requests'" class="reference internal" href="#pull-requests">Pull requests</a><ul>
+<li><a :data-current="activeSection === '#title-format'" class="reference internal" href="#title-format">Title format</a></li>
+<li><a :data-current="activeSection === '#description-format'" class="reference internal" href="#description-format">Description format</a></li>
+</ul>
+</li>
 <li><a :data-current="activeSection === '#documentation'" class="reference internal" href="#documentation">Documentation</a></li>
 <li><a :data-current="activeSection === '#code'" class="reference internal" href="#code">Code</a><ul>
 <li><a :data-current="activeSection === '#linting-and-formatting'" class="reference internal" href="#linting-and-formatting">Linting and formatting</a></li>
