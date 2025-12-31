@@ -111,8 +111,9 @@ The following Make commands are available for development:
 - ``make dev shell`` - Open a bash shell in the running container
 - ``make dev createsuperuser`` - Create a Django superuser account
 - ``make dev translate`` - Generate and compile translation files (runs ``makemessages`` and ``compilemessages``)
-- ``make dev test`` - Run all tests with coverage in the development environment
+- ``make dev test`` - Run all tests with coverage in the development environment (uses ``--keepdb`` by default)
 - ``make dev test <test-path>`` - Run specific tests (e.g., ``make dev test members.tests.basic``)
+- ``make dev test keepdb=false`` - Run tests without keeping the database between runs
 
 Additional docker compose build arguments can be passed using the ``BUILD_ARGS`` variable, such as ``--no-cache``,
 ``--pull``, or ``--progress=plain``. For multiple arguments, quote them: ``BUILD_ARGS="--no-cache --pull"``.

@@ -147,16 +147,22 @@ all migrations will be flagged as uncovered in the coverage report.</p>
 </span><span id="line-9">
 </span><span id="line-10"><span class="c1"># Run a specific test method</span>
 </span><span id="line-11">make<span class="w"> </span>dev<span class="w"> </span><span class="nb">test</span><span class="w"> </span>members.tests.basic.MemberTestCase.test_str
+</span><span id="line-12">
+</span><span id="line-13"><span class="c1"># Run tests without keeping the database (clean database each time)</span>
+</span><span id="line-14">make<span class="w"> </span>dev<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="nv">keepdb</span><span class="o">=</span><span class="nb">false</span>
+</span><span id="line-15">make<span class="w"> </span>dev<span class="w"> </span><span class="nb">test</span><span class="w"> </span>members.tests<span class="w"> </span><span class="nv">keepdb</span><span class="o">=</span><span class="nb">false</span>
 </span></code></pre></div>
 </div>
 <p>This approach is faster because it:</p>
 <ul class="simple">
 <li><p>Uses the existing development environment (no need to build a separate test container)</p></li>
-<li><p>Preserves the test database between runs with <code class="docutils literal notranslate"><span class="pre">--keepdb</span></code></p></li>
+<li><p>Preserves the test database between runs with <code class="docutils literal notranslate"><span class="pre">--keepdb</span></code> (enabled by default)</p></li>
 <li><p>Allows you to quickly test specific modules or test cases</p></li>
 <li><p>Automatically generates an HTML coverage report in <code class="docutils literal notranslate"><span class="pre">jdav_web/htmlcov/index.html</span></code></p></li>
 </ul>
 <p>The coverage report is generated even if tests fail, so you can always review which lines were covered.</p>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">keepdb=true</span></code> is used to preserve the test database between runs for faster execution.
+If you need a clean database state, use <code class="docutils literal notranslate"><span class="pre">keepdb=false</span></code>.</p>
 </section>
 <section id="continuous-integration">
 <h2>Continuous integration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#continuous-integration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#continuous-integration'">¶</a></h2>
