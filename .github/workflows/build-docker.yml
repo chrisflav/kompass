@@ -120,6 +120,10 @@ jobs:
 
       - name: Check coverage
         run: |
+          echo "=== Coverage Report ==="
+          cat docker/test/htmlcov/coverage_report.txt
+          echo ""
+          echo "=== Coverage Check ==="
           COVERAGE=$(python3 -c "import json; data=json.load(open('docker/test/htmlcov/coverage.json')); print(data['totals']['percent_covered'])")
           echo "Coverage: ${COVERAGE}%"
           if (( $(echo "$COVERAGE < 100" | bc -l) )); then
