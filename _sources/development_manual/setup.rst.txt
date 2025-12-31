@@ -70,13 +70,16 @@ Development
 
 If the initial installation was successful, you can start developing. Changes to files cause an automatic
 reload of the development server. If you need to generate and perform database migrations, generate locale files,
-or run tests, you can use make commands. The most common command generates and compiles translation files:
+or run tests, you can use make commands. Common development commands include:
 
 .. code-block:: bash
 
     make dev translate # generate and compile translation files
+    make dev test # run all tests
+    make dev test members.tests # run specific tests or test modules
 
 For more Info about the translation workflow, see https://docs.djangoproject.com/en/5.2/ref/django-admin/#django-admin-makemessages
+
 For less common tasks, you can use the ``shell`` command, to enter the container shell and run any Django management commands:
 
 .. code-block:: bash
@@ -90,7 +93,6 @@ In the container shell, you can run Django management commands, such as:
     python3 manage.py makemigrations # run when you made changes to the data models
     python3 manage.py migrate # run to apply database migrations
     python3 manage.py import_members members/test_data/members.csv # import example members data from CSV file
-    python3 manage.py test members.tests.view.ConfirmInvitationViewTestCase # run specific tests or test modules
     python3 manage.py <command>
 
 For more information on Django management commands, see the https://docs.djangoproject.com/en/4.0/ref/django-admin.
@@ -107,9 +109,11 @@ The following Make commands are available for development:
 - ``make dev up detach=true`` - Start the development environment in background
 - ``make dev down`` - Stop the development environment
 - ``make dev shell`` - Open a bash shell in the running container
-- ``make dev shell`` - Open the container shell to run Django management commands
 - ``make dev createsuperuser`` - Create a Django superuser account
 - ``make dev translate`` - Generate and compile translation files (runs ``makemessages`` and ``compilemessages``)
+- ``make dev test`` - Run all tests with coverage in the development environment (uses ``--keepdb`` by default)
+- ``make dev test <test-path>`` - Run specific tests (e.g., ``make dev test members.tests.basic``)
+- ``make dev test keepdb=false`` - Run tests without keeping the database between runs
 
 Additional docker compose build arguments can be passed using the ``BUILD_ARGS`` variable, such as ``--no-cache``,
 ``--pull``, or ``--progress=plain``. For multiple arguments, quote them: ``BUILD_ARGS="--no-cache --pull"``.
