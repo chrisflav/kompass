@@ -36,6 +36,7 @@ Pull request titles must follow the conventional commit format:
 
 - ``feat(scope): short description`` - New features
 - ``fix(scope): short description`` - Bug fixes
+- ``docs(scope): short description`` - Documentation changes
 - ``chore(scope): short description`` - Maintenance tasks
 - ``refactor(scope): short description`` - Code refactoring
 
@@ -51,18 +52,6 @@ Pull request descriptions should:
 - Use no formatting beyond backticks for inline code (````code````) or code blocks
 - Explain what changes were made and why
 - Not repeat information already in the title
-
-Example:
-
-.. code-block:: text
-
-    Add a verbosity parameter to control Django test output.
-
-    Usage:
-    - `make test verbosity=0` - Minimal output
-    - `make test verbosity=2` - Verbose output (default)
-
-    The parameter is passed via DJANGO_TEST_VERBOSITY environment variable.
 
 
 .. _development_manual/contributing/documentation:
