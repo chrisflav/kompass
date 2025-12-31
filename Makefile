@@ -61,10 +61,22 @@ build-test:
 test-only:
 	mkdir -p docker/test/htmlcov
 	chmod 777 docker/test/htmlcov
+ifeq ($(quiet), true)
+	# Start services in detached mode and show only master container output
 ifeq ($(keepdb), true)
-	cd docker/test; DJANGO_TEST_KEEPDB=1 docker compose up --abort-on-container-exit
+	cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up -d
 else
-	cd docker/test; docker compose up --abort-on-container-exit
+	cd docker/test; DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up -d
+endif
+	cd docker/test; docker compose logs -f master
+	cd docker/test; docker compose down
+else
+	# Show output from all containers
+ifeq ($(keepdb), true)
+	cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --abort-on-container-exit
+else
+	cd docker/test; DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --abort-on-container-exit
+endif
 endif
 	echo "Generated coverage report. To read it, point your browser to:\n\nfile://$$(pwd)/docker/test/htmlcov/index.html"
 

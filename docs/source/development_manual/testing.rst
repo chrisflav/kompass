@@ -15,9 +15,25 @@ To run the complete test suite with coverage reporting, run:
 
     make test
 
-If you don't want to test on a clean database every time, you can pass the option ``keepdb=true`` to preserve the
-state of the database. This saves some time, because the migrations don't have to be re-applied. Note that
-all migrations will be flagged as uncovered in the coverage report.
+The test command supports several optional parameters:
+
+- ``keepdb=true`` - Preserve the database between test runs (default: false)
+- ``verbosity=N`` - Set Django test verbosity level 0-3 (default: 2)
+- ``quiet=true`` - Show only master container output, hide other services (default: false)
+
+.. code-block:: bash
+
+    # Run tests with minimal output
+    make test verbosity=0 quiet=true
+
+    # Preserve database and use verbosity level 1
+    make test keepdb=true verbosity=1
+
+    # Quiet mode to hide database/redis/cache container output
+    make test quiet=true
+
+Note: When using ``keepdb=true``, migrations are not re-applied, which saves time but causes
+all migrations to be flagged as uncovered in the coverage report.
 
 Running tests during development
 ---------------------------------
