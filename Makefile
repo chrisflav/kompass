@@ -3,9 +3,7 @@ ifeq (dev,$(firstword $(MAKECMDGOALS)))
   DEV_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
   DEV_CMD := $(firstword $(DEV_ARGS))
   DEV_EXTRA_ARGS := $(wordlist 2,$(words $(DEV_ARGS)),$(DEV_ARGS))
-  # Create empty phony targets for the command and extra arguments
-  $(eval .PHONY: $(DEV_CMD) $(DEV_EXTRA_ARGS))
-  $(eval $(DEV_CMD):;@:)
+  # Create empty targets for extra arguments only (not for DEV_CMD to avoid conflicts)
   $(eval $(DEV_EXTRA_ARGS):;@:)
 endif
 
@@ -75,5 +73,14 @@ ifneq (dev,$(firstword $(MAKECMDGOALS)))
 test: build-test test-only
 else
 test:
+	@:
+endif
+
+# Only execute the docs target if it's not being called via 'make dev docs'
+ifneq (dev,$(firstword $(MAKECMDGOALS)))
+# No standalone docs target
+else
+.PHONY: docs
+docs:
 	@:
 endif
