@@ -23,14 +23,46 @@ If you have standard write access to the repository, feel free to create new bra
 easier, please follow the branch naming convention: ``<username>/<feature>``.
 
 
-Workflow
---------
+Pull requests
+-------------
 
-- request a gitea account from the project maintainers
-- decide on an `issue <https://github.com/chrisflav/kompass/issues>`_ to work on or create a new one
-- branch out to an own branch (naming convention: ``<username>/<feature>``) from the ``main``-branch
-- work on the issue and commit your changes
-- create a pull request from your branch to the ``main``-branch
+All pull requests are squash merged into ``main``. The pull request description becomes the commit message,
+so it should be clear and concise.
+
+Title format
+^^^^^^^^^^^^
+
+Pull request titles must follow the conventional commit format:
+
+- ``feat(scope): short description`` - New features
+- ``fix(scope): short description`` - Bug fixes
+- ``chore(scope): short description`` - Maintenance tasks
+- ``refactor(scope): short description`` - Code refactoring
+
+The scope should indicate the affected component (e.g., ``members``, ``finance``, ``test``, ``ci``).
+
+Description format
+^^^^^^^^^^^^^^^^^^
+
+Pull request descriptions should:
+
+- Be kept short and concise
+- Avoid repetitions
+- Use no formatting beyond backticks for inline code (````code````) or code blocks
+- Explain what changes were made and why
+- Not repeat information already in the title
+
+Example:
+
+.. code-block:: text
+
+    Add a verbosity parameter to control Django test output.
+
+    Usage:
+    - `make test verbosity=0` - Minimal output
+    - `make test verbosity=2` - Verbose output (default)
+
+    The parameter is passed via DJANGO_TEST_VERBOSITY environment variable.
 
 
 .. _development_manual/contributing/documentation:
