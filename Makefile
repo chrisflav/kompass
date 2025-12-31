@@ -24,6 +24,12 @@ else ifeq ($(DEV_CMD),translate)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py makemessages --locale de --no-location --no-obsolete && python3 manage.py compilemessages"
 else ifeq ($(DEV_CMD),createsuperuser)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py createsuperuser"
+else ifeq ($(DEV_CMD),docs)
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd docs && make html"
+	@echo ""
+	@echo "Generated documentation. To read it, point your browser to:"
+	@echo ""
+	@echo "file://$$(pwd)/docs/build/html/index.html"
 else ifeq ($(DEV_CMD),test)
 ifneq ($(keepdb),false)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && coverage run manage.py test --keepdb $(DEV_EXTRA_ARGS); coverage html"
@@ -35,7 +41,7 @@ endif
 	@echo ""
 	@echo "file://$$(pwd)/jdav_web/htmlcov/index.html"
 else
-	@echo "Usage: make dev [build|up|down|shell|manage|translate|createsuperuser|test]"
+	@echo "Usage: make dev [build|up|down|shell|manage|translate|createsuperuser|docs|test]"
 	@echo "  make dev build                        - Build development containers"
 	@echo "  make dev build BUILD_ARGS=--no-cache  - Build with docker compose args"
 	@echo "  make dev up                           - Start development environment"
@@ -44,6 +50,7 @@ else
 	@echo "  make dev shell                        - Open shell in running container"
 	@echo "  make dev translate                    - Generate and compile translation files"
 	@echo "  make dev createsuperuser              - Create a superuser account"
+	@echo "  make dev docs                         - Build Sphinx documentation"
 	@echo "  make dev test [<test-args>]           - Run tests with coverage (keepdb=true by default)"
 	@echo "  make dev test keepdb=false [<test-args>] - Run tests without keeping database"
 endif
