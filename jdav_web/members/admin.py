@@ -173,6 +173,31 @@ class CreateObjectFromForm(forms.Form):
     _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
 
 
+class CrisisInterventionListForm(forms.Form):
+    """Form for creating a crisis intervention list for ad-hoc activities."""
+
+    place = forms.CharField(
+        max_length=50,
+        label=_("Location"),
+        help_text=_("Location where the activity takes place"),
+    )
+    start_date = forms.DateField(
+        label=_("Start date"),
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text=_("Start date of the activity"),
+    )
+    end_date = forms.DateField(
+        label=_("End date"),
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text=_("End date of the activity"),
+    )
+    description = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        label=_("Description"),
+        help_text=_("Description of the activity"),
+    )
+
+
 class MemberAdminForm(forms.ModelForm):
     class Meta:
         model = Member
@@ -315,6 +340,13 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 wrap(self.request_echo_view),
                 name="{}_{}_requestecho".format(self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "create_crisis_intervention_list/",
+                wrap(self.create_crisis_intervention_list_view),
+                name="{}_{}_create_crisis_intervention_list".format(
+                    self.opts.app_label, self.opts.model_name
+                ),
+            ),
         ]
         return custom_urls + urls
 
@@ -348,6 +380,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         - `MemberNoteList`
         - `Freizeit`
         - `Message`
+        - `CrisisInterventionList` (generates PDF directly)
         """
         MODELS = {
             "MemberNoteList": MemberNoteList,
@@ -355,6 +388,16 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             "Message": Message,
         }
         choice = request.POST.get("choice")
+
+        # Handle crisis intervention list separately (no model, direct to form)
+        if "create" in request.POST and choice == "CrisisInterventionList":
+            member_pks = [m.pk for m in queryset]
+            query = str(member_pks).replace(" ", "")
+            return HttpResponseRedirect(
+                reverse("admin:members_member_create_crisis_intervention_list")
+                + "?members={}".format(query)
+            )
+
         model = MODELS.get(choice)
         if "create" in request.POST and model is not None:
             member_pks = [m.pk for m in queryset]
@@ -425,6 +468,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                         request.user
                     ).order_by(MODEL_ORDERING[key])
                 ]
+
+        # Add Crisis Intervention List option (create only, no add to existing)
+        if request.user.has_perm("members.add_global_membernotelist"):
+            allowed_choices.append(
+                {"value": "CrisisInterventionList", "label": _("Crisis Intervention List")}
+            )
 
         id_list = queryset.values_list("id", flat=True)
         context = dict(
@@ -652,6 +701,90 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         messages.success(request, _("Successfully unconfirmed selected members."))
 
     unconfirm.short_description = _("Unconfirm selected members.")
+
+    def create_crisis_intervention_list_view(self, request):
+        """View for creating crisis intervention lists for ad-hoc activities."""
+        # Get selected members from query parameter
+        raw_members = request.GET.get("members", None)
+        if raw_members is None:
+            messages.error(request, _("No members selected."))
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        try:
+            m_ids = json.loads(raw_members)
+            if not isinstance(m_ids, list):
+                raise ValueError()
+            members = Member.objects.filter(pk__in=m_ids)
+            if not members.exists():
+                raise ValueError()
+        except (json.JSONDecodeError, ValueError):
+            messages.error(request, _("Invalid member selection."))
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        # Handle form submission
+        if request.method == "POST":
+            form = CrisisInterventionListForm(request.POST)
+            if form.is_valid():
+                # Create a temporary object with necessary attributes for the template
+                class CrisisListData:
+                    def __init__(self, form_data, members):
+                        self.name = form_data["description"]
+                        self.code = f"K-{timezone.now():%y%m%d}"
+                        self.place = form_data["place"]
+                        self.destination = ""
+                        self.groups_str = ""
+                        start = form_data["start_date"]
+                        end = form_data["end_date"]
+                        if start == end:
+                            self.time_period_str = start.strftime("%d.%m.%Y")
+                        else:
+                            self.time_period_str = (
+                                f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
+                            )
+                        self.staff_str = ""
+                        self.date = start
+                        # Create mock members on list
+                        self.membersonlist = type("MembersOnList", (), {"all": lambda: members})()
+
+                    def get_tour_type(self):
+                        return ""
+
+                    def get_tour_approach(self):
+                        return ""
+
+                # Create mock member objects with the member attribute
+                class MockMemberOnList:
+                    def __init__(self, member):
+                        self.member = member
+
+                mock_members = [MockMemberOnList(m) for m in members]
+                crisis_list = CrisisListData(form.cleaned_data, mock_members)
+
+                # Generate PDF using render_tex (same as Freizeit admin)
+                context = dict(memberlist=crisis_list, settings=settings)
+                return render_tex(
+                    f"{crisis_list.code}_{form.cleaned_data['description']}_Krisenliste",
+                    "members/crisis_intervention_list.tex",
+                    context,
+                    date=form.cleaned_data["start_date"],
+                )
+        else:
+            form = CrisisInterventionListForm()
+
+        # Render form template
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Create Crisis Intervention List"),
+            opts=self.opts,
+            form=form,
+            members=members,
+            members_json=raw_members,
+        )
+        return render(request, "admin/create_crisis_intervention_list.html", context=context)
 
 
 class DemoteToWaiterForm(forms.Form):
