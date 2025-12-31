@@ -38,10 +38,13 @@ fi
 
 cd jdav_web
 
+# Default verbosity to 2 if not set
+VERBOSITY=${DJANGO_TEST_VERBOSITY:-2}
+
 if [[ "$DJANGO_TEST_KEEPDB" == 1 ]]; then
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v 2 --noinput --keepdb
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v $VERBOSITY --noinput --keepdb
 else
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v 2 --noinput
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v $VERBOSITY --noinput
 fi
 coverage html --show-contexts
 coverage json -o htmlcov/coverage.json
