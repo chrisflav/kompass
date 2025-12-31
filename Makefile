@@ -3,7 +3,8 @@ ifeq (dev,$(firstword $(MAKECMDGOALS)))
   DEV_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
   DEV_CMD := $(firstword $(DEV_ARGS))
   DEV_EXTRA_ARGS := $(wordlist 2,$(words $(DEV_ARGS)),$(DEV_ARGS))
-  # Create empty targets for the command and extra arguments
+  # Create empty phony targets for the command and extra arguments
+  $(eval .PHONY: $(DEV_CMD) $(DEV_EXTRA_ARGS))
   $(eval $(DEV_CMD):;@:)
   $(eval $(DEV_EXTRA_ARGS):;@:)
 endif
