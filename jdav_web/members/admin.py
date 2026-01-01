@@ -801,7 +801,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 # Generate PDF using render_tex (same as Freizeit admin)
                 context = dict(memberlist=crisis_list, settings=settings)
                 return render_tex(
-                    f"{crisis_list.code}_{form.cleaned_data['description']}_Krisenliste",
+                    f"{form.cleaned_data['description']}_Krisenliste",
                     "members/crisis_intervention_list.tex",
                     context,
                     date=form.cleaned_data["start_date"],
