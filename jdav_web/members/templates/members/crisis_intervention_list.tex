@@ -7,29 +7,29 @@
 
 % DESCRIPTION TABLE
 \begin{table}[H]
-    \begin{tabular}{ll}
+    \begin{tabular}{lp{8cm}}
         \large Aktivität: & {{ name|esc_all }}{% if tour_type %} \\
         \large Ordnungsnummer & {{ code|esc_all }}{% endif %} \\
         \large Gruppe: & {{ groups_str|esc_all }}  \\
         \large Ort / Stützpunkt: & {{ place|esc_all }}{% if tour_type %} \\
         \large ggf. Ziel: & {{ destination|esc_all }}{% endif %} \\
         \large Zeitraum: & {{ time_period_str|esc_all }} \\
-        \large Betreuer:innen: & {{ staff_str|esc_all }}{% if tour_type %} \\
+        \large Betreuer:innen: & {{ staff_str|esc_all }} \\
+        {% if tour_type %}
         \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' tour_type %}
             {% checked_if_true 'Führungstour' tour_type %}
             {% checked_if_true 'Ausbildung' tour_type %} \\
+        {% endif %}
+        {% if tour_approach %}
         \large Anreise: & {% checked_if_true 'ÖPNV' tour_approach %}
             {% checked_if_true 'Muskelkraft' tour_approach %}
-            {% checked_if_true 'Fahrgemeinschaften' tour_approach %}{% endif %}
+            {% checked_if_true 'Fahrgemeinschaften' tour_approach %} \\
+        {% endif %}
+        {% if description %}
+        \large Beschreibung: & {{ description|esc_all }} \\
+        {% endif %}
     \end{tabular}
 \end{table}
-
-{% if description %}
-\vspace{0.5cm}
-\noindent\textbf{Beschreibung:} \\
-{{ description|esc_all }}
-\vspace{0.5cm}
-{% endif %}
 
 \begin{tabularx}{.97\linewidth}{lXXXX}
     \toprule

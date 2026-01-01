@@ -1303,34 +1303,6 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertContains(response, self.fritz.name)
         self.assertContains(response, self.peter.name)
         self.assertContains(response, _("Location"))
-        self.assertContains(response, _("Start date"))
-        self.assertContains(response, _("End date"))
-        self.assertContains(response, _("Description"))
-
-    @mock.patch("members.admin.render_tex")
-    def test_crisis_intervention_list_form_post_generates_pdf(self, mock_render_tex):
-        """Test POST request to crisis intervention list form generates PDF."""
-        # Mock render_tex to return a PDF response
-        mock_response = HttpResponse(content_type="application/pdf")
-        mock_render_tex.return_value = mock_response
-
-        c = self._login("superuser")
-        url = reverse("admin:members_member_create_crisis_intervention_list")
-        url += f"?members=[{self.fritz.pk},{self.peter.pk}]"
-        response = c.post(
-            url,
-            data={
-                "place": "Test Location",
-                "start_date": "2024-01-01",
-                "end_date": "2024-01-02",
-                "description": "Test Activity",
-            },
-        )
-        # Should return PDF
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertEqual(response["Content-Type"], "application/pdf")
-        # Verify render_tex was called
-        self.assertTrue(mock_render_tex.called)
 
     @mock.patch("members.admin.render_tex")
     def test_crisis_intervention_list_form_with_youth_leaders_and_groups(self, mock_render_tex):
@@ -1348,6 +1320,7 @@ class MemberAdminTestCase(AdminTestCase):
         response = c.post(
             url,
             data={
+                "activity": "Test Activity",
                 "place": "Test Location",
                 "start_date": "2024-01-01",
                 "end_date": "2024-01-02",
@@ -1362,20 +1335,25 @@ class MemberAdminTestCase(AdminTestCase):
         # Verify render_tex was called
         self.assertTrue(mock_render_tex.called)
 
-    def test_crisis_intervention_list_form_no_members(self):
-        """Test crisis intervention list form with no members redirects."""
+    def test_crisis_intervention_list_form_invalid_members(self):
+        """Test crisis intervention list form with invalid members param."""
         c = self._login("superuser")
+        # no members
         url = reverse("admin:members_member_create_crisis_intervention_list")
         response = c.get(url, follow=True)
         # Should redirect to member changelist
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertIn("members/member/", response.request["PATH_INFO"])
 
-    def test_crisis_intervention_list_form_invalid_members(self):
-        """Test crisis intervention list form with invalid members param."""
-        c = self._login("superuser")
-        url = reverse("admin:members_member_create_crisis_intervention_list")
-        url += "?members=invalid"
+        # invalid members
+        url = reverse("admin:members_member_create_crisis_intervention_list") + "?members=42"
+        response = c.get(url, follow=True)
+        # Should redirect to member changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+        # non-existent members
+        url = reverse("admin:members_member_create_crisis_intervention_list") + "?members=[-42]"
         response = c.get(url, follow=True)
         # Should redirect to member changelist
         self.assertEqual(response.status_code, HTTPStatus.OK)

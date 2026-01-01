@@ -177,6 +177,11 @@ class CreateObjectFromForm(forms.Form):
 class CrisisInterventionListForm(forms.Form):
     """Form for creating a crisis intervention list for ad-hoc activities."""
 
+    activity = forms.CharField(
+        max_length=50,
+        label=_("Activity"),
+        help_text=_("Name of the activity"),
+    )
     place = forms.CharField(
         max_length=50,
         label=_("Location"),
@@ -184,18 +189,21 @@ class CrisisInterventionListForm(forms.Form):
     )
     start_date = forms.DateField(
         label=_("Start date"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         help_text=_("Start date of the activity"),
+        initial=timezone.now().strftime("%Y-%m-%d"),
     )
     end_date = forms.DateField(
         label=_("End date"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         help_text=_("End date of the activity"),
+        initial=timezone.now().strftime("%Y-%m-%d"),
     )
     description = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 4}),
         label=_("Description"),
         help_text=_("Description of the activity"),
+        required=False,
     )
     youth_leaders = forms.ModelMultipleChoiceField(
         queryset=Member.objects.all(),
@@ -797,13 +805,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     def create_crisis_intervention_list_view(self, request):
         """View for creating crisis intervention lists for ad-hoc activities."""
         # Get selected members from query parameter
-        raw_members = request.GET.get("members", None)
-        if raw_members is None:
-            messages.error(request, _("No members selected."))
-            return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
-            )
-
+        raw_members = request.GET.get("members", "")
         try:
             m_ids = json.loads(raw_members)
             if not isinstance(m_ids, list):
@@ -825,7 +827,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
                 # Generate PDF using shared function
                 return generate_crisis_intervention_list_pdf(
-                    name=form_data["description"],
+                    name=form_data["activity"],
                     description=form_data["description"],
                     code=f"K-{timezone.now():%y%m%d}",
                     place=form_data["place"],
