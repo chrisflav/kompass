@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin import DateFieldListFilter
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.contenttypes.admin import GenericTabularInline
 from django.core.exceptions import ValidationError
 from django.db.models import Case
@@ -173,6 +174,130 @@ class CreateObjectFromForm(forms.Form):
     _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
 
 
+class CrisisInterventionListForm(forms.Form):
+    """Form for creating a crisis intervention list for ad-hoc activities."""
+
+    activity = forms.CharField(
+        max_length=50,
+        label=_("Activity"),
+        help_text=_("Name of the activity"),
+    )
+    place = forms.CharField(
+        max_length=50,
+        label=_("Location"),
+        help_text=_("Location where the activity takes place"),
+    )
+    start_date = forms.DateField(
+        label=_("Start date"),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+        help_text=_("Start date of the activity"),
+        initial=timezone.now().strftime("%Y-%m-%d"),
+    )
+    end_date = forms.DateField(
+        label=_("End date"),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+        help_text=_("End date of the activity"),
+        initial=timezone.now().strftime("%Y-%m-%d"),
+    )
+    description = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        label=_("Description"),
+        help_text=_("Description of the activity"),
+        required=False,
+    )
+    youth_leaders = forms.ModelMultipleChoiceField(
+        queryset=Member.objects.all(),
+        label=_("Youth leaders"),
+        help_text=_("Youth leaders supervising the activity"),
+        required=False,
+        widget=FilteredSelectMultiple(_("Youth leaders"), is_stacked=False),
+    )
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(),
+        label=_("Groups"),
+        help_text=_("Groups participating in the activity"),
+        required=False,
+        widget=FilteredSelectMultiple(_("Groups"), is_stacked=False),
+    )
+
+
+def generate_crisis_intervention_list_pdf(
+    *,
+    name,
+    description,
+    code,
+    place,
+    destination,
+    groups,
+    staff,
+    start_date,
+    end_date,
+    tour_type,
+    tour_approach,
+    members,
+):
+    """Generate a crisis intervention list PDF.
+
+    Args:
+        name: Activity name
+        description: Activity description
+        code: Activity code (e.g., K-260101)
+        place: Location of the activity
+        destination: Destination (optional, e.g., a peak)
+        groups: List or queryset of Group objects
+        staff: List or queryset of Member objects (youth leaders)
+        start_date: Start date of the activity
+        end_date: End date of the activity
+        tour_type: Tour type identifier (empty string for ad-hoc lists)
+        tour_approach: Tour approach identifier (empty string for ad-hoc lists)
+        members: List of Member objects participating in the activity
+
+    Returns:
+        HttpResponse with the generated PDF
+    """
+    # Format groups string
+    groups_str = ", ".join([g.name for g in groups]) if groups else ""
+
+    # Format staff string
+    staff_str = ", ".join([s.name for s in staff]) if staff else ""
+
+    # Format time period string
+    # Handle both date and datetime objects
+    start_date_only = start_date.date() if hasattr(start_date, "date") else start_date
+    end_date_only = end_date.date() if hasattr(end_date, "date") else end_date
+
+    if start_date_only == end_date_only:
+        time_period_str = start_date_only.strftime("%d.%m.%Y")
+    else:
+        time_period_str = (
+            f"{start_date_only.strftime('%d.%m.%Y')} - {end_date_only.strftime('%d.%m.%Y')}"
+        )
+
+    context = {
+        "name": name,
+        "description": description,
+        "code": code,
+        "place": place,
+        "destination": destination,
+        "groups_str": groups_str,
+        "staff_str": staff_str,
+        "time_period_str": time_period_str,
+        "tour_type": tour_type,
+        "tour_approach": tour_approach,
+        "members": members,
+        "settings": settings,
+    }
+
+    # Use description for filename if name is long, otherwise use name
+    filename_base = description if len(name) > 30 else name
+    return render_tex(
+        f"{filename_base}_Krisenliste",
+        "members/crisis_intervention_list.tex",
+        context,
+        date=start_date,
+    )
+
+
 class MemberAdminForm(forms.ModelForm):
     class Meta:
         model = Member
@@ -315,6 +440,13 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 wrap(self.request_echo_view),
                 name="{}_{}_requestecho".format(self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "create_crisis_intervention_list/",
+                wrap(self.create_crisis_intervention_list_view),
+                name="{}_{}_create_crisis_intervention_list".format(
+                    self.opts.app_label, self.opts.model_name
+                ),
+            ),
         ]
         return custom_urls + urls
 
@@ -348,6 +480,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         - `MemberNoteList`
         - `Freizeit`
         - `Message`
+        - `CrisisInterventionList` (generates PDF directly)
         """
         MODELS = {
             "MemberNoteList": MemberNoteList,
@@ -355,6 +488,16 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             "Message": Message,
         }
         choice = request.POST.get("choice")
+
+        # Handle crisis intervention list separately (no model, direct to form)
+        if "create" in request.POST and choice == "CrisisInterventionList":
+            member_pks = [m.pk for m in queryset]
+            query = str(member_pks).replace(" ", "")
+            return HttpResponseRedirect(
+                reverse("admin:members_member_create_crisis_intervention_list")
+                + "?members={}".format(query)
+            )
+
         model = MODELS.get(choice)
         if "create" in request.POST and model is not None:
             member_pks = [m.pk for m in queryset]
@@ -425,6 +568,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                         request.user
                     ).order_by(MODEL_ORDERING[key])
                 ]
+
+        # Add Crisis Intervention List option (create only, no add to existing)
+        if request.user.has_perm("members.add_global_freizeit"):
+            allowed_choices.append(
+                {"value": "CrisisInterventionList", "label": _("Crisis Intervention List")}
+            )
 
         id_list = queryset.values_list("id", flat=True)
         context = dict(
@@ -652,6 +801,58 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         messages.success(request, _("Successfully unconfirmed selected members."))
 
     unconfirm.short_description = _("Unconfirm selected members.")
+
+    def create_crisis_intervention_list_view(self, request):
+        """View for creating crisis intervention lists for ad-hoc activities."""
+        # Get selected members from query parameter
+        raw_members = request.GET.get("members", "")
+        try:
+            m_ids = json.loads(raw_members)
+            if not isinstance(m_ids, list):
+                raise ValueError()
+            members = Member.objects.filter(pk__in=m_ids)
+            if not members.exists():
+                raise ValueError()
+        except (json.JSONDecodeError, ValueError):
+            messages.error(request, _("Invalid member selection."))
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        # Handle form submission
+        if request.method == "POST":
+            form = CrisisInterventionListForm(request.POST)
+            if form.is_valid():
+                form_data = form.cleaned_data
+
+                # Generate PDF using shared function
+                return generate_crisis_intervention_list_pdf(
+                    name=form_data["activity"],
+                    description=form_data["description"],
+                    code=f"K-{timezone.now():%y%m%d}",
+                    place=form_data["place"],
+                    destination="",
+                    groups=form_data.get("groups", []),
+                    staff=form_data.get("youth_leaders", []),
+                    start_date=form_data["start_date"],
+                    end_date=form_data["end_date"],
+                    tour_type="",
+                    tour_approach="",
+                    members=list(members),
+                )
+        else:
+            form = CrisisInterventionListForm()
+
+        # Render form template
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Create Crisis Intervention List"),
+            opts=self.opts,
+            form=form,
+            members=members,
+            members_json=raw_members,
+        )
+        return render(request, "admin/create_crisis_intervention_list.html", context=context)
 
 
 class DemoteToWaiterForm(forms.Form):
@@ -1710,12 +1911,24 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     def crisis_intervention_list(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
-        context = dict(memberlist=memberlist, settings=settings)
-        return render_tex(
-            f"{memberlist.code}_{memberlist.name}_Krisenliste",
-            "members/crisis_intervention_list.tex",
-            context,
-            date=memberlist.date,
+
+        # Get all members on the list
+        members = [mol.member for mol in memberlist.membersonlist.all()]
+
+        # Generate PDF using shared function
+        return generate_crisis_intervention_list_pdf(
+            name=memberlist.name,
+            description=memberlist.description,
+            code=memberlist.code,
+            place=memberlist.place,
+            destination=memberlist.destination,
+            groups=memberlist.groups.all(),
+            staff=memberlist.jugendleiter.all(),
+            start_date=memberlist.date,
+            end_date=memberlist.end,
+            tour_type=memberlist.get_tour_type_display(),
+            tour_approach=memberlist.get_tour_approach_display(),
+            members=members,
         )
 
     crisis_intervention_list.short_description = _("Generate crisis intervention list")

@@ -1273,6 +1273,92 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertIn("members/member/", response.request["PATH_INFO"])
 
+    def test_create_object_from_crisis_intervention_list_redirect(self):
+        """Test creating a crisis intervention list redirects to the form view."""
+        url = reverse("admin:members_member_changelist")
+        c = self._login("superuser")
+        # Submit the action with 'create' and choice='CrisisInterventionList'
+        response = c.post(
+            url,
+            data={
+                "action": "create_object_from",
+                "_selected_action": [self.fritz.pk, self.peter.pk],
+                "create": "create",
+                "choice": "CrisisInterventionList",
+            },
+        )
+        # Should redirect to crisis intervention list form view
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn("create_crisis_intervention_list", response.url)
+        self.assertIn("members=", response.url)
+
+    def test_crisis_intervention_list_form_get(self):
+        """Test GET request to crisis intervention list form shows the form."""
+        c = self._login("superuser")
+        url = reverse("admin:members_member_create_crisis_intervention_list")
+        url += f"?members=[{self.fritz.pk},{self.peter.pk}]"
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Create Crisis Intervention List"))
+        self.assertContains(response, self.fritz.name)
+        self.assertContains(response, self.peter.name)
+        self.assertContains(response, _("Location"))
+
+    @mock.patch("members.admin.render_tex")
+    def test_crisis_intervention_list_form_with_youth_leaders_and_groups(self, mock_render_tex):
+        """Test crisis intervention list form with youth leaders and groups."""
+        # Mock render_tex to return a PDF response
+        mock_response = HttpResponse(content_type="application/pdf")
+        mock_render_tex.return_value = mock_response
+
+        # Get a group to test with
+        cool_kids = Group.objects.get(name="cool kids")
+
+        c = self._login("superuser")
+        url = reverse("admin:members_member_create_crisis_intervention_list")
+        url += f"?members=[{self.fritz.pk},{self.peter.pk}]"
+        response = c.post(
+            url,
+            data={
+                "activity": "Test Activity",
+                "place": "Test Location",
+                "start_date": "2024-01-01",
+                "end_date": "2024-01-02",
+                "description": "Test Activity",
+                "youth_leaders": [self.fritz.pk],
+                "groups": [cool_kids.pk],
+            },
+        )
+        # Should return PDF
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        # Verify render_tex was called
+        self.assertTrue(mock_render_tex.called)
+
+    def test_crisis_intervention_list_form_invalid_members(self):
+        """Test crisis intervention list form with invalid members param."""
+        c = self._login("superuser")
+        # no members
+        url = reverse("admin:members_member_create_crisis_intervention_list")
+        response = c.get(url, follow=True)
+        # Should redirect to member changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+        # invalid members
+        url = reverse("admin:members_member_create_crisis_intervention_list") + "?members=42"
+        response = c.get(url, follow=True)
+        # Should redirect to member changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+        # non-existent members
+        url = reverse("admin:members_member_create_crisis_intervention_list") + "?members=[-42]"
+        response = c.get(url, follow=True)
+        # Should redirect to member changelist
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
 
 class FreizeitTestCase(BasicMemberTestCase):
     def setUp(self):
