@@ -8,11 +8,11 @@
 % DESCRIPTION TABLE
 \begin{table}[H]
     \begin{tabular}{ll}
-        \large Aktivität: & {{ memberlist.name|esc_all }} \\
-        \large Ordnungsnummer & {{ memberlist.code|esc_all }} \\
+        \large Aktivität: & {{ memberlist.name|esc_all }}{% if memberlist.get_tour_type %} \\
+        \large Ordnungsnummer & {{ memberlist.code|esc_all }}{% endif %} \\
         \large Gruppe: & {{ memberlist.groups_str|esc_all }}  \\
-        \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }} \\
-        \large ggf. Ziel: & {{ memberlist.destination|esc_all }} \\
+        \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }}{% if memberlist.get_tour_type %} \\
+        \large ggf. Ziel: & {{ memberlist.destination|esc_all }}{% endif %} \\
         \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
         \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }}{% if memberlist.get_tour_type %} \\
         \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' memberlist.get_tour_type %}
