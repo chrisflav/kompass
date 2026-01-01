@@ -230,9 +230,6 @@ def generate_crisis_intervention_list_pdf(
 ):
     """Generate a crisis intervention list PDF.
 
-    This function creates mock objects that implement the interface expected by
-    the crisis_intervention_list.tex template and generates a PDF.
-
     Args:
         name: Activity name
         description: Activity description
@@ -250,49 +247,20 @@ def generate_crisis_intervention_list_pdf(
     Returns:
         HttpResponse with the generated PDF
     """
-
-    class MockMemberOnList:
-        """Mock object representing a member on the list."""
-
-        def __init__(self, member):
-            self.member = member
-
-    class MockMembersOnList:
-        """Mock object representing the collection of members on the list."""
-
-        def __init__(self, members):
-            self._members = members
-
-        def all(self):
-            return self._members
-
-    class CrisisListData:
-        """Mock object with all attributes needed by the template."""
-
-        def __init__(self):
-            self.name = name
-            self.description = description
-            self.code = code
-            self.place = place
-            self.destination = destination
-            self.groups_str = groups_str
-            self.staff_str = staff_str
-            self.time_period_str = time_period_str
-            self.date = date
-            self._tour_type = tour_type
-            self._tour_approach = tour_approach
-            self.membersonlist = MockMembersOnList(
-                [MockMemberOnList(m) for m in members]
-            )
-
-        def get_tour_type(self):
-            return self._tour_type
-
-        def get_tour_approach(self):
-            return self._tour_approach
-
-    crisis_list = CrisisListData()
-    context = dict(memberlist=crisis_list, settings=settings)
+    context = {
+        "name": name,
+        "description": description,
+        "code": code,
+        "place": place,
+        "destination": destination,
+        "groups_str": groups_str,
+        "staff_str": staff_str,
+        "time_period_str": time_period_str,
+        "tour_type": tour_type,
+        "tour_approach": tour_approach,
+        "members": members,
+        "settings": settings,
+    }
 
     # Use description for filename if name is long, otherwise use name
     filename_base = description if len(name) > 30 else name

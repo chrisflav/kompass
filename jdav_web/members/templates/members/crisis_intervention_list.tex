@@ -8,26 +8,26 @@
 % DESCRIPTION TABLE
 \begin{table}[H]
     \begin{tabular}{ll}
-        \large Aktivität: & {{ memberlist.name|esc_all }}{% if memberlist.get_tour_type %} \\
-        \large Ordnungsnummer & {{ memberlist.code|esc_all }}{% endif %} \\
-        \large Gruppe: & {{ memberlist.groups_str|esc_all }}  \\
-        \large Ort / Stützpunkt: & {{ memberlist.place|esc_all }}{% if memberlist.get_tour_type %} \\
-        \large ggf. Ziel: & {{ memberlist.destination|esc_all }}{% endif %} \\
-        \large Zeitraum: & {{ memberlist.time_period_str|esc_all }} \\
-        \large Betreuer:innen: & {{ memberlist.staff_str|esc_all }}{% if memberlist.get_tour_type %} \\
-        \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' memberlist.get_tour_type %}
-            {% checked_if_true 'Führungstour' memberlist.get_tour_type %}
-            {% checked_if_true 'Ausbildung' memberlist.get_tour_type %} \\
-        \large Anreise: & {% checked_if_true 'ÖPNV' memberlist.get_tour_approach %}
-            {% checked_if_true 'Muskelkraft' memberlist.get_tour_approach %}
-            {% checked_if_true 'Fahrgemeinschaften' memberlist.get_tour_approach %}{% endif %}
+        \large Aktivität: & {{ name|esc_all }}{% if tour_type %} \\
+        \large Ordnungsnummer & {{ code|esc_all }}{% endif %} \\
+        \large Gruppe: & {{ groups_str|esc_all }}  \\
+        \large Ort / Stützpunkt: & {{ place|esc_all }}{% if tour_type %} \\
+        \large ggf. Ziel: & {{ destination|esc_all }}{% endif %} \\
+        \large Zeitraum: & {{ time_period_str|esc_all }} \\
+        \large Betreuer:innen: & {{ staff_str|esc_all }}{% if tour_type %} \\
+        \large Art der Tour: & {% checked_if_true 'Gemeinschaftstour' tour_type %}
+            {% checked_if_true 'Führungstour' tour_type %}
+            {% checked_if_true 'Ausbildung' tour_type %} \\
+        \large Anreise: & {% checked_if_true 'ÖPNV' tour_approach %}
+            {% checked_if_true 'Muskelkraft' tour_approach %}
+            {% checked_if_true 'Fahrgemeinschaften' tour_approach %}{% endif %}
     \end{tabular}
 \end{table}
 
-{% if memberlist.description %}
+{% if description %}
 \vspace{0.5cm}
 \noindent\textbf{Beschreibung:} \\
-{{ memberlist.description|esc_all }}
+{{ description|esc_all }}
 \vspace{0.5cm}
 {% endif %}
 
@@ -39,12 +39,12 @@
     \bottomrule
     \endfoot
 
-    {% for m in memberlist.membersonlist.all %}
+    {% for member in members %}
         {{ forloop.counter }} &
-        {{ m.member.name|esc_all }} &
-        {{ m.member.address_multiline|esc_all }} &
-        {{ m.member.contact_phone_number|esc_all }} &
-        {% for c in m.member.emergencycontact_set.all %}
+        {{ member.name|esc_all }} &
+        {{ member.address_multiline|esc_all }} &
+        {{ member.contact_phone_number|esc_all }} &
+        {% for c in member.emergencycontact_set.all %}
             {{ c.name|esc_all }} \newline
             Tel.: {{ c.phone_number|esc_all }}
         {% endfor %} \\
