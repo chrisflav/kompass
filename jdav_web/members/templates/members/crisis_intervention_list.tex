@@ -24,6 +24,13 @@
     \end{tabular}
 \end{table}
 
+{% if memberlist.description %}
+\vspace{0.5cm}
+\noindent\textbf{Beschreibung:} \\
+{{ memberlist.description|esc_all }}
+\vspace{0.5cm}
+{% endif %}
+
 \begin{tabularx}{.97\linewidth}{lXXXX}
     \toprule
     \# & \textbf{Name} & \textbf{Anschrift} & \textbf{Telefon} & \textbf{Notfallkontakte} \\

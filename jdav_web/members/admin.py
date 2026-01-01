@@ -213,6 +213,97 @@ class CrisisInterventionListForm(forms.Form):
     )
 
 
+def generate_crisis_intervention_list_pdf(
+    *,
+    name,
+    description,
+    code,
+    place,
+    destination,
+    groups_str,
+    staff_str,
+    time_period_str,
+    date,
+    tour_type,
+    tour_approach,
+    members,
+):
+    """Generate a crisis intervention list PDF.
+
+    This function creates mock objects that implement the interface expected by
+    the crisis_intervention_list.tex template and generates a PDF.
+
+    Args:
+        name: Activity name
+        description: Activity description
+        code: Activity code (e.g., K-260101)
+        place: Location of the activity
+        destination: Destination (optional, e.g., a peak)
+        groups_str: Comma-separated string of group names
+        staff_str: Comma-separated string of youth leader names
+        time_period_str: Formatted time period string
+        date: Start date of the activity
+        tour_type: Tour type identifier (empty string for ad-hoc lists)
+        tour_approach: Tour approach identifier (empty string for ad-hoc lists)
+        members: List of Member objects participating in the activity
+
+    Returns:
+        HttpResponse with the generated PDF
+    """
+
+    class MockMemberOnList:
+        """Mock object representing a member on the list."""
+
+        def __init__(self, member):
+            self.member = member
+
+    class MockMembersOnList:
+        """Mock object representing the collection of members on the list."""
+
+        def __init__(self, members):
+            self._members = members
+
+        def all(self):
+            return self._members
+
+    class CrisisListData:
+        """Mock object with all attributes needed by the template."""
+
+        def __init__(self):
+            self.name = name
+            self.description = description
+            self.code = code
+            self.place = place
+            self.destination = destination
+            self.groups_str = groups_str
+            self.staff_str = staff_str
+            self.time_period_str = time_period_str
+            self.date = date
+            self._tour_type = tour_type
+            self._tour_approach = tour_approach
+            self.membersonlist = MockMembersOnList(
+                [MockMemberOnList(m) for m in members]
+            )
+
+        def get_tour_type(self):
+            return self._tour_type
+
+        def get_tour_approach(self):
+            return self._tour_approach
+
+    crisis_list = CrisisListData()
+    context = dict(memberlist=crisis_list, settings=settings)
+
+    # Use description for filename if name is long, otherwise use name
+    filename_base = description if len(name) > 30 else name
+    return render_tex(
+        f"{filename_base}_Krisenliste",
+        "members/crisis_intervention_list.tex",
+        context,
+        date=date,
+    )
+
+
 class MemberAdminForm(forms.ModelForm):
     class Meta:
         model = Member
@@ -744,67 +835,34 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         if request.method == "POST":
             form = CrisisInterventionListForm(request.POST)
             if form.is_valid():
-                # Create a temporary object with necessary attributes for the template
-                class MockMemberOnList:
-                    def __init__(self, member):
-                        self.member = member
+                # Prepare data for PDF generation
+                form_data = form.cleaned_data
+                groups = form_data.get("groups", [])
+                groups_str = ", ".join([g.name for g in groups]) if groups else ""
+                youth_leaders = form_data.get("youth_leaders", [])
+                staff_str = ", ".join([yl.name for yl in youth_leaders]) if youth_leaders else ""
 
-                class MockMembersOnList:
-                    def __init__(self, members):
-                        self._members = members
+                start = form_data["start_date"]
+                end = form_data["end_date"]
+                if start == end:
+                    time_period_str = start.strftime("%d.%m.%Y")
+                else:
+                    time_period_str = f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
 
-                    def all(self):
-                        return self._members
-
-                class CrisisListData:
-                    def __init__(self, form_data, members):
-                        self.name = form_data["description"]
-                        self.code = f"K-{timezone.now():%y%m%d}"
-                        self.place = form_data["place"]
-                        self.destination = ""
-
-                        # Format groups string
-                        groups = form_data.get("groups", [])
-                        if groups:
-                            self.groups_str = ", ".join([g.name for g in groups])
-                        else:
-                            self.groups_str = ""
-
-                        # Format staff string (youth leaders)
-                        youth_leaders = form_data.get("youth_leaders", [])
-                        if youth_leaders:
-                            self.staff_str = ", ".join([yl.name for yl in youth_leaders])
-                        else:
-                            self.staff_str = ""
-
-                        start = form_data["start_date"]
-                        end = form_data["end_date"]
-                        if start == end:
-                            self.time_period_str = start.strftime("%d.%m.%Y")
-                        else:
-                            self.time_period_str = (
-                                f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
-                            )
-                        self.date = start
-                        # Create mock members on list
-                        self.membersonlist = MockMembersOnList(members)
-
-                    def get_tour_type(self):
-                        return ""
-
-                    def get_tour_approach(self):
-                        return ""
-
-                mock_members = [MockMemberOnList(m) for m in members]
-                crisis_list = CrisisListData(form.cleaned_data, mock_members)
-
-                # Generate PDF using render_tex (same as Freizeit admin)
-                context = dict(memberlist=crisis_list, settings=settings)
-                return render_tex(
-                    f"{form.cleaned_data['description']}_Krisenliste",
-                    "members/crisis_intervention_list.tex",
-                    context,
-                    date=form.cleaned_data["start_date"],
+                # Generate PDF using shared function
+                return generate_crisis_intervention_list_pdf(
+                    name=form_data["description"],
+                    description=form_data["description"],
+                    code=f"K-{timezone.now():%y%m%d}",
+                    place=form_data["place"],
+                    destination="",
+                    groups_str=groups_str,
+                    staff_str=staff_str,
+                    time_period_str=time_period_str,
+                    date=start,
+                    tour_type="",
+                    tour_approach="",
+                    members=list(members),
                 )
         else:
             form = CrisisInterventionListForm()
@@ -1877,12 +1935,36 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     def crisis_intervention_list(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
-        context = dict(memberlist=memberlist, settings=settings)
-        return render_tex(
-            f"{memberlist.code}_{memberlist.name}_Krisenliste",
-            "members/crisis_intervention_list.tex",
-            context,
+
+        # Prepare data from Freizeit object
+        groups_str = ", ".join([g.name for g in memberlist.groups.all()])
+        staff_str = ", ".join([jl.name for jl in memberlist.jugendleiter.all()])
+
+        # Format time period
+        if memberlist.date.date() == memberlist.end.date():
+            time_period_str = memberlist.date.strftime("%d.%m.%Y")
+        else:
+            time_period_str = (
+                f"{memberlist.date.strftime('%d.%m.%Y')} - {memberlist.end.strftime('%d.%m.%Y')}"
+            )
+
+        # Get all members on the list
+        members = [mol.member for mol in memberlist.membersonlist.all()]
+
+        # Generate PDF using shared function
+        return generate_crisis_intervention_list_pdf(
+            name=memberlist.name,
+            description=memberlist.description,
+            code=memberlist.code,
+            place=memberlist.place,
+            destination=memberlist.destination,
+            groups_str=groups_str,
+            staff_str=staff_str,
+            time_period_str=time_period_str,
             date=memberlist.date,
+            tour_type=memberlist.get_tour_type_display(),
+            tour_approach=memberlist.get_tour_approach_display(),
+            members=members,
         )
 
     crisis_intervention_list.short_description = _("Generate crisis intervention list")
