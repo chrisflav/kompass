@@ -1,0 +1,47 @@
+name: Build and Test (Internal)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: build-internal-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if internal PR or push
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Push to main - will run"
+          elif [ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Internal PR - will run"
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Fork PR - will skip (handled by fork workflow)"
+          fi
+
+  build:
+    needs: check-source
+    if: needs.check-source.outputs.should_run == 'true'
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+      actions: write
+    uses: ./.github/workflows/build-test-shared.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      pr_number: ${{ github.event.pull_request.number || 0 }}
+      head_ref: ${{ github.head_ref || github.ref_name }}
+      is_pr: ${{ github.event_name == 'pull_request' }}
+    secrets: inherit
