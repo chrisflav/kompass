@@ -201,12 +201,10 @@ msgstr ""
 "Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
 
 msgid "No members selected."
-msgstr ""
+msgstr "Keine Mitglieder ausgewählt."
 
-#, fuzzy
-#| msgid "Invalid emergency contacts"
 msgid "Invalid member selection."
-msgstr "Ungültige Notfallkontakte"
+msgstr "Ungültige Mitgliederauswahl."
 
 msgid "Create Crisis Intervention List"
 msgstr "Kriseninterventionsliste erstellen"

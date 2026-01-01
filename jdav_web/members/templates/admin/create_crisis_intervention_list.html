@@ -21,29 +21,30 @@
 {% endblock %}
 
 {% block content %}
-<h1>{% translate "Create Crisis Intervention List" %}</h1>
+<div id="content-main">
+    <h1>{% translate "Create Crisis Intervention List" %}</h1>
 
-<p>{% translate "Selected members:" %}</p>
-<ul>
-{% for member in members %}
-    <li>{{ member.name }}</li>
-{% endfor %}
-</ul>
+    <p>{% translate "Selected members:" %}</p>
+    <ul>
+    {% for member in members %}
+        <li>{{ member.name }}</li>
+    {% endfor %}
+    </ul>
 
-<p>{% translate "Please enter the details for the activity:" %}</p>
+    <p>{% translate "Please enter the details for the activity:" %}</p>
 
-<form action="" method="post" id="crisis-intervention-form" target="_blank">
-    {% csrf_token %}
-    <input type="hidden" name="members" value="{{ members_json }}">
+    <form action="" method="post" id="crisis-intervention-form" target="_blank">
+        {% csrf_token %}
+        <input type="hidden" name="members" value="{{ members_json }}">
 
-    <table>
-        {{ form.as_table }}
-    </table>
+        <table>
+            {{ form.as_table }}
+        </table>
 
-    <div class="submit-row">
-        <input type="submit" value="{% translate 'Generate Crisis Intervention List' %}" class="default">
-        <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% translate "Cancel" %}</a>
-    </div>
-</form>
-
+        <div class="submit-row">
+            <input type="submit" value="{% translate 'Generate Crisis Intervention List' %}" class="default">
+            <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% translate "Cancel" %}</a>
+        </div>
+    </form>
+</div>
 {% endblock %}
