@@ -220,10 +220,10 @@ def generate_crisis_intervention_list_pdf(
     code,
     place,
     destination,
-    groups_str,
-    staff_str,
-    time_period_str,
-    date,
+    groups,
+    staff,
+    start_date,
+    end_date,
     tour_type,
     tour_approach,
     members,
@@ -236,10 +236,10 @@ def generate_crisis_intervention_list_pdf(
         code: Activity code (e.g., K-260101)
         place: Location of the activity
         destination: Destination (optional, e.g., a peak)
-        groups_str: Comma-separated string of group names
-        staff_str: Comma-separated string of youth leader names
-        time_period_str: Formatted time period string
-        date: Start date of the activity
+        groups: List or queryset of Group objects
+        staff: List or queryset of Member objects (youth leaders)
+        start_date: Start date of the activity
+        end_date: End date of the activity
         tour_type: Tour type identifier (empty string for ad-hoc lists)
         tour_approach: Tour approach identifier (empty string for ad-hoc lists)
         members: List of Member objects participating in the activity
@@ -247,6 +247,22 @@ def generate_crisis_intervention_list_pdf(
     Returns:
         HttpResponse with the generated PDF
     """
+    # Format groups string
+    groups_str = ", ".join([g.name for g in groups]) if groups else ""
+
+    # Format staff string
+    staff_str = ", ".join([s.name for s in staff]) if staff else ""
+
+    # Format time period string
+    # Handle both date and datetime objects
+    start_date_only = start_date.date() if hasattr(start_date, 'date') else start_date
+    end_date_only = end_date.date() if hasattr(end_date, 'date') else end_date
+
+    if start_date_only == end_date_only:
+        time_period_str = start_date_only.strftime("%d.%m.%Y")
+    else:
+        time_period_str = f"{start_date_only.strftime('%d.%m.%Y')} - {end_date_only.strftime('%d.%m.%Y')}"
+
     context = {
         "name": name,
         "description": description,
@@ -268,7 +284,7 @@ def generate_crisis_intervention_list_pdf(
         f"{filename_base}_Krisenliste",
         "members/crisis_intervention_list.tex",
         context,
-        date=date,
+        date=start_date,
     )
 
 
@@ -803,19 +819,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         if request.method == "POST":
             form = CrisisInterventionListForm(request.POST)
             if form.is_valid():
-                # Prepare data for PDF generation
                 form_data = form.cleaned_data
-                groups = form_data.get("groups", [])
-                groups_str = ", ".join([g.name for g in groups]) if groups else ""
-                youth_leaders = form_data.get("youth_leaders", [])
-                staff_str = ", ".join([yl.name for yl in youth_leaders]) if youth_leaders else ""
-
-                start = form_data["start_date"]
-                end = form_data["end_date"]
-                if start == end:
-                    time_period_str = start.strftime("%d.%m.%Y")
-                else:
-                    time_period_str = f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
 
                 # Generate PDF using shared function
                 return generate_crisis_intervention_list_pdf(
@@ -824,10 +828,10 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                     code=f"K-{timezone.now():%y%m%d}",
                     place=form_data["place"],
                     destination="",
-                    groups_str=groups_str,
-                    staff_str=staff_str,
-                    time_period_str=time_period_str,
-                    date=start,
+                    groups=form_data.get("groups", []),
+                    staff=form_data.get("youth_leaders", []),
+                    start_date=form_data["start_date"],
+                    end_date=form_data["end_date"],
                     tour_type="",
                     tour_approach="",
                     members=list(members),
@@ -1904,18 +1908,6 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
 
-        # Prepare data from Freizeit object
-        groups_str = ", ".join([g.name for g in memberlist.groups.all()])
-        staff_str = ", ".join([jl.name for jl in memberlist.jugendleiter.all()])
-
-        # Format time period
-        if memberlist.date.date() == memberlist.end.date():
-            time_period_str = memberlist.date.strftime("%d.%m.%Y")
-        else:
-            time_period_str = (
-                f"{memberlist.date.strftime('%d.%m.%Y')} - {memberlist.end.strftime('%d.%m.%Y')}"
-            )
-
         # Get all members on the list
         members = [mol.member for mol in memberlist.membersonlist.all()]
 
@@ -1926,10 +1918,10 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             code=memberlist.code,
             place=memberlist.place,
             destination=memberlist.destination,
-            groups_str=groups_str,
-            staff_str=staff_str,
-            time_period_str=time_period_str,
-            date=memberlist.date,
+            groups=memberlist.groups.all(),
+            staff=memberlist.jugendleiter.all(),
+            start_date=memberlist.date,
+            end_date=memberlist.end,
             tour_type=memberlist.get_tour_type_display(),
             tour_approach=memberlist.get_tour_approach_display(),
             members=members,
