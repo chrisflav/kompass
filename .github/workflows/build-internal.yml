@@ -33,9 +33,15 @@ jobs:
   build:
     needs: check-source
     if: needs.check-source.outputs.should_run == 'true'
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+      actions: write
     uses: ./.github/workflows/build-test-shared.yml
     with:
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
       pr_number: ${{ github.event.pull_request.number || 0 }}
       head_ref: ${{ github.head_ref || github.ref_name }}
       is_pr: ${{ github.event_name == 'pull_request' }}
+    secrets: inherit
