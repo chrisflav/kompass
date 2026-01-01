@@ -255,13 +255,15 @@ def generate_crisis_intervention_list_pdf(
 
     # Format time period string
     # Handle both date and datetime objects
-    start_date_only = start_date.date() if hasattr(start_date, 'date') else start_date
-    end_date_only = end_date.date() if hasattr(end_date, 'date') else end_date
+    start_date_only = start_date.date() if hasattr(start_date, "date") else start_date
+    end_date_only = end_date.date() if hasattr(end_date, "date") else end_date
 
     if start_date_only == end_date_only:
         time_period_str = start_date_only.strftime("%d.%m.%Y")
     else:
-        time_period_str = f"{start_date_only.strftime('%d.%m.%Y')} - {end_date_only.strftime('%d.%m.%Y')}"
+        time_period_str = (
+            f"{start_date_only.strftime('%d.%m.%Y')} - {end_date_only.strftime('%d.%m.%Y')}"
+        )
 
     context = {
         "name": name,
