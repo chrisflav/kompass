@@ -1,0 +1,35 @@
+name: Build and Test (Fork)
+
+on:
+  pull_request_target:
+
+concurrency:
+  group: build-fork-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if fork PR
+        id: check
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Fork PR - will run with pull_request_target"
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Internal PR - will skip (handled by internal workflow)"
+          fi
+
+  build:
+    needs: check-source
+    if: needs.check-source.outputs.should_run == 'true'
+    uses: ./.github/workflows/build-test-shared.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}
+      pr_number: ${{ github.event.pull_request.number }}
+      head_ref: ${{ github.event.pull_request.head.ref }}
+      is_pr: true
