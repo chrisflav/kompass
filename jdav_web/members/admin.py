@@ -485,7 +485,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 ]
 
         # Add Crisis Intervention List option (create only, no add to existing)
-        if request.user.has_perm("members.add_global_membernotelist"):
+        if request.user.has_perm("members.add_global_freizeit"):
             allowed_choices.append(
                 {"value": "CrisisInterventionList", "label": _("Crisis Intervention List")}
             )
