@@ -3,7 +3,7 @@
 Mein Profil
 ===========
 
-Der Kompass verwaltet vor allem die aktiven Personen in einer Sektion, jeder und jede hat ein persönliches Profil im Kompass. 
+Der Kompass verwaltet vor allem die aktiven Personen in einer Sektion, jeder und jede hat ein persönliches Profil im Kompass.
 Auch Du tauchst in der Teilnehmer\*innenübersicht auf. Du kannst dein Profil am einfachsten erreichen, indem
 du im Menü ganz oben auf "Mein Profil" klickst.
 
@@ -21,6 +21,6 @@ Du kannst über die allgemeinen Informationen der Teilnehmer\*in-Detailansicht h
 
 - Im Reiter "Kontaktdaten" kannst du neben deiner Anschrift auch deine IBAN/Kontonummer eintragen. Diese wird z.B. benötigt, wenn du :ref:`abrechnung_einreichen` und ausgelegtes Geld erstattet bekommen möchtest.
 - Im Reiter "Fortbildungen" kannst du deine besuchten Aus- und Fortbildungen eintragen. Mehr dazu findest du unter :ref:`user_manual/training`.
-- Im Reiter "Notfallkontakte" kannst du Personen hinterlegen, die im Notfall kontaktiert werden sollen. 
+- Im Reiter "Notfallkontakte" kannst du Personen hinterlegen, die im Notfall kontaktiert werden sollen.
 
 Diese und allen weiteren Informationen in deinem Profil solltest du immer aktuell halten.
