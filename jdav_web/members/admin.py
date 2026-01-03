@@ -1,3 +1,4 @@
+import json
 from functools import update_wrapper
 
 import nested_admin
@@ -11,6 +12,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin import DateFieldListFilter
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.contenttypes.admin import GenericTabularInline
 from django.core.exceptions import ValidationError
 from django.db.models import Case
@@ -30,6 +32,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
+from mailer.models import Message
 from schwifty import IBAN
 from utils import get_member
 from utils import mondays_until_nth
@@ -48,6 +51,7 @@ from .models import Klettertreff
 from .models import KlettertreffAttendee
 from .models import LJPProposal
 from .models import Member
+from .models import MemberDocument
 from .models import MemberNoteList
 from .models import MemberTraining
 from .models import MemberUnconfirmedProxy
@@ -144,9 +148,154 @@ class EmergencyContactInline(CommonAdminInlineMixin, admin.TabularInline):
     extra = 0
 
 
+class MemberDocumentInline(CommonAdminInlineMixin, admin.TabularInline):
+    model = MemberDocument
+    description = _(
+        "Upload additional documents (e.g., medical forms, parental consent for medication). "
+        "These documents are stored centrally and accessible during emergencies."
+    )
+    formfield_overrides = {
+        RestrictedFileField: {
+            "widget": forms.ClearableFileInput(
+                attrs={"accept": "application/pdf,image/jpeg,image/png"}
+            )
+        },
+    }
+    fields = ["f"]
+    extra = 0
+
+
 class TrainingCategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "permission_needed")
     ordering = ("name",)
+
+
+class CreateObjectFromForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+
+
+class CrisisInterventionListForm(forms.Form):
+    """Form for creating a crisis intervention list for ad-hoc activities."""
+
+    activity = forms.CharField(
+        max_length=50,
+        label=_("Activity"),
+        help_text=_("Name of the activity"),
+    )
+    place = forms.CharField(
+        max_length=50,
+        label=_("Location"),
+        help_text=_("Location where the activity takes place"),
+    )
+    start_date = forms.DateField(
+        label=_("Start date"),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+        help_text=_("Start date of the activity"),
+        initial=timezone.now().strftime("%Y-%m-%d"),
+    )
+    end_date = forms.DateField(
+        label=_("End date"),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+        help_text=_("End date of the activity"),
+        initial=timezone.now().strftime("%Y-%m-%d"),
+    )
+    description = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        label=_("Description"),
+        help_text=_("Description of the activity"),
+        required=False,
+    )
+    youth_leaders = forms.ModelMultipleChoiceField(
+        queryset=Member.objects.all(),
+        label=_("Youth leaders"),
+        help_text=_("Youth leaders supervising the activity"),
+        required=False,
+        widget=FilteredSelectMultiple(_("Youth leaders"), is_stacked=False),
+    )
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(),
+        label=_("Groups"),
+        help_text=_("Groups participating in the activity"),
+        required=False,
+        widget=FilteredSelectMultiple(_("Groups"), is_stacked=False),
+    )
+
+
+def generate_crisis_intervention_list_pdf(
+    *,
+    name,
+    description,
+    code,
+    place,
+    destination,
+    groups,
+    staff,
+    start_date,
+    end_date,
+    tour_type,
+    tour_approach,
+    members,
+):
+    """Generate a crisis intervention list PDF.
+
+    Args:
+        name: Activity name
+        description: Activity description
+        code: Activity code (e.g., K-260101)
+        place: Location of the activity
+        destination: Destination (optional, e.g., a peak)
+        groups: List or queryset of Group objects
+        staff: List or queryset of Member objects (youth leaders)
+        start_date: Start date of the activity
+        end_date: End date of the activity
+        tour_type: Tour type identifier (empty string for ad-hoc lists)
+        tour_approach: Tour approach identifier (empty string for ad-hoc lists)
+        members: List of Member objects participating in the activity
+
+    Returns:
+        HttpResponse with the generated PDF
+    """
+    # Format groups string
+    groups_str = ", ".join([g.name for g in groups]) if groups else ""
+
+    # Format staff string
+    staff_str = ", ".join([s.name for s in staff]) if staff else ""
+
+    # Format time period string
+    # Handle both date and datetime objects
+    start_date_only = start_date.date() if hasattr(start_date, "date") else start_date
+    end_date_only = end_date.date() if hasattr(end_date, "date") else end_date
+
+    if start_date_only == end_date_only:
+        time_period_str = start_date_only.strftime("%d.%m.%Y")
+    else:
+        time_period_str = (
+            f"{start_date_only.strftime('%d.%m.%Y')} - {end_date_only.strftime('%d.%m.%Y')}"
+        )
+
+    context = {
+        "name": name,
+        "description": description,
+        "code": code,
+        "place": place,
+        "destination": destination,
+        "groups_str": groups_str,
+        "staff_str": staff_str,
+        "time_period_str": time_period_str,
+        "tour_type": tour_type,
+        "tour_approach": tour_approach,
+        "members": members,
+        "settings": settings,
+    }
+
+    # Use description for filename if name is long, otherwise use name
+    filename_base = description if len(name) > 30 else name
+    return render_tex(
+        f"{filename_base}_Krisenliste",
+        "members/crisis_intervention_list.tex",
+        context,
+        date=start_date,
+    )
 
 
 class MemberAdminForm(forms.ModelForm):
@@ -233,7 +382,12 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     list_filter = ("echoed", "group")
     list_display_links = None
     readonly_fields = ["echoed", "good_conduct_certificate_valid"]
-    inlines = [EmergencyContactInline, TrainingOnMemberInline, PermissionOnMemberInline]
+    inlines = [
+        EmergencyContactInline,
+        MemberDocumentInline,
+        TrainingOnMemberInline,
+        PermissionOnMemberInline,
+    ]
     formfield_overrides = {
         RestrictedFileField: {
             "widget": forms.ClearableFileInput(
@@ -243,7 +397,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     }
     change_form_template = "members/change_member.html"
     ordering = ("lastname",)
-    actions = ["request_echo", "invite_as_user_action", "unconfirm"]
+    actions = ["create_object_from", "request_echo", "invite_as_user_action", "unconfirm"]
     list_per_page = 25
 
     form = MemberAdminForm
@@ -286,6 +440,13 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 wrap(self.request_echo_view),
                 name="{}_{}_requestecho".format(self.opts.app_label, self.opts.model_name),
             ),
+            path(
+                "create_crisis_intervention_list/",
+                wrap(self.create_crisis_intervention_list_view),
+                name="{}_{}_create_crisis_intervention_list".format(
+                    self.opts.app_label, self.opts.model_name
+                ),
+            ),
         ]
         return custom_urls + urls
 
@@ -307,9 +468,127 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     def send_mail_to(self, request, queryset):
         member_pks = [m.pk for m in queryset]
         query = str(member_pks).replace(" ", "")
-        return HttpResponseRedirect("/admin/mailer/message/add/?members={}".format(query))
+        return HttpResponseRedirect(
+            reverse("admin:mailer_message_add") + "?members={}".format(query)
+        )
 
     send_mail_to.short_description = _("Compose new mail to selected members")
+
+    def create_object_from(self, request, queryset):
+        """
+        Create an object from the selected members. This can be one of
+        - `MemberNoteList`
+        - `Freizeit`
+        - `Message`
+        - `CrisisInterventionList` (generates PDF directly)
+        """
+        MODELS = {
+            "MemberNoteList": MemberNoteList,
+            "Excursion": Freizeit,
+            "Message": Message,
+        }
+        choice = request.POST.get("choice")
+
+        # Handle crisis intervention list separately (no model, direct to form)
+        if "create" in request.POST and choice == "CrisisInterventionList":
+            member_pks = [m.pk for m in queryset]
+            query = str(member_pks).replace(" ", "")
+            return HttpResponseRedirect(
+                reverse("admin:members_member_create_crisis_intervention_list")
+                + "?members={}".format(query)
+            )
+
+        model = MODELS.get(choice)
+        if "create" in request.POST and model is not None:
+            member_pks = [m.pk for m in queryset]
+            query = str(member_pks).replace(" ", "")
+
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_add".format(model._meta.app_label, model._meta.model_name))
+                + "?members={}".format(query)
+            )
+
+        elif "add_to_selected" in request.POST:
+            choice = request.POST.get("choice")
+            entry_id = request.POST.get("existing_entry")
+            model = MODELS.get(choice)
+            if entry_id is None or model is None:
+                # If validation failed, return to member list
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
+                    )
+                )
+
+            try:
+                obj = model.objects.get(pk=entry_id)
+                obj.add_members(queryset)
+                messages.success(
+                    request,
+                    _("Successfully added %(count)s member(s) to %(model)s '%(obj)s'.")
+                    % {
+                        "count": queryset.count(),
+                        "model": model._meta.verbose_name,
+                        "obj": str(obj),
+                    },
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_change".format(model._meta.app_label, model._meta.model_name),
+                        args=(entry_id,),
+                    )
+                )
+            except model.DoesNotExist:
+                messages.error(
+                    request,
+                    _("Selected %(model)s does not exist.") % {"model": model._meta.verbose_name},
+                )
+
+        # Check permissions and prepare allowed choices
+        allowed_choices = []
+        existing_entries = {}
+
+        # Configuration for ordering (only thing that varies by model)
+        MODEL_ORDERING = {
+            "MemberNoteList": "-date",
+            "Excursion": "-date",
+            "Message": "-pk",
+        }
+
+        # Iterate through MODELS and set allowed_choices and existing_entries
+        for key, model_class in MODELS.items():
+            permission = f"{model_class._meta.app_label}.add_global_{model_class._meta.model_name}"
+            if request.user.has_perm(permission):
+                allowed_choices.append(
+                    {"value": key, "label": model_class._meta.verbose_name.title()}
+                )
+                existing_entries[key] = [
+                    {"id": obj.pk, "display": obj.get_dropdown_display()}
+                    for obj in model_class.filter_queryset_by_change_permissions(
+                        request.user
+                    ).order_by(MODEL_ORDERING[key])
+                ]
+
+        # Add Crisis Intervention List option (create only, no add to existing)
+        if request.user.has_perm("members.add_global_freizeit"):
+            allowed_choices.append(
+                {"value": "CrisisInterventionList", "label": _("Crisis Intervention List")}
+            )
+
+        id_list = queryset.values_list("id", flat=True)
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Create object from selected members"),
+            opts=self.opts,
+            queryset=queryset,
+            # Ensures that follow-up requests are still handled by this view
+            form=CreateObjectFromForm(initial={"_selected_action": id_list}),
+            allowed_choices=allowed_choices,
+            existing_entries_json=json.dumps(existing_entries),
+        )
+        return render(request, "admin/create_object_from.html", context=context)
+
+    create_object_from.short_description = _("Create object from selected members.")
 
     def request_echo(self, request, queryset):
         # make sure to show the successful banner only if any successful
@@ -348,6 +627,13 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         if not member.gets_newsletter:
             messages.warning(
                 request, _("%(name)s does not receive the newsletter.") % {"name": member.name}
+            )
+        elif not member.birth_date:
+            messages.error(
+                request,
+                _(
+                    "Member {name} doesn't have a birthdate set, which is mandatory for echo requests"
+                ).format(name=member.name),
             )
         else:
             member.request_echo()
@@ -515,6 +801,58 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         messages.success(request, _("Successfully unconfirmed selected members."))
 
     unconfirm.short_description = _("Unconfirm selected members.")
+
+    def create_crisis_intervention_list_view(self, request):
+        """View for creating crisis intervention lists for ad-hoc activities."""
+        # Get selected members from query parameter
+        raw_members = request.GET.get("members", "")
+        try:
+            m_ids = json.loads(raw_members)
+            if not isinstance(m_ids, list):
+                raise ValueError()
+            members = Member.objects.filter(pk__in=m_ids)
+            if not members.exists():
+                raise ValueError()
+        except (json.JSONDecodeError, ValueError):
+            messages.error(request, _("Invalid member selection."))
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        # Handle form submission
+        if request.method == "POST":
+            form = CrisisInterventionListForm(request.POST)
+            if form.is_valid():
+                form_data = form.cleaned_data
+
+                # Generate PDF using shared function
+                return generate_crisis_intervention_list_pdf(
+                    name=form_data["activity"],
+                    description=form_data["description"],
+                    code=f"K-{timezone.now():%y%m%d}",
+                    place=form_data["place"],
+                    destination="",
+                    groups=form_data.get("groups", []),
+                    staff=form_data.get("youth_leaders", []),
+                    start_date=form_data["start_date"],
+                    end_date=form_data["end_date"],
+                    tour_type="",
+                    tour_approach="",
+                    members=list(members),
+                )
+        else:
+            form = CrisisInterventionListForm()
+
+        # Render form template
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Create Crisis Intervention List"),
+            opts=self.opts,
+            form=form,
+            members=members,
+            members_json=raw_members,
+        )
+        return render(request, "admin/create_crisis_intervention_list.html", context=context)
 
 
 class DemoteToWaiterForm(forms.Form):
@@ -1282,6 +1620,28 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     inlines = [InterventionOnLJPInline]
 
 
+class MemberOnListInlineForm(forms.ModelForm):
+    """Custom form for the `MemberOnListInline`"""
+
+    class Meta:
+        model = NewMemberOnList
+        exclude = []
+
+    def __init__(self, *args, **kwargs):
+        prefilled = kwargs.pop("prefilled", False)
+        super().__init__(*args, **kwargs)
+        # If prefilled is set, the inline received initial data.
+        # We need to override the `has_changed` method of the `member` field, otherwise
+        # the prefilled data is not saved.
+        if prefilled:
+            member_field = self.fields["member"]
+
+            def new_has_changed(self, data):
+                return data != ""
+
+            member_field.has_changed = new_has_changed
+
+
 class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     model = NewMemberOnList
     extra = 0
@@ -1291,6 +1651,7 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
     formfield_overrides = {TextField: {"widget": Textarea(attrs={"rows": 1, "cols": 40})}}
     sortable_options = []
     template = "admin/members/freizeit/memberonlistinline.html"
+    form = MemberOnListInlineForm
 
     def people_count(self, obj):
         if isinstance(obj, Freizeit):
@@ -1306,14 +1667,49 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
         return dict(total_people=total_people, organizer_count=organizer_count)
 
     def get_formset(self, request, obj=None, **kwargs):
-        """Override get_formset to add extra context."""
-        formset = super().get_formset(request, obj, **kwargs)
+        """Override get_formset to add extra context and handle initial member data."""
+        # Handle members query parameter for pre-populating members on add view
+        initial_data = []
+        if obj is None:  # Only for add view
+            raw_members = request.GET.get("members", None)
+            if raw_members is not None:
+                try:
+                    m_ids = json.loads(raw_members)
+                    if isinstance(m_ids, list):
+                        members = Member.objects.filter(pk__in=m_ids)
+                        # Set extra forms to match number of members
+                        self.extra = len(members)
+                        # Prepare initial data for formset
+                        initial_data = [{"member": member.pk} for member in members]
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+        FormSet = super().get_formset(request, obj, **kwargs)
 
         if obj:  # Ensure there is an Activity instance
-            formset.total_people = self.people_count(obj)["total_people"]
-            formset.organizer_count = self.people_count(obj)["organizer_count"]
+            FormSet.total_people = self.people_count(obj)["total_people"]
+            FormSet.organizer_count = self.people_count(obj)["organizer_count"]
 
-        return formset
+        # If we have initial data, create a wrapped formset class that uses it
+        if initial_data:
+            original_init = FormSet.__init__
+            original_get_form_kwargs = FormSet.get_form_kwargs
+
+            def new_init(self, *args, **init_kwargs):
+                if "initial" not in init_kwargs:
+                    init_kwargs["initial"] = initial_data
+                original_init(self, *args, **init_kwargs)
+
+            def new_get_form_kwargs(self, index):
+                # we pass the prefilled kwarg to the `MemberOnListInlineForm`
+                kwargs = original_get_form_kwargs(self, index)
+                kwargs["prefilled"] = True
+                return kwargs
+
+            FormSet.__init__ = new_init
+            FormSet.get_form_kwargs = new_get_form_kwargs
+
+        return FormSet
 
 
 class MemberNoteListAdmin(admin.ModelAdmin):
@@ -1515,12 +1911,24 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
     def crisis_intervention_list(self, request, memberlist):
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
-        context = dict(memberlist=memberlist, settings=settings)
-        return render_tex(
-            f"{memberlist.code}_{memberlist.name}_Krisenliste",
-            "members/crisis_intervention_list.tex",
-            context,
-            date=memberlist.date,
+
+        # Get all members on the list
+        members = [mol.member for mol in memberlist.membersonlist.all()]
+
+        # Generate PDF using shared function
+        return generate_crisis_intervention_list_pdf(
+            name=memberlist.name,
+            description=memberlist.description,
+            code=memberlist.code,
+            place=memberlist.place,
+            destination=memberlist.destination,
+            groups=memberlist.groups.all(),
+            staff=memberlist.jugendleiter.all(),
+            start_date=memberlist.date,
+            end_date=memberlist.end,
+            tour_type=memberlist.get_tour_type_display(),
+            tour_approach=memberlist.get_tour_approach_display(),
+            members=members,
         )
 
     crisis_intervention_list.short_description = _("Generate crisis intervention list")

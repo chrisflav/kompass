@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ form.media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% translate 'Create Crisis Intervention List' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% translate "Create Crisis Intervention List" %}</h1>
+
+    <p>{% translate "Selected members:" %}</p>
+    <ul>
+    {% for member in members %}
+        <li>{{ member.name }}</li>
+    {% endfor %}
+    </ul>
+
+    <p>{% translate "Please enter the details for the activity:" %}</p>
+
+    <form action="" method="post" id="crisis-intervention-form" target="_blank">
+        {% csrf_token %}
+        <input type="hidden" name="members" value="{{ members_json }}">
+
+        <table>
+            {{ form.as_table }}
+        </table>
+
+        <div class="submit-row">
+            <input type="submit" value="{% translate 'Generate Crisis Intervention List' %}" class="default">
+            <a href="{% url opts|admin_urlname:'changelist' %}" class="button">{% translate "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

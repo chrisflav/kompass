@@ -45,7 +45,13 @@ def render_docx(name, template_path, context, date=None, save_only=False):
     filename_docx = filename + ".docx"
     oldwd = os.getcwd()
     os.chdir(media_dir())
-    subprocess.call(["pandoc", filename_tex, "-o", filename_docx])
+    result = subprocess.run(
+        ["pandoc", filename_tex, "-o", filename_docx],
+        capture_output=True,
+        text=True,
+    )
+    logger.debug(f"Pandoc stdout: {result.stdout}")
+    logger.debug(f"Pandoc stderr: {result.stderr}")
     time.sleep(1)
     os.chdir(oldwd)
     if save_only:
@@ -77,7 +83,13 @@ def render_tex(name, template_path, context, date=None, save_only=False):
     # compile using pdflatex
     oldwd = os.getcwd()
     os.chdir(media_dir())
-    subprocess.call(["pdflatex", "-halt-on-error", filename_tex])
+    result = subprocess.run(
+        ["pdflatex", "-halt-on-error", filename_tex],
+        capture_output=True,
+        text=True,
+    )
+    logger.debug(f"pdflatex stdout: {result.stdout}")
+    logger.debug(f"pdflatex stderr: {result.stderr}")
     time.sleep(1)
 
     # do some cleanup

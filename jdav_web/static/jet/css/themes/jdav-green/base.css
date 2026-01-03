@@ -9266,25 +9266,25 @@ ul.actionlist li {
 @keyframes spin {
   100% {
     transform: rotate(360deg); } }
-.invite-waiter #content > ul, .invite-waiter #content > h1 + p + ul {
+.invite-waiter #content ul {
   background: #fff;
   border-radius: 4px;
   box-shadow: 0 2px 0 0 #cceae4; }
-  .invite-waiter #content > ul, .invite-waiter #content > ul ul, .invite-waiter #content > h1 + p + ul, .invite-waiter #content > h1 + p + ul ul {
+  .invite-waiter #content ul, .invite-waiter #content ul ul {
     list-style-type: none;
     margin: 0;
     padding: 0; }
-    .invite-waiter #content > ul li, .invite-waiter #content > ul ul li, .invite-waiter #content > h1 + p + ul li, .invite-waiter #content > h1 + p + ul ul li {
+    .invite-waiter #content ul li, .invite-waiter #content ul ul li {
       list-style: disc;
       line-height: 1.8; }
-  .invite-waiter #content > ul ul, .invite-waiter #content > h1 + p + ul ul {
+  .invite-waiter #content ul ul {
     margin-left: 20px; }
-  .invite-waiter #content > ul > li, .invite-waiter #content > h1 + p + ul > li {
+  .invite-waiter #content ul > li {
     padding: 8px;
     border-bottom: 1px solid #f5f3f4;
     font-size: 13px;
     list-style: none; }
-    .invite-waiter #content > ul > li:last-child, .invite-waiter #content > h1 + p + ul > li:last-child {
+    .invite-waiter #content ul > li:last-child {
       border-bottom: 0; }
 .invite-waiter #content form {
   margin-top: 20px; }
