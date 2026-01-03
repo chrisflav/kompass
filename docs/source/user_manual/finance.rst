@@ -4,7 +4,7 @@ Finanzen
 ========
 
 Auf dieser Seite wird das Einreichen, Bearbeiten und Abwickeln von Abrechnungen
-erklärt. Abrechnungen können für verschiedene Zwecke angelegt werden, z.B. für einzelne Auslagen für 
+erklärt. Abrechnungen können für verschiedene Zwecke angelegt werden, z.B. für einzelne Auslagen für
 Aktivitäten der Organisation, für angeschafftes Material oder die Abrechnung von Ausfahrten. In diesem Bereich tauchen alle von dir angelegten Abrechnungen auf. An ihrem jeweiligen Status erkennst du den aktuellen Stand der Abwicklung:
 
 - In Vorbereitung: Die Abrechnung wird gerade von dir erstellt und kann noch bearbeitet werden. Sie muss noch von dir eingereicht werden, bevor sie geprüft und bearbeitet wird.
@@ -17,7 +17,7 @@ Aufbau einer Abrechnung
 Eine Abrechnung hat immer einen Titel, eine Beschreibung und einen Status.
 Mit Titel und Beschreibung kannst du die Abrechnung für dich und andere Beteiligte identifizieren und genauer beschreiben.
 Darüber hinaus enthält eine Abrechnung eine Liste von Auslagen (Einzelposten), die du hinzufügen kannst.
-Jede Auslage enthält eine Beschreibung, den genauen Betrag und einen Beleg (als PDF oder Bilddatei). 
+Jede Auslage enthält eine Beschreibung, den genauen Betrag und einen Beleg (als PDF oder Bilddatei).
 Außerdem muss die Person ausgewählt werden, die die einzelne Auslage getätigt hat.
 
 So können sehr kleine Einzelauslagen bis große Abrechnungen mit vielen Posten abgebildet werden.
@@ -32,7 +32,7 @@ Fülle die erforderlichen Felder aus und füge im Tab "Ausgaben" alle relevanten
 Anschließend musst du die Abrechnung zuerst einmal speichern, indem du auf den Button "Sichern und weiter bearbeiten" klickst.
 Dann erscheint oben rechts der Button "Einreichen". Über diesen kommst du auf eine Übersichtsseite, auf der du nochmals alle Ausgaben und die Empfänger prüfen kannst (sie müssen eine IBAN unter :ref:`user_manual/myprofile` eingetragen haben.)
 
-Mit einem erneuten Klick auf "Einreichen" kannst du die Abrechnung final zur Prüfung an die zuständige Person schicken. 
+Mit einem erneuten Klick auf "Einreichen" kannst du die Abrechnung final zur Prüfung an die zuständige Person schicken.
 Bis du die Abrechnung einreichst, kannst du sie jederzeit bearbeiten oder löschen.
 
 .. image:: images/finance_statement.png
