@@ -19,9 +19,17 @@ Deine Änderungen musst du abschließend speichern, z.B. indem du unten auf den 
 
 Eine für die Fortbildungen relevante Person kann deine Einträge anschließend prüfen und bestätigen, dass du teilgenommen und auch bestanden hast.
 
+.. image:: images/training_changelist.png
+
+Max hat direkt seine Grundausbildung in seinem Profil eingetragen und das Teilnahme-Zertifikat hochgeladen. Hier muss er den Eintrag nur noch speichern.
+
+.. image:: images/training_changelist_approved.png
+
+So konnte die zuständige Person seine Fortbildung schnell prüfen und bestätigen. Wenig später sieht Max nun in seinem Profil, dass seine Grundausbildung bestätigt wurde.
+
 Fortbildungen verwalten
 -----------------------
-... note::
+.. note::
    Dieser Abschnitt ist nur für Personen relevant, die Fortbildungen prüfen und bestätigen dürfen.  
 
 Nachdem eine Fortbildung von einer Person eingetragen wurde, die sie besucht hat, kannst du sie im Menü "Ausbildung" > "Fortbildungen" einsehen.
