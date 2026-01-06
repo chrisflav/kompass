@@ -7,16 +7,16 @@
 <meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Nutzer Dokumentation | Kompass 2.0 Dokumentation</title>
-<meta content="Nutzer Dokumentation | Kompass 2.0 Dokumentation" property="og:title"/>
-<meta content="Nutzer Dokumentation | Kompass 2.0 Dokumentation" name="twitter:title"/>
+<title>Fortbildungen | Kompass 2.0 Dokumentation</title>
+<meta content="Fortbildungen | Kompass 2.0 Dokumentation" property="og:title"/>
+<meta content="Fortbildungen | Kompass 2.0 Dokumentation" name="twitter:title"/>
 <link href="../_static/pygments.css?v=4bdb26dd" rel="stylesheet" type="text/css"/>
 <link href="../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
 <link href="../_static/favicon.svg" rel="icon"/>
 <link href="../search.html" rel="search" title="Suche"/>
 <link href="../genindex.html" rel="index" title="Stichwortverzeichnis"/>
-<link href="getstarted.html" rel="next" title="Erste Schritte"/>
-<link href="../index.html" rel="prev" title="jdav Kompass"/>
+<link href="../development_manual/index.html" rel="next" title="Development Documentation"/>
+<link href="finance.html" rel="prev" title="Finanzen"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
       const userPreference = localStorage.getItem('darkMode');
@@ -78,14 +78,14 @@
 <a href="../about.html">About</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
 <ul class="current">
-<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="current reference internal expandable" href="#">Nutzer Dokumentation<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="index.html">Nutzer Dokumentation<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="getstarted.html">Erste Schritte</a></li>
 <li class="toctree-l2"><a class="reference internal" href="members.html">Teilnehmer*innenverwaltung</a></li>
 <li class="toctree-l2"><a class="reference internal" href="myprofile.html">Mein Profil</a></li>
 <li class="toctree-l2"><a class="reference internal" href="excursions.html">Ausfahrten</a></li>
 <li class="toctree-l2"><a class="reference internal" href="waitinglist.html">Warteliste und neue Mitglieder</a></li>
 <li class="toctree-l2"><a class="reference internal" href="finance.html">Finanzen</a></li>
-<li class="toctree-l2"><a class="reference internal" href="training.html">Fortbildungen</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Fortbildungen</a></li>
 </ul>
 </li>
 </ul>
@@ -118,67 +118,52 @@
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
 </a>
-<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Nutzer Dokumentation</span>
+<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="index.html">Nutzer Dokumentation</a>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Fortbildungen</span>
 </nav>
 <div id="content" role="main">
-<section id="nutzer-dokumentation">
-<span id="user-manual-index"></span><h1>Nutzer Dokumentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#nutzer-dokumentation">¶</a></h1>
-<p>Der Kompass ist dein Kompass in der Jugendarbeit in deiner JDAV Sektion. Wenn du das
-erste mal hier bist, schau doch mal <a class="reference internal" href="getstarted.html#user-manual-getstarted"><span class="std std-ref">Erste Schritte</span></a> an.</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="getstarted.html">Erste Schritte</a></li>
-<li class="toctree-l1"><a class="reference internal" href="members.html">Teilnehmer*innenverwaltung</a></li>
-<li class="toctree-l1"><a class="reference internal" href="myprofile.html">Mein Profil</a></li>
-<li class="toctree-l1"><a class="reference internal" href="excursions.html">Ausfahrten</a></li>
-<li class="toctree-l1"><a class="reference internal" href="waitinglist.html">Warteliste und neue Mitglieder</a></li>
-<li class="toctree-l1"><a class="reference internal" href="finance.html">Finanzen</a></li>
-<li class="toctree-l1"><a class="reference internal" href="training.html">Fortbildungen</a></li>
-</ul>
-</div>
-<section id="was-ist-der-kompass">
-<h2>Was ist der Kompass?<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#was-ist-der-kompass" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#was-ist-der-kompass'">¶</a></h2>
-<p>Der Kompass ist eine Verwaltungsplattform für die tägliche Jugendarbeit in der JDAV.
-Die wichtigsten Funktionen sind</p>
-<ul class="simple">
-<li><p>Verwaltung von Teilnehmer*innen von Jugendgruppen</p></li>
-<li><p>Organisation von Ausfahrten</p></li>
-<li><p>Abwicklung von Abrechnungen</p></li>
-<li><p>Senden von E-Mails</p></li>
-</ul>
-<p>Neben diesen Funktionen für die tägliche Arbeit, automatisiert der Kompass die
-Aufnahme von neuen Mitgliedern und die Pflege der Daten durch</p>
-<ul class="simple">
-<li><p>Wartelistenverwaltung</p></li>
-<li><p>Registrierung neuer Mitglieder</p></li>
-<li><p>Rückmeldeverfahren</p></li>
-</ul>
+<section id="fortbildungen">
+<span id="user-manual-training"></span><h1>Fortbildungen<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#fortbildungen">¶</a></h1>
+<p>Auf dieser Seite werden deine Aus- und Fortbildungen innerhalb der Organisation
+verwaltet. Hier kannst du deine Fortbildungen hinzufügen und Teilnahme-Zertifikate hochladen.</p>
+<section id="eine-fortbildung-hinzufugen">
+<h2>Eine Fortbildung hinzufügen<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#eine-fortbildung-hinzufugen" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#eine-fortbildung-hinzufugen'">¶</a></h2>
+<p>Um eine Fortbildung hinzuzufügen, musst du zunächst auf dein persönliches Profil gehen. Das findest du im Menü ganz oben unter „Mein Profil“.
+In deinem Profil gibt es den Reiter „Fortbildungen“. Dort findest du eine Übersicht aller Fortbildungen, die du bereits hinzugefügt hast.
+Ganz unten kannst du eine neue Zeile hinzufügen. Für jede Fortbildung musst du einen Titel, ein Datum, eine Kategorie (z.B. das Format der Fortbildung) und mindestens eine Aktivität (die behandelten Themen der Fortbildung) angeben.
+Außerdem kannst du in einem Kommentarfeld weitere Details zur Fortbildung eintragen und ein Teilnahme-Zertifikat als Bild oder PDF hochladen.</p>
+<p>Deine Änderungen musst du abschließend speichern, z.B. indem du unten auf den Button „Speichern“ klickst.</p>
+<p>Eine für die Fortbildungen relevante Person kann deine Einträge anschließend prüfen und bestätigen, dass du teilgenommen und auch bestanden hast.</p>
+<img alt="../_images/training_changelist.png" src="../_images/training_changelist.png"/>
+<p>Max hat direkt seine Grundausbildung in seinem Profil eingetragen und das Teilnahme-Zertifikat hochgeladen. Hier muss er den Eintrag nur noch speichern.</p>
+<img alt="../_images/training_changelist_approved.png" src="../_images/training_changelist_approved.png"/>
+<p>So konnte die zuständige Person seine Fortbildung schnell prüfen und bestätigen. Wenig später sieht Max nun in seinem Profil, dass seine Grundausbildung bestätigt wurde.</p>
 </section>
-<section id="feedback">
-<h2>Feedback<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#feedback" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#feedback'">¶</a></h2>
-<p>Wenn Du Feedback hast, schreibe uns gerne eine E-Mail an: <a class="reference external" href="mailto:digitales%40jdav-hd.de?subject=KompassFeedback">digitales<span>@</span>jdav-hd<span>.</span>de</a>.
-Der Kompass lebt davon, dass er genau unsere Probleme löst und nicht nur ein weiteres Tool ist.</p>
-<p>Feedback könnte sein:</p>
-<ul class="simple">
-<li><p>Fehler in der Software (bug)</p></li>
-<li><p>Verbesserungsvorschläge</p></li>
-<li><p>Wünsche für neue Funktionen</p></li>
-<li><p>etc. pp.</p></li>
-</ul>
+<section id="fortbildungen-verwalten">
+<h2>Fortbildungen verwalten<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#fortbildungen-verwalten" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#fortbildungen-verwalten'">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Bemerkung</p>
+<p>Dieser Abschnitt ist nur für Personen relevant, die Fortbildungen prüfen und bestätigen dürfen.</p>
+</div>
+<p>Nachdem eine Fortbildung von einer Person eingetragen wurde, die sie besucht hat, kannst du sie im Menü „Ausbildung“ &gt; „Fortbildungen“ einsehen.</p>
+<ol class="arabic simple">
+<li><p>Du solltest die Fortbildung und alle angegebenen Details inhaltlich prüfen.</p></li>
+<li><p>Wenn alles in Ordnung ist, kannst du die Fortbildung bestätigen, indem du die Felder „Teilgenommen“ und „Bestanden“ befüllst und die Fortbildung speicherst.</p></li>
+</ol>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../index.html">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="finance.html">
 <svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="15 18 9 12 15 6"></polyline>
 </svg>
-        jdav Kompass
+        Finanzen
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="getstarted.html">
-        Erste Schritte
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../development_manual/index.html">
+        Development Documentation
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
@@ -187,8 +172,8 @@ Der Kompass lebt davon, dass er genau unsere Probleme löst und nicht nur ein we
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#was-ist-der-kompass'" class="reference internal" href="#was-ist-der-kompass">Was ist der Kompass?</a></li>
-<li><a :data-current="activeSection === '#feedback'" class="reference internal" href="#feedback">Feedback</a></li>
+<li><a :data-current="activeSection === '#eine-fortbildung-hinzufugen'" class="reference internal" href="#eine-fortbildung-hinzufugen">Eine Fortbildung hinzufügen</a></li>
+<li><a :data-current="activeSection === '#fortbildungen-verwalten'" class="reference internal" href="#fortbildungen-verwalten">Fortbildungen verwalten</a></li>
 </ul>
 </div>
 </aside>

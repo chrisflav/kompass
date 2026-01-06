@@ -7,16 +7,16 @@
 <meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Nutzer Dokumentation | Kompass 2.0 Dokumentation</title>
-<meta content="Nutzer Dokumentation | Kompass 2.0 Dokumentation" property="og:title"/>
-<meta content="Nutzer Dokumentation | Kompass 2.0 Dokumentation" name="twitter:title"/>
+<title>Mein Profil | Kompass 2.0 Dokumentation</title>
+<meta content="Mein Profil | Kompass 2.0 Dokumentation" property="og:title"/>
+<meta content="Mein Profil | Kompass 2.0 Dokumentation" name="twitter:title"/>
 <link href="../_static/pygments.css?v=4bdb26dd" rel="stylesheet" type="text/css"/>
 <link href="../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
 <link href="../_static/favicon.svg" rel="icon"/>
 <link href="../search.html" rel="search" title="Suche"/>
 <link href="../genindex.html" rel="index" title="Stichwortverzeichnis"/>
-<link href="getstarted.html" rel="next" title="Erste Schritte"/>
-<link href="../index.html" rel="prev" title="jdav Kompass"/>
+<link href="excursions.html" rel="next" title="Ausfahrten"/>
+<link href="members.html" rel="prev" title="Teilnehmer*innenverwaltung"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
       const userPreference = localStorage.getItem('darkMode');
@@ -78,10 +78,10 @@
 <a href="../about.html">About</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
 <ul class="current">
-<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="current reference internal expandable" href="#">Nutzer Dokumentation<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="index.html">Nutzer Dokumentation<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="getstarted.html">Erste Schritte</a></li>
 <li class="toctree-l2"><a class="reference internal" href="members.html">Teilnehmer*innenverwaltung</a></li>
-<li class="toctree-l2"><a class="reference internal" href="myprofile.html">Mein Profil</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Mein Profil</a></li>
 <li class="toctree-l2"><a class="reference internal" href="excursions.html">Ausfahrten</a></li>
 <li class="toctree-l2"><a class="reference internal" href="waitinglist.html">Warteliste und neue Mitglieder</a></li>
 <li class="toctree-l2"><a class="reference internal" href="finance.html">Finanzen</a></li>
@@ -118,67 +118,44 @@
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
 </a>
-<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Nutzer Dokumentation</span>
+<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="index.html">Nutzer Dokumentation</a>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Mein Profil</span>
 </nav>
 <div id="content" role="main">
-<section id="nutzer-dokumentation">
-<span id="user-manual-index"></span><h1>Nutzer Dokumentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#nutzer-dokumentation">¶</a></h1>
-<p>Der Kompass ist dein Kompass in der Jugendarbeit in deiner JDAV Sektion. Wenn du das
-erste mal hier bist, schau doch mal <a class="reference internal" href="getstarted.html#user-manual-getstarted"><span class="std std-ref">Erste Schritte</span></a> an.</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="getstarted.html">Erste Schritte</a></li>
-<li class="toctree-l1"><a class="reference internal" href="members.html">Teilnehmer*innenverwaltung</a></li>
-<li class="toctree-l1"><a class="reference internal" href="myprofile.html">Mein Profil</a></li>
-<li class="toctree-l1"><a class="reference internal" href="excursions.html">Ausfahrten</a></li>
-<li class="toctree-l1"><a class="reference internal" href="waitinglist.html">Warteliste und neue Mitglieder</a></li>
-<li class="toctree-l1"><a class="reference internal" href="finance.html">Finanzen</a></li>
-<li class="toctree-l1"><a class="reference internal" href="training.html">Fortbildungen</a></li>
-</ul>
-</div>
-<section id="was-ist-der-kompass">
-<h2>Was ist der Kompass?<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#was-ist-der-kompass" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#was-ist-der-kompass'">¶</a></h2>
-<p>Der Kompass ist eine Verwaltungsplattform für die tägliche Jugendarbeit in der JDAV.
-Die wichtigsten Funktionen sind</p>
-<ul class="simple">
-<li><p>Verwaltung von Teilnehmer*innen von Jugendgruppen</p></li>
-<li><p>Organisation von Ausfahrten</p></li>
-<li><p>Abwicklung von Abrechnungen</p></li>
-<li><p>Senden von E-Mails</p></li>
-</ul>
-<p>Neben diesen Funktionen für die tägliche Arbeit, automatisiert der Kompass die
-Aufnahme von neuen Mitgliedern und die Pflege der Daten durch</p>
-<ul class="simple">
-<li><p>Wartelistenverwaltung</p></li>
-<li><p>Registrierung neuer Mitglieder</p></li>
-<li><p>Rückmeldeverfahren</p></li>
-</ul>
+<section id="mein-profil">
+<span id="user-manual-myprofile"></span><h1>Mein Profil<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#mein-profil">¶</a></h1>
+<p>Der Kompass verwaltet vor allem die aktiven Personen in einer Sektion, jeder und jede hat ein persönliches Profil im Kompass.
+Auch Du tauchst in der Teilnehmer*innenübersicht auf. Du kannst dein Profil am einfachsten erreichen, indem
+du im Menü ganz oben auf „Mein Profil“ klickst.</p>
+<img alt="../_images/members_myprofile.png" src="../_images/members_myprofile.png"/>
+<section id="aufbau-des-profils">
+<h2>Aufbau des Profils<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#aufbau-des-profils" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#aufbau-des-profils'">¶</a></h2>
+<p>Dein Profil ist genauso aufgebaut wie das Profil jeder anderen Person im Kompass. Es enthält verschiedene Reiter mit unterschiedlichen Informationen.
+Der Aufbau des Profils ist im Detail in <a class="reference internal" href="members.html#detailansicht"><span class="std std-ref">Teilnehmer*in Detailansicht</span></a> beschrieben.</p>
 </section>
-<section id="feedback">
-<h2>Feedback<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#feedback" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#feedback'">¶</a></h2>
-<p>Wenn Du Feedback hast, schreibe uns gerne eine E-Mail an: <a class="reference external" href="mailto:digitales%40jdav-hd.de?subject=KompassFeedback">digitales<span>@</span>jdav-hd<span>.</span>de</a>.
-Der Kompass lebt davon, dass er genau unsere Probleme löst und nicht nur ein weiteres Tool ist.</p>
-<p>Feedback könnte sein:</p>
+<section id="mein-profil-bearbeiten">
+<h2>Mein Profil bearbeiten<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#mein-profil-bearbeiten" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#mein-profil-bearbeiten'">¶</a></h2>
+<p>Du kannst über die allgemeinen Informationen der Teilnehmer*in-Detailansicht hinaus in deinem eigenen Profil noch weitere Informationen pflegen:</p>
 <ul class="simple">
-<li><p>Fehler in der Software (bug)</p></li>
-<li><p>Verbesserungsvorschläge</p></li>
-<li><p>Wünsche für neue Funktionen</p></li>
-<li><p>etc. pp.</p></li>
+<li><p>Im Reiter „Kontaktdaten“ kannst du neben deiner Anschrift auch deine IBAN/Kontonummer eintragen. Diese wird z.B. benötigt, wenn du <a class="reference internal" href="finance.html#abrechnung-einreichen"><span class="std std-ref">Eine Abrechnung einreichen</span></a> und ausgelegtes Geld erstattet bekommen möchtest.</p></li>
+<li><p>Im Reiter „Fortbildungen“ kannst du deine besuchten Aus- und Fortbildungen eintragen. Mehr dazu findest du unter <a class="reference internal" href="training.html#user-manual-training"><span class="std std-ref">Fortbildungen</span></a>.</p></li>
+<li><p>Im Reiter „Notfallkontakte“ kannst du Personen hinterlegen, die im Notfall kontaktiert werden sollen.</p></li>
 </ul>
+<p>Diese und allen weiteren Informationen in deinem Profil solltest du immer aktuell halten.</p>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../index.html">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="members.html">
 <svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="15 18 9 12 15 6"></polyline>
 </svg>
-        jdav Kompass
+        Teilnehmer*innenverwaltung
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="getstarted.html">
-        Erste Schritte
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="excursions.html">
+        Ausfahrten
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
@@ -187,8 +164,8 @@ Der Kompass lebt davon, dass er genau unsere Probleme löst und nicht nur ein we
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#was-ist-der-kompass'" class="reference internal" href="#was-ist-der-kompass">Was ist der Kompass?</a></li>
-<li><a :data-current="activeSection === '#feedback'" class="reference internal" href="#feedback">Feedback</a></li>
+<li><a :data-current="activeSection === '#aufbau-des-profils'" class="reference internal" href="#aufbau-des-profils">Aufbau des Profils</a></li>
+<li><a :data-current="activeSection === '#mein-profil-bearbeiten'" class="reference internal" href="#mein-profil-bearbeiten">Mein Profil bearbeiten</a></li>
 </ul>
 </div>
 </aside>

@@ -15,7 +15,7 @@
 <link href="../_static/favicon.svg" rel="icon"/>
 <link href="../search.html" rel="search" title="Suche"/>
 <link href="../genindex.html" rel="index" title="Stichwortverzeichnis"/>
-<link href="../development_manual/index.html" rel="next" title="Development Documentation"/>
+<link href="training.html" rel="next" title="Fortbildungen"/>
 <link href="waitinglist.html" rel="prev" title="Warteliste und neue Mitglieder"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
@@ -81,9 +81,11 @@
 <li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="index.html">Nutzer Dokumentation<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="getstarted.html">Erste Schritte</a></li>
 <li class="toctree-l2"><a class="reference internal" href="members.html">Teilnehmer*innenverwaltung</a></li>
+<li class="toctree-l2"><a class="reference internal" href="myprofile.html">Mein Profil</a></li>
 <li class="toctree-l2"><a class="reference internal" href="excursions.html">Ausfahrten</a></li>
 <li class="toctree-l2"><a class="reference internal" href="waitinglist.html">Warteliste und neue Mitglieder</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Finanzen</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html">Fortbildungen</a></li>
 </ul>
 </li>
 </ul>
@@ -123,12 +125,53 @@
 <section id="finanzen">
 <span id="user-manual-finance"></span><h1>Finanzen<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#finanzen">¶</a></h1>
 <p>Auf dieser Seite wird das Einreichen, Bearbeiten und Abwickeln von Abrechnungen
-erklärt. Diese Seite ist für Finanzbeauftragte der Sektion gedacht und daher
-für die meisten Benutzer*innen des Kompass unwichtig.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warnung</p>
-<p>Diese Seite ist noch im Aufbau.</p>
+erklärt. Abrechnungen können für verschiedene Zwecke angelegt werden, z.B. für einzelne Auslagen für
+Aktivitäten der Organisation, für angeschafftes Material oder die Abrechnung von Ausfahrten. In diesem Bereich tauchen alle von dir angelegten Abrechnungen auf. An ihrem jeweiligen Status erkennst du den aktuellen Stand der Abwicklung:</p>
+<ul class="simple">
+<li><p>In Vorbereitung: Die Abrechnung wird gerade von dir erstellt und kann noch bearbeitet werden. Sie muss noch von dir eingereicht werden, bevor sie geprüft und bearbeitet wird.</p></li>
+<li><p>Eingereicht: Die Abrechnung wurde von dir eingereicht und wartet auf die Prüfung und Bearbeitung durch die zuständige Person.</p></li>
+<li><p>Abgewickelt: Die Abrechnung wurde bearbeitet und die übernommenen Ausgaben wurden ausgezahlt.</p></li>
+</ul>
+<section id="aufbau-einer-abrechnung">
+<h2>Aufbau einer Abrechnung<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#aufbau-einer-abrechnung" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#aufbau-einer-abrechnung'">¶</a></h2>
+<p>Eine Abrechnung hat immer einen Titel, eine Beschreibung und einen Status.
+Mit Titel und Beschreibung kannst du die Abrechnung für dich und andere Beteiligte identifizieren und genauer beschreiben.
+Darüber hinaus enthält eine Abrechnung eine Liste von Auslagen (Einzelposten), die du hinzufügen kannst.
+Jede Auslage enthält eine Beschreibung, den genauen Betrag und einen Beleg (als PDF oder Bilddatei).
+Außerdem muss die Person ausgewählt werden, die die einzelne Auslage getätigt hat.</p>
+<p>So können sehr kleine Einzelauslagen bis große Abrechnungen mit vielen Posten abgebildet werden.</p>
+</section>
+<section id="eine-abrechnung-einreichen">
+<span id="abrechnung-einreichen"></span><h2>Eine Abrechnung einreichen<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#eine-abrechnung-einreichen" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#eine-abrechnung-einreichen'">¶</a></h2>
+<p>Um eine Abrechnung einzureichen, musst du zunächst im Reiter „Finanzen“ &gt; „Abrechnungen“ des Kompass eine neue Abrechnung <a class="reference external" href="https://jdav-hd.de/de/kompassfinance/statement/add/">anlegen</a>.
+Fülle die erforderlichen Felder aus und füge im Tab „Ausgaben“ alle relevanten Auslagen hinzu. Dabei kannst du auch Ausgaben für andere Personen hinzufügen, indem du im Feld „Bezahlt von“ die entsprechende Person auswählst.</p>
+<p>Anschließend musst du die Abrechnung zuerst einmal speichern, indem du auf den Button „Sichern und weiter bearbeiten“ klickst.
+Dann erscheint oben rechts der Button „Einreichen“. Über diesen kommst du auf eine Übersichtsseite, auf der du nochmals alle Ausgaben und die Empfänger prüfen kannst (sie müssen eine IBAN unter <a class="reference internal" href="myprofile.html#user-manual-myprofile"><span class="std std-ref">Mein Profil</span></a> eingetragen haben.)</p>
+<p>Mit einem erneuten Klick auf „Einreichen“ kannst du die Abrechnung final zur Prüfung an die zuständige Person schicken.
+Bis du die Abrechnung einreichst, kannst du sie jederzeit bearbeiten oder löschen.</p>
+<img alt="../_images/finance_statement.png" src="../_images/finance_statement.png"/>
+<p>Max hat eine Abrechnung für die Auslagen vom letzten Sommerfest angelegt. Da er die Abrechnung noch nicht gespeichert hat, sieht er den Button „Einreichen“ noch nicht.</p>
+<img alt="../_images/finance_statement_bills.png" src="../_images/finance_statement_bills.png"/>
+<p>Nachdem er seine Ausgaben hinzugefügt und einmal gespeichert hat, sieht er nun den Button „Einreichen“ oben rechts.</p>
+<img alt="../_images/finance_statement_handin.png" src="../_images/finance_statement_handin.png"/>
+<p>Nachdem er auf „Einreichen“ geklickt hat, sieht er eine Übersicht aller Auslagen und Empfänger. Wenn alles stimmt und alle Empfänger eine IBAN eingetragen haben, kann er die Abrechnung final einreichen.</p>
+</section>
+<section id="eine-abrechnung-bearbeiten">
+<h2>Eine Abrechnung bearbeiten<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#eine-abrechnung-bearbeiten" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#eine-abrechnung-bearbeiten'">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Bemerkung</p>
+<p>Dieser Abschnitt ist nur für Personen relevant, die Abrechnungen prüfen und bearbeiten dürfen.</p>
 </div>
+<p>Nachdem eine Abrechnung eingereicht wurde, kannst du sie im Reiter Finanzen &gt; Abrechnungen einsehen.</p>
+<ol class="arabic simple">
+<li><p>Du solltest die Abrechnung und alle Auslagen inhaltlich prüfen. Für jede einzelne Auslage musst du entscheiden, ob sie übernommen wird (dazu verwendest du die Checkbox „Übernommen“ im Reiter Ausgaben)</p></li>
+<li><p>Wenn du übernommenen Auslagen ausbezahlen möchtest, musst du in der Ansicht der betreffenden Abrechnung auf den Button „Übersicht“ klicken. Dort kannst du zunächst für jede übernommene Auslage eine Überweisung generieren.</p></li>
+<li><p>Diesen Überweisungen musst du im Reiter „Überweisungen“ noch einen Geldtopf zuordnen und damit inhaltlich kategorisieren. Wenn mehrere Auslagen von einer Person getätigt wurden, kannst du die Überweisungen auch zusammenfassen.</p></li>
+<li><p>Wieder in der Übersicht der Abrechnung kannst du diese dann akzeptieren. Damit erhältst du für jede Überweisung einen QR-Code, mit dem du sie über deine Banking-App ausführen kannst.</p></li>
+<li><p>Wenn das passiert ist, musst du noch einmal bestätigen, dass die Abrechnung abgewickelt ist. Gleichzeitig kannst du noch eine PDF-Datei mit allen Details der Abrechnung und den Belegen an eine benannte Stelle für die Buchhaltung senden.</p></li>
+</ol>
+<p>Jetzt erscheint die Abrechnung mit dem Status „Abgewickelt“ in der Liste der Abrechnungen.</p>
+</section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
@@ -140,14 +183,22 @@ für die meisten Benutzer*innen des Kompass unwichtig.</p>
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../development_manual/index.html">
-        Development Documentation
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="training.html">
+        Fortbildungen
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
 </a>
 </div>
-</div></div>
+</div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
+<div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
+<ul>
+<li><a :data-current="activeSection === '#aufbau-einer-abrechnung'" class="reference internal" href="#aufbau-einer-abrechnung">Aufbau einer Abrechnung</a></li>
+<li><a :data-current="activeSection === '#eine-abrechnung-einreichen'" class="reference internal" href="#eine-abrechnung-einreichen">Eine Abrechnung einreichen</a></li>
+<li><a :data-current="activeSection === '#eine-abrechnung-bearbeiten'" class="reference internal" href="#eine-abrechnung-bearbeiten">Eine Abrechnung bearbeiten</a></li>
+</ul>
+</div>
+</aside>
 </main>
 </div>
 </div><footer class="py-6 border-t border-border md:py-0">
