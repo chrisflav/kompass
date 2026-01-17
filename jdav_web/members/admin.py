@@ -4,7 +4,8 @@ from functools import update_wrapper
 import nested_admin
 from contrib.admin import CommonAdminInlineMixin
 from contrib.admin import CommonAdminMixin
-from contrib.admin import decorate_admin_view
+from contrib.admin import extra_button
+from contrib.admin import ExtraButtonsMixin
 from contrib.media import ensure_media_dir
 from contrib.media import serve_media
 from django import forms
@@ -314,7 +315,7 @@ class MemberAdminForm(forms.ModelForm):
 
 
 # Register your models here.
-class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
+class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     fieldsets = [
         (
             None,
@@ -430,16 +431,6 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             return update_wrapper(wrapper, view)
 
         custom_urls = [
-            path(
-                "<path:object_id>/inviteasuser/",
-                wrap(self.invite_as_user_view),
-                name="{}_{}_inviteasuser".format(self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/requestecho/",
-                wrap(self.request_echo_view),
-                name="{}_{}_requestecho".format(self.opts.app_label, self.opts.model_name),
-            ),
             path(
                 "create_crisis_intervention_list/",
                 wrap(self.create_crisis_intervention_list_view),
@@ -614,16 +605,9 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     request_echo.short_description = _("Request echo from selected members")
 
-    def request_echo_view(self, request, object_id):
+    @extra_button(_("Request echo"), url_name="requestecho")
+    def request_echo_view(self, request, member):
         """Request echo from a single member from Button in single member view."""
-        try:
-            member = Member.objects.get(pk=object_id)
-        except Member.DoesNotExist:
-            messages.error(request, _("Member not found."))
-            return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
-            )
-
         if not member.gets_newsletter:
             messages.warning(
                 request, _("%(name)s does not receive the newsletter.") % {"name": member.name}
@@ -644,7 +628,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
         return HttpResponseRedirect(
             reverse(
                 "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                args=(object_id,),
+                args=(member.pk,),
             )
         )
 
@@ -709,44 +693,35 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
     invite_as_user_action.short_description = _("Invite selected members to join Kompass as users.")
     invite_as_user_action.allowed_permissions = ("may_invite_as_user",)
 
-    def invite_as_user_view(self, request, object_id):
-        if not request.user.has_perm("members.may_invite_as_user"):
-            messages.error(request, _("Permission denied."))
-            return HttpResponseRedirect(
-                reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                    args=(object_id,),
-                )
-            )
-        try:
-            m = Member.objects.get(pk=object_id)
-        except Member.DoesNotExist:
-            messages.error(request, _("Member not found."))
-            return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
-            )
-        is_password_reset = bool(m.user)
-        if not m.has_internal_email():
+    @extra_button(
+        _("Invite as user"),
+        url_name="inviteasuser",
+        permission="members.may_invite_as_user",
+        dynamic_label=lambda m: _("Request password reset") if m.user else _("Invite as user"),
+    )
+    def invite_as_user_view(self, request, member):
+        is_password_reset = bool(member.user)
+        if not member.has_internal_email():
             messages.error(
                 request,
                 _("The configured email address for %(name)s is not an internal one.")
-                % {"name": str(m)},
+                % {"name": str(member)},
             )
             return HttpResponseRedirect(
                 reverse(
                     "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                    args=(object_id,),
+                    args=(member.pk,),
                 )
             )
         if "apply" in request.POST:
             if is_password_reset:
-                self.request_password_reset(request, m)
+                self.request_password_reset(request, member)
             else:
-                self.invite_as_user(request, Member.objects.filter(pk=object_id))
+                self.invite_as_user(request, Member.objects.filter(pk=member.pk))
             return HttpResponseRedirect(
                 reverse(
                     "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                    args=(object_id,),
+                    args=(member.pk,),
                 )
             )
 
@@ -754,20 +729,20 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             self.admin_site.each_context(request),
             title=_("Reset password") if is_password_reset else _("Invite as user"),
             opts=self.opts,
-            member=m,
-            object=m,
+            member=member,
+            object=member,
             is_password_reset=is_password_reset,
         )
-        if m.invite_as_user_key:
+        if member.invite_as_user_key:
             if is_password_reset:
                 messages.warning(
                     request,
-                    _("{name} already has a pending password reset link.").format(name=str(m)),
+                    _("{name} already has a pending password reset link.").format(name=str(member)),
                 )
             else:
                 messages.warning(
                     request,
-                    _("{name} already has a pending invitation as user.").format(name=str(m)),
+                    _("{name} already has a pending invitation as user.").format(name=str(member)),
                 )
         return render(request, "admin/invite_as_user.html", context=context)
 
@@ -872,7 +847,8 @@ class DemoteToWaiterForm(forms.Form):
     _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
 
 
-class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
+class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    extra_buttons_model = MemberUnconfirmedProxy
     fieldsets = [
         (
             None,
@@ -1022,44 +998,18 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
 
     confirm.short_description = _("Confirm selected registrations")
 
-    def get_urls(self):
-        urls = super().get_urls()
-
-        def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
-
-            wrapper.model_admin = self
-            return update_wrapper(wrapper, view)
-
-        custom_urls = [
-            path(
-                "<path:object_id>/demote/",
-                wrap(self.demote_to_waiter_view),
-                name="{}_{}_demote".format(self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/request_registration_form/",
-                wrap(self.request_registration_form_view),
-                name="{}_{}_request_registration_form".format(
-                    self.opts.app_label, self.opts.model_name
-                ),
-            ),
-        ]
-        return custom_urls + urls
-
     def demote_to_waiter_action(self, request, queryset):
         return self.demote_to_waiter_view(request, queryset)
 
     demote_to_waiter_action.short_description = _("Demote selected registrations to waiters.")
 
-    def demote_to_waiter_view(self, request, object_id):
-        if type(object_id) is str:
-            member = MemberUnconfirmedProxy.objects.get(pk=object_id)
-            queryset = [member]
+    @extra_button(_("Demote to waiter"), url_name="demote")
+    def demote_to_waiter_view(self, request, member_or_queryset):
+        if isinstance(member_or_queryset, MemberUnconfirmedProxy):
+            queryset = [member_or_queryset]
             form = None
         else:
-            queryset = object_id
+            queryset = member_or_queryset
             form = DemoteToWaiterForm(
                 initial={"_selected_action": queryset.values_list("id", flat=True)}
             )
@@ -1084,7 +1034,7 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
                 request, _("Successfully demoted %(name)s to waiter.") % {"name": member.name}
             )
 
-    @decorate_admin_view(MemberUnconfirmedProxy)
+    @extra_button(_("Request registration form"))
     def request_registration_form_view(self, request, member):
         if "apply" in request.POST:
             member.request_registration_form()
@@ -1172,7 +1122,7 @@ class InvitedToGroupFilter(admin.SimpleListFilter):
         ).distinct()
 
 
-class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
+class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     fields = [
         "prename",
         "lastname",
@@ -1269,25 +1219,6 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     )
     request_required_mail_confirmation.allowed_permissions = ("action",)
 
-    def get_urls(self):
-        urls = super().get_urls()
-
-        def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
-
-            wrapper.model_admin = self
-            return update_wrapper(wrapper, view)
-
-        custom_urls = [
-            path(
-                "<path:object_id>/invite/",
-                wrap(self.invite_view),
-                name="{}_{}_invite".format(self.opts.app_label, self.opts.model_name),
-            ),
-        ]
-        return custom_urls + urls
-
     def get_queryset(self, request):
         now = timezone.now()
         age_expr = ExpressionWrapper(
@@ -1314,18 +1245,15 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
     ask_for_registration_action.short_description = _("Offer waiter a place in a group.")
     ask_for_registration_action.allowed_permissions = ("action",)
 
-    def invite_view(self, request, object_id):
-        if type(object_id) is str:
-            try:
-                waiter = MemberWaitingList.objects.get(pk=object_id)
-            except MemberWaitingList.DoesNotExist:
-                messages.error(request, _("A waiter with this ID does not exist."))
-                return HttpResponseRedirect(reverse("admin:members_memberwaitinglist_changelist"))
+    @extra_button(_("Invite to group"), permission="members.change_global_memberwaitinglist")
+    def invite_view(self, request, waiter_or_queryset):
+        if isinstance(waiter_or_queryset, MemberWaitingList):
+            waiter = waiter_or_queryset
             queryset = [waiter]
             id_list = [waiter.pk]
         else:
             waiter = None
-            queryset = object_id
+            queryset = waiter_or_queryset
             id_list = queryset.values_list("id", flat=True)
 
         if "apply" in request.POST:
@@ -1389,7 +1317,7 @@ class MemberWaitingListAdmin(CommonAdminMixin, admin.ModelAdmin):
                 return HttpResponseRedirect(
                     reverse(
                         "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                        args=(object_id,),
+                        args=(waiter.pk,),
                     )
                 )
             else:
@@ -1725,43 +1653,14 @@ class MemberOnListInline(CommonAdminInlineMixin, GenericTabularInline):
         return FormSet
 
 
-class MemberNoteListAdmin(admin.ModelAdmin):
+class MemberNoteListAdmin(ExtraButtonsMixin, admin.ModelAdmin):
     inlines = [MemberOnListInline]
     list_display = ["__str__", "date"]
     search_fields = ("name",)
     ordering = ("-date",)
-    actions = ["summary"]
 
-    def get_urls(self):
-        urls = super().get_urls()
-
-        def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
-
-            wrapper.model_admin = self
-            return update_wrapper(wrapper, view)
-
-        custom_urls = [
-            path(
-                "<path:object_id>/action/",
-                wrap(self.action_view),
-                name="{}_{}_action".format(self.opts.app_label, self.opts.model_name),
-            ),
-        ]
-        return custom_urls + urls
-
-    def action_view(self, request, object_id):
-        if "summary" in request.POST:
-            return self.summary(request, [MemberNoteList.objects.get(pk=object_id)])
-        return HttpResponseRedirect(
-            reverse(
-                "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                args=(object_id,),
-            )
-        )
-
-    def may_view_notelist(self, request, memberlist):
+    @staticmethod
+    def may_view_notelist(request, memberlist):
         return request.user.has_perm("members.view_global_member") or (
             hasattr(request.user, "member")
             and all(
@@ -1769,21 +1668,14 @@ class MemberNoteListAdmin(admin.ModelAdmin):
             )
         )
 
-    def not_allowed_view(self, request, memberlist):
-        messages.error(
-            request,
-            _("You are not allowed to view all members on note list %(name)s.")
-            % {"name": memberlist.title},
-        )
-        return HttpResponseRedirect(
-            reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
-        )
-
-    def summary(self, request, queryset):
-        # this ensures legacy compatibilty
-        memberlist = queryset[0]
-        if not self.may_view_notelist(request, memberlist):
-            return self.not_allowed_view(request, memberlist)
+    @extra_button(
+        _("Generate PDF summary"),
+        url_name="summary",
+        method="POST",
+        target="_blank",
+        permission=may_view_notelist.__func__,
+    )
+    def summary(self, request, memberlist):
         context = dict(memberlist=memberlist, settings=settings)
         return render_tex(
             f"{memberlist.title}_Zusammenfassung",
@@ -1830,7 +1722,7 @@ def decorate_download(fun):
     return aux
 
 
-class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
+class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedModelAdmin):
     # inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ["__str__", "date", "place", "approved"]
@@ -1903,7 +1795,8 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             obj.statement.save()
         super().save_model(request, obj, form, change)
 
-    def may_view_excursion(self, request, memberlist):
+    @staticmethod
+    def may_view_excursion(request, memberlist):
         return request.user.has_perm("members.view_global_member") or (
             hasattr(request.user, "member")
             and all(
@@ -1921,10 +1814,13 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
         )
 
+    @extra_button(
+        _("Generate crisis intervention list"),
+        method="POST",
+        target="_blank",
+        permission=may_view_excursion.__func__,
+    )
     def crisis_intervention_list(self, request, memberlist):
-        if not self.may_view_excursion(request, memberlist):
-            return self.not_allowed_view(request, memberlist)
-
         # Get all members on the list
         members = [mol.member for mol in memberlist.membersonlist.all()]
 
@@ -1946,9 +1842,14 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
 
     crisis_intervention_list.short_description = _("Generate crisis intervention list")
 
+    @extra_button(
+        _("Generate overview"),
+        url_name="notes_list",
+        method="POST",
+        target="_blank",
+        permission=may_view_excursion.__func__,
+    )
     def notes_list(self, request, memberlist):
-        if not self.may_view_excursion(request, memberlist):
-            return self.not_allowed_view(request, memberlist)
         people, skills = memberlist.skill_summary
         context = dict(memberlist=memberlist, people=people, skills=skills, settings=settings)
         return render_tex(
@@ -1987,9 +1888,10 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             date=memberlist.date,
         )
 
+    @extra_button(
+        _("Generate seminar report"), method="POST", permission=may_view_excursion.__func__
+    )
     def seminar_report(self, request, memberlist):
-        if not self.may_view_excursion(request, memberlist):
-            return self.not_allowed_view(request, memberlist)
         if not hasattr(memberlist, "ljpproposal"):
             messages.error(
                 request,
@@ -2023,6 +1925,9 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         )
         return render(request, "admin/generate_sjr_application.html", context=context)
 
+    @extra_button(
+        _("Generate SJR application"), method="POST", permission=may_view_excursion.__func__
+    )
     def sjr_application(self, request, memberlist):
         if hasattr(memberlist, "statement"):
             attachment_names = [
@@ -2038,8 +1943,6 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             attachment_paths = []
         attachments = zip(attachment_paths, attachment_names)
 
-        if not self.may_view_excursion(request, memberlist):
-            return self.not_allowed_view(request, memberlist)
         if "apply" in request.POST:
             form = GenerateSjrForm(request.POST, attachments=attachments)
             if not form.is_valid():
@@ -2068,6 +1971,11 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
 
     sjr_application.short_description = _("Generate SJR application")
 
+    @extra_button(
+        _("Finance overview"),
+        method="POST",
+        condition=lambda obj: hasattr(obj, "statement"),
+    )
     def finance_overview(self, request, memberlist):
         if not hasattr(memberlist, "statement"):
             messages.error(request, _("No statement found. Please add a statement and then retry."))
@@ -2131,6 +2039,7 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
         )
         return render(request, "admin/freizeit_finance_overview.html", context=context)
 
+    # TODO: can this be integrated into the extra_button's framework?
     def get_urls(self):
         urls = super().get_urls()
 
@@ -2142,11 +2051,6 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             return update_wrapper(wrapper, view)
 
         custom_urls = [
-            path(
-                "<path:object_id>/action/",
-                wrap(self.action_view),
-                name="{}_{}_action".format(self.opts.app_label, self.opts.model_name),
-            ),
             path(
                 "<path:object_id>/download/ljp_vbk",
                 wrap(self.download_seminar_vbk),
@@ -2168,24 +2072,6 @@ class FreizeitAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
             ),
         ]
         return custom_urls + urls
-
-    def action_view(self, request, object_id):
-        if "sjr_application" in request.POST:
-            return self.sjr_application(request, Freizeit.objects.get(pk=object_id))
-        if "seminar_report" in request.POST:
-            return self.seminar_report(request, Freizeit.objects.get(pk=object_id))
-        if "notes_list" in request.POST:
-            return self.notes_list(request, Freizeit.objects.get(pk=object_id))
-        if "crisis_intervention_list" in request.POST:
-            return self.crisis_intervention_list(request, Freizeit.objects.get(pk=object_id))
-        if "finance_overview" in request.POST:
-            return self.finance_overview(request, Freizeit.objects.get(pk=object_id))
-        return HttpResponseRedirect(
-            reverse(
-                "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                args=(object_id,),
-            )
-        )
 
 
 class KlettertreffAdminForm(forms.ModelForm):
