@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-01 17:37+0100\n"
+"POT-Creation-Date: 2026-01-17 18:03+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -170,6 +170,13 @@ msgstr ""
 "Manche Teilnehmer*innen wurden eingeladen, andere konnten nicht eingeladen "
 "werden."
 
+#, python-format
+msgid "Password reset email sent to %(name)s."
+msgstr "E-Mail zum Zurücksetzen des Passworts an %(name)s gesendet."
+
+msgid "Could not send password reset email."
+msgstr "E-Mail zum Zurücksetzen des Passworts konnte nicht gesendet werden."
+
 msgid "Permission denied."
 msgstr "Fehlende Berechtigungen."
 
@@ -180,12 +187,16 @@ msgid "Invite selected members to join Kompass as users."
 msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
 
 #, python-format
-msgid "%(name)s already has login data."
-msgstr "%(name)s hat schon Zugangsdaten."
-
-#, python-format
 msgid "The configured email address for %(name)s is not an internal one."
 msgstr "Die für %(name)s eingestellte E-Mail Adresse ist keine DAV360 Adresse."
+
+msgid "Reset password"
+msgstr "Passwort zurücksetzen"
+
+#, python-brace-format
+msgid "{name} already has a pending password reset link."
+msgstr ""
+"{name} hat bereits einen ausstehenden Link zum Zurücksetzen des Passworts."
 
 #, python-brace-format
 msgid "{name} already has a pending invitation as user."
@@ -964,6 +975,9 @@ msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 msgid "Set login data for Kompass"
 msgstr "Zugangsdaten für Kompass wählen"
 
+msgid "Reset your Kompass password"
+msgstr "Setze dein Kompass-Passwort zurück"
+
 msgid "Echo required"
 msgstr "Rückmeldung erforderlich"
 
@@ -1467,6 +1481,18 @@ msgstr "Erstellen"
 
 #, python-format
 msgid ""
+"Do you want to send a password reset email to %(member)s? They will receive "
+"an\n"
+"email with a link to reset their password after entering one of the current "
+"active registration\n"
+"passwords."
+msgstr ""
+"Möchtest du %(member)s eine E-Mail zum Zurücksetzen des Passworts senden? "
+"%(member)s wird eine E-Mail mit einem Link erhalten, um, nach Eingabe eines "
+"der aktiven Registrierungspasswörter, das Passwort zurückzusetzen."
+
+#, python-format
+msgid ""
 "Do you want to invite %(member)s to set their login data for Kompass? They "
 "will\n"
 "receive an email with a link to set their username and password after "
@@ -1476,6 +1502,9 @@ msgstr ""
 "Möchtest du %(member)s auffordern Zugangsdaten für den Kompass zu wählen? "
 "%(member)s wird eine E-Mail mit einem Link erhalten, um, nach Eingabe eines "
 "der aktiven Registrierungspasswörter, Benutzername und Passwort zu setzen."
+
+msgid "Send reset email"
+msgstr "E-Mail zum Zurücksetzen senden"
 
 msgid "Invite"
 msgstr "Einladen"

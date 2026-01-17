@@ -665,6 +665,22 @@ class Member(Person):
         )
         return True
 
+    def request_password_reset(self):
+        """Sends a password reset email to the member."""
+        if not self.user:
+            return False
+        if not self.has_internal_email():
+            return False
+        self.invite_as_user_key = uuid.uuid4().hex
+        self.save()
+        self.send_mail(
+            _("Reset your Kompass password"),
+            settings.PASSWORD_RESET_TEXT.format(
+                name=self.prename, link=get_invite_as_user_key(self.invite_as_user_key)
+            ),
+        )
+        return True
+
     def led_groups(self):
         """Returns a queryset of groups that this member is a youth leader of."""
         return Group.objects.filter(leiters__pk=self.pk)

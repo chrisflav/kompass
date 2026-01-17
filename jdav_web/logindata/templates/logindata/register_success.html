@@ -2,14 +2,19 @@
 {% load i18n %}
 
 {% block title %}
-{% trans "Registration successful" %}
+{% if is_reset_mode %}{% trans "Password reset successful" %}{% else %}{% trans "Registration successful" %}{% endif %}
 {% endblock %}
 
 {% block content %}
 
-<h1>{% trans "Set login data" %}</h1>
+<h1>{% if is_reset_mode %}{% trans "Reset password" %}{% else %}{% trans "Set login data" %}{% endif %}</h1>
 
-<p>{% blocktrans %}You successfully set your login data. You can now proceed to{% endblocktrans%}
+<p>
+{% if is_reset_mode %}
+{% blocktrans %}You successfully reset your password. You can now proceed to{% endblocktrans%}
+{% else %}
+{% blocktrans %}You successfully set your login data. You can now proceed to{% endblocktrans%}
+{% endif %}
 <a href="/kompass">login</a>.</p>
 
 {% endblock %}
