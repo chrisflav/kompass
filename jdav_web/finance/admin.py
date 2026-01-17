@@ -1,8 +1,9 @@
 import logging
-from functools import update_wrapper
 
 from contrib.admin import CommonAdminInlineMixin
 from contrib.admin import CommonAdminMixin
+from contrib.admin import extra_button
+from contrib.admin import ExtraButtonsMixin
 from django import forms
 from django.conf import settings
 from django.contrib import admin
@@ -12,7 +13,6 @@ from django.forms import ClearableFileInput
 from django.forms import Textarea
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
-from django.urls import path
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -25,7 +25,6 @@ from .models import Ledger
 from .models import Statement
 from .models import StatementConfirmed
 from .models import StatementSubmitted
-from .models import StatementUnSubmitted
 from .models import Transaction
 
 logger = logging.getLogger(__name__)
@@ -53,39 +52,8 @@ class BillOnStatementInline(CommonAdminInlineMixin, admin.TabularInline):
     form = BillOnStatementInlineForm
 
 
-def decorate_statement_view(model, perm=None):
-    def decorator(fun):
-        def aux(self, request, object_id):
-            try:
-                statement = model.objects.get(pk=object_id)
-            except model.DoesNotExist:
-                messages.error(request, _("Statement not found."))
-                return HttpResponseRedirect(
-                    reverse(
-                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
-                    )
-                )
-            permitted = (
-                self.has_change_permission(request, statement)
-                if not perm
-                else request.user.has_perm(perm)
-            )
-            if not permitted:
-                messages.error(request, _("Insufficient permissions."))
-                return HttpResponseRedirect(
-                    reverse(
-                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
-                    )
-                )
-            return fun(self, request, statement)
-
-        return aux
-
-    return decorator
-
-
 @admin.register(Statement)
-class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
+class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     fields = ["short_description", "explanation", "excursion", "status"]
     list_display = ["__str__", "total_pretty", "created_by", "submitted_date", "status_badge"]
     list_filter = ["status"]
@@ -136,46 +104,7 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
         else:
             return [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
-    def get_urls(self):
-        urls = super().get_urls()
-
-        def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
-
-            wrapper.model_admin = self
-            return update_wrapper(wrapper, view)
-
-        custom_urls = [
-            path(
-                "<path:object_id>/submit/",
-                wrap(self.submit_view),
-                name="{}_{}_submit".format(self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/overview/",
-                wrap(self.overview_view),
-                name="{}_{}_overview".format(self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/reduce_transactions/",
-                wrap(self.reduce_transactions_view),
-                name="{}_{}_reduce_transactions".format(self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/unconfirm/",
-                wrap(self.unconfirm_view),
-                name="{}_{}_unconfirm".format(self.opts.app_label, self.opts.model_name),
-            ),
-            path(
-                "<path:object_id>/summary/",
-                wrap(self.statement_summary_view),
-                name="{}_{}_summary".format(self.opts.app_label, self.opts.model_name),
-            ),
-        ]
-        return custom_urls + urls
-
-    @decorate_statement_view(StatementUnSubmitted)
+    @extra_button(_("Submit"), condition=lambda obj: not obj.submitted)
     def submit_view(self, request, statement):
         if statement.submitted:  # pragma: no cover
             logger.error(
@@ -221,7 +150,12 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
             )
             return render(request, "admin/submit_statement.html", context=context)
 
-    @decorate_statement_view(StatementSubmitted)
+    @extra_button(
+        _("Overview"),
+        condition=lambda obj: obj.submitted and not obj.confirmed,
+        permission="finance.process_statementsubmitted",
+        model=StatementSubmitted,
+    )
     def overview_view(self, request, statement):
         if not statement.submitted:  # pragma: no cover
             logger.error(
@@ -407,7 +341,12 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
 
         return render(request, "admin/overview_submitted_statement.html", context=context)
 
-    @decorate_statement_view(StatementSubmitted)
+    @extra_button(
+        _("Reduce transactions"),
+        condition=lambda obj: obj.submitted and not obj.confirmed,
+        permission="finance.process_statementsubmitted",
+        include_redirect=True,
+    )
     def reduce_transactions_view(self, request, statement):
         statement.reduce_transactions()
         messages.success(
@@ -415,7 +354,11 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
         )
         return HttpResponseRedirect(request.GET["redirectTo"])
 
-    @decorate_statement_view(StatementConfirmed, perm="finance.may_manage_confirmed_statements")
+    @extra_button(
+        _("Unconfirm"),
+        condition=lambda obj: obj.confirmed,
+        permission="finance.may_manage_confirmed_statements",
+    )
     def unconfirm_view(self, request, statement):
         if not statement.confirmed:  # pragma: no cover
             logger.error(f"unconfirm_view reached with unconfirmed statement {statement}.")
@@ -450,7 +393,14 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
 
         return render(request, "admin/unconfirm_statement.html", context=context)
 
-    @decorate_statement_view(StatementConfirmed, perm="finance.may_manage_confirmed_statements")
+    @extra_button(
+        _("Download summary"),
+        url_name="summary",
+        condition=lambda obj: obj.confirmed,
+        permission="finance.may_manage_confirmed_statements",
+        target="_blank",
+        model=StatementConfirmed,
+    )
     def statement_summary_view(self, request, statement):
         if not statement.confirmed:  # pragma: no cover
             logger.error(f"statement_summary_view reached with unconfirmed statement {statement}.")

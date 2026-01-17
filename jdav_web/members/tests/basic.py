@@ -852,7 +852,7 @@ class MemberAdminTestCase(AdminTestCase):
         url = reverse("admin:members_member_inviteasuser", args=(self.fritz.pk,))
         response = c.post(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _("Permission denied."))
+        self.assertContains(response, _("Insufficient permissions."))
 
         c = self._login("superuser")
 
@@ -1682,7 +1682,7 @@ class PDFActionMixin:
         c = Client()
         c.login(username=username, password="secret")
 
-        url = reverse("admin:members_%s_action" % model, args=(pk,))
+        url = reverse(f"admin:members_{model}_{name}", args=(pk,))
         if not post_data:
             post_data = {name: "hoho"}
         response = c.post(url, post_data)
@@ -1853,21 +1853,21 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
     @mock.patch("members.pdf.render_tex")
     def test_seminar_report_post(self, mocked_fun):
         c = self._login("standard")
-        url = reverse("admin:members_freizeit_action", args=(self.ex.pk,))
-        response = c.post(url, data={"seminar_report": ""})
+        url = reverse("admin:members_freizeit_seminar_report", args=(self.ex.pk,))
+        response = c.post(url)
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
         c = self._login("superuser")
-        url = reverse("admin:members_freizeit_action", args=(self.ex.pk,))
-        response = c.post(url, data={"seminar_report": ""}, follow=True)
+        url = reverse("admin:members_freizeit_seminar_report", args=(self.ex.pk,))
+        response = c.post(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
             response,
             _("This excursion does not have a LJP proposal. Please add one and try again."),
         )
 
-        url = reverse("admin:members_freizeit_action", args=(self.ex2.pk,))
-        response = c.post(url, data={"seminar_report": "", "apply": ""})
+        url = reverse("admin:members_freizeit_seminar_report", args=(self.ex2.pk,))
+        response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("A seminar report consists of multiple components:"))
 
@@ -1915,32 +1915,31 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
 
     @mock.patch("members.pdf.fill_pdf_form")
     def test_sjr_application_post(self, mocked_fun):
-        url = reverse("admin:members_freizeit_action", args=(self.ex.pk,))
+        url = reverse("admin:members_freizeit_sjr_application", args=(self.ex.pk,))
         c = self._login("standard")
-        response = c.post(url, data={"sjr_application": ""})
+        response = c.post(url)
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
         c = self._login("superuser")
-        response = c.post(url, data={"sjr_application": ""})
+        response = c.post(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
             response, _("Here you can generate an allowance application for the SJR.")
         )
 
-        response = c.post(url, data={"sjr_application": "", "apply": ""})
+        response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Please select an invoice."))
 
         self.st.excursion = self.ex
         self.st.save()
-        response = c.post(url, data={"sjr_application": "", "apply": ""})
+        response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Please select an invoice."))
 
         response = c.post(
             url,
             data={
-                "sjr_application": "",
                 "apply": "",
                 "invoice": self.bill.proof.path,
             },
@@ -1955,25 +1954,22 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self._test_pdf("notes_list", self.ex.pk)
         self._test_pdf("notes_list", self.ex.pk, username="standard", invalid=True)
 
-    def test_wrong_action_freizeit(self):
-        return self._test_pdf("asdf", self.ex.pk, invalid=True)
-
     def test_finance_overview_no_statement_post(self):
-        url = reverse("admin:members_freizeit_action", args=(self.ex.pk,))
+        url = reverse("admin:members_freizeit_finance_overview", args=(self.ex.pk,))
         c = self._login("superuser")
         # no statement yields redirect
-        response = c.post(url, data={"finance_overview": ""}, follow=True)
+        response = c.post(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
             response, _("No statement found. Please add a statement and then retry.")
         )
 
     def test_finance_overview_invalid_post(self):
-        url = reverse("admin:members_freizeit_action", args=(self.ex2.pk,))
+        url = reverse("admin:members_freizeit_finance_overview", args=(self.ex2.pk,))
         c = self._login("superuser")
 
         # bill with missing proof
-        response = c.post(url, data={"finance_overview": "", "apply": ""}, follow=True)
+        response = c.post(url, data={"apply": ""}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
             response,
@@ -1985,7 +1981,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         # invalidate allowance_to
         self.st_ljp.allowance_to.add(self.yl1)
 
-        response = c.post(url, data={"finance_overview": "", "apply": ""}, follow=True)
+        response = c.post(url, data={"apply": ""}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
             response,
@@ -1995,22 +1991,22 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         )
 
     def test_finance_overview_post(self):
-        url = reverse("admin:members_freizeit_action", args=(self.ex.pk,))
+        url = reverse("admin:members_freizeit_finance_overview", args=(self.ex.pk,))
         c = self._login("superuser")
         # set statement
         self.st.excursion = self.ex
         self.st.save()
         # render overview
-        response = c.post(url, data={"finance_overview": ""})
+        response = c.post(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("This is the estimated cost and contribution summary:"))
         # submit fails because allowance_to is wrong
-        response = c.post(url, data={"finance_overview": "", "apply": ""})
+        response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         # submit succeeds after fixing allowance_to
         self.st.allowance_to.add(self.yl1)
         self.st.allowance_to.add(self.yl2)
-        response = c.post(url, data={"finance_overview": "", "apply": ""})
+        response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
     def test_save_model_with_statement(self):
@@ -2077,9 +2073,6 @@ class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
         self._test_pdf(
             "summary", self.note.pk, model="membernotelist", username="standard", invalid=True
         )
-
-    def test_wrong_action_membernotelist(self):
-        return self._test_pdf("asdf", self.note.pk, invalid=True, model="membernotelist")
 
     def test_change(self):
         c = self._login("superuser")
@@ -2186,16 +2179,17 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
                 ),
             )
 
+    # TODO: check if this test is still required for coverage
     def test_invite_view_invalid(self):
         c = self._login("superuser")
         url = reverse("admin:members_memberwaitinglist_invite", args=(12312,))
 
         response = c.get(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _("A waiter with this ID does not exist."))
+        self.assertContains(response, _("%(modelname)s not found.") % {"modelname": _("Waiter")})
 
     def test_invite_view_post(self):
-        c = self._login("standard")
+        c = self._login("waitinglistmanager")
         url = reverse("admin:members_memberwaitinglist_invite", args=(self.waiter.pk,))
 
         response = c.get(url)
