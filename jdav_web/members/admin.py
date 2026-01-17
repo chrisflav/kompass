@@ -20,6 +20,7 @@ from django.db.models import Case
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import IntegerField
+from django.db.models import Q
 from django.db.models import TextField
 from django.db.models import When
 from django.forms import Textarea
@@ -342,7 +343,18 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             _("Contact information"),
             {"fields": ["street", "plz", "town", "address_extra", "country", "iban"]},
         ),
-        (_("Skills"), {"fields": ["swimming_badge", "climbing_badge", "alpine_experience"]}),
+        (
+            _("Skills"),
+            {
+                "classes": ["show-excursions-link"],
+                "fields": [
+                    "swimming_badge",
+                    "climbing_badge",
+                    "alpine_experience",
+                    "show_excursions_link",
+                ],
+            },
+        ),
         (
             _("Others"),
             {
@@ -382,7 +394,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     search_fields = ("prename", "lastname", "email")
     list_filter = ("echoed", "group")
     list_display_links = None
-    readonly_fields = ["echoed", "good_conduct_certificate_valid"]
+    readonly_fields = ["echoed", "good_conduct_certificate_valid", "show_excursions_link"]
     inlines = [
         EmergencyContactInline,
         MemberDocumentInline,
@@ -464,6 +476,13 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         )
 
     send_mail_to.short_description = _("Compose new mail to selected members")
+
+    def show_excursions_link(self, obj):
+        url = reverse("admin:members_freizeit_changelist") + f"?has_participant={obj.pk}"
+        text = _("Link to excursions")
+        return format_html(f"<a href='{url}'>{text}</a>")
+
+    show_excursions_link.short_description = _("Participated in excursions")
 
     def create_object_from(self, request, queryset):
         """
@@ -1722,13 +1741,31 @@ def decorate_download(fun):
     return aux
 
 
+class ParticipantFilter(admin.SimpleListFilter):
+    """
+    List filter on excursions: Returns excursions that the given member participated in.
+    """
+
+    title = _("Has participant")
+    parameter_name = "has_participant"
+
+    def lookups(self, request, model_admin):
+        return [(m.pk, m.name) for m in Member.objects.all()]
+
+    def queryset(self, request, queryset):
+        pk = self.value()
+        if not pk:
+            return queryset
+        return queryset.filter(Q(membersonlist__member__pk=pk) | Q(jugendleiter__pk=pk)).distinct()
+
+
 class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedModelAdmin):
     # inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ["__str__", "date", "place", "approved"]
     search_fields = ("name",)
     ordering = ("-date",)
-    list_filter = ["groups", "approved"]
+    list_filter = [ParticipantFilter, "groups", "approved"]
     view_on_site = False
     fieldsets = (
         (
