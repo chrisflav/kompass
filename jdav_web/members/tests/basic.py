@@ -48,6 +48,7 @@ from members.admin import MemberOnListInlineForm
 from members.admin import MemberTrainingAdmin
 from members.admin import MemberUnconfirmedAdmin
 from members.admin import MemberWaitingListAdmin
+from members.admin import ParticipantFilter
 from members.admin import StatementOnListForm
 from members.excel import generate_ljp_vbk
 from members.models import ActivityCategory
@@ -3676,3 +3677,36 @@ class InvitedToGroupFilterTestCase(MemberWaitingListFilterTestCase):
         request.user = User.objects.get(username="superuser")
         qs = self.admin.get_queryset(request)
         self.assertQuerysetEqual(fil.queryset(request, qs).distinct(), [self.waiter], ordered=False)
+
+
+class ParticipantFilterTestCase(AdminTestCase):
+    def setUp(self):
+        super().setUp(model=Freizeit, admin=FreizeitAdmin)
+        self.ex = Freizeit.objects.create(
+            name="Wild trip",
+            kilometers_traveled=120,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        self.ex_no_participant = Freizeit.objects.create(
+            name="Wild trip 2",
+            kilometers_traveled=120,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        member = User.objects.get(username="standard").member
+        NewMemberOnList.objects.create(member=member, memberlist=self.ex)
+
+    def test_queryset_no_value(self):
+        fil = InvitedToGroupFilter(None, {}, Freizeit, self.admin)
+        qs = Freizeit.objects.all()
+        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+
+    def test_queryset(self):
+        member = User.objects.get(username="standard").member
+        fil = ParticipantFilter(None, {"has_participant": member.pk}, Freizeit, self.admin)
+        request = self.factory.get("/")
+        qs = Freizeit.objects.all()
+        self.assertQuerysetEqual(fil.queryset(request, qs), [self.ex], ordered=False)
