@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 09:35+0100\n"
+"POT-Creation-Date: 2026-01-17 15:33+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -88,11 +88,18 @@ msgstr "Falls du denkst, dass das ein Fehler ist, bitte"
 msgid "contact us."
 msgstr "kontaktiere uns."
 
+msgid "Reset password"
+msgstr "Passwort zurücksetzen"
+
 msgid "Register"
 msgstr "Registrieren"
 
 msgid "Welcome, "
 msgstr "Willkommen, "
+
+msgid "To reset your password, please enter a new password below."
+msgstr ""
+"Um dein Passwort zurückzusetzen, gib bitte unten ein neues Passwort ein."
 
 msgid ""
 "To set your personal login data, please enter the password that you received."
@@ -100,8 +107,18 @@ msgstr ""
 "Um deine persönlichen Zugansdaten festzulegen, gib bitte das Passwort ein, "
 "das du erhalten hast."
 
+msgid "Username"
+msgstr "Benutzername"
+
 msgid "submit"
 msgstr "Einreichen"
+
+msgid ""
+"To reset your password for Kompass, please enter the password that you "
+"received."
+msgstr ""
+"Um dein Passwort für Kompass zurückzusetzen, gib bitte das Passwort ein, das "
+"du erhalten hast."
 
 msgid ""
 "To set your personal login data for Kompass, please enter the password that "
@@ -110,8 +127,15 @@ msgstr ""
 "Um deine persönlichen Zugangsdaten festzulegen, gib bitte das Passwort ein, "
 "das du erhalten hast."
 
+msgid "Password reset successful"
+msgstr "Passwort erfolgreich zurückgesetzt"
+
 msgid "Registration successful"
 msgstr "Zugangsdaten erfolgreich festgelegt"
+
+msgid "You successfully reset your password. You can now proceed to"
+msgstr ""
+"Du hast dein Passwort erfolgreich zurückgesetzt. Du kannst nun weiter zum"
 
 msgid "You successfully set your login data. You can now proceed to"
 msgstr ""

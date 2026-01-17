@@ -670,6 +670,15 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 request, _("Some members have been invited, others could not be invited.")
             )
 
+    def request_password_reset(self, request, member):
+        success = member.request_password_reset()
+        if success:
+            messages.success(
+                request, _("Password reset email sent to %(name)s.") % {"name": str(member)}
+            )
+        else:
+            messages.error(request, _("Could not send password reset email."))
+
     def has_may_invite_as_user_permission(self, request):
         return request.user.has_perm("{}.{}".format(self.opts.app_label, "may_invite_as_user"))
 
@@ -716,14 +725,7 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
             return HttpResponseRedirect(
                 reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
             )
-        if m.user:
-            messages.error(request, _("%(name)s already has login data.") % {"name": str(m)})
-            return HttpResponseRedirect(
-                reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                    args=(object_id,),
-                )
-            )
+        is_password_reset = bool(m.user)
         if not m.has_internal_email():
             messages.error(
                 request,
@@ -737,7 +739,10 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
                 )
             )
         if "apply" in request.POST:
-            self.invite_as_user(request, Member.objects.filter(pk=object_id))
+            if is_password_reset:
+                self.request_password_reset(request, m)
+            else:
+                self.invite_as_user(request, Member.objects.filter(pk=object_id))
             return HttpResponseRedirect(
                 reverse(
                     "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
@@ -747,15 +752,23 @@ class MemberAdmin(CommonAdminMixin, admin.ModelAdmin):
 
         context = dict(
             self.admin_site.each_context(request),
-            title=_("Invite as user"),
+            title=_("Reset password") if is_password_reset else _("Invite as user"),
             opts=self.opts,
             member=m,
             object=m,
+            is_password_reset=is_password_reset,
         )
         if m.invite_as_user_key:
-            messages.warning(
-                request, _("{name} already has a pending invitation as user.".format(name=str(m)))
-            )
+            if is_password_reset:
+                messages.warning(
+                    request,
+                    _("{name} already has a pending password reset link.").format(name=str(m)),
+                )
+            else:
+                messages.warning(
+                    request,
+                    _("{name} already has a pending invitation as user.").format(name=str(m)),
+                )
         return render(request, "admin/invite_as_user.html", context=context)
 
     def activity_score(self, obj):

@@ -9,7 +9,7 @@
 
 {% if perms.members.may_invite_as_user %}
 <li>
-    <a class="historylink" href="{% url 'admin:members_member_inviteasuser' original.pk %}">{% trans 'Invite as user' %}</a>
+    <a class="historylink" href="{% url 'admin:members_member_inviteasuser' original.pk %}">{% if original.user %}{% trans 'Reset password' %}{% else %}{% trans 'Invite as user' %}{% endif %}</a>
 </li>
 {% endif %}
 

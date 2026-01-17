@@ -18,22 +18,28 @@
 &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
 &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
 &rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
-&rsaquo; {% translate 'Invite as user' %}
+&rsaquo; {% if is_password_reset %}{% translate 'Reset password' %}{% else %}{% translate 'Invite as user' %}{% endif %}
 </div>
 {% endblock %}
 
 {% block content %}
 <p>
+{% if is_password_reset %}
+{% blocktrans %}Do you want to send a password reset email to {{ member }}? They will receive an
+email with a link to reset their password after entering one of the current active registration
+passwords.{% endblocktrans %}
+{% else %}
 {% blocktrans %}Do you want to invite {{ member }} to set their login data for Kompass? They will
 receive an email with a link to set their username and password after entering one of the current
 active registration passwords.{% endblocktrans %}
+{% endif %}
 </p>
 
 <form action="" method="post">
     {% csrf_token %}
     <input type="hidden" name="action" value="invite_as_user">
     <input class="default" style="color: $default-link-color" type="submit" name="apply"
-        value="{% translate 'Invite' %}">
+        value="{% if is_password_reset %}{% translate 'Send reset email' %}{% else %}{% translate 'Invite' %}{% endif %}">
     <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
 </form>
 

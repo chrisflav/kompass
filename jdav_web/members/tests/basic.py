@@ -15,11 +15,16 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
+from django.contrib.messages import get_messages
+from django.contrib.messages.middleware import MessageMiddleware
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.test import Client
+from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
@@ -406,6 +411,13 @@ class MemberTestCase(BasicMemberTestCase):
         self.peter.email = "foobar"
         self.assertFalse(self.peter.invite_as_user())
 
+    def test_request_password_reset(self):
+        u = User.objects.create_user(username="user", password="secret", is_staff=True)
+        self.peter.user = u
+        # failure: no internal email
+        self.peter.email = "foobar"
+        self.assertFalse(self.peter.request_password_reset())
+
     def test_birth_date_str(self):
         self.fritz.birth_date = None
         self.assertEqual(self.fritz.birth_date_str, "---")
@@ -667,6 +679,17 @@ class AdminTestCase(TestCase):
         assert res
         return c
 
+    def _add_session_to_request(self, request):
+        """Add session to request"""
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+
+        middleware = MessageMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request._messages = FallbackStorage(request)
+        return request
+
 
 class PermissionTestCase(AdminTestCase):
     def setUp(self):
@@ -821,6 +844,7 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, 200, "Response code is not 200.")
         self.assertEqual(final, final_target, "Did redirect to wrong url.")
 
+    @override_settings(ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER=["test-organization.org"])
     def test_invite_as_user_view(self):
         # insufficient permissions
         c = self._login("standard")
@@ -847,7 +871,7 @@ class MemberAdminTestCase(AdminTestCase):
         )
 
         # update email to allowed email domain
-        self.fritz.email = INTERNAL_EMAIL
+        self.fritz.email = "foobar@test-organization.org"
         self.fritz.save()
         response = c.post(url)
         # expect: user is found and confirmation page is shown
@@ -862,19 +886,33 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
             response,
-            _("{name} already has a pending invitation as user.".format(name=str(self.fritz))),
+            _("{name} already has a pending invitation as user.").format(name=str(self.fritz)),
         )
 
+    @override_settings(ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER=["test-organization.org"])
+    def test_invite_as_user_view_reset_password(self):
+        url = reverse("admin:members_member_inviteasuser", args=(self.fritz.pk,))
+        c = self._login("superuser")
         # set user
         u = User.objects.create(username="fritzuser", password="secret")
         self.fritz.user = u
+        self.fritz.email = "foobar@test-organization.org"
         self.fritz.save()
 
-        # expect: user already has an account
         response = c.post(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Reset password"))
+
+        # expect: password reset link is sent
+        response = c.post(url, data={"apply": ""})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        # expect: user already has a pending invitation
+        response = c.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
-            response, _("%(name)s already has login data.") % {"name": str(self.fritz)}
+            response,
+            _("{name} already has a pending password reset link.").format(name=str(self.fritz)),
         )
 
     def test_invite_as_user_action_insufficient_permission(self):
@@ -890,6 +928,7 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertNotContains(response, _("Invite"))
 
+    @override_settings(ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER=["test-organization.org"])
     def test_invite_as_user_action(self):
         url = reverse("admin:members_member_changelist")
 
@@ -934,6 +973,14 @@ class MemberAdminTestCase(AdminTestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Successfully invited selected members to join as users."))
+
+    def test_request_password_reset_no_user(self):
+        self.assertIsNone(self.peter.user)
+        request = self.factory.get("/")
+        self._add_session_to_request(request)
+        self.admin.request_password_reset(request, self.peter)
+        expected_text = str(_("Could not send password reset email."))
+        self.assertTrue(any(expected_text in str(msg) for msg in get_messages(request)))
 
     def test_send_mail_to(self):
         # this is not connected to an action currently
