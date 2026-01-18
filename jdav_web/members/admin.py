@@ -701,6 +701,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         context = dict(
             self.admin_site.each_context(request),
             title=_("Invite as user"),
+            view_header=_("Invite multiple members as users"),
             opts=self.opts,
             members=queryset,
             form=InviteAsUserForm(
@@ -1040,6 +1041,7 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         context = dict(
             self.admin_site.each_context(request),
             title=_("Demote member to waiter"),
+            view_header=_("Demote to waiter"),
             opts=self.opts,
             queryset=queryset,
             form=form,
@@ -1066,8 +1068,10 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         context = dict(
             self.admin_site.each_context(request),
             title=_("Request upload registration form"),
+            view_header=_("Request registration form"),
             opts=self.opts,
             member=member,
+            object=member,
         )
         return render(request, "admin/request_registration_form.html", context=context)
 
@@ -1296,6 +1300,7 @@ class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
             context = dict(
                 self.admin_site.each_context(request),
                 title=_("Select group for invitation"),
+                view_header=_("Invite to group"),
                 opts=self.opts,
                 group=group,
                 queryset=queryset,
@@ -1349,6 +1354,7 @@ class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         context = dict(
             self.admin_site.each_context(request),
             title=_("Select group for invitation"),
+            view_header=_("Invite to group"),
             opts=self.opts,
             queryset=queryset,
             form=WaiterInviteForm(initial={"_selected_action": id_list}),

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-17 18:03+0100\n"
+"POT-Creation-Date: 2026-01-18 11:05+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -207,6 +207,12 @@ msgstr "Anwendungsseite"
 msgid "current theme"
 msgstr "Aktuelles Thema"
 
+msgid "History"
+msgstr ""
+
+msgid "View on site"
+msgstr "Auf der Website anzeigen"
+
 #, python-format
 msgid ""
 "Deleting the %(object_name)s '%(escaped_object)s' would result in deleting "
@@ -276,62 +282,14 @@ msgstr "Ändern"
 msgid "View"
 msgstr "Anzeigen"
 
-msgid "View on site"
-msgstr "Auf der Website anzeigen"
-
 msgid "Delete?"
 msgstr "Löschen?"
-
-msgid "Unconfirm"
-msgstr "Bestätigung zurücknehmen"
-
-msgid "Download summary"
-msgstr "Beleg herunterladen"
-
-msgid "Reduce transactions"
-msgstr "Überweisungen minimieren"
-
-msgid "Overview"
-msgstr "Übersicht"
-
-msgid "Submit"
-msgstr "Einreichen"
-
-msgid "Generate crisis intervention list"
-msgstr "Kriseninterventionsliste erstellen"
-
-msgid "Generate SJR application"
-msgstr "SJR Antrag erstellen"
-
-msgid "Generate seminar report"
-msgstr "Landesjugendplan Antrag erstellen"
-
-msgid "Generate overview"
-msgstr "Hinweise für Jugendleiter*innen erstellen"
-
-msgid "Finance overview"
-msgstr "Kostenübersicht"
 
 msgid "Generate group overview"
 msgstr "Gruppenübersicht erstellen"
 
 msgid "Generate group checklist"
 msgstr "Gruppencheckliste erstellen"
-
-msgid "Request echo"
-msgstr "Rückmeldungsaufforderung verschicken"
-
-msgid "Request password reset"
-msgstr "Auffordern Passwort zurückzusetzen"
-
-msgid "Invite as user"
-msgstr "Als Kompassbenutzer*in einladen"
-
-msgid "Request registration form"
-msgstr "Anmeldeformular anfragen"
-
-msgid "Demote to waiter"
-msgstr "Zurück auf die Warteliste setzen"
 
 msgid "Invite to group"
 msgstr "Zu Gruppe einladen"
