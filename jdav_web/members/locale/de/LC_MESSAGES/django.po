@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-17 19:12+0100\n"
+"POT-Creation-Date: 2026-01-18 11:05+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -148,8 +148,8 @@ msgstr ""
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
 
-msgid "Member not found."
-msgstr "Teilnehmer*in nicht gefunden."
+msgid "Request echo"
+msgstr "Rückmeldungsaufforderung verschicken"
 
 #, python-format
 msgid "%(name)s does not receive the newsletter."
@@ -189,8 +189,14 @@ msgstr "Fehlende Berechtigungen."
 msgid "Invite as user"
 msgstr "Kompass Zugangsdaten wählen lassen"
 
+msgid "Invite multiple members as users"
+msgstr "Mehrere Teilnehmer*innen Zugangsdaten wählen lassen"
+
 msgid "Invite selected members to join Kompass as users."
 msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
+
+msgid "Request password reset"
+msgstr "Auffordern Passwort zurückzusetzen"
 
 #, python-format
 msgid "The configured email address for %(name)s is not an internal one."
@@ -270,12 +276,18 @@ msgstr "Ausgewählte Registrierungen bestätigen"
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
+msgid "Demote to waiter"
+msgstr "Zurück auf die Warteliste setzen"
+
 msgid "Demote member to waiter"
 msgstr "Ausgewählte Registrierung zurück auf die Warteliste setzen."
 
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
+
+msgid "Request registration form"
+msgstr "Anmeldeformular anfragen"
 
 #, python-format
 msgid "Requested registration form for %(name)s."
@@ -326,8 +338,8 @@ msgstr ""
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
 
-msgid "A waiter with this ID does not exist."
-msgstr "Es existiert keine wartende Person mit dieser ID."
+msgid "Invite to group"
+msgstr "Zu Gruppe einladen"
 
 msgid ""
 "An error occurred while trying to invite said members. Please try again."
@@ -417,12 +429,6 @@ msgstr ""
 "jederzeit die aktuelle Teilnehmer*innenliste für die Krisenintervention "
 "generieren."
 
-#, python-format
-msgid "You are not allowed to view all members on note list %(name)s."
-msgstr ""
-"Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Notizliste "
-"%(name)s anzusehen."
-
 msgid "Generate PDF summary"
 msgstr "Übersicht erstellen"
 
@@ -481,6 +487,9 @@ msgstr "SJR Antrag erstellen"
 msgid "Please select an invoice."
 msgstr "Bitte wähle einen Beleg aus."
 
+msgid "Finance overview"
+msgstr "Kostenübersicht"
+
 msgid "No statement found. Please add a statement and then retry."
 msgstr ""
 "Keine Abrechnung angelegt. Bitte lege eine Abrechnung and und versuche es "
@@ -507,9 +516,6 @@ msgid ""
 msgstr ""
 "Abrechnung erfolgreich eingereicht. Die Finanzabteilung wird sich bei dir so "
 "schnell wie möglich melden."
-
-msgid "Finance overview"
-msgstr "Kostenübersicht"
 
 msgid "member administration"
 msgstr "Teilnehmer*innenverwaltung"
@@ -1116,9 +1122,6 @@ msgstr "Von der Warteliste abgemeldet"
 msgid "Successfully registered for the waitinglist"
 msgstr "Erfolgreich für die Warteliste registriert"
 
-msgid "Home"
-msgstr "Start"
-
 msgid "Selected members:"
 msgstr "Ausgewählte Teilnehmer*innen:"
 
@@ -1157,9 +1160,6 @@ msgstr "Bitte wähle zuerst einen Objekttyp."
 
 msgid "Please select an entry."
 msgstr "Bitte wähle einen Eintrag."
-
-msgid "Demote to waiter"
-msgstr "Zurück auf die Warteliste setzen"
 
 msgid ""
 "Do you want to demote the following unconfirmed registrations to waiters?"
@@ -1518,9 +1518,6 @@ msgstr "E-Mail zum Zurücksetzen senden"
 msgid "Invite"
 msgstr "Einladen"
 
-msgid "Invite to group"
-msgstr "Zu Gruppe einladen"
-
 msgid "Invite to a group"
 msgstr "Zu einer Gruppe einladen"
 
@@ -1566,9 +1563,6 @@ msgstr ""
 msgid "Send"
 msgstr "Senden"
 
-msgid "Invite multiple members as users"
-msgstr "Mehrere Teilnehmer*innen Zugangsdaten wählen lassen"
-
 msgid "You selected the following members:"
 msgstr "Du hast die folgenden Teilnehmer*innen ausgewählt:"
 
@@ -1583,9 +1577,6 @@ msgstr ""
 "zu wählen?Sie werden eine E-Mail mit einem Link erhalten, um, nach Eingabe "
 "eines der aktiven Registrierungspasswörter, Benutzername und Passwort zu "
 "setzen."
-
-msgid "Invite multiple waiters"
-msgstr "Mehrere Wartende einladen"
 
 msgid "You selected the following waiters:"
 msgstr "Du hast die folgenden Wartenden ausgewählt:"
@@ -1602,9 +1593,6 @@ msgstr "Anzahl Personen:"
 
 msgid "thereof leaders:"
 msgstr "davon Leitung:"
-
-msgid "Request registration form"
-msgstr "Anmeldeformular anfragen"
 
 #, python-format
 msgid "Do you want to ask %(member)s to upload their registration form?"
@@ -2001,6 +1989,13 @@ msgstr ""
 
 msgid "Insufficient permissions."
 msgstr "Unzureichende Berechtigungen."
+
+msgid "Member not found."
+msgstr "Teilnehmer*in nicht gefunden."
+
+#, python-format
+msgid "%(modelname)s not found."
+msgstr "%(modelname)s nicht gefunden."
 
 msgid "This field is required."
 msgstr "Dieses Feld ist zwingend erforderlich."

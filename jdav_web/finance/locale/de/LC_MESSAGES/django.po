@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 09:35+0100\n"
+"POT-Creation-Date: 2026-01-18 11:05+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Statement not found."
-msgstr "Abrechnung nicht gefunden."
-
-msgid "Insufficient permissions."
-msgstr "Unzureichende Berechtigungen."
+msgid "Submit"
+msgstr "Einreichen"
 
 #, python-format
 msgid "%(name)s is already submitted."
@@ -41,6 +38,9 @@ msgstr "Kostenübersicht"
 
 msgid "Submit statement"
 msgstr "Rechnung einreichen"
+
+msgid "Overview"
+msgstr "Übersicht"
 
 #, python-format
 msgid "%(name)s is not yet submitted."
@@ -71,6 +71,9 @@ msgstr ""
 
 msgid "Statement confirmed"
 msgstr "Abrechnung abgewickelt"
+
+msgid "Payment"
+msgstr "Bezahlung"
 
 msgid ""
 "Transactions do not match the covered expenses. Please correct the mistakes "
@@ -129,9 +132,15 @@ msgstr ""
 msgid "View submitted statement"
 msgstr "Eingereichte Abrechnung einsehen"
 
+msgid "Reduce transactions"
+msgstr "Überweisungen minimieren"
+
 #, python-format
 msgid "Successfully reduced transactions for %(name)s."
 msgstr "Überweisungsträger für %(name)s minimiert."
+
+msgid "Unconfirm"
+msgstr "Bestätigung zurücknehmen"
 
 #, python-format
 msgid "%(name)s is not yet confirmed."
@@ -320,12 +329,6 @@ msgstr "Überweisung"
 msgid "Transactions"
 msgstr "Überweisungen"
 
-msgid "Home"
-msgstr "Start"
-
-msgid "Paiment"
-msgstr "Bezahlung"
-
 msgid "Paying statement"
 msgstr "Rechnung bezahlen"
 
@@ -359,9 +362,6 @@ msgstr "Nur bestätigen"
 
 msgid "Confirm and send receipt to office"
 msgstr "Bestätigen und Beleg an die Geschäftsstelle senden"
-
-msgid "Overview"
-msgstr "Übersicht"
 
 msgid "Covered by association"
 msgstr "Vom Verein übernommen"
@@ -547,9 +547,6 @@ msgstr "Ablehnen"
 msgid "Cancel"
 msgstr "Abbruch"
 
-msgid "Submit"
-msgstr "Einreichen"
-
 msgid "Submit to the finance department"
 msgstr "Beim Finanzreferat einreichen"
 
@@ -567,9 +564,6 @@ msgstr ""
 "Möchtest du die Abrechnung beim Finanzreferat einreichen? Wenn du "
 "fortschreitest, sind keine weiteren Änderungen an der Abrechnung möglich."
 
-msgid "Unconfirm"
-msgstr "Bestätigung zurücknehmen"
-
 msgid ""
 "You are entering risk zone! Do you really want to manually set this "
 "statement back to unconfirmed?"
@@ -583,3 +577,9 @@ msgid ""
 msgstr ""
 "Mir ist bewusst, dass das keine Standardprozedur ist und das dies die "
 "Integrität der Daten zerstören kann."
+
+msgid "Insufficient permissions."
+msgstr "Unzureichende Berechtigungen."
+
+msgid "Statement not found."
+msgstr "Abrechnung nicht gefunden."

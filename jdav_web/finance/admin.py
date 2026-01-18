@@ -145,8 +145,10 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             context = dict(
                 self.admin_site.each_context(request),
                 title=_("Submit statement"),
+                view_header=_("Submit"),
                 opts=self.opts,
                 statement=statement,
+                object=statement,
             )
             return render(request, "admin/submit_statement.html", context=context)
 
@@ -221,8 +223,10 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                 context = dict(
                     self.admin_site.each_context(request),
                     title=_("Statement confirmed"),
+                    view_header=_("Payment"),
                     opts=self.opts,
                     statement=statement,
+                    object=statement,
                 )
                 return render(request, "admin/confirmed_statement.html", context=context)
             elif res == Statement.NON_MATCHING_TRANSACTIONS:
@@ -332,8 +336,10 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         context = dict(
             self.admin_site.each_context(request),
             title=_("View submitted statement"),
+            view_header=_("Overview"),
             opts=self.opts,
             statement=statement,
+            object=statement,
             settings=settings,
             transaction_issues=statement.transaction_issues,
             **statement.template_context(),
@@ -387,8 +393,10 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         context = dict(
             self.admin_site.each_context(request),
             title=_("Unconfirm statement"),
+            view_header=_("Unconfirm"),
             opts=self.opts,
             statement=statement,
+            object=statement,
         )
 
         return render(request, "admin/unconfirm_statement.html", context=context)

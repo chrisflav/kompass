@@ -1,69 +1,49 @@
-{% extends "admin/base_site.html" %}
-{% load i18n admin_urls static %}
+{% extends "admin/extra_view.html" %}
+{% load i18n admin_urls %}
 
-{% block extrahead %}
-    {{ block.super }}
-    {{ media }}
-    <script src="{% static 'admin/js/cancel.js' %}" async></script>
-    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
-    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
-    <style>
-        li.choice-item {
-            cursor: pointer;
-        }
-        li.choice-item:hover {
-            background-color: #ecf2f6;
-        }
-        li.choice-item.selected {
-            background-color: #7fb1dc;
-            color: #fff;
-            font-weight: 500;
-        }
-        li.choice-item input[type="radio"] {
-            display: none;
-        }
-        li.choice-item label {
-            cursor: pointer;
-            display: block;
-            margin: 0;
-        }
-        .action-buttons {
-            display: none;
-            margin: 20px 0;
-        }
-        .action-buttons.visible {
-            display: block;
-        }
-        .create-buttons {
-            display: none;
-            margin: 20px 0;
-        }
-        .create-buttons.visible {
-            display: block;
-        }
-        .existing-entry-dropdown {
-            display: none;
-            margin: 20px 0;
-        }
-        .existing-entry-dropdown.visible {
-            display: block;
-        }
-    </style>
-{% endblock %}
-
-{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} invite-waiter
-{% endblock %}
-
-{% block breadcrumbs %}
-<div class="breadcrumbs">
-<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
-&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
-&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
-{% if object %}
-&rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
-{% endif %}
-&rsaquo; {% translate 'Create object from selected members' %}
-</div>
+{% block extrahead_extra %}
+<style>
+    li.choice-item {
+        cursor: pointer;
+    }
+    li.choice-item:hover {
+        background-color: #ecf2f6;
+    }
+    li.choice-item.selected {
+        background-color: #7fb1dc;
+        color: #fff;
+        font-weight: 500;
+    }
+    li.choice-item input[type="radio"] {
+        display: none;
+    }
+    li.choice-item label {
+        cursor: pointer;
+        display: block;
+        margin: 0;
+    }
+    .action-buttons {
+        display: none;
+        margin: 20px 0;
+    }
+    .action-buttons.visible {
+        display: block;
+    }
+    .create-buttons {
+        display: none;
+        margin: 20px 0;
+    }
+    .create-buttons.visible {
+        display: block;
+    }
+    .existing-entry-dropdown {
+        display: none;
+        margin: 20px 0;
+    }
+    .existing-entry-dropdown.visible {
+        display: block;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
