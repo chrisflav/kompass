@@ -1787,12 +1787,11 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
                     "description",
                     "groups",
                     "jugendleiter",
-                    "approved_extra_youth_leader_count",
+                    "activity",
+                    "difficulty",
                     "tour_type",
                     "tour_approach",
                     "kilometers_traveled",
-                    "activity",
-                    "difficulty",
                 ),
                 "description": _(
                     "General information on your excursion. These are partly relevant for the amount of financial compensation (means of transport, travel distance, etc.)."
@@ -1802,7 +1801,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
         (
             _("Approval"),
             {
-                "fields": ("approved", "approval_comments"),
+                "fields": ("approved", "approval_comments", "approved_extra_youth_leader_count"),
                 "description": _(
                     "Information on the approval status of this excursion. Everything here is not editable by standard users."
                 ),

@@ -116,7 +116,14 @@ class Statement(CommonModel):
     )
 
     night_cost = models.DecimalField(
-        verbose_name=_("Price per night"), default=0, decimal_places=2, max_digits=5
+        verbose_name=_("Price per night"),
+        default=0,
+        decimal_places=2,
+        max_digits=5,
+        help_text=_(
+            "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is %(max_cost)s€."
+        )
+        % {"max_cost": settings.MAX_NIGHT_COST},
     )
 
     status = models.IntegerField(

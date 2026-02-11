@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-18 11:05+0100\n"
+"POT-Creation-Date: 2026-02-12 00:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -608,6 +608,9 @@ msgstr "Stützpunkt / Ort"
 msgid "Postcode"
 msgstr "PLZ"
 
+msgid "only relevant for a LJP application"
+msgstr "nur für einen LJP-Antrag relevant"
+
 msgid "Destination (optional)"
 msgstr "ggf. Ziel"
 
@@ -635,6 +638,13 @@ msgstr ""
 
 msgid "Kilometers traveled"
 msgstr "Fahrstrecke in Kilometer"
+
+msgid ""
+"The total kilometers traveled (away and back) during this excursion. This is "
+"relevant for the section subsidies."
+msgstr ""
+"Gesamte Fahrtstrecke (Hin- und Rückfahrt). Die Angabe ist relevant für die "
+"Berechnung der Zuschüsse durch den Jugendetat."
 
 msgid "Categories"
 msgstr "Kategorien"
@@ -851,10 +861,10 @@ msgstr ""
 "eine Begründung an. Sonst lass dieses Feld frei."
 
 msgid "LJP Proposal"
-msgstr "Seminarbericht"
+msgstr "LJP-Antrag"
 
 msgid "LJP Proposals"
-msgstr "Seminarberichte"
+msgstr "LJP-Anträge"
 
 msgid "Duration in hours"
 msgstr "Dauer in Stunden"
