@@ -35,6 +35,7 @@ from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
 from mailer.models import Message
+from members.pdf import render_tex_with_attachments
 from schwifty import IBAN
 from utils import get_member
 from utils import mondays_until_nth
@@ -1576,6 +1577,37 @@ class InterventionOnLJPInline(CommonAdminInlineMixin, admin.TabularInline):
     formfield_overrides = {TextField: {"widget": Textarea(attrs={"rows": 1, "cols": 80})}}
 
 
+class LJPProposalForm(forms.ModelForm):
+    """Custom form for the `LJPOnListInline` with validation rules"""
+
+    class Meta:
+        model = LJPProposal
+        exclude = []
+
+    def clean(self):
+        cleaned_data = super().clean()
+        goal = cleaned_data.get("goal")
+        category = cleaned_data.get("category")
+
+        if goal is not None and category is not None:
+            # LJP_QUALIFICATION (goal=1) can only combine with LJP_STAFF_TRAINING (category=1)
+            if goal == LJPProposal.LJP_QUALIFICATION:
+                if category != LJPProposal.LJP_STAFF_TRAINING:
+                    raise ValidationError(
+                        _(
+                            "The learning goal 'Qualification' can only be combined with the category 'Staff training'."
+                        )
+                    )
+            # All other goals can only combine with LJP_EDUCATIONAL (category=2)
+            else:
+                if category != LJPProposal.LJP_EDUCATIONAL:
+                    raise ValidationError(
+                        _(
+                            "The learning goals 'Participation', 'Personality development', and 'Environment' can only be combined with the category 'Educational programme'."
+                        )
+                    )
+
+
 class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = LJPProposal
     extra = 1
@@ -1584,6 +1616,7 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     )
     sortable_options = []
     inlines = [InterventionOnLJPInline]
+    form = LJPProposalForm
 
 
 class MemberOnListInlineForm(forms.ModelForm):
@@ -1787,12 +1820,11 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
                     "description",
                     "groups",
                     "jugendleiter",
-                    "approved_extra_youth_leader_count",
+                    "activity",
+                    "difficulty",
                     "tour_type",
                     "tour_approach",
                     "kilometers_traveled",
-                    "activity",
-                    "difficulty",
                 ),
                 "description": _(
                     "General information on your excursion. These are partly relevant for the amount of financial compensation (means of transport, travel distance, etc.)."
@@ -1802,7 +1834,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
         (
             _("Approval"),
             {
-                "fields": ("approved", "approval_comments"),
+                "fields": ("approved", "approval_comments", "approved_extra_youth_leader_count"),
                 "description": _(
                     "Information on the approval status of this excursion. Everything here is not editable by standard users."
                 ),
@@ -1929,6 +1961,38 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             "members/seminar_report.tex",
             context,
             date=memberlist.date,
+        )
+
+    @decorate_download
+    def download_ljp_proofs(self, request, memberlist):
+        if not hasattr(memberlist, "statement"):
+            messages.error(request, _("This excursion does not have a statement."))
+            return HttpResponseRedirect(
+                reverse(
+                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    args=(memberlist.pk,),
+                )
+            )
+
+        statement = memberlist.statement
+        all_bills = list(statement.bill_set.all())
+
+        context = dict(
+            statement=statement,
+            excursion=memberlist,
+            all_bills=all_bills,
+            total_bills=statement.total_bills_theoretic,
+            total_allowance=statement.total_allowance,
+            total_theoretic=statement.total_theoretic,
+            allowance_to=statement.allowance_to.all(),
+            allowance_per_yl=statement.allowance_per_yl,
+            settings=settings,
+        )
+
+        pdf_filename = f"{memberlist.code}_{memberlist.name}_LJP_Nachweis"
+        attachments = [bill.proof.path for bill in all_bills if bill.proof]
+        return render_tex_with_attachments(
+            pdf_filename, "finance/ljp_statement.tex", context, attachments
         )
 
     @extra_button(
@@ -2112,6 +2176,11 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
                 name="{}_{}_download_ljp_costs_participants".format(
                     self.opts.app_label, self.opts.model_name
                 ),
+            ),
+            path(
+                "<path:object_id>/download/ljp_proofs",
+                wrap(self.download_ljp_proofs),
+                name="{}_{}_download_ljp_proofs".format(self.opts.app_label, self.opts.model_name),
             ),
         ]
         return custom_urls + urls
