@@ -309,10 +309,16 @@ class Freizeit(CommonModel):
         jls = set(self.jugendleiter.distinct())
         # non-youth leader participants
         ps_only = ps - jls
-        # participants of the correct age
-        ps_correct_age = {
-            m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27
-        }
+        # participants of the correct age (age does not matter for excursions with goal qualification)
+        if (
+            hasattr(self, "ljpproposal")
+            and self.ljpproposal.goal == self.ljpproposal.LJP_QUALIFICATION
+        ):
+            ps_correct_age = ps_only
+        else:
+            ps_correct_age = {
+                m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27
+            }
         # m = the official non-youth-leader participant count
         # and, assuming there exist enough participants, unrounded m satisfies the equation
         # len(ps_correct_age) + 1/5 * m = m

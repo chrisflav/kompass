@@ -1576,6 +1576,37 @@ class InterventionOnLJPInline(CommonAdminInlineMixin, admin.TabularInline):
     formfield_overrides = {TextField: {"widget": Textarea(attrs={"rows": 1, "cols": 80})}}
 
 
+class LJPProposalForm(forms.ModelForm):
+    """Custom form for the `LJPOnListInline` with validation rules"""
+
+    class Meta:
+        model = LJPProposal
+        exclude = []
+
+    def clean(self):
+        cleaned_data = super().clean()
+        goal = cleaned_data.get("goal")
+        category = cleaned_data.get("category")
+
+        if goal is not None and category is not None:
+            # LJP_QUALIFICATION (goal=1) can only combine with LJP_STAFF_TRAINING (category=1)
+            if goal == LJPProposal.LJP_QUALIFICATION:
+                if category != LJPProposal.LJP_STAFF_TRAINING:
+                    raise ValidationError(
+                        _(
+                            "The learning goal 'Qualification' can only be combined with the category 'Staff training'."
+                        )
+                    )
+            # All other goals can only combine with LJP_EDUCATIONAL (category=2)
+            else:
+                if category != LJPProposal.LJP_EDUCATIONAL:
+                    raise ValidationError(
+                        _(
+                            "The learning goals 'Participation', 'Personality development', and 'Environment' can only be combined with the category 'Educational programme'."
+                        )
+                    )
+
+
 class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     model = LJPProposal
     extra = 1
@@ -1584,6 +1615,7 @@ class LJPOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
     )
     sortable_options = []
     inlines = [InterventionOnLJPInline]
+    form = LJPProposalForm
 
 
 class MemberOnListInlineForm(forms.ModelForm):

@@ -558,9 +558,16 @@ class Statement(CommonModel):
     @property
     def total_org_fee(self):
         """only calculate org fee if subsidies or allowances are claimed."""
-        if self.subsidy_to or self.allowances_paid > 0:
-            return self.total_org_fee_theoretical
-        return cvt_to_decimal(0)
+        if not self.subsidy_to and self.allowances_paid == 0:
+            return cvt_to_decimal(0)
+
+        # if the excursion is for qualification, we don't charge org fees for older participants.
+        if hasattr(self.excursion, "ljpproposal"):
+            proposal = getattr(self.excursion, "ljpproposal")
+            if proposal.goal == proposal.LJP_QUALIFICATION:
+                return cvt_to_decimal(0)
+
+        return self.total_org_fee_theoretical
 
     @property
     def org_fee_payant(self):
@@ -693,6 +700,7 @@ class Statement(CommonModel):
                 "paid_ljp_contributions": self.paid_ljp_contributions,
                 "ljp_to": self.ljp_to,
                 "theoretic_ljp_participant_count": self.excursion.theoretic_ljp_participant_count,
+                "ljp_participant_count": self.excursion.ljp_participant_count,
                 "participant_count": self.excursion.participant_count,
                 "total_seminar_days": self.excursion.total_seminar_days,
                 "ljp_tax": settings.LJP_TAX * 100,
