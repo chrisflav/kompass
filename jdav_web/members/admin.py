@@ -35,6 +35,7 @@ from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
 from mailer.models import Message
+from members.pdf import render_tex_with_attachments
 from schwifty import IBAN
 from utils import get_member
 from utils import mondays_until_nth
@@ -1962,6 +1963,38 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             date=memberlist.date,
         )
 
+    @decorate_download
+    def download_ljp_proofs(self, request, memberlist):
+        if not hasattr(memberlist, "statement"):
+            messages.error(request, _("This excursion does not have a statement."))
+            return HttpResponseRedirect(
+                reverse(
+                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    args=(memberlist.pk,),
+                )
+            )
+
+        statement = memberlist.statement
+        all_bills = list(statement.bill_set.all())
+
+        context = dict(
+            statement=statement,
+            excursion=memberlist,
+            all_bills=all_bills,
+            total_bills=statement.total_bills_theoretic,
+            total_allowance=statement.total_allowance,
+            total_theoretic=statement.total_theoretic,
+            allowance_to=statement.allowance_to.all(),
+            allowance_per_yl=statement.allowance_per_yl,
+            settings=settings,
+        )
+
+        pdf_filename = f"{memberlist.code}_{memberlist.name}_LJP_Nachweis"
+        attachments = [bill.proof.path for bill in all_bills if bill.proof]
+        return render_tex_with_attachments(
+            pdf_filename, "finance/ljp_statement.tex", context, attachments
+        )
+
     @extra_button(
         _("Generate seminar report"), method="POST", permission=may_view_excursion.__func__
     )
@@ -2143,6 +2176,11 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
                 name="{}_{}_download_ljp_costs_participants".format(
                     self.opts.app_label, self.opts.model_name
                 ),
+            ),
+            path(
+                "<path:object_id>/download/ljp_proofs",
+                wrap(self.download_ljp_proofs),
+                name="{}_{}_download_ljp_proofs".format(self.opts.app_label, self.opts.model_name),
             ),
         ]
         return custom_urls + urls
