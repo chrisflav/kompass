@@ -41,7 +41,13 @@ class Freizeit(CommonModel):
 
     name = models.CharField(verbose_name=_("Activity"), default="", max_length=50)
     place = models.CharField(verbose_name=_("Place"), default="", max_length=50)
-    postcode = models.CharField(verbose_name=_("Postcode"), default="", max_length=30, blank=True)
+    postcode = models.CharField(
+        verbose_name=_("Postcode"),
+        default="",
+        max_length=30,
+        blank=True,
+        help_text=_("only relevant for a LJP application"),
+    )
     destination = models.CharField(
         verbose_name=_("Destination (optional)"),
         default="",
@@ -83,6 +89,9 @@ class Freizeit(CommonModel):
         verbose_name=_("Kilometers traveled"),
         validators=[MinValueValidator(0)],
         default=0,
+        help_text=_(
+            "The total kilometers traveled (away and back) during this excursion. This is relevant for the section subsidies."
+        ),
     )
     activity = models.ManyToManyField(ActivityCategory, default=None, verbose_name=_("Categories"))
     difficulty_choices = [(1, _("easy")), (2, _("medium")), (3, _("hard"))]
@@ -300,10 +309,16 @@ class Freizeit(CommonModel):
         jls = set(self.jugendleiter.distinct())
         # non-youth leader participants
         ps_only = ps - jls
-        # participants of the correct age
-        ps_correct_age = {
-            m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27
-        }
+        # participants of the correct age (age does not matter for excursions with goal qualification)
+        if (
+            hasattr(self, "ljpproposal")
+            and self.ljpproposal.goal == self.ljpproposal.LJP_QUALIFICATION
+        ):
+            ps_correct_age = ps_only
+        else:
+            ps_correct_age = {
+                m for m in ps_only if m.age_at(self.date) >= 6 and m.age_at(self.date) < 27
+            }
         # m = the official non-youth-leader participant count
         # and, assuming there exist enough participants, unrounded m satisfies the equation
         # len(ps_correct_age) + 1/5 * m = m

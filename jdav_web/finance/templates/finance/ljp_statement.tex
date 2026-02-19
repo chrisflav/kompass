@@ -1,0 +1,108 @@
+{% extends "members/tex_base.tex" %}
+{% load static common tex_extras %}
+
+{% block title %}Belegübersicht für LJP-Verwendungsnachweis{% endblock %}
+
+{% block content %}
+
+{% if excursion %}
+
+% DESCRIPTION TABLE
+\begin{table}[H]
+    \begin{tabular}{ll}
+        Aktivität: & {{ excursion.name|esc_all }} \\
+        Ordnungsnummer & {{ excursion.code|esc_all }} \\
+        Ort / Stützpunkt: & {{ excursion.place|esc_all }} \\
+        Zeitraum: & {{ excursion.time_period_str|esc_all }} \\
+    \end{tabular}
+\end{table}
+
+\vspace{12pt}
+
+\noindent\textbf{\large Belegübersicht}
+
+\noindent Die folgenden Ausgaben wurden im Zusammenhang mit der oben genannte Aktivität getätigt:
+
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{.97\textwidth}{lXlr}
+        \toprule
+        \textbf{Nr.} & \textbf{Beschreibung} & \textbf{Erklärung} & \textbf{Betrag} \\
+        \midrule
+
+{% if all_bills or total_allowance > 0 %}
+    {% if total_allowance > 0 %}
+        1. & Aufwandsentschädigungen & Gezahlte Aufwandsentschädigungen für Jugendleiter*innen & {{ total_allowance }} € \\
+    {% endif %}
+    {% if all_bills %}
+        {% for bill in all_bills %}
+        {% if total_allowance > 0 %}
+        {{ forloop.counter|plus:1 }}. & {{ bill.short_description|esc_all }} & {{ bill.explanation|esc_all }} & {{ bill.amount }} € \\
+        {% else %}
+        {{ forloop.counter }}. & {{ bill.short_description|esc_all }} & {{ bill.explanation|esc_all }} & {{ bill.amount }} € \\
+        {% endif %}
+        {% endfor %}
+    {% endif %}
+        \midrule
+        \multicolumn{3}{l}{\textbf{Gesamtsumme}} & \textbf{ {{ total_theoretic }} }€\\
+{% else %}
+        \multicolumn{4}{l}{\textit{Keine Rechnungen für LJP-Abrechnung vorhanden.}} \\
+{% endif %}
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+{% if all_bills %}
+
+\noindent\textbf{\large Anhänge - Belege}
+
+\noindent Die folgenden Seiten enthalten die Kopien der oben aufgeführten Rechnungen und Belege.
+
+{% endif %}
+
+{% if total_allowance > 0 %}
+
+\newpage
+
+\noindent\textbf{\large Quittung Aufwandsentschädigungen}
+
+
+% DESCRIPTION TABLE
+\begin{table}[H]
+    \begin{tabular}{ll}
+        Aktivität: & {{ excursion.name|esc_all }} \\
+        Ordnungsnummer & {{ excursion.code|esc_all }} \\
+        Zeitraum: & {{ excursion.time_period_str|esc_all }} \\
+    \end{tabular}
+\end{table}
+
+\vspace{12pt}
+
+\noindent\textbf{\large Aufwandsentschädigungen}
+
+\noindent Die folgenden Jugendleiter*innen erhalten eine Aufwandsentschädigung. Insgesamt werden {{ total_allowance }} € ausbezahlt.
+
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{.97\textwidth}{lXlr}
+        \toprule
+        \textbf{Nr.} & \textbf{Name} & \textbf{Betrag pro Person} & \textbf{Gesamtbetrag} \\
+        \midrule
+        {% for allowance_member in allowance_to %}
+        {{ forloop.counter }}. & {{ allowance_member.name|esc_all }} & {{ allowance_per_yl }} € & {{ allowance_per_yl }} € \\
+        {% endfor %}
+        \midrule
+        \multicolumn{3}{l}{\textbf{Gesamtsumme Aufwandsentschädigungen}} & \textbf{ {{ total_allowance }} }€\\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\noindent Dieser Beleg dokumentiert die gezahlten Aufwandsentschädigungen und wird automatisch erstellt.
+
+{% endif %}
+
+{% else %}
+\vspace{110pt}
+{% endif %}
+
+{% endblock %}
