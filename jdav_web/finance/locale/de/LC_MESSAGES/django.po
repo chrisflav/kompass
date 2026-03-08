@@ -228,7 +228,7 @@ msgid ""
 "calculation of the subsidies for night costs. The maximum subsidised value "
 "is %(max_cost)s€."
 msgstr ""
-"Laut Preisliste für einen Jugendleiter/eine Jugendleiterin. Angabe wird "
+"Laut Preisliste für eine*n Jugendleiter*in. Angabe wird "
 "benötigt für die Berechnung von Zuschüssen aus dem Jugendetat. Maximaler "
 "Zuschuss pro Person und Nacht: %(max_cost)s €"
 
