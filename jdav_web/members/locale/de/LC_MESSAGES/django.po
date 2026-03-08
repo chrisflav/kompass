@@ -418,7 +418,7 @@ msgid ""
 "The learning goals 'Participation', 'Personality development', and "
 "'Environment' can only be combined with the category 'Educational programme'."
 msgstr ""
-"Die Lernziele 'Partizipation', 'Persönlichkeitsentwicklung' und "
+"Die Bildungsziele 'Partizipation', 'Persönlichkeitsentwicklung' und "
 "'Umweltbildung' können nur mit der Kategorie 'Themenorientierte "
 "Bildungsmaßnahme' verwendet werden."
 
