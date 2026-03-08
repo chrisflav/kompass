@@ -1590,7 +1590,7 @@ class LJPProposalForm(forms.ModelForm):
         category = cleaned_data.get("category")
 
         if goal is not None and category is not None:
-            # LJP_QUALIFICATION (goal=1) can only combine with LJP_STAFF_TRAINING (category=1)
+            # LJP_QUALIFICATION can only combine with LJP_STAFF_TRAINING
             if goal == LJPProposal.LJP_QUALIFICATION:
                 if category != LJPProposal.LJP_STAFF_TRAINING:
                     raise ValidationError(
