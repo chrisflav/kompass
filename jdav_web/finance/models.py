@@ -488,9 +488,9 @@ class Statement(CommonModel):
             self.excursion.tour_approach == MUSKELKRAFT_ANREISE
             or self.excursion.tour_approach == OEFFENTLICHE_ANREISE
         ):
-            return 0.15
+            return settings.AID_PER_KM_TRAIN
         else:
-            return 0.1
+            return settings.AID_PER_KM_CAR
 
     @property
     def transportation_per_yl(self):
