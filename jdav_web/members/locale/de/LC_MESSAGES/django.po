@@ -626,8 +626,8 @@ msgstr "Stützpunkt / Ort"
 msgid "Postcode"
 msgstr "PLZ"
 
-msgid "only relevant for a LJP application"
-msgstr "nur für einen LJP-Antrag relevant"
+msgid "Only relevant for a LJP application."
+msgstr "Nur für einen LJP-Antrag relevant."
 
 msgid "Destination (optional)"
 msgstr "ggf. Ziel"
