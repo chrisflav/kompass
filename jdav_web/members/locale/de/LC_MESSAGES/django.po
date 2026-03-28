@@ -411,7 +411,7 @@ msgid ""
 "The learning goal 'Qualification' can only be combined with the category "
 "'Staff training'."
 msgstr ""
-"Das Lernziel 'Qualifizierung' kann nur in Kombination mit der Kategorie "
+"Das Bildungsziel 'Qualifizierung' kann nur in Kombination mit der Kategorie "
 "'Jugendleiter*innenweiterbildung' verwendet werden."
 
 msgid ""
