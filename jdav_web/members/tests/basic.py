@@ -1895,6 +1895,12 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Excursion not found."))
 
+        # Test download_ljp_proofs without statement
+        url = reverse("admin:members_freizeit_download_ljp_proofs", args=(self.ex.pk,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("This excursion does not have a statement."))
+
     def test_download_seminar_vbk(self):
         url = reverse("admin:members_freizeit_download_ljp_vbk", args=(self.ex2.pk,))
         c = self._login("superuser")
@@ -1909,6 +1915,12 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
 
     def test_download_seminar_report_costs_and_participants(self):
         url = reverse("admin:members_freizeit_download_ljp_costs_participants", args=(self.ex2.pk,))
+        c = self._login("superuser")
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_download_ljp_proofs(self):
+        url = reverse("admin:members_freizeit_download_ljp_proofs", args=(self.ex2.pk,))
         c = self._login("superuser")
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
