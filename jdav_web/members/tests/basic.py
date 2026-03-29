@@ -1896,7 +1896,30 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         self.assertContains(response, _("Excursion not found."))
 
         # Test download_ljp_proofs without statement
-        url = reverse("admin:members_freizeit_download_ljp_proofs", args=(self.ex.pk,))
+        ex_no_stmt = Freizeit.objects.create(
+            name="No statement",
+            kilometers_traveled=100,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        url = reverse("admin:members_freizeit_download_ljp_proofs", args=(ex_no_stmt.pk,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(
+            response,
+            _("This excursion does not have a LJP proposal. Please add one and try again."),
+        )
+
+        # Add LJP proposal but still no statement
+        LJPProposal.objects.create(
+            title="Test proposal",
+            category=LJPProposal.LJP_STAFF_TRAINING,
+            goal=LJPProposal.LJP_QUALIFICATION,
+            goal_strategy="test strategy",
+            not_bw_reason=LJPProposal.NOT_BW_ROOMS,
+            excursion=ex_no_stmt,
+        )
         response = c.get(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("This excursion does not have a statement."))
