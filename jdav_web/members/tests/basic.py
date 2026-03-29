@@ -2049,6 +2049,73 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         response = c.get(f"{url}?members={members_json}")
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_ljp_proposal_form_clean_qualification_with_staff_training(self):
+        """LJP_QUALIFICATION can only combine with LJP_STAFF_TRAINING - should pass."""
+        from members.admin import LJPProposalForm
+
+        form = LJPProposalForm(
+            data={
+                "title": "Test",
+                "goal": LJPProposal.LJP_QUALIFICATION,
+                "category": LJPProposal.LJP_STAFF_TRAINING,
+                "goal_strategy": "test",
+            }
+        )
+        self.assertTrue(form.is_valid())
+
+    def test_ljp_proposal_form_clean_qualification_with_educational_fails(self):
+        """LJP_QUALIFICATION with LJP_EDUCATIONAL - should fail validation."""
+        from members.admin import LJPProposalForm
+
+        form = LJPProposalForm(
+            data={
+                "title": "Test",
+                "goal": LJPProposal.LJP_QUALIFICATION,
+                "category": LJPProposal.LJP_EDUCATIONAL,
+                "goal_strategy": "test",
+            }
+        )
+        self.assertFalse(
+            form.is_valid(),
+            "Form should be invalid when LJP_QUALIFICATION is combined with LJP_EDUCATIONAL",
+        )
+
+    def test_ljp_proposal_form_clean_other_goals_with_educational(self):
+        """Other goals can only combine with LJP_EDUCATIONAL - should pass."""
+        from members.admin import LJPProposalForm
+
+        for goal in [
+            LJPProposal.LJP_PARTICIPATION,
+            LJPProposal.LJP_DEVELOPMENT,
+            LJPProposal.LJP_ENVIRONMENT,
+        ]:
+            form = LJPProposalForm(
+                data={
+                    "title": "Test",
+                    "goal": goal,
+                    "category": LJPProposal.LJP_EDUCATIONAL,
+                    "goal_strategy": "test",
+                }
+            )
+            self.assertTrue(form.is_valid(), f"Goal {goal} should be valid with LJP_EDUCATIONAL")
+
+    def test_ljp_proposal_form_clean_other_goals_with_staff_training_fails(self):
+        """Other goals with LJP_STAFF_TRAINING - should fail validation."""
+        from members.admin import LJPProposalForm
+
+        form = LJPProposalForm(
+            data={
+                "title": "Test",
+                "goal": LJPProposal.LJP_PARTICIPATION,
+                "category": LJPProposal.LJP_STAFF_TRAINING,
+                "goal_strategy": "test",
+            }
+        )
+        self.assertFalse(
+            form.is_valid(),
+            "Form should be invalid when other goals are combined with LJP_STAFF_TRAINING",
+        )
+
 
 class MemberNoteListAdminTestCase(AdminTestCase, PDFActionMixin):
     def setUp(self):
