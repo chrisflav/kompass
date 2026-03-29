@@ -299,6 +299,24 @@ class StatementTestCase(TestCase):
         self.st5.subsidy_to = None
         self.st5.allowance_to.remove(self.fritz)
 
+    def test_org_fee_zero_for_ljp_qualification(self):
+        """Test that total_org_fee returns 0 for LJP_QUALIFICATION proposals.
+
+        This covers lines 565-568 of models.py when proposal.goal == LJP_QUALIFICATION.
+        """
+        # Use st_small which already has an LJP proposal, just change its goal
+        proposal = self.st_small.excursion.ljpproposal
+        original_goal = proposal.goal
+        proposal.goal = LJPProposal.LJP_QUALIFICATION
+        proposal.save()
+
+        # total_org_fee should be 0 for LJP_QUALIFICATION proposals
+        self.assertEqual(self.st_small.total_org_fee, 0)
+
+        # Restore original goal
+        proposal.goal = original_goal
+        proposal.save()
+
     def test_ljp_payment(self):
         expected_intervention_hours = 2 + 3 + 4
         expected_seminar_days = 0 + 0.5 + 0.5  # >=2.5h = 0.5days, >=5h = 1.0day
