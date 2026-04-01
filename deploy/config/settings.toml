@@ -26,6 +26,8 @@ domain = 'jdav-town.de'
 [finance]
 allowance_per_day = 22
 max_night_cost = 11
+aid_per_km_car = 0.10
+aid_per_km_train = 0.15
 
 [links]
 cloud = "https://nextcloud.com"

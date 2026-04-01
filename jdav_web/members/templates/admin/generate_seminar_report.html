@@ -39,6 +39,18 @@ This also includes a detailed, tabularized time schedule and is produced as an e
 <a href="{% url 'admin:members_freizeit_download_ljp_costs_participants' memberlist.pk %}" class="button" target="_blank">{% translate "Download" %}</a>
 </td>
 </tr>
+<tr>
+<td>
+{% blocktrans %}A collection of all invoices and receipts as evidence for the LJP application, including a summary table and all attached proofs.{% endblocktrans %}
+</td>
+<td>
+{% if memberlist.statement %}
+<a href="{% url 'admin:members_freizeit_download_ljp_proofs' memberlist.pk %}" class="button" target="_blank">{% translate "Download" %}</a>
+{% else %}
+<span>{% trans 'No statement available' %}</span>
+{% endif %}
+</td>
+</tr>
 </table>
 </p>
 

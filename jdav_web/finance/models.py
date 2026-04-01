@@ -116,7 +116,14 @@ class Statement(CommonModel):
     )
 
     night_cost = models.DecimalField(
-        verbose_name=_("Price per night"), default=0, decimal_places=2, max_digits=5
+        verbose_name=_("Price per night"),
+        default=0,
+        decimal_places=2,
+        max_digits=5,
+        help_text=_(
+            "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is %(max_cost)s€."
+        )
+        % {"max_cost": settings.MAX_NIGHT_COST},
     )
 
     status = models.IntegerField(
@@ -481,9 +488,9 @@ class Statement(CommonModel):
             self.excursion.tour_approach == MUSKELKRAFT_ANREISE
             or self.excursion.tour_approach == OEFFENTLICHE_ANREISE
         ):
-            return 0.15
+            return settings.AID_PER_KM_TRAIN
         else:
-            return 0.1
+            return settings.AID_PER_KM_CAR
 
     @property
     def transportation_per_yl(self):
@@ -551,9 +558,16 @@ class Statement(CommonModel):
     @property
     def total_org_fee(self):
         """only calculate org fee if subsidies or allowances are claimed."""
-        if self.subsidy_to or self.allowances_paid > 0:
-            return self.total_org_fee_theoretical
-        return cvt_to_decimal(0)
+        if not self.subsidy_to and self.allowances_paid == 0:
+            return cvt_to_decimal(0)
+
+        # if the excursion is for qualification, we don't charge org fees for older participants.
+        if hasattr(self.excursion, "ljpproposal"):
+            proposal = getattr(self.excursion, "ljpproposal")
+            if proposal.goal == proposal.LJP_QUALIFICATION:
+                return cvt_to_decimal(0)
+
+        return self.total_org_fee_theoretical
 
     @property
     def org_fee_payant(self):
@@ -686,6 +700,7 @@ class Statement(CommonModel):
                 "paid_ljp_contributions": self.paid_ljp_contributions,
                 "ljp_to": self.ljp_to,
                 "theoretic_ljp_participant_count": self.excursion.theoretic_ljp_participant_count,
+                "ljp_participant_count": self.excursion.ljp_participant_count,
                 "participant_count": self.excursion.participant_count,
                 "total_seminar_days": self.excursion.total_seminar_days,
                 "ljp_tax": settings.LJP_TAX * 100,
