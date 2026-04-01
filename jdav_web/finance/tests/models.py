@@ -310,12 +310,18 @@ class StatementTestCase(TestCase):
         proposal.goal = LJPProposal.LJP_QUALIFICATION
         proposal.save()
 
-        # total_org_fee should be 0 for LJP_QUALIFICATION proposals
+        # Set subsidy_to so we pass the first condition and reach line 568
+        self.st_small.subsidy_to = self.fritz
+        self.st_small.save()
+
+        # total_org_fee should be 0 for LJP_QUALIFICATION proposals (line 568)
         self.assertEqual(self.st_small.total_org_fee, 0)
 
-        # Restore original goal
+        # Restore original state
         proposal.goal = original_goal
         proposal.save()
+        self.st_small.subsidy_to = None
+        self.st_small.save()
 
     def test_ljp_payment(self):
         expected_intervention_hours = 2 + 3 + 4
