@@ -554,7 +554,7 @@ class Statement(CommonModel):
 
     @property
     def real_night_cost(self):
-        return min(self.night_cost, self._get_setting("MAX_NIGHT_COST"))
+        return min(self.night_cost, Decimal(self._get_setting("MAX_NIGHT_COST")))
 
     @property
     def nights_per_yl(self):
