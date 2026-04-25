@@ -56,29 +56,38 @@ else
 endif
 
 build-test:
+ifeq ($(quiet), true)
+	@cd docker/test; docker compose build > /dev/null 2>&1
+else
 	cd docker/test; docker compose build
+endif
 
 test-only:
+ifeq ($(quiet), true)
+	@mkdir -p docker/test/htmlcov
+	@chmod 777 docker/test/htmlcov
+ifeq ($(keepdb), true)
+	@cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up -d > /dev/null 2>&1 \
+	  || { echo "Container setup failed."; exit 1; }
+else
+	@cd docker/test; DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up -d > /dev/null 2>&1 \
+	  || { echo "Container setup failed."; exit 1; }
+endif
+	@cd docker/test; docker compose wait master > /dev/null 2>&1 || true; \
+	  python3 parse_output.py htmlcov; _EXIT=$$?; \
+	  docker compose down > /dev/null 2>&1; \
+	  exit $$_EXIT
+else
 	mkdir -p docker/test/htmlcov
 	chmod 777 docker/test/htmlcov
-ifeq ($(quiet), true)
-	# Start services in detached mode and show only master container output
-ifeq ($(keepdb), true)
-	cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up -d
-else
-	cd docker/test; DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up -d
-endif
-	cd docker/test; docker compose logs -f master
-	cd docker/test; docker compose down
-else
 	# Show output from all containers
 ifeq ($(keepdb), true)
 	cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --exit-code-from master
 else
 	cd docker/test; DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --exit-code-from master
 endif
-endif
 	echo "Generated coverage report. To read it, point your browser to:\n\nfile://$$(pwd)/docker/test/htmlcov/index.html"
+endif
 
 # Only execute the test target if it's not being called via 'make dev test'
 ifneq (dev,$(firstword $(MAKECMDGOALS)))
