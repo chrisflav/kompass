@@ -707,14 +707,14 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
         "age",
         "get_group",
         "confirmed_mail",
-        "confirmed_alternative_mail",
+        "display_confirmed_alternative_mail",
         "registration_form_uploaded",
     )
     search_fields = ("prename", "lastname", "email")
     list_filter = ("group", "confirmed_mail", "confirmed_alternative_mail")
     readonly_fields = [
         "confirmed_mail",
-        "confirmed_alternative_mail",
+        "display_confirmed_alternative_mail",
         "good_conduct_certificate_valid",
         "echoed",
     ]
@@ -741,6 +741,17 @@ class MemberUnconfirmedAdmin(CommonAdminMixin, admin.ModelAdmin):
         "has_key": "members.may_change_organizationals",
         "has_free_ticket_gym": "members.may_change_organizationals",
     }
+
+    @admin.display(description=_("Alternative email confirmed"))
+    def display_confirmed_alternative_mail(self, obj):
+        if not obj.alternative_email:
+            return "-"
+        icon = "yes" if obj.confirmed_alternative_mail else "no"
+        return format_html(
+            '<img src="/static/admin/img/icon-{}.svg" alt="{}">',
+            icon,
+            obj.confirmed_alternative_mail,
+        )
 
     def has_add_permission(self, request, obj=None):
         return False
