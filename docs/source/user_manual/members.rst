@@ -7,7 +7,7 @@ Das wichtigste Objekt im Kompass ist ein\*e Teilnehmer\*in. Hier meint ein\*e Te
 Kompass hinterlegtes Mitglied der JDAV deiner Sektion, das heißt ob 5-jähriges Jugendgruppenkind,
 langgediente\*r Jugendleiter\*in oder frischgebackene\*r Jugendreferent\*in, alle haben
 einen Eintrag als Teilnehmer\*in im Kompass. Insbesondere heißt das, dass auch du selbst hier einen
-Eintrag hast.
+Eintrag hast, zu finden als :ref:`user_manual/myprofile`.
 
 In der Teilnehmer\*innenverwaltung siehst du in der Regel zwei Menüpunkte:
 
@@ -70,7 +70,7 @@ alle auf einmal anzeigen lassen:
 
 .. image:: images/members_changelist_pages.png
 
-
+.. _detailansicht:
 Teilnehmer\*in Detailansicht
 ----------------------------
 
@@ -172,6 +172,7 @@ Passiert ein Notfall auf einer Ausfahrt, wirst du natürlich nicht immer die Mö
 haben im Kompass die Notfallkontakte herauszusuchen. Daher kannst du dir zu jeder Ausfahrt
 eine :ref:`crisis-intervention-list` generieren lassen, die zu allen Teilnehmer\*innen deiner Ausfahrt
 auch alle Notfallkontakte auflistet.
+
 
 .. _Startseite: https://jdav-hd.de/kompass
 .. _Teilnehmer*innenverwaltung: https://jdav-hd.de/kompassmembers

@@ -1,22 +1,168 @@
 import copy
+from dataclasses import dataclass
+from dataclasses import field
+from functools import update_wrapper
+from typing import Callable
+from typing import Union
 
 from django.contrib import messages
 from django.contrib.auth import get_permission_codename
 from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.http import HttpResponseRedirect
+from django.urls import path
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from rules.permissions import perm_exists
 
 
-def decorate_admin_view(model, perm=None):
+@dataclass
+class ExtraButton:
+    """Represents an extra button in the admin change form object tools."""
+
+    view_name: str
+    label: str
+    url_name: str = None
+    permission: Union[str, Callable] = None
+    condition: Callable = None
+    method: str = "GET"
+    css_class: str = "historylink"
+    target: str = None
+    dynamic_label: Callable = field(default=None)
+    include_redirect: bool = False
+    model: type = None  # Optional proxy model for fetching the object
+
+    def __post_init__(self):
+        if self.url_name is None:
+            # Strip _view suffix if present for cleaner URLs
+            self.url_name = self.view_name.removesuffix("_view")
+
+
+def extra_button(label, **kwargs):
+    """Decorator to mark a method as an extra button handler."""
+
+    def decorator(func):
+        func._extra_button = ExtraButton(view_name=func.__name__, label=label, **kwargs)
+        return func
+
+    return decorator
+
+
+class ExtraButtonsMixin:
     """
-    Decorator for wrapping admin views.
+    Mixin that provides a declarative way to add extra buttons to admin change views.
+
+    Usage:
+        class MyAdmin(ExtraButtonsMixin, admin.ModelAdmin):
+
+            @extra_button(_("My Action"), permission="myapp.my_permission")
+            def my_action_view(self, request, obj):
+                # obj is already fetched and permission-checked
+                ...
     """
 
-    def decorator(fun):
-        def aux(self, request, object_id):
+    extra_buttons_model = None
+
+    def _get_extra_button_definitions(self):
+        """Collect all ExtraButton definitions from decorated methods."""
+        buttons = []
+        # Iterate through class hierarchy to find methods with _extra_button
+        # This avoids using getattr which can trigger property accessors like 'urls'
+        for cls in type(self).__mro__:
+            for name, attr in vars(cls).items():
+                if name.startswith("_"):
+                    continue
+                if hasattr(attr, "_extra_button"):
+                    buttons.append(attr._extra_button)
+        return buttons
+
+    def _check_button_permission(self, button, request, obj):
+        """Check if the user has permission to see/use this button."""
+        if button.permission is None:
+            return self.has_change_permission(request, obj)
+        if callable(button.permission):
+            return button.permission(request, obj)
+        return request.user.has_perm(button.permission)
+
+    def _check_button_condition(self, button, obj):
+        """Check if the button's condition is met."""
+        if button.condition is None:
+            return True
+        return button.condition(obj)
+
+    def get_extra_buttons(self, request, obj):
+        """Return list of buttons to display for the given object."""
+        buttons = []
+        for button in self._get_extra_button_definitions():
+            if not self._check_button_permission(button, request, obj):
+                continue
+            if not self._check_button_condition(button, obj):
+                continue
+
+            url = reverse(
+                "admin:{}_{}_{}".format(self.opts.app_label, self.opts.model_name, button.url_name),
+                args=(obj.pk,),
+            )
+
+            if button.include_redirect:
+                url = "javascript:requestWithCurrentURL('{}')".format(url)
+
+            label = button.label
+            if button.dynamic_label:
+                label = button.dynamic_label(obj)
+
+            buttons.append(
+                {
+                    "url": url,
+                    "label": label,
+                    "method": button.method,
+                    "css_class": button.css_class,
+                    "target": button.target,
+                    "include_redirect": button.include_redirect,
+                }
+            )
+        return buttons
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        try:
+            obj = self.model.objects.get(pk=object_id)
+            extra_context["extra_buttons"] = self.get_extra_buttons(request, obj)
+        except self.model.DoesNotExist:
+            extra_context["extra_buttons"] = []
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_urls(self):
+        urls = super().get_urls()
+
+        def wrap(view):
+            def wrapper(*args, **kwargs):
+                return self.admin_site.admin_view(view)(*args, **kwargs)
+
+            wrapper.model_admin = self
+            return update_wrapper(wrapper, view)
+
+        custom_urls = []
+        for button in self._get_extra_button_definitions():
+            view_method = getattr(self, button.view_name)
+            wrapped_view = self._wrap_extra_button_view(view_method, button)
+            custom_urls.append(
+                path(
+                    "<path:object_id>/{}/".format(button.url_name),
+                    wrap(wrapped_view),
+                    name="{}_{}_{}".format(
+                        self.opts.app_label, self.opts.model_name, button.url_name
+                    ),
+                )
+            )
+        return custom_urls + urls
+
+    def _wrap_extra_button_view(self, view_method, button):
+        """Wrap a view method to fetch the object and check permissions."""
+        # Use per-button model if specified, otherwise class-level or default
+        model = button.model or self.extra_buttons_model or self.model
+
+        def wrapped_view(request, object_id):
             try:
                 obj = model.objects.get(pk=object_id)
             except model.DoesNotExist:
@@ -28,23 +174,18 @@ def decorate_admin_view(model, perm=None):
                         "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
                     )
                 )
-            permitted = (
-                self.has_change_permission(request, obj)
-                if not perm
-                else request.user.has_perm(perm)
-            )
-            if not permitted:
+
+            if not self._check_button_permission(button, request, obj):
                 messages.error(request, _("Insufficient permissions."))
                 return HttpResponseRedirect(
                     reverse(
                         "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
                     )
                 )
-            return fun(self, request, obj)
 
-        return aux
+            return view_method(request, obj)
 
-    return decorator
+        return wrapped_view
 
 
 class FieldPermissionsAdminMixin:

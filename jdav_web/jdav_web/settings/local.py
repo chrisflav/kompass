@@ -76,6 +76,9 @@ MAX_NIGHT_COST = get_var("finance", "max_night_cost", default=11)
 
 EXCURSION_ORG_FEE = get_var("finance", "org_fee", default=10)
 
+AID_PER_KM_TRAIN = get_var("finance", "aid_per_km_train", default=0.15)
+AID_PER_KM_CAR = get_var("finance", "aid_per_km_car", default=0.10)
+
 # links
 
 CLOUD_LINK = get_var("links", "cloud", default="https://startpage.com")

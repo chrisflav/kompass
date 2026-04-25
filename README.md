@@ -1,6 +1,7 @@
 # jdav Kompass
 
-![Build Status](https://github.com/chrisflav/kompass/actions/workflows/build-docker.yml/badge.svg?branch=main)
+![Build Status](https://github.com/chrisflav/kompass/actions/workflows/build-internal.yml/badge.svg?branch=main)
+![Linting Status](https://github.com/chrisflav/kompass/actions/workflows/pre-commit.yml/badge.svg?branch=main)
 
 Kompass is an administration platform designed for local sections of the Young German Alpine Club. It provides
 tools to contact and (automatically) manage members, groups, material, excursions and statements.
