@@ -2540,6 +2540,22 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         # the relevant registrations)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_display_confirmed_alternative_mail(self):
+        # No alternative email → dash
+        self.reg.alternative_email = ""
+        self.assertEqual(self.admin.display_confirmed_alternative_mail(self.reg), "-")
+
+        # Alternative email set, confirmed → yes icon
+        self.reg.alternative_email = "alt@example.com"
+        self.reg.confirmed_alternative_mail = True
+        result = self.admin.display_confirmed_alternative_mail(self.reg)
+        self.assertIn("icon-yes.svg", result)
+
+        # Alternative email set, not confirmed → no icon
+        self.reg.confirmed_alternative_mail = False
+        result = self.admin.display_confirmed_alternative_mail(self.reg)
+        self.assertIn("icon-no.svg", result)
+
     def test_response_change_confirm(self):
         request = self.factory.post("/", {"_confirm": True})
         request.user = User.objects.get(username="superuser")

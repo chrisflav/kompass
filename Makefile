@@ -73,9 +73,9 @@ endif
 else
 	# Show output from all containers
 ifeq ($(keepdb), true)
-	cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --abort-on-container-exit
+	cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --exit-code-from master
 else
-	cd docker/test; DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --abort-on-container-exit
+	cd docker/test; DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --exit-code-from master
 endif
 endif
 	echo "Generated coverage report. To read it, point your browser to:\n\nfile://$$(pwd)/docker/test/htmlcov/index.html"
