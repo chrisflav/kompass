@@ -13,9 +13,11 @@ erste mal hier bist, schau doch mal :ref:`user_manual/getstarted` an.
 
    getstarted
    members
+   myprofile
    excursions
    waitinglist
    finance
+   training
 
 
 Was ist der Kompass?
