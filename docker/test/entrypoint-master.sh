@@ -50,3 +50,5 @@ coverage html --show-contexts
 coverage json -o htmlcov/coverage.json
 coverage report --show-missing
 coverage report --show-missing > htmlcov/coverage_report.txt
+
+echo "Saved coverage report in htmlcov/coverage_report.txt. Exiting."
