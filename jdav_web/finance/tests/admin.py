@@ -162,6 +162,17 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         ) % {"name": str(self.statement)}
         self.assertContains(response, text)
 
+    def test_response_change_save_and_submit(self):
+        """Test that _saveandsubmit redirects to the submit view"""
+        request = self.factory.post("/", data={"_saveandsubmit": ""})
+        request.user = self.superuser
+        response = self.admin.response_change(request, self.statement)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn(
+            reverse("admin:finance_statement_submit", args=(self.statement.pk,)),
+            response["Location"],
+        )
+
 
 class StatementSubmittedAdminTestCase(AdminTestCase):
     """Test cases for StatementAdmin in the case of submitted statements"""

@@ -4,7 +4,7 @@
 {% block submit-row %}
 {% if original and not original.submitted %}
 <p class="help">
-    {% trans "Once all expenses are documented correctly, use "Save and submit" to forward this statement to the finance department. Submitted statements can no longer be edited." %}
+    {% blocktrans %}Once all expenses are documented correctly, use "Save and submit" to forward this statement to the finance department. Submitted statements can no longer be edited.{% endblocktrans %}
 </p>
 {% endif %}
 {{block.super}}
