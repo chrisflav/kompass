@@ -6,7 +6,7 @@
 {% if not original.submitted %}
 <li>
     {% url opts|admin_urlname:'submit' original.pk|admin_urlquote as invite_url %}
-    <a class="historylink" href="{% add_preserved_filters invite_url %}">{% trans 'Submit' %}</a>
+    <a class="button" href="{% add_preserved_filters invite_url %}">{% trans 'Submit' %}</a>
 </li>
 {% endif %}
 

@@ -1,0 +1,14 @@
+{% extends "admin/submit_line.html" %}
+{% load i18n %}
+
+{% block submit-row %}
+{% if original and not original.submitted %}
+<p class="help">
+    {% trans "Once all expenses are documented correctly, use "Save and submit" to forward this statement to the finance department. Submitted statements can no longer be edited." %}
+</p>
+{% endif %}
+{{block.super}}
+{% if original and not original.submitted %}
+<input type="submit" value="{% trans 'Save and submit' %}" name="_saveandsubmit" class="default">
+{% endif %}
+{% endblock %}

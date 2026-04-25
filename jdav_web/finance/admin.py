@@ -108,6 +108,16 @@ class StatementAdmin(CommonAdminMixin, admin.ModelAdmin):
             return False
         return super().has_delete_permission(request, obj)
 
+    def response_change(self, request, obj):
+        if "_saveandsubmit" in request.POST and not obj.submitted:
+            return HttpResponseRedirect(
+                reverse(
+                    "admin:{}_{}_submit".format(self.opts.app_label, self.opts.model_name),
+                    args=(obj.pk,),
+                )
+            )
+        return super().response_change(request, obj)
+
     def save_model(self, request, obj, form, change):
         if not change and hasattr(request.user, "member"):
             obj.created_by = request.user.member
