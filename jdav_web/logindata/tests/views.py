@@ -33,6 +33,17 @@ class RegisterViewTestCase(TestCase):
             gender=DIVERSE,
             invite_as_user_key="test_key_123",
         )
+        self.member_with_user = Member.objects.create(
+            prename="Test",
+            lastname="User",
+            birth_date=timezone.now().date(),
+            email="test@example.com",
+            gender=DIVERSE,
+            invite_as_user_key="test_key_with_user_123",
+        )
+        u = User.objects.create_user(username="test_user", password="secret")
+        self.member_with_user.user = u
+        self.member_with_user.save()
 
         # Create a registration password
         self.registration_password = RegistrationPassword.objects.create(password="test_password")
@@ -174,4 +185,50 @@ class RegisterViewTestCase(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(
             response, _("Something went wrong. The registration key is invalid or has expired.")
+        )
+
+    def test_register_post_reset_mode(self):
+        url = reverse("logindata:register")
+        # correct password, get form
+        response = self.client.post(
+            url,
+            {
+                "key": self.member_with_user.invite_as_user_key,
+                "password": self.registration_password.password,
+            },
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Reset password"))
+        self.assertContains(response, self.member_with_user.user.username)
+
+        # submit invalid form
+        response = self.client.post(
+            url,
+            {
+                "key": self.member_with_user.invite_as_user_key,
+                "password": self.registration_password.password,
+                "save": "true",
+                "new_password1": "testpass123",
+                "new_password2": "testpass124",
+            },
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Reset password"))
+        self.assertContains(response, self.member_with_user.user.username)
+
+        # submit valid form
+        response = self.client.post(
+            url,
+            {
+                "key": self.member_with_user.invite_as_user_key,
+                "password": self.registration_password.password,
+                "save": "true",
+                "new_password1": "testpass123",
+                "new_password2": "testpass123",
+            },
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Reset password"))
+        self.assertContains(
+            response, _("You successfully reset your password. You can now proceed to")
         )

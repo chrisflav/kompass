@@ -11,6 +11,7 @@ services:
           - KOMPASS_CONFIG_DIR_PATH=/app/config/
           - DJANGO_SETTINGS_MODULE=jdav_web.settings
           - DJANGO_TEST_KEEPDB=$DJANGO_TEST_KEEPDB
+          - DJANGO_TEST_VERBOSITY=$DJANGO_TEST_VERBOSITY
         depends_on:
           - redis
           - cache

@@ -1,0 +1,15 @@
+{% load i18n %}
+{% for button in extra_buttons %}
+<li>
+    {% if button.method == 'POST' %}
+    <form method="post" action="{{ button.url }}"{% if button.target %} target="{{ button.target }}"{% endif %} style="display: inline;">
+        {% csrf_token %}
+        <input type="submit" value="{{ button.label }}">
+    </form>
+    {% elif button.include_redirect %}
+    <a{% if button.css_class %} class="{{ button.css_class }}"{% endif %}{% if button.target %} target="{{ button.target }}"{% endif %} href="{{ button.url }}">{{ button.label }}</a>
+    {% else %}
+    <a{% if button.css_class %} class="{{ button.css_class }}"{% endif %}{% if button.target %} target="{{ button.target }}"{% endif %} href="{{ button.url }}">{{ button.label }}</a>
+    {% endif %}
+</li>
+{% endfor %}
