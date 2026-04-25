@@ -175,19 +175,15 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
 
     def test_response_change_regular_save(self):
         """Test that a regular save falls through to the default response_change"""
-        url = reverse("admin:finance_statement_change", args=(self.statement.pk,))
-        c = self._login("superuser")
-        data = {
-            "short_description": self.statement.short_description,
-            "explanation": self.statement.explanation,
-            "night_cost": self.statement.night_cost,
-            "_save": "",
-            "bills-TOTAL_FORMS": "0",
-            "bills-INITIAL_FORMS": "0",
-            "bills-MIN_NUM_FORMS": "0",
-            "bills-MAX_NUM_FORMS": "1000",
-        }
-        response = c.post(url, data=data)
+        request = self.factory.post("/", data={"_save": ""})
+        request.user = self.superuser
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+        middleware = MessageMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request._messages = FallbackStorage(request)
+        response = self.admin.response_change(request, self.statement)
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
 
