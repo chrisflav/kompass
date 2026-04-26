@@ -1,4 +1,4 @@
-{% load i18n static jet_tags %}<!DOCTYPE html>
+{% load i18n static jet_tags common %}<!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
 {% jet_get_current_theme as THEME %}
 {% jet_get_current_version as JET_VERSION %}
@@ -332,6 +332,25 @@ django.gettext = window.gettext
                                 {% endfor %}
                             </div>
                         </div>
+                    {% endif %}
+
+                    {% get_external_links as external_links %}
+                    {% if external_links %}
+                    <div class="sidebar-section">
+                        <div class="sidebar-title">
+                            <a class="sidebar-title-link">{% trans "Externe Links" %}</a>
+                        </div>
+                        {% for link in external_links %}
+                        <div>
+                            <a href="{{ link.url }}" class="sidebar-link" target="_blank">
+                                <span class="sidebar-right">
+                                    <span class="sidebar-right-arrow icon-arrow-right"></span>
+                                </span>
+                                <span class="sidebar-link-label">{{ link.title }}</span>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% endif %}
 
                     <div class="sidebar-section last">

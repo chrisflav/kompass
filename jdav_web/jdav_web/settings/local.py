@@ -78,10 +78,6 @@ EXCURSION_ORG_FEE = get_var("finance", "org_fee", default=10)
 
 # links
 
-CLOUD_LINK = get_var("links", "cloud", default="https://startpage.com")
-DAV_360_LINK = get_var("links", "dav_360", default="https://dav360.de")
-WIKI_LINK = get_var("links", "wiki", default="https://wikipedia.org")
-DOCS_LINK = get_var("links", "docs", default="https://github.com/chrisflav/kompass")
 REGISTRATION_FORM_DOWNLOAD_LINK = get_var(
     "links", "registration_form", default="https://startpage.com"
 )

@@ -8,3 +8,10 @@ register = template.Library()
 @register.simple_tag
 def settings_value(name):
     return getattr(settings, name, "")
+
+
+@register.simple_tag
+def get_external_links():
+    from startpage.models import Link
+
+    return Link.objects.filter(visible=True)
