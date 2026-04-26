@@ -3588,6 +3588,15 @@ class GroupTestCase(BasicMemberTestCase):
         self.assertGreater(len(self.alp.get_age_info()), 0)
         self.assertEqual(self.jl.get_age_info(), "")
 
+    def test_get_weekday_display_info(self):
+        self.assertGreater(len(self.alp.get_weekday_display_info()), 0)
+        self.assertEqual(self.spiel.get_weekday_display_info(), "")
+
+    def test_get_time_slot_info(self):
+        self.assertIn("15:00", self.alp.get_time_slot_info())
+        self.assertIn("17:00", self.alp.get_time_slot_info())
+        self.assertEqual(self.spiel.get_time_slot_info(), "")
+
     def test_get_invitation_text_template(self):
         alp_text = self.alp.get_invitation_text_template()
         spiel_text = self.spiel.get_invitation_text_template()
