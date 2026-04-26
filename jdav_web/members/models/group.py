@@ -49,7 +49,7 @@ class Group(models.Model):
 
     def has_time_info(self):
         # return if the group has all relevant time slot information filled
-        return self.weekday and self.start_time and self.end_time
+        return self.weekday is not None and self.start_time is not None and self.end_time is not None
 
     def get_time_info(self):
         if self.has_time_info():

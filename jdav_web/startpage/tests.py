@@ -10,6 +10,7 @@ from django.template import TemplateSyntaxError
 from django.test import Client
 from django.test import RequestFactory
 from django.test import TestCase
+from django.test import TransactionTestCase
 from django.urls import NoReverseMatch
 from django.urls import reverse
 from django.utils import timezone
@@ -224,22 +225,6 @@ class ViewTestCase(BasicTestCase):
         response = c.get(url)
         self.assertEqual(response.status_code, 200)
 
-    def test_stundenplan_with_time_info(self):
-        import datetime
-
-        Group.objects.create(
-            name="TimedGroup",
-            show_website=True,
-            weekday=0,
-            start_time=datetime.time(17, 0),
-            end_time=datetime.time(19, 0),
-        )
-        c = Client()
-        url = reverse("startpage:stundenplan")
-        response = c.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "TimedGroup")
-
     def test_post_with_groups(self):
         c = Client()
         url = reverse("startpage:post", args=("orga", "crazy"))
@@ -280,6 +265,32 @@ class ViewTestCase(BasicTestCase):
         request = RequestFactory().get("/")
         response = handler500(request)
         self.assertEqual(response.status_code, 500)
+
+
+class StundenplanTransactionTestCase(TransactionTestCase):
+    """
+    Uses TransactionTestCase to avoid MySQL REPEATABLE READ snapshot issues.
+    In a regular TestCase, groups created in the test body are not visible to
+    the view's SELECT because MySQL takes the consistent read snapshot during
+    setUp (before the test creates them). TransactionTestCase uses autocommit,
+    so each INSERT is immediately visible to subsequent queries.
+    """
+
+    def test_stundenplan_with_time_info(self):
+        import datetime
+
+        Group.objects.create(
+            name="TimedGroup",
+            show_website=True,
+            weekday=0,
+            start_time=datetime.time(17, 0),
+            end_time=datetime.time(19, 0),
+        )
+        c = Client()
+        url = reverse("startpage:stundenplan")
+        response = c.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "TimedGroup")
 
 
 class MarkdownExtrasTestCase(TestCase):
