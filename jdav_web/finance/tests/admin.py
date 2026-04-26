@@ -611,7 +611,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         self.assertFalse(self.unconfirmed_statement.confirmed)
 
         # Call unconfirm_view - this should go through error path
-        response = self.admin.unconfirm_view(request, self.unconfirmed_statement.pk)
+        response = self.admin.unconfirm_view(request, self.unconfirmed_statement)
 
         # Should redirect due to not confirmed error
         self.assertEqual(response.status_code, 302)
@@ -629,7 +629,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         self.assertIsNotNone(self.statement.confirmed_date)
 
         # Call unconfirm_view - this should execute the unconfirm action
-        response = self.admin.unconfirm_view(request, self.statement.pk)
+        response = self.admin.unconfirm_view(request, self.statement)
 
         # Should redirect after successful unconfirm
         self.assertEqual(response.status_code, 302)
@@ -650,7 +650,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
         self.assertTrue(self.statement.confirmed)
 
         # Call unconfirm_view
-        response = self.admin.unconfirm_view(request, self.statement.pk)
+        response = self.admin.unconfirm_view(request, self.statement)
 
         # Should render template (status 200)
         self.assertEqual(response.status_code, 200)

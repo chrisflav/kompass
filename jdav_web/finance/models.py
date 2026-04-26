@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal
 from itertools import groupby
 
 import rules
@@ -116,11 +117,24 @@ class Statement(CommonModel):
     )
 
     night_cost = models.DecimalField(
-        verbose_name=_("Price per night"), default=0, decimal_places=2, max_digits=5
+        verbose_name=_("Price per night"),
+        default=0,
+        decimal_places=2,
+        max_digits=5,
+        help_text=_(
+            "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is %(max_cost)s€."
+        )
+        % {"max_cost": settings.MAX_NIGHT_COST},
     )
 
     status = models.IntegerField(
         verbose_name=_("Status"), choices=STATUS_CHOICES, default=UNSUBMITTED
+    )
+    settings_snapshot = models.JSONField(
+        verbose_name=_("Settings snapshot"),
+        default=dict,
+        blank=True,
+        help_text=_("Financial settings captured at time of submission/confirmation."),
     )
     submitted_date = models.DateTimeField(verbose_name=_("Submitted on"), default=None, null=True)
     confirmed_date = models.DateTimeField(verbose_name=_("Paid on"), default=None, null=True)
@@ -179,6 +193,26 @@ class Statement(CommonModel):
     def __str__(self):
         return str(self.title)
 
+    def _get_setting(self, key: str):
+        if self.submitted and self.settings_snapshot and key in self.settings_snapshot:
+            return float(self.settings_snapshot[key])
+        return float(getattr(settings, key, 0))
+
+    def _capture_settings_snapshot(self, force=False):
+        if self.settings_snapshot and not force:
+            return
+
+        self.settings_snapshot = {
+            "ALLOWANCE_PER_DAY": float(settings.ALLOWANCE_PER_DAY),
+            "MAX_NIGHT_COST": float(settings.MAX_NIGHT_COST),
+            "AID_PER_KM_TRAIN": float(settings.AID_PER_KM_TRAIN),
+            "AID_PER_KM_CAR": float(settings.AID_PER_KM_CAR),
+            "EXCURSION_ORG_FEE": float(settings.EXCURSION_ORG_FEE),
+            "LJP_CONTRIBUTION_PER_DAY": float(settings.LJP_CONTRIBUTION_PER_DAY),
+            "LJP_TAX": float(settings.LJP_TAX),
+            "captured_at": timezone.now().isoformat(),
+        }
+
     @property
     def submitted(self):
         return self.status == Statement.SUBMITTED or self.status == Statement.CONFIRMED
@@ -198,6 +232,7 @@ class Statement(CommonModel):
     status_badge.admin_order_field = "status"
 
     def submit(self, submitter=None):
+        self._capture_settings_snapshot(force=True)
         self.status = self.SUBMITTED
         self.submitted_date = timezone.now()
         self.submitted_by = submitter
@@ -340,6 +375,7 @@ class Statement(CommonModel):
         if not self.validity == Statement.VALID:
             return False
 
+        self._capture_settings_snapshot()
         self.status = self.CONFIRMED
         self.confirmed_date = timezone.now()
         self.confirmed_by = confirmer
@@ -481,9 +517,9 @@ class Statement(CommonModel):
             self.excursion.tour_approach == MUSKELKRAFT_ANREISE
             or self.excursion.tour_approach == OEFFENTLICHE_ANREISE
         ):
-            return 0.15
+            return self._get_setting("AID_PER_KM_TRAIN")
         else:
-            return 0.1
+            return self._get_setting("AID_PER_KM_CAR")
 
     @property
     def transportation_per_yl(self):
@@ -497,7 +533,7 @@ class Statement(CommonModel):
         if self.excursion is None:
             return 0
 
-        return cvt_to_decimal(self.excursion.duration * settings.ALLOWANCE_PER_DAY)
+        return cvt_to_decimal(self.excursion.duration * self._get_setting("ALLOWANCE_PER_DAY"))
 
     @property
     def allowances_paid(self):
@@ -513,7 +549,7 @@ class Statement(CommonModel):
 
     @property
     def real_night_cost(self):
-        return min(self.night_cost, settings.MAX_NIGHT_COST)
+        return min(self.night_cost, Decimal(self._get_setting("MAX_NIGHT_COST")))
 
     @property
     def nights_per_yl(self):
@@ -543,7 +579,7 @@ class Statement(CommonModel):
         if self.excursion is None:
             return 0
         return cvt_to_decimal(
-            settings.EXCURSION_ORG_FEE
+            self._get_setting("EXCURSION_ORG_FEE")
             * self.excursion.duration
             * self.excursion.old_participant_count
         )
@@ -551,9 +587,16 @@ class Statement(CommonModel):
     @property
     def total_org_fee(self):
         """only calculate org fee if subsidies or allowances are claimed."""
-        if self.subsidy_to or self.allowances_paid > 0:
-            return self.total_org_fee_theoretical
-        return cvt_to_decimal(0)
+        if not self.subsidy_to and self.allowances_paid == 0:
+            return cvt_to_decimal(0)
+
+        # if the excursion is for qualification, we don't charge org fees for older participants.
+        if hasattr(self.excursion, "ljpproposal"):
+            proposal = getattr(self.excursion, "ljpproposal")
+            if proposal.goal == proposal.LJP_QUALIFICATION:
+                return cvt_to_decimal(0)
+
+        return self.total_org_fee_theoretical
 
     @property
     def org_fee_payant(self):
@@ -619,12 +662,12 @@ class Statement(CommonModel):
             return cvt_to_decimal(
                 min(
                     # if total costs are more than the max amount of the LJP contribution, we pay the max amount, reduced by taxes
-                    (1 - settings.LJP_TAX)
-                    * settings.LJP_CONTRIBUTION_PER_DAY
+                    (1 - self._get_setting("LJP_TAX"))
+                    * self._get_setting("LJP_CONTRIBUTION_PER_DAY")
                     * self.excursion.ljp_participant_count
                     * self.excursion.ljp_duration,
                     # if the total costs are less than the max amount, we pay up to 90% of the total costs, reduced by taxes
-                    (1 - settings.LJP_TAX)
+                    (1 - self._get_setting("LJP_TAX"))
                     * 0.9
                     * (float(self.total_bills_not_covered) + float(self.total_staff)),
                     # we never pay more than the maximum costs of the trip
@@ -670,7 +713,7 @@ class Statement(CommonModel):
                 "kilometers_traveled": self.excursion.kilometers_traveled,
                 "means_of_transport": self.excursion.get_tour_approach(),
                 "euro_per_km": self.euro_per_km,
-                "allowance_per_day": settings.ALLOWANCE_PER_DAY,
+                "allowance_per_day": self._get_setting("ALLOWANCE_PER_DAY"),
                 "allowances_paid": self.allowances_paid,
                 "nights_per_yl": self.nights_per_yl,
                 "allowance_per_yl": self.allowance_per_yl,
@@ -686,14 +729,15 @@ class Statement(CommonModel):
                 "paid_ljp_contributions": self.paid_ljp_contributions,
                 "ljp_to": self.ljp_to,
                 "theoretic_ljp_participant_count": self.excursion.theoretic_ljp_participant_count,
+                "ljp_participant_count": self.excursion.ljp_participant_count,
                 "participant_count": self.excursion.participant_count,
                 "total_seminar_days": self.excursion.total_seminar_days,
-                "ljp_tax": settings.LJP_TAX * 100,
+                "ljp_tax": self._get_setting("LJP_TAX") * 100,
                 "total_org_fee_theoretical": self.total_org_fee_theoretical,
                 "total_org_fee": self.total_org_fee,
                 "old_participant_count": self.excursion.old_participant_count,
                 "total_staff_paid": self.total_staff_paid,
-                "org_fee": cvt_to_decimal(settings.EXCURSION_ORG_FEE),
+                "org_fee": cvt_to_decimal(self._get_setting("EXCURSION_ORG_FEE")),
             }
             return dict(context, **excursion_context)
         else:

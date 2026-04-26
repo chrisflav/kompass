@@ -2,6 +2,8 @@
 
 set -o errexit
 
+HTMLCOV_DIR=/app/jdav_web/htmlcov
+
 mysql_ready() {
 cd /app/jdav_web
 python << END
@@ -38,11 +40,28 @@ fi
 
 cd jdav_web
 
+# Default verbosity to 2 if not set
+VERBOSITY=${DJANGO_TEST_VERBOSITY:-2}
+
+set +o errexit
+
 if [[ "$DJANGO_TEST_KEEPDB" == 1 ]]; then
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v 2 --noinput --keepdb
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v $VERBOSITY --noinput --keepdb 2>&1 | tee "$HTMLCOV_DIR/test_output.txt"
 else
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v 2 --noinput
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v $VERBOSITY --noinput 2>&1 | tee "$HTMLCOV_DIR/test_output.txt"
 fi
+TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+set -o errexit
+
 coverage html --show-contexts
 coverage json -o htmlcov/coverage.json
-coverage report
+coverage report --show-missing
+coverage report --show-missing > htmlcov/coverage_report.txt
+
+echo "$TEST_EXIT_CODE" > "$HTMLCOV_DIR/test_exit_code.txt"
+echo "ok" > "$HTMLCOV_DIR/run_status.txt"
+
+echo "Saved coverage report in htmlcov/coverage_report.txt. Exiting."
+
+exit $TEST_EXIT_CODE

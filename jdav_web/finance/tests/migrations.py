@@ -1,4 +1,5 @@
 import django.test
+from django.conf import settings
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
@@ -70,3 +71,49 @@ class StatusMigrationTestCase(django.test.TransactionTestCase):
             CONFIRMED,
             "Statement with submitted=True, confirmed=True should have status=CONFIRMED",
         )
+
+
+class StatementSettingsSnapshotMigrationTestCase(django.test.TransactionTestCase):
+    app = "finance"
+    migrate_from = [("finance", "0012_statementonexcursionproxy")]
+    migrate_to = [("finance", "0013_statement_settings_snapshot")]
+
+    def setUp(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+        self.Statement = old_apps.get_model(self.app, "Statement")
+
+        self.unsubmitted = self.Statement.objects.create(
+            short_description="Unsubmitted Statement",
+            status=0,
+        )
+        self.submitted = self.Statement.objects.create(
+            short_description="Submitted Statement",
+            status=1,
+        )
+        self.confirmed = self.Statement.objects.create(
+            short_description="Confirmed Statement",
+            status=2,
+        )
+
+    def test_settings_snapshot_backfilled_for_submitted_and_confirmed(self):
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()
+        executor.migrate(self.migrate_to)
+
+        new_apps = executor.loader.project_state(self.migrate_to).apps
+        Statement = new_apps.get_model(self.app, "Statement")
+
+        submitted = Statement.objects.get(pk=self.submitted.pk)
+        confirmed = Statement.objects.get(pk=self.confirmed.pk)
+        unsubmitted = Statement.objects.get(pk=self.unsubmitted.pk)
+
+        self.assertIsInstance(submitted.settings_snapshot, dict)
+        self.assertIn("ALLOWANCE_PER_DAY", submitted.settings_snapshot)
+        self.assertIn("captured_at", submitted.settings_snapshot)
+        self.assertEqual(
+            confirmed.settings_snapshot["MAX_NIGHT_COST"],
+            float(settings.MAX_NIGHT_COST),
+        )
+        self.assertEqual(unsubmitted.settings_snapshot, {})

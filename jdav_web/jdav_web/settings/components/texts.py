@@ -278,6 +278,22 @@ Deine JDAV {SEKTION}""".format(SEKTION=SEKTION, RESPONSIBLE_MAIL=RESPONSIBLE_MAI
 )
 
 
+PASSWORD_RESET_TEXT = get_text(
+    "password_reset",
+    default="""Hallo {{name}},
+
+du hast eine Anfrage zum Zurücksetzen deines Passworts für Kompass erhalten. Folge bitte dem
+folgenden Link, um ein neues Passwort zu wählen.
+
+{{link}}
+
+Bei Fragen, wende dich gerne an {RESPONSIBLE_MAIL}.
+
+Viele Grüße
+Deine JDAV {SEKTION}""".format(SEKTION=SEKTION, RESPONSIBLE_MAIL=RESPONSIBLE_MAIL),
+)
+
+
 UPLOAD_REGISTRATION_FORM_TEXT = get_text(
     "upload_registration_form",
     default="""Hallo {{name}},

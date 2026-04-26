@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -298,6 +299,30 @@ class StatementTestCase(TestCase):
         # return to previous state
         self.st5.subsidy_to = None
         self.st5.allowance_to.remove(self.fritz)
+
+    def test_org_fee_zero_for_ljp_qualification(self):
+        """Test that total_org_fee returns 0 for LJP_QUALIFICATION proposals.
+
+        This covers lines 565-568 of models.py when proposal.goal == LJP_QUALIFICATION.
+        """
+        # Use st_small which already has an LJP proposal, just change its goal
+        proposal = self.st_small.excursion.ljpproposal
+        original_goal = proposal.goal
+        proposal.goal = LJPProposal.LJP_QUALIFICATION
+        proposal.save()
+
+        # Set subsidy_to so we pass the first condition and reach line 568
+        self.st_small.subsidy_to = self.fritz
+        self.st_small.save()
+
+        # total_org_fee should be 0 for LJP_QUALIFICATION proposals (line 568)
+        self.assertEqual(self.st_small.total_org_fee, 0)
+
+        # Restore original state
+        proposal.goal = original_goal
+        proposal.save()
+        self.st_small.subsidy_to = None
+        self.st_small.save()
 
     def test_ljp_payment(self):
         expected_intervention_hours = 2 + 3 + 4
@@ -646,6 +671,31 @@ class StatementTestCase(TestCase):
         self.assertTrue(statement.submitted)
         self.assertEqual(statement.submitted_by, self.fritz)
         self.assertIsNotNone(statement.submitted_date)
+
+    def test_submit_captures_settings_snapshot_and_uses_it_for_submitted_statements(self):
+        statement = Statement.objects.create(
+            short_description="Snapshot Statement",
+            explanation="Snapshot test",
+            night_cost=25,
+        )
+
+        with override_settings(
+            ALLOWANCE_PER_DAY=42.0,
+            MAX_NIGHT_COST=120.0,
+            AID_PER_KM_TRAIN=0.16,
+            AID_PER_KM_CAR=0.28,
+            EXCURSION_ORG_FEE=15.0,
+            LJP_CONTRIBUTION_PER_DAY=22.0,
+            LJP_TAX=0.19,
+        ):
+            statement.submit(submitter=self.fritz)
+            snapshot_value = statement.settings_snapshot["ALLOWANCE_PER_DAY"]
+
+        self.assertIsInstance(statement.settings_snapshot, dict)
+        self.assertEqual(snapshot_value, 42.0)
+
+        with override_settings(ALLOWANCE_PER_DAY=99.0):
+            self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), snapshot_value)
 
     def test_template_context_with_excursion(self):
         """Test statement template context when excursion is present"""

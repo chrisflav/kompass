@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-29 10:19+0100\n"
+"POT-Creation-Date: 2026-02-12 23:41+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,6 +48,48 @@ msgstr ""
 "Einverständniserklärung für Medikamentengabe). Diese Dokumente werden "
 "zentral gespeichert und sind im Notfall abrufbar."
 
+msgid "Activity"
+msgstr "Aktivität"
+
+msgid "Name of the activity"
+msgstr "Name der Aktivität"
+
+msgid "Location"
+msgstr "Ort"
+
+msgid "Location where the activity takes place"
+msgstr "Ort, an dem die Aktivität stattfindet"
+
+msgid "Start date"
+msgstr "Startdatum"
+
+msgid "Start date of the activity"
+msgstr "Startdatum der Aktivität"
+
+msgid "End date"
+msgstr "Enddatum"
+
+msgid "End date of the activity"
+msgstr "Enddatum der Aktivität"
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "Description of the activity"
+msgstr "Beschreibung der Aktivität"
+
+msgid "Youth leaders"
+msgstr "Jugendleiter*innen"
+
+msgid "Youth leaders supervising the activity"
+msgstr "Jugendleiter*innen, die die Aktivität betreuen"
+
+msgid "Groups"
+msgstr "Gruppen"
+
+msgid "Groups participating in the activity"
+msgstr "Gruppen, die an der Aktivität teilnehmen"
+
 msgid "The entered IBAN is not valid."
 msgstr "Die eingegebene IBAN ist ungültig."
 
@@ -66,6 +108,12 @@ msgstr "Organisatorisches"
 msgid "Compose new mail to selected members"
 msgstr "Neue Nachricht an ausgewählte Teilnehmer*innen verfassen"
 
+msgid "Link to excursions"
+msgstr "Link zu Ausfahrtteilnahmen"
+
+msgid "Participated in excursions"
+msgstr "Ausfahrtteilnahmen"
+
 #, python-format
 msgid "Successfully added %(count)s member(s) to %(model)s '%(obj)s'."
 msgstr ""
@@ -74,6 +122,9 @@ msgstr ""
 #, python-format
 msgid "Selected %(model)s does not exist."
 msgstr "Ausgewählte(s) %(model)s existiert nicht."
+
+msgid "Crisis Intervention List"
+msgstr "Kriseninterventionsliste"
 
 msgid "Create object from selected members"
 msgstr "Objekt aus ausgewählten Teilnehmer*innen erstellen"
@@ -97,8 +148,8 @@ msgstr ""
 msgid "Request echo from selected members"
 msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
 
-msgid "Member not found."
-msgstr "Teilnehmer*in nicht gefunden."
+msgid "Request echo"
+msgstr "Rückmeldungsaufforderung verschicken"
 
 #, python-format
 msgid "%(name)s does not receive the newsletter."
@@ -125,22 +176,39 @@ msgstr ""
 "Manche Teilnehmer*innen wurden eingeladen, andere konnten nicht eingeladen "
 "werden."
 
+#, python-format
+msgid "Password reset email sent to %(name)s."
+msgstr "E-Mail zum Zurücksetzen des Passworts an %(name)s gesendet."
+
+msgid "Could not send password reset email."
+msgstr "E-Mail zum Zurücksetzen des Passworts konnte nicht gesendet werden."
+
 msgid "Permission denied."
 msgstr "Fehlende Berechtigungen."
 
 msgid "Invite as user"
 msgstr "Kompass Zugangsdaten wählen lassen"
 
+msgid "Invite multiple members as users"
+msgstr "Mehrere Teilnehmer*innen Zugangsdaten wählen lassen"
+
 msgid "Invite selected members to join Kompass as users."
 msgstr "Ausgewählte Teilnehmer*innen Kompass Zugangsdaten wählen lassen."
 
-#, python-format
-msgid "%(name)s already has login data."
-msgstr "%(name)s hat schon Zugangsdaten."
+msgid "Request password reset"
+msgstr "Auffordern Passwort zurückzusetzen"
 
 #, python-format
 msgid "The configured email address for %(name)s is not an internal one."
 msgstr "Die für %(name)s eingestellte E-Mail Adresse ist keine DAV360 Adresse."
+
+msgid "Reset password"
+msgstr "Passwort zurücksetzen"
+
+#, python-brace-format
+msgid "{name} already has a pending password reset link."
+msgstr ""
+"{name} hat bereits einen ausstehenden Link zum Zurücksetzen des Passworts."
 
 #, python-brace-format
 msgid "{name} already has a pending invitation as user."
@@ -160,6 +228,12 @@ msgstr ""
 msgid "Unconfirm selected members."
 msgstr ""
 "Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
+
+msgid "Invalid member selection."
+msgstr "Ungültige Teilnehmer*innenauswahl."
+
+msgid "Create Crisis Intervention List"
+msgstr "Kriseninterventionsliste erstellen"
 
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
@@ -202,12 +276,18 @@ msgstr "Ausgewählte Registrierungen bestätigen"
 msgid "Demote selected registrations to waiters."
 msgstr "Ausgewählte Registrierungen zurück auf die Warteliste setzen."
 
+msgid "Demote to waiter"
+msgstr "Zurück auf die Warteliste setzen"
+
 msgid "Demote member to waiter"
 msgstr "Ausgewählte Registrierung zurück auf die Warteliste setzen."
 
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
+
+msgid "Request registration form"
+msgstr "Anmeldeformular anfragen"
 
 #, python-format
 msgid "Requested registration form for %(name)s."
@@ -258,8 +338,8 @@ msgstr ""
 msgid "Offer waiter a place in a group."
 msgstr "Personen auf der Warteliste einen Gruppenplatz anbieten."
 
-msgid "A waiter with this ID does not exist."
-msgstr "Es existiert keine wartende Person mit dieser ID."
+msgid "Invite to group"
+msgstr "Zu Gruppe einladen"
 
 msgid ""
 "An error occurred while trying to invite said members. Please try again."
@@ -328,6 +408,21 @@ msgstr ""
 "wären z.B. Anreise, Verpflegung, Material etc.)."
 
 msgid ""
+"The learning goal 'Qualification' can only be combined with the category "
+"'Staff training'."
+msgstr ""
+"Das Bildungsziel 'Qualifizierung' kann nur in Kombination mit der Kategorie "
+"'Jugendleiter*innenweiterbildung' verwendet werden."
+
+msgid ""
+"The learning goals 'Participation', 'Personality development', and "
+"'Environment' can only be combined with the category 'Educational programme'."
+msgstr ""
+"Die Bildungsziele 'Partizipation', 'Persönlichkeitsentwicklung' und "
+"'Umweltbildung' können nur mit der Kategorie 'Themenorientierte "
+"Bildungsmaßnahme' verwendet werden."
+
+msgid ""
 "Here you can work on a seminar report for applying for financial "
 "contributions from Landesjugendplan (LJP). More information on creating a "
 "seminar report can be found in the wiki. The seminar report or only a "
@@ -349,12 +444,6 @@ msgstr ""
 "jederzeit die aktuelle Teilnehmer*innenliste für die Krisenintervention "
 "generieren."
 
-#, python-format
-msgid "You are not allowed to view all members on note list %(name)s."
-msgstr ""
-"Du hast nicht die nötigen Rechte um alle Teilnehmer*innen der Notizliste "
-"%(name)s anzusehen."
-
 msgid "Generate PDF summary"
 msgstr "Übersicht erstellen"
 
@@ -369,6 +458,9 @@ msgid ""
 msgstr ""
 "Diese Ausfahrt hat keinen Seminarbericht. Bitte füge einen hinzu und "
 "versuche es erneut."
+
+msgid "Has participant"
+msgstr "Hat Teilnehmer*in"
 
 msgid ""
 "General information on your excursion. These are partly relevant for the "
@@ -401,6 +493,9 @@ msgstr "Kriseninterventionsliste erstellen"
 msgid "Generate overview"
 msgstr "Hinweise für Jugendleiter erstellen"
 
+msgid "This excursion does not have a statement."
+msgstr "Diese Ausfahrt hat noch keine Abrechnung."
+
 msgid "Generate seminar report"
 msgstr "Landesjugendplan Antrag erstellen"
 
@@ -409,6 +504,9 @@ msgstr "SJR Antrag erstellen"
 
 msgid "Please select an invoice."
 msgstr "Bitte wähle einen Beleg aus."
+
+msgid "Finance overview"
+msgstr "Kostenübersicht"
 
 msgid "No statement found. Please add a statement and then retry."
 msgstr ""
@@ -437,9 +535,6 @@ msgstr ""
 "Abrechnung erfolgreich eingereicht. Die Finanzabteilung wird sich bei dir so "
 "schnell wie möglich melden."
 
-msgid "Finance overview"
-msgstr "Kostenübersicht"
-
 msgid "member administration"
 msgstr "Teilnehmer*innenverwaltung"
 
@@ -467,12 +562,6 @@ msgstr "LJP Spielart"
 msgid ""
 "The official category for LJP applications associated with this activity."
 msgstr "Die offizielle Spielart für LJP Anträge mit dieser Aktivität."
-
-msgid "Description"
-msgstr "Beschreibung"
-
-msgid "Activity"
-msgstr "Aktivität"
 
 msgid "Activities"
 msgstr "Aktivitäten"
@@ -537,6 +626,9 @@ msgstr "Stützpunkt / Ort"
 msgid "Postcode"
 msgstr "PLZ"
 
+msgid "Only relevant for a LJP application."
+msgstr "Nur für einen LJP-Antrag relevant."
+
 msgid "Destination (optional)"
 msgstr "ggf. Ziel"
 
@@ -548,9 +640,6 @@ msgstr "Anfang"
 
 msgid "End (optional)"
 msgstr "Ende"
-
-msgid "Groups"
-msgstr "Gruppen"
 
 msgid "Number of additional approved youth leaders"
 msgstr "Anzahl zusätzlich genehmigter Jugendleiter*innen"
@@ -567,6 +656,13 @@ msgstr ""
 
 msgid "Kilometers traveled"
 msgstr "Fahrstrecke in Kilometer"
+
+msgid ""
+"The total kilometers traveled (away and back) during this excursion. This is "
+"relevant for the section subsidies."
+msgstr ""
+"Gesamte Fahrtstrecke (Hin- und Rückfahrt). Die Angabe ist relevant für die "
+"Berechnung der Zuschüsse durch den Jugendetat."
 
 msgid "Categories"
 msgstr "Kategorien"
@@ -695,9 +791,6 @@ msgstr "Teilnahme an Schnupperstunde bestätigt"
 msgid "Date"
 msgstr "Datum"
 
-msgid "Location"
-msgstr "Ort"
-
 msgid "Topic"
 msgstr "Thema"
 
@@ -786,10 +879,10 @@ msgstr ""
 "eine Begründung an. Sonst lass dieses Feld frei."
 
 msgid "LJP Proposal"
-msgstr "Seminarbericht"
+msgstr "LJP-Antrag"
 
 msgid "LJP Proposals"
-msgstr "Seminarberichte"
+msgstr "LJP-Anträge"
 
 msgid "Duration in hours"
 msgstr "Dauer in Stunden"
@@ -925,6 +1018,9 @@ msgstr "Neue unbestätigte Registrierung für Gruppe %(group)s"
 msgid "Set login data for Kompass"
 msgstr "Zugangsdaten für Kompass wählen"
 
+msgid "Reset your Kompass password"
+msgstr "Setze dein Kompass-Passwort zurück"
+
 msgid "Echo required"
 msgstr "Rückmeldung erforderlich"
 
@@ -1054,11 +1150,17 @@ msgstr "Von der Warteliste abgemeldet"
 msgid "Successfully registered for the waitinglist"
 msgstr "Erfolgreich für die Warteliste registriert"
 
-msgid "Home"
-msgstr "Start"
-
 msgid "Selected members:"
 msgstr "Ausgewählte Teilnehmer*innen:"
+
+msgid "Please enter the details for the activity:"
+msgstr "Bitte gib die Details für die Aktivität ein:"
+
+msgid "Generate Crisis Intervention List"
+msgstr "Kriseninterventionsliste generieren"
+
+msgid "Cancel"
+msgstr "Abbrechen"
 
 msgid "Select object type:"
 msgstr "Wähle Objekttyp:"
@@ -1075,9 +1177,6 @@ msgstr "Zu Bestehendem hinzufügen"
 msgid "Create"
 msgstr "Erstellen"
 
-msgid "Cancel"
-msgstr "Abbrechen"
-
 msgid "Select existing entry:"
 msgstr "Wähle bestehenden Eintrag:"
 
@@ -1089,9 +1188,6 @@ msgstr "Bitte wähle zuerst einen Objekttyp."
 
 msgid "Please select an entry."
 msgstr "Bitte wähle einen Eintrag."
-
-msgid "Demote to waiter"
-msgstr "Zurück auf die Warteliste setzen"
 
 msgid ""
 "Do you want to demote the following unconfirmed registrations to waiters?"
@@ -1238,14 +1334,15 @@ msgstr "LJP Zuschüsse"
 msgid ""
 "By submitting the given seminar report, you will receive LJP contributions.\n"
 "You have documented interventions worth of %(total_seminar_days)s seminar "
-"days for %(participant_count)s participants.\n"
+"days for %(ljp_participant_count)s participants.\n"
 "This results in a total contribution of %(ljp_contributions)s€.\n"
 "To receive them, you need to submit the LJP-Proposal within 3 weeks after "
 "your excursion and have it approved by the finance office."
 msgstr ""
 "Wenn du den erstellten LJP-Antrag einreichst, erhältst du LJP-Zuschüsse. Du "
 "hast Lehreinheiten für insgesamt %(total_seminar_days)s Seminartage und für "
-"%(participant_count)s Teilnehmende dokumentiert.\n"
+"%(ljp_participant_count)s Teilnehmende mit Anspruch auf LJP-Zuschüsse "
+"dokumentiert.\n"
 "Daraus ergibt sich ein auszahlbarer LJP-Zuschuss von %(ljp_contributions)s€. "
 "Um den zu erhalten, musst du den LJP-Antrag innerhalb von 3 Wochen nach der "
 "Ausfahrt beim Jugendreferat einreichen und formal genehmigt bekommen."
@@ -1399,9 +1496,18 @@ msgstr ""
 msgid ""
 "A cost and participants overview. This is not required for the actual "
 "application, but is provided for convience as a PDF document."
+msgstr "Eine Kosten- und Teilnehmendenübersicht."
+
+msgid ""
+"A collection of all invoices and receipts as evidence for the LJP "
+"application, including a summary table and all attached proofs."
 msgstr ""
-"Eine Kosten- und Teilnehmendenübersicht. Dies ist nicht notwendig für den "
-"eigentlichen Bericht, muss aber langfristig aufbewahrt werden."
+"Eine Belegübersicht mit Nachweisen über alle Ausgaben. Dies ist nicht "
+"notwendig für den eigentlichen Antrag, muss aber langfristig aufbewahrt "
+"werden."
+
+msgid "No statement available"
+msgstr "Keine Ausgaben verfügbar"
 
 msgid "Here you can generate an allowance application for the SJR."
 msgstr "Hier kannst du einen SJR-Zuschussantrag erstellen."
@@ -1422,6 +1528,18 @@ msgstr "Erstellen"
 
 #, python-format
 msgid ""
+"Do you want to send a password reset email to %(member)s? They will receive "
+"an\n"
+"email with a link to reset their password after entering one of the current "
+"active registration\n"
+"passwords."
+msgstr ""
+"Möchtest du %(member)s eine E-Mail zum Zurücksetzen des Passworts senden? "
+"%(member)s wird eine E-Mail mit einem Link erhalten, um, nach Eingabe eines "
+"der aktiven Registrierungspasswörter, das Passwort zurückzusetzen."
+
+#, python-format
+msgid ""
 "Do you want to invite %(member)s to set their login data for Kompass? They "
 "will\n"
 "receive an email with a link to set their username and password after "
@@ -1432,11 +1550,11 @@ msgstr ""
 "%(member)s wird eine E-Mail mit einem Link erhalten, um, nach Eingabe eines "
 "der aktiven Registrierungspasswörter, Benutzername und Passwort zu setzen."
 
+msgid "Send reset email"
+msgstr "E-Mail zum Zurücksetzen senden"
+
 msgid "Invite"
 msgstr "Einladen"
-
-msgid "Invite to group"
-msgstr "Zu Gruppe einladen"
 
 msgid "Invite to a group"
 msgstr "Zu einer Gruppe einladen"
@@ -1483,9 +1601,6 @@ msgstr ""
 msgid "Send"
 msgstr "Senden"
 
-msgid "Invite multiple members as users"
-msgstr "Mehrere Teilnehmer*innen Zugangsdaten wählen lassen"
-
 msgid "You selected the following members:"
 msgstr "Du hast die folgenden Teilnehmer*innen ausgewählt:"
 
@@ -1500,9 +1615,6 @@ msgstr ""
 "zu wählen?Sie werden eine E-Mail mit einem Link erhalten, um, nach Eingabe "
 "eines der aktiven Registrierungspasswörter, Benutzername und Passwort zu "
 "setzen."
-
-msgid "Invite multiple waiters"
-msgstr "Mehrere Wartende einladen"
 
 msgid "You selected the following waiters:"
 msgstr "Du hast die folgenden Wartenden ausgewählt:"
@@ -1519,9 +1631,6 @@ msgstr "Anzahl Personen:"
 
 msgid "thereof leaders:"
 msgstr "davon Leitung:"
-
-msgid "Request registration form"
-msgstr "Anmeldeformular anfragen"
 
 #, python-format
 msgid "Do you want to ask %(member)s to upload their registration form?"
@@ -1918,6 +2027,13 @@ msgstr ""
 
 msgid "Insufficient permissions."
 msgstr "Unzureichende Berechtigungen."
+
+msgid "Member not found."
+msgstr "Teilnehmer*in nicht gefunden."
+
+#, python-format
+msgid "%(modelname)s not found."
+msgstr "%(modelname)s nicht gefunden."
 
 msgid "This field is required."
 msgstr "Dieses Feld ist zwingend erforderlich."
