@@ -1,9 +1,12 @@
+from collections import defaultdict
+
 from django import shortcuts
 from django.conf import settings
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect as django_redirect
 from members.models import Group
+from members.models.constants import WEEKDAYS
 
 from .models import Post
 from .models import Section
@@ -55,6 +58,26 @@ def gruppe_detail(request, group_name):
         "people": group.leiters.all(),
     }
     return render(request, "startpage/gruppen/detail.html", context)
+
+
+def stundenplan(request):
+    groups_with_time = (
+        Group.objects.filter(show_website=True)
+        .exclude(weekday__isnull=True)
+        .exclude(start_time__isnull=True)
+        .exclude(end_time__isnull=True)
+        .order_by("weekday", "start_time")
+    )
+    by_weekday = defaultdict(list)
+    for group in groups_with_time:
+        by_weekday[group.weekday].append(group)
+
+    schedule = [(day_num, label, by_weekday[day_num]) for day_num, label in WEEKDAYS if day_num in by_weekday]
+
+    context = {
+        "schedule": schedule,
+    }
+    return render(request, "startpage/gruppen/stundenplan.html", context)
 
 
 def aktuelles(request):
