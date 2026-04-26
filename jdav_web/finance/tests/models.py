@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -670,6 +671,31 @@ class StatementTestCase(TestCase):
         self.assertTrue(statement.submitted)
         self.assertEqual(statement.submitted_by, self.fritz)
         self.assertIsNotNone(statement.submitted_date)
+
+    def test_submit_captures_settings_snapshot_and_uses_it_for_submitted_statements(self):
+        statement = Statement.objects.create(
+            short_description="Snapshot Statement",
+            explanation="Snapshot test",
+            night_cost=25,
+        )
+
+        with override_settings(
+            ALLOWANCE_PER_DAY=42.0,
+            MAX_NIGHT_COST=120.0,
+            AID_PER_KM_TRAIN=0.16,
+            AID_PER_KM_CAR=0.28,
+            EXCURSION_ORG_FEE=15.0,
+            LJP_CONTRIBUTION_PER_DAY=22.0,
+            LJP_TAX=0.19,
+        ):
+            statement.submit(submitter=self.fritz)
+            snapshot_value = statement.settings_snapshot["ALLOWANCE_PER_DAY"]
+
+        self.assertIsInstance(statement.settings_snapshot, dict)
+        self.assertEqual(snapshot_value, 42.0)
+
+        with override_settings(ALLOWANCE_PER_DAY=99.0):
+            self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), snapshot_value)
 
     def test_template_context_with_excursion(self):
         """Test statement template context when excursion is present"""
