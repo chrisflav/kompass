@@ -54,6 +54,7 @@ class BillOnStatementInline(CommonAdminInlineMixin, admin.TabularInline):
 
 @admin.register(Statement)
 class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    documentation_url = "/static/docs/user_manual/finance.html"
     fields = ["short_description", "explanation", "excursion", "status"]
     list_display = ["__str__", "total_pretty", "created_by", "submitted_date", "status_badge"]
     list_filter = ["status"]

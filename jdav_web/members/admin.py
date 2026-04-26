@@ -318,6 +318,7 @@ class MemberAdminForm(forms.ModelForm):
 
 # Register your models here.
 class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    documentation_url = "/static/docs/user_manual/members.html"
     fieldsets = [
         (
             None,
@@ -869,6 +870,7 @@ class DemoteToWaiterForm(forms.Form):
 
 
 class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    documentation_url = "/static/docs/user_manual/waitinglist.html"
     extra_buttons_model = MemberUnconfirmedProxy
     fieldsets = [
         (
@@ -1158,6 +1160,7 @@ class InvitedToGroupFilter(admin.SimpleListFilter):
 
 
 class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    documentation_url = "/static/docs/user_manual/waitinglist.html"
     fields = [
         "prename",
         "lastname",
@@ -1810,6 +1813,7 @@ class ParticipantFilter(admin.SimpleListFilter):
 
 
 class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedModelAdmin):
+    documentation_url = "/static/docs/user_manual/excursions.html"
     # inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ["__str__", "date", "place", "approved"]
@@ -2266,6 +2270,7 @@ class MemberTrainingAdminForm(forms.ModelForm):
 
 
 class MemberTrainingAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
+    documentation_url = "/static/docs/user_manual/training.html"
     form = MemberTrainingAdminForm
     list_display = [
         "title",

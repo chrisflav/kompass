@@ -9,6 +9,9 @@ function requestWithCurrentURL(path) {
 </script>
 {% endif %}
 {% include "admin/extra_buttons.html" %}
+{% if documentation_url %}
+<li><a href="{{ documentation_url }}" class="historylink" target="_blank">{% translate "Documentation" %}</a></li>
+{% endif %}
 <li>
     {% url opts|admin_urlname:'history' original.pk|admin_urlquote as history_url %}
     <a href="{% add_preserved_filters history_url %}" class="historylink">{% translate "History" %}</a>

@@ -93,6 +93,7 @@ django.gettext = window.gettext
     <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
     {% if title %} &rsaquo; {{ title }}{% endif %}
+    {% if documentation_url and not change %}<span style="float: right;"><a href="{{ documentation_url }}" target="_blank">{% trans 'Documentation' %}</a></span>{% endif %}
     </div>
     {% endblock %}
     {% endif %}
