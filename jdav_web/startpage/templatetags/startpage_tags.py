@@ -1,5 +1,4 @@
 from django import template
-
 from startpage.models import Link
 
 register = template.Library()
