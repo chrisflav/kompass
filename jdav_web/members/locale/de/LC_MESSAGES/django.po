@@ -856,6 +856,36 @@ msgstr ""
 "Wie wolltet ihr das Bildungsziel erreichen? Ist das Ziel so erreicht worden? "
 "Wenn nicht, warum nicht? Wenn ja, was hat geholfen, das Ziel zu erreichen?"
 
+msgid "Methods"
+msgstr "Methoden"
+
+msgid ""
+"Describe the methods used in the seminar. Which didactic and methodical "
+"approaches were applied?"
+msgstr ""
+"Beschreibt die im Seminar verwendeten Methoden. Welche didaktischen und "
+"methodischen Ansätze wurden eingesetzt?"
+
+msgid "Pedagogical goals"
+msgstr "Pädagogische Ziele"
+
+msgid ""
+"Describe the pedagogical goals of the seminar. Which educational objectives "
+"were pursued and how were they implemented?"
+msgstr ""
+"Beschreibt die pädagogischen Ziele des Seminars. Welche Bildungsziele wurden "
+"verfolgt und wie wurden sie umgesetzt?"
+
+msgid "Alpine sports goals"
+msgstr "Alpinsportliche Ziele"
+
+msgid ""
+"Describe the alpine sports goals of the seminar. Which alpine sports content "
+"was taught and what skill level was aimed for?"
+msgstr ""
+"Beschreibt die alpinsportlichen Ziele des Seminars. Welche alpinsportlichen "
+"Inhalte wurden vermittelt und welches Niveau wurde angestrebt?"
+
 msgid "Course content"
 msgstr "aufgrund der Lehrgangsinhalte"
 
