@@ -6,9 +6,10 @@ from django.contrib.auth.models import User
 from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
+from startpage.models import Link
+
 from jdav_web.views import custom_admin_view
 from jdav_web.views import media_unprotected
-from startpage.models import Link
 
 
 class ViewsTestCase(TestCase):
