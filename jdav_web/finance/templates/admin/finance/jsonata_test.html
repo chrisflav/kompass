@@ -1,0 +1,39 @@
+{% extends "admin/extra_view.html" %}
+{% load i18n %}
+
+{% block content %}
+<h2>{% trans "Test JSONata expression" %}</h2>
+<p>{% trans "Select a statement and enter a JSONata expression to evaluate it against the statement's rule context." %}</p>
+
+<form method="post">
+    {% csrf_token %}
+    <table>
+        {% for field in form %}
+        <tr>
+            <th>{{ field.label_tag }}</th>
+            <td>
+                {{ field }}
+                {% if field.errors %}
+                <ul class="errorlist">
+                    {% for error in field.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <input class="default" type="submit" value="{% trans 'Evaluate' %}">
+</form>
+
+{% if result is not None %}
+<h3>{% trans "Result" %}</h3>
+<pre>{{ result }}</pre>
+{% endif %}
+
+{% if error %}
+<h3>{% trans "Error" %}</h3>
+<p class="errornote">{{ error }}</p>
+{% endif %}
+{% endblock %}

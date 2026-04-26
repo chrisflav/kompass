@@ -1,0 +1,9 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+<li>
+    <a href="{% url 'admin:finance_statement_jsonata_test' %}" class="historylink">{% trans "Test JSONata" %}</a>
+</li>
+{{ block.super }}
+{% endblock %}

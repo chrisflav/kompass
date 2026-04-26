@@ -1,0 +1,25 @@
+/* Generate expenses for transportation costs. */
+(
+/* The cost per kilometer in euro. */
+$coeff :=
+  $$.means_of_transport = "ÖPNV" ? 0.50 :
+  $$.means_of_transport = "Fahrgemeinschaften" ? 0.1 :
+  0;
+[
+  /* One expense per staff member. */
+  staff.{
+    'payee': $,
+    'short_description': 'Reimbursement for transportation',
+    'explanation':
+      %.kilometers_traveled & "km mit "
+      & %.means_of_transport & " fuer "
+      & $coeff & " €/km",
+    'amount': %.kilometers_traveled * $coeff
+  },
+  /* or one expense to the person collecting all subsidies. */
+  {
+    'payee': subsidy_to,
+    'amount': kilometers_traveled * $coeff * $count(staff)
+  }
+]
+)
