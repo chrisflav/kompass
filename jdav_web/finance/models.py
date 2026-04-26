@@ -198,11 +198,6 @@ class Statement(CommonModel):
             return float(self.settings_snapshot[key])
         return float(getattr(settings, key, 0))
 
-    def _as_decimal(self, value):
-        if isinstance(value, Decimal):
-            return value
-        return Decimal(str(value))
-
     def _capture_settings_snapshot(self, force=False):
         if self.settings_snapshot and not force:
             return
