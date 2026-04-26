@@ -8,6 +8,26 @@
 {{ group.description|markdownify }}
 </p>
 
+{% if group.show_website_year and group.has_age_info %}
+<p>{{ group.get_age_info }}</p>
+{% endif %}
+
+{% if group.show_website_weekday %}
+{% with weekday_info=group.get_weekday_display_info %}
+{% if weekday_info %}
+<p>{{ weekday_info }}</p>
+{% endif %}
+{% endwith %}
+{% endif %}
+
+{% if group.show_website_time %}
+{% with time_slot=group.get_time_slot_info %}
+{% if time_slot %}
+<p>{{ time_slot }}</p>
+{% endif %}
+{% endwith %}
+{% endif %}
+
 <h2>Gruppenleitung</h2>
 
 {% include "startpage/people_grid.html" %}
