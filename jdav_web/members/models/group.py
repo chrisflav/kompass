@@ -39,9 +39,7 @@ class Group(models.Model):
     show_website_weekday = models.BooleanField(
         verbose_name=_("show weekday on website"), default=False
     )
-    show_website_time = models.BooleanField(
-        verbose_name=_("show time on website"), default=False
-    )
+    show_website_time = models.BooleanField(verbose_name=_("show time on website"), default=False)
 
     def __str__(self):
         """String representation"""
