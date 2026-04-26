@@ -1,3 +1,4 @@
+from contrib.forms import RequiredFieldsMixin
 from django import forms
 from django.core.validators import MinValueValidator
 from django.shortcuts import render
@@ -14,7 +15,7 @@ from .models import Termin
 datepicker = forms.TextInput(attrs={"class": "datepicker"})
 
 
-class TerminForm(forms.Form):
+class TerminForm(RequiredFieldsMixin, forms.Form):
     title = forms.CharField(label="Titel")
     subtitle = forms.CharField(label="Untertitel")
     start_date = forms.DateField(label="Von", widget=datepicker)
