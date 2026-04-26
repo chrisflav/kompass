@@ -1,5 +1,5 @@
 {% extends "admin/extra_view.html" %}
-{% load i18n %}
+{% load i18n admin_urls %}
 {% load overview_extras %}
 
 {% block content %}
@@ -41,6 +41,7 @@
     {% csrf_token %}
     <input type="hidden" name="action" value="submit_statement">
     <input class="default" style="color: $default-link-color" type="submit" name="apply" value="{% translate 'Submit' %}">
-    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+    {% url opts|admin_urlname:'change' statement.pk|admin_urlquote as change_url %}
+    <a class="button" href="{% add_preserved_filters change_url %}">{% translate "Cancel" %}</a>
 </form>
 {% endblock %}

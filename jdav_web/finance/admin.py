@@ -76,6 +76,16 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             return False
         return super().has_delete_permission(request, obj)
 
+    def response_add(self, request, obj, post_url_continue=None):
+        if "_saveandsubmit" in request.POST:
+            return HttpResponseRedirect(
+                reverse(
+                    "admin:{}_{}_submit".format(self.opts.app_label, self.opts.model_name),
+                    args=(obj.pk,),
+                )
+            )
+        return super().response_add(request, obj, post_url_continue)
+
     def response_change(self, request, obj):
         if "_saveandsubmit" in request.POST and not obj.submitted:
             return HttpResponseRedirect(
@@ -90,6 +100,15 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         if not change and hasattr(request.user, "member"):
             obj.created_by = request.user.member
         super().save_model(request, obj, form, change)
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        try:
+            obj = self.model.objects.get(pk=object_id)
+            extra_context["show_draft_notice"] = not obj.submitted
+        except self.model.DoesNotExist:
+            extra_context["show_draft_notice"] = False
+        return super().change_view(request, object_id, form_url, extra_context)
 
     def get_fields(self, request, obj=None):
         if obj is not None and obj.excursion:

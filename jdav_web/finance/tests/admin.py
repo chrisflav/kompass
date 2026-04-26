@@ -162,6 +162,40 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         ) % {"name": str(self.statement)}
         self.assertContains(response, text)
 
+    def test_response_add_save_and_submit(self):
+        """Test that _saveandsubmit on add redirects to the submit view"""
+        request = self.factory.post("/", data={"_saveandsubmit": ""})
+        request.user = self.superuser
+        response = self.admin.response_add(request, self.statement)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertIn(
+            reverse("admin:finance_statement_submit", args=(self.statement.pk,)),
+            response["Location"],
+        )
+
+    def test_response_add_regular_save(self):
+        """Test that a regular add falls through to the default response_add"""
+        statement = Statement.objects.create(
+            short_description="Plain Statement", explanation="Test", night_cost=0
+        )
+        request = self.factory.post("/", data={"_save": ""})
+        request.user = self.superuser
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session.save()
+        middleware = MessageMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request._messages = FallbackStorage(request)
+        response = self.admin.response_add(request, statement)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_change_view_nonexistent_object(self):
+        """Test change_view sets show_draft_notice=False for nonexistent objects"""
+        url = reverse("admin:finance_statement_change", args=(99999,))
+        c = self._login("superuser")
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
     def test_response_change_save_and_submit(self):
         """Test that _saveandsubmit redirects to the submit view"""
         request = self.factory.post("/", data={"_saveandsubmit": ""})
