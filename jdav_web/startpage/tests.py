@@ -218,6 +218,28 @@ class ViewTestCase(BasicTestCase):
         response = c.get(url)
         self.assertEqual(response.status_code, 404, "Response code is not 404 for group.")
 
+    def test_stundenplan(self):
+        c = Client()
+        url = reverse("startpage:stundenplan")
+        response = c.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_stundenplan_with_time_info(self):
+        import datetime
+
+        Group.objects.create(
+            name="TimedGroup",
+            show_website=True,
+            weekday=0,
+            start_time=datetime.time(17, 0),
+            end_time=datetime.time(19, 0),
+        )
+        c = Client()
+        url = reverse("startpage:stundenplan")
+        response = c.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "TimedGroup")
+
     def test_post_with_groups(self):
         c = Client()
         url = reverse("startpage:post", args=("orga", "crazy"))

@@ -18,6 +18,7 @@ else:
         re_path(r"^berichte/?$", views.berichte, name="berichte"),
         re_path(r"^gruppen/?$", views.static_view("startpage/gruppen.html"), name="gruppen"),
         re_path(r"^gruppen/faq/?$", views.static_view("startpage/gruppen/faq.html"), name="faq"),
+        re_path(r"^gruppen/stundenplan/?$", views.stundenplan, name="stundenplan"),
         re_path(
             r"^gruppen/(?P<group_name>{pattern}+)/?$".format(
                 pattern=settings.STARTPAGE_URL_NAME_PATTERN
