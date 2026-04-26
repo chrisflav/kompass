@@ -43,6 +43,9 @@ MAX_REMINDER_COUNT = get_var("waitinglist", "max_reminder_count", default=3)
 
 # misc
 
+# the name of the youth leader group
+YOUTH_LEADER_GROUP = get_var("misc", "youth_leader_group", default="Jugendleiter")
+
 # the maximal number of members that get sent congratulations for highest activity on aprils fools day
 CONGRATULATE_MEMBERS_MAX = get_var("misc", "congratulate_members_max", default=10)
 # expiry duration of a good conduct certificate in months
