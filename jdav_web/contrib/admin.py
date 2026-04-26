@@ -274,6 +274,20 @@ class FilteredQuerysetAdminMixin:
 class CommonAdminMixin(
     FieldPermissionsAdminMixin, ChangeViewAdminMixin, FilteredQuerysetAdminMixin
 ):
+    documentation_url = None
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        if self.documentation_url:
+            extra_context["documentation_url"] = self.documentation_url
+        return super().changelist_view(request, extra_context)
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if self.documentation_url:
+            extra_context["documentation_url"] = self.documentation_url
+        return super().change_view(request, object_id, form_url, extra_context)
+
     def has_add_permission(self, request, obj=None):
         assert obj is None
         opts = self.opts
