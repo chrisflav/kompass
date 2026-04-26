@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "rules",
     "jet",
     "oauth2_provider",
+    "rest_framework",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

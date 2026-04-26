@@ -1,0 +1,70 @@
+{% extends "admin/extra_view.html" %}
+{% load i18n admin_urls %}
+{% load overview_extras %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} admin-view{% endblock %}
+
+{% block content %}
+<h2>{% translate "Test automatic bill generation" %}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <table>
+        {% for field in form %}
+        <tr>
+            <th>{{ field.label_tag }}</th>
+            <td>
+                {{ field }}
+                {% if field.errors %}
+                <ul class="errorlist">
+                    {% for error in field.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <input class="default" type="submit" value="{% trans 'Evaluate' %}">
+</form>
+
+<p>
+{% for group in bills %}
+{{ group.generator }}: {{ group.generator.description }}
+<table>
+    <th>
+        <td>{% trans "Amount" %}</td>
+        <td>{% trans "Paid by" %}</td>
+        <td>{% trans "Explanation" %}</td>
+        <td>{% trans "Covered by association" %}</td>
+    </th>
+    {% for bill in group.bills %}
+        <tr>
+            <td>
+            {{bill.short_description}}
+            </td>
+            <td>
+            {{ bill.amount }}€
+            </td>
+            <td>
+            {{ bill.paid_by }}
+            </td>
+            <td>
+            {{ bill.explanation }}
+            </td>
+            <td>
+            {{ bill.costs_covered|render_bool }}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+{% endfor %}
+</p>
+
+{% if error %}
+<h3>{% trans "Error" %}</h3>
+<p class="errornote">{{ error }}</p>
+{% endif %}
+
+{% endblock %}

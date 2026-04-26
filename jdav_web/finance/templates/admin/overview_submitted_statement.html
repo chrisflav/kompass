@@ -31,99 +31,38 @@
 
 <p>{% blocktrans %}The total amount is {{total_bills}} €.{% endblocktrans %}</p>
 
-{% if statement.excursion %}
-
-<h2>{% trans "Excursion" %}</h2>
-
 <p>
-{% blocktrans %}This excursion featured {{ staff_count }} youth leader(s), each costing{% endblocktrans %}
-</p>
-<p>
-<ul>
-    <li>
-        {% blocktrans %}{{ nights }} nights for {{ price_per_night }}€ per night making a total of {{ nights_per_yl }}€.{% endblocktrans %}
-    </li>
-    <li>
-        {% blocktrans %}{{ duration }} days for {{ allowance_per_day }}€ per day making a total of {{ allowance_per_yl }}€.{% endblocktrans %}
-    </li>
-    <li>
-        {% blocktrans %}{{ kilometers_traveled }} km by {{ means_of_transport }} ({{euro_per_km}} € / km) making a total of {{ transportation_per_yl }}€.{% endblocktrans %}
-    </li>
-</ul>
-</p>
-<p>
-{% blocktrans %}In total this is {{ total_per_yl }}€ times {{ staff_count }}, giving {{ theoretical_total_staff }}€.{% endblocktrans %}
-</p>
-<h2>{% trans "Payment of subsidies and allowances" %}</h2>
-{% if allowances_paid > 0 %}
-<p>
-{% blocktrans %}The allowance of {{ allowance_per_yl }}€ per person should be paid to:{% endblocktrans %}
+{% for group in generated_bills %}
+{{ group.generator }}: {{ group.generator.description }}
 <table>
     <th>
-        <td>{% trans "IBAN valid" %}</td>
+        <td>{% trans "Amount" %}</td>
+        <td>{% trans "Paid by" %}</td>
+        <td>{% trans "Explanation" %}</td>
+        <td>{% trans "Covered by association" %}</td>
     </th>
-    {% for member in statement.allowance_to.all %}
-    <tr>
-        <td>{{ member.name }}</td>
-        <td>{{ member.iban_valid|render_bool }}</td>
-    </tr>
+    {% for bill in group.bills %}
+        <tr>
+            <td>
+            {{bill.short_description}}
+            </td>
+            <td>
+            {{ bill.amount }}€
+            </td>
+            <td>
+            {{ bill.paid_by }}
+            </td>
+            <td>
+            {{ bill.explanation }}
+            </td>
+            <td>
+            {{ bill.costs_covered|render_bool }}
+            </td>
+        </tr>
     {% endfor %}
 </table>
+{% endfor %}
 </p>
-{% if allowances_paid < real_staff_count %}
-<p>{% blocktrans %}Only {{ allowances_paid }} of the {{ real_staff_count }} youth leaders have requested the outpayment of their allowance.{% endblocktrans %}</p>
-{% endif %}
-
-{% else %}
-<p>{% blocktrans %}No receivers of the allowance were provided. Allowance will not be used.{% endblocktrans %}</p>
-{% endif %}
-{% if statement.subsidy_to %}
-<p>
-{% blocktrans %}The subsidies for night and transportation costs of {{ total_subsidies }}€ should be paid to:{% endblocktrans %}
-<table>
-    <th>
-        <td>{% trans "IBAN valid" %}</td>
-    </th>
-    <tr>
-        <td>{{ statement.subsidy_to.name }}</td>
-        <td>{{ statement.subsidy_to.iban_valid|render_bool }}</td>
-    </tr>
-</table>
-</p>
-
-{% else %}
-<p>{% blocktrans %}No receivers of the subsidies were provided. Subsidies will not be used.{% endblocktrans %}</p>
-{% endif %}
-
-{% if total_org_fee %}
-<h3>{% trans "Org fee" %}</h3>
-{% blocktrans %}Since overaged people where part of the excursion, an organisational fee of {{ org_fee }}€ per person per day has to be paid. This totals to {{ total_org_fee_theoretical }}€. This organisational fee will be accounted against allowances and subsidies.{% endblocktrans %}
-
-{% endif %}
-
-
-{% if statement.ljp_to %}
-<h3>{% trans "LJP contributions" %}</h3>
-<p>
-{% blocktrans %} The youth leaders have documented interventions worth of {{ total_seminar_days }} seminar
-days for {{ ljp_participant_count }} eligible participants. Taking into account the maximum contribution quota
-of 90% and possible taxes ({{ ljp_tax }}%), this results in a total of {{ paid_ljp_contributions }}€.
-Once their proposal was approved, the ljp contributions of should be paid to:{% endblocktrans %}
-<table>
-    <th>
-        <td>{% trans "IBAN valid" %}</td>
-    </th>
-    <tr>
-        <td>{{ statement.ljp_to.name }}</td>
-        <td>{{ statement.ljp_to.iban_valid|render_bool }}</td>
-    </tr>
-</table>
-</p>
-{% endif %}
-
-
-{% endif %}
-
 
 <h2>{% trans "Summary" %}</h2>
 
@@ -137,38 +76,16 @@ Once their proposal was approved, the ljp contributions of should be paid to:{% 
             {{ total_bills }}€
         </td>
     </tr>
+    {% for group in generated_bills %}
     <tr>
         <td>
-            {% trans "Allowance" %}
+            {{ group.generator }}
         </td>
         <td>
-            {{ total_allowance }}€
+            {{ group.total }}€
         </td>
     </tr>
-    <tr>
-        <td>
-            {% trans "Contributions by the association" %}
-        </td>
-        <td>
-            {{ total_subsidies }}€
-        </td>
-    </tr>
-    <tr>
-        <td>
-            {% trans "Org fee" %}
-        </td>
-        <td>
-            -{{ total_org_fee }}€
-        </td>
-    </tr>
-    <tr>
-        <td>
-            {% trans "ljp contributions" %}
-        </td>
-        <td>
-            {{ paid_ljp_contributions }}€
-        </td>
-    </tr>
+    {% endfor %}
 </table>
 
 <p>

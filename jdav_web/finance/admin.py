@@ -1,3 +1,4 @@
+import json
 import logging
 
 from contrib.admin import CommonAdminInlineMixin
@@ -13,21 +14,37 @@ from django.forms import ClearableFileInput
 from django.forms import Textarea
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.urls import path
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
+from jsonata import Jsonata
 from members.pdf import render_tex_with_attachments
 from utils import get_member
 
+from .models import AutomaticBillConfiguration
 from .models import Bill
+from .models import BillGenerator
 from .models import BillOnStatementProxy
 from .models import Ledger
 from .models import Statement
 from .models import StatementConfirmed
+from .models import StatementSerializer
 from .models import StatementSubmitted
 from .models import Transaction
 
 logger = logging.getLogger(__name__)
+
+
+class JsonataTestForm(forms.Form):
+    expression = forms.CharField(
+        label=_("JSONata expression"),
+        widget=forms.Textarea(attrs={"rows": 20, "cols": 120}),
+    )
+    statement = forms.ModelChoiceField(
+        label=_("Statement"),
+        queryset=Statement.objects.all(),
+    )
 
 
 @admin.register(Ledger)
@@ -61,6 +78,42 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     ordering = ["-submitted_date"]
     inlines = [BillOnStatementInline]
     list_per_page = 25
+    change_list_template = "admin/finance/statement/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "jsonata-test/",
+                self.admin_site.admin_view(self.jsonata_test_view),
+                name="finance_statement_jsonata_test",
+            ),
+        ]
+        return custom_urls + urls
+
+    def jsonata_test_view(self, request):
+        form = JsonataTestForm(request.POST or None)
+        result = None
+        error = None
+        if request.method == "POST" and form.is_valid():
+            expression = form.cleaned_data["expression"]
+            statement = form.cleaned_data["statement"]
+            try:
+                serialized_statement = StatementSerializer(statement)
+                expr = Jsonata(expression)
+                result = json.dumps(expr.evaluate(serialized_statement.data), indent=2, default=str)
+            except Exception as e:
+                error = str(e)
+
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Test JSONata expression"),
+            opts=self.opts,
+            form=form,
+            result=result,
+            error=error,
+        )
+        return render(request, "admin/finance/jsonata_test.html", context=context)
 
     def has_change_permission(self, request, obj=None):
         if obj is None:
@@ -114,11 +167,11 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         if obj is not None and obj.excursion:
             # if the object exists and an excursion is set, show the excursion (read only)
             # instead of the short description
-            return ["excursion", "explanation", "status"]
+            return ["excursion", "explanation", "status", "auto_bill_config"]
         else:
             # if the object is newly created or no excursion is set, require
             # a short description
-            return ["short_description", "explanation", "status"]
+            return ["short_description", "explanation", "status", "auto_bill_config"]
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = ["status", "excursion"]
@@ -368,6 +421,9 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             view_header=_("Overview"),
             opts=self.opts,
             statement=statement,
+            generated_bills=statement.auto_bill_config.generate_bills(
+                statement, groupby_generator=True
+            ),
             object=statement,
             settings=settings,
             transaction_issues=statement.transaction_issues,
@@ -537,3 +593,37 @@ class BillAdmin(admin.ModelAdmin):
     list_display = ["__str__", "statement", "explanation", "pretty_amount", "paid_by", "refunded"]
     list_filter = ("statement", "paid_by", "refunded")
     search_fields = ("reference", "statement")
+
+
+@admin.register(BillGenerator)
+class BillGeneratorAdmin(admin.ModelAdmin):
+    pass
+
+
+class AutomaticBillConfigurationTestForm(forms.Form):
+    statement = forms.ModelChoiceField(
+        label=_("Statement"),
+        queryset=Statement.objects.all(),
+    )
+
+
+@admin.register(AutomaticBillConfiguration)
+class AutomaticBillConfigurationAdmin(ExtraButtonsMixin, admin.ModelAdmin):
+    @extra_button(_("Test"))
+    def test_view(self, request, config):
+        form = AutomaticBillConfigurationTestForm(request.POST or None)
+        bills = []
+        if request.method == "POST" and form.is_valid():
+            statement = form.cleaned_data["statement"]
+            bills = config.generate_bills(statement, groupby_generator=True)
+
+        context = dict(
+            self.admin_site.each_context(request),
+            opts=self.opts,
+            title=_("Test config"),
+            view_header=_("Test"),
+            config=config,
+            form=form,
+            bills=bills,
+        )
+        return render(request, "admin/test_autobill_config.html", context=context)
