@@ -1399,7 +1399,7 @@ class GroupAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if "leiters" in self.fields:
-            self.fields["leiters"].queryset = Member.objects.filter(group__name="Jugendleiter")
+            self.fields["leiters"].queryset = Member.objects.filter(group__name=settings.YOUTH_LEADER_GROUP)
 
 
 class GroupAdmin(admin.ModelAdmin):
@@ -1475,6 +1475,15 @@ class GroupAdmin(admin.ModelAdmin):
         }
         return render_tex("Gruppen-Checkliste", "members/group_checklist.tex", context)
 
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.name == settings.YOUTH_LEADER_GROUP:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        queryset = queryset.exclude(name=settings.YOUTH_LEADER_GROUP)
+        super().delete_queryset(request, queryset)
+
 
 class ActivityCategoryAdmin(admin.ModelAdmin):
     fields = ["name", "ljp_category", "description"]
@@ -1499,7 +1508,7 @@ class FreizeitAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if "jugendleiter" in self.fields:
             q = self.fields["jugendleiter"].queryset
-            self.fields["jugendleiter"].queryset = q.filter(group__name="Jugendleiter")
+            self.fields["jugendleiter"].queryset = q.filter(group__name=settings.YOUTH_LEADER_GROUP)
 
 
 class BillOnExcursionInline(CommonAdminInlineMixin, admin.TabularInline):
@@ -2204,7 +2213,7 @@ class KlettertreffAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["jugendleiter"].queryset = Member.objects.filter(group__name="Jugendleiter")
+        self.fields["jugendleiter"].queryset = Member.objects.filter(group__name=settings.YOUTH_LEADER_GROUP)
 
 
 class KlettertreffAttendeeInlineForm(forms.ModelForm):
@@ -2248,7 +2257,7 @@ class KlettertreffAdmin(admin.ModelAdmin):
             "klettertreffs": queryset,
             "members": members,
             "attendees": KlettertreffAttendee.objects.all(),
-            "jugendleiters": Member.objects.filter(group__name="Jugendleiter"),
+            "jugendleiters": Member.objects.filter(group__name=settings.YOUTH_LEADER_GROUP),
         }
 
         return render(request, "admin/klettertreff_overview.html", context)

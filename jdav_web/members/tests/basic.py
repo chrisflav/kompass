@@ -3448,6 +3448,23 @@ class GroupAdminTestCase(AdminTestCase):
         response = c.post(url, data={"group_checklist": ""}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_has_delete_permission_blocks_youth_leader_group(self):
+        request = self.factory.get("/")
+        request.user = User.objects.get(username="superuser")
+        youth_leader_group = Group.objects.get(name=settings.YOUTH_LEADER_GROUP)
+        other_group = Group.objects.get(name="cool kids")
+        self.assertFalse(self.admin.has_delete_permission(request, obj=youth_leader_group))
+        self.assertTrue(self.admin.has_delete_permission(request, obj=other_group))
+
+    def test_delete_queryset_excludes_youth_leader_group(self):
+        request = self.factory.delete("/")
+        request.user = User.objects.get(username="superuser")
+        other_group = Group.objects.get(name="cool kids")
+        all_groups = Group.objects.all()
+        self.admin.delete_queryset(request, all_groups)
+        self.assertTrue(Group.objects.filter(name=settings.YOUTH_LEADER_GROUP).exists())
+        self.assertFalse(Group.objects.filter(pk=other_group.pk).exists())
+
 
 class FilteredMemberFieldMixinTestCase(AdminTestCase):
     def setUp(self):
