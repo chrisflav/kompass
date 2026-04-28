@@ -1,21 +1,17 @@
 {% extends "startpage/base_subsite.html" %}
-{% load markdown_extras markdownify %}
+{% load markdown_extras markdownify i18n %}
 
 {% block content %}
 <h1>{{ group.name }}</h1>
 
-<p>
-<strong>Beschreibung:</strong> {{ group.description|markdownify }}
-</p>
-
 {% if group.show_website_year and group.has_age_info %}
-<p><strong>Alter:</strong> {{ group.get_age_info }}</p>
+<p><strong>{% trans "Alter:" %}</strong> {{ group.get_age_info }}</p>
 {% endif %}
 
 {% if group.show_website_weekday %}
 {% with weekday_info=group.get_weekday_display_info %}
 {% if weekday_info %}
-<p><strong>Wochentag:</strong> {{ weekday_info }}</p>
+<p><strong>{% trans "Wochentag:" %}</strong> {{ weekday_info }}</p>
 {% endif %}
 {% endwith %}
 {% endif %}
@@ -23,17 +19,21 @@
 {% if group.show_website_time %}
 {% with time_slot=group.get_time_slot_info %}
 {% if time_slot %}
-<p><strong>Uhrzeit:</strong> {{ time_slot }}</p>
+<p><strong>{% trans "Uhrzeit:" %}</strong> {{ time_slot }}</p>
 {% endif %}
 {% endwith %}
 {% endif %}
 
-{% if group.contact_email %}
-<p><strong>Kontakt-Email:</strong> <a href="mailto:{{ group.contact_email.email }}">{{ group.contact_email.email }}</a></p>
+{% if group.show_website_contact_email and group.contact_email %}
+<p><strong>{% trans "Kontakt-Email:" %}</strong> <a href="mailto:{{ group.contact_email.email }}">{{ group.contact_email.email }}</a></p>
 {% endif %}
 
 {% if group.has_registration_password %}
-<p><strong>Anmeldung:</strong> <a href="{% url 'members:register' %}">Hier anmelden</a></p>
+<p><strong>{% trans "Anmeldung:" %}</strong> <a href="{% url 'members:register' %}">Hier anmelden</a></p>
+{% endif %}
+
+{% if group.description %}
+<p>{{ group.description|markdownify }}</p>
 {% endif %}
 
 <h2>Gruppenleitung</h2>
