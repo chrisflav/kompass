@@ -1416,6 +1416,7 @@ class GroupAdmin(admin.ModelAdmin):
         "show_website_weekday",
         ("start_time", "end_time"),
         "show_website_time",
+        "show_website_contact_email",
     ]
     form = GroupAdminForm
     list_display = ("name", "year_from", "year_to")

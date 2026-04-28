@@ -125,3 +125,22 @@ msgstr "Lizenzhinweise für Ressourcen Dritter:"
 
 msgid "Background image"
 msgstr "Hintergrundbild"
+
+msgid "Weekday:"
+msgstr "Wochentag:"
+
+msgid "Time:"
+msgstr "Uhrzeit:"
+
+msgid "Contact email:"
+msgstr "Kontakt-Email:"
+
+msgid "Registration:"
+msgstr "Anmeldung:"
+
+msgid "Register here"
+msgstr "Hier anmelden"
+
+msgid "Group leaders"
+msgstr "Gruppenleitung"
+

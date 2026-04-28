@@ -23,4 +23,9 @@ class Migration(migrations.Migration):
             name="show_website_time",
             field=models.BooleanField(default=False, verbose_name="show time on website"),
         ),
+        migrations.AddField(
+            model_name="group",
+            name="show_website_contact_email",
+            field=models.BooleanField(default=False, verbose_name="show contact email on website"),
+        ),
     ]

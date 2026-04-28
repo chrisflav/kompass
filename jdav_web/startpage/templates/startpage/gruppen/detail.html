@@ -11,7 +11,7 @@
 {% if group.show_website_weekday %}
 {% with weekday_info=group.get_weekday_display_info %}
 {% if weekday_info %}
-<p><strong>{% trans "Wochentag:" %}</strong> {{ weekday_info }}</p>
+<p><strong>{% trans "Weekday:" %}</strong> {{ weekday_info }}</p>
 {% endif %}
 {% endwith %}
 {% endif %}
@@ -19,24 +19,24 @@
 {% if group.show_website_time %}
 {% with time_slot=group.get_time_slot_info %}
 {% if time_slot %}
-<p><strong>{% trans "Uhrzeit:" %}</strong> {{ time_slot }}</p>
+<p><strong>{% trans "Time:" %}</strong> {{ time_slot }}</p>
 {% endif %}
 {% endwith %}
 {% endif %}
 
 {% if group.show_website_contact_email and group.contact_email %}
-<p><strong>{% trans "Kontakt-Email:" %}</strong> <a href="mailto:{{ group.contact_email.email }}">{{ group.contact_email.email }}</a></p>
+<p><strong>{% trans "Contact email:" %}</strong> <a href="mailto:{{ group.contact_email.email }}">{{ group.contact_email.email }}</a></p>
 {% endif %}
 
 {% if group.has_registration_password %}
-<p><strong>{% trans "Anmeldung:" %}</strong> <a href="{% url 'members:register' %}">Hier anmelden</a></p>
+<p><strong>{% trans "Registration:" %}</strong> <a href="{% url 'members:register' %}">Register here</a></p>
 {% endif %}
 
 {% if group.description %}
 <p>{{ group.description|markdownify }}</p>
 {% endif %}
 
-<h2>Gruppenleitung</h2>
+<h2>{% trans "Group leaders" %}</h2>
 
 {% include "startpage/people_grid.html" %}
 
