@@ -177,7 +177,7 @@ def render_echo(request, key, password, form, emergency_contacts_formset):
         request,
         "members/echo.html",
         {
-            "form": form.as_table(),
+            "form": form,
             "emergency_contacts_formset": emergency_contacts_formset,
             "key": key,
             "registration": False,
