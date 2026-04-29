@@ -1,4 +1,4 @@
-FROM python:3.9-bookworm
+FROM python:3.13-trixie
 
 # install additional dependencies
 RUN apt-get update && apt-get install -y gettext texlive texlive-fonts-extra pandoc

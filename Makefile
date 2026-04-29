@@ -65,7 +65,7 @@ endif
 test-only:
 ifeq ($(quiet), true)
 	@mkdir -p docker/test/htmlcov
-	@chmod 777 docker/test/htmlcov
+	@chmod -R 777 docker/test/htmlcov
 ifeq ($(keepdb), true)
 	@cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up -d > /dev/null 2>&1 \
 	  || { echo "Container setup failed."; exit 1; }
@@ -79,7 +79,7 @@ endif
 	  exit $$_EXIT
 else
 	mkdir -p docker/test/htmlcov
-	chmod 777 docker/test/htmlcov
+	chmod -R 777 docker/test/htmlcov
 	# Show output from all containers
 ifeq ($(keepdb), true)
 	cd docker/test; DJANGO_TEST_KEEPDB=1 DJANGO_TEST_VERBOSITY=$(or $(verbosity),2) docker compose up --exit-code-from master

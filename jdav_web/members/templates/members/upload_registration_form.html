@@ -40,7 +40,7 @@ please sign the document and upload a scan or image here.{% endblocktrans %}
     <p>
     <table class="termine">
     {% csrf_token %}
-    {{form}}
+    {{form.as_table}}
     </table>
     </p>
     <input type="hidden" name="key" value="{{ key }}">

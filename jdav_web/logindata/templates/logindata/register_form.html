@@ -34,7 +34,7 @@
         </td>
     </tr>
     {% endif %}
-    {{ form }}
+    {{ form.as_table }}
     </table>
     <input name="key" type="hidden" value="{{key}}">
     <input name="password" type="hidden" value="{{password}}">

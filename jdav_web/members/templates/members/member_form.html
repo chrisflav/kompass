@@ -8,7 +8,7 @@
 <form action="" method="post" enctype="multipart/form-data">
     <table class="termine">
     {% csrf_token %}
-    {{form}}
+    {{form.as_table}}
     </table>
     <p><b>{% trans "Emergency contacts:" %}</b></p>
     {{emergency_contacts_formset.non_form_errors}}
@@ -68,7 +68,7 @@
 
   function setHidden(element) {
     element.parentElement.setAttribute('style', 'display:none');
-    var deleteInput = element.parentElement.querySelector(':scope > [id*=DELETE]');
+    var deleteInput = element.parentElement.querySelector('[id*=DELETE]');
     deleteInput.value = "on";
     removeRequired(element.parentElement);
   }
@@ -98,11 +98,13 @@
   });
 
   const uploadField = document.getElementById("id_registration_form");
-  uploadField.onchange = function() {
-      if(this.files[0].size > 5 * 1024 * 1024) {
-         alert('{% trans "This file is bigger than the maximal allowed file size of 5 MiB." %}');
-         this.value = "";
-      }
-  };
+  if (uploadField) {
+      uploadField.onchange = function() {
+          if(this.files[0].size > 5 * 1024 * 1024) {
+             alert('{% trans "This file is bigger than the maximal allowed file size of 5 MiB." %}');
+             this.value = "";
+          }
+      };
+  }
 
 </script>
