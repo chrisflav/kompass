@@ -22,7 +22,7 @@ class MyOIDCABTestCase(TestCase):
         self.ab = MyOIDCAB()
 
     def test_filter_users_by_claims(self):
-        self.assertQuerysetEqual(self.ab.filter_users_by_claims(CLAIMS), [self.user])
+        self.assertQuerySetEqual(self.ab.filter_users_by_claims(CLAIMS), [self.user])
 
     def test_get_username(self):
         self.assertEqual(self.ab.get_username(CLAIMS), CLAIMS[settings.OIDC_CLAIM_USERNAME])

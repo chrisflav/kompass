@@ -38,6 +38,13 @@ root_section = 'wir'
 recent_section = 'aktuelles'
 reports_section = 'berichte'
 
+[sidebar]
+# List of app labels whose admin sidebar sections should be hidden.
+# Available app labels: members, mailer, finance, logindata, django_celery_beat,
+#                       ludwigsburgalpin, material, startpage
+# disabled_apps = ["ludwigsburgalpin"]
+disabled_apps = []
+
 [django]
 deployed = true
 debug = false

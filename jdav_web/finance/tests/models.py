@@ -805,23 +805,23 @@ class ManagerTestCase(TestCase):
         # TODO: remove this manager, since it is not used
         mgr = StatementManager()
         mgr.model = Statement
-        self.assertQuerysetEqual(mgr.get_queryset(), Statement.objects.filter(pk=self.st.pk))
+        self.assertQuerySetEqual(mgr.get_queryset(), Statement.objects.filter(pk=self.st.pk))
 
         mgr_unsubmitted = StatementUnSubmittedManager()
         mgr_unsubmitted.model = StatementUnSubmitted
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             mgr_unsubmitted.get_queryset(), Statement.objects.filter(pk=self.st.pk)
         )
 
         mgr_submitted = StatementSubmittedManager()
         mgr_submitted.model = StatementSubmitted
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             mgr_submitted.get_queryset(), Statement.objects.filter(pk=self.st_submitted.pk)
         )
 
         mgr_confirmed = StatementConfirmedManager()
         mgr_confirmed.model = StatementConfirmed
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             mgr_confirmed.get_queryset(), Statement.objects.filter(pk=self.st_confirmed.pk)
         )
 

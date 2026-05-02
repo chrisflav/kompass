@@ -75,7 +75,7 @@ class MaterialPart(models.Model):
     def not_too_old(self):
         """Returns wether the part should be replaced cause of age"""
         buy_time = timezone.make_aware(datetime.combine(self.buy_date, datetime.min.time()))
-        return yearsago(self.lifetime) < buy_time
+        return yearsago(int(self.lifetime)) < buy_time
 
     not_too_old.admin_order_field = "buy_date"
     not_too_old.boolean = True
