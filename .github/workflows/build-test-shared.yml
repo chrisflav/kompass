@@ -93,6 +93,7 @@ jobs:
       - name: Check translations are up to date
         run: |
           docker run --rm \
+            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}/jdav_web:/app/jdav_web \
             -v ${{ github.workspace }}/docker/test/config:/app/config:ro \
             -e KOMPASS_CONFIG_DIR_PATH=/app/config/ \
