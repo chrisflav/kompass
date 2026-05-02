@@ -81,7 +81,7 @@ django.gettext = window.gettext
                 {% if user.has_usable_password %}
                 <a href="{% url 'admin:password_change' %}">{% trans 'Change password' %}</a> /
                 {% endif %}
-                <a href="{% url 'admin:logout' %}">{% trans 'Log out' %}</a>
+                <a href="{% url 'admin:logout' %}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">{% trans 'Log out' %}</a>
             {% endblock %}
         </div>
         {% endif %}
@@ -217,7 +217,7 @@ django.gettext = window.gettext
                             </span>
                         </a>
                         {% endif %}
-                        <a href="{% url 'admin:logout' %}" class="sidebar-link icon">
+                        <a href="{% url 'admin:logout' %}" class="sidebar-link icon" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                             <span class="sidebar-link-label">
                                 <span class="sidebar-link-icon icon-cross"></span>
                                 {% trans 'Log out' %}
@@ -466,5 +466,6 @@ django.gettext = window.gettext
 </div>
 <!-- END Container -->
 
+<form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display:none">{% csrf_token %}</form>
 </body>
 </html>{% endblock %}
