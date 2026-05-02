@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-26 10:39+0200\n"
+"POT-Creation-Date: 2026-05-02 19:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -177,6 +177,9 @@ msgstr "Anwendungen verstecken"
 msgid "Show hidden"
 msgstr "Zeige Verstecktes"
 
+msgid "Externe Links"
+msgstr ""
+
 msgid "Add bookmark"
 msgstr "Lesezeichen hinzufügen"
 
@@ -296,6 +299,9 @@ msgstr ""
 
 msgid "Save and submit"
 msgstr "Speichern und einreichen"
+
+msgid "Timetable"
+msgstr ""
 
 msgid "Generate group overview"
 msgstr "Gruppenübersicht erstellen"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-12 23:41+0100\n"
+"POT-Creation-Date: 2026-05-02 19:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -235,6 +235,9 @@ msgstr "Ungültige Teilnehmer*innenauswahl."
 msgid "Create Crisis Intervention List"
 msgstr "Kriseninterventionsliste erstellen"
 
+msgid "Alternative email confirmed"
+msgstr "Alternative E-Mail Adresse bestätigt"
+
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
 
@@ -369,6 +372,9 @@ msgid ""
 msgstr ""
 "Der Gruppenname darf nur aus Buchstaben, Zahlen, _, -, :, * oder Leerzeichen "
 "bestehen."
+
+msgid "Timetable"
+msgstr "Stundenplan"
 
 msgid "You are not allowed to create a group overview."
 msgstr ""
@@ -626,7 +632,9 @@ msgstr "Stützpunkt / Ort"
 msgid "Postcode"
 msgstr "PLZ"
 
-msgid "Only relevant for a LJP application."
+#, fuzzy
+#| msgid "Only relevant for a LJP application."
+msgid "only relevant for a LJP application"
 msgstr "Nur für einen LJP-Antrag relevant."
 
 msgid "Destination (optional)"
@@ -895,9 +903,6 @@ msgstr "Aktion"
 
 msgid "Interventions"
 msgstr "Aktionen"
-
-msgid "Alternative email confirmed"
-msgstr "Alternative E-Mail Adresse bestätigt"
 
 msgid "street and house number"
 msgstr "Straße und Hausnummer"
@@ -1632,6 +1637,15 @@ msgstr "Anzahl Personen:"
 msgid "thereof leaders:"
 msgstr "davon Leitung:"
 
+msgid "Group Timetable"
+msgstr "Gruppenstundenplan"
+
+msgid "Download as SVG"
+msgstr "Als SVG herunterladen"
+
+msgid "Back to groups"
+msgstr "Zurück zur Gruppenübersicht"
+
 #, python-format
 msgid "Do you want to ask %(member)s to upload their registration form?"
 msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
@@ -1941,6 +1955,11 @@ msgstr ""
 "Du hast die Einladung zur Schnupperstunde in der Gruppe %(groupname)s "
 "abgelehnt. Wenn ein Platz in einer anderen Gruppe frei wird, erhältst du "
 "eine neue Einladung.\n"
+
+#, fuzzy
+#| msgid "no information available"
+msgid "No schedule information available."
+msgstr "keine Angabe"
 
 #, python-format
 msgid ""

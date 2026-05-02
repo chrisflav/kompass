@@ -3448,6 +3448,24 @@ class GroupAdminTestCase(AdminTestCase):
         response = c.post(url, data={"group_checklist": ""}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_timetable_action(self):
+        c = self._login("superuser")
+        response = c.post(reverse("admin:members_group_action"), data={"timetable": ""})
+        self.assertRedirects(
+            response, reverse("admin:members_group_timetable"), fetch_redirect_response=False
+        )
+
+    def test_timetable_view(self):
+        c = self._login("superuser")
+        response = c.get(reverse("admin:members_group_timetable"))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_timetable_download(self):
+        c = self._login("superuser")
+        response = c.get(reverse("admin:members_group_timetable_download"))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(response["Content-Type"], "image/svg+xml")
+
 
 class FilteredMemberFieldMixinTestCase(AdminTestCase):
     def setUp(self):

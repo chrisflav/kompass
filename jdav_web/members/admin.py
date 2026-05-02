@@ -25,8 +25,10 @@ from django.db.models import TextField
 from django.db.models import When
 from django.forms import Textarea
 from django.forms import TypedChoiceField
+from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.urls import path
 from django.urls import reverse
 from django.utils import timezone
@@ -68,6 +70,7 @@ from .models import WEEKDAYS
 from .pdf import fill_pdf_form
 from .pdf import render_docx
 from .pdf import render_tex
+from .timetable import build_svg_data
 
 # from easy_select2 import apply_select2
 
@@ -1431,11 +1434,49 @@ class GroupAdmin(admin.ModelAdmin):
 
         custom_urls = [
             path("action/", wrap(self.action_view), name="members_group_action"),
+            path("timetable/", wrap(self.timetable_view), name="members_group_timetable"),
+            path(
+                "timetable/download/",
+                wrap(self.timetable_download_view),
+                name="members_group_timetable_download",
+            ),
         ]
         return custom_urls + urls
 
+    def timetable_view(self, request):
+        groups_with_time = list(
+            self.model.objects.exclude(weekday__isnull=True)
+            .exclude(start_time__isnull=True)
+            .exclude(end_time__isnull=True)
+            .order_by("weekday", "start_time")
+        )
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Timetable"),
+            opts=self.opts,
+            svg_data=build_svg_data(groups_with_time),
+        )
+        return render(request, "admin/members/group/timetable.html", context)
+
+    def timetable_download_view(self, request):
+        groups_with_time = list(
+            self.model.objects.exclude(weekday__isnull=True)
+            .exclude(start_time__isnull=True)
+            .exclude(end_time__isnull=True)
+            .order_by("weekday", "start_time")
+        )
+        svg_data = build_svg_data(groups_with_time)
+        svg_content = render_to_string(
+            "members/_timetable_svg.html", {"svg_data": svg_data}, request=request
+        )
+        response = HttpResponse(svg_content, content_type="image/svg+xml")
+        response["Content-Disposition"] = 'attachment; filename="stundenplan.svg"'
+        return response
+
     def action_view(self, request):
-        if "group_overview" in request.POST:
+        if "timetable" in request.POST:
+            return HttpResponseRedirect(reverse("admin:members_group_timetable"))
+        elif "group_overview" in request.POST:
             return self.group_overview(request)
         elif "group_checklist" in request.POST:
             return self.group_checklist(request)
