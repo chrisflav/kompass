@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-26 11:54+0200\n"
+"POT-Creation-Date: 2026-05-02 23:49+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -234,6 +234,12 @@ msgstr ""
 
 msgid "Status"
 msgstr "Status"
+
+msgid "Settings snapshot"
+msgstr "Einstellungszwischenstand"
+
+msgid "Financial settings captured at time of submission/confirmation."
+msgstr "Gültige Finanzregeln bei Einreichung bzw. Bestätigung"
 
 msgid "Submitted on"
 msgstr "Eingereicht am"
