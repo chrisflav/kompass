@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 19:22+0200\n"
+"POT-Creation-Date: 2026-05-02 16:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -632,10 +632,8 @@ msgstr "Stützpunkt / Ort"
 msgid "Postcode"
 msgstr "PLZ"
 
-#, fuzzy
-#| msgid "Only relevant for a LJP application."
 msgid "only relevant for a LJP application"
-msgstr "Nur für einen LJP-Antrag relevant."
+msgstr "nur für einen LJP-Antrag relevant"
 
 msgid "Destination (optional)"
 msgstr "ggf. Ziel"
@@ -737,6 +735,18 @@ msgstr "Endzeitpunkt"
 
 msgid "Contact email"
 msgstr "Kontakt Email"
+
+msgid "show year range on website"
+msgstr "Jahrgang auf der Webseite anzeigen"
+
+msgid "show weekday on website"
+msgstr "Wochentag auf der Webseite anzeigen"
+
+msgid "show time on website"
+msgstr "Zeiten auf der Webseite anzeigen"
+
+msgid "show contact email on website"
+msgstr "Kontaktadresse auf der Webseite anzeigen"
 
 msgid "group"
 msgstr "Gruppe"

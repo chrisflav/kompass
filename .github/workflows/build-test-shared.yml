@@ -90,6 +90,26 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
+      - name: Check translations are up to date
+        run: |
+          chmod -R a+w ${{ github.workspace }}/jdav_web
+          docker run --rm \
+            --user 501:501 \
+            -v ${{ github.workspace }}/jdav_web:/tmp/jdav_web \
+            -v ${{ github.workspace }}/docker/test/config:/app/config:ro \
+            -e KOMPASS_CONFIG_DIR_PATH=/app/config/ \
+            kompass:test \
+            bash -c "cd /tmp/jdav_web && python3 manage.py makemessages --locale de --no-location --no-obsolete"
+          git diff --exit-code
+          FAILED=0
+          while IFS=: read -r file count; do
+            if [ "$count" -gt 1 ]; then
+              echo "Error: $file has $count fuzzy entries (expected at most 1 for the header)"
+              FAILED=1
+            fi
+          done < <(grep -rc "^#, fuzzy" ${{ github.workspace }}/jdav_web --include="*.po")
+          if [ "$FAILED" -eq 1 ]; then exit 1; fi
+
       - name: Build documentation
         run: |
           # Create output directory with proper permissions
@@ -199,7 +219,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'deploy-pr.yml',
-                ref: '${{ inputs.head_ref }}',
+                ref: '${{ github.ref_name }}',
                 inputs: {
                   pr_number: prNumber.toString()
                 }
