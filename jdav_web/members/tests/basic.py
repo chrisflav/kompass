@@ -256,7 +256,7 @@ class MemberTestCase(BasicMemberTestCase):
             subject="Good message", content="This is a test message", created_by=self.fritz
         )
         Message.objects.create(subject="Bad message", content="This is a test message")
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             self.fritz.filter_messages_by_permissions(Message.objects.all()), [good], ordered=False
         )
 
@@ -265,7 +265,7 @@ class MemberTestCase(BasicMemberTestCase):
         st2 = Statement.objects.create(night_cost=42, subsidy_to=None, excursion=self.ex)
         Statement.objects.create(night_cost=42, subsidy_to=None)
         qs = Statement.objects.all()
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             self.fritz.filter_statements_by_permissions(qs), [st1, st2], ordered=False
         )
 
@@ -274,14 +274,14 @@ class MemberTestCase(BasicMemberTestCase):
         MemberWaitingList.objects.create(**WAITER_DATA)
         InvitationToGroup.objects.create(group=self.alp, waiter=waiter)
         qs = MemberWaitingList.objects.all()
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             self.lise.filter_waiters_by_permissions(qs), [waiter], ordered=False
         )
 
     def test_annotate_view_permissions(self):
         qs = Member.objects.all()
         # if the model is not Member, the queryset should not change
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             self.fritz.annotate_view_permission(qs, MemberWaitingList), qs, ordered=False
         )
 
@@ -459,7 +459,7 @@ class MemberTestCase(BasicMemberTestCase):
         )
         queryset = Message.objects.all()
         filtered = self.fritz.filter_queryset_by_permissions(queryset=queryset, model=Message)
-        self.assertQuerysetEqual(filtered, [message], ordered=False)
+        self.assertQuerySetEqual(filtered, [message], ordered=False)
 
 
 class PDFTestCase(TestCase):
@@ -1819,7 +1819,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
 
         field = Freizeit._meta.get_field("jugendleiter")
         queryset = self.admin.formfield_for_manytomany(field, request).queryset
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             queryset,
             u.member.filter_queryset_by_permissions(model=Member),
             msg="Field queryset does not match filtered queryset from models.",
@@ -1828,7 +1828,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
 
         u.member.user = None
         queryset = self.admin.formfield_for_manytomany(field, request).queryset
-        self.assertQuerysetEqual(queryset, Member.objects.none())
+        self.assertQuerySetEqual(queryset, Member.objects.none())
 
         c = self._login("materialwarden")
         response = c.get(url)
@@ -1840,7 +1840,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         field = Freizeit._meta.get_field("jugendleiter")
         queryset = self.admin.formfield_for_manytomany(field, request).queryset
         # material warden can list everyone
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             queryset,
             Member.objects.all(),
             msg="Field queryset does not match all members.",
@@ -1848,7 +1848,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         )
 
         queryset = self.admin.formfield_for_manytomany(field, None).queryset
-        self.assertQuerysetEqual(queryset, Member.objects.none())
+        self.assertQuerySetEqual(queryset, Member.objects.none())
 
     @mock.patch("members.pdf.render_tex")
     def test_seminar_report_post(self, mocked_fun):
@@ -2403,15 +2403,15 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         request = self.factory.get("/")
         request.user = User.objects.get(username="superuser")
         qs = self.admin.get_queryset(request)
-        self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.all(), ordered=False)
+        self.assertQuerySetEqual(qs, MemberUnconfirmedProxy.objects.all(), ordered=False)
 
         request.user = User.objects.create(username="test", password="secret")
         qs = self.admin.get_queryset(request)
-        self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
+        self.assertQuerySetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
 
         request.user = User.objects.get(username="standard")
         qs = self.admin.get_queryset(request)
-        self.assertQuerysetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
+        self.assertQuerySetEqual(qs, MemberUnconfirmedProxy.objects.none(), ordered=False)
 
     def test_request_registration_form_invalid(self):
         c = self._login("standard")
@@ -3473,7 +3473,7 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         request.user = User.objects.get(username="superuser")
         db_field = Member._meta.get_field("group")
         member_admin = MemberAdmin(Member, AdminSite())
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             self.custom_member_admin.formfield_for_manytomany(db_field, request).queryset,
             member_admin.formfield_for_manytomany(db_field, request).queryset,
             ordered=False,
@@ -3486,7 +3486,7 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         request.user = User.objects.get(username="superuser")
         db_field = Group._meta.get_field("contact_email")
         gr_admin = GroupAdmin(Group, AdminSite())
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             self.admin.formfield_for_foreignkey(db_field, request).queryset,
             gr_admin.formfield_for_foreignkey(db_field, request).queryset,
         )
@@ -3498,25 +3498,25 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         # if user has `members.list_global_member`, the filter returns all fields
         request.user = User.objects.get(username="superuser")
         field = self.admin.formfield_for_manytomany(Group._meta.get_field("leiters"), request)
-        self.assertQuerysetEqual(field.queryset, Member.objects.all(), ordered=False)
+        self.assertQuerySetEqual(field.queryset, Member.objects.all(), ordered=False)
 
         # if not, it is filtered by permissions
         u = User.objects.get(username="standard")
         request.user = u
         field = self.admin.formfield_for_manytomany(Group._meta.get_field("leiters"), request)
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             field.queryset, u.member.filter_queryset_by_permissions(model=Member), ordered=False
         )
 
         # if no request is passed, no members are shown
         field = self.admin.formfield_for_manytomany(Group._meta.get_field("leiters"), None)
-        self.assertQuerysetEqual(field.queryset, Member.objects.none())
+        self.assertQuerySetEqual(field.queryset, Member.objects.none())
 
         # if user has no associated member and does not have the special permission,
         # the filter returns nothing
         request.user = User.objects.get(username="foobar")
         field = self.admin.formfield_for_manytomany(Group._meta.get_field("leiters"), request)
-        self.assertQuerysetEqual(field.queryset, Member.objects.none(), ordered=False)
+        self.assertQuerySetEqual(field.queryset, Member.objects.none(), ordered=False)
 
     def test_filter_foreignkey(self):
         url = reverse("admin:members_memberwaitinglist_changelist")
@@ -3527,7 +3527,7 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         field = self.admin.formfield_for_foreignkey(
             KlettertreffAttendee._meta.get_field("member"), request
         )
-        self.assertQuerysetEqual(field.queryset, Member.objects.all(), ordered=False)
+        self.assertQuerySetEqual(field.queryset, Member.objects.all(), ordered=False)
 
         # if not, it is filtered by permissions
         u = User.objects.get(username="standard")
@@ -3535,7 +3535,7 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         field = self.admin.formfield_for_foreignkey(
             KlettertreffAttendee._meta.get_field("member"), request
         )
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             field.queryset, u.member.filter_queryset_by_permissions(model=Member), ordered=False
         )
 
@@ -3543,7 +3543,7 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         field = self.admin.formfield_for_foreignkey(
             KlettertreffAttendee._meta.get_field("member"), None
         )
-        self.assertQuerysetEqual(field.queryset, Member.objects.none())
+        self.assertQuerySetEqual(field.queryset, Member.objects.none())
 
         # if user has no associated member and does not have the special permission,
         # the filter returns nothing
@@ -3551,7 +3551,7 @@ class FilteredMemberFieldMixinTestCase(AdminTestCase):
         field = self.admin.formfield_for_foreignkey(
             KlettertreffAttendee._meta.get_field("member"), request
         )
-        self.assertQuerysetEqual(field.queryset, Member.objects.none(), ordered=False)
+        self.assertQuerySetEqual(field.queryset, Member.objects.none(), ordered=False)
 
 
 class ActivityCategoryTestCase(TestCase):
@@ -3763,14 +3763,14 @@ class AgeFilterTestCase(MemberWaitingListFilterTestCase):
     def test_queryset_no_value(self):
         fil = AgeFilter(None, {}, MemberWaitingList, self.admin)
         qs = MemberWaitingList.objects.all()
-        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+        self.assertQuerySetEqual(fil.queryset(None, qs), qs, ordered=False)
 
     def test_queryset(self):
-        fil = AgeFilter(None, {"age": 12}, MemberWaitingList, self.admin)
+        fil = AgeFilter(None, {"age": [12]}, MemberWaitingList, self.admin)
         request = self.factory.get("/")
         request.user = User.objects.get(username="superuser")
         qs = self.admin.get_queryset(request)
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             fil.queryset(request, qs), qs.filter(birth_date_delta=12), ordered=False
         )
 
@@ -3779,16 +3779,16 @@ class InvitedToGroupFilterTestCase(MemberWaitingListFilterTestCase):
     def test_queryset_no_value(self):
         fil = InvitedToGroupFilter(None, {}, MemberWaitingList, self.admin)
         qs = MemberWaitingList.objects.all()
-        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+        self.assertQuerySetEqual(fil.queryset(None, qs), qs, ordered=False)
 
     def test_queryset(self):
         fil = InvitedToGroupFilter(
-            None, {"pending_group_invitation": self.staff.pk}, MemberWaitingList, self.admin
+            None, {"pending_group_invitation": [self.staff.pk]}, MemberWaitingList, self.admin
         )
         request = self.factory.get("/")
         request.user = User.objects.get(username="superuser")
         qs = self.admin.get_queryset(request)
-        self.assertQuerysetEqual(fil.queryset(request, qs).distinct(), [self.waiter], ordered=False)
+        self.assertQuerySetEqual(fil.queryset(request, qs).distinct(), [self.waiter], ordered=False)
 
 
 class ParticipantFilterTestCase(AdminTestCase):
@@ -3814,11 +3814,11 @@ class ParticipantFilterTestCase(AdminTestCase):
     def test_queryset_no_value(self):
         fil = InvitedToGroupFilter(None, {}, Freizeit, self.admin)
         qs = Freizeit.objects.all()
-        self.assertQuerysetEqual(fil.queryset(None, qs), qs, ordered=False)
+        self.assertQuerySetEqual(fil.queryset(None, qs), qs, ordered=False)
 
     def test_queryset(self):
         member = User.objects.get(username="standard").member
-        fil = ParticipantFilter(None, {"has_participant": member.pk}, Freizeit, self.admin)
+        fil = ParticipantFilter(None, {"has_participant": [member.pk]}, Freizeit, self.admin)
         request = self.factory.get("/")
         qs = Freizeit.objects.all()
-        self.assertQuerysetEqual(fil.queryset(request, qs), [self.ex], ordered=False)
+        self.assertQuerySetEqual(fil.queryset(request, qs), [self.ex], ordered=False)

@@ -6,7 +6,7 @@ JET_SIDE_MENU_COMPACT = True
 JET_DEFAULT_THEME = "jdav-green"
 JET_CHANGE_FORM_SIBLING_LINKS = False
 
-JET_SIDE_MENU_ITEMS = [
+_JET_SIDE_MENU_ITEMS = [
     {
         "label": "Teilnehmer*innenverwaltung",
         "app_label": "members",
@@ -104,4 +104,8 @@ JET_SIDE_MENU_ITEMS = [
             {"name": "link", "permissions": ["startpage.view_link"]},
         ],
     },
+]
+
+JET_SIDE_MENU_ITEMS = [
+    item for item in _JET_SIDE_MENU_ITEMS if item.get("app_label") not in SIDEBAR_DISABLED_APPS
 ]

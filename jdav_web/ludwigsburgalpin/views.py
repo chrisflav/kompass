@@ -83,7 +83,7 @@ def index(request, *args):
             return published(request)
     else:
         form = TerminForm()
-    return render(request, "ludwigsburgalpin/termine.html", {"form": form.as_table()})
+    return render(request, "ludwigsburgalpin/termine.html", {"form": form})
 
 
 def published(request):
