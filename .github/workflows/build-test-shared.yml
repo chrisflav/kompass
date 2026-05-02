@@ -94,6 +94,8 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/jdav_web:/app/jdav_web \
+            -v ${{ github.workspace }}/docker/test/config:/app/config:ro \
+            -e KOMPASS_CONFIG_DIR_PATH=/app/config/ \
             kompass:test \
             bash -c "cd /app/jdav_web && python3 manage.py makemessages --locale de --no-location --no-obsolete"
           git diff --exit-code
