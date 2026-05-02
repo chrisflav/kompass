@@ -1406,17 +1406,12 @@ class GroupAdmin(admin.ModelAdmin):
     fields = [
         "name",
         "description",
-        "year_from",
-        "year_to",
         "leiters",
-        "contact_email",
         "show_website",
-        "show_website_year",
-        "weekday",
-        "show_website_weekday",
-        ("start_time", "end_time"),
-        "show_website_time",
-        "show_website_contact_email",
+        ("year_from", "year_to", "show_website_year"),
+        ("contact_email", "show_website_contact_email"),
+        ("weekday", "show_website_weekday"),
+        ("start_time", "end_time", "show_website_time"),
     ]
     form = GroupAdminForm
     list_display = ("name", "year_from", "year_to")

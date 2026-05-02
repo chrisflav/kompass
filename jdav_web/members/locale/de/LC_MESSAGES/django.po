@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-12 23:41+0100\n"
+"POT-Creation-Date: 2026-05-02 16:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -234,6 +234,9 @@ msgstr "Ungültige Teilnehmer*innenauswahl."
 
 msgid "Create Crisis Intervention List"
 msgstr "Kriseninterventionsliste erstellen"
+
+msgid "Alternative email confirmed"
+msgstr "Alternative E-Mail Adresse bestätigt"
 
 msgid "Successfully requested mail confirmation from selected registrations."
 msgstr "Aufforderung zur Bestätigung der Email Adresse versendet."
@@ -626,8 +629,8 @@ msgstr "Stützpunkt / Ort"
 msgid "Postcode"
 msgstr "PLZ"
 
-msgid "Only relevant for a LJP application."
-msgstr "Nur für einen LJP-Antrag relevant."
+msgid "only relevant for a LJP application"
+msgstr "nur für einen LJP-Antrag relevant"
 
 msgid "Destination (optional)"
 msgstr "ggf. Ziel"
@@ -729,6 +732,18 @@ msgstr "Endzeitpunkt"
 
 msgid "Contact email"
 msgstr "Kontakt Email"
+
+msgid "show year range on website"
+msgstr "Jahrgang auf der Webseite anzeigen"
+
+msgid "show weekday on website"
+msgstr "Wochentag auf der Webseite anzeigen"
+
+msgid "show time on website"
+msgstr "Zeiten auf der Webseite anzeigen"
+
+msgid "show contact email on website"
+msgstr "Kontaktadresse auf der Webseite anzeigen"
 
 msgid "group"
 msgstr "Gruppe"
@@ -895,9 +910,6 @@ msgstr "Aktion"
 
 msgid "Interventions"
 msgstr "Aktionen"
-
-msgid "Alternative email confirmed"
-msgstr "Alternative E-Mail Adresse bestätigt"
 
 msgid "street and house number"
 msgstr "Straße und Hausnummer"

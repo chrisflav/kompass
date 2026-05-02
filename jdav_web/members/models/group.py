@@ -89,6 +89,7 @@ class Group(models.Model):
 
     def has_registration_password(self):
         from .registration import RegistrationPassword
+
         return RegistrationPassword.objects.filter(group=self).exists()
 
     def get_age_info(self):
