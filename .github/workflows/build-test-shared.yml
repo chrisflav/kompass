@@ -94,11 +94,11 @@ jobs:
         run: |
           docker run --rm \
             --user $(id -u):$(id -g) \
-            -v ${{ github.workspace }}/jdav_web:/app/jdav_web \
+            -v ${{ github.workspace }}/jdav_web:/tmp/jdav_web \
             -v ${{ github.workspace }}/docker/test/config:/app/config:ro \
             -e KOMPASS_CONFIG_DIR_PATH=/app/config/ \
             kompass:test \
-            bash -c "cd /app/jdav_web && python3 manage.py makemessages --locale de --no-location --no-obsolete"
+            bash -c "cd /tmp/jdav_web && python3 manage.py makemessages --locale de --no-location --no-obsolete"
           git diff --exit-code
           FUZZY_COUNT=$(grep -r "^#, fuzzy" ${{ github.workspace }}/jdav_web --include="*.po" | wc -l)
           if [ "$FUZZY_COUNT" -gt 2 ]; then
