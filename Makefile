@@ -1,3 +1,19 @@
+# Check if 'uv' is being called with arguments
+ifeq (uv,$(firstword $(MAKECMDGOALS)))
+  UV_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  UV_CMD := $(firstword $(UV_ARGS))
+  UV_EXTRA_ARGS := $(wordlist 2,$(words $(UV_ARGS)),$(UV_ARGS))
+  $(eval $(UV_ARGS):;@:)
+endif
+
+uv:
+ifeq ($(UV_CMD),translate)
+	cd jdav_web && uv run python manage.py makemessages --locale de --no-location --no-obsolete
+else
+	@echo "Usage: make uv [translate]"
+	@echo "  make uv translate  - Generate translation files using uv"
+endif
+
 # Check if 'dev' is being called with arguments
 ifeq (dev,$(firstword $(MAKECMDGOALS)))
   DEV_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))

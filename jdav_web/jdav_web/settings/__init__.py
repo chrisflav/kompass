@@ -19,14 +19,16 @@ CONFIG_DIR_PATH = os.environ.get("KOMPASS_CONFIG_DIR_PATH", "")
 SETTINGS_FILE = os.environ.get("KOMPASS_SETTINGS_FILE", "settings.toml")
 TEXTS_FILE = os.environ.get("KOMPASS_TEXTS_FILE", "texts.toml")
 
-with open(os.path.join(CONFIG_DIR_PATH, SETTINGS_FILE), "rb") as f:
-    config = tomli.load(f)
 
-if os.path.exists(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE)):
-    with open(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE), "rb") as f:
-        texts = tomli.load(f)
-else:
-    texts = {}  # pragma: no cover
+def _load_toml(path):
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return tomli.load(f)
+    return {}
+
+
+config = _load_toml(os.path.join(CONFIG_DIR_PATH, SETTINGS_FILE))
+texts = _load_toml(os.path.join(CONFIG_DIR_PATH, TEXTS_FILE))
 
 
 def get_var(*keys, default="", dictionary=config):

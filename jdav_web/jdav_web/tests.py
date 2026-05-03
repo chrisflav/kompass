@@ -8,8 +8,14 @@ from django.test import RequestFactory
 from django.test import TestCase
 from startpage.models import Link
 
+from jdav_web.settings import _load_toml
 from jdav_web.views import custom_admin_view
 from jdav_web.views import media_unprotected
+
+
+class LoadTomlTestCase(TestCase):
+    def test_returns_empty_dict_for_missing_file(self):
+        self.assertEqual(_load_toml("/nonexistent/path/settings.toml"), {})
 
 
 class ViewsTestCase(TestCase):
