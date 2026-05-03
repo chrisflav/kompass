@@ -34,6 +34,12 @@ def media_access(request, path):
         return media_protected(request, path)
 
 
+_APP_DOCUMENTATION_URLS = {
+    "members": "user_manual/members.html",
+    "finance": "user_manual/finance.html",
+}
+
+
 def custom_admin_view(request):
     """
     this methods provides access to models in order to render a custom admin page index site.
@@ -44,8 +50,20 @@ def custom_admin_view(request):
         "site_header": admin.site.site_header,
         "site_title": admin.site.site_title,
         "external_links": Link.objects.all(),
+        "documentation_url": "user_manual/getstarted.html",
     }
     return render(request, "admin/index.html", context)
 
 
+_original_app_index = admin.site.__class__.app_index
+
+
+def custom_app_index(request, app_label):
+    extra_context = {}
+    if app_label in _APP_DOCUMENTATION_URLS:
+        extra_context["documentation_url"] = _APP_DOCUMENTATION_URLS[app_label]
+    return _original_app_index(admin.site, request, app_label, extra_context)
+
+
 admin.site.index = custom_admin_view
+admin.site.app_index = custom_app_index

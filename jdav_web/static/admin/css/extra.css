@@ -1,23 +1,36 @@
-#documentation-link, #documentation-link:visited, #documentation-link:hover {
-    position: fixed;
+#documentation-link, #documentation-link:visited {
+    position: absolute;
     top: 11px;
     right: 205px;
     z-index: 4;
     display: inline-block;
-    background-color: #cceae4;
-    color: #4f8580;
+    border: 1px solid #BADCD4;
     border-radius: 4px;
-    height: 32px;
-    line-height: 32px;
     font-size: 12px;
-    padding: 0 10px;
+    font-weight: bold;
+    line-height: 30px;
+    padding: 0 10px 0 14px;
     white-space: nowrap;
     text-decoration: none;
+    color: inherit;
 }
 
 #documentation-link:hover, #documentation-link:focus {
-    background-color: #7fb1dc;
-    color: #fff;
+    background-color: #4f8580;
+    border-color: transparent;
+    color: #eff6f5;
+}
+
+#documentation-link .icon-question {
+    color: #47bac1;
+    font-size: 14px;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+#documentation-link:hover .icon-question,
+#documentation-link:focus .icon-question {
+    color: #eff6f5;
 }
 
 span.statement-unsubmitted, span.statement-submitted, span.statement-confirmed {

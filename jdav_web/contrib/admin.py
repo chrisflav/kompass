@@ -285,6 +285,12 @@ class CommonAdminMixin(
             extra_context["documentation_url"] = self.documentation_url
         return super().changelist_view(request, extra_context)
 
+    def add_view(self, request, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if self.documentation_url:
+            extra_context["documentation_url"] = self.documentation_url
+        return super().add_view(request, form_url, extra_context)
+
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
         if self.documentation_url:
