@@ -1,3 +1,25 @@
+#documentation-link, #documentation-link:visited, #documentation-link:hover {
+    position: fixed;
+    top: 11px;
+    right: 205px;
+    z-index: 4;
+    display: inline-block;
+    background-color: #cceae4;
+    color: #4f8580;
+    border-radius: 4px;
+    height: 32px;
+    line-height: 32px;
+    font-size: 12px;
+    padding: 0 10px;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+#documentation-link:hover, #documentation-link:focus {
+    background-color: #7fb1dc;
+    color: #fff;
+}
+
 span.statement-unsubmitted, span.statement-submitted, span.statement-confirmed {
     color: black;
     padding: 4px;

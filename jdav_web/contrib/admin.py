@@ -31,6 +31,7 @@ class ExtraButton:
     dynamic_label: Callable = field(default=None)
     include_redirect: bool = False
     model: type = None  # Optional proxy model for fetching the object
+    documentation_url: str = None
 
     def __post_init__(self):
         if self.url_name is None:
@@ -183,6 +184,8 @@ class ExtraButtonsMixin:
                     )
                 )
 
+            if button.documentation_url:
+                request.documentation_url = button.documentation_url
             return view_method(request, obj)
 
         return wrapped_view

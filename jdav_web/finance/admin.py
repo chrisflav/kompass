@@ -54,7 +54,7 @@ class BillOnStatementInline(CommonAdminInlineMixin, admin.TabularInline):
 
 @admin.register(Statement)
 class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
-    documentation_url = "/static/docs/user_manual/finance.html"
+    documentation_url = "user_manual/finance.html"
     fields = ["short_description", "explanation", "excursion", "status"]
     list_display = ["__str__", "total_pretty", "created_by", "submitted_date", "status_badge"]
     list_filter = ["status"]
@@ -134,7 +134,11 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         else:
             return [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
 
-    @extra_button(_("Submit"), condition=lambda obj: not obj.submitted)
+    @extra_button(
+        _("Submit"),
+        condition=lambda obj: not obj.submitted,
+        documentation_url="user_manual/finance.html",
+    )
     def submit_view(self, request, statement):
         if statement.submitted:  # pragma: no cover
             logger.error(
@@ -187,6 +191,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         condition=lambda obj: obj.submitted and not obj.confirmed,
         permission="finance.process_statementsubmitted",
         model=StatementSubmitted,
+        documentation_url="user_manual/finance.html",
     )
     def overview_view(self, request, statement):
         if not statement.submitted:  # pragma: no cover
@@ -394,6 +399,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         _("Unconfirm"),
         condition=lambda obj: obj.confirmed,
         permission="finance.may_manage_confirmed_statements",
+        documentation_url="user_manual/finance.html",
     )
     def unconfirm_view(self, request, statement):
         if not statement.confirmed:  # pragma: no cover
