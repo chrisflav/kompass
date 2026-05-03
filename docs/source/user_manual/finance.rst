@@ -64,4 +64,4 @@ Nachdem eine Abrechnung eingereicht wurde, kannst du sie im Reiter Finanzen > Ab
 
 Jetzt erscheint die Abrechnung mit dem Status "Abgewickelt" in der Liste der Abrechnungen.
 
-.. _anlegen: https://jdav-hd.de/de/kompassfinance/statement/add/
+.. _anlegen: https://placeholder-domain.de/de/kompassfinance/statement/add/

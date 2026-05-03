@@ -72,7 +72,7 @@ Wie geht es weiter?
 Nun hat Fritz den Bürokratiekram für heute erledigt. Du willst noch mehr wissen? Dann
 geh zurück zur :ref:`user_manual/index`.
 
-.. _Startseite: https://jdav-hd.de/kompass
-.. _Teilnehmer\*innenanzeige: https://jdav-hd.de/kompassmembers/member/
-.. _Nachricht verfassen: https://jdav-hd.de/kompassmailer/message/add/
-.. _Ausfahrten: https://jdav-hd.de/kompassmembers/freizeit/
+.. _Startseite: https://placeholder-domain.de/kompass
+.. _Teilnehmer\*innenanzeige: https://placeholder-domain.de/kompassmembers/member/
+.. _Nachricht verfassen: https://placeholder-domain.de/kompassmailer/message/add/
+.. _Ausfahrten: https://placeholder-domain.de/kompassmembers/freizeit/

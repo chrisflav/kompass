@@ -70,7 +70,7 @@ html_theme_options = asdict(theme_options)
 # Read django.host (or django.base_url as fallback) from settings.toml and
 # replace hardcoded placeholder domains in all RST source files at build time.
 
-_PLACEHOLDER_DOMAIN = "jdav-hd.de"
+_PLACEHOLDER_DOMAIN = "placeholder-domain.de"
 
 
 def _get_kompass_host() -> str | None:
