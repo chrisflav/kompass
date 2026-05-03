@@ -60,6 +60,10 @@ django.gettext = window.gettext
         </div>
         {% block usertools %}
         {% if user.is_active and user.is_staff or has_permission %}
+        {% get_documentation_url as doc_url %}
+        {% if doc_url %}
+        <a id="documentation-link" href="{{ doc_url }}" target="_blank"><span class="icon-question"></span> {% trans 'Documentation' %}</a>
+        {% endif %}
         <div id="user-tools">
             {% block welcome-msg %}
                 {% trans 'Welcome,' %}

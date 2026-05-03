@@ -81,6 +81,19 @@ class CommonAdminMixinTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", password="testpass")
 
+    def _make_test_admin(self, documentation_url=None):
+        class TestModel:
+            _meta = Mock()
+            _meta.app_label = "test"
+
+        class TestAdmin(CommonAdminMixin, admin.ModelAdmin):
+            pass
+
+        if documentation_url is not None:
+            TestAdmin.documentation_url = documentation_url
+
+        return TestAdmin(TestModel, admin.site)
+
     def test_formfield_for_dbfield_with_formfield_overrides(self):
         """Test formfield_for_dbfield when db_field class is in formfield_overrides"""
 
@@ -107,6 +120,70 @@ class CommonAdminMixinTestCase(TestCase):
 
         # Verify that the formfield_overrides were used
         self.assertIsNotNone(result)
+
+    def test_changelist_view_injects_documentation_url(self):
+        admin_instance = self._make_test_admin(
+            documentation_url="/static/docs/user_manual/members.html"
+        )
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_changelist(self, request, extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "changelist_view", mock_changelist):
+            admin_instance.changelist_view(request)
+
+        self.assertEqual(captured["documentation_url"], "/static/docs/user_manual/members.html")
+
+    def test_changelist_view_no_documentation_url(self):
+        admin_instance = self._make_test_admin()
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_changelist(self, request, extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "changelist_view", mock_changelist):
+            admin_instance.changelist_view(request)
+
+        self.assertNotIn("documentation_url", captured)
+
+    def test_change_view_injects_documentation_url(self):
+        admin_instance = self._make_test_admin(
+            documentation_url="/static/docs/user_manual/finance.html"
+        )
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_change_view(self, request, object_id, form_url="", extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "change_view", mock_change_view):
+            admin_instance.change_view(request, "1")
+
+        self.assertEqual(captured["documentation_url"], "/static/docs/user_manual/finance.html")
+
+    def test_change_view_no_documentation_url(self):
+        admin_instance = self._make_test_admin()
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_change_view(self, request, object_id, form_url="", extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "change_view", mock_change_view):
+            admin_instance.change_view(request, "1")
+
+        self.assertNotIn("documentation_url", captured)
 
 
 class UtilsTestCase(TestCase):

@@ -31,6 +31,7 @@ class ExtraButton:
     dynamic_label: Callable = field(default=None)
     include_redirect: bool = False
     model: type = None  # Optional proxy model for fetching the object
+    documentation_url: str = None
 
     def __post_init__(self):
         if self.url_name is None:
@@ -183,6 +184,8 @@ class ExtraButtonsMixin:
                     )
                 )
 
+            if button.documentation_url:
+                request.documentation_url = button.documentation_url
             return view_method(request, obj)
 
         return wrapped_view
@@ -274,6 +277,26 @@ class FilteredQuerysetAdminMixin:
 class CommonAdminMixin(
     FieldPermissionsAdminMixin, ChangeViewAdminMixin, FilteredQuerysetAdminMixin
 ):
+    documentation_url = None
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        if self.documentation_url:
+            extra_context["documentation_url"] = self.documentation_url
+        return super().changelist_view(request, extra_context)
+
+    def add_view(self, request, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if self.documentation_url:
+            extra_context["documentation_url"] = self.documentation_url
+        return super().add_view(request, form_url, extra_context)
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if self.documentation_url:
+            extra_context["documentation_url"] = self.documentation_url
+        return super().change_view(request, object_id, form_url, extra_context)
+
     def has_add_permission(self, request, obj=None):
         assert obj is None
         opts = self.opts

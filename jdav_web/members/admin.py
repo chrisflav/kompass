@@ -322,6 +322,7 @@ class MemberAdminForm(forms.ModelForm):
 
 # Register your models here.
 class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    documentation_url = "user_manual/members.html"
     fieldsets = [
         (
             None,
@@ -757,6 +758,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         url_name="inviteasuser",
         permission="members.may_invite_as_user",
         dynamic_label=lambda m: _("Request password reset") if m.user else _("Invite as user"),
+        documentation_url="user_manual/members.html",
     )
     def invite_as_user_view(self, request, member):
         is_password_reset = bool(member.user)
@@ -908,6 +910,7 @@ class DemoteToWaiterForm(forms.Form):
 
 
 class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    documentation_url = "user_manual/waitinglist.html"
     extra_buttons_model = MemberUnconfirmedProxy
     fieldsets = [
         (
@@ -1074,7 +1077,11 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
 
     demote_to_waiter_action.short_description = _("Demote selected registrations to waiters.")
 
-    @extra_button(_("Demote to waiter"), url_name="demote")
+    @extra_button(
+        _("Demote to waiter"),
+        url_name="demote",
+        documentation_url="user_manual/waitinglist.html",
+    )
     def demote_to_waiter_view(self, request, member_or_queryset):
         if isinstance(member_or_queryset, MemberUnconfirmedProxy):
             queryset = [member_or_queryset]
@@ -1106,7 +1113,10 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
                 request, _("Successfully demoted %(name)s to waiter.") % {"name": member.name}
             )
 
-    @extra_button(_("Request registration form"))
+    @extra_button(
+        _("Request registration form"),
+        documentation_url="user_manual/waitinglist.html",
+    )
     def request_registration_form_view(self, request, member):
         if "apply" in request.POST:
             member.request_registration_form()
@@ -1197,6 +1207,7 @@ class InvitedToGroupFilter(admin.SimpleListFilter):
 
 
 class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
+    documentation_url = "user_manual/waitinglist.html"
     fields = [
         "prename",
         "lastname",
@@ -1319,7 +1330,11 @@ class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
     ask_for_registration_action.short_description = _("Offer waiter a place in a group.")
     ask_for_registration_action.allowed_permissions = ("action",)
 
-    @extra_button(_("Invite to group"), permission="members.change_global_memberwaitinglist")
+    @extra_button(
+        _("Invite to group"),
+        permission="members.change_global_memberwaitinglist",
+        documentation_url="user_manual/waitinglist.html",
+    )
     def invite_view(self, request, waiter_or_queryset):
         if isinstance(waiter_or_queryset, MemberWaitingList):
             waiter = waiter_or_queryset
@@ -1848,6 +1863,7 @@ class ParticipantFilter(admin.SimpleListFilter):
 
 
 class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedModelAdmin):
+    documentation_url = "user_manual/excursions.html"
     # inlines = [MemberOnListInline, LJPOnListInline, StatementOnListInline]
     form = FreizeitAdminForm
     list_display = ["__str__", "date", "place", "approved"]
@@ -2045,7 +2061,10 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
         )
 
     @extra_button(
-        _("Generate seminar report"), method="POST", permission=may_view_excursion.__func__
+        _("Generate seminar report"),
+        method="POST",
+        permission=may_view_excursion.__func__,
+        documentation_url="user_manual/excursions.html",
     )
     def seminar_report(self, request, memberlist):
         if not hasattr(memberlist, "ljpproposal"):
@@ -2082,7 +2101,10 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
         return render(request, "admin/generate_sjr_application.html", context=context)
 
     @extra_button(
-        _("Generate SJR application"), method="POST", permission=may_view_excursion.__func__
+        _("Generate SJR application"),
+        method="POST",
+        permission=may_view_excursion.__func__,
+        documentation_url="user_manual/excursions.html",
     )
     def sjr_application(self, request, memberlist):
         if hasattr(memberlist, "statement"):
@@ -2131,6 +2153,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
         _("Finance overview"),
         method="POST",
         condition=lambda obj: hasattr(obj, "statement"),
+        documentation_url="user_manual/excursions.html",
     )
     def finance_overview(self, request, memberlist):
         if not hasattr(memberlist, "statement"):
@@ -2304,6 +2327,7 @@ class MemberTrainingAdminForm(forms.ModelForm):
 
 
 class MemberTrainingAdmin(CommonAdminMixin, nested_admin.NestedModelAdmin):
+    documentation_url = "user_manual/training.html"
     form = MemberTrainingAdminForm
     list_display = [
         "title",
