@@ -1,0 +1,67 @@
+{% extends "admin/extra_view.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+{{ media }}
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+<form method="get" id="search-form">
+  <fieldset class="module aligned">
+    {% for field in form %}
+    <div class="form-row">
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+      {% for error in field.errors %}<p class="errornote">{{ error }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+  </fieldset>
+  <div class="submit-row">
+    <input type="submit" value="{% translate 'Search' %}" class="default">
+  </div>
+</form>
+
+{% if results is not None %}
+<h2>{% translate "Results" %} ({{ results|length }})</h2>
+{% if results %}
+<table id="result_list">
+  <thead>
+    <tr>
+      <th scope="col">{% translate "Name" %}</th>
+      <th scope="col">{% translate "Email" %}</th>
+      <th scope="col">{% translate "Trainings" %}</th>
+      <th scope="col">{% translate "Action" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for member in results %}
+    <tr>
+      <td>{{ member.name }}</td>
+      <td>{{ member.email }}</td>
+      <td>
+        {% for training in member.traininigs.all %}
+          {% if training.passed %}
+            {{ training.title }}{% if not forloop.last %}, {% endif %}
+          {% endif %}
+        {% endfor %}
+      </td>
+      <td>
+        <a href="{% url 'admin:members_member_contact_youth_leader' member.pk %}" class="button">
+          {% translate "Contact" %}
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>{% translate "No youth leaders found matching the selected filters." %}</p>
+{% endif %}
+{% endif %}
+
+</div>
+{% endblock %}

@@ -107,6 +107,25 @@ Hier kannst du Gruppen anlegen und ändern.
     </div>
 {% endif %}
 
+{% if perms.members.may_see_qualities %}
+<br>
+<div class="app-members module current-app">
+<h2>Jugendleitersuche</h2>
+<p>
+Hier kannst du Jugendleiter*innen nach Qualifikationen und Aktivitätsbereichen suchen und direkt kontaktieren.
+</p>
+<table>
+    <tr>
+        <th scope="row">
+            <a href="{% url 'admin:members_member_search_youth_leaders' %}">Jugendleiter*innen nach Qualifikation suchen</a>
+        </th>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+</div>
+{% endif %}
+
 {% if perms.members.change_membertraining %}
 <br>
 <div class="app-members module current-app">
