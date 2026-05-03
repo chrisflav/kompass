@@ -1,7 +1,15 @@
 {% extends "startpage/base_subsite.html" %}
+{% load i18n %}
 
 {% block content %}
 
-{% include "startpage/faq_content.html" %}
+{% if faq_entries %}
+  {% for entry in faq_entries %}
+    <h3>{{ entry.frage }}</h3>
+    <p>{{ entry.antwort }}</p>
+  {% endfor %}
+{% else %}
+  {% include "startpage/faq_content.html" %}
+{% endif %}
 
 {% endblock %}

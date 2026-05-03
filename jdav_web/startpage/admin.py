@@ -5,6 +5,7 @@ from django.db.models import TextField
 from django.forms import Textarea
 from django.utils.translation import gettext_lazy as _
 
+from .models import FAQ
 from .models import Image
 from .models import Link
 from .models import MemberOnPost
@@ -55,6 +56,12 @@ class SectionForm(forms.ModelForm):
 class SectionAdmin(admin.ModelAdmin):
     list_display = ["title", "absolute_urlname"]
     form = SectionForm
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ["frage"]
+    formfield_overrides = {TextField: {"widget": Textarea(attrs={"rows": 4, "cols": 60})}}
 
 
 @admin.register(Link)

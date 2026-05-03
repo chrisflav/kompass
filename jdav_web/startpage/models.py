@@ -120,6 +120,18 @@ class MemberOnPost(models.Model):
         verbose_name_plural = _("Persons")
 
 
+class FAQ(models.Model):
+    frage = models.CharField(verbose_name=_("Question"), max_length=255)
+    antwort = models.TextField(verbose_name=_("Answer"))
+
+    class Meta:
+        verbose_name = _("FAQ")
+        verbose_name_plural = _("FAQs")
+
+    def __str__(self):
+        return self.frage
+
+
 class Link(models.Model):
     """
     Link to external resources that should be shown on the internal startpage.
