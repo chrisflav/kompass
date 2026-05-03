@@ -373,6 +373,9 @@ msgstr ""
 "Der Gruppenname darf nur aus Buchstaben, Zahlen, _, -, :, * oder Leerzeichen "
 "bestehen."
 
+msgid "Timetable"
+msgstr "Stundenplan"
+
 msgid "You are not allowed to create a group overview."
 msgstr ""
 "Du hast nicht die notwendigen Rechte um eine Gruppenübersicht zu erstellen."
@@ -1644,6 +1647,15 @@ msgstr "Anzahl Personen:"
 msgid "thereof leaders:"
 msgstr "davon Leitung:"
 
+msgid "Group Timetable"
+msgstr "Gruppenstundenplan"
+
+msgid "Download as SVG"
+msgstr "Als SVG herunterladen"
+
+msgid "Back to groups"
+msgstr "Zurück zur Gruppenübersicht"
+
 #, python-format
 msgid "Do you want to ask %(member)s to upload their registration form?"
 msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
@@ -1960,6 +1972,9 @@ msgstr ""
 "Du hast die Einladung zur Schnupperstunde in der Gruppe %(groupname)s "
 "abgelehnt. Wenn ein Platz in einer anderen Gruppe frei wird, erhältst du "
 "eine neue Einladung.\n"
+
+msgid "No schedule information available."
+msgstr "Keine Informationen zum Stundenplan verfügbar."
 
 #, python-format
 msgid ""
