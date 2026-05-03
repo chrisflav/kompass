@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 16:44+0200\n"
+"POT-Creation-Date: 2026-05-03 20:59+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -88,6 +88,18 @@ msgstr "Person"
 
 msgid "Persons"
 msgstr "Personen"
+
+msgid "Question"
+msgstr "Frage"
+
+msgid "Answer"
+msgstr "Antwort"
+
+msgid "FAQ"
+msgstr "FAQ"
+
+msgid "FAQs"
+msgstr "FAQs"
 
 msgid "Link Icon"
 msgstr "Link Logo"
