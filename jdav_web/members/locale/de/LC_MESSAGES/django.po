@@ -39,6 +39,15 @@ msgstr ""
 "sind notwendig für die Krisenintervention auf Ausfahrten und bei "
 "Veranstaltungen."
 
+msgid ""
+"Upload additional documents (e.g., medical forms, parental consent for "
+"medication). These documents are stored centrally and accessible during "
+"emergencies."
+msgstr ""
+"Lade zusätzliche Dokumente hoch (z.B. medizinische Formulare, "
+"Einverständniserklärung für Medikamentengabe). Diese Dokumente werden "
+"zentral gespeichert und sind im Notfall abrufbar."
+
 msgid "Activity"
 msgstr "Aktivität"
 
