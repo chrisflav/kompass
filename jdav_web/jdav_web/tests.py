@@ -10,6 +10,7 @@ from startpage.models import Link
 
 from jdav_web.settings import _load_toml
 from jdav_web.views import custom_admin_view
+from jdav_web.views import custom_app_index
 from jdav_web.views import media_unprotected
 
 
@@ -54,6 +55,24 @@ class ViewsTestCase(TestCase):
             response["X-Accel-Redirect"], "/protected/folder/test%C3%A4%C3%B6%C3%BC.jpg"
         )
         self.assertNotIn("Content-Type", response)
+
+    def test_custom_app_index_with_documentation_url(self):
+        request = self.factory.get("/admin/members/")
+        request.user = self.user
+        with patch("jdav_web.views._original_app_index") as mock_app_index:
+            mock_app_index.return_value = Mock()
+            custom_app_index(request, "members")
+            args = mock_app_index.call_args[0]
+            self.assertIn("documentation_url", args[3])
+
+    def test_custom_app_index_without_documentation_url(self):
+        request = self.factory.get("/admin/auth/")
+        request.user = self.user
+        with patch("jdav_web.views._original_app_index") as mock_app_index:
+            mock_app_index.return_value = Mock()
+            custom_app_index(request, "auth")
+            args = mock_app_index.call_args[0]
+            self.assertNotIn("documentation_url", args[3])
 
     def test_custom_admin_view(self):
         request = self.factory.get("/admin/")
