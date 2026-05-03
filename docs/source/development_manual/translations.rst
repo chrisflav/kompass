@@ -34,12 +34,8 @@ To run the translation step directly without Docker, use:
 
     make uv translate
 
-This requires the project dependencies to be installed first:
-
-.. code-block:: bash
-
-    uv sync
-    make uv translate
+This requires the project dependencies to be installed first. See
+:ref:`development_manual/setup/uv` for details.
 
 After running either command, open the updated ``.po`` files and fill in the German translations
 for any newly added strings.
