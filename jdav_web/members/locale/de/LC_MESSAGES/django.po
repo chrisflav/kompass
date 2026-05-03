@@ -58,7 +58,8 @@ msgid "Activity categories"
 msgstr "Aktivitätskategorien"
 
 msgid "Filter by activity categories covered in trainings."
-msgstr "Nach Aktivitätskategorien filtern, die in Fortbildungen enthalten sind."
+msgstr ""
+"Nach Aktivitätskategorien filtern, die in Fortbildungen enthalten sind."
 
 msgid "Subject"
 msgstr "Betreff"
