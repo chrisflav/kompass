@@ -21,7 +21,7 @@ USER app
 ENV PATH="/app/.local/bin:$PATH"
 
 # install requirements
-COPY --chown=app:app ./requirements.txt /app/requirements.txt
-RUN pip install uwsgi -r requirements.txt
+COPY --chown=app:app ./pyproject.toml ./uv.lock /app/
+RUN pip install uv && uv export -o requirements.txt && pip install -r requirements.txt
 
 COPY --chown=app:app . /app

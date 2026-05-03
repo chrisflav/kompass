@@ -1,0 +1,39 @@
+name: Check translations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check-translations:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install gettext
+        run: sudo apt-get install -y gettext
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Check translations are up to date
+        env:
+          DJANGO_SETTINGS_MODULE: jdav_web.settings
+        run: make uv translate
+
+      - name: Verify no changes
+        run: git diff --exit-code
+
+      - name: Check for fuzzy entries
+        run: |
+          FAILED=0
+          while IFS=: read -r file count; do
+            if [ "$count" -gt 1 ]; then
+              echo "Error: $file has $count fuzzy entries (expected at most 1 for the header)"
+              FAILED=1
+            fi
+          done < <(grep -rc "^#, fuzzy" ${{ github.workspace }}/jdav_web --include="*.po")
+          if [ "$FAILED" -eq 1 ]; then exit 1; fi

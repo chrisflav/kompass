@@ -65,6 +65,38 @@ You will need to export these variables every time you open a new shell before r
 The Make targets handle this automatically, which is why they are the recommended approach.
 
 
+.. _development_manual/setup/uv:
+
+Alternative: Using uv without Docker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+
+   The recommended development setup is via Docker as described above. The Docker environment
+   includes a database and all required services. Using ``uv`` directly is only intended for
+   running individual parts of the project, such as management commands or the translation
+   workflow, without a full Docker environment.
+
+`uv <https://docs.astral.sh/uv/>`_ is used to manage Python dependencies. To install all
+project dependencies into a local virtual environment, run:
+
+.. code-block:: bash
+
+   uv sync
+
+After syncing, commands can be run with ``uv run``, for example:
+
+.. code-block:: bash
+
+   uv run python jdav_web/manage.py <command>
+
+Make targets prefixed with ``uv`` use this mechanism. For example:
+
+.. code-block:: bash
+
+   make uv translate
+
+
 Development
 -----------
 

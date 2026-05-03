@@ -1,0 +1,43 @@
+[project]
+name = "kompass"
+version = "2.0.1"
+description = "Administration platform for local sections of the Young German Alpine Club"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "auditlog3",
+    "bcrypt",
+    "celery",
+    "coverage",
+    "django==5.1.15",
+    "django-celery-beat",
+    "django-celery-email",
+    "django-jet-reboot",
+    "django-markdownify",
+    "django-markdownx",
+    "django-nested-admin",
+    "django-oauth-toolkit",
+    "django-split-settings",
+    "mozilla-django-oidc",
+    "mysqlclient",
+    "openpyxl",
+    "pymemcache",
+    "pypdf",
+    "redis",
+    "rules",
+    "schwifty",
+    "sphinx",
+    "sphinxawesome-theme",
+    "tomli",
+    "uwsgi",
+    "xlsxwriter",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint.isort]
+force-single-line = true
+case-sensitive = false
+order-by-type = false
+detect-same-package = false
