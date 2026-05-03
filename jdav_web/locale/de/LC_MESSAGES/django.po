@@ -301,7 +301,7 @@ msgid "Save and submit"
 msgstr "Speichern und einreichen"
 
 msgid "Timetable"
-msgstr ""
+msgstr "Stundenplan"
 
 msgid "Generate group overview"
 msgstr "Gruppenübersicht erstellen"

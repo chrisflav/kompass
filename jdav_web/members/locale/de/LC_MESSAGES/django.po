@@ -1966,10 +1966,8 @@ msgstr ""
 "abgelehnt. Wenn ein Platz in einer anderen Gruppe frei wird, erhältst du "
 "eine neue Einladung.\n"
 
-#, fuzzy
-#| msgid "no information available"
 msgid "No schedule information available."
-msgstr "keine Angabe"
+msgstr "Keine Informationen zum Stundenplan verfügbar."
 
 #, python-format
 msgid ""
