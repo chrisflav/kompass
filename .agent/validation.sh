@@ -11,5 +11,13 @@ fi
 # Run formatting
 pre-commit run --all-files
 
+# Check translation files are up to date
+make uv translate
+if ! [ -z "$(git diff --name-only)" ]; then
+  echo "'make uv translate' reported that translation files are not up to date."
+  git diff
+  exit 1
+fi
+
 # Run tests
 make test quiet=true
