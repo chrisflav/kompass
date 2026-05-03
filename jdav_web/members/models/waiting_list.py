@@ -171,7 +171,7 @@ class MemberWaitingList(Person):
                 invitation_reject_link=get_invitation_reject_link(invitation.key),
                 invitation_confirm_link=get_invitation_confirm_link(invitation.key),
             ),
-            cc=group.contact_email.email,
+            cc=group.contact_email.email if group.contact_email else None,
         )
 
     def unregister(self):
