@@ -26,38 +26,48 @@
 </form>
 
 {% if results is not None %}
-<h2>{% translate "Results" %} ({{ results|length }})</h2>
+<h2>{% blocktranslate with count=results|length %}Results ({{ count }}){% endblocktranslate %}</h2>
 {% if results %}
-<table id="result_list">
-  <thead>
-    <tr>
-      <th scope="col">{% translate "Name" %}</th>
-      <th scope="col">{% translate "Email" %}</th>
-      <th scope="col">{% translate "Trainings" %}</th>
-      <th scope="col">{% translate "Action" %}</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for member in results %}
-    <tr>
-      <td>{{ member.name }}</td>
-      <td>{{ member.email }}</td>
-      <td>
-        {% for training in member.traininigs.all %}
-          {% if training.passed %}
-            {{ training.title }}{% if not forloop.last %}, {% endif %}
-          {% endif %}
-        {% endfor %}
-      </td>
-      <td>
-        <a href="{% url 'admin:members_member_contact_youth_leader' member.pk %}" class="button">
-          {% translate "Contact" %}
-        </a>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div id="changelist">
+  <div class="changelist-form-container">
+    <div class="results">
+      <table id="result_list">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Name" %}</th>
+            <th scope="col">{% translate "Groups" %}</th>
+            <th scope="col">{% translate "Trainings" %}</th>
+            <th scope="col">{% translate "Action" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for member in results %}
+          <tr>
+            <td>{{ member.name }}</td>
+            <td>
+              {% for group in member.leited_groups.all %}
+                {{ group.name }}{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              {% for training in member.traininigs.all %}
+                {% if training.passed %}
+                  {{ training.title }}{% if not forloop.last %}, {% endif %}
+                {% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              <a href="{% url 'admin:members_member_contact_youth_leader' member.pk %}?{{ request.GET.urlencode }}" class="button">
+                {% translate "Contact" %}
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% else %}
 <p>{% translate "No youth leaders found matching the selected filters." %}</p>
 {% endif %}

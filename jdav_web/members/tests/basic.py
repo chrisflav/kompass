@@ -1424,24 +1424,21 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertContains(response, _("Search youth leaders by qualification"))
 
     def test_search_youth_leaders_view_with_filters(self):
-        """Search with training/activity filters returns matching youth leaders."""
-        # Create a youth leader (member who leads a group)
-        leader = Member.objects.create(
+        """Search with training/activity filters returns all matching members."""
+        member = Member.objects.create(
             prename="Greta",
             lastname="Leader",
             birth_date=timezone.now().date(),
             email=settings.TEST_MAIL,
             gender=FEMALE,
         )
-        leader_group = Group.objects.get(name="Jugendleiter")
-        leader_group.leiters.add(leader)
 
         cat = TrainingCategory.objects.create(name="Grundausbildung", permission_needed=False)
         act = ActivityCategory.objects.create(
             name="Klettern", ljp_category="Klettern", description=""
         )
         training = MemberTraining.objects.create(
-            member=leader,
+            member=member,
             title="Test Training",
             category=cat,
             passed=True,

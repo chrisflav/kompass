@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 22:04+0200\n"
+"POT-Creation-Date: 2026-05-04 00:10+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -307,12 +307,16 @@ msgid ""
 "and receive a copy.\n"
 "  "
 msgstr ""
+"\n"
+"  Sende eine Nachricht an <strong>%(name)s</strong>. Du wirst als Antwort-"
+"Adresse eingetragen und erhältst eine Kopie.\n"
+"  "
 
 msgid "Send"
-msgstr ""
+msgstr "Senden"
 
 msgid "Cancel"
-msgstr ""
+msgstr "Abbrechen"
 
 msgid "Generate group overview"
 msgstr "Gruppenübersicht erstellen"
@@ -323,30 +327,27 @@ msgstr "Gruppencheckliste erstellen"
 msgid "Invite to group"
 msgstr "Zu Gruppe einladen"
 
-msgid "Results"
-msgstr ""
+#, python-format
+msgid "Results (%(count)s)"
+msgstr "Ergebnisse (%(count)s)"
 
 msgid "Name"
-msgstr ""
+msgstr "Name"
 
-msgid "Email"
-msgstr ""
+msgid "Groups"
+msgstr "Gruppen"
 
 msgid "Trainings"
-msgstr ""
+msgstr "Fortbildungen"
 
-#, fuzzy
-#| msgid "Applications"
 msgid "Action"
-msgstr "Anwendungen"
+msgstr "Aktion"
 
-#, fuzzy
-#| msgid "contact us."
 msgid "Contact"
-msgstr "kontaktiere uns."
+msgstr "Kontaktieren"
 
 msgid "No youth leaders found matching the selected filters."
-msgstr ""
+msgstr "Keine Personen mit den gewählten Qualifikationen gefunden."
 
 #, python-format
 msgid "Add another %(verbose_name)s"

@@ -201,7 +201,7 @@ class ContactYouthLeaderForm(forms.Form):
         label=_("Subject"),
     )
     content = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 10}),
+        widget=forms.Textarea(attrs={"rows": 10, "class": "vLargeTextField"}),
         label=_("Message"),
     )
 
@@ -904,7 +904,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             training_categories = form.cleaned_data.get("training_categories")
             activity_categories = form.cleaned_data.get("activity_categories")
 
-            qs = Member.objects.filter(leited_groups__isnull=False).distinct()
+            qs = Member.objects.all()
 
             if training_categories:
                 qs = qs.filter(
@@ -958,14 +958,37 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         )
         sender_email = sender_member.email if sender_member else request.user.email
 
+        training_category_ids = request.GET.getlist("training_categories")
+        activity_category_ids = request.GET.getlist("activity_categories")
+        qualifications = list(
+            TrainingCategory.objects.filter(pk__in=training_category_ids).values_list(
+                "name", flat=True
+            )
+        ) + list(
+            ActivityCategory.objects.filter(pk__in=activity_category_ids).values_list(
+                "name", flat=True
+            )
+        )
+
         default_subject = _("Inquiry: youth leader with relevant qualifications")
-        default_content = _(
-            "Hello {name},\n\n"
-            "I am looking for a youth leader with suitable qualifications for an upcoming activity "
-            "and came across your profile.\n\n"
-            "Could you please let me know if you would be available and interested?\n\n"
-            "Best regards,\n{sender}"
-        ).format(name=member.prename, sender=sender_name)
+        if qualifications:
+            default_content = _(
+                "Hello {name},\n\n"
+                "I am looking for a youth leader with the following qualifications for an "
+                "upcoming activity and came across your profile: {qualifications}.\n\n"
+                "Could you please let me know if you would be available and interested?\n\n"
+                "Best regards,\n{sender}"
+            ).format(
+                name=member.prename, sender=sender_name, qualifications=", ".join(qualifications)
+            )
+        else:
+            default_content = _(
+                "Hello {name},\n\n"
+                "I am looking for a youth leader with suitable qualifications for an upcoming activity "
+                "and came across your profile.\n\n"
+                "Could you please let me know if you would be available and interested?\n\n"
+                "Best regards,\n{sender}"
+            ).format(name=member.prename, sender=sender_name)
 
         if request.method == "POST":
             form = ContactYouthLeaderForm(request.POST)
