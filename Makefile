@@ -57,9 +57,9 @@ endif
 
 build-test:
 ifeq ($(quiet), true)
-	@cd docker/test; docker compose build > /dev/null 2>&1
+	@cd docker/test; DOCKER_CONFIG=$${DOCKER_CONFIG:-/tmp/docker-config} docker compose build > /dev/null 2>&1
 else
-	cd docker/test; docker compose build
+	cd docker/test; DOCKER_CONFIG=$${DOCKER_CONFIG:-/tmp/docker-config} docker compose build
 endif
 
 test-only:

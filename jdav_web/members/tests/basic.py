@@ -1407,6 +1407,52 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertIn("members/member/", response.request["PATH_INFO"])
 
+    def test_changelist_with_valid_group_filter(self):
+        c = self._login("superuser")
+        cool_kids = Group.objects.get(name="cool kids")
+        url = reverse("admin:members_member_changelist") + f"?group__id__exact={cool_kids.pk}"
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(response.context["current_group"], cool_kids)
+        # name_text_or_link should include preserved filters in links
+        for result in response.context["results"]:
+            if "href" in result[1]:
+                self.assertIn("_changelist_filters", result[1])
+
+    def test_changelist_with_invalid_group_filter(self):
+        c = self._login("superuser")
+        url = reverse("admin:members_member_changelist") + "?group__id__exact=999999"
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertNotIn("current_group", response.context)
+
+    def test_change_view_with_valid_changelist_filters(self):
+        from urllib.parse import quote
+
+        c = self._login("superuser")
+        cool_kids = Group.objects.get(name="cool kids")
+        filters = quote(f"group__id__exact={cool_kids.pk}")
+        url = (
+            reverse("admin:members_member_change", args=(self.fritz.pk,))
+            + f"?_changelist_filters={filters}"
+        )
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(response.context["current_group"], cool_kids)
+
+    def test_change_view_with_invalid_changelist_filters(self):
+        from urllib.parse import quote
+
+        c = self._login("superuser")
+        filters = quote("group__id__exact=999999")
+        url = (
+            reverse("admin:members_member_change", args=(self.fritz.pk,))
+            + f"?_changelist_filters={filters}"
+        )
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertNotIn("current_group", response.context)
+
 
 class FreizeitTestCase(BasicMemberTestCase):
     def setUp(self):
