@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 16:36+0200\n"
+"POT-Creation-Date: 2026-05-03 19:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1651,6 +1651,13 @@ msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
 #, python-format
 msgid "Warning: %(member)s has already uploaded a registration form."
 msgstr "Warnung: %(member)s hat bereits ein Anmeldeformular hochgeladen."
+
+msgid "Home"
+msgstr "Start"
+
+#, python-format
+msgid "Add %(name)s"
+msgstr "%(name)s hinzufügen"
 
 msgid "Participations:"
 msgstr "Ausfahrtteilnahmen:"
