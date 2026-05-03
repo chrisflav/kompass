@@ -32,7 +32,7 @@ so it should be clear and concise.
 Title format
 ^^^^^^^^^^^^
 
-Pull request titles must follow the conventional commit format:
+Pull request titles must follow the `conventional commit <https://www.conventionalcommits.org/>`_ format:
 
 - ``feat(scope): short description`` - New features
 - ``fix(scope): short description`` - Bug fixes

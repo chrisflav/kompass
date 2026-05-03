@@ -99,6 +99,8 @@
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="authentication.html">Authentication</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="translations.html">Translations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ci.html">Continuous Integration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="deployment.html">Production Deployment</a></li>
 </ul>
 </li>
@@ -173,6 +175,29 @@ changes in the source.</p>
 </div>
 <p>You will need to export these variables every time you open a new shell before running <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> commands.
 The Make targets handle this automatically, which is why they are the recommended approach.</p>
+</section>
+<section id="alternative-using-uv-without-docker">
+<span id="development-manual-setup-uv"></span><h3>Alternative: Using uv without Docker<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#alternative-using-uv-without-docker" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#alternative-using-uv-without-docker'">¶</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Bemerkung</p>
+<p>The recommended development setup is via Docker as described above. The Docker environment
+includes a database and all required services. Using <code class="docutils literal notranslate"><span class="pre">uv</span></code> directly is only intended for
+running individual parts of the project, such as management commands or the translation
+workflow, without a full Docker environment.</p>
+</div>
+<p><a class="reference external" href="https://docs.astral.sh/uv/">uv</a> is used to manage Python dependencies. To install all
+project dependencies into a local virtual environment, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">uv<span class="w"> </span>sync
+</span></code></pre></div>
+</div>
+<p>After syncing, commands can be run with <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span></code>, for example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>jdav_web/manage.py<span class="w"> </span>&lt;command&gt;
+</span></code></pre></div>
+</div>
+<p>Make targets prefixed with <code class="docutils literal notranslate"><span class="pre">uv</span></code> use this mechanism. For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>uv<span class="w"> </span>translate
+</span></code></pre></div>
+</div>
 </section>
 </section>
 <section id="development">
@@ -287,6 +312,7 @@ you will encounter the following error message after running <code class="docuti
 <ul>
 <li><a :data-current="activeSection === '#initial-installation'" class="reference internal" href="#initial-installation">Initial installation</a><ul>
 <li><a :data-current="activeSection === '#alternative-using-docker-compose-directly'" class="reference internal" href="#alternative-using-docker-compose-directly">Alternative: Using docker compose directly</a></li>
+<li><a :data-current="activeSection === '#alternative-using-uv-without-docker'" class="reference internal" href="#alternative-using-uv-without-docker">Alternative: Using uv without Docker</a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#development'" class="reference internal" href="#development">Development</a><ul>

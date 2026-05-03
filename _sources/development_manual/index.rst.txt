@@ -14,6 +14,8 @@ This part of the documentation describes the development and maintenance of the 
    architecture
    authentication
    testing
+   translations
+   ci
    deployment
 
 Getting started
