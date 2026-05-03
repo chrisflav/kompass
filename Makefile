@@ -45,7 +45,7 @@ else ifeq ($(DEV_CMD),docs)
 	@echo ""
 	@echo "Generated documentation. To read it, point your browser to:"
 	@echo ""
-	@echo "file://$$(pwd)/docs/build/html/index.html"
+	@echo "http://localhost:8000/static/docs/"
 else ifeq ($(DEV_CMD),test)
 ifneq ($(keepdb),false)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && coverage run manage.py test --keepdb $(DEV_EXTRA_ARGS); coverage html"
