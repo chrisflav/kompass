@@ -121,15 +121,19 @@ class MemberOnPost(models.Model):
 
 
 class FAQ(models.Model):
-    frage = models.CharField(verbose_name=_("Question"), max_length=255)
-    antwort = models.TextField(verbose_name=_("Answer"))
+    """
+    A frequently asked question with its answer, shown on the Gruppen FAQ page.
+    """
+
+    question = models.CharField(verbose_name=_("Question"), max_length=255)
+    answer = models.TextField(verbose_name=_("Answer"))
 
     class Meta:
         verbose_name = _("FAQ")
         verbose_name_plural = _("FAQs")
 
     def __str__(self):
-        return self.frage
+        return self.question
 
 
 class Link(models.Model):

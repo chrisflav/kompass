@@ -60,7 +60,7 @@ class SectionAdmin(admin.ModelAdmin):
 
 @admin.register(FAQ)
 class FAQAdmin(admin.ModelAdmin):
-    list_display = ["frage"]
+    list_display = ["question"]
     formfield_overrides = {TextField: {"widget": Textarea(attrs={"rows": 4, "cols": 60})}}
 
 

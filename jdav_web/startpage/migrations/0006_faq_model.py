@@ -19,8 +19,8 @@ class Migration(migrations.Migration):
                         auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
                     ),
                 ),
-                ("frage", models.CharField(max_length=255, verbose_name="Question")),
-                ("antwort", models.TextField(verbose_name="Answer")),
+                ("question", models.CharField(max_length=255, verbose_name="Question")),
+                ("answer", models.TextField(verbose_name="Answer")),
             ],
             options={
                 "verbose_name": "FAQ",

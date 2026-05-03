@@ -145,7 +145,7 @@ class ModelsTestCase(BasicTestCase):
         self.assertEqual(str(self.test_link), "Test Link")
 
     def test_faq_str(self):
-        faq = FAQ.objects.create(frage="Was kostet die Halbjahreskarte?", antwort="30 Euro.")
+        faq = FAQ.objects.create(question="Was kostet die Halbjahreskarte?", answer="30 Euro.")
         self.assertEqual(str(faq), "Was kostet die Halbjahreskarte?")
 
     def test_section_absolute_urlname_no_reverse_match(self):
@@ -271,7 +271,7 @@ class ViewTestCase(BasicTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_faq_view_with_entries(self):
-        FAQ.objects.create(frage="Wie alt müssen Kinder sein?", antwort="Ab 5 Jahren.")
+        FAQ.objects.create(question="Wie alt müssen Kinder sein?", answer="Ab 5 Jahren.")
         c = Client()
         url = reverse("startpage:faq")
         response = c.get(url)

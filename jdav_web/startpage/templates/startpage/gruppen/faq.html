@@ -5,8 +5,8 @@
 
 {% if faq_entries %}
   {% for entry in faq_entries %}
-    <h3>{{ entry.frage }}</h3>
-    <p>{{ entry.antwort }}</p>
+    <h3>{{ entry.question }}</h3>
+    <p>{{ entry.answer }}</p>
   {% endfor %}
 {% else %}
   {% include "startpage/faq_content.html" %}
