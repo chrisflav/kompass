@@ -70,3 +70,7 @@ Continuous integration
 
 The test suite is run by continuous integration on every pull request and every commit on ``main``. If
 a test fails or the coverage report detects an uncovered line, the job will fail.
+
+.. seealso::
+
+   :ref:`Continuous Integration <development_manual/ci>`

@@ -21,17 +21,17 @@
 <meta content="#ffffff" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="#030711" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Nutzer Dokumentation | Kompass 2.0 Dokumentation</title>
-<meta content="Nutzer Dokumentation | Kompass 2.0 Dokumentation" property="og:title"/>
-<meta content="Nutzer Dokumentation | Kompass 2.0 Dokumentation" name="twitter:title"/>
+<title>Translations | Kompass 2.0 Dokumentation</title>
+<meta content="Translations | Kompass 2.0 Dokumentation" property="og:title"/>
+<meta content="Translations | Kompass 2.0 Dokumentation" name="twitter:title"/>
 <link href="../_static/pygments.css?v=9588741d" rel="stylesheet" type="text/css"/>
 <link href="../_static/pygments_dark.css" id="pygments_dark_css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css"/>
 <link href="../_static/theme.css?v=979577e3" rel="stylesheet" type="text/css"/>
 <link href="../_static/favicon.svg" rel="icon"/>
 <link href="../search.html" rel="search" title="Suche"/>
 <link href="../genindex.html" rel="index" title="Stichwortverzeichnis"/>
-<link href="getstarted.html" rel="next" title="Erste Schritte"/>
-<link href="../index.html" rel="prev" title="jdav Kompass"/>
+<link href="ci.html" rel="next" title="Continuous Integration"/>
+<link href="testing.html" rel="prev" title="Testing"/>
 </head>
 <body :class="{ 'overflow-hidden': showSidebar }" @scroll.window="showScrollTop = pageYOffset &gt; 100" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false, showScrollTop: false }">
 <div @click.self="showSidebar = false" class="fixed inset-0 z-50 overflow-hidden bg-background/80 backdrop-blur-sm md:hidden" x-cloak="" x-show="showSidebar"></div><div class="relative flex flex-col min-h-screen" id="page"><a class="absolute top-0 left-0 z-[100] block bg-background p-4 text-xl transition -translate-x-full opacity-0 focus:translate-x-0 focus:opacity-100" href="#content">
@@ -80,28 +80,28 @@
 <a href="../index.html">Docs</a>
 <a href="../about.html">About</a>
 </nav><nav class="table w-full min-w-full my-6 lg:my-8">
-<ul class="current">
-<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="current reference internal expandable" href="#">Nutzer Dokumentation<button @click.prevent.stop="expanded = !expanded" type="button" x-cloak=""><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-cloak="" x-show="expanded">
-<li class="toctree-l2"><a class="reference internal" href="getstarted.html">Erste Schritte</a></li>
-<li class="toctree-l2"><a class="reference internal" href="members.html">Teilnehmer*innenverwaltung</a></li>
-<li class="toctree-l2"><a class="reference internal" href="myprofile.html">Mein Profil</a></li>
-<li class="toctree-l2"><a class="reference internal" href="excursions.html">Ausfahrten</a></li>
-<li class="toctree-l2"><a class="reference internal" href="waitinglist.html">Warteliste und neue Mitglieder</a></li>
-<li class="toctree-l2"><a class="reference internal" href="finance.html">Finanzen</a></li>
-<li class="toctree-l2"><a class="reference internal" href="training.html">Fortbildungen</a></li>
+<ul>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../user_manual/index.html">Nutzer Dokumentation<button @click.prevent.stop="expanded = !expanded" type="button" x-cloak=""><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-cloak="" x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../user_manual/getstarted.html">Erste Schritte</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_manual/members.html">Teilnehmer*innenverwaltung</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_manual/myprofile.html">Mein Profil</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_manual/excursions.html">Ausfahrten</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_manual/waitinglist.html">Warteliste und neue Mitglieder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_manual/finance.html">Finanzen</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_manual/training.html">Fortbildungen</a></li>
 </ul>
 </li>
 </ul>
-<ul>
-<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../development_manual/index.html">Development Documentation<button @click.prevent.stop="expanded = !expanded" type="button" x-cloak=""><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-cloak="" x-show="expanded">
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/contributing.html">Contributing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/setup.html">Development Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/architecture.html">Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/authentication.html">Authentication</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/testing.html">Testing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/translations.html">Translations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/ci.html">Continuous Integration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../development_manual/deployment.html">Production Deployment</a></li>
+<ul class="current">
+<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="index.html">Development Documentation<button @click.prevent.stop="expanded = !expanded" type="button" x-cloak=""><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setup.html">Development Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="authentication.html">Authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing.html">Testing</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Translations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ci.html">Continuous Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="deployment.html">Production Deployment</a></li>
 </ul>
 </li>
 </ul>
@@ -123,67 +123,65 @@
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
 </a>
-<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Nutzer Dokumentation</span>
+<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="index.html">Development Documentation</a>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Translations</span>
 </nav>
 <div id="content" role="main">
-<section id="nutzer-dokumentation">
-<span id="user-manual-index"></span><h1>Nutzer Dokumentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#nutzer-dokumentation">¶</a></h1>
-<p>Der Kompass ist dein Kompass in der Jugendarbeit in deiner JDAV Sektion. Wenn du das
-erste mal hier bist, schau doch mal <a class="reference internal" href="getstarted.html#user-manual-getstarted"><span class="std std-ref">Erste Schritte</span></a> an.</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="getstarted.html">Erste Schritte</a></li>
-<li class="toctree-l1"><a class="reference internal" href="members.html">Teilnehmer*innenverwaltung</a></li>
-<li class="toctree-l1"><a class="reference internal" href="myprofile.html">Mein Profil</a></li>
-<li class="toctree-l1"><a class="reference internal" href="excursions.html">Ausfahrten</a></li>
-<li class="toctree-l1"><a class="reference internal" href="waitinglist.html">Warteliste und neue Mitglieder</a></li>
-<li class="toctree-l1"><a class="reference internal" href="finance.html">Finanzen</a></li>
-<li class="toctree-l1"><a class="reference internal" href="training.html">Fortbildungen</a></li>
-</ul>
+<section id="translations">
+<span id="development-manual-translations"></span><h1>Translations<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#translations">¶</a></h1>
+<p>All text in the source code must be written in English and come with a German translation using
+<a class="reference external" href="https://docs.djangoproject.com/en/stable/topics/i18n/translation/">Django’s translation system</a>.
+This means every user-visible string must be wrapped in a translation function such as
+<code class="docutils literal notranslate"><span class="pre">_("...")</span></code> or <code class="docutils literal notranslate"><span class="pre">gettext("...")</span></code>, and a corresponding German translation must be provided in the
+<code class="docutils literal notranslate"><span class="pre">.po</span></code> files under <code class="docutils literal notranslate"><span class="pre">locale/de/</span></code>.</p>
+<section id="generating-translation-files">
+<h2>Generating translation files<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#generating-translation-files" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#generating-translation-files'">¶</a></h2>
+<p>After adding or changing translatable strings, the translation files need to be regenerated.
+There are two ways to do this depending on your development setup.</p>
+<section id="using-the-development-docker-environment">
+<h3>Using the development Docker environment<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#using-the-development-docker-environment" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#using-the-development-docker-environment'">¶</a></h3>
+<p>If the development Docker environment is running, use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>dev<span class="w"> </span>translate
+</span></code></pre></div>
 </div>
-<section id="was-ist-der-kompass">
-<h2>Was ist der Kompass?<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#was-ist-der-kompass" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#was-ist-der-kompass'">¶</a></h2>
-<p>Der Kompass ist eine Verwaltungsplattform für die tägliche Jugendarbeit in der JDAV.
-Die wichtigsten Funktionen sind</p>
-<ul class="simple">
-<li><p>Verwaltung von Teilnehmer*innen von Jugendgruppen</p></li>
-<li><p>Organisation von Ausfahrten</p></li>
-<li><p>Abwicklung von Abrechnungen</p></li>
-<li><p>Senden von E-Mails</p></li>
-</ul>
-<p>Neben diesen Funktionen für die tägliche Arbeit, automatisiert der Kompass die
-Aufnahme von neuen Mitgliedern und die Pflege der Daten durch</p>
-<ul class="simple">
-<li><p>Wartelistenverwaltung</p></li>
-<li><p>Registrierung neuer Mitglieder</p></li>
-<li><p>Rückmeldeverfahren</p></li>
-</ul>
 </section>
-<section id="feedback">
-<h2>Feedback<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#feedback" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#feedback'">¶</a></h2>
-<p>Wenn Du Feedback hast, schreibe uns gerne eine E-Mail an: <a class="reference external" href="mailto:digitales%40jdav-hd.de?subject=KompassFeedback">digitales<span>@</span>jdav-hd<span>.</span>de</a>.
-Der Kompass lebt davon, dass er genau unsere Probleme löst und nicht nur ein weiteres Tool ist.</p>
-<p>Feedback könnte sein:</p>
-<ul class="simple">
-<li><p>Fehler in der Software (bug)</p></li>
-<li><p>Verbesserungsvorschläge</p></li>
-<li><p>Wünsche für neue Funktionen</p></li>
-<li><p>etc. pp.</p></li>
-</ul>
+<section id="using-uv">
+<h3>Using uv<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#using-uv" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#using-uv'">¶</a></h3>
+<p>To run the translation step directly without Docker, use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">make<span class="w"> </span>uv<span class="w"> </span>translate
+</span></code></pre></div>
+</div>
+<p>This requires the project dependencies to be installed first:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">uv<span class="w"> </span>sync
+</span><span id="line-2">make<span class="w"> </span>uv<span class="w"> </span>translate
+</span></code></pre></div>
+</div>
+<p>After running either command, open the updated <code class="docutils literal notranslate"><span class="pre">.po</span></code> files and fill in the German translations
+for any newly added strings.</p>
+</section>
+</section>
+<section id="fuzzy-markers">
+<h2>Fuzzy markers<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#fuzzy-markers" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#fuzzy-markers'">¶</a></h2>
+<p>Django’s <code class="docutils literal notranslate"><span class="pre">makemessages</span></code> command may mark some strings as <em>fuzzy</em> when it detects that an
+existing translation is close but not exact. Fuzzy translations are not used at runtime and
+must not remain in the committed <code class="docutils literal notranslate"><span class="pre">.po</span></code> files. Remove the <code class="docutils literal notranslate"><span class="pre">#,</span> <span class="pre">fuzzy</span></code> marker and verify the
+translation is correct before committing.</p>
+<p>Continuous integration enforces that no fuzzy markers are present. See
+<a class="reference internal" href="ci.html#development-manual-ci"><span class="std std-ref">Continuous Integration</span></a> for details.</p>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../index.html">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="testing.html">
 <svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="15 18 9 12 15 6"></polyline>
 </svg>
-        jdav Kompass
+        Testing
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="getstarted.html">
-        Erste Schritte
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="ci.html">
+        Continuous Integration
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
@@ -192,8 +190,12 @@ Der Kompass lebt davon, dass er genau unsere Probleme löst und nicht nur ein we
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] h-full overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#was-ist-der-kompass'" class="reference internal" href="#was-ist-der-kompass">Was ist der Kompass?</a></li>
-<li><a :data-current="activeSection === '#feedback'" class="reference internal" href="#feedback">Feedback</a></li>
+<li><a :data-current="activeSection === '#generating-translation-files'" class="reference internal" href="#generating-translation-files">Generating translation files</a><ul>
+<li><a :data-current="activeSection === '#using-the-development-docker-environment'" class="reference internal" href="#using-the-development-docker-environment">Using the development Docker environment</a></li>
+<li><a :data-current="activeSection === '#using-uv'" class="reference internal" href="#using-uv">Using uv</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#fuzzy-markers'" class="reference internal" href="#fuzzy-markers">Fuzzy markers</a></li>
 </ul>
 </div>
 </aside>

@@ -30,7 +30,7 @@
 <link href="../_static/favicon.svg" rel="icon"/>
 <link href="../search.html" rel="search" title="Suche"/>
 <link href="../genindex.html" rel="index" title="Stichwortverzeichnis"/>
-<link href="deployment.html" rel="next" title="Production Deployment"/>
+<link href="translations.html" rel="next" title="Translations"/>
 <link href="authentication.html" rel="prev" title="Authentication"/>
 </head>
 <body :class="{ 'overflow-hidden': showSidebar }" @scroll.window="showScrollTop = pageYOffset &gt; 100" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false, showScrollTop: false }">
@@ -99,6 +99,8 @@
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="authentication.html">Authentication</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="translations.html">Translations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ci.html">Continuous Integration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="deployment.html">Production Deployment</a></li>
 </ul>
 </li>
@@ -181,6 +183,10 @@ Keep in mind that when running only a few tests, the coverage report only contai
 <h2>Continuous integration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#continuous-integration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#continuous-integration'">¶</a></h2>
 <p>The test suite is run by continuous integration on every pull request and every commit on <code class="docutils literal notranslate"><span class="pre">main</span></code>. If
 a test fails or the coverage report detects an uncovered line, the job will fail.</p>
+<div class="admonition seealso">
+<p class="admonition-title">Siehe auch</p>
+<p><a class="reference internal" href="ci.html#development-manual-ci"><span class="std std-ref">Continuous Integration</span></a></p>
+</div>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
@@ -193,8 +199,8 @@ a test fails or the coverage report detects an uncovered line, the job will fail
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="deployment.html">
-        Production Deployment
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="translations.html">
+        Translations
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
