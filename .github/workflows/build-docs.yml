@@ -1,7 +1,7 @@
 name: Build documentation
 
 on:
-  pull_request:
+  pull_request_target:
   push:
     branches: [main]
 
@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -29,11 +31,11 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs-output
-          destination_dir: ${{ github.event_name == 'pull_request' && github.head_ref || '.' }}
+          destination_dir: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.ref || '.' }}
           keep_files: true
 
       - name: Comment documentation link
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           number: ${{ github.event.pull_request.number }}
@@ -41,4 +43,4 @@ jobs:
           message: |
             📚 **Documentation deployed!**
 
-            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref }}/
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.event.pull_request.head.ref }}/
