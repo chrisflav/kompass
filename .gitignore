@@ -136,3 +136,6 @@ jdav_web/static/docs
 
 # Claude configuration file
 CLAUDE.md
+
+# orchestra initialization marker
+.agent/.initialized
