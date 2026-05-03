@@ -120,6 +120,22 @@ class MemberOnPost(models.Model):
         verbose_name_plural = _("Persons")
 
 
+class FAQ(models.Model):
+    """
+    A frequently asked question with its answer, shown on the Gruppen FAQ page.
+    """
+
+    question = models.CharField(verbose_name=_("Question"), max_length=255)
+    answer = models.TextField(verbose_name=_("Answer"))
+
+    class Meta:
+        verbose_name = _("FAQ")
+        verbose_name_plural = _("FAQs")
+
+    def __str__(self):
+        return self.question
+
+
 class Link(models.Model):
     """
     Link to external resources that should be shown on the internal startpage.
