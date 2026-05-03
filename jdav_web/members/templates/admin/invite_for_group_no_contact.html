@@ -18,10 +18,8 @@
     <input type="hidden" name="_selected_action" value="{{ id }}">
     {% endfor %}
     <p>
-    <label for="no_contact_confirmed">
-        <input type="checkbox" name="no_contact_confirmed" id="no_contact_confirmed">
-        {% translate "I have read the warning above and want to proceed without a contact email." %}
-    </label>
+    <input type="checkbox" name="no_contact_confirmed" id="no_contact_confirmed">
+    <label for="no_contact_confirmed">{% translate "I have read the warning above and want to proceed without a contact email." %}</label>
     </p>
     <div>
     <p>
