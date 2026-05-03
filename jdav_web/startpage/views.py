@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect as django_redirect
 from members.models import Group
 
+from .models import FAQ
 from .models import Post
 from .models import Section
 
@@ -40,6 +41,11 @@ def static_view(template_path):
         return render(request, template_path)
 
     return view
+
+
+def faq(request):
+    context = {"faq_entries": FAQ.objects.all()}
+    return render(request, "startpage/gruppen/faq.html", context)
 
 
 def gruppe_detail(request, group_name):
