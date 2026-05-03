@@ -34,8 +34,8 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
-from mailer.models import Message
 from mailer.mailutils import send as send_mail
+from mailer.models import Message
 from members.pdf import render_tex_with_attachments
 from schwifty import IBAN
 from utils import get_member
@@ -483,16 +483,12 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             path(
                 "search_youth_leaders/",
                 wrap(self.search_youth_leaders_view),
-                name="{}_{}_search_youth_leaders".format(
-                    self.opts.app_label, self.opts.model_name
-                ),
+                name="{}_{}_search_youth_leaders".format(self.opts.app_label, self.opts.model_name),
             ),
             path(
                 "search_youth_leaders/<int:member_id>/contact/",
                 wrap(self.contact_youth_leader_view),
-                name="{}_{}_contact_youth_leader".format(
-                    self.opts.app_label, self.opts.model_name
-                ),
+                name="{}_{}_contact_youth_leader".format(self.opts.app_label, self.opts.model_name),
             ),
         ]
         return custom_urls + urls
@@ -908,11 +904,19 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         except Member.DoesNotExist:
             messages.error(request, _("Member not found."))
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_search_youth_leaders".format(self.opts.app_label, self.opts.model_name))
+                reverse(
+                    "admin:{}_{}_search_youth_leaders".format(
+                        self.opts.app_label, self.opts.model_name
+                    )
+                )
             )
 
         sender_member = getattr(request.user, "member", None)
-        sender_name = sender_member.name if sender_member else request.user.get_full_name() or request.user.username
+        sender_name = (
+            sender_member.name
+            if sender_member
+            else request.user.get_full_name() or request.user.username
+        )
         sender_email = sender_member.email if sender_member else request.user.email
 
         default_subject = _("Inquiry: youth leader with relevant qualifications")
@@ -934,6 +938,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                 cc = [sender_email] if sender_email else []
 
                 from django.conf import settings as django_settings
+
                 send_mail(
                     subject=subject,
                     content=content,
@@ -947,7 +952,11 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                     _("Message sent to %(name)s.") % {"name": member.name},
                 )
                 return HttpResponseRedirect(
-                    reverse("admin:{}_{}_search_youth_leaders".format(self.opts.app_label, self.opts.model_name))
+                    reverse(
+                        "admin:{}_{}_search_youth_leaders".format(
+                            self.opts.app_label, self.opts.model_name
+                        )
+                    )
                 )
         else:
             form = ContactYouthLeaderForm(
