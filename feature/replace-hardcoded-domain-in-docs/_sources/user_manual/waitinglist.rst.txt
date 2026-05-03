@@ -162,11 +162,11 @@ Das passiert in regelmäßigen Abständen automatisch: Allen Wartenden wird eine
 einem Link, mit dem sie mit einem Klick ihr Interesse bestätigen können. Falls die Person
 drei Erinnerungen verstreichen lässt, wird sie automatisch von der Warteliste entfernt.
 
-.. _Anmeldungsseite: https://jdav-hd.de/de/members/waitinglist
-.. _`Anmeldung auf der Warteliste`: https://jdav-hd.de/de/members/waitinglist
-.. _`anmelden`: https://jdav-hd.de/de/members/waitinglist
-.. _`Warteliste`: https://jdav-hd.de/de/kompassmembers/memberwaitinglist/
-.. _`Direkte Registrierung`: https://jdav-hd.de/de/members/register
-.. _`registrieren`: https://jdav-hd.de/de/members/register
-.. _`Unbestätigte Registrierungen`: https://jdav-hd.de/de/kompassmembers/memberunconfirmedproxy/
-.. _`melde dich bei uns`: mailto:digitales@jdav-hd.de
+.. _Anmeldungsseite: https://placeholder-domain.de/de/members/waitinglist
+.. _`Anmeldung auf der Warteliste`: https://placeholder-domain.de/de/members/waitinglist
+.. _`anmelden`: https://placeholder-domain.de/de/members/waitinglist
+.. _`Warteliste`: https://placeholder-domain.de/de/kompassmembers/memberwaitinglist/
+.. _`Direkte Registrierung`: https://placeholder-domain.de/de/members/register
+.. _`registrieren`: https://placeholder-domain.de/de/members/register
+.. _`Unbestätigte Registrierungen`: https://placeholder-domain.de/de/kompassmembers/memberunconfirmedproxy/
+.. _`melde dich bei uns`: mailto:digitales@placeholder-domain.de
