@@ -72,7 +72,7 @@ Wie geht es weiter?
 Nun hat Fritz den Bürokratiekram für heute erledigt. Du willst noch mehr wissen? Dann
 geh zurück zur :ref:`user_manual/index`.
 
-.. _Startseite: https://placeholder-domain.de/kompass
-.. _Teilnehmer\*innenanzeige: https://placeholder-domain.de/kompassmembers/member/
-.. _Nachricht verfassen: https://placeholder-domain.de/kompassmailer/message/add/
-.. _Ausfahrten: https://placeholder-domain.de/kompassmembers/freizeit/
+.. _Startseite: BASE_URL/kompass
+.. _Teilnehmer\*innenanzeige: BASE_URL/kompassmembers/member/
+.. _Nachricht verfassen: BASE_URL/kompassmailer/message/add/
+.. _Ausfahrten: BASE_URL/kompassmembers/freizeit/

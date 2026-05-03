@@ -70,7 +70,7 @@ html_theme_options = asdict(theme_options)
 # Read configuration from settings.toml and replace hardcoded placeholders in
 # all RST source files at build time.
 
-_PLACEHOLDER_DOMAIN = "placeholder-domain.de"
+_PLACEHOLDER_BASE_URL = "BASE_URL"
 _PLACEHOLDER_CONTACT_MAIL = "digitales@placeholder-domain.de"
 
 
@@ -93,9 +93,13 @@ def _load_settings() -> dict:
 _settings = _load_settings()
 
 
-def _get_kompass_host() -> str | None:
+def _get_base_url() -> str | None:
     django = _settings.get("django", {})
-    return django.get("host") or django.get("base_url") or None
+    host = django.get("host") or django.get("base_url") or None
+    if host is None:
+        return None
+    protocol = django.get("protocol") or "https"
+    return f"{protocol}://{host}"
 
 
 def _get_contact_mail() -> str | None:
@@ -103,15 +107,15 @@ def _get_contact_mail() -> str | None:
     return section.get("digital_mail") or section.get("responsible_mail") or None
 
 
-_kompass_host = _get_kompass_host()
+_base_url = _get_base_url()
 _contact_mail = _get_contact_mail()
 
 
 def _replace_placeholders(app, docname, source):
     if _contact_mail:
         source[0] = source[0].replace(_PLACEHOLDER_CONTACT_MAIL, _contact_mail)
-    if _kompass_host:
-        source[0] = source[0].replace(_PLACEHOLDER_DOMAIN, _kompass_host)
+    if _base_url:
+        source[0] = source[0].replace(_PLACEHOLDER_BASE_URL, _base_url)
 
 
 def setup(app):

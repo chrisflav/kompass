@@ -174,6 +174,6 @@ eine :ref:`crisis-intervention-list` generieren lassen, die zu allen Teilnehmer\
 auch alle Notfallkontakte auflistet.
 
 
-.. _Startseite: https://placeholder-domain.de/kompass
-.. _Teilnehmer*innenverwaltung: https://placeholder-domain.de/kompassmembers
-.. _Alle Teilnehmer\*innen: https://placeholder-domain.de/kompassmembers/member/
+.. _Startseite: BASE_URL/kompass
+.. _Teilnehmer*innenverwaltung: BASE_URL/kompassmembers
+.. _Alle Teilnehmer\*innen: BASE_URL/kompassmembers/member/
