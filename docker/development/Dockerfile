@@ -1,4 +1,4 @@
-FROM python:3.9-bookworm
+FROM python:3.13-trixie
 
 # install additional dependencies
 RUN apt-get update && apt-get install -y gettext texlive texlive-fonts-extra pandoc
@@ -6,8 +6,8 @@ RUN apt-get update && apt-get install -y gettext texlive texlive-fonts-extra pan
 WORKDIR /app
 
 # install requirements
-COPY ./requirements.txt /app/requirements.txt
-RUN pip install coverage -r requirements.txt
+COPY ./pyproject.toml ./uv.lock /app/
+RUN pip install uv && uv export -o requirements.txt && pip install -r requirements.txt
 
 ARG GID
 ARG UID

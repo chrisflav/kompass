@@ -90,37 +90,14 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      - name: Build documentation
-        run: |
-          # Create output directory with proper permissions
-          mkdir -p docs-output
-          chmod 777 docs-output
-
-          # Run sphinx-build inside the container
-          docker run --rm \
-            -v ${{ github.workspace }}/docs:/app/docs:ro \
-            -v ${{ github.workspace }}/docs-output:/app/docs-output \
-            kompass:test \
-            bash -c "cd /app/docs && sphinx-build -b html source /app/docs-output"
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs-output
-          destination_dir: ${{ github.ref == 'refs/heads/main' && '.' || inputs.head_ref || github.ref_name }}
-          keep_files: true
-
-      - name: Comment documentation link
+      - name: Comment docker image tags
         if: inputs.is_pr
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           number: ${{ inputs.pr_number }}
           header: deployment
           message: |
-            📚 **Documentation deployed!**
-
-            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ inputs.head_ref }}/
+            📚 **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ inputs.head_ref }}/
 
             **Docker Images:**
             - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ inputs.pr_number }}`
@@ -199,7 +176,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'deploy-pr.yml',
-                ref: '${{ inputs.head_ref }}',
+                ref: '${{ github.ref_name }}',
                 inputs: {
                   pr_number: prNumber.toString()
                 }
