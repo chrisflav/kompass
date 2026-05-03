@@ -1367,9 +1367,7 @@ class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
                 )
                 if waiter:
                     context = dict(context, object=waiter, waiter=waiter)
-                return render(
-                    request, "admin/invite_for_group_no_contact.html", context=context
-                )
+                return render(request, "admin/invite_for_group_no_contact.html", context=context)
             context = dict(
                 self.admin_site.each_context(request),
                 title=_("Select group for invitation"),
