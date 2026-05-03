@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 19:42+0200\n"
+"POT-Creation-Date: 2026-05-03 23:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -349,13 +349,6 @@ msgid ""
 msgstr ""
 "Beim Einladen dieser Personen ist ein Fehler aufgetreten. Bitte versuche es "
 "nochmal. "
-
-msgid ""
-"The selected group does not have a contact email. Please first set a contact "
-"email and then try again."
-msgstr ""
-"Die ausgewählte Gruppe hat keine Kontakt E-Mail Adresse. Bitte stelle eine "
-"Kontakt E-Mail Adresse ein und versuche es erneut."
 
 msgid "Select group for invitation"
 msgstr "Wähle Gruppe für Einladung aus"
@@ -1583,6 +1576,26 @@ msgstr "Bitte wähle die Gruppe aus zu der du %(waiter)s einladen möchtest."
 
 msgid "To which group do you want to invite these waiters?"
 msgstr "Zu welcher Gruppe möchtest du diese Wartenden einladen?"
+
+#, python-format
+msgid "The group %(group)s does not have a contact email address configured."
+msgstr "Die Gruppe %(group)s hat keine Kontakt-E-Mail-Adresse konfiguriert."
+
+msgid ""
+"It is recommended to configure a contact email address first, as it is used "
+"for further communication with the invited members."
+msgstr ""
+"Es wird empfohlen, zuerst eine Kontakt-E-Mail-Adresse einzustellen, da diese "
+"für die weitere Kommunikation mit den eingeladenen Personen verwendet wird."
+
+msgid ""
+"I have read the warning above and want to proceed without a contact email."
+msgstr ""
+"Ich habe den obigen Hinweis gelesen und möchte ohne Kontakt-E-Mail-Adresse "
+"fortfahren."
+
+msgid "Proceed"
+msgstr "Fortfahren"
 
 #, python-format
 msgid ""
