@@ -23,6 +23,7 @@ from startpage.templatetags.markdown_extras import RenderAsTemplateNode
 from startpage.views import handler500
 from startpage.views import redirect
 
+from .models import FAQ
 from .models import Image
 from .models import Link
 from .models import Post
@@ -143,6 +144,10 @@ class ModelsTestCase(BasicTestCase):
         """Test Link.__str__ method"""
         self.assertEqual(str(self.test_link), "Test Link")
 
+    def test_faq_str(self):
+        faq = FAQ.objects.create(frage="Was kostet die Halbjahreskarte?", antwort="30 Euro.")
+        self.assertEqual(str(faq), "Was kostet die Halbjahreskarte?")
+
     def test_section_absolute_urlname_no_reverse_match(self):
         """Test Section.absolute_urlname when NoReverseMatch occurs"""
         section = Section.objects.get(urlname="orga")
@@ -258,6 +263,20 @@ class ViewTestCase(BasicTestCase):
         request = RequestFactory().get("/")
         response = handler500(request)
         self.assertEqual(response.status_code, 500)
+
+    def test_faq_view(self):
+        c = Client()
+        url = reverse("startpage:faq")
+        response = c.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_faq_view_with_entries(self):
+        FAQ.objects.create(frage="Wie alt müssen Kinder sein?", antwort="Ab 5 Jahren.")
+        c = Client()
+        url = reverse("startpage:faq")
+        response = c.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Wie alt müssen Kinder sein?")
 
 
 class MarkdownExtrasTestCase(TestCase):
