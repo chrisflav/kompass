@@ -1,0 +1,44 @@
+name: Build documentation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build documentation
+        env:
+          DJANGO_SETTINGS_MODULE: jdav_web.settings
+        run: uv run sphinx-build -b html docs/source docs-output
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs-output
+          destination_dir: ${{ github.event_name == 'pull_request' && github.head_ref || '.' }}
+          keep_files: true
+
+      - name: Comment documentation link
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ github.event.pull_request.number }}
+          header: deployment
+          message: |
+            📚 **Documentation deployed!**
+
+            **Documentation:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.head_ref }}/

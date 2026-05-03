@@ -1,7 +1,0 @@
-line-length = 100
-
-[lint.isort]
-force-single-line = true
-case-sensitive = false
-order-by-type = false
-detect-same-package = false
