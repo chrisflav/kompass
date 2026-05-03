@@ -3,8 +3,11 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
 from dataclasses import asdict
+from pathlib import Path
 
+import tomli
 from sphinxawesome_theme import ThemeOptions
 
 # -- Project information -------------------------------------------------------
@@ -61,3 +64,41 @@ theme_options = ThemeOptions(
 )
 
 html_theme_options = asdict(theme_options)
+
+
+# -- Kompass host replacement --------------------------------------------------
+# Read django.host (or django.base_url as fallback) from settings.toml and
+# replace hardcoded placeholder domains in all RST source files at build time.
+
+_PLACEHOLDER_DOMAIN = "jdav-hd.de"
+
+
+def _get_kompass_host() -> str | None:
+    config_dir = os.environ.get("KOMPASS_CONFIG_DIR_PATH", "")
+    settings_file = os.environ.get("KOMPASS_SETTINGS_FILE", "settings.toml")
+    settings_path = Path(config_dir) / settings_file if config_dir else None
+
+    if settings_path is None or not settings_path.exists():
+        # Fall back to the deploy example config relative to this file
+        settings_path = Path(__file__).parent.parent.parent / "deploy" / "config" / "settings.toml"
+
+    if not settings_path.exists():
+        return None
+
+    with open(settings_path, "rb") as f:
+        config = tomli.load(f)
+
+    django = config.get("django", {})
+    return django.get("host") or django.get("base_url") or None
+
+
+_kompass_host = _get_kompass_host()
+
+
+def _replace_domain(app, docname, source):
+    if _kompass_host:
+        source[0] = source[0].replace(_PLACEHOLDER_DOMAIN, _kompass_host)
+
+
+def setup(app):
+    app.connect("source-read", _replace_domain)
