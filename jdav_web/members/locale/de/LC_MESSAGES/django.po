@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 19:42+0200\n"
+"POT-Creation-Date: 2026-05-03 22:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,6 +47,25 @@ msgstr ""
 "Lade zusätzliche Dokumente hoch (z.B. medizinische Formulare, "
 "Einverständniserklärung für Medikamentengabe). Diese Dokumente werden "
 "zentral gespeichert und sind im Notfall abrufbar."
+
+msgid "Training categories"
+msgstr "Fortbildungstypen"
+
+msgid "Filter by completed training categories."
+msgstr "Nach abgeschlossenen Fortbildungstypen filtern."
+
+msgid "Activity categories"
+msgstr "Aktivitätskategorien"
+
+msgid "Filter by activity categories covered in trainings."
+msgstr ""
+"Nach Aktivitätskategorien filtern, die in Fortbildungen enthalten sind."
+
+msgid "Subject"
+msgstr "Betreff"
+
+msgid "Message"
+msgstr "Nachricht"
 
 msgid "Activity"
 msgstr "Aktivität"
@@ -228,6 +247,47 @@ msgstr ""
 msgid "Unconfirm selected members."
 msgstr ""
 "Ausgewählte Teilnehmer*innen zu unbestätigten Registrierungen zurücksetzen."
+
+msgid "Insufficient permissions."
+msgstr "Unzureichende Berechtigungen."
+
+msgid "Search youth leaders by qualification"
+msgstr "Jugendleiter*innen nach Qualifikation suchen"
+
+msgid "Member not found."
+msgstr "Teilnehmer*in nicht gefunden."
+
+msgid "Inquiry: youth leader with relevant qualifications"
+msgstr "Anfrage: Jugendleiter*in mit relevanten Qualifikationen"
+
+#, python-brace-format
+msgid ""
+"Hello {name},\n"
+"\n"
+"I am looking for a youth leader with suitable qualifications for an upcoming "
+"activity and came across your profile.\n"
+"\n"
+"Could you please let me know if you would be available and interested?\n"
+"\n"
+"Best regards,\n"
+"{sender}"
+msgstr ""
+"Hallo {name},\n"
+"\n"
+"ich suche eine*n Jugendleiter*in mit geeigneten Qualifikationen für eine "
+"bevorstehende Veranstaltung und bin dabei auf dein Profil gestoßen.\n"
+"\n"
+"Könntest du mir bitte mitteilen, ob du verfügbar und interessiert wärst?\n"
+"\n"
+"Mit freundlichen Grüßen,\n"
+"{sender}"
+
+#, python-format
+msgid "Message sent to %(name)s."
+msgstr "Nachricht an %(name)s gesendet."
+
+msgid "Contact youth leader"
+msgstr "Jugendleiter*in kontaktieren"
 
 msgid "Invalid member selection."
 msgstr "Ungültige Teilnehmer*innenauswahl."
@@ -1101,9 +1161,6 @@ msgstr "Freigabe erforderlich"
 
 msgid "Training category"
 msgstr "Fortbildungstyp"
-
-msgid "Training categories"
-msgstr "Fortbildungstypen"
 
 msgid "Comments"
 msgstr "Kommentar"
@@ -2043,12 +2100,6 @@ msgid ""
 msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
-
-msgid "Insufficient permissions."
-msgstr "Unzureichende Berechtigungen."
-
-msgid "Member not found."
-msgstr "Teilnehmer*in nicht gefunden."
 
 #, python-format
 msgid "%(modelname)s not found."

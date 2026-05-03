@@ -36,6 +36,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
+from mailer.mailutils import send as send_mail
 from mailer.models import Message
 from members.pdf import render_tex_with_attachments
 from schwifty import IBAN
@@ -175,6 +176,34 @@ class MemberDocumentInline(CommonAdminInlineMixin, admin.TabularInline):
 class TrainingCategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "permission_needed")
     ordering = ("name",)
+
+
+class SearchYouthLeaderForm(forms.Form):
+    training_categories = forms.ModelMultipleChoiceField(
+        queryset=TrainingCategory.objects.all(),
+        required=False,
+        label=_("Training categories"),
+        widget=FilteredSelectMultiple(_("Training categories"), is_stacked=False),
+        help_text=_("Filter by completed training categories."),
+    )
+    activity_categories = forms.ModelMultipleChoiceField(
+        queryset=ActivityCategory.objects.all(),
+        required=False,
+        label=_("Activity categories"),
+        widget=FilteredSelectMultiple(_("Activity categories"), is_stacked=False),
+        help_text=_("Filter by activity categories covered in trainings."),
+    )
+
+
+class ContactYouthLeaderForm(forms.Form):
+    subject = forms.CharField(
+        max_length=200,
+        label=_("Subject"),
+    )
+    content = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 10}),
+        label=_("Message"),
+    )
 
 
 class CreateObjectFromForm(forms.Form):
@@ -454,6 +483,16 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                 name="{}_{}_create_crisis_intervention_list".format(
                     self.opts.app_label, self.opts.model_name
                 ),
+            ),
+            path(
+                "search_youth_leaders/",
+                wrap(self.search_youth_leaders_view),
+                name="{}_{}_search_youth_leaders".format(self.opts.app_label, self.opts.model_name),
+            ),
+            path(
+                "search_youth_leaders/<int:member_id>/contact/",
+                wrap(self.contact_youth_leader_view),
+                name="{}_{}_contact_youth_leader".format(self.opts.app_label, self.opts.model_name),
             ),
         ]
         return custom_urls + urls
@@ -849,6 +888,128 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         messages.success(request, _("Successfully unconfirmed selected members."))
 
     unconfirm.short_description = _("Unconfirm selected members.")
+
+    def search_youth_leaders_view(self, request):
+        """View for searching youth leaders by qualification."""
+        if not request.user.has_perm("members.may_see_qualities"):
+            messages.error(request, _("Insufficient permissions."))
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        form = SearchYouthLeaderForm(request.GET or None)
+        results = None
+
+        if form.is_valid():
+            training_categories = form.cleaned_data.get("training_categories")
+            activity_categories = form.cleaned_data.get("activity_categories")
+
+            qs = Member.objects.filter(leited_groups__isnull=False).distinct()
+
+            if training_categories:
+                qs = qs.filter(
+                    traininigs__category__in=training_categories,
+                    traininigs__passed=True,
+                ).distinct()
+
+            if activity_categories:
+                qs = qs.filter(
+                    traininigs__activity__in=activity_categories,
+                    traininigs__passed=True,
+                ).distinct()
+
+            results = qs.order_by("lastname", "prename")
+
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Search youth leaders by qualification"),
+            opts=self.opts,
+            form=form,
+            results=results,
+            media=self.media,
+        )
+        return render(request, "admin/members/search_youth_leaders.html", context=context)
+
+    def contact_youth_leader_view(self, request, member_id):
+        """View for contacting a youth leader via email."""
+        if not request.user.has_perm("members.may_see_qualities"):
+            messages.error(request, _("Insufficient permissions."))
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
+        try:
+            member = Member.objects.get(pk=member_id)
+        except Member.DoesNotExist:
+            messages.error(request, _("Member not found."))
+            return HttpResponseRedirect(
+                reverse(
+                    "admin:{}_{}_search_youth_leaders".format(
+                        self.opts.app_label, self.opts.model_name
+                    )
+                )
+            )
+
+        sender_member = getattr(request.user, "member", None)
+        sender_name = (
+            sender_member.name
+            if sender_member
+            else request.user.get_full_name() or request.user.username
+        )
+        sender_email = sender_member.email if sender_member else request.user.email
+
+        default_subject = _("Inquiry: youth leader with relevant qualifications")
+        default_content = _(
+            "Hello {name},\n\n"
+            "I am looking for a youth leader with suitable qualifications for an upcoming activity "
+            "and came across your profile.\n\n"
+            "Could you please let me know if you would be available and interested?\n\n"
+            "Best regards,\n{sender}"
+        ).format(name=member.prename, sender=sender_name)
+
+        if request.method == "POST":
+            form = ContactYouthLeaderForm(request.POST)
+            if form.is_valid():
+                subject = form.cleaned_data["subject"]
+                content = form.cleaned_data["content"]
+
+                reply_to = [sender_email] if sender_email else None
+                cc = [sender_email] if sender_email else []
+
+                from django.conf import settings as django_settings
+
+                send_mail(
+                    subject=subject,
+                    content=content,
+                    sender=django_settings.DEFAULT_SENDING_MAIL,
+                    recipients=[member.email],
+                    reply_to=reply_to,
+                    cc=cc,
+                )
+                messages.success(
+                    request,
+                    _("Message sent to %(name)s.") % {"name": member.name},
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_search_youth_leaders".format(
+                            self.opts.app_label, self.opts.model_name
+                        )
+                    )
+                )
+        else:
+            form = ContactYouthLeaderForm(
+                initial={"subject": default_subject, "content": default_content}
+            )
+
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Contact youth leader"),
+            opts=self.opts,
+            member=member,
+            form=form,
+        )
+        return render(request, "admin/members/contact_youth_leader.html", context=context)
 
     def create_crisis_intervention_list_view(self, request):
         """View for creating crisis intervention lists for ad-hoc activities."""

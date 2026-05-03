@@ -1407,6 +1407,92 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertIn("members/member/", response.request["PATH_INFO"])
 
+    def test_search_youth_leaders_view_no_permission(self):
+        """Users without may_see_qualities are redirected."""
+        c = self._login("standard")
+        url = reverse("admin:members_member_search_youth_leaders")
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+    def test_search_youth_leaders_view_get(self):
+        """Superuser can load the search form."""
+        c = self._login("superuser")
+        url = reverse("admin:members_member_search_youth_leaders")
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Search youth leaders by qualification"))
+
+    def test_search_youth_leaders_view_with_filters(self):
+        """Search with training/activity filters returns matching youth leaders."""
+        # Create a youth leader (member who leads a group)
+        leader = Member.objects.create(
+            prename="Greta",
+            lastname="Leader",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=FEMALE,
+        )
+        leader_group = Group.objects.get(name="Jugendleiter")
+        leader_group.leiters.add(leader)
+
+        cat = TrainingCategory.objects.create(name="Grundausbildung", permission_needed=False)
+        act = ActivityCategory.objects.create(
+            name="Klettern", ljp_category="Klettern", description=""
+        )
+        training = MemberTraining.objects.create(
+            member=leader,
+            title="Test Training",
+            category=cat,
+            passed=True,
+        )
+        training.activity.add(act)
+
+        c = self._login("superuser")
+        url = reverse("admin:members_member_search_youth_leaders")
+        response = c.get(url, {"training_categories": [cat.pk], "activity_categories": [act.pk]})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, "Greta")
+
+    def test_contact_youth_leader_view_no_permission(self):
+        """Users without may_see_qualities are redirected."""
+        c = self._login("standard")
+        url = reverse("admin:members_member_contact_youth_leader", args=(self.fritz.pk,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("members/member/", response.request["PATH_INFO"])
+
+    def test_contact_youth_leader_view_get(self):
+        """Superuser sees pre-filled contact form."""
+        c = self._login("superuser")
+        url = reverse("admin:members_member_contact_youth_leader", args=(self.fritz.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, self.fritz.prename)
+
+    def test_contact_youth_leader_view_nonexistent_member(self):
+        """Non-existent member redirects to search view."""
+        c = self._login("superuser")
+        url = reverse("admin:members_member_contact_youth_leader", args=(99999,))
+        response = c.get(url, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertIn("search_youth_leaders", response.request["PATH_INFO"])
+
+    @mock.patch("members.admin.send_mail")
+    def test_contact_youth_leader_view_post(self, mock_send):
+        """POST to contact form sends email and redirects."""
+        c = self._login("superuser")
+        url = reverse("admin:members_member_contact_youth_leader", args=(self.fritz.pk,))
+        response = c.post(
+            url,
+            data={"subject": "Test subject", "content": "Test message body"},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertTrue(mock_send.called)
+        call_kwargs = mock_send.call_args
+        self.assertEqual(call_kwargs.kwargs["recipients"], [self.fritz.email])
+
     def test_changelist_with_valid_group_filter(self):
         c = self._login("superuser")
         cool_kids = Group.objects.get(name="cool kids")
