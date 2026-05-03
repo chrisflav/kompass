@@ -1655,7 +1655,7 @@ msgstr "Warnung: %(member)s hat bereits ein Anmeldeformular hochgeladen."
 msgid "Home"
 msgstr "Start"
 
-#, fuzzy, python-format
+#, python-format
 msgid "Add %(name)s"
 msgstr "%(name)s hinzufügen"
 
