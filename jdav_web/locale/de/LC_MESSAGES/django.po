@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 23:51+0200\n"
+"POT-Creation-Date: 2026-05-03 22:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -300,6 +300,20 @@ msgstr ""
 msgid "Save and submit"
 msgstr "Speichern und einreichen"
 
+#, python-format
+msgid ""
+"\n"
+"  Send a message to <strong>%(name)s</strong>. You will be set as reply-to "
+"and receive a copy.\n"
+"  "
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
 msgid "Generate group overview"
 msgstr "Gruppenübersicht erstellen"
 
@@ -308,6 +322,31 @@ msgstr "Gruppencheckliste erstellen"
 
 msgid "Invite to group"
 msgstr "Zu Gruppe einladen"
+
+msgid "Results"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "Trainings"
+msgstr ""
+
+#, fuzzy
+#| msgid "Applications"
+msgid "Action"
+msgstr "Anwendungen"
+
+#, fuzzy
+#| msgid "contact us."
+msgid "Contact"
+msgstr "kontaktiere uns."
+
+msgid "No youth leaders found matching the selected filters."
+msgstr ""
 
 #, python-format
 msgid "Add another %(verbose_name)s"
