@@ -1,8 +1,11 @@
+import os
+import tempfile
 from datetime import timedelta
 from unittest.mock import Mock
 from unittest.mock import patch
 
 from contrib.admin import CommonAdminMixin
+from contrib.media import ensure_media_dir
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from django.contrib import admin
@@ -170,6 +173,13 @@ class UtilsTestCase(TestCase):
                 _("Please keep filesize under {}. Current filesize: {}").format(1, 2)
             )
             self.assertIn(expected_message, str(cm.exception))
+
+    def test_ensure_media_dir_creates_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            new_dir = os.path.join(tmp, "new_media_dir")
+            with patch("contrib.media.media_dir", return_value=new_dir):
+                ensure_media_dir()
+            self.assertTrue(os.path.isdir(new_dir))
 
     def test_mondays_until_nth(self):
         """Test mondays_until_nth function"""
