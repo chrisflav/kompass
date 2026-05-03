@@ -1,5 +1,7 @@
 import json
+import threading
 from functools import update_wrapper
+from urllib.parse import parse_qs
 
 import nested_admin
 from contrib.admin import CommonAdminInlineMixin
@@ -71,6 +73,8 @@ from .pdf import render_docx
 from .pdf import render_tex
 
 # from easy_select2 import apply_select2
+
+_thread_locals = threading.local()
 
 
 class FilteredMemberFieldMixin:
@@ -497,11 +501,45 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         queryset = super().get_queryset(request)
         return annotate_activity_score(queryset.prefetch_related("group"))
 
+    def _get_group_from_request(self, request):
+        """Return the Group matching a group__id__exact filter in the request, if any."""
+        group_id = request.GET.get("group__id__exact")
+        if group_id:
+            try:
+                return Group.objects.get(pk=group_id)
+            except Group.DoesNotExist:
+                pass
+        return None
+
+    def _get_group_from_changelist_filters(self, request):
+        """Return the Group from _changelist_filters in the request GET params, if any."""
+        changelist_filters = request.GET.get("_changelist_filters", "")
+        if changelist_filters:
+            filters = parse_qs(changelist_filters)
+            group_ids = filters.get("group__id__exact", [])
+            if group_ids:
+                try:
+                    return Group.objects.get(pk=group_ids[0])
+                except Group.DoesNotExist:
+                    pass
+        return None
+
+    def changelist_view(self, request, extra_context=None):
+        _thread_locals.request = request
+        extra_context = extra_context or {}
+        current_group = self._get_group_from_request(request)
+        if current_group is not None:
+            extra_context["current_group"] = current_group
+        return super().changelist_view(request, extra_context)
+
     def change_view(self, request, object_id, form_url="", extra_context=None):
         try:
             extra_context = extra_context or {}
             extra_context["qualities"] = Member.objects.get(pk=object_id).get_skills()
             extra_context["activities"] = Member.objects.get(pk=object_id).get_activities()
+            current_group = self._get_group_from_changelist_filters(request)
+            if current_group is not None:
+                extra_context["current_group"] = current_group
             return super().change_view(
                 request, object_id, form_url=form_url, extra_context=extra_context
             )
@@ -828,15 +866,16 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
 
     def name_text_or_link(self, obj):
         if not hasattr(obj, "_viewable") or obj._viewable:
-            return format_html(
-                '<a href="{link}">{name}</a>'.format(
-                    link=reverse(
-                        "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
-                        args=(obj.pk,),
-                    ),
-                    name=obj.name,
-                )
+            url = reverse(
+                "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                args=(obj.pk,),
             )
+            request = getattr(_thread_locals, "request", None)
+            if request is not None:
+                preserved_filters = self.get_preserved_filters(request)
+                if preserved_filters:
+                    url = "{}?{}".format(url, preserved_filters)
+            return format_html('<a href="{link}">{name}</a>', link=url, name=obj.name)
         else:
             return obj.name
 

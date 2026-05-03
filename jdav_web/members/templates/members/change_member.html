@@ -1,6 +1,22 @@
 {% extends "admin/change_form.html" %}
-{% load i18n %}
+{% load i18n admin_urls %}
 {% load static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; {% if has_view_permission %}
+    <a href="{% if current_group %}{% url 'admin:members_member_changelist' %}?group__id__exact={{ current_group.pk }}{% else %}{% url opts|admin_urlname:'changelist' %}{% endif %}">
+        {% if current_group %}{{ current_group.name }}{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}
+    </a>
+{% else %}
+    {% if current_group %}{{ current_group.name }}{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}
+{% endif %}
+&rsaquo; {% if add %}{% blocktranslate with name=opts.verbose_name %}Add {{ name }}{% endblocktranslate %}{% else %}{{ original|truncatewords:"18" }}{% endif %}
+</div>
+{% endblock %}
+
 {% block after_field_sets %}
 
 <!--

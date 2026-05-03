@@ -51,24 +51,20 @@ msgstr ""
 msgid "Training categories"
 msgstr "Fortbildungstypen"
 
-#, fuzzy
-#| msgid "Training categories"
 msgid "Filter by completed training categories."
-msgstr "Fortbildungstypen"
+msgstr "Nach abgeschlossenen Fortbildungstypen filtern."
 
-#, fuzzy
-#| msgid "Activities"
 msgid "Activity categories"
-msgstr "Aktivitäten"
+msgstr "Aktivitätskategorien"
 
 msgid "Filter by activity categories covered in trainings."
-msgstr ""
+msgstr "Nach Aktivitätskategorien filtern, die in Fortbildungen enthalten sind."
 
 msgid "Subject"
-msgstr ""
+msgstr "Betreff"
 
 msgid "Message"
-msgstr ""
+msgstr "Nachricht"
 
 msgid "Activity"
 msgstr "Aktivität"
@@ -255,13 +251,13 @@ msgid "Insufficient permissions."
 msgstr "Unzureichende Berechtigungen."
 
 msgid "Search youth leaders by qualification"
-msgstr ""
+msgstr "Jugendleiter*innen nach Qualifikation suchen"
 
 msgid "Member not found."
 msgstr "Teilnehmer*in nicht gefunden."
 
 msgid "Inquiry: youth leader with relevant qualifications"
-msgstr ""
+msgstr "Anfrage: Jugendleiter*in mit relevanten Qualifikationen"
 
 #, python-brace-format
 msgid ""
@@ -275,16 +271,22 @@ msgid ""
 "Best regards,\n"
 "{sender}"
 msgstr ""
+"Hallo {name},\n"
+"\n"
+"ich suche eine*n Jugendleiter*in mit geeigneten Qualifikationen für eine "
+"bevorstehende Veranstaltung und bin dabei auf dein Profil gestoßen.\n"
+"\n"
+"Könntest du mir bitte mitteilen, ob du verfügbar und interessiert wärst?\n"
+"\n"
+"Mit freundlichen Grüßen,\n"
+"{sender}"
 
-#, fuzzy, python-format
-#| msgid "Password reset email sent to %(name)s."
+#, python-format
 msgid "Message sent to %(name)s."
-msgstr "E-Mail zum Zurücksetzen des Passworts an %(name)s gesendet."
+msgstr "Nachricht an %(name)s gesendet."
 
-#, fuzzy
-#| msgid "youth leaders"
 msgid "Contact youth leader"
-msgstr "Jugendleiter"
+msgstr "Jugendleiter*in kontaktieren"
 
 msgid "Invalid member selection."
 msgstr "Ungültige Teilnehmer*innenauswahl."
@@ -1705,6 +1707,13 @@ msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
 #, python-format
 msgid "Warning: %(member)s has already uploaded a registration form."
 msgstr "Warnung: %(member)s hat bereits ein Anmeldeformular hochgeladen."
+
+msgid "Home"
+msgstr "Start"
+
+#, python-format
+msgid "Add %(name)s"
+msgstr "%(name)s hinzufügen"
 
 msgid "Participations:"
 msgstr "Ausfahrtteilnahmen:"
