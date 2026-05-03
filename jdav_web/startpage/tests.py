@@ -270,6 +270,8 @@ class ViewTestCase(BasicTestCase):
         response = c.get(url)
         self.assertEqual(response.status_code, 200)
 
+
+class FAQWithEntriesViewTestCase(BasicTestCase):
     def test_faq_view_with_entries(self):
         FAQ.objects.create(question="Wie alt müssen Kinder sein?", answer="Ab 5 Jahren.")
         c = Client()

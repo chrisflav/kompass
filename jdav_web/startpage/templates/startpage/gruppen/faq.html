@@ -4,6 +4,7 @@
 {% block content %}
 
 {% if faq_entries %}
+  <h1>FAQ</h1>
   {% for entry in faq_entries %}
     <h3>{{ entry.question }}</h3>
     <p>{{ entry.answer }}</p>

@@ -102,6 +102,7 @@ _JET_SIDE_MENU_ITEMS = [
             {"name": "section", "permissions": ["startpage.view_section"]},
             {"name": "post", "permissions": ["startpage.view_post"]},
             {"name": "link", "permissions": ["startpage.view_link"]},
+            {"name": "faq", "permissions": ["startpage.view_faq"]},
         ],
     },
 ]
