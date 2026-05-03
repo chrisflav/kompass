@@ -2350,7 +2350,12 @@ class MemberWaitingListAdminTestCase(AdminTestCase):
         self.staff.save()
 
         response = c.post(url, data={"apply": "", "group": self.staff.pk})
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        response = c.post(
+            url, data={"apply": "", "group": self.staff.pk, "no_contact_confirmed": "1"}
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
         self.staff.contact_email = self.em
         self.staff.save()

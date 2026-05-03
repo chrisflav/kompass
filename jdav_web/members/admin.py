@@ -1355,14 +1355,21 @@ class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
                 )
                 return HttpResponseRedirect(request.get_full_path())
 
-            if not group.contact_email:
-                messages.error(
-                    request,
-                    _(
-                        "The selected group does not have a contact email. Please first set a contact email and then try again."
-                    ),
+            if not group.contact_email and "no_contact_confirmed" not in request.POST:
+                context = dict(
+                    self.admin_site.each_context(request),
+                    title=_("Select group for invitation"),
+                    view_header=_("Invite to group"),
+                    opts=self.opts,
+                    group=group,
+                    queryset=queryset,
+                    id_list=id_list,
                 )
-                return HttpResponseRedirect(request.get_full_path())
+                if waiter:
+                    context = dict(context, object=waiter, waiter=waiter)
+                return render(
+                    request, "admin/invite_for_group_no_contact.html", context=context
+                )
             context = dict(
                 self.admin_site.each_context(request),
                 title=_("Select group for invitation"),
