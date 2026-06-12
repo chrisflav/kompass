@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from mailer.models import EmailAddress
 from members.models import Member
@@ -25,7 +26,7 @@ class Command(BaseCommand):
             self.stdout.write(" ".join(forwards))
             return
         try:
-            jugendleiter = Member.objects.filter(group__name="Jugendleiter")
+            jugendleiter = Member.objects.filter(group__name=settings.YOUTH_LEADER_GROUP)
             matching = [
                 jl.email
                 for jl in jugendleiter
