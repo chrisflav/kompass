@@ -21,10 +21,42 @@ Stammdaten
 ----------
 
 Sobald du mit deinen Co-Jugendleiter\*innen eine Ausfahrt angedacht hast, kannst du diese im Kompass `anlegen`_.
-Die bekannten Informationen trägst du schon ein, die noch unbekannten lässt du leer oder trägst
-vorläufige Daten ein.
+Alternativ kannst du in der Seitenleiste "Ausfahrten" auswählen und dort auf "Ausfahrt hinzufügen" klicken.
 
-Wenn du weißt wer mitkommt, trägst du im Tab *Teilnehmer\*innen* alle ein, die zur Ausfahrt kommen.
+.. image:: /_static/Ausfahrt_allgemein.png
+   :alt: Screenshot der Ausfahrt-Ansicht
+   :scale: 60%
+   :align: center
+
+Dann kommst du zuerst auf den Reiter *Allgemein*, wo du die grundlegenden Informationen zur Ausfahrt
+einträgst. Wenn du dir bei manchen Informationen unsicher bist, kannst du sie vorläufig eintragen und kannst sie später jederzeit ergänzen oder ändern.
+
+Im Tab *Teilnehmer\*innen* kannst du jederzeit Personen hinzufügen oder entfernen, die an der Ausfahrt teilnehmen.
+Hierfür klickst du auf "Teilnehmer\*innen hinzufügen" und suchst die gewünschten Personen aus der Mitgliederliste heraus.
+
+.. container:: image-row
+
+   .. figure:: /_static/Ausfahrt_Teilnehmer_hinzufügen.png
+      :alt: Teilnehmer hinzufügen (1)
+      :width: 48%
+
+   .. figure:: /_static/Ausfahrt_Teilnehmer_hinzufügen2.png
+      :alt: Teilnehmer hinzufügen (2)
+      :width: 48%
+
+Abschließend klickst du unten auf "Speichern", um die Ausfahrt zu erstellen.
+
+Wie finde ich meine erstellte Ausfahrt wieder?
+-----------------------------------------------
+- Öffne in der Seitenleiste den Eintrag "Ausfahrten".
+- Nutze das Suchfeld oder die Filter (z. B. Name, Datum), um deine Ausfahrt schneller zu finden.
+- Alternativ kannst du nach dem Organisator oder dem Status filtern und dann in der Ergebnisliste auf den Eintrag klicken, um die Detailansicht zu öffnen.
+
+..image:: /_static/Ausfahrt_Übersicht.png
+   :alt: Screenshot der Ausfahrten-Übersicht
+   :scale: 60%
+   :align: center
+
 
 .. _crisis-intervention-list:
 
