@@ -909,6 +909,16 @@ class DemoteToWaiterForm(forms.Form):
     _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
 
 
+class ForceConfirmForm(forms.Form):
+    confirm_override = forms.BooleanField(
+        label=_(
+            "I confirm that I want to manually override the missing confirmation of the "
+            "alternative email address."
+        ),
+        required=True,
+    )
+
+
 class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     documentation_url = "user_manual/waitinglist.html"
     extra_buttons_model = MemberUnconfirmedProxy
@@ -1135,6 +1145,47 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
             object=member,
         )
         return render(request, "admin/request_registration_form.html", context=context)
+
+    @extra_button(
+        _("Force confirm (override alt. email)"),
+        url_name="force_confirm",
+        condition=lambda obj: bool(obj.alternative_email) and not obj.confirmed_alternative_mail,
+    )
+    def force_confirm_view(self, request, member):
+        if "apply" in request.POST:
+            form = ForceConfirmForm(request.POST)
+            if form.is_valid():
+                if member.force_confirm():
+                    messages.success(
+                        request,
+                        _("Successfully confirmed %(name)s (alternative email override).")
+                        % {"name": member.name},
+                    )
+                    return HttpResponseRedirect(
+                        reverse("admin:members_memberunconfirmedproxy_changelist")
+                    )
+                messages.error(
+                    request,
+                    _("Can't confirm. %(name)s still has an unconfirmed primary email address.")
+                    % {"name": member.name},
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:members_memberunconfirmedproxy_change", args=(member.pk,)
+                    )
+                )
+        else:
+            form = ForceConfirmForm()
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Force confirm registration"),
+            view_header=_("Force confirm registration"),
+            opts=self.opts,
+            member=member,
+            object=member,
+            form=form,
+        )
+        return render(request, "admin/force_confirm.html", context=context)
 
     def response_change(self, request, member):
         if "_confirm" in request.POST:
