@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:32+0200\n"
+"POT-Creation-Date: 2026-06-30 00:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -308,6 +308,12 @@ msgstr "Anmeldeformular anfragen"
 
 msgid "Force confirm registration"
 msgstr "Registrierung erzwungen bestätigen"
+
+msgid "Registration not found."
+msgstr "Registrierung nicht gefunden."
+
+msgid "Insufficient permissions."
+msgstr "Unzureichende Berechtigungen."
 
 #, python-format
 msgid "Can't confirm. %(name)s has an unconfirmed primary email address."
@@ -2079,9 +2085,6 @@ msgid ""
 msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
-
-msgid "Insufficient permissions."
-msgstr "Unzureichende Berechtigungen."
 
 msgid "Member not found."
 msgstr "Teilnehmer*in nicht gefunden."
