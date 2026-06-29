@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 00:11+0200\n"
+"POT-Creation-Date: 2026-06-30 00:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -306,14 +306,14 @@ msgstr "Anmeldeformular für %(name)s angefragt."
 msgid "Request upload registration form"
 msgstr "Anmeldeformular anfragen"
 
+msgid "Force confirm registration"
+msgstr "Registrierung erzwungen bestätigen"
+
 #, python-format
 msgid "Can't confirm. %(name)s has an unconfirmed primary email address."
 msgstr ""
 "Bestätigung nicht möglich. %(name)s hat eine unbestätigte primäre E-Mail-"
 "Adresse."
-
-msgid "Force confirm registration"
-msgstr "Registrierung erzwungen bestätigen"
 
 msgid "Group"
 msgstr "Gruppe"
