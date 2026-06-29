@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 19:42+0200\n"
+"POT-Creation-Date: 2026-06-30 00:11+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -235,6 +235,13 @@ msgstr "Ungültige Teilnehmer*innenauswahl."
 msgid "Create Crisis Intervention List"
 msgstr "Kriseninterventionsliste erstellen"
 
+msgid ""
+"I confirm that I want to manually override the missing confirmation of the "
+"alternative email address."
+msgstr ""
+"Ich bestätige, dass ich die fehlende Bestätigung der alternativen E-Mail-"
+"Adresse manuell übergehen möchte."
+
 msgid "Alternative email confirmed"
 msgstr "Alternative E-Mail Adresse bestätigt"
 
@@ -298,6 +305,24 @@ msgstr "Anmeldeformular für %(name)s angefragt."
 
 msgid "Request upload registration form"
 msgstr "Anmeldeformular anfragen"
+
+msgid "Force confirm (override alt. email)"
+msgstr "Bestätigung erzwingen (alt. E-Mail übergehen)"
+
+#, python-format
+msgid "Successfully confirmed %(name)s (alternative email override)."
+msgstr ""
+"Registrierung von %(name)s erfolgreich bestätigt (alternative E-Mail "
+"übergangen)."
+
+#, python-format
+msgid "Can't confirm. %(name)s still has an unconfirmed primary email address."
+msgstr ""
+"Bestätigung nicht möglich. %(name)s hat noch eine unbestätigte primäre E-"
+"Mail-Adresse."
+
+msgid "Force confirm registration"
+msgstr "Registrierung erzwungen bestätigen"
 
 msgid "Group"
 msgstr "Gruppe"
@@ -1207,6 +1232,34 @@ msgstr "Möchtest du die folgenden Personen zurück auf die Warteliste setzen?"
 
 msgid "Demote"
 msgstr "Zurück auf die Warteliste setzen"
+
+#, python-format
+msgid ""
+"The alternative email of %(member)s (%(member.alternative_email)s) has not "
+"been confirmed."
+msgstr ""
+"Die alternative E-Mail-Adresse von %(member)s (%(member.alternative_email)s) "
+"wurde nicht bestätigt."
+
+msgid ""
+"You can manually override the missing confirmation of the alternative email. "
+"The registration will be confirmed and the alternative email will be marked "
+"as confirmed."
+msgstr ""
+"Du kannst die fehlende Bestätigung der alternativen E-Mail-Adresse manuell "
+"übergehen. Die Registrierung wird bestätigt und die alternative E-Mail-"
+"Adresse wird als bestätigt markiert."
+
+#, python-format
+msgid ""
+"Warning: The primary email of %(member)s is also not confirmed. Confirmation "
+"is not possible."
+msgstr ""
+"Warnung: Die primäre E-Mail-Adresse von %(member)s ist ebenfalls nicht "
+"bestätigt. Eine Bestätigung ist nicht möglich."
+
+msgid "Force confirm"
+msgstr "Bestätigung erzwingen"
 
 msgid ""
 "\n"
