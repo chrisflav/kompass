@@ -306,20 +306,11 @@ msgstr "Anmeldeformular für %(name)s angefragt."
 msgid "Request upload registration form"
 msgstr "Anmeldeformular anfragen"
 
-msgid "Force confirm (override alt. email)"
-msgstr "Bestätigung erzwingen (alt. E-Mail übergehen)"
-
 #, python-format
-msgid "Successfully confirmed %(name)s (alternative email override)."
+msgid "Can't confirm. %(name)s has an unconfirmed primary email address."
 msgstr ""
-"Registrierung von %(name)s erfolgreich bestätigt (alternative E-Mail "
-"übergangen)."
-
-#, python-format
-msgid "Can't confirm. %(name)s still has an unconfirmed primary email address."
-msgstr ""
-"Bestätigung nicht möglich. %(name)s hat noch eine unbestätigte primäre E-"
-"Mail-Adresse."
+"Bestätigung nicht möglich. %(name)s hat eine unbestätigte primäre E-Mail-"
+"Adresse."
 
 msgid "Force confirm registration"
 msgstr "Registrierung erzwungen bestätigen"
@@ -1249,14 +1240,6 @@ msgstr ""
 "Du kannst die fehlende Bestätigung der alternativen E-Mail-Adresse manuell "
 "übergehen. Die Registrierung wird bestätigt und die alternative E-Mail-"
 "Adresse wird als bestätigt markiert."
-
-#, python-format
-msgid ""
-"Warning: The primary email of %(member)s is also not confirmed. Confirmation "
-"is not possible."
-msgstr ""
-"Warnung: Die primäre E-Mail-Adresse von %(member)s ist ebenfalls nicht "
-"bestätigt. Eine Bestätigung ist nicht möglich."
 
 msgid "Force confirm"
 msgstr "Bestätigung erzwingen"

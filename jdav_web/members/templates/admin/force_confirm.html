@@ -9,17 +9,12 @@
 <p>
 {% blocktrans %}You can manually override the missing confirmation of the alternative email. The registration will be confirmed and the alternative email will be marked as confirmed.{% endblocktrans %}
 </p>
-{% if not member.confirmed_mail %}
-<p>
-<strong>{% blocktrans %}Warning: The primary email of {{ member }} is also not confirmed. Confirmation is not possible.{% endblocktrans %}</strong>
-</p>
-{% endif %}
 
 <form action="" method="post">
     {% csrf_token %}
     {{ form }}
     <p>
-        <input class="default" type="submit" name="apply" value="{% translate 'Force confirm' %}">
+        <input class="default" type="submit" name="_force_confirm" value="{% translate 'Force confirm' %}">
         <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
     </p>
 </form>

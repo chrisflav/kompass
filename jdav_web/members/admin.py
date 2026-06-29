@@ -1146,34 +1146,7 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         )
         return render(request, "admin/request_registration_form.html", context=context)
 
-    @extra_button(
-        _("Force confirm (override alt. email)"),
-        url_name="force_confirm",
-        condition=lambda obj: bool(obj.alternative_email) and not obj.confirmed_alternative_mail,
-    )
-    def force_confirm_view(self, request, member):
-        if "apply" in request.POST:
-            form = ForceConfirmForm(request.POST)
-            if form.is_valid():
-                if member.force_confirm():
-                    messages.success(
-                        request,
-                        _("Successfully confirmed %(name)s (alternative email override).")
-                        % {"name": member.name},
-                    )
-                    return HttpResponseRedirect(
-                        reverse("admin:members_memberunconfirmedproxy_changelist")
-                    )
-                messages.error(
-                    request,
-                    _("Can't confirm. %(name)s still has an unconfirmed primary email address.")
-                    % {"name": member.name},
-                )
-                return HttpResponseRedirect(
-                    reverse("admin:members_memberunconfirmedproxy_change", args=(member.pk,))
-                )
-        else:
-            form = ForceConfirmForm()
+    def _render_force_confirm(self, request, member, form):
         context = dict(
             self.admin_site.each_context(request),
             title=_("Force confirm registration"),
@@ -1186,7 +1159,33 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         return render(request, "admin/force_confirm.html", context=context)
 
     def response_change(self, request, member):
+        if "_force_confirm" in request.POST:
+            form = ForceConfirmForm(request.POST)
+            if not form.is_valid():
+                return self._render_force_confirm(request, member, form)
+            if member.force_confirm():
+                messages.success(
+                    request, _("Successfully confirmed %(name)s.") % {"name": member.name}
+                )
+                return HttpResponseRedirect(
+                    reverse("admin:members_memberunconfirmedproxy_changelist")
+                )
+            messages.error(
+                request,
+                _("Can't confirm. %(name)s has an unconfirmed primary email address.")
+                % {"name": member.name},
+            )
+            return super().response_change(request, member)
         if "_confirm" in request.POST:
+            if not member.confirmed_mail:
+                messages.error(
+                    request,
+                    _("Can't confirm. %(name)s has unconfirmed email addresses.")
+                    % {"name": member.name},
+                )
+                return super().response_change(request, member)
+            if member.alternative_email and not member.confirmed_alternative_mail:
+                return self._render_force_confirm(request, member, ForceConfirmForm())
             if member.confirm():
                 messages.success(
                     request, _("Successfully confirmed %(name)s.") % {"name": member.name}
