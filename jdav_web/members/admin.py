@@ -909,6 +909,17 @@ class DemoteToWaiterForm(forms.Form):
     _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
 
 
+class ConfirmOverrideAltEmailForm(forms.Form):
+    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput, required=False)
+    confirm_override = forms.BooleanField(
+        label=_(
+            "I confirm that I want to override the missing alternative email confirmation"
+            " and have verified the alternative email address manually."
+        ),
+        required=True,
+    )
+
+
 class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     documentation_url = "user_manual/waitinglist.html"
     extra_buttons_model = MemberUnconfirmedProxy
@@ -1043,9 +1054,41 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
     )
 
     def confirm(self, request, queryset):
+        # Override form submission: "apply" is set by the intermediate override view.
+        if "apply" in request.POST:
+            form = ConfirmOverrideAltEmailForm(request.POST)
+            if form.is_valid():
+                for member in queryset:
+                    if member.confirm(override_alternative_email=True):
+                        messages.success(
+                            request,
+                            _("Successfully confirmed %(name)s.") % {"name": member.name},
+                        )
+                    else:
+                        messages.error(
+                            request,
+                            _("Can't confirm. %(name)s has an unconfirmed primary email.")
+                            % {"name": member.name},
+                        )
+                return
+            # Checkbox not checked – re-render the intermediate view with errors.
+            context = dict(
+                self.admin_site.each_context(request),
+                title=_("Override alternative email confirmation"),
+                opts=self.opts,
+                queryset=queryset,
+                form=form,
+            )
+            return render(request, "admin/confirm_override_alt_email.html", context=context)
+
         notify_individual = len(queryset.all()) < 10
         success = True
+        members_needing_override = []
+
         for member in queryset:
+            if member.confirmed_mail and not member.confirmed_alternative_mail and member.alternative_email:
+                members_needing_override.append(member)
+                continue
             confirmed = member.confirm()
             if not confirmed:
                 success = False
@@ -1060,15 +1103,27 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
                         _("Can't confirm. %(name)s has unconfirmed email addresses.")
                         % {"name": member.name},
                     )
-        if notify_individual:
-            return
-        if success:
-            messages.success(request, _("Successfully confirmed multiple registrations."))
-        else:
-            messages.error(
-                request,
-                _("Failed to confirm some registrations because of unconfirmed email addresses."),
+
+        if members_needing_override:
+            ids = [m.pk for m in members_needing_override]
+            form = ConfirmOverrideAltEmailForm(initial={"_selected_action": ids})
+            context = dict(
+                self.admin_site.each_context(request),
+                title=_("Override alternative email confirmation"),
+                opts=self.opts,
+                queryset=members_needing_override,
+                form=form,
             )
+            return render(request, "admin/confirm_override_alt_email.html", context=context)
+
+        if not notify_individual:
+            if success:
+                messages.success(request, _("Successfully confirmed multiple registrations."))
+            else:
+                messages.error(
+                    request,
+                    _("Failed to confirm some registrations because of unconfirmed email addresses."),
+                )
 
     confirm.short_description = _("Confirm selected registrations")
 
@@ -1114,6 +1169,49 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
             )
 
     @extra_button(
+        _("Confirm (override alternative email)"),
+        url_name="confirm_override_alt_email",
+        condition=lambda obj: not obj.confirmed
+        and obj.confirmed_mail
+        and not obj.confirmed_alternative_mail
+        and bool(obj.alternative_email),
+        documentation_url="user_manual/waitinglist.html",
+    )
+    def confirm_override_alt_email_view(self, request, member):
+        if "apply" in request.POST:
+            form = ConfirmOverrideAltEmailForm(request.POST)
+            if form.is_valid():
+                if member.confirm(override_alternative_email=True):
+                    messages.success(
+                        request,
+                        _("Successfully confirmed %(name)s.") % {"name": member.name},
+                    )
+                else:
+                    messages.error(
+                        request,
+                        _("Can't confirm. %(name)s has an unconfirmed primary email.")
+                        % {"name": member.name},
+                    )
+                return HttpResponseRedirect(
+                    reverse("admin:members_memberunconfirmedproxy_change", args=(member.pk,))
+                )
+        else:
+            form = ConfirmOverrideAltEmailForm()
+
+        context = dict(
+            self.admin_site.each_context(request),
+            title=_("Override alternative email confirmation"),
+            view_header=_("Confirm (override alternative email)"),
+            opts=self.opts,
+            member=member,
+            object=member,
+            queryset=[member],
+            form=form,
+            is_single=True,
+        )
+        return render(request, "admin/confirm_override_alt_email.html", context=context)
+
+    @extra_button(
         _("Request registration form"),
         documentation_url="user_manual/waitinglist.html",
     )
@@ -1138,7 +1236,20 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
 
     def response_change(self, request, member):
         if "_confirm" in request.POST:
-            if member.confirm():
+            if not member.confirmed_mail:
+                messages.error(
+                    request,
+                    _("Can't confirm. %(name)s has unconfirmed email addresses.")
+                    % {"name": member.name},
+                )
+            elif not member.confirmed_alternative_mail and member.alternative_email:
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:members_memberunconfirmedproxy_confirm_override_alt_email",
+                        args=(member.pk,),
+                    )
+                )
+            elif member.confirm():
                 messages.success(
                     request, _("Successfully confirmed %(name)s.") % {"name": member.name}
                 )

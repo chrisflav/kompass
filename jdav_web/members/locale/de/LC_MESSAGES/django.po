@@ -2092,3 +2092,30 @@ msgstr "Optionale zusätzliche E-Mailadresse"
 
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
+
+msgid ""
+"I confirm that I want to override the missing alternative email confirmation"
+" and have verified the alternative email address manually."
+msgstr ""
+"Ich bestätige, dass ich die fehlende Bestätigung der alternativen E-Mail-"
+"Adresse überschreiben möchte und die alternative E-Mail-Adresse manuell "
+"überprüft habe."
+
+msgid "Override alternative email confirmation"
+msgstr "Bestätigung der alternativen E-Mail-Adresse überschreiben"
+
+msgid "Confirm (override alternative email)"
+msgstr "Bestätigen (alternative E-Mail überschreiben)"
+
+msgid ""
+"The following registrations have an unconfirmed alternative email address. "
+"Confirming them requires explicitly overriding this requirement. "
+"Please verify manually that the alternative email address is correct before "
+"proceeding."
+msgstr ""
+"Die folgenden Anmeldungen haben eine unbestätigte alternative E-Mail-Adresse. "
+"Um sie zu bestätigen, muss diese Anforderung explizit überschrieben werden. "
+"Bitte überprüfe die alternative E-Mail-Adresse manuell, bevor du fortfährst."
+
+msgid "Can't confirm. %(name)s has an unconfirmed primary email."
+msgstr "%(name)s kann nicht bestätigt werden. Die primäre E-Mail-Adresse ist nicht bestätigt."

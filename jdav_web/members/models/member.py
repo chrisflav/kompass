@@ -223,8 +223,10 @@ class Member(Person):
         self.save()
         return self.echo_key
 
-    def confirm(self):
-        if not self.confirmed_mail or not self.confirmed_alternative_mail:
+    def confirm(self, override_alternative_email=False):
+        if not self.confirmed_mail:
+            return False
+        if not self.confirmed_alternative_mail and not override_alternative_email:
             return False
         self.confirmed = True
         self.save()

@@ -1,0 +1,56 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+    <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
+    <script type="text/javascript" src="{% static "admin/js/jquery.init.js" %}"></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% translate 'Override alternative email confirmation' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<h2>{% translate "Override alternative email confirmation" %}</h2>
+<p>
+{% blocktrans trimmed %}
+The following registrations have an unconfirmed alternative email address.
+Confirming them requires explicitly overriding this requirement.
+Please verify manually that the alternative email address is correct before proceeding.
+{% endblocktrans %}
+</p>
+
+<ul>
+{% for member in queryset %}
+    <li><strong>{{ member.name }}</strong> &mdash; {{ member.alternative_email }}</li>
+{% endfor %}
+</ul>
+
+<form action="" method="post">
+    {% csrf_token %}
+    {% if not is_single %}
+    {{ form._selected_action }}
+    <input type="hidden" name="action" value="confirm">
+    {% endif %}
+    <p>
+        {{ form.confirm_override }}
+        <label for="{{ form.confirm_override.id_for_label }}">{{ form.confirm_override.label }}</label>
+    </p>
+    {% if form.confirm_override.errors %}
+    <p class="errornote">{{ form.confirm_override.errors }}</p>
+    {% endif %}
+    <input class="default" type="submit" name="apply" value="{% translate 'Confirm' %}">
+    <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+</form>
+{% endblock %}
