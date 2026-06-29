@@ -1146,6 +1146,17 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         )
         return render(request, "admin/request_registration_form.html", context=context)
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<path:object_id>/force-confirm/",
+                self.admin_site.admin_view(self.force_confirm_view),
+                name="members_memberunconfirmedproxy_force_confirm",
+            ),
+        ]
+        return custom_urls + urls
+
     def _render_force_confirm(self, request, member, form):
         context = dict(
             self.admin_site.each_context(request),
@@ -1158,24 +1169,41 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         )
         return render(request, "admin/force_confirm.html", context=context)
 
-    def response_change(self, request, member):
-        if "_force_confirm" in request.POST:
+    def force_confirm_view(self, request, object_id):
+        """Intermediate confirmation view for overriding the missing
+        confirmation of the alternative email. The registration has already
+        been saved at this point, so the override is handled independently of
+        the change form to avoid re-validating it."""
+        member = self.get_object(request, object_id)
+        if member is None:
+            messages.error(request, _("Registration not found."))
+            return HttpResponseRedirect(reverse("admin:members_memberunconfirmedproxy_changelist"))
+        if not self.has_change_permission(request, member):
+            messages.error(request, _("Insufficient permissions."))
+            return HttpResponseRedirect(reverse("admin:members_memberunconfirmedproxy_changelist"))
+        if request.method == "POST":
             form = ForceConfirmForm(request.POST)
-            if not form.is_valid():
-                return self._render_force_confirm(request, member, form)
-            if member.force_confirm():
-                messages.success(
-                    request, _("Successfully confirmed %(name)s.") % {"name": member.name}
+            if form.is_valid():
+                if member.force_confirm():
+                    messages.success(
+                        request, _("Successfully confirmed %(name)s.") % {"name": member.name}
+                    )
+                    return HttpResponseRedirect(
+                        reverse("admin:members_memberunconfirmedproxy_changelist")
+                    )
+                messages.error(
+                    request,
+                    _("Can't confirm. %(name)s has an unconfirmed primary email address.")
+                    % {"name": member.name},
                 )
                 return HttpResponseRedirect(
-                    reverse("admin:members_memberunconfirmedproxy_changelist")
+                    reverse("admin:members_memberunconfirmedproxy_change", args=(member.pk,))
                 )
-            messages.error(
-                request,
-                _("Can't confirm. %(name)s has an unconfirmed primary email address.")
-                % {"name": member.name},
-            )
-            return super().response_change(request, member)
+        else:
+            form = ForceConfirmForm()
+        return self._render_force_confirm(request, member, form)
+
+    def response_change(self, request, member):
         if "_confirm" in request.POST:
             if not member.confirmed_mail:
                 messages.error(
@@ -1185,7 +1213,9 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
                 )
                 return super().response_change(request, member)
             if member.alternative_email and not member.confirmed_alternative_mail:
-                return self._render_force_confirm(request, member, ForceConfirmForm())
+                return HttpResponseRedirect(
+                    reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(member.pk,))
+                )
             if member.confirm():
                 messages.success(
                     request, _("Successfully confirmed %(name)s.") % {"name": member.name}

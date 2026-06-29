@@ -2513,7 +2513,7 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_confirm_renders_force_confirm_when_alt_mail_unconfirmed(self):
+    def test_confirm_redirects_to_force_confirm_when_alt_mail_unconfirmed(self):
         self.reg.alternative_email = "alt@example.com"
         self.reg.confirmed_mail = True
         self.reg.confirmed_alternative_mail = False
@@ -2522,39 +2522,66 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         request.user = User.objects.get(username="superuser")
         self._add_session_to_request(request)
         response = self.admin.response_change(request, self.reg)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertContains(response, _("Force confirm registration"))
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertEqual(
+            response.url,
+            reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,)),
+        )
         self.reg.refresh_from_db()
         self.assertFalse(self.reg.confirmed)
         self.assertFalse(self.reg.confirmed_alternative_mail)
 
-    def test_force_confirm_requires_checkbox(self):
+    def test_force_confirm_get_renders_checkbox(self):
+        c = self._login("superuser")
         self.reg.alternative_email = "alt@example.com"
         self.reg.confirmed_mail = True
         self.reg.confirmed_alternative_mail = False
         self.reg.save()
-        request = self.factory.post("/", {"_force_confirm": True})
-        request.user = User.objects.get(username="superuser")
-        self._add_session_to_request(request)
-        response = self.admin.response_change(request, self.reg)
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
+        response = c.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(response, _("Force confirm registration"))
+        self.assertContains(response, 'type="checkbox"')
+        self.assertContains(response, "confirm_override")
+
+    def test_force_confirm_requires_checkbox(self):
+        c = self._login("superuser")
+        self.reg.alternative_email = "alt@example.com"
+        self.reg.confirmed_mail = True
+        self.reg.confirmed_alternative_mail = False
+        self.reg.save()
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
+        response = c.post(url, data={})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.reg.refresh_from_db()
         self.assertFalse(self.reg.confirmed)
         self.assertFalse(self.reg.confirmed_alternative_mail)
 
     def test_force_confirm_applies(self):
+        c = self._login("superuser")
         self.reg.alternative_email = "alt@example.com"
         self.reg.confirmed_mail = True
         self.reg.confirmed_alternative_mail = False
         self.reg.save()
-        request = self.factory.post("/", {"_force_confirm": True, "confirm_override": "on"})
-        request.user = User.objects.get(username="superuser")
-        self._add_session_to_request(request)
-        response = self.admin.response_change(request, self.reg)
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
+        response = c.post(url, data={"confirm_override": "on"})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.reg.refresh_from_db()
         self.assertTrue(self.reg.confirmed)
         self.assertTrue(self.reg.confirmed_alternative_mail)
+
+    def test_force_confirm_fails_without_primary_mail(self):
+        c = self._login("superuser")
+        self.reg.alternative_email = "alt@example.com"
+        self.reg.confirmed_mail = False
+        self.reg.confirmed_alternative_mail = False
+        self.reg.save()
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
+        response = c.post(url, data={"confirm_override": "on"})
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.reg.refresh_from_db()
+        self.assertFalse(self.reg.confirmed)
+        self.assertFalse(self.reg.confirmed_alternative_mail)
 
     def test_confirm_fails_without_primary_mail(self):
         self.reg.alternative_email = "alt@example.com"
