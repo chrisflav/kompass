@@ -235,6 +235,14 @@ msgstr "Ungültige Teilnehmer*innenauswahl."
 msgid "Create Crisis Intervention List"
 msgstr "Kriseninterventionsliste erstellen"
 
+msgid ""
+"I confirm that I want to override the missing alternative email confirmation "
+"and have verified the alternative email address manually."
+msgstr ""
+"Ich bestätige, dass ich die fehlende Bestätigung der alternativen E-Mail-"
+"Adresse überschreiben möchte und die alternative E-Mail-Adresse manuell "
+"überprüft habe."
+
 msgid "Alternative email confirmed"
 msgstr "Alternative E-Mail Adresse bestätigt"
 
@@ -259,6 +267,15 @@ msgstr ""
 #, python-format
 msgid "Successfully confirmed %(name)s."
 msgstr "Registrierung von %(name)s erfolgreich bestätigt."
+
+#, python-format
+msgid "Can't confirm. %(name)s has an unconfirmed primary email."
+msgstr ""
+"%(name)s kann nicht bestätigt werden. Die primäre E-Mail-Adresse ist nicht "
+"bestätigt."
+
+msgid "Override alternative email confirmation"
+msgstr "Bestätigung der alternativen E-Mail-Adresse überschreiben"
 
 #, python-format
 msgid "Can't confirm. %(name)s has unconfirmed email addresses."
@@ -288,6 +305,9 @@ msgstr "Ausgewählte Registrierung zurück auf die Warteliste setzen."
 #, python-format
 msgid "Successfully demoted %(name)s to waiter."
 msgstr "%(name)s zurück auf die Warteliste gesetzt."
+
+msgid "Confirm (override alternative email)"
+msgstr "Bestätigen (alternative E-Mail überschreiben)"
 
 msgid "Request registration form"
 msgstr "Anmeldeformular anfragen"
@@ -1162,6 +1182,26 @@ msgstr "Von der Warteliste abgemeldet"
 msgid "Successfully registered for the waitinglist"
 msgstr "Erfolgreich für die Warteliste registriert"
 
+msgid "Home"
+msgstr "Start"
+
+msgid ""
+"The following registrations have an unconfirmed alternative email address. "
+"Confirming them requires explicitly overriding this requirement. Please "
+"verify manually that the alternative email address is correct before "
+"proceeding."
+msgstr ""
+"Die folgenden Anmeldungen haben eine unbestätigte alternative E-Mail-"
+"Adresse. Um sie zu bestätigen, muss diese Anforderung explizit überschrieben "
+"werden. Bitte überprüfe die alternative E-Mail-Adresse manuell, bevor du "
+"fortfährst."
+
+msgid "Confirm"
+msgstr "Bestätigen"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
 msgid "Selected members:"
 msgstr "Ausgewählte Teilnehmer*innen:"
 
@@ -1170,9 +1210,6 @@ msgstr "Bitte gib die Details für die Aktivität ein:"
 
 msgid "Generate Crisis Intervention List"
 msgstr "Kriseninterventionsliste generieren"
-
-msgid "Cancel"
-msgstr "Abbrechen"
 
 msgid "Select object type:"
 msgstr "Wähle Objekttyp:"
@@ -1652,9 +1689,6 @@ msgstr "Möchtest du %(member)s auffordern das Anmeldeformular hochzuladen?"
 msgid "Warning: %(member)s has already uploaded a registration form."
 msgstr "Warnung: %(member)s hat bereits ein Anmeldeformular hochgeladen."
 
-msgid "Home"
-msgstr "Start"
-
 #, python-format
 msgid "Add %(name)s"
 msgstr "%(name)s hinzufügen"
@@ -2092,30 +2126,3 @@ msgstr "Optionale zusätzliche E-Mailadresse"
 
 msgid "Invalid emergency contacts"
 msgstr "Ungültige Notfallkontakte"
-
-msgid ""
-"I confirm that I want to override the missing alternative email confirmation"
-" and have verified the alternative email address manually."
-msgstr ""
-"Ich bestätige, dass ich die fehlende Bestätigung der alternativen E-Mail-"
-"Adresse überschreiben möchte und die alternative E-Mail-Adresse manuell "
-"überprüft habe."
-
-msgid "Override alternative email confirmation"
-msgstr "Bestätigung der alternativen E-Mail-Adresse überschreiben"
-
-msgid "Confirm (override alternative email)"
-msgstr "Bestätigen (alternative E-Mail überschreiben)"
-
-msgid ""
-"The following registrations have an unconfirmed alternative email address. "
-"Confirming them requires explicitly overriding this requirement. "
-"Please verify manually that the alternative email address is correct before "
-"proceeding."
-msgstr ""
-"Die folgenden Anmeldungen haben eine unbestätigte alternative E-Mail-Adresse. "
-"Um sie zu bestätigen, muss diese Anforderung explizit überschrieben werden. "
-"Bitte überprüfe die alternative E-Mail-Adresse manuell, bevor du fortfährst."
-
-msgid "Can't confirm. %(name)s has an unconfirmed primary email."
-msgstr "%(name)s kann nicht bestätigt werden. Die primäre E-Mail-Adresse ist nicht bestätigt."

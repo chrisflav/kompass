@@ -1086,7 +1086,11 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         members_needing_override = []
 
         for member in queryset:
-            if member.confirmed_mail and not member.confirmed_alternative_mail and member.alternative_email:
+            if (
+                member.confirmed_mail
+                and not member.confirmed_alternative_mail
+                and member.alternative_email
+            ):
                 members_needing_override.append(member)
                 continue
             confirmed = member.confirm()
@@ -1122,7 +1126,10 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
             else:
                 messages.error(
                     request,
-                    _("Failed to confirm some registrations because of unconfirmed email addresses."),
+                    _(
+                        "Failed to confirm some registrations because of unconfirmed email"
+                        " addresses."
+                    ),
                 )
 
     confirm.short_description = _("Confirm selected registrations")
@@ -1171,10 +1178,12 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
     @extra_button(
         _("Confirm (override alternative email)"),
         url_name="confirm_override_alt_email",
-        condition=lambda obj: not obj.confirmed
-        and obj.confirmed_mail
-        and not obj.confirmed_alternative_mail
-        and bool(obj.alternative_email),
+        condition=lambda obj: (
+            not obj.confirmed
+            and obj.confirmed_mail
+            and not obj.confirmed_alternative_mail
+            and bool(obj.alternative_email)
+        ),
         documentation_url="user_manual/waitinglist.html",
     )
     def confirm_override_alt_email_view(self, request, member):
