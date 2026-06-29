@@ -2519,9 +2519,7 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         self.reg.confirmed_mail = True
         self.reg.confirmed_alternative_mail = False
         self.reg.save()
-        url = reverse(
-            "admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,)
-        )
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Force confirm registration"))
@@ -2532,9 +2530,7 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         self.reg.confirmed_mail = True
         self.reg.confirmed_alternative_mail = False
         self.reg.save()
-        url = reverse(
-            "admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,)
-        )
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
         response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.reg.refresh_from_db()
@@ -2547,9 +2543,7 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         self.reg.confirmed_mail = True
         self.reg.confirmed_alternative_mail = False
         self.reg.save()
-        url = reverse(
-            "admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,)
-        )
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
         response = c.post(url, data={"apply": "", "confirm_override": "on"})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.reg.refresh_from_db()
@@ -2562,12 +2556,8 @@ class MemberUnconfirmedAdminTestCase(AdminTestCase):
         self.reg.confirmed_mail = False
         self.reg.confirmed_alternative_mail = False
         self.reg.save()
-        url = reverse(
-            "admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,)
-        )
-        response = c.post(
-            url, data={"apply": "", "confirm_override": "on"}, follow=True
-        )
+        url = reverse("admin:members_memberunconfirmedproxy_force_confirm", args=(self.reg.pk,))
+        response = c.post(url, data={"apply": "", "confirm_override": "on"}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.reg.refresh_from_db()
         self.assertFalse(self.reg.confirmed)

@@ -1170,9 +1170,7 @@ class MemberUnconfirmedAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
                     % {"name": member.name},
                 )
                 return HttpResponseRedirect(
-                    reverse(
-                        "admin:members_memberunconfirmedproxy_change", args=(member.pk,)
-                    )
+                    reverse("admin:members_memberunconfirmedproxy_change", args=(member.pk,))
                 )
         else:
             form = ForceConfirmForm()
