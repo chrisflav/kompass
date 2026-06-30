@@ -230,6 +230,17 @@ class Member(Person):
         self.save()
         return True
 
+    def force_confirm(self):
+        """Confirm the registration, overriding the requirement that the
+        alternative email be confirmed. The primary email must still be
+        confirmed."""
+        if not self.confirmed_mail:
+            return False
+        self.confirmed_alternative_mail = True
+        self.confirmed = True
+        self.save()
+        return True
+
     def unconfirm(self):
         self.confirmed = False
         self.save()

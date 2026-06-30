@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 19:42+0200\n"
+"POT-Creation-Date: 2026-06-30 00:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -235,6 +235,13 @@ msgstr "Ungültige Teilnehmer*innenauswahl."
 msgid "Create Crisis Intervention List"
 msgstr "Kriseninterventionsliste erstellen"
 
+msgid ""
+"I confirm that I want to manually override the missing confirmation of the "
+"alternative email address."
+msgstr ""
+"Ich bestätige, dass ich die fehlende Bestätigung der alternativen E-Mail-"
+"Adresse manuell übergehen möchte."
+
 msgid "Alternative email confirmed"
 msgstr "Alternative E-Mail Adresse bestätigt"
 
@@ -298,6 +305,21 @@ msgstr "Anmeldeformular für %(name)s angefragt."
 
 msgid "Request upload registration form"
 msgstr "Anmeldeformular anfragen"
+
+msgid "Force confirm registration"
+msgstr "Registrierung erzwungen bestätigen"
+
+msgid "Registration not found."
+msgstr "Registrierung nicht gefunden."
+
+msgid "Insufficient permissions."
+msgstr "Unzureichende Berechtigungen."
+
+#, python-format
+msgid "Can't confirm. %(name)s has an unconfirmed primary email address."
+msgstr ""
+"Bestätigung nicht möglich. %(name)s hat eine unbestätigte primäre E-Mail-"
+"Adresse."
 
 msgid "Group"
 msgstr "Gruppe"
@@ -1208,6 +1230,26 @@ msgstr "Möchtest du die folgenden Personen zurück auf die Warteliste setzen?"
 msgid "Demote"
 msgstr "Zurück auf die Warteliste setzen"
 
+#, python-format
+msgid ""
+"The alternative email of %(member)s (%(member.alternative_email)s) has not "
+"been confirmed."
+msgstr ""
+"Die alternative E-Mail-Adresse von %(member)s (%(member.alternative_email)s) "
+"wurde nicht bestätigt."
+
+msgid ""
+"You can manually override the missing confirmation of the alternative email. "
+"The registration will be confirmed and the alternative email will be marked "
+"as confirmed."
+msgstr ""
+"Du kannst die fehlende Bestätigung der alternativen E-Mail-Adresse manuell "
+"übergehen. Die Registrierung wird bestätigt und die alternative E-Mail-"
+"Adresse wird als bestätigt markiert."
+
+msgid "Force confirm"
+msgstr "Bestätigung erzwingen"
+
 msgid ""
 "\n"
 "Here you see an estimate on the expected costs and contributions by the "
@@ -2043,9 +2085,6 @@ msgid ""
 msgstr ""
 "Danke %(prename)s für dein Interesse auf der Warteliste zu bleiben.\n"
 "Dein Platz wurde bestätigt."
-
-msgid "Insufficient permissions."
-msgstr "Unzureichende Berechtigungen."
 
 msgid "Member not found."
 msgstr "Teilnehmer*in nicht gefunden."

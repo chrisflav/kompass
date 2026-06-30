@@ -1,0 +1,24 @@
+{% extends "admin/extra_view.html" %}
+{% load i18n %}
+
+{% block content %}
+<h2>{% translate "Force confirm registration" %}</h2>
+<p>
+{% blocktrans %}The alternative email of {{ member }} ({{ member.alternative_email }}) has not been confirmed.{% endblocktrans %}
+</p>
+<p>
+{% blocktrans %}You can manually override the missing confirmation of the alternative email. The registration will be confirmed and the alternative email will be marked as confirmed.{% endblocktrans %}
+</p>
+
+<form action="{% url 'admin:members_memberunconfirmedproxy_force_confirm' member.pk %}" method="post">
+    {% csrf_token %}
+    <div class="form-row">
+        {{ form.confirm_override.errors }}
+        {{ form.confirm_override }}{{ form.confirm_override.label_tag }}
+    </div>
+    <p>
+        <input class="default" type="submit" name="_force_confirm" value="{% translate 'Force confirm' %}">
+        <a href="#" class="button cancel-link">{% translate "Cancel" %}</a>
+    </p>
+</form>
+{% endblock %}
