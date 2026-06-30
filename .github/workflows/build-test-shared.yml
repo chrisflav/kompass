@@ -75,7 +75,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build application image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/production/Dockerfile
@@ -130,7 +130,7 @@ jobs:
           done
 
       - name: Build and push nginx image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: docker/production/nginx
           file: docker/production/nginx/Dockerfile
