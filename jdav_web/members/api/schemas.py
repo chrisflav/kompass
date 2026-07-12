@@ -26,6 +26,22 @@ from ninja import ModelSchema
 from ninja import Schema
 
 
+class MeOut(Schema):
+    """The authenticated user's own identity.
+
+    Drives the SPA's top bar (name → profile link) and the personal ("Meine …")
+    views. ``member_id`` is null for accounts without a linked ``Member``; the
+    frontend then falls back to the username for display and hides the personal
+    section.
+    """
+
+    user_id: int
+    username: str
+    name: str
+    member_id: int | None = None
+    is_staff: bool = False
+
+
 class GroupBrief(Schema):
     id: int
     name: str

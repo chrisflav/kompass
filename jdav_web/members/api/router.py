@@ -44,6 +44,7 @@ from .schemas import MemberNoteListUpdate
 from .schemas import MemberOut
 from .schemas import MemberTrainingUpdate
 from .schemas import MemberUpdate
+from .schemas import MeOut
 from .schemas import RegistrationBrief
 from .schemas import TrainingBrief
 from .schemas import TrainingCategoryOut
@@ -192,6 +193,26 @@ def retrieve_registration(request, registration_id: int):
         registration_id,
         "members.view_obj_memberunconfirmedproxy",
     )
+
+
+@router.get("/me", response=MeOut)
+def retrieve_me(request):
+    """The authenticated user's own identity (name + linked member, if any).
+
+    Any authenticated user may read their own identity — no object permission is
+    involved. Declared before the greedy single-segment ``/{member_id}`` route so
+    it is matched first. ``member_id`` is null when the account has no linked
+    ``Member`` (e.g. a pure administrator login).
+    """
+    user = request.user
+    member = getattr(user, "member", None)
+    return {
+        "user_id": user.pk,
+        "username": user.get_username(),
+        "name": member.name if member is not None else user.get_username(),
+        "member_id": member.pk if member is not None else None,
+        "is_staff": bool(getattr(user, "is_staff", False)),
+    }
 
 
 # NOTE: the single-segment ``/{member_id}`` GET/PATCH routes are declared at the
