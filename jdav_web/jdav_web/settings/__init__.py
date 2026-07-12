@@ -56,6 +56,7 @@ base_settings = [
     "local.py",
     "components/authentication.py",
     "components/base.py",
+    "components/api.py",
     "components/database.py",
     "components/cache.py",
     "components/jet.py",

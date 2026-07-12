@@ -25,12 +25,21 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
 from oauth2_provider import urls as oauth2_urls
 
+from .api import api
 from .views import media_access
 
 admin.site.index_title = _("Startpage")
 admin.site.site_header = "Kompass"
 
 urlpatterns = []
+
+# REST API and OAuth2 provider — mounted outside i18n_patterns and before the
+# startpage catch-all so they are not shadowed by a language prefix (a locale
+# redirect would turn the frontend's token POST into a GET) or the "^" include.
+urlpatterns += [
+    path("api/", api.urls),
+    path("o/", include(oauth2_urls)),
+]
 
 if settings.OIDC_ENABLED:
     admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
@@ -51,7 +60,6 @@ urlpatterns += i18n_patterns(
         include("ludwigsburgalpin.urls", namespace="ludwigsburgalpin"),
     ),
     re_path(r"^_nested_admin/", include("nested_admin.urls")),
-    path("o/", include(oauth2_urls)),
     re_path(r"^", include("startpage.urls", namespace="startpage")),
 )
 
