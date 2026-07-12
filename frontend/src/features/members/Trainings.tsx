@@ -71,7 +71,7 @@ export function TrainingsList() {
       search: (t) => [t.title],
       filters: [
         { key: "category", label: "Kategorie", options: categoryOptions, match: (t, v) => t.category_name === v },
-        { key: "member", label: "Mitglied", options: memberOptions, match: (t, v) => t.member_name === v },
+        { key: "member", label: "Teilnehmende", options: memberOptions, match: (t, v) => t.member_name === v },
         {
           key: "activity",
           label: "Tätigkeit",
@@ -124,7 +124,7 @@ export function TrainingsList() {
             onSort={view.toggleSort}
             columns={[
               { header: "Titel", cell: (t) => t.title, sortKey: "title" },
-              { header: "Mitglied", cell: (t) => t.member_name, sortKey: "member" },
+              { header: "Teilnehmende", cell: (t) => t.member_name, sortKey: "member" },
               { header: "Datum", cell: (t) => formatDate(t.date), sortKey: "date" },
               { header: "Kategorie", cell: (t) => t.category_name, sortKey: "category" },
               { header: "Tätigkeiten", cell: (t) => t.activities.join(", ") || "—" },
@@ -255,7 +255,7 @@ function TrainingDetailBody({ training }: { training: TrainingOut }) {
         <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       ),
     },
-    { label: "Mitglied", value: training.member.name },
+    { label: "Teilnehmende", value: training.member.name },
     {
       label: "Kategorie",
       value: training.category,

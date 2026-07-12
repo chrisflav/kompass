@@ -697,13 +697,13 @@ function PostPersonsInline({ postId, editing }: { postId: number; editing: boole
       options={members.map((m) => ({ value: m.id, label: m.name }))}
       selected={values.member_ids}
       onChange={(ids) => onChange({ ...values, member_ids: ids })}
-      placeholder="Mitglied hinzufügen"
+      placeholder="Teilnehmende hinzufügen"
     />
   );
 
   const columns = [
     {
-      header: "Mitglieder",
+      header: "Teilnehmende",
       cell: (r: MemberOnPostOut) => r.members.map((m) => m.name).join(", ") || "—",
     },
     { header: "Beschreibung", cell: (r: MemberOnPostOut) => r.description || "—" },
@@ -744,7 +744,7 @@ function PostPersonsInline({ postId, editing }: { postId: number; editing: boole
       renderAdd={() =>
         editState ? (
           <div className="stack">
-            <Field label="Mitglieder">
+            <Field label="Teilnehmende">
               {memberSelect(editState, (next) => setEditState({ ...editState, ...next }))}
             </Field>
             <Field label="Beschreibung">
@@ -785,7 +785,7 @@ function PostPersonsInline({ postId, editing }: { postId: number; editing: boole
           </div>
         ) : (
           <div className="stack">
-            <Field label="Mitglieder">
+            <Field label="Teilnehmende">
               {memberSelect(draft, setDraft)}
             </Field>
             <Field label="Beschreibung">

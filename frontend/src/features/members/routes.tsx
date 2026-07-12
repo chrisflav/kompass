@@ -8,6 +8,7 @@ import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { InlineTable } from "../../components/inline";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
+import { MeineGruppen } from "./Meine";
 import { RegistrationDetailPage, RegistrationsList } from "./Registrations";
 import { TrainingDetailPage, TrainingsList } from "./Trainings";
 import { WaiterDetailPage, WaitersList } from "./Waiters";
@@ -268,11 +269,11 @@ function MembersList() {
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Mitglieder" }]}
+        breadcrumbs={[{ label: "Teilnehmende" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
       />
       <ListToolbar view={view} />
-      <QueryBoundary query={query} empty="Keine Mitglieder sichtbar.">
+      <QueryBoundary query={query} empty="Keine Teilnehmende sichtbar.">
         {() => (
           <DataTable
             rows={view.rows}
@@ -328,7 +329,7 @@ function MemberDetailPage() {
       ),
     { enabled: Boolean(groupId) },
   );
-  const memberName = query.data?.name ?? "Mitglied";
+  const memberName = query.data?.name ?? "Teilnehmende";
   // Breadcrumb trail: from the group members view when a ?group is carried,
   // otherwise from the flat members list.
   const crumbs: Crumb[] = groupId
@@ -337,7 +338,7 @@ function MemberDetailPage() {
         { label: groupQuery.data?.name ?? "Gruppe", to: `/app/groups/${groupId}/members` },
         { label: memberName },
       ]
-    : [{ label: "Mitglieder", to: "/app/members" }, { label: memberName }];
+    : [{ label: "Teilnehmende", to: "/app/members" }, { label: memberName }];
 
   return (
     <div>
@@ -377,14 +378,19 @@ function MembersOfGroup() {
     <div>
       <PageHeader
         breadcrumbs={[{ label: "Gruppen", to: "/app/groups" }, { label: groupName ?? "Gruppe" }]}
-        subtitle={`${rows.length} Mitglieder`}
+        subtitle={`${rows.length} Teilnehmende`}
         actions={
-          <Button variant="ghost" onClick={() => navigate(`/app/groups/${gid}`)}>
-            Gruppe bearbeiten
-          </Button>
+          <>
+            <Button variant="ghost" onClick={() => history.back()}>
+              Zurück
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/app/groups/${gid}`)}>
+              Gruppe bearbeiten
+            </Button>
+          </>
         }
       />
-      <QueryBoundary query={membersQuery} empty="Keine Mitglieder in dieser Gruppe.">
+      <QueryBoundary query={membersQuery} empty="Keine Teilnehmende in dieser Gruppe.">
         {() => (
           <DataTable
             rows={rows}
@@ -1133,7 +1139,7 @@ function PermissionMembersInline({ memberId, editing }: { memberId: number; edit
       options={memberOpts.map((m) => ({ value: m.id, label: m.name }))}
       selected={values}
       onChange={onChange}
-      placeholder="Mitglied"
+      placeholder="Teilnehmende"
     />
   );
   const groupSelect = (values: number[], onChange: (v: number[]) => void) => (
@@ -1165,7 +1171,7 @@ function PermissionMembersInline({ memberId, editing }: { memberId: number; edit
         }
         return (
           <div className="small">
-            <div>Mitglieder: {memberIds.length ? memberIds.map(memberName).join(", ") : "—"}</div>
+            <div>Teilnehmende: {memberIds.length ? memberIds.map(memberName).join(", ") : "—"}</div>
             <div>Gruppen: {groupIds.length ? groupIds.map(groupName).join(", ") : "—"}</div>
           </div>
         );
@@ -1317,6 +1323,7 @@ function MemberActions({ member }: { member: MemberOut }) {
 /* --- route fragment ------------------------------------------------------ */
 export const membersRoutes = (
   <>
+    <Route path="meine/gruppen" element={<MeineGruppen />} />
     <Route path="members" element={<MembersList />} />
     <Route path="members/:id" element={<MemberDetailPage />} />
     <Route path="groups/:groupId/members" element={<MembersOfGroup />} />

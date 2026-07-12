@@ -101,7 +101,7 @@ export function KlettertreffList() {
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Klettertreff" }]}
+        breadcrumbs={[{ label: "Klettertreffs" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
       />
       <ListToolbar view={view} />
@@ -147,7 +147,7 @@ export function KlettertreffDetailPage() {
     <div>
       <PageHeader
         breadcrumbs={[
-          { label: "Klettertreff", to: "/app/klettertreff" },
+          { label: "Klettertreffs", to: "/app/klettertreff" },
           { label: query.data ? query.data.topic || query.data.group.name : "Klettertreff" },
         ]}
         actions={
@@ -406,21 +406,21 @@ function KlettertreffAttendeesInline({
       rowKey={(a) => a.id}
       editing={editing}
       onDelete={(a) => remove.mutate(a.id)}
-      columns={[{ header: "Mitglied", cell: (a) => a.member.name }]}
+      columns={[{ header: "Teilnehmende", cell: (a) => a.member.name }]}
       renderAdd={() => (
         <div className="stack">
           <Select
             value={memberId}
             onChange={(v) => setMemberId(v)}
             options={memberOptions}
-            placeholder="Mitglied wählen …"
+            placeholder="Teilnehmende wählen …"
           />
           <Button
             type="button"
             busy={create.isPending}
             onClick={() => {
               if (memberId === "") {
-                toast.error("Bitte ein Mitglied wählen.");
+                toast.error("Bitte Teilnehmende wählen.");
                 return;
               }
               create.mutate({ member_id: Number(memberId) });

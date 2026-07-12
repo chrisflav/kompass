@@ -220,7 +220,7 @@ function EmailAddressDetailBody({ address }: { address: EmailAddressOut }) {
     },
     { label: "Weiterleitungen", value: address.forwards.join(", ") || "—" },
     {
-      label: "Mitglieder",
+      label: "Teilnehmende",
       field: "to_members",
       value: address.to_members.map((m) => m.name).join(", ") || "—",
       edit: (
@@ -228,7 +228,7 @@ function EmailAddressDetailBody({ address }: { address: EmailAddressOut }) {
           options={memberOptions}
           selected={form.to_members}
           onChange={(v) => setForm({ ...form, to_members: v })}
-          placeholder="Mitglied hinzufügen"
+          placeholder="Teilnehmende hinzufügen"
         />
       ),
     },
@@ -397,7 +397,7 @@ function EmailAddressForm({
       </Field>
       <Field
         label="Weiterleiten an Gruppen"
-        hint="Gruppe oder mindestens ein Mitglied ist erforderlich."
+        hint="Gruppe oder mindestens eine teilnehmende Person ist erforderlich."
       >
         <MultiSelect
           options={groupOptions}
@@ -409,12 +409,12 @@ function EmailAddressForm({
           <div className="field-error">{fieldErrors.to_groups.join(" ")}</div>
         )}
       </Field>
-      <Field label="Weiterleiten an Mitglieder">
+      <Field label="Weiterleiten an Teilnehmende">
         <MultiSelect
           options={memberOptions}
           selected={form.to_members}
           onChange={(v) => setForm({ ...form, to_members: v })}
-          placeholder="Mitglied hinzufügen"
+          placeholder="Teilnehmende hinzufügen"
         />
         {fieldErrors.to_members && (
           <div className="field-error">{fieldErrors.to_members.join(" ")}</div>

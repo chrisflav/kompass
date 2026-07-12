@@ -283,7 +283,7 @@ function BillCreateForm({ onDone }: { onDone: () => void }) {
         />
       </Field>
       {/* BACKEND-GAP: no endpoint to list members, so "Bezahlt von" is entered as a numeric member id. */}
-      <Field label="Bezahlt von (Mitglieds-ID)">
+      <Field label="Bezahlt von (Teilnehmenden-ID)">
         <input
           type="number"
           value={form.paid_by_id}
@@ -434,7 +434,7 @@ function BillDetailBody({ bill }: { bill: BillOut }) {
       edit: (
         <input
           type="number"
-          placeholder="Mitglieds-ID"
+          placeholder="Teilnehmenden-ID"
           value={form.paid_by_id}
           onChange={(e) => setForm({ ...form, paid_by_id: e.target.value })}
         />

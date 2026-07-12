@@ -205,10 +205,10 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
           },
           {
             id: "mitglieder",
-            label: "Mitglieder",
+            label: "Teilnehmende",
             content: (
               <ParticipantsInline
-                title="Mitglieder"
+                title="Teilnehmende"
                 editing={editing}
                 queryKey={["note-lists", list.id, "participants"]}
                 listFn={() =>

@@ -213,7 +213,7 @@ export function ParticipantsInline({
       editing={editing}
       onDelete={(r) => remove.mutate(r.id)}
       columns={[
-        { header: "Mitglied", cell: (r) => r.member.name },
+        { header: "Teilnehmende", cell: (r) => r.member.name },
         {
           header: "Kommentar",
           cell: (r) =>
@@ -243,7 +243,7 @@ export function ParticipantsInline({
             value={memberId}
             onChange={(v) => setMemberId(v)}
             options={memberOptions}
-            placeholder="Mitglied wählen …"
+            placeholder="Teilnehmende wählen …"
           />
           <input
             placeholder="Kommentar"
@@ -255,7 +255,7 @@ export function ParticipantsInline({
             busy={create.isPending}
             onClick={() => {
               if (memberId === "") {
-                toast.error("Bitte ein Mitglied wählen.");
+                toast.error("Bitte Teilnehmende wählen.");
                 return;
               }
               create.mutate({ member_id: Number(memberId), comments });

@@ -585,7 +585,7 @@ function PartOwnerships({ part, editing }: { part: MaterialPartOut; editing: boo
             value={newOwner === "" ? "" : String(newOwner)}
             onChange={(v) => setNewOwner(v === "" ? "" : Number(v))}
             options={memberOptions.map((m) => ({ value: m.id, label: m.name }))}
-            placeholder="Mitglied wählen…"
+            placeholder="Teilnehmende wählen…"
           />
           <input
             type="number"

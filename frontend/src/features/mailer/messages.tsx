@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
@@ -32,7 +32,17 @@ type AttachmentOut = components["schemas"]["AttachmentOut"];
 
 export function MessagesList() {
   const navigate = useNavigate();
-  const [creating, setCreating] = useState(false);
+  // `?compose=1` opens the create dialog straight away, so a "Nachricht senden"
+  // shortcut (e.g. from the dashboard) lands directly in composing.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [creating, setCreating] = useState(() => searchParams.get("compose") === "1");
+  const closeCreate = () => {
+    setCreating(false);
+    if (searchParams.has("compose")) {
+      searchParams.delete("compose");
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
   const query = useApiQuery(["mailer", "messages"], () =>
     unwrap(client.GET("/api/mailer/messages")),
   );
@@ -75,8 +85,8 @@ export function MessagesList() {
         actions={<Button onClick={() => setCreating(true)}>Neue Nachricht</Button>}
       />
       {creating && (
-        <Modal title="Neue Nachricht" onClose={() => setCreating(false)}>
-          <MessageCreateDialog onClose={() => setCreating(false)} />
+        <Modal title="Neue Nachricht" onClose={closeCreate}>
+          <MessageCreateDialog onClose={closeCreate} />
         </Modal>
       )}
       <ListToolbar view={view} />
@@ -255,12 +265,12 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           placeholder="Gruppe hinzufügen"
         />
       </Field>
-      <Field label="Empfänger-Mitglieder">
+      <Field label="Empfänger-Teilnehmende">
         <MultiSelect
           options={memberOptions}
           selected={form.to_members}
           onChange={(v) => setForm({ ...form, to_members: v })}
-          placeholder="Mitglied hinzufügen"
+          placeholder="Teilnehmende hinzufügen"
         />
       </Field>
       <Field label="Freizeit-Teilnehmer">
@@ -270,12 +280,12 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           onChange={(v) => setForm({ ...form, to_freizeit: v })}
         />
       </Field>
-      <Field label="Antwort an (Mitglieder)">
+      <Field label="Antwort an (Teilnehmende)">
         <MultiSelect
           options={memberOptions}
           selected={form.reply_to}
           onChange={(v) => setForm({ ...form, reply_to: v })}
-          placeholder="Mitglied hinzufügen"
+          placeholder="Teilnehmende hinzufügen"
         />
       </Field>
       <Field label="Antwort an (E-Mail-Adressen)">
@@ -448,7 +458,7 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
       ),
     },
     {
-      label: "Mitglieder",
+      label: "Teilnehmende",
       field: "to_members",
       value: message.to_members.map((m) => m.name).join(", ") || "—",
       edit: (
@@ -456,7 +466,7 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
           options={memberOptions}
           selected={form.to_members}
           onChange={(v) => setForm({ ...form, to_members: v })}
-          placeholder="Mitglied hinzufügen"
+          placeholder="Teilnehmende hinzufügen"
         />
       ),
     },
@@ -475,7 +485,7 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
       ),
     },
     {
-      label: "Antwort an (Mitglieder)",
+      label: "Antwort an (Teilnehmende)",
       field: "reply_to",
       value: message.reply_to.map((m) => m.name).join(", ") || "—",
       edit: (
@@ -483,7 +493,7 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
           options={memberOptions}
           selected={form.reply_to}
           onChange={(v) => setForm({ ...form, reply_to: v })}
-          placeholder="Mitglied hinzufügen"
+          placeholder="Teilnehmende hinzufügen"
         />
       ),
     },

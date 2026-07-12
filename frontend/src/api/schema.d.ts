@@ -200,6 +200,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve Me
+         * @description The authenticated user's own identity (name + linked member, if any).
+         *
+         *     Any authenticated user may read their own identity — no object permission is
+         *     involved. Declared before the greedy single-segment ``/{member_id}`` route so
+         *     it is matched first. ``member_id`` is null when the account has no linked
+         *     ``Member`` (e.g. a pure administrator login).
+         */
+        get: operations["members_api_router_retrieve_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/trainings": {
         parameters: {
             query?: never;
@@ -3728,6 +3753,30 @@ export interface components {
              */
             created?: string;
         };
+        /**
+         * MeOut
+         * @description The authenticated user's own identity.
+         *
+         *     Drives the SPA's top bar (name → profile link) and the personal ("Meine …")
+         *     views. ``member_id`` is null for accounts without a linked ``Member``; the
+         *     frontend then falls back to the username for display and hides the personal
+         *     section.
+         */
+        MeOut: {
+            /** User Id */
+            user_id: number;
+            /** Username */
+            username: string;
+            /** Name */
+            name: string;
+            /** Member Id */
+            member_id?: number | null;
+            /**
+             * Is Staff
+             * @default false
+             */
+            is_staff: boolean;
+        };
         /** TrainingBrief */
         TrainingBrief: {
             /** Id */
@@ -6924,6 +6973,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+        };
+    };
+    members_api_router_retrieve_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
         };
