@@ -1,0 +1,144 @@
+import type { ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
+
+import { Button, Field, Select } from "../../../components/ui";
+import type { components } from "../../../api/schema";
+
+type EmergencyContactIn = components["schemas"]["EmergencyContactIn"];
+
+/** Gender codes as defined on ``Member.gender_choices`` (0/1/2). */
+export const GENDER_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "Männlich" },
+  { value: 1, label: "Weiblich" },
+  { value: 2, label: "Divers" },
+];
+
+/** Read the ``key`` query-string parameter shared by every secret-link flow. */
+export function useFlowKey(): string {
+  const [params] = useSearchParams();
+  return params.get("key") ?? "";
+}
+
+/**
+ * Centered card shell for the standalone (chrome-less) self-service pages. It is
+ * intentionally styled with the login card so these task pages look like the
+ * rest of the standalone surfaces.
+ */
+export function FlowShell({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="login">
+      <div className="card" style={{ width: "min(620px, 94vw)" }}>
+        <h1>{title}</h1>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Prominent success / error result message inside a flow shell. */
+export function FlowResult({
+  tone,
+  children,
+}: {
+  tone: "success" | "error";
+  children: ReactNode;
+}) {
+  return (
+    <p className={tone === "error" ? "error state" : "state"} role={tone === "error" ? "alert" : "status"}>
+      {children}
+    </p>
+  );
+}
+
+export function GenderSelect({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <Field label="Geschlecht">
+      <Select
+        value={String(value)}
+        onChange={(v) => onChange(Number(v))}
+        options={GENDER_OPTIONS}
+      />
+    </Field>
+  );
+}
+
+const EMPTY_CONTACT: EmergencyContactIn = {
+  prename: "",
+  lastname: "",
+  phone_number: "",
+  email: "",
+};
+
+/**
+ * Editor for the ``emergency_contacts`` list required by the registration and
+ * echo submissions (the backend enforces at least one, mirroring the formset's
+ * ``min_num=1``).
+ */
+export function EmergencyContactsEditor({
+  contacts,
+  onChange,
+}: {
+  contacts: EmergencyContactIn[];
+  onChange: (contacts: EmergencyContactIn[]) => void;
+}) {
+  const update = (index: number, patch: Partial<EmergencyContactIn>) =>
+    onChange(contacts.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+  const remove = (index: number) => onChange(contacts.filter((_, i) => i !== index));
+
+  return (
+    <div className="stack">
+      <h3 style={{ margin: 0 }}>Notfallkontakte</h3>
+      {contacts.map((contact, index) => (
+        <div key={index} className="stack" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
+          <Field label="Vorname">
+            <input
+              value={contact.prename}
+              onChange={(e) => update(index, { prename: e.target.value })}
+            />
+          </Field>
+          <Field label="Nachname">
+            <input
+              value={contact.lastname}
+              onChange={(e) => update(index, { lastname: e.target.value })}
+            />
+          </Field>
+          <Field label="Telefon">
+            <input
+              value={contact.phone_number}
+              onChange={(e) => update(index, { phone_number: e.target.value })}
+            />
+          </Field>
+          <Field label="E-Mail (optional)">
+            <input
+              type="email"
+              value={contact.email}
+              onChange={(e) => update(index, { email: e.target.value })}
+            />
+          </Field>
+          {contacts.length > 1 && (
+            <div className="row-actions">
+              <Button type="button" variant="ghost" onClick={() => remove(index)}>
+                Kontakt entfernen
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="row-actions">
+        <Button type="button" variant="ghost" onClick={() => onChange([...contacts, { ...EMPTY_CONTACT }])}>
+          Weiteren Kontakt hinzufügen
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function newEmergencyContact(): EmergencyContactIn {
+  return { ...EMPTY_CONTACT };
+}

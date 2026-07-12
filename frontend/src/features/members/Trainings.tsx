@@ -1,0 +1,382 @@
+import { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+
+import { ApiError, client, unwrap } from "../../api/http";
+import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
+import {
+  Badge,
+  Button,
+  DataTable,
+  EditableDetail,
+  MultiSelect,
+  PageHeader,
+  QueryBoundary,
+  Select,
+  useToast,
+  type DetailRow,
+} from "../../components/ui";
+import type { components } from "../../api/schema";
+
+type TrainingBrief = components["schemas"]["TrainingBrief"];
+type TrainingOut = components["schemas"]["TrainingOut"];
+type TrainingUpdate = components["schemas"]["MemberTrainingUpdate"];
+type TrainingCategoryOut = components["schemas"]["TrainingCategoryOut"];
+type ActivityCategoryOut = components["schemas"]["ActivityCategoryOut"];
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("de-DE");
+}
+
+function boolBadge(value: boolean | null | undefined) {
+  if (value === null || value === undefined) return "—";
+  return value ? <Badge tone="success">Ja</Badge> : <Badge tone="warning">Nein</Badge>;
+}
+
+const fieldsetTitle = { marginTop: "1.5rem" } as const;
+
+/* --- list ----------------------------------------------------------------
+ * Full parity with MemberTrainingAdmin: all list_display columns (title,
+ * member, date, category, activities, participated, passed, certificate),
+ * search over title, filters (category, passed, activity, member), sortable
+ * headers, default ordering by -date. */
+
+export function TrainingsList() {
+  const navigate = useNavigate();
+  const query = useApiQuery(["trainings"], () => unwrap(client.GET("/api/members/trainings")));
+  const rows = query.data ?? [];
+
+  const categoryOptions = useMemo(() => {
+    const names = new Set<string>();
+    rows.forEach((t) => names.add(t.category_name));
+    return [...names].sort().map((n) => ({ value: n, label: n }));
+  }, [rows]);
+
+  const memberOptions = useMemo(() => {
+    const names = new Set<string>();
+    rows.forEach((t) => names.add(t.member_name));
+    return [...names].sort().map((n) => ({ value: n, label: n }));
+  }, [rows]);
+
+  const activityOptions = useMemo(() => {
+    const names = new Set<string>();
+    rows.forEach((t) => t.activities.forEach((a) => names.add(a)));
+    return [...names].sort().map((n) => ({ value: n, label: n }));
+  }, [rows]);
+
+  const config: ListViewConfig<TrainingBrief> = useMemo(
+    () => ({
+      search: (t) => [t.title],
+      filters: [
+        { key: "category", label: "Kategorie", options: categoryOptions, match: (t, v) => t.category_name === v },
+        { key: "member", label: "Mitglied", options: memberOptions, match: (t, v) => t.member_name === v },
+        {
+          key: "activity",
+          label: "Tätigkeit",
+          options: activityOptions,
+          match: (t, v) => t.activities.includes(v),
+        },
+        {
+          key: "passed",
+          label: "Bestanden",
+          options: [
+            { value: "yes", label: "Ja" },
+            { value: "no", label: "Nein" },
+            { value: "unknown", label: "Unbekannt" },
+          ],
+          match: (t, v) =>
+            v === "unknown"
+              ? t.passed === null || t.passed === undefined
+              : (v === "yes") === Boolean(t.passed),
+        },
+      ],
+      sort: {
+        title: (t) => t.title,
+        member: (t) => t.member_name,
+        date: (t) => t.date,
+        category: (t) => t.category_name,
+        participated: (t) => t.participated,
+        passed: (t) => t.passed,
+      },
+      defaultSort: { key: "date", dir: "desc" },
+    }),
+    [categoryOptions, memberOptions, activityOptions],
+  );
+
+  const view = useListView(rows, config);
+
+  return (
+    <div>
+      <PageHeader
+        breadcrumbs={[{ label: "Ausbildungen" }]}
+        subtitle={`${view.rows.length} / ${view.total}`}
+      />
+      <ListToolbar view={view} />
+      <QueryBoundary query={query} empty="Keine Ausbildungen sichtbar.">
+        {() => (
+          <DataTable
+            rows={view.rows}
+            rowKey={(t) => t.id}
+            onRowClick={(t) => navigate(`/app/trainings/${t.id}`)}
+            sort={view.sort}
+            onSort={view.toggleSort}
+            columns={[
+              { header: "Titel", cell: (t) => t.title, sortKey: "title" },
+              { header: "Mitglied", cell: (t) => t.member_name, sortKey: "member" },
+              { header: "Datum", cell: (t) => formatDate(t.date), sortKey: "date" },
+              { header: "Kategorie", cell: (t) => t.category_name, sortKey: "category" },
+              { header: "Tätigkeiten", cell: (t) => t.activities.join(", ") || "—" },
+              { header: "Teilgenommen", cell: (t) => boolBadge(t.participated), sortKey: "participated" },
+              { header: "Bestanden", cell: (t) => boolBadge(t.passed), sortKey: "passed" },
+              {
+                header: "Nachweis",
+                cell: (t) =>
+                  t.certificate ? (
+                    <a
+                      href={t.certificate}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Öffnen
+                    </a>
+                  ) : (
+                    "—"
+                  ),
+              },
+            ]}
+          />
+        )}
+      </QueryBoundary>
+    </div>
+  );
+}
+
+/* --- detail + edit ------------------------------------------------------- */
+
+export function TrainingDetailPage() {
+  const { id } = useParams();
+  const trainingId = Number(id);
+  const query = useApiQuery(["trainings", trainingId], () =>
+    unwrap(
+      client.GET("/api/members/trainings/{training_id}", {
+        params: { path: { training_id: trainingId } },
+      }),
+    ),
+  );
+
+  return (
+    <div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Ausbildungen", to: "/app/trainings" },
+          { label: query.data?.title ?? "Ausbildung" },
+        ]}
+        actions={
+          <Button variant="ghost" onClick={() => history.back()}>
+            Zurück
+          </Button>
+        }
+      />
+      <QueryBoundary query={query}>
+        {(training: TrainingOut) => <TrainingDetailBody training={training} />}
+      </QueryBoundary>
+    </div>
+  );
+}
+
+function makeDraft(t: TrainingOut) {
+  return {
+    title: t.title ?? "",
+    comments: t.comments ?? "",
+    participated: t.participated ?? false,
+    passed: t.passed ?? false,
+    date: t.date ?? "",
+    category_id: String(t.category_id ?? ""),
+    activity_ids: t.activity_ids ?? [],
+  };
+}
+
+function TrainingDetailBody({ training }: { training: TrainingOut }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(() => makeDraft(training));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const categoriesQuery = useApiQuery(
+    ["training-categories"],
+    () => unwrap(client.GET("/api/members/training-categories")),
+    { enabled: editing },
+  );
+  const activitiesQuery = useApiQuery(
+    ["activity-categories"],
+    () => unwrap(client.GET("/api/members/activity-categories")),
+    { enabled: editing },
+  );
+
+  const mutation = useApiMutation<TrainingOut, TrainingUpdate>(
+    (body: TrainingUpdate) =>
+      unwrap(
+        client.PATCH("/api/members/trainings/{training_id}", {
+          params: { path: { training_id: training.id } },
+          body,
+        }),
+      ),
+    {
+      invalidate: [["trainings"], ["trainings", training.id]],
+      onSuccess: () => {
+        toast.success("Gespeichert.");
+        setEditing(false);
+      },
+      onError: (e: Error) => {
+        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  function startEditing() {
+    setForm(makeDraft(training));
+    setFieldErrors({});
+    setEditing(true);
+  }
+
+  const categories: TrainingCategoryOut[] = categoriesQuery.data ?? [];
+  const activities: ActivityCategoryOut[] = activitiesQuery.data ?? [];
+
+  const rows: DetailRow[] = [
+    {
+      label: "Titel",
+      value: training.title,
+      field: "title",
+      edit: (
+        <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+      ),
+    },
+    { label: "Mitglied", value: training.member.name },
+    {
+      label: "Kategorie",
+      value: training.category,
+      field: "category",
+      edit: (
+        <Select
+          value={form.category_id}
+          onChange={(v) => setForm({ ...form, category_id: v })}
+          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+          placeholder="Kategorie wählen …"
+        />
+      ),
+    },
+    {
+      label: "Tätigkeiten",
+      value: training.activities.length ? training.activities.join(", ") : "—",
+      field: "activities",
+      edit: (
+        <MultiSelect
+          options={activities.map((a) => ({ value: a.id, label: a.name }))}
+          selected={form.activity_ids}
+          onChange={(ids) => setForm({ ...form, activity_ids: ids })}
+          placeholder="Tätigkeit hinzufügen"
+        />
+      ),
+    },
+    {
+      label: "Datum",
+      value: formatDate(training.date),
+      field: "date",
+      edit: (
+        <input
+          type="date"
+          value={form.date}
+          onChange={(e) => setForm({ ...form, date: e.target.value })}
+        />
+      ),
+    },
+    {
+      label: "Teilgenommen",
+      value: boolBadge(training.participated),
+      field: "participated",
+      edit: (
+        <input
+          type="checkbox"
+          checked={form.participated}
+          onChange={(e) => setForm({ ...form, participated: e.target.checked })}
+        />
+      ),
+    },
+    {
+      label: "Bestanden",
+      value: boolBadge(training.passed),
+      field: "passed",
+      edit: (
+        <input
+          type="checkbox"
+          checked={form.passed}
+          onChange={(e) => setForm({ ...form, passed: e.target.checked })}
+        />
+      ),
+    },
+    {
+      label: "Kommentar",
+      value: training.comments || "—",
+      field: "comments",
+      edit: (
+        <textarea
+          value={form.comments}
+          onChange={(e) => setForm({ ...form, comments: e.target.value })}
+        />
+      ),
+    },
+    {
+      label: "Teilnahmebescheinigung",
+      value: training.certificate ? (
+        <a href={training.certificate} target="_blank" rel="noreferrer">
+          Öffnen
+        </a>
+      ) : (
+        "—"
+      ),
+    },
+  ];
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        setFieldErrors({});
+        mutation.mutate({
+          title: form.title,
+          comments: form.comments,
+          participated: form.participated,
+          passed: form.passed,
+          date: form.date || null,
+          category_id: form.category_id ? Number(form.category_id) : null,
+          activity_ids: form.activity_ids,
+        });
+      }}
+    >
+      <div className="detail-actions">
+        {editing ? (
+          <>
+            <Button type="submit" busy={mutation.isPending}>
+              Speichern
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+              Abbrechen
+            </Button>
+          </>
+        ) : (
+          <Button type="button" onClick={startEditing}>
+            Bearbeiten
+          </Button>
+        )}
+      </div>
+      <h3 className="fieldset-title" style={fieldsetTitle}>
+        Ausbildung
+      </h3>
+      <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
+    </form>
+  );
+}

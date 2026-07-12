@@ -1,0 +1,1272 @@
+:root {
+  /* --- Alpenvereinskarte palette ------------------------------------------
+     The identity is rooted in the DAV's own topographic maps and the compass
+     the product ("Kompass") is named after — not a generic SaaS green. Colours
+     are the materials of alpine cartography: cool map paper, rock-shadow ink,
+     glacial blue, a bistre contour hairline, and a magnetic-needle accent. */
+  --paper: #f4f5f2; /* cool map paper — app canvas */
+  --ink: #14232c; /* rock-shadow slate — text */
+  --fels: #17566a; /* glacial alpine blue — primary / links / active */
+  --fels-hover: #114353;
+  --gletscher: #e2edf0; /* glacier ice — weak / active fills */
+  --contour: #a8683c; /* bistre contour line — the cartographic signature */
+  --contour-weak: rgba(168, 104, 60, 0.13);
+  --nord: #c8452d; /* compass-needle red — the one sharp accent + danger */
+  --nord-weak: #f6e6e1;
+
+  --panel: #ffffff;
+  --panel-2: #f6f7f4;
+  --border: #e2e4dd;
+  --muted: #63707a;
+
+  /* Semantic aliases keep every existing rule working while adopting the new
+     palette. --accent maps to the alpine blue; --danger to the needle red. */
+  --bg: var(--paper);
+  --text: var(--ink);
+  --accent: var(--fels);
+  --accent-hover: var(--fels-hover);
+  --accent-weak: var(--gletscher);
+  --danger: var(--nord);
+  --danger-weak: var(--nord-weak);
+  --warning: #8a5a10; /* topographic amber */
+  --warning-weak: #f4ead4;
+  --info: #17566a;
+  --info-weak: #e2edf0;
+  /* Success stays a forest green so it never collides with the alpine-blue
+     primary or the needle-red danger. */
+  --success: #2f6f4f;
+  --success-weak: #e5efe8;
+
+  --radius: 9px;
+  --shadow: 0 1px 2px rgba(20, 35, 44, 0.05), 0 6px 18px rgba(20, 35, 44, 0.05);
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  font-family: var(--font-sans);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1,
+h2 {
+  letter-spacing: -0.012em;
+}
+
+h2 {
+  margin: 0 0 0.15rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+h3 {
+  margin: 0;
+}
+
+/* --- buttons ------------------------------------------------------------- */
+
+.btn {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #fff;
+  transition: background 0.12s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+.btn.danger {
+  background: var(--danger);
+}
+
+.btn.icon {
+  padding: 0.2rem 0.5rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* --- admin shell --------------------------------------------------------- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+  padding: 0 0.5rem;
+}
+
+.compass-mark {
+  flex: none;
+  display: block;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.nav-group-label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--muted);
+  padding: 0 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.nav-item {
+  position: relative;
+  display: block;
+  padding: 0.4rem 0.5rem;
+  border-radius: 7px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.nav-item:hover {
+  background: var(--panel-2);
+}
+
+.nav-item.active {
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Active section = a magnetic-needle bearing tick, as if the compass has taken
+   a reading on where you are. */
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -0.1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 1.05rem;
+  border-radius: 0 3px 3px 0;
+  background: var(--nord);
+}
+
+.logout {
+  margin-top: auto;
+}
+
+.app-content {
+  padding: 1.5rem 2rem;
+  max-width: 1100px;
+  width: 100%;
+}
+
+/* --- page header --------------------------------------------------------- */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.page-actions,
+.detail-actions,
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.detail-actions {
+  margin-bottom: 1rem;
+}
+
+/* --- list toolbar (search / filter) -------------------------------------- */
+
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.list-search {
+  width: auto;
+  min-width: 220px;
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+
+.list-filter {
+  width: auto;
+  min-width: 150px;
+}
+
+/* --- tables -------------------------------------------------------------- */
+
+.th-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.th-sort:hover {
+  color: var(--accent);
+}
+
+.th-sort.active {
+  color: var(--accent);
+}
+
+.sort-arrow {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  /* Datasheet figures line up column-to-column (member ids, amounts, dates). */
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 0.55rem 0.9rem;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr.clickable {
+  cursor: pointer;
+}
+
+.data-table tr.clickable:hover td {
+  background: var(--accent-weak);
+}
+
+/* --- tabs ----------------------------------------------------------------- */
+
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.55rem 0.9rem;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+/* Inside tabs the first fieldset/inline heading is redundant with the tab. */
+.tab-panel > .fieldset-title:first-child,
+.tab-panel > .inline-section > .fieldset-title:first-child {
+  margin-top: 0.25rem;
+}
+
+/* --- fieldset groups & inline sections ----------------------------------- */
+
+.fieldset-title {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.inline-section {
+  margin-top: 1.5rem;
+}
+
+.inline-add {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+/* --- detail list --------------------------------------------------------- */
+
+.detail {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  box-shadow: var(--shadow);
+  margin: 0;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail dt {
+  color: var(--muted);
+}
+
+.detail dd {
+  margin: 0;
+}
+
+/* --- badges -------------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.badge.success {
+  background: var(--success-weak);
+  color: var(--success);
+  border-color: transparent;
+}
+
+.badge.warning {
+  background: var(--warning-weak);
+  color: var(--warning);
+  border-color: transparent;
+}
+
+.badge.danger {
+  background: var(--danger-weak);
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.badge.info {
+  background: var(--info-weak);
+  color: var(--info);
+  border-color: transparent;
+}
+
+/* --- forms --------------------------------------------------------------- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 480px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* Per-input validation error (shown under the offending field). */
+.field-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.has-error input,
+.has-error select,
+.has-error textarea,
+.field.has-error input,
+.field.has-error select,
+.field.has-error textarea {
+  border-color: var(--danger);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel);
+  width: 100%;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-weak);
+  border-color: var(--accent);
+}
+
+/* Checkboxes/radios must not stretch full-width; keep them left-aligned. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  margin: 0;
+  align-self: flex-start;
+}
+
+/* A left-aligned checkbox row (label to the right of the box). */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+/* --- breadcrumbs --------------------------------------------------------- */
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.breadcrumbs a {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  color: var(--accent);
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.crumb-sep {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 1.05rem;
+}
+
+.crumb-current {
+  color: var(--text);
+}
+
+/* --- dropdown menu ------------------------------------------------------- */
+
+.menu {
+  position: relative;
+  display: inline-block;
+}
+
+.menu-dropdown {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.menu-dropdown .btn {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+/* --- searchable multi-select --------------------------------------------- */
+
+.multiselect {
+  position: relative;
+}
+
+.ms-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  min-height: 2.2rem;
+}
+
+.ms-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ms-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.ms-toggle {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.1rem 0.55rem;
+}
+
+.ms-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ms-dropdown {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.4rem;
+}
+
+.ms-search {
+  margin-bottom: 0.35rem;
+}
+
+.ms-options {
+  max-height: 13rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-opt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.ms-opt:hover {
+  background: var(--panel-2);
+}
+
+.ms-opt.selected {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ms-check {
+  color: var(--accent);
+}
+
+.ms-empty {
+  padding: 0.5rem;
+}
+
+/* --- searchable single-select (filters) ---------------------------------- */
+
+.searchselect {
+  position: relative;
+  display: inline-block;
+}
+
+.ss-trigger {
+  font: inherit;
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 150px;
+}
+
+.ss-trigger.active {
+  border-color: var(--accent);
+}
+
+.ss-label {
+  color: var(--muted);
+}
+
+.ss-value {
+  font-weight: 600;
+}
+
+.ss-trigger.active .ss-value {
+  color: var(--accent);
+}
+
+.ss-caret {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.searchselect .ms-dropdown {
+  min-width: 200px;
+}
+
+/* --- states -------------------------------------------------------------- */
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.state {
+  padding: 1.25rem 0;
+}
+
+/* --- dashboard cards ----------------------------------------------------- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.shortcut-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  transition: border-color 0.12s ease;
+}
+
+.shortcut-card:hover {
+  border-color: var(--accent);
+}
+
+.shortcut-title {
+  font-weight: 600;
+}
+
+/* --- login --------------------------------------------------------------- */
+
+.login {
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--paper);
+}
+
+/* Topographic contour backdrop — the signature moment. Sits behind the card,
+   masked to fade toward the centre so the form stays legible. */
+.hero-contour {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: var(--contour);
+}
+
+.login > .card {
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.login-brand h1 {
+  font-size: 1.9rem;
+}
+
+.login-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.75rem;
+  width: min(380px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: var(--shadow);
+}
+
+.card h1 {
+  margin: 0;
+}
+
+/* --- public site --------------------------------------------------------- */
+
+.public-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.public-nav {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.public-nav a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.public-nav a:hover,
+.public-nav a.active {
+  color: var(--accent);
+}
+
+.public-login {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.public-content {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.public-footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+/* --- modal --------------------------------------------------------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 45, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--panel);
+  border-radius: 14px;
+  width: min(520px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(20, 30, 45, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-body {
+  padding: 1.25rem;
+}
+
+/* --- toasts -------------------------------------------------------------- */
+
+.toast-stack {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 100;
+}
+
+.toast {
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  color: #fff;
+  box-shadow: var(--shadow);
+  max-width: 320px;
+  font-size: 0.9rem;
+}
+
+.toast.success {
+  background: var(--success);
+}
+
+.toast.error {
+  background: var(--danger);
+}
+
+/* --- public hero (topographic signature) --------------------------------- */
+
+.public-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.75rem;
+  padding: 2.75rem 2rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(160deg, #fbfcfa 0%, var(--gletscher) 100%);
+}
+
+.public-hero .hero-contour {
+  color: var(--contour);
+}
+
+.public-hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 34rem;
+}
+
+.public-hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fels);
+}
+
+.public-hero h1 {
+  margin: 0.5rem 0 0;
+  font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+  line-height: 1.05;
+}
+
+.public-hero-lead {
+  margin: 0.6rem 0 0;
+  font-size: 1.05rem;
+  color: var(--muted);
+  max-width: 30rem;
+}
+
+/* Ludwigsburg's own coordinates, read out like a bearing on the map. */
+.public-hero-coords {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--contour);
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--contour-weak);
+}
+
+/* --- sidebar brand: faint contour behind the wordmark -------------------- */
+
+.sidebar-brand {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 0.85rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--contour-weak);
+}
+
+.sidebar-brand .hero-contour {
+  color: var(--contour);
+  opacity: 0.4;
+}
+
+.sidebar-brand .brand {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- admin dashboard ("Basecamp") ---------------------------------------- */
+
+/* Shared mono eyebrow / coordinate-label voice. */
+.eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dash-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(150deg, #fbfcfa 0%, var(--gletscher) 130%);
+}
+
+.dash-hero .hero-contour {
+  color: var(--contour);
+  opacity: 0.7;
+}
+
+.dash-hero .compass-mark {
+  position: relative;
+  z-index: 1;
+}
+
+.dash-hero-text {
+  position: relative;
+  z-index: 1;
+}
+
+.dash-hero-title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.dash-hero-sub {
+  margin: 0.1rem 0 0;
+  color: var(--muted);
+}
+
+.dash-hero-meta {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--fels);
+  white-space: nowrap;
+}
+
+.dash-section {
+  margin-bottom: 2rem;
+}
+
+.dash-group {
+  margin-bottom: 1.25rem;
+}
+
+.dash-group-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Live count tiles. The number reads like an instrument figure (mono, tabular);
+   an above-zero to-do flags itself with the magnetic-needle tick. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.stat-tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.12s ease;
+}
+
+.stat-tile:hover {
+  border-color: var(--fels);
+}
+
+.stat-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--fels);
+}
+
+.stat-label {
+  font-weight: 600;
+}
+
+.stat-caption {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* A pending to-do: needle-red figure + a bearing tick down the left edge. */
+.stat-tile.attention .stat-num {
+  color: var(--nord);
+}
+
+.stat-tile.attention::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--nord);
+}
+
+/* --- keyboard focus (quality floor) -------------------------------------- */
+
+a:focus-visible,
+.btn:focus-visible,
+.nav-item:focus-visible,
+.tab:focus-visible,
+.th-sort:focus-visible,
+.ss-trigger:focus-visible,
+.ms-toggle:focus-visible,
+.ms-opt:focus-visible {
+  outline: 2px solid var(--fels);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* --- responsive ---------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .public-hero {
+    padding: 2rem 1.35rem;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow-x: auto;
+  }
+
+  .sidebar nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .app-content {
+    padding: 1rem;
+  }
+
+  .detail-row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
