@@ -542,6 +542,14 @@ h3 {
   margin-top: 1.5rem;
 }
 
+/* Inline heading row: title on the left, the modal "+ add" button on the right. */
+.inline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .inline-add {
   margin-top: 0.75rem;
   padding: 0.85rem;
@@ -552,6 +560,14 @@ h3 {
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: flex-end;
+}
+
+/* The per-row action (Entfernen) column always sits at the right edge. */
+.data-table th.inline-actions,
+.data-table td.inline-actions {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
 }
 
 /* --- detail list --------------------------------------------------------- */
@@ -920,6 +936,24 @@ input[type="radio"] {
   min-width: 200px;
 }
 
+/* Form single-selects (Select) fill the field width like MultiSelect, so the
+   trigger and the dropdown option text render consistently between them (filter
+   SearchableSelects stay inline). */
+.ss-field {
+  display: block;
+}
+
+.ss-field .ss-trigger {
+  width: 100%;
+}
+
+/* The form select's value reads like a normal input value / the multiselect
+   options — not the bold, emphasised look the filter SearchableSelect uses. */
+.ss-field .ss-value {
+  font-weight: 400;
+  font-size: 0.92rem;
+}
+
 /* --- states -------------------------------------------------------------- */
 
 .muted {
@@ -1042,23 +1076,34 @@ input[type="radio"] {
 
 /* --- modal --------------------------------------------------------------- */
 
+/* The backdrop scrolls (not the dialog): with `margin: auto` the modal centres
+   when it fits and scrolls from the top when it doesn't — and because the modal
+   itself has no overflow clipping, an open dropdown inside it is never cut off
+   and the dialog simply grows to whatever its content needs. */
 .modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(20, 30, 45, 0.4);
-  display: grid;
-  place-items: center;
-  padding: 1rem;
+  display: flex;
+  overflow-y: auto;
+  padding: 1.25rem;
   z-index: 50;
 }
 
 .modal {
+  margin: auto;
   background: var(--panel);
   border-radius: 14px;
-  width: min(520px, 94vw);
-  max-height: 90vh;
-  overflow-y: auto;
+  width: min(640px, 96vw);
   box-shadow: 0 12px 40px rgba(20, 30, 45, 0.25);
+}
+
+.modal.sm {
+  width: min(440px, 96vw);
+}
+
+.modal.lg {
+  width: min(840px, 96vw);
 }
 
 .modal-header {
@@ -1071,6 +1116,12 @@ input[type="radio"] {
 
 .modal-body {
   padding: 1.25rem;
+}
+
+/* Forms inside a modal fill the dialog width (the default `.stack` cap is for
+   inline page forms, not modals). */
+.modal-body .stack {
+  max-width: none;
 }
 
 /* --- toasts -------------------------------------------------------------- */

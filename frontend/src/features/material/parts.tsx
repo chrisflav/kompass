@@ -6,6 +6,7 @@ import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
+import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
 import {
   Badge,
   Button,
@@ -27,7 +28,6 @@ import type { components } from "../../api/schema";
 type MaterialPartBrief = components["schemas"]["MaterialPartBrief"];
 type MaterialPartOut = components["schemas"]["MaterialPartOut"];
 type PartOwnerBrief = components["schemas"]["PartOwnerBrief"];
-type OwnershipOut = components["schemas"]["OwnershipOut"];
 type OwnershipIn = components["schemas"]["OwnershipIn"];
 
 /** Joined "Besitzer: Anzahl" rendering of the ownership overview. */
@@ -194,6 +194,9 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
     unwrap(client.GET("/api/material/categories")),
   );
 
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
+
   const mutation = useApiMutation(
     (body: typeof form) =>
       unwrap(
@@ -216,14 +219,6 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
         ["material", "parts"],
         ["material", "parts", part.id],
       ],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
     },
   );
 
@@ -355,16 +350,27 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
   return (
     <>
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setFieldErrors({});
-          mutation.mutate(form);
+          setSaving(true);
+          try {
+            await mutation.mutateAsync(form);
+            await runFlushes();
+            toast.success("Gespeichert.");
+            setEditing(false);
+          } catch (err) {
+            if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+            toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         <div className="detail-actions">
           {editing ? (
             <>
-              <Button type="submit" busy={mutation.isPending}>
+              <Button type="submit" busy={saving}>
                 Speichern
               </Button>
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -406,7 +412,7 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
             {
               id: "verantwortliche",
               label: "Verantwortliche",
-              content: <PartOwnerships part={part} editing={editing} />,
+              content: <PartOwnerships part={part} editing={editing} registerFlush={getRegistrar("ownerships")} />,
             },
           ]}
         />
@@ -478,13 +484,17 @@ function PartPhoto({ part }: { part: MaterialPartOut }) {
 
 /* --- ownerships (admin OwnershipInline: owner + count) ------------------- */
 
-function PartOwnerships({ part, editing }: { part: MaterialPartOut; editing: boolean }) {
-  const toast = useToast();
-  const confirm = useConfirmDialog();
-  const [newOwner, setNewOwner] = useState<number | "">("");
-  const [newCount, setNewCount] = useState(1);
+type OwnershipData = { owner_id: number | null; owner_name: string; count: number };
 
-  // Owner select is only needed while adding.
+function PartOwnerships({
+  part,
+  editing,
+  registerFlush,
+}: {
+  part: MaterialPartOut;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
     enabled: editing,
   });
@@ -494,30 +504,23 @@ function PartOwnerships({ part, editing }: { part: MaterialPartOut; editing: boo
   const ownershipsQuery = useApiQuery(["material", "ownerships"], () =>
     unwrap(client.GET("/api/material/ownerships")),
   );
-  const ownerships: OwnershipOut[] = (ownershipsQuery.data ?? []).filter(
-    (o) => o.material.id === part.id,
-  );
+  const serverRows = (ownershipsQuery.data ?? [])
+    .filter((o) => o.material.id === part.id)
+    .map((o) => ({
+      id: o.id,
+      data: { owner_id: o.owner.id, owner_name: o.owner.name, count: o.count } as OwnershipData,
+    }));
 
   const invalidate = [
     ["material", "ownerships"],
     ["material", "parts"],
     ["material", "parts", part.id],
   ];
-
-  const add = useApiMutation(
+  const addM = useApiMutation(
     (body: OwnershipIn) => unwrap(client.POST("/api/material/ownerships", { body })),
-    {
-      invalidate,
-      onSuccess: () => {
-        toast.success("Verantwortliche:r hinzugefügt.");
-        setNewOwner("");
-        setNewCount(1);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-
-  const update = useApiMutation(
+  const updateM = useApiMutation(
     ({ id, count }: { id: number; count: number }) =>
       unwrap(
         client.PATCH("/api/material/ownerships/{ownership_id}", {
@@ -525,117 +528,102 @@ function PartOwnerships({ part, editing }: { part: MaterialPartOut; editing: boo
           body: { count },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Anzahl aktualisiert."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-
-  const remove = useApiMutation(
+  const removeM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/material/ownerships/{ownership_id}", {
           params: { path: { ownership_id: id } },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Verantwortliche:r entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
 
-  return (
-    <InlineTable
-      title="Verantwortliche"
-      rows={ownerships}
-      rowKey={(o) => o.id}
-      editing={editing}
-      empty="Keine Verantwortlichen eingetragen."
-      onDelete={async (o) => {
-        if (
-          await confirm({
-            message: "Verantwortliche:n entfernen?",
-            danger: true,
-            confirmLabel: "Entfernen",
-          })
-        )
-          remove.mutate(o.id);
-      }}
-      columns={[
-        { header: "Besitzer", cell: (o) => o.owner.name },
-        {
-          header: "Anzahl",
-          cell: (o) =>
-            editing ? (
-              <OwnershipCount
-                count={o.count}
-                onSave={(count) => update.mutate({ id: o.id, count })}
-                busy={update.isPending}
-              />
-            ) : (
-              o.count
-            ),
-        },
-      ]}
-      renderAdd={() => (
-        <div className="row-actions">
-          <Select
-            value={newOwner === "" ? "" : String(newOwner)}
-            onChange={(v) => setNewOwner(v === "" ? "" : Number(v))}
-            options={memberOptions.map((m) => ({ value: m.id, label: m.name }))}
-            placeholder="Teilnehmende wählen…"
-          />
-          <input
-            type="number"
-            min={1}
-            value={newCount}
-            onChange={(e) => setNewCount(Number(e.target.value))}
-            style={{ width: "5rem" }}
-          />
-          <Button
-            type="button"
-            busy={add.isPending}
-            onClick={() => {
-              if (newOwner === "") return;
-              add.mutate({ material: part.id, owner: newOwner, count: newCount });
-            }}
-          >
-            Hinzufügen
-          </Button>
-        </div>
-      )}
-    />
-  );
-}
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<OwnershipData>({
+    serverRows,
+    editing,
+    create: (d) => addM.mutateAsync({ material: part.id, owner: d.owner_id ?? 0, count: d.count }),
+    update: (id, d) => updateM.mutateAsync({ id, count: d.count }),
+    remove: (id) => removeM.mutateAsync(id),
+    registerFlush,
+  });
+  const [adding, setAdding] = useState<OwnershipData | null>(null);
 
-/** Editable count cell for one ownership row (save on change / button). */
-function OwnershipCount({
-  count: initial,
-  onSave,
-  busy,
-}: {
-  count: number;
-  onSave: (count: number) => void;
-  busy: boolean;
-}) {
-  const [count, setCount] = useState(initial);
   return (
-    <span className="row-actions">
-      <input
-        type="number"
-        min={1}
-        value={count}
-        onChange={(e) => setCount(Number(e.target.value))}
-        style={{ width: "5rem" }}
+    <>
+      <InlineTable
+        title="Verantwortliche"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        empty="Keine Verantwortlichen eingetragen."
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => setAdding({ owner_id: null, owner_name: "", count: 1 })}
+        addLabel="Verantwortliche:r"
+        columns={[
+          { header: "Besitzer", cell: (row) => row.data.owner_name || "—" },
+          {
+            header: "Anzahl",
+            cell: (row) =>
+              editing ? (
+                <input
+                  type="number"
+                  min={1}
+                  value={row.data.count}
+                  onChange={(e) => setRow(row, { ...row.data, count: Number(e.target.value) })}
+                  style={{ width: "5rem" }}
+                />
+              ) : (
+                row.data.count
+              ),
+          },
+        ]}
       />
-      {count !== initial && (
-        <Button type="button" busy={busy} onClick={() => onSave(count)}>
-          Speichern
-        </Button>
+      {adding && (
+        <Modal title="Verantwortliche:n hinzufügen" onClose={() => setAdding(null)} size="sm">
+          <div className="stack">
+            <Field label="Besitzer">
+              <Select
+                value={adding.owner_id === null ? "" : String(adding.owner_id)}
+                onChange={(v) =>
+                  setAdding({
+                    ...adding,
+                    owner_id: v === "" ? null : Number(v),
+                    owner_name: memberOptions.find((m) => String(m.id) === v)?.name ?? "",
+                  })
+                }
+                options={memberOptions.map((m) => ({ value: m.id, label: m.name }))}
+                placeholder="Teilnehmende wählen…"
+              />
+            </Field>
+            <Field label="Anzahl">
+              <input
+                type="number"
+                min={1}
+                value={adding.count}
+                onChange={(e) => setAdding({ ...adding, count: Number(e.target.value) })}
+              />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={adding.owner_id === null}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    </span>
+    </>
   );
 }
 

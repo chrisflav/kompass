@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useFlushRegistry } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Button,
@@ -121,6 +122,8 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
     date: list.date ?? "",
   }));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
 
   const mutation = useApiMutation(
     (body: MemberNoteListUpdate) =>
@@ -130,17 +133,7 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
           body,
         }),
       ),
-    {
-      invalidate: [["note-lists"], ["note-lists", list.id]],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
+    { invalidate: [["note-lists"], ["note-lists", list.id]] },
   );
 
   function startEditing() {
@@ -174,16 +167,27 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         setFieldErrors({});
-        mutation.mutate({ title: form.title, date: form.date || null });
+        setSaving(true);
+        try {
+          await mutation.mutateAsync({ title: form.title, date: form.date || null });
+          await runFlushes();
+          toast.success("Gespeichert.");
+          setEditing(false);
+        } catch (err) {
+          if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+          toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <div className="detail-actions">
         {editing ? (
           <>
-            <Button type="submit" busy={mutation.isPending}>
+            <Button type="submit" busy={saving}>
               Speichern
             </Button>
             <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -230,6 +234,7 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
                   ["note-lists", list.id, "participants"],
                   ["note-lists", list.id],
                 ]}
+                registerFlush={getRegistrar("participants")}
               />
             ),
           },

@@ -6,6 +6,7 @@ import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
+import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
 import { postMultipart } from "./Bills";
 import {
   Badge,
@@ -28,7 +29,6 @@ import type { components } from "../../api/schema";
 
 type StatementBrief = components["schemas"]["StatementBrief"];
 type StatementOut = components["schemas"]["StatementOut"];
-type BillBrief = components["schemas"]["BillBrief"];
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
 type MemberBrief = components["schemas"]["MemberBrief"];
 type TransactionOut = components["schemas"]["TransactionOut"];
@@ -286,6 +286,9 @@ function StatementDetailBody({ statement }: { statement: StatementOut }) {
     night_cost: String(statement.night_cost ?? "0"),
   }));
 
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
+
   const mutation = useApiMutation(
     (body: { short_description: string; explanation: string; night_cost: number }) =>
       unwrap(
@@ -294,17 +297,7 @@ function StatementDetailBody({ statement }: { statement: StatementOut }) {
           body,
         }),
       ),
-    {
-      invalidate: [["finance", "statements"], ["finance", "statements", statement.id]],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
+    { invalidate: [["finance", "statements"], ["finance", "statements", statement.id]] },
   );
 
   function startEditing() {
@@ -393,20 +386,31 @@ function StatementDetailBody({ statement }: { statement: StatementOut }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         setFieldErrors({});
-        mutation.mutate({
-          short_description: form.short_description,
-          explanation: form.explanation,
-          night_cost: Number(form.night_cost) || 0,
-        });
+        setSaving(true);
+        try {
+          await mutation.mutateAsync({
+            short_description: form.short_description,
+            explanation: form.explanation,
+            night_cost: Number(form.night_cost) || 0,
+          });
+          await runFlushes();
+          toast.success("Gespeichert.");
+          setEditing(false);
+        } catch (err) {
+          if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+          toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <div className="detail-actions">
         {editing ? (
           <>
-            <Button type="submit" busy={mutation.isPending}>
+            <Button type="submit" busy={saving}>
               Speichern
             </Button>
             <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -460,7 +464,7 @@ function StatementDetailBody({ statement }: { statement: StatementOut }) {
               />
             ),
           },
-          { id: "belege", label: "Belege", content: <StatementBillsInline statement={statement} editing={editing} /> },
+          { id: "belege", label: "Belege", content: <StatementBillsInline statement={statement} editing={editing} registerFlush={getRegistrar("bills")} /> },
           ...(statement.submitted && !statement.confirmed
             ? [
                 {
@@ -486,13 +490,27 @@ function joinMembers(members: MemberBrief[] | null | undefined): string {
 
 /* --- Belege inline (add / edit / proof / remove) ------------------------- */
 
-const emptyBillDraft = {
+type BillData = {
+  short_description: string;
+  explanation: string;
+  amount: string;
+  paid_by_id: string;
+  paid_by_name: string;
+  costs_covered: boolean;
+  refunded: boolean;
+  /** A new/replacement proof scan to upload on Save (never carries the existing one). */
+  proof: File | null;
+};
+
+const emptyBill: BillData = {
   short_description: "",
   explanation: "",
   amount: "0",
   paid_by_id: "",
+  paid_by_name: "",
   costs_covered: false,
   refunded: false,
+  proof: null,
 };
 
 /**
@@ -505,125 +523,92 @@ const emptyBillDraft = {
 function StatementBillsInline({
   statement,
   editing,
+  registerFlush,
 }: {
   statement: StatementOut;
   editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const toast = useToast();
-  const confirm = useConfirmDialog();
-  const bills = statement.bills;
-
   const members = useApiQuery(
     ["members"],
     () => unwrap(client.GET("/api/members/")),
     { enabled: editing },
   );
   const memberOptions: MemberBrief[] = members.data ?? [];
+  const memberName = (id: string) =>
+    memberOptions.find((m) => String(m.id) === id)?.name ?? "";
 
   const invalidate = [
     ["finance", "statements"],
     ["finance", "statements", statement.id],
     ["finance", "bills"],
   ];
-
-  const [editId, setEditId] = useState<number | null>(null);
-  const [draft, setDraft] = useState(emptyBillDraft);
-  const [editProof, setEditProof] = useState<File | null>(null);
-
-  const [add, setAdd] = useState(emptyBillDraft);
-  const [addProof, setAddProof] = useState<File | null>(null);
-  const [addErrors, setAddErrors] = useState<Record<string, string[]>>({});
-
-  function beginEdit(b: BillBrief) {
-    setDraft({
-      short_description: b.short_description ?? "",
-      explanation: b.explanation ?? "",
-      amount: String(b.amount ?? "0"),
-      paid_by_id: b.paid_by ? String(b.paid_by.id) : "",
-      costs_covered: b.costs_covered,
-      refunded: b.refunded,
-    });
-    setEditProof(null);
-    setEditId(b.id);
-  }
-
-  const saveMutation = useApiMutation(
-    async (id: number) => {
-      await unwrap(
-        client.PATCH("/api/finance/bills/{bill_id}", {
-          params: { path: { bill_id: id } },
-          body: {
-            short_description: draft.short_description,
-            explanation: draft.explanation,
-            amount: Number(draft.amount) || 0,
-            paid_by_id: draft.paid_by_id ? Number(draft.paid_by_id) : null,
-            costs_covered: draft.costs_covered,
-            refunded: draft.refunded,
-          },
-        }),
-      );
-      if (editProof) {
-        const fd = new FormData();
-        fd.append("proof", editProof);
-        await postMultipart(`/api/finance/bills/${id}/proof`, fd);
-      }
-    },
-    {
-      invalidate,
-      onSuccess: () => {
-        toast.success("Beleg gespeichert.");
-        setEditId(null);
-        setEditProof(null);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
-  );
-
-  const createMutation = useApiMutation(
-    () => {
+  const createM = useApiMutation((d: BillData) => {
+    const fd = new FormData();
+    fd.append("statement_id", String(statement.id));
+    fd.append("short_description", d.short_description);
+    fd.append("explanation", d.explanation);
+    fd.append("amount", String(Number(d.amount) || 0));
+    if (d.paid_by_id) fd.append("paid_by_id", d.paid_by_id);
+    fd.append("costs_covered", String(d.costs_covered));
+    if (d.proof) fd.append("proof", d.proof);
+    return postMultipart("/api/finance/bills", fd);
+  }, { invalidate });
+  const updateM = useApiMutation(async (vars: { id: number; d: BillData }) => {
+    await unwrap(
+      client.PATCH("/api/finance/bills/{bill_id}", {
+        params: { path: { bill_id: vars.id } },
+        body: {
+          short_description: vars.d.short_description,
+          explanation: vars.d.explanation,
+          amount: Number(vars.d.amount) || 0,
+          paid_by_id: vars.d.paid_by_id ? Number(vars.d.paid_by_id) : null,
+          costs_covered: vars.d.costs_covered,
+          refunded: vars.d.refunded,
+        },
+      }),
+    );
+    if (vars.d.proof) {
       const fd = new FormData();
-      fd.append("statement_id", String(statement.id));
-      fd.append("short_description", add.short_description);
-      fd.append("explanation", add.explanation);
-      fd.append("amount", String(Number(add.amount) || 0));
-      if (add.paid_by_id) fd.append("paid_by_id", add.paid_by_id);
-      fd.append("costs_covered", String(add.costs_covered));
-      if (addProof) fd.append("proof", addProof);
-      return postMultipart("/api/finance/bills", fd);
-    },
-    {
-      invalidate,
-      onSuccess: () => {
-        toast.success("Beleg hinzugefügt.");
-        setAdd(emptyBillDraft);
-        setAddProof(null);
-        setAddErrors({});
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setAddErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
-  );
-
-  const deleteMutation = useApiMutation(
+      fd.append("proof", vars.d.proof);
+      await postMultipart(`/api/finance/bills/${vars.id}/proof`, fd);
+    }
+  }, { invalidate });
+  const deleteM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/finance/bills/{bill_id}", {
           params: { path: { bill_id: id } },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Beleg entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
 
-  const memberSelect = (
-    value: string,
-    onChange: (v: string) => void,
-  ) => (
+  const serverRows = statement.bills.map((b) => ({
+    id: b.id,
+    data: {
+      short_description: b.short_description ?? "",
+      explanation: b.explanation ?? "",
+      amount: String(b.amount ?? "0"),
+      paid_by_id: b.paid_by ? String(b.paid_by.id) : "",
+      paid_by_name: b.paid_by?.name ?? "",
+      costs_covered: b.costs_covered,
+      refunded: b.refunded,
+      proof: null,
+    } as BillData,
+  }));
+
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<BillData>({
+    serverRows,
+    editing,
+    create: (d) => createM.mutateAsync(d),
+    update: (id, d) => updateM.mutateAsync({ id, d }),
+    remove: (id) => deleteM.mutateAsync(id),
+    registerFlush,
+  });
+  const [adding, setAdding] = useState<BillData | null>(null);
+
+  const memberSelect = (value: string, onChange: (v: string) => void) => (
     <Select
       value={value}
       onChange={onChange}
@@ -634,195 +619,159 @@ function StatementBillsInline({
     />
   );
 
-  const columns: { header: string; cell: (b: BillBrief) => ReactNode }[] = [
-    {
-      header: "Beschreibung",
-      cell: (b) =>
-        editId === b.id ? (
-          <input
-            value={draft.short_description}
-            onChange={(e) => setDraft({ ...draft, short_description: e.target.value })}
-          />
-        ) : (
-          b.short_description
-        ),
-    },
-    {
-      header: "Betrag",
-      cell: (b) =>
-        editId === b.id ? (
-          <input
-            type="number"
-            step="0.01"
-            value={draft.amount}
-            onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
-          />
-        ) : (
-          euro(b.amount)
-        ),
-    },
-    {
-      header: "Bezahlt von",
-      cell: (b) =>
-        editId === b.id
-          ? memberSelect(draft.paid_by_id, (v) => setDraft({ ...draft, paid_by_id: v }))
-          : b.paid_by
-            ? b.paid_by.name
-            : "—",
-    },
-    {
-      header: "Übernommen",
-      cell: (b) =>
-        editId === b.id ? (
-          <input
-            type="checkbox"
-            checked={draft.costs_covered}
-            onChange={(e) => setDraft({ ...draft, costs_covered: e.target.checked })}
-          />
-        ) : b.costs_covered ? (
-          <Badge tone="success">Ja</Badge>
-        ) : (
-          "Nein"
-        ),
-    },
-    {
-      header: "Ausgezahlt",
-      cell: (b) =>
-        editId === b.id ? (
-          <input
-            type="checkbox"
-            checked={draft.refunded}
-            onChange={(e) => setDraft({ ...draft, refunded: e.target.checked })}
-          />
-        ) : b.refunded ? (
-          <Badge tone="success">Ja</Badge>
-        ) : (
-          "Nein"
-        ),
-    },
-    {
-      header: "Beleg-Scan",
-      cell: (b) =>
-        editId === b.id ? (
-          <input
-            type="file"
-            accept="application/pdf,image/jpeg,image/png,image/gif"
-            onChange={(e) => setEditProof(e.target.files?.[0] ?? null)}
-          />
-        ) : (
-          <Link to={`/app/finance/bills/${b.id}`}>Öffnen</Link>
-        ),
-    },
-  ];
-
-  if (editing) {
-    columns.push({
-      header: "",
-      cell: (b) =>
-        editId === b.id ? (
-          <span className="row-actions">
-            <Button type="button" busy={saveMutation.isPending} onClick={() => saveMutation.mutate(b.id)}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditId(null)}>
-              Abbrechen
-            </Button>
-          </span>
-        ) : (
-          <Button type="button" variant="ghost" onClick={() => beginEdit(b)}>
-            Bearbeiten
-          </Button>
-        ),
-    });
-  }
-
-  const renderAdd = () => (
-    <div className="stack">
-      <Field label="Kurzbeschreibung">
-        <input
-          value={add.short_description}
-          onChange={(e) => setAdd({ ...add, short_description: e.target.value })}
-        />
-        {addErrors.short_description && (
-          <div className="field-error">{addErrors.short_description.join(" ")}</div>
-        )}
-      </Field>
-      <Field label="Erklärung">
-        <textarea
-          value={add.explanation}
-          onChange={(e) => setAdd({ ...add, explanation: e.target.value })}
-        />
-        {addErrors.explanation && (
-          <div className="field-error">{addErrors.explanation.join(" ")}</div>
-        )}
-      </Field>
-      <Field label="Betrag">
-        <input
-          type="number"
-          step="0.01"
-          value={add.amount}
-          onChange={(e) => setAdd({ ...add, amount: e.target.value })}
-        />
-        {addErrors.amount && (
-          <div className="field-error">{addErrors.amount.join(" ")}</div>
-        )}
-      </Field>
-      <Field label="Bezahlt von">
-        {memberSelect(add.paid_by_id, (v) => setAdd({ ...add, paid_by_id: v }))}
-        {addErrors.paid_by && (
-          <div className="field-error">{addErrors.paid_by.join(" ")}</div>
-        )}
-      </Field>
-      <Field label="Übernommen">
-        <input
-          type="checkbox"
-          checked={add.costs_covered}
-          onChange={(e) => setAdd({ ...add, costs_covered: e.target.checked })}
-        />
-      </Field>
-      <Field label="Beleg-Scan (PDF/Bild, optional)">
-        <input
-          type="file"
-          accept="application/pdf,image/jpeg,image/png,image/gif"
-          onChange={(e) => setAddProof(e.target.files?.[0] ?? null)}
-        />
-      </Field>
-      <div className="row-actions">
-        <Button
-          type="button"
-          busy={createMutation.isPending}
-          disabled={!add.short_description}
-          onClick={() => {
-            setAddErrors({});
-            createMutation.mutate(undefined);
-          }}
-        >
-          Hinzufügen
-        </Button>
-      </div>
-    </div>
-  );
+  const yesNo = (v: boolean) => (v ? <Badge tone="success">Ja</Badge> : "Nein");
 
   return (
-    <InlineTable
-      title="Belege"
-      rows={bills}
-      columns={columns}
-      rowKey={(b) => b.id}
-      editing={editing}
-      onDelete={async (b) => {
-        if (
-          await confirm({
-            message: "Beleg wirklich entfernen?",
-            danger: true,
-            confirmLabel: "Entfernen",
-          })
-        )
-          deleteMutation.mutate(b.id);
-      }}
-      renderAdd={renderAdd}
-      empty="Keine Belege."
-    />
+    <>
+      <InlineTable
+        title="Belege"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => setAdding({ ...emptyBill })}
+        addLabel="Beleg"
+        empty="Keine Belege."
+        columns={[
+          {
+            header: "Beschreibung",
+            cell: (row: DraftRow<BillData>) =>
+              editing ? (
+                <input
+                  value={row.data.short_description}
+                  onChange={(e) => setRow(row, { ...row.data, short_description: e.target.value })}
+                />
+              ) : (
+                row.data.short_description
+              ),
+          },
+          {
+            header: "Betrag",
+            cell: (row: DraftRow<BillData>) =>
+              editing ? (
+                <input
+                  type="number"
+                  step="0.01"
+                  value={row.data.amount}
+                  onChange={(e) => setRow(row, { ...row.data, amount: e.target.value })}
+                />
+              ) : (
+                euro(Number(row.data.amount))
+              ),
+          },
+          {
+            header: "Bezahlt von",
+            cell: (row: DraftRow<BillData>) =>
+              editing
+                ? memberSelect(row.data.paid_by_id, (v) =>
+                    setRow(row, { ...row.data, paid_by_id: v, paid_by_name: memberName(v) }),
+                  )
+                : row.data.paid_by_name || "—",
+          },
+          {
+            header: "Übernommen",
+            cell: (row: DraftRow<BillData>) =>
+              editing ? (
+                <input
+                  type="checkbox"
+                  checked={row.data.costs_covered}
+                  onChange={(e) => setRow(row, { ...row.data, costs_covered: e.target.checked })}
+                />
+              ) : (
+                yesNo(row.data.costs_covered)
+              ),
+          },
+          {
+            header: "Ausgezahlt",
+            cell: (row: DraftRow<BillData>) =>
+              editing ? (
+                <input
+                  type="checkbox"
+                  checked={row.data.refunded}
+                  onChange={(e) => setRow(row, { ...row.data, refunded: e.target.checked })}
+                />
+              ) : (
+                yesNo(row.data.refunded)
+              ),
+          },
+          {
+            header: "Beleg-Scan",
+            cell: (row: DraftRow<BillData>) =>
+              editing ? (
+                <input
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/gif"
+                  onChange={(e) => setRow(row, { ...row.data, proof: e.target.files?.[0] ?? null })}
+                />
+              ) : row.id !== null ? (
+                <Link to={`/app/finance/bills/${row.id}`}>Öffnen</Link>
+              ) : (
+                <span className="muted small">(neu)</span>
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Beleg hinzufügen" onClose={() => setAdding(null)}>
+          <div className="stack">
+            <Field label="Kurzbeschreibung">
+              <input
+                value={adding.short_description}
+                onChange={(e) => setAdding({ ...adding, short_description: e.target.value })}
+              />
+            </Field>
+            <Field label="Erklärung">
+              <textarea
+                value={adding.explanation}
+                onChange={(e) => setAdding({ ...adding, explanation: e.target.value })}
+              />
+            </Field>
+            <Field label="Betrag">
+              <input
+                type="number"
+                step="0.01"
+                value={adding.amount}
+                onChange={(e) => setAdding({ ...adding, amount: e.target.value })}
+              />
+            </Field>
+            <Field label="Bezahlt von">
+              {memberSelect(adding.paid_by_id, (v) =>
+                setAdding({ ...adding, paid_by_id: v, paid_by_name: memberName(v) }),
+              )}
+            </Field>
+            <Field label="Übernommen">
+              <input
+                type="checkbox"
+                checked={adding.costs_covered}
+                onChange={(e) => setAdding({ ...adding, costs_covered: e.target.checked })}
+              />
+            </Field>
+            <Field label="Beleg-Scan (PDF/Bild, optional)">
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/gif"
+                onChange={(e) => setAdding({ ...adding, proof: e.target.files?.[0] ?? null })}
+              />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={!adding.short_description}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 

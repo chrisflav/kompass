@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
@@ -6,6 +6,7 @@ import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
+import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
 import {
   Badge,
   Button,
@@ -26,7 +27,6 @@ import { MultiSelect, SingleSelect, type Option } from "./selects";
 type MessageBrief = components["schemas"]["MessageBrief"];
 type MessageOut = components["schemas"]["MessageOut"];
 type MessageIn = components["schemas"]["MessageIn"];
-type AttachmentOut = components["schemas"]["AttachmentOut"];
 
 /* --- list ---------------------------------------------------------------- */
 
@@ -363,6 +363,9 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
     unwrap(client.GET("/api/mailer/email-addresses")),
   );
 
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
+
   const mutation = useApiMutation(
     (body: MessageIn) =>
       unwrap(
@@ -376,14 +379,6 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
         ["mailer", "messages"],
         ["mailer", "messages", message.id],
       ],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
     },
   );
 
@@ -527,16 +522,27 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         setFieldErrors({});
-        mutation.mutate(form);
+        setSaving(true);
+        try {
+          await mutation.mutateAsync(form);
+          await runFlushes();
+          toast.success("Gespeichert.");
+          setEditing(false);
+        } catch (err) {
+          if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+          toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <div className="detail-actions">
         {editing ? (
           <>
-            <Button type="submit" busy={mutation.isPending}>
+            <Button type="submit" busy={saving}>
               Speichern
             </Button>
             <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -583,7 +589,7 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
           {
             id: "anhaenge",
             label: "Anhänge",
-            content: <Attachments message={message} editing={editing} />,
+            content: <Attachments message={message} editing={editing} registerFlush={getRegistrar("attachments")} />,
           },
         ]}
       />
@@ -629,9 +635,17 @@ function SubmitAction({ message }: { message: MessageOut }) {
 
 /* --- attachments --------------------------------------------------------- */
 
-function Attachments({ message, editing }: { message: MessageOut; editing: boolean }) {
-  const toast = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
+type AttachmentData = { filename: string; file: File | null; url: string | null };
+
+function Attachments({
+  message,
+  editing,
+  registerFlush,
+}: {
+  message: MessageOut;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const query = useApiQuery(["mailer", "messages", message.id, "attachments"], () =>
     unwrap(
       client.GET("/api/mailer/messages/{message_id}/attachments", {
@@ -639,9 +653,11 @@ function Attachments({ message, editing }: { message: MessageOut; editing: boole
       }),
     ),
   );
-  const attachments: AttachmentOut[] = query.data ?? [];
-
-  const upload = useApiMutation(
+  const invalidate = [
+    ["mailer", "messages", message.id, "attachments"],
+    ["mailer", "messages", message.id],
+  ];
+  const uploadM = useApiMutation(
     (file: File) =>
       unwrap(
         client.POST("/api/mailer/messages/{message_id}/attachments", {
@@ -656,71 +672,86 @@ function Attachments({ message, editing }: { message: MessageOut; editing: boole
           },
         }),
       ),
-    {
-      invalidate: [
-        ["mailer", "messages", message.id, "attachments"],
-        ["mailer", "messages", message.id],
-      ],
-      onSuccess: () => {
-        toast.success("Anhang hochgeladen.");
-        if (fileRef.current) fileRef.current.value = "";
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-
-  const deletion = useApiMutation(
+  const deleteM = useApiMutation(
     (attachmentId: number) =>
       unwrap(
         client.DELETE("/api/mailer/attachments/{attachment_id}", {
           params: { path: { attachment_id: attachmentId } },
         }),
       ),
-    {
-      invalidate: [
-        ["mailer", "messages", message.id, "attachments"],
-        ["mailer", "messages", message.id],
-      ],
-      onSuccess: () => toast.success("Anhang gelöscht."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
 
+  const serverRows = (query.data ?? []).map((a) => ({
+    id: a.id,
+    data: { filename: a.filename, file: null, url: a.url ?? null } as AttachmentData,
+  }));
+  const { rows, removeRow, addRow } = useInlineDraft<AttachmentData>({
+    serverRows,
+    editing,
+    create: (d) => (d.file ? uploadM.mutateAsync(d.file) : Promise.resolve()),
+    update: () => Promise.resolve(),
+    remove: (id) => deleteM.mutateAsync(id),
+    registerFlush,
+  });
+  const [adding, setAdding] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
   return (
-    <InlineTable
-      title="Anhänge"
-      rows={attachments}
-      rowKey={(a) => a.id}
-      editing={editing}
-      empty="Keine Anhänge."
-      onDelete={(a) => deletion.mutate(a.id)}
-      columns={[
-        {
-          header: "Datei",
-          cell: (a) =>
-            a.url ? (
-              <a href={`${API_BASE}${a.url}`} target="_blank" rel="noreferrer">
-                {a.filename}
-              </a>
-            ) : (
-              a.filename
-            ),
-        },
-      ]}
-      renderAdd={() => (
-        <div className="row-actions">
-          <input
-            ref={fileRef}
-            type="file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) upload.mutate(file);
-            }}
-            disabled={upload.isPending}
-          />
-        </div>
+    <>
+      <InlineTable
+        title="Anhänge"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        empty="Keine Anhänge."
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => {
+          setFile(null);
+          setAdding(true);
+        }}
+        addLabel="Anhang"
+        columns={[
+          {
+            header: "Datei",
+            cell: (row) =>
+              row.data.url ? (
+                <a href={`${API_BASE}${row.data.url}`} target="_blank" rel="noreferrer">
+                  {row.data.filename}
+                </a>
+              ) : (
+                <span>
+                  {row.data.filename} <span className="muted small">(neu)</span>
+                </span>
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Anhang hinzufügen" onClose={() => setAdding(false)} size="sm">
+          <div className="stack">
+            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={!file}
+                onClick={() => {
+                  if (file) addRow({ filename: file.name, file, url: null });
+                  setAdding(false);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(false)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    />
+    </>
   );
 }
 

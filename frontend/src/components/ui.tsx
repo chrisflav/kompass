@@ -654,7 +654,7 @@ export function Select({
   };
 
   return (
-    <div className="searchselect" ref={ref}>
+    <div className="searchselect ss-field" ref={ref}>
       <button type="button" className="ss-trigger" onClick={() => setOpen((o) => !o)}>
         <span className={current ? "ss-value" : "muted"}>
           {current ? current.label : placeholder}
@@ -706,17 +706,25 @@ export function Modal({
   title,
   onClose,
   children,
+  size = "md",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Dialog width: sm for confirmations, md (default) for forms, lg for wide forms. */
+  size?: "sm" | "md" | "lg";
 }) {
   // Rendered via a portal to <body> so the dialog is never nested inside a page
   // <form> — a modal button (incl. the × / type=submit save) can't accidentally
   // submit an outer form, and it always overlays regardless of layout context.
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
+      <div
+        className={`modal ${size}`}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={title}
+      >
         <div className="modal-header">
           <h3>{title}</h3>
           <button
@@ -773,7 +781,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       {state && (
-        <Modal title={state.title ?? "Bestätigen"} onClose={() => settle(false)}>
+        <Modal title={state.title ?? "Bestätigen"} onClose={() => settle(false)} size="sm">
           <div className="stack">
             <p>{state.message}</p>
             <div className="row-actions">

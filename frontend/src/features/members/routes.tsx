@@ -7,6 +7,7 @@ import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { InlineTable } from "../../components/inline";
+import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { MeineGruppen } from "./Meine";
 import { RegistrationDetailPage, RegistrationsList } from "./Registrations";
@@ -17,6 +18,8 @@ import {
   Button,
   DataTable,
   EditableDetail,
+  Field,
+  Modal,
   MultiSelect,
   PageHeader,
   QueryBoundary,
@@ -40,6 +43,8 @@ type MemberDocumentOut = components["schemas"]["MemberInlineDocumentOut"];
 type MemberPermissionOut = components["schemas"]["MemberPermissionOut"];
 type MemberPermissionIn = components["schemas"]["MemberPermissionIn"];
 type TrainingBrief = components["schemas"]["TrainingBrief"];
+type TrainingOut = components["schemas"]["TrainingOut"];
+type MemberTrainingUpdate = components["schemas"]["MemberTrainingUpdate"];
 
 
 function formatDate(value: string | null | undefined): string {
@@ -436,18 +441,14 @@ function MemberDetailBody({ member }: { member: MemberOut }) {
           body,
         }),
       ),
-    {
-      invalidate: [["members"], ["members", member.id]],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
+    { invalidate: [["members"], ["members", member.id]] },
   );
+
+  // Inline editors (Notfallkontakte / Dokumente / Ausbildungen / Berechtigungen)
+  // stage their changes and register a flush; the main Save applies the member
+  // PATCH and then every inline flush, so there is no separate per-inline save.
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
 
   function startEditing() {
     // Re-sync the draft from the (possibly refetched) member before editing.
@@ -611,10 +612,11 @@ function MemberDetailBody({ member }: { member: MemberOut }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         setFieldErrors({});
-        mutation.mutate({
+        setSaving(true);
+        const body: MemberUpdate = {
           prename: form.prename,
           lastname: form.lastname,
           email: form.email,
@@ -649,13 +651,24 @@ function MemberDetailBody({ member }: { member: MemberOut }) {
             form.good_conduct_certificate_presented_date || null,
           has_key: form.has_key,
           has_free_ticket_gym: form.has_free_ticket_gym,
-        });
+        };
+        try {
+          await mutation.mutateAsync(body);
+          await runFlushes();
+          toast.success("Gespeichert.");
+          setEditing(false);
+        } catch (err) {
+          if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+          toast.error(err instanceof Error ? err.message : "Fehler beim Speichern.");
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <div className="detail-actions">
         {editing ? (
           <>
-            <Button type="submit" busy={mutation.isPending}>
+            <Button type="submit" busy={saving}>
               Speichern
             </Button>
             <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -678,20 +691,30 @@ function MemberDetailBody({ member }: { member: MemberOut }) {
           { id: "skills", label: "Fähigkeiten", content: <EditableDetail rows={skillsRows} editing={editing} errors={fieldErrors} /> },
           { id: "sonstiges", label: "Sonstiges", content: <EditableDetail rows={othersRows} editing={editing} errors={fieldErrors} /> },
           { id: "org", label: "Organisatorisch", content: <EditableDetail rows={orgRows} editing={editing} errors={fieldErrors} /> },
-          { id: "notfall", label: "Notfallkontakte", content: <EmergencyContactsInline memberId={member.id} editing={editing} /> },
-          { id: "dokumente", label: "Dokumente", content: <DocumentsInline memberId={member.id} editing={editing} /> },
-          { id: "ausbildungen", label: "Ausbildungen", content: <TrainingsInline memberId={member.id} /> },
-          { id: "berechtigungen", label: "Berechtigungen", content: <PermissionMembersInline memberId={member.id} editing={editing} /> },
+          { id: "notfall", label: "Notfallkontakte", content: <EmergencyContactsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("notfall")} /> },
+          { id: "dokumente", label: "Dokumente", content: <DocumentsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("dokumente")} /> },
+          { id: "ausbildungen", label: "Ausbildungen", content: <TrainingsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("trainings")} /> },
+          { id: "berechtigungen", label: "Berechtigungen", content: <PermissionMembersInline memberId={member.id} editing={editing} registerFlush={getRegistrar("berechtigungen")} /> },
         ]}
       />
     </form>
   );
 }
 
-/* --- inline: Notfallkontakte (add + edit + delete) ----------------------- */
+/* --- inline: Notfallkontakte (staged edit/add/delete, flushed on Save) ---- */
 
-function EmergencyContactsInline({ memberId, editing }: { memberId: number; editing: boolean }) {
-  const toast = useToast();
+type EmergencyDraft = { prename: string; lastname: string; email: string; phone_number: string };
+const emptyEmergency: EmergencyDraft = { prename: "", lastname: "", email: "", phone_number: "" };
+
+function EmergencyContactsInline({
+  memberId,
+  editing,
+  registerFlush,
+}: {
+  memberId: number;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const listKey = ["members", memberId, "emergency-contacts"];
   const query = useApiQuery<EmergencyContactOut[]>(listKey, () =>
     unwrap(
@@ -700,15 +723,7 @@ function EmergencyContactsInline({ memberId, editing }: { memberId: number; edit
       }),
     ),
   );
-  const rows = query.data ?? [];
-
-  const emptyDraft = { prename: "", lastname: "", email: "", phone_number: "" };
-  const [draft, setDraft] = useState(emptyDraft);
-  const [editRow, setEditRow] = useState<
-    { id: number; prename: string; lastname: string; email: string; phone_number: string } | null
-  >(null);
-
-  const create = useApiMutation<EmergencyContactOut, EmergencyContactCreate>(
+  const createM = useApiMutation<EmergencyContactOut, EmergencyContactCreate>(
     (body) =>
       unwrap(
         client.POST("/api/members/{member_id}/emergency-contacts", {
@@ -716,17 +731,9 @@ function EmergencyContactsInline({ memberId, editing }: { memberId: number; edit
           body,
         }),
       ),
-    {
-      invalidate: [listKey, ["members", memberId]],
-      onSuccess: () => {
-        toast.success("Notfallkontakt hinzugefügt.");
-        setDraft(emptyDraft);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey, ["members", memberId]] },
   );
-
-  const update = useApiMutation<EmergencyContactOut, { id: number; body: EmergencyContactUpdate }>(
+  const updateM = useApiMutation<EmergencyContactOut, { id: number; body: EmergencyContactUpdate }>(
     ({ id, body }) =>
       unwrap(
         client.PATCH("/api/members/emergency-contacts/{contact_id}", {
@@ -734,170 +741,114 @@ function EmergencyContactsInline({ memberId, editing }: { memberId: number; edit
           body,
         }),
       ),
-    {
-      invalidate: [listKey, ["members", memberId]],
-      onSuccess: () => {
-        toast.success("Notfallkontakt gespeichert.");
-        setEditRow(null);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey, ["members", memberId]] },
   );
-
-  const del = useApiMutation<unknown, number>(
+  const delM = useApiMutation<unknown, number>(
     (id) =>
       unwrap(
         client.DELETE("/api/members/emergency-contacts/{contact_id}", {
           params: { path: { contact_id: id } },
         }),
       ),
-    {
-      invalidate: [listKey, ["members", memberId]],
-      onSuccess: () => toast.success("Notfallkontakt entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey, ["members", memberId]] },
   );
 
-  const columns: { header: string; cell: (row: EmergencyContactOut) => ReactNode }[] = [
-    {
-      header: "Vorname",
-      cell: (r) =>
-        editRow?.id === r.id ? (
-          <input
-            value={editRow.prename}
-            onChange={(e) => setEditRow({ ...editRow, prename: e.target.value })}
-          />
-        ) : (
-          r.prename
-        ),
-    },
-    {
-      header: "Nachname",
-      cell: (r) =>
-        editRow?.id === r.id ? (
-          <input
-            value={editRow.lastname}
-            onChange={(e) => setEditRow({ ...editRow, lastname: e.target.value })}
-          />
-        ) : (
-          r.lastname
-        ),
-    },
-    {
-      header: "E-Mail",
-      cell: (r) =>
-        editRow?.id === r.id ? (
-          <input
-            type="email"
-            value={editRow.email}
-            onChange={(e) => setEditRow({ ...editRow, email: e.target.value })}
-          />
-        ) : (
-          r.email || "—"
-        ),
-    },
-    {
-      header: "Telefonnummer (mobil)",
-      cell: (r) =>
-        editRow?.id === r.id ? (
-          <input
-            value={editRow.phone_number}
-            onChange={(e) => setEditRow({ ...editRow, phone_number: e.target.value })}
-          />
-        ) : (
-          r.phone_number
-        ),
-    },
-  ];
-  if (editing) {
-    columns.push({
-      header: "Aktionen",
-      cell: (r) =>
-        editRow?.id === r.id ? (
-          <div className="row-actions">
-            <Button
-              type="button"
-              busy={update.isPending}
-              onClick={() =>
-                update.mutate({
-                  id: r.id,
-                  body: {
-                    prename: editRow.prename,
-                    lastname: editRow.lastname,
-                    email: editRow.email,
-                    phone_number: editRow.phone_number,
-                  },
-                })
-              }
-            >
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditRow(null)}>
-              Abbrechen
-            </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() =>
-              setEditRow({
-                id: r.id,
-                prename: r.prename,
-                lastname: r.lastname,
-                email: r.email ?? "",
-                phone_number: r.phone_number,
-              })
-            }
-          >
-            Bearbeiten
-          </Button>
-        ),
-    });
-  }
+  const serverRows = (query.data ?? []).map((r) => ({
+    id: r.id,
+    data: {
+      prename: r.prename,
+      lastname: r.lastname,
+      email: r.email ?? "",
+      phone_number: r.phone_number,
+    } as EmergencyDraft,
+  }));
+
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<EmergencyDraft>({
+    serverRows,
+    editing,
+    create: (d) => createM.mutateAsync(d),
+    update: (id, d) => updateM.mutateAsync({ id, body: d }),
+    remove: (id) => delM.mutateAsync(id),
+    registerFlush,
+  });
+
+  const [adding, setAdding] = useState<EmergencyDraft | null>(null);
+
+  const field = (row: DraftRow<EmergencyDraft>, key: keyof EmergencyDraft, type = "text") =>
+    editing ? (
+      <input
+        type={type}
+        value={row.data[key]}
+        onChange={(e) => setRow(row, { ...row.data, [key]: e.target.value })}
+      />
+    ) : (
+      row.data[key] || "—"
+    );
 
   return (
-    <InlineTable
-      title="Notfallkontakte"
-      rows={rows}
-      columns={columns}
-      rowKey={(r) => r.id}
-      editing={editing}
-      onDelete={(r) => del.mutate(r.id)}
-      renderAdd={() => (
-        <div className="row-actions">
-          <input
-            placeholder="Vorname"
-            value={draft.prename}
-            onChange={(e) => setDraft({ ...draft, prename: e.target.value })}
-          />
-          <input
-            placeholder="Nachname"
-            value={draft.lastname}
-            onChange={(e) => setDraft({ ...draft, lastname: e.target.value })}
-          />
-          <input
-            type="email"
-            placeholder="E-Mail"
-            value={draft.email}
-            onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-          />
-          <input
-            placeholder="Telefonnummer (mobil)"
-            value={draft.phone_number}
-            onChange={(e) => setDraft({ ...draft, phone_number: e.target.value })}
-          />
-          <Button
-            type="button"
-            busy={create.isPending}
-            disabled={!draft.prename || !draft.lastname}
-            onClick={() => create.mutate(draft)}
-          >
-            Hinzufügen
-          </Button>
-        </div>
+    <>
+      <InlineTable
+        title="Notfallkontakte"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => setAdding({ ...emptyEmergency })}
+        addLabel="Notfallkontakt"
+        columns={[
+          { header: "Vorname", cell: (row) => field(row, "prename") },
+          { header: "Nachname", cell: (row) => field(row, "lastname") },
+          { header: "E-Mail", cell: (row) => field(row, "email", "email") },
+          { header: "Telefonnummer (mobil)", cell: (row) => field(row, "phone_number") },
+        ]}
+      />
+      {adding && (
+        <Modal title="Notfallkontakt hinzufügen" onClose={() => setAdding(null)} size="sm">
+          <div className="stack">
+            <Field label="Vorname">
+              <input
+                value={adding.prename}
+                onChange={(e) => setAdding({ ...adding, prename: e.target.value })}
+              />
+            </Field>
+            <Field label="Nachname">
+              <input
+                value={adding.lastname}
+                onChange={(e) => setAdding({ ...adding, lastname: e.target.value })}
+              />
+            </Field>
+            <Field label="E-Mail">
+              <input
+                type="email"
+                value={adding.email}
+                onChange={(e) => setAdding({ ...adding, email: e.target.value })}
+              />
+            </Field>
+            <Field label="Telefonnummer (mobil)">
+              <input
+                value={adding.phone_number}
+                onChange={(e) => setAdding({ ...adding, phone_number: e.target.value })}
+              />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={!adding.prename || !adding.lastname}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    />
+    </>
   );
 }
 
@@ -926,8 +877,19 @@ function documentHref(url: string): string {
   return url.startsWith("http") ? url : `${API_BASE}${url}`;
 }
 
-function DocumentsInline({ memberId, editing }: { memberId: number; editing: boolean }) {
-  const toast = useToast();
+/** A document row: existing rows carry a filename + url; a staged new row carries
+ *  the File to upload on Save (uploaded, not editable, in place). */
+type DocumentDraft = { filename: string; file: File | null; file_url: string | null };
+
+function DocumentsInline({
+  memberId,
+  editing,
+  registerFlush,
+}: {
+  memberId: number;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const listKey = ["members", memberId, "documents"];
   const query = useApiQuery<MemberDocumentOut[]>(listKey, () =>
     unwrap(
@@ -936,110 +898,233 @@ function DocumentsInline({ memberId, editing }: { memberId: number; editing: boo
       }),
     ),
   );
-  const rows = query.data ?? [];
-
-  const [file, setFile] = useState<File | null>(null);
-
-  const create = useApiMutation<MemberDocumentOut, File>(
+  const createM = useApiMutation<MemberDocumentOut, File>(
     (f) => {
       const fd = new FormData();
       fd.append("f", f);
       return postMemberDocument(memberId, fd);
     },
-    {
-      invalidate: [listKey],
-      onSuccess: () => {
-        toast.success("Dokument hochgeladen.");
-        setFile(null);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey] },
   );
-
-  const del = useApiMutation<unknown, number>(
+  const delM = useApiMutation<unknown, number>(
     (id) =>
       unwrap(
         client.DELETE("/api/members/member-documents/{document_id}", {
           params: { path: { document_id: id } },
         }),
       ),
-    {
-      invalidate: [listKey],
-      onSuccess: () => toast.success("Dokument entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey] },
   );
 
+  const serverRows = (query.data ?? []).map((r) => ({
+    id: r.id,
+    data: { filename: r.filename, file: null, file_url: r.file_url ?? null } as DocumentDraft,
+  }));
+
+  const { rows, removeRow, addRow } = useInlineDraft<DocumentDraft>({
+    serverRows,
+    editing,
+    // Documents are not editable in place, so only create (upload) / delete run.
+    create: (d) => (d.file ? createM.mutateAsync(d.file) : Promise.resolve()),
+    update: () => Promise.resolve(),
+    remove: (id) => delM.mutateAsync(id),
+    registerFlush,
+  });
+
+  const [adding, setAdding] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
   return (
-    <InlineTable
-      title="Dokumente"
-      rows={rows}
-      columns={[
-        {
-          header: "Datei",
-          cell: (r: MemberDocumentOut) =>
-            r.file_url ? (
-              <a href={documentHref(r.file_url)} target="_blank" rel="noreferrer">
-                {r.filename}
-              </a>
-            ) : (
-              r.filename
-            ),
-        },
-      ]}
-      rowKey={(r) => r.id}
-      editing={editing}
-      onDelete={(r) => del.mutate(r.id)}
-      renderAdd={() => (
-        <div className="row-actions">
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          <Button
-            type="button"
-            busy={create.isPending}
-            disabled={!file}
-            onClick={() => file && create.mutate(file)}
-          >
-            Hinzufügen
-          </Button>
-        </div>
+    <>
+      <InlineTable
+        title="Dokumente"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => {
+          setFile(null);
+          setAdding(true);
+        }}
+        addLabel="Dokument"
+        columns={[
+          {
+            header: "Datei",
+            cell: (row) =>
+              row.data.file_url ? (
+                <a href={documentHref(row.data.file_url)} target="_blank" rel="noreferrer">
+                  {row.data.filename}
+                </a>
+              ) : (
+                <span>
+                  {row.data.filename} <span className="muted small">(neu)</span>
+                </span>
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Dokument hinzufügen" onClose={() => setAdding(false)} size="sm">
+          <div className="stack">
+            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={!file}
+                onClick={() => {
+                  if (file) addRow({ filename: file.name, file, file_url: null });
+                  setAdding(false);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(false)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    />
+    </>
   );
 }
 
-/* --- inline: Ausbildungen (read-only, links to training page) ------------ */
+/* --- inline: Ausbildungen -------------------------------------------------
+ * Edit-in-place for the straightforward fields (title, date, participated,
+ * passed), flushed on the main Save. The trainings API exposes only GET/PATCH,
+ * so there is no add/delete here; category & activities are edited on the
+ * training's own detail page (the read-only title links there). */
 
-function TrainingsInline({ memberId }: { memberId: number }) {
+type TrainingData = {
+  title: string;
+  date: string;
+  participated: boolean;
+  passed: boolean;
+  category_name: string;
+};
+
+function TrainingsInline({
+  memberId,
+  editing,
+  registerFlush,
+}: {
+  memberId: number;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const query = useApiQuery<TrainingBrief[]>(["members", "trainings"], () =>
     unwrap(client.GET("/api/members/trainings")),
   );
-  const rows = (query.data ?? []).filter((t) => t.member_id === memberId);
+  const updateM = useApiMutation<TrainingOut, { id: number; body: MemberTrainingUpdate }>(
+    ({ id, body }) =>
+      unwrap(
+        client.PATCH("/api/members/trainings/{training_id}", {
+          params: { path: { training_id: id } },
+          body,
+        }),
+      ),
+    { invalidate: [["members", "trainings"]] },
+  );
+
+  const serverRows = (query.data ?? [])
+    .filter((t) => t.member_id === memberId)
+    .map((t) => ({
+      id: t.id,
+      data: {
+        title: t.title ?? "",
+        date: t.date ?? "",
+        participated: t.participated ?? false,
+        passed: t.passed ?? false,
+        category_name: t.category_name,
+      } as TrainingData,
+    }));
+
+  const { rows, setRow } = useInlineDraft<TrainingData>({
+    serverRows,
+    editing,
+    create: () => Promise.resolve(),
+    update: (id, d) =>
+      updateM.mutateAsync({
+        id,
+        body: {
+          title: d.title,
+          date: d.date || null,
+          participated: d.participated,
+          passed: d.passed,
+        },
+      }),
+    remove: () => Promise.resolve(),
+    registerFlush,
+  });
 
   return (
     <InlineTable
       title="Ausbildungen"
       rows={rows}
+      rowKey={(row) => row.key}
+      editing={editing}
+      empty="Keine Ausbildungen."
       columns={[
-        { header: "Kategorie", cell: (t: TrainingBrief) => t.category_name },
+        { header: "Kategorie", cell: (row) => row.data.category_name },
         {
           header: "Titel",
-          cell: (t: TrainingBrief) => <Link to={`/app/trainings/${t.id}`}>{t.title || "—"}</Link>,
+          cell: (row) =>
+            editing ? (
+              <input
+                value={row.data.title}
+                onChange={(e) => setRow(row, { ...row.data, title: e.target.value })}
+              />
+            ) : (
+              <Link to={`/app/trainings/${row.id}`}>{row.data.title || "—"}</Link>
+            ),
         },
-        { header: "Datum", cell: (t: TrainingBrief) => formatDate(t.date) },
-        { header: "Teilgenommen", cell: (t: TrainingBrief) => boolBadge(t.participated) },
-        { header: "Bestanden", cell: (t: TrainingBrief) => boolBadge(t.passed) },
+        {
+          header: "Datum",
+          cell: (row) =>
+            editing ? (
+              <input
+                type="date"
+                value={row.data.date}
+                onChange={(e) => setRow(row, { ...row.data, date: e.target.value })}
+              />
+            ) : (
+              formatDate(row.data.date)
+            ),
+        },
+        {
+          header: "Teilgenommen",
+          cell: (row) =>
+            editing ? (
+              <input
+                type="checkbox"
+                checked={row.data.participated}
+                onChange={(e) => setRow(row, { ...row.data, participated: e.target.checked })}
+              />
+            ) : (
+              boolBadge(row.data.participated)
+            ),
+        },
+        {
+          header: "Bestanden",
+          cell: (row) =>
+            editing ? (
+              <input
+                type="checkbox"
+                checked={row.data.passed}
+                onChange={(e) => setRow(row, { ...row.data, passed: e.target.checked })}
+              />
+            ) : (
+              boolBadge(row.data.passed)
+            ),
+        },
       ]}
-      rowKey={(t) => t.id}
-      editing={false}
-      empty="Keine Ausbildungen."
     />
   );
 }
 
 /* --- inline: Berechtigungen (PermissionMember ACL, SENSITIVE) ------------ */
 
-type PermDraft = {
-  id: number;
+type PermData = {
   list_member_ids: number[];
   view_member_ids: number[];
   change_member_ids: number[];
@@ -1050,6 +1135,17 @@ type PermDraft = {
   delete_group_ids: number[];
 };
 
+const emptyPerm: PermData = {
+  list_member_ids: [],
+  view_member_ids: [],
+  change_member_ids: [],
+  delete_member_ids: [],
+  list_group_ids: [],
+  view_group_ids: [],
+  change_group_ids: [],
+  delete_group_ids: [],
+};
+
 const PERM_ROWS = [
   { label: "Auflisten", mk: "list_member_ids", gk: "list_group_ids" },
   { label: "Ansehen", mk: "view_member_ids", gk: "view_group_ids" },
@@ -1057,8 +1153,15 @@ const PERM_ROWS = [
   { label: "Löschen", mk: "delete_member_ids", gk: "delete_group_ids" },
 ] as const;
 
-function PermissionMembersInline({ memberId, editing }: { memberId: number; editing: boolean }) {
-  const toast = useToast();
+function PermissionMembersInline({
+  memberId,
+  editing,
+  registerFlush,
+}: {
+  memberId: number;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const listKey = ["members", memberId, "permission-members"];
   const query = useApiQuery<MemberPermissionOut[]>(listKey, () =>
     unwrap(
@@ -1067,9 +1170,8 @@ function PermissionMembersInline({ memberId, editing }: { memberId: number; edit
       }),
     ),
   );
-  const rows = query.data ?? [];
 
-  const optionsEnabled = editing || rows.length > 0;
+  const optionsEnabled = editing || (query.data?.length ?? 0) > 0;
   const membersQuery = useApiQuery<MemberBrief[]>(
     ["members"],
     () => unwrap(client.GET("/api/members/")),
@@ -1085,9 +1187,7 @@ function PermissionMembersInline({ memberId, editing }: { memberId: number; edit
   const memberName = (id: number) => memberOpts.find((m) => m.id === id)?.name ?? `#${id}`;
   const groupName = (id: number) => groupOpts.find((g) => g.id === id)?.name ?? `#${id}`;
 
-  const [editRow, setEditRow] = useState<PermDraft | null>(null);
-
-  const create = useApiMutation<MemberPermissionOut, MemberPermissionIn>(
+  const createM = useApiMutation<MemberPermissionOut, MemberPermissionIn>(
     (body) =>
       unwrap(
         client.POST("/api/members/{member_id}/permission-members", {
@@ -1095,14 +1195,9 @@ function PermissionMembersInline({ memberId, editing }: { memberId: number; edit
           body,
         }),
       ),
-    {
-      invalidate: [listKey],
-      onSuccess: () => toast.success("Berechtigungssatz hinzugefügt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey] },
   );
-
-  const update = useApiMutation<MemberPermissionOut, { id: number; body: MemberPermissionIn }>(
+  const updateM = useApiMutation<MemberPermissionOut, { id: number; body: MemberPermissionIn }>(
     ({ id, body }) =>
       unwrap(
         client.PATCH("/api/members/permission-members/{permission_id}", {
@@ -1110,29 +1205,40 @@ function PermissionMembersInline({ memberId, editing }: { memberId: number; edit
           body,
         }),
       ),
-    {
-      invalidate: [listKey],
-      onSuccess: () => {
-        toast.success("Berechtigungen gespeichert.");
-        setEditRow(null);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey] },
   );
-
-  const del = useApiMutation<unknown, number>(
+  const delM = useApiMutation<unknown, number>(
     (id) =>
       unwrap(
         client.DELETE("/api/members/permission-members/{permission_id}", {
           params: { path: { permission_id: id } },
         }),
       ),
-    {
-      invalidate: [listKey],
-      onSuccess: () => toast.success("Berechtigungssatz entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [listKey] },
   );
+
+  const serverRows = (query.data ?? []).map((r) => ({
+    id: r.id,
+    data: {
+      list_member_ids: r.list_member_ids ?? [],
+      view_member_ids: r.view_member_ids ?? [],
+      change_member_ids: r.change_member_ids ?? [],
+      delete_member_ids: r.delete_member_ids ?? [],
+      list_group_ids: r.list_group_ids ?? [],
+      view_group_ids: r.view_group_ids ?? [],
+      change_group_ids: r.change_group_ids ?? [],
+      delete_group_ids: r.delete_group_ids ?? [],
+    } as PermData,
+  }));
+
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<PermData>({
+    serverRows,
+    editing,
+    create: (d) => createM.mutateAsync(d),
+    update: (id, d) => updateM.mutateAsync({ id, body: d }),
+    remove: (id) => delM.mutateAsync(id),
+    registerFlush,
+  });
 
   const memberSelect = (values: number[], onChange: (v: number[]) => void) => (
     <MultiSelect
@@ -1151,104 +1257,34 @@ function PermissionMembersInline({ memberId, editing }: { memberId: number; edit
     />
   );
 
-  const columns: { header: string; cell: (row: MemberPermissionOut) => ReactNode }[] = PERM_ROWS.map(
-    (p) => ({
-      header: p.label,
-      cell: (r: MemberPermissionOut) => {
-        const memberIds = r[p.mk];
-        const groupIds = r[p.gk];
-        if (editRow?.id === r.id) {
-          return (
-            <div className="stack">
-              {memberSelect(editRow[p.mk], (v) =>
-                setEditRow({ ...editRow, [p.mk]: v } as PermDraft),
-              )}
-              {groupSelect(editRow[p.gk], (v) =>
-                setEditRow({ ...editRow, [p.gk]: v } as PermDraft),
-              )}
-            </div>
-          );
-        }
-        return (
-          <div className="small">
-            <div>Teilnehmende: {memberIds.length ? memberIds.map(memberName).join(", ") : "—"}</div>
-            <div>Gruppen: {groupIds.length ? groupIds.map(groupName).join(", ") : "—"}</div>
-          </div>
-        );
-      },
-    }),
-  );
-  if (editing) {
-    columns.push({
-      header: "Aktionen",
-      cell: (r) =>
-        editRow?.id === r.id ? (
-          <div className="row-actions">
-            <Button
-              type="button"
-              busy={update.isPending}
-              onClick={() =>
-                update.mutate({
-                  id: r.id,
-                  body: {
-                    list_member_ids: editRow.list_member_ids,
-                    view_member_ids: editRow.view_member_ids,
-                    change_member_ids: editRow.change_member_ids,
-                    delete_member_ids: editRow.delete_member_ids,
-                    list_group_ids: editRow.list_group_ids,
-                    view_group_ids: editRow.view_group_ids,
-                    change_group_ids: editRow.change_group_ids,
-                    delete_group_ids: editRow.delete_group_ids,
-                  },
-                })
-              }
-            >
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditRow(null)}>
-              Abbrechen
-            </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() =>
-              setEditRow({
-                id: r.id,
-                list_member_ids: r.list_member_ids ?? [],
-                view_member_ids: r.view_member_ids ?? [],
-                change_member_ids: r.change_member_ids ?? [],
-                delete_member_ids: r.delete_member_ids ?? [],
-                list_group_ids: r.list_group_ids ?? [],
-                view_group_ids: r.view_group_ids ?? [],
-                change_group_ids: r.change_group_ids ?? [],
-                delete_group_ids: r.delete_group_ids ?? [],
-              })
-            }
-          >
-            Bearbeiten
-          </Button>
-        ),
-    });
-  }
-
   return (
     <InlineTable
       title="Berechtigungen"
       rows={rows}
-      columns={columns}
-      rowKey={(r) => r.id}
+      rowKey={(row) => row.key}
       editing={editing}
-      onDelete={(r) => del.mutate(r.id)}
+      onDelete={(row) => removeRow(row)}
+      onAdd={() => addRow({ ...emptyPerm })}
+      addLabel="Berechtigungssatz"
       empty="Keine Berechtigungen."
-      renderAdd={() => (
-        <div className="row-actions">
-          <Button type="button" busy={create.isPending} onClick={() => create.mutate({})}>
-            Berechtigungssatz hinzufügen
-          </Button>
-        </div>
-      )}
+      columns={PERM_ROWS.map((p) => ({
+        header: p.label,
+        cell: (row: DraftRow<PermData>) =>
+          editing ? (
+            <div className="stack">
+              {memberSelect(row.data[p.mk], (v) => setRow(row, { ...row.data, [p.mk]: v } as PermData))}
+              {groupSelect(row.data[p.gk], (v) => setRow(row, { ...row.data, [p.gk]: v } as PermData))}
+            </div>
+          ) : (
+            <div className="small">
+              <div>
+                Teilnehmende:{" "}
+                {row.data[p.mk].length ? row.data[p.mk].map(memberName).join(", ") : "—"}
+              </div>
+              <div>Gruppen: {row.data[p.gk].length ? row.data[p.gk].map(groupName).join(", ") : "—"}</div>
+            </div>
+          ),
+      }))}
     />
   );
 }

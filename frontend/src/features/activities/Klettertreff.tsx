@@ -8,6 +8,8 @@ import {
   Button,
   DataTable,
   EditableDetail,
+  Field,
+  Modal,
   PageHeader,
   QueryBoundary,
   Select,
@@ -16,6 +18,7 @@ import {
   type DetailRow,
 } from "../../components/ui";
 import { InlineTable } from "../../components/inline";
+import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
 import { MultiSelect, type Option } from "./_controls";
 import type { components } from "../../api/schema";
 
@@ -198,6 +201,9 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
     [membersQuery.data],
   );
 
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
+
   const mutation = useApiMutation(
     (body: KlettertreffUpdate) =>
       unwrap(
@@ -206,17 +212,7 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
           body,
         }),
       ),
-    {
-      invalidate: [["klettertreff"], ["klettertreff", kt.id]],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
+    { invalidate: [["klettertreff"], ["klettertreff", kt.id]] },
   );
 
   function startEditing() {
@@ -286,22 +282,33 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         setFieldErrors({});
-        mutation.mutate({
-          date: form.date || null,
-          location: form.location,
-          topic: form.topic,
-          group_id: Number(form.group_id),
-          jugendleiter_ids: form.jugendleiter_ids,
-        });
+        setSaving(true);
+        try {
+          await mutation.mutateAsync({
+            date: form.date || null,
+            location: form.location,
+            topic: form.topic,
+            group_id: Number(form.group_id),
+            jugendleiter_ids: form.jugendleiter_ids,
+          });
+          await runFlushes();
+          toast.success("Gespeichert.");
+          setEditing(false);
+        } catch (err) {
+          if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+          toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <div className="detail-actions">
         {editing ? (
           <>
-            <Button type="submit" busy={mutation.isPending}>
+            <Button type="submit" busy={saving}>
               Speichern
             </Button>
             <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -324,7 +331,7 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
           {
             id: "teilnehmer",
             label: "Teilnehmer*innen",
-            content: <KlettertreffAttendeesInline klettertreffId={kt.id} editing={editing} />,
+            content: <KlettertreffAttendeesInline klettertreffId={kt.id} editing={editing} registerFlush={getRegistrar("attendees")} />,
           },
         ]}
       />
@@ -337,14 +344,17 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
  * members to the meeting; add + remove only (the model carries no per-row
  * fields beyond the member link).
  */
+type AttendeeData = { member_id: number | null; member_name: string };
+
 function KlettertreffAttendeesInline({
   klettertreffId,
   editing,
+  registerFlush,
 }: {
   klettertreffId: number;
   editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const toast = useToast();
   const listQuery = useApiQuery(["klettertreff", klettertreffId, "attendees"], () =>
     unwrap(
       client.GET("/api/members/klettertreff/{klettertreff_id}/attendees", {
@@ -362,13 +372,11 @@ function KlettertreffAttendeesInline({
     [membersQuery.data],
   );
 
-  const [memberId, setMemberId] = useState("");
   const invalidate = [
     ["klettertreff", klettertreffId, "attendees"],
     ["klettertreff", klettertreffId],
   ];
-
-  const create = useApiMutation(
+  const createM = useApiMutation(
     (body: KlettertreffAttendeeCreate) =>
       unwrap(
         client.POST("/api/members/klettertreff/{klettertreff_id}/attendees", {
@@ -376,60 +384,79 @@ function KlettertreffAttendeesInline({
           body,
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => {
-        toast.success("Hinzugefügt.");
-        setMemberId("");
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-  const remove = useApiMutation(
+  const removeM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/members/attendees/{attendee_id}", {
           params: { path: { attendee_id: id } },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
 
+  const serverRows = (listQuery.data ?? []).map((a) => ({
+    id: a.id,
+    data: { member_id: a.member.id, member_name: a.member.name } as AttendeeData,
+  }));
+  const { rows, removeRow, addRow } = useInlineDraft<AttendeeData>({
+    serverRows,
+    editing,
+    // Attendees carry no editable fields, so only create/delete run.
+    create: (d) => createM.mutateAsync({ member_id: d.member_id ?? 0 }),
+    update: () => Promise.resolve(),
+    remove: (id) => removeM.mutateAsync(id),
+    registerFlush,
+  });
+  const [adding, setAdding] = useState<AttendeeData | null>(null);
+
   return (
-    <InlineTable
-      title="Teilnehmer*innen"
-      rows={listQuery.data ?? []}
-      rowKey={(a) => a.id}
-      editing={editing}
-      onDelete={(a) => remove.mutate(a.id)}
-      columns={[{ header: "Teilnehmende", cell: (a) => a.member.name }]}
-      renderAdd={() => (
-        <div className="stack">
-          <Select
-            value={memberId}
-            onChange={(v) => setMemberId(v)}
-            options={memberOptions}
-            placeholder="Teilnehmende wählen …"
-          />
-          <Button
-            type="button"
-            busy={create.isPending}
-            onClick={() => {
-              if (memberId === "") {
-                toast.error("Bitte Teilnehmende wählen.");
-                return;
-              }
-              create.mutate({ member_id: Number(memberId) });
-            }}
-          >
-            Hinzufügen
-          </Button>
-        </div>
+    <>
+      <InlineTable
+        title="Teilnehmer*innen"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => setAdding({ member_id: null, member_name: "" })}
+        addLabel="Teilnehmende"
+        columns={[{ header: "Teilnehmende", cell: (row) => row.data.member_name || "—" }]}
+      />
+      {adding && (
+        <Modal title="Teilnehmende hinzufügen" onClose={() => setAdding(null)} size="sm">
+          <div className="stack">
+            <Field label="Teilnehmende">
+              <Select
+                value={adding.member_id === null ? "" : String(adding.member_id)}
+                onChange={(v) =>
+                  setAdding({
+                    member_id: v === "" ? null : Number(v),
+                    member_name: memberOptions.find((o) => String(o.value) === v)?.label ?? "",
+                  })
+                }
+                options={memberOptions}
+                placeholder="Teilnehmende wählen …"
+              />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={adding.member_id === null}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    />
+    </>
   );
 }

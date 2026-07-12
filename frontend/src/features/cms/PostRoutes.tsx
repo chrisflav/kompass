@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 
@@ -6,6 +6,7 @@ import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { InlineTable } from "../../components/inline";
+import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -318,6 +319,9 @@ function PostDetailBody({ post }: { post: PostOut }) {
   const sections = (sectionsQuery.data ?? []) as SectionBrief[];
   const groups = (groupsQuery.data ?? []) as GroupOut[];
 
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
+
   const update = useApiMutation(
     (body: PostIn) =>
       unwrap(
@@ -326,17 +330,7 @@ function PostDetailBody({ post }: { post: PostOut }) {
           body,
         }),
       ),
-    {
-      invalidate: [["posts"], ["posts", post.id]],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
+    { invalidate: [["posts"], ["posts", post.id]] },
   );
 
   const remove = useApiMutation(
@@ -446,16 +440,27 @@ function PostDetailBody({ post }: { post: PostOut }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         setFieldErrors({});
-        update.mutate(form);
+        setSaving(true);
+        try {
+          await update.mutateAsync(form);
+          await runFlushes();
+          toast.success("Gespeichert.");
+          setEditing(false);
+        } catch (err) {
+          if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+          toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <div className="detail-actions">
         {editing ? (
           <>
-            <Button type="submit" busy={update.isPending}>
+            <Button type="submit" busy={saving}>
               Speichern
             </Button>
             <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -497,12 +502,12 @@ function PostDetailBody({ post }: { post: PostOut }) {
           {
             id: "bilder",
             label: "Bilder",
-            content: <PostImagesInline postId={post.id} editing={editing} />,
+            content: <PostImagesInline postId={post.id} editing={editing} registerFlush={getRegistrar("images")} />,
           },
           {
             id: "personen",
             label: "Personen",
-            content: <PostPersonsInline postId={post.id} editing={editing} />,
+            content: <PostPersonsInline postId={post.id} editing={editing} registerFlush={getRegistrar("persons")} />,
           },
         ]}
       />
@@ -512,17 +517,25 @@ function PostDetailBody({ post }: { post: PostOut }) {
 
 /* --- inline: Bilder (Image) ---------------------------------------------- */
 
-function PostImagesInline({ postId, editing }: { postId: number; editing: boolean }) {
-  const toast = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
+type PostImageData = { name: string; f: string | null; file: File | null };
 
+function PostImagesInline({
+  postId,
+  editing,
+  registerFlush,
+}: {
+  postId: number;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const query = useApiQuery(["startpage", "images"], () =>
     unwrap(client.GET("/api/startpage/images")),
   );
-  const images = ((query.data ?? []) as ImageOut[]).filter((i) => i.post_id === postId);
+  const serverRows = ((query.data ?? []) as ImageOut[])
+    .filter((i) => i.post_id === postId)
+    .map((i) => ({ id: i.id, data: { name: i.name, f: i.f ?? null, file: null } as PostImageData }));
 
-  const create = useApiMutation(
+  const createM = useApiMutation(
     (f: File) =>
       unwrap(
         client.POST("/api/startpage/images", {
@@ -537,83 +550,107 @@ function PostImagesInline({ postId, editing }: { postId: number; editing: boolea
           },
         }),
       ),
-    {
-      invalidate: [["startpage", "images"]],
-      onSuccess: () => {
-        toast.success("Bild hinzugefügt.");
-        setFile(null);
-        if (fileRef.current) fileRef.current.value = "";
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [["startpage", "images"]] },
   );
-
-  const remove = useApiMutation(
+  const removeM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/startpage/images/{image_id}", {
           params: { path: { image_id: id } },
         }),
       ),
-    {
-      invalidate: [["startpage", "images"]],
-      onSuccess: () => toast.success("Bild entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [["startpage", "images"]] },
   );
 
+  const { rows, removeRow, addRow } = useInlineDraft<PostImageData>({
+    serverRows,
+    editing,
+    create: (d) => (d.file ? createM.mutateAsync(d.file) : Promise.resolve()),
+    update: () => Promise.resolve(),
+    remove: (id) => removeM.mutateAsync(id),
+    registerFlush,
+  });
+  const [adding, setAdding] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
   return (
-    <InlineTable<ImageOut>
-      title="Bilder"
-      rows={images}
-      rowKey={(r) => r.id}
-      editing={editing}
-      onDelete={(r) => remove.mutate(r.id)}
-      columns={[
-        { header: "Name", cell: (r) => r.name },
-        {
-          header: "Datei",
-          cell: (r) =>
-            r.f ? (
-              <a href={`${API_BASE}${r.f}`} target="_blank" rel="noreferrer">
-                Öffnen
-              </a>
-            ) : (
-              "—"
-            ),
-        },
-      ]}
-      renderAdd={() => (
-        <div className="row-actions">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-          <Button
-            type="button"
-            busy={create.isPending}
-            disabled={!file}
-            onClick={() => file && create.mutate(file)}
-          >
-            Hinzufügen
-          </Button>
-        </div>
+    <>
+      <InlineTable
+        title="Bilder"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => {
+          setFile(null);
+          setAdding(true);
+        }}
+        addLabel="Bild"
+        columns={[
+          { header: "Name", cell: (row) => row.data.name || "—" },
+          {
+            header: "Datei",
+            cell: (row) =>
+              row.data.f ? (
+                <a href={`${API_BASE}${row.data.f}`} target="_blank" rel="noreferrer">
+                  Öffnen
+                </a>
+              ) : (
+                <span className="muted small">(neu)</span>
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Bild hinzufügen" onClose={() => setAdding(false)} size="sm">
+          <div className="stack">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={!file}
+                onClick={() => {
+                  if (file) addRow({ name: file.name, f: null, file });
+                  setAdding(false);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(false)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    />
+    </>
   );
 }
 
 /* --- inline: Personen (MemberOnPost) ------------------------------------- */
 
-type MopDraft = { member_ids: number[]; description: string; tag: string };
+type MopData = {
+  member_ids: number[];
+  member_names: string[];
+  description: string;
+  tag: string;
+};
 
-const emptyMopDraft: MopDraft = { member_ids: [], description: "", tag: "" };
+const emptyMop: MopData = { member_ids: [], member_names: [], description: "", tag: "" };
 
-function PostPersonsInline({ postId, editing }: { postId: number; editing: boolean }) {
-  const toast = useToast();
-
+function PostPersonsInline({
+  postId,
+  editing,
+  registerFlush,
+}: {
+  postId: number;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
   const briefsQuery = useApiQuery(["member-on-posts"], () =>
     unwrap(client.GET("/api/startpage/member-on-posts")),
   );
@@ -644,23 +681,14 @@ function PostPersonsInline({ postId, editing }: { postId: number; editing: boole
     { enabled: editing },
   );
   const members = (membersQuery.data ?? []) as MemberBrief[];
+  const namesFor = (ids: number[]) =>
+    ids.map((id) => members.find((m) => m.id === id)?.name ?? "");
 
-  const [draft, setDraft] = useState<MopDraft>(emptyMopDraft);
-  const [editState, setEditState] = useState<(MopDraft & { id: number }) | null>(null);
-
-  const create = useApiMutation(
+  const createM = useApiMutation(
     (body: MemberOnPostIn) => unwrap(client.POST("/api/startpage/member-on-posts", { body })),
-    {
-      invalidate: [["member-on-posts"]],
-      onSuccess: () => {
-        toast.success("Personen hinzugefügt.");
-        setDraft(emptyMopDraft);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [["member-on-posts"]] },
   );
-
-  const update = useApiMutation(
+  const updateM = useApiMutation(
     (vars: { id: number; body: MemberOnPostIn }) =>
       unwrap(
         client.PUT("/api/startpage/member-on-posts/{mop_id}", {
@@ -668,159 +696,136 @@ function PostPersonsInline({ postId, editing }: { postId: number; editing: boole
           body: vars.body,
         }),
       ),
-    {
-      invalidate: [["member-on-posts"]],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditState(null);
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [["member-on-posts"]] },
   );
-
-  const remove = useApiMutation(
+  const removeM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/startpage/member-on-posts/{mop_id}", {
           params: { path: { mop_id: id } },
         }),
       ),
-    {
-      invalidate: [["member-on-posts"]],
-      onSuccess: () => toast.success("Personen entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [["member-on-posts"]] },
   );
 
-  const memberSelect = (values: MopDraft, onChange: (next: MopDraft) => void) => (
+  const serverRows = persons.map((p) => ({
+    id: p.id,
+    data: {
+      member_ids: p.members.map((m) => m.id),
+      member_names: p.members.map((m) => m.name),
+      description: p.description ?? "",
+      tag: p.tag ?? "",
+    } as MopData,
+  }));
+
+  const body = (d: MopData): MemberOnPostIn => ({
+    post_id: postId,
+    member_ids: d.member_ids,
+    description: d.description,
+    tag: d.tag,
+  });
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<MopData>({
+    serverRows,
+    editing,
+    create: (d) => createM.mutateAsync(body(d)),
+    update: (id, d) => updateM.mutateAsync({ id, body: body(d) }),
+    remove: (id) => removeM.mutateAsync(id),
+    registerFlush,
+  });
+
+  const [adding, setAdding] = useState<MopData | null>(null);
+
+  const memberSelect = (value: MopData, onChange: (next: MopData) => void) => (
     <MultiSelect
       options={members.map((m) => ({ value: m.id, label: m.name }))}
-      selected={values.member_ids}
-      onChange={(ids) => onChange({ ...values, member_ids: ids })}
+      selected={value.member_ids}
+      onChange={(ids) => onChange({ ...value, member_ids: ids, member_names: namesFor(ids) })}
       placeholder="Teilnehmende hinzufügen"
     />
   );
 
-  const columns = [
-    {
-      header: "Teilnehmende",
-      cell: (r: MemberOnPostOut) => r.members.map((m) => m.name).join(", ") || "—",
-    },
-    { header: "Beschreibung", cell: (r: MemberOnPostOut) => r.description || "—" },
-    { header: "Tag", cell: (r: MemberOnPostOut) => r.tag || "—" },
-    ...(editing
-      ? [
-          {
-            header: "",
-            cell: (r: MemberOnPostOut) => (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() =>
-                  setEditState({
-                    id: r.id,
-                    member_ids: r.members.map((m) => m.id),
-                    description: r.description ?? "",
-                    tag: r.tag ?? "",
-                  })
-                }
-              >
-                Bearbeiten
-              </Button>
-            ),
-          },
-        ]
-      : []),
-  ];
-
   return (
-    <InlineTable<MemberOnPostOut>
-      title="Personen"
-      rows={persons}
-      rowKey={(r) => r.id}
-      editing={editing}
-      onDelete={(r) => remove.mutate(r.id)}
-      columns={columns}
-      renderAdd={() =>
-        editState ? (
+    <>
+      <InlineTable
+        title="Personen"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => setAdding({ ...emptyMop })}
+        addLabel="Person"
+        columns={[
+          {
+            header: "Teilnehmende",
+            cell: (row) =>
+              editing ? (
+                memberSelect(row.data, (next) => setRow(row, next))
+              ) : (
+                row.data.member_names.join(", ") || "—"
+              ),
+          },
+          {
+            header: "Beschreibung",
+            cell: (row) =>
+              editing ? (
+                <input
+                  value={row.data.description}
+                  onChange={(e) => setRow(row, { ...row.data, description: e.target.value })}
+                />
+              ) : (
+                row.data.description || "—"
+              ),
+          },
+          {
+            header: "Tag",
+            cell: (row) =>
+              editing ? (
+                <input
+                  value={row.data.tag}
+                  maxLength={20}
+                  onChange={(e) => setRow(row, { ...row.data, tag: e.target.value })}
+                />
+              ) : (
+                row.data.tag || "—"
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Person hinzufügen" onClose={() => setAdding(null)} size="sm">
           <div className="stack">
-            <Field label="Teilnehmende">
-              {memberSelect(editState, (next) => setEditState({ ...editState, ...next }))}
-            </Field>
+            <Field label="Teilnehmende">{memberSelect(adding, setAdding)}</Field>
             <Field label="Beschreibung">
               <input
-                value={editState.description}
-                onChange={(e) => setEditState({ ...editState, description: e.target.value })}
+                value={adding.description}
+                onChange={(e) => setAdding({ ...adding, description: e.target.value })}
               />
             </Field>
             <Field label="Tag" hint="Kurzbezeichnung (max. 20 Zeichen)">
               <input
-                value={editState.tag}
+                value={adding.tag}
                 maxLength={20}
-                onChange={(e) => setEditState({ ...editState, tag: e.target.value })}
+                onChange={(e) => setAdding({ ...adding, tag: e.target.value })}
               />
             </Field>
             <div className="row-actions">
               <Button
                 type="button"
-                busy={update.isPending}
-                onClick={() =>
-                  update.mutate({
-                    id: editState.id,
-                    body: {
-                      post_id: postId,
-                      member_ids: editState.member_ids,
-                      description: editState.description,
-                      tag: editState.tag,
-                    },
-                  })
-                }
+                disabled={adding.member_ids.length === 0}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
               >
-                Speichern
+                Hinzufügen
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setEditState(null)}>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
                 Abbrechen
               </Button>
             </div>
           </div>
-        ) : (
-          <div className="stack">
-            <Field label="Teilnehmende">
-              {memberSelect(draft, setDraft)}
-            </Field>
-            <Field label="Beschreibung">
-              <input
-                value={draft.description}
-                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              />
-            </Field>
-            <Field label="Tag" hint="Kurzbezeichnung (max. 20 Zeichen)">
-              <input
-                value={draft.tag}
-                maxLength={20}
-                onChange={(e) => setDraft({ ...draft, tag: e.target.value })}
-              />
-            </Field>
-            <div className="row-actions">
-              <Button
-                type="button"
-                busy={create.isPending}
-                disabled={draft.member_ids.length === 0}
-                onClick={() =>
-                  create.mutate({
-                    post_id: postId,
-                    member_ids: draft.member_ids,
-                    description: draft.description,
-                    tag: draft.tag,
-                  })
-                }
-              >
-                Hinzufügen
-              </Button>
-            </div>
-          </div>
-        )
-      }
-    />
+        </Modal>
+      )}
+    </>
   );
 }

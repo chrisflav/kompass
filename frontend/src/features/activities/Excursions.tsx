@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useFlushRegistry } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -207,6 +208,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeForm(excursion));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const { getRegistrar, runFlushes } = useFlushRegistry();
 
   const groupsQuery = useApiQuery(
     ["groups"],
@@ -632,6 +634,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
       } else if (form.ljp_title || form.ljp_goal_strategy) {
         await ljpCreate.mutateAsync(ljpBody);
       }
+      await runFlushes();
       toast.success("Gespeichert.");
       setEditing(false);
     } catch (e) {
@@ -779,6 +782,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
                   ["excursions", excursion.id, "participants"],
                   ["excursions", excursion.id],
                 ]}
+                registerFlush={getRegistrar("participants")}
               />
             ),
           },

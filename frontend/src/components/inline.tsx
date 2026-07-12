@@ -5,8 +5,9 @@ import { Button } from "./ui";
 /**
  * A related-object inline table for a parent's change view (mirrors a Django
  * admin inline). Lists the parent's rows; when `editing`, shows a per-row remove
- * button and an add area. IMPORTANT: the parent detail is already inside a
- * <form>, so the add area must NOT use a nested <form> — trigger creation with a
+ * button and either a header "add" button (`onAdd`, opens a modal) or an inline
+ * add area (`renderAdd`). IMPORTANT: the parent detail is already inside a
+ * <form>, so any add UI must NOT use a nested <form> — trigger creation with a
  * type="button" onClick instead.
  */
 export function InlineTable<T>({
@@ -16,6 +17,8 @@ export function InlineTable<T>({
   rowKey,
   editing,
   onDelete,
+  onAdd,
+  addLabel = "Hinzufügen",
   renderAdd,
   empty = "Keine Einträge.",
 }: {
@@ -26,14 +29,24 @@ export function InlineTable<T>({
   editing: boolean;
   /** Shows a "Entfernen" button per row when editing. */
   onDelete?: (row: T) => void;
-  /** Add UI shown below the table when editing (no <form>; use a button). */
+  /** When set, an "add" button in the header opens the caller's modal dialog. */
+  onAdd?: () => void;
+  addLabel?: string;
+  /** Legacy inline add area shown below the table when editing (no <form>). */
   renderAdd?: () => ReactNode;
   empty?: ReactNode;
 }) {
   const showActions = editing && Boolean(onDelete);
   return (
     <section className="inline-section">
-      <h3 className="fieldset-title">{title}</h3>
+      <div className="inline-head">
+        <h3 className="fieldset-title">{title}</h3>
+        {editing && onAdd && (
+          <Button type="button" variant="ghost" onClick={onAdd}>
+            + {addLabel}
+          </Button>
+        )}
+      </div>
       {rows.length === 0 ? (
         <p className="muted small">{empty}</p>
       ) : (
@@ -44,7 +57,7 @@ export function InlineTable<T>({
                 {columns.map((c) => (
                   <th key={c.header}>{c.header}</th>
                 ))}
-                {showActions && <th aria-label="Aktionen" />}
+                {showActions && <th className="inline-actions" aria-label="Aktionen" />}
               </tr>
             </thead>
             <tbody>
@@ -54,7 +67,7 @@ export function InlineTable<T>({
                     <td key={c.header}>{c.cell(row)}</td>
                   ))}
                   {showActions && (
-                    <td>
+                    <td className="inline-actions">
                       <Button type="button" variant="danger" onClick={() => onDelete!(row)}>
                         Entfernen
                       </Button>

@@ -3,7 +3,8 @@ import { useMemo, useState } from "react";
 import { client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { InlineTable } from "../../components/inline";
-import { Button, MultiSelect, Select, useToast } from "../../components/ui";
+import { useInlineDraft } from "../../components/inlineDraft";
+import { Button, Field, Modal, MultiSelect, Select } from "../../components/ui";
 import type { components } from "../../api/schema";
 
 // Re-export the shared searchable-badge MultiSelect so activities call sites
@@ -131,6 +132,8 @@ type ExcursionParticipantCreate = components["schemas"]["ExcursionParticipantCre
  * through the shared `/participants/{id}` endpoint. Supports add, per-row
  * comment edit and delete.
  */
+type ParticipantData = { member_id: number | null; member_name: string; comments: string };
+
 export function ParticipantsInline({
   title,
   editing,
@@ -138,6 +141,7 @@ export function ParticipantsInline({
   listFn,
   createFn,
   invalidate,
+  registerFlush,
 }: {
   title: string;
   editing: boolean;
@@ -145,8 +149,8 @@ export function ParticipantsInline({
   listFn: () => Promise<ExcursionParticipantOut[]>;
   createFn: (body: ExcursionParticipantCreate) => Promise<unknown>;
   invalidate: unknown[][];
+  registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const toast = useToast();
   const listQuery = useApiQuery(queryKey, listFn);
   const membersQuery = useApiQuery(
     ["members"],
@@ -158,36 +162,17 @@ export function ParticipantsInline({
     [membersQuery.data],
   );
 
-  const [memberId, setMemberId] = useState("");
-  const [comments, setComments] = useState("");
-  const [drafts, setDrafts] = useState<Record<number, string>>({});
-
-  const create = useApiMutation(
-    (body: ExcursionParticipantCreate) => createFn(body),
-    {
-      invalidate,
-      onSuccess: () => {
-        toast.success("Hinzugefügt.");
-        setMemberId("");
-        setComments("");
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
-  );
-  const remove = useApiMutation(
+  const createM = useApiMutation((body: ExcursionParticipantCreate) => createFn(body), { invalidate });
+  const removeM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/members/participants/{participant_id}", {
           params: { path: { participant_id: id } },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-  const patch = useApiMutation(
+  const patchM = useApiMutation(
     (vars: { id: number; comments: string }) =>
       unwrap(
         client.PATCH("/api/members/participants/{participant_id}", {
@@ -195,76 +180,92 @@ export function ParticipantsInline({
           body: { comments: vars.comments },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Gespeichert."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
 
-  const rows = listQuery.data ?? [];
-  const draftFor = (row: ExcursionParticipantOut) => drafts[row.id] ?? row.comments ?? "";
+  const serverRows = (listQuery.data ?? []).map((r) => ({
+    id: r.id,
+    data: { member_id: r.member.id, member_name: r.member.name, comments: r.comments ?? "" } as ParticipantData,
+  }));
+
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<ParticipantData>({
+    serverRows,
+    editing,
+    create: (d) => createM.mutateAsync({ member_id: d.member_id ?? 0, comments: d.comments }),
+    update: (id, d) => patchM.mutateAsync({ id, comments: d.comments }),
+    remove: (id) => removeM.mutateAsync(id),
+    registerFlush,
+  });
+
+  const [adding, setAdding] = useState<ParticipantData | null>(null);
 
   return (
-    <InlineTable
-      title={title}
-      rows={rows}
-      rowKey={(r) => r.id}
-      editing={editing}
-      onDelete={(r) => remove.mutate(r.id)}
-      columns={[
-        { header: "Teilnehmende", cell: (r) => r.member.name },
-        {
-          header: "Kommentar",
-          cell: (r) =>
-            editing ? (
-              <div className="stack">
+    <>
+      <InlineTable
+        title={title}
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => setAdding({ member_id: null, member_name: "", comments: "" })}
+        addLabel="Teilnehmende"
+        columns={[
+          { header: "Teilnehmende", cell: (row) => row.data.member_name || "—" },
+          {
+            header: "Kommentar",
+            cell: (row) =>
+              editing ? (
                 <input
-                  value={draftFor(r)}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
+                  value={row.data.comments}
+                  onChange={(e) => setRow(row, { ...row.data, comments: e.target.value })}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  busy={patch.isPending}
-                  onClick={() => patch.mutate({ id: r.id, comments: draftFor(r) })}
-                >
-                  Kommentar speichern
-                </Button>
-              </div>
-            ) : (
-              r.comments || "—"
-            ),
-        },
-      ]}
-      renderAdd={() => (
-        <div className="stack">
-          <Select
-            value={memberId}
-            onChange={(v) => setMemberId(v)}
-            options={memberOptions}
-            placeholder="Teilnehmende wählen …"
-          />
-          <input
-            placeholder="Kommentar"
-            value={comments}
-            onChange={(e) => setComments(e.target.value)}
-          />
-          <Button
-            type="button"
-            busy={create.isPending}
-            onClick={() => {
-              if (memberId === "") {
-                toast.error("Bitte Teilnehmende wählen.");
-                return;
-              }
-              create.mutate({ member_id: Number(memberId), comments });
-            }}
-          >
-            Hinzufügen
-          </Button>
-        </div>
+              ) : (
+                row.data.comments || "—"
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Teilnehmende hinzufügen" onClose={() => setAdding(null)} size="sm">
+          <div className="stack">
+            <Field label="Teilnehmende">
+              <Select
+                value={adding.member_id === null ? "" : String(adding.member_id)}
+                onChange={(v) =>
+                  setAdding({
+                    ...adding,
+                    member_id: v === "" ? null : Number(v),
+                    member_name: memberOptions.find((o) => String(o.value) === v)?.label ?? "",
+                  })
+                }
+                options={memberOptions}
+                placeholder="Teilnehmende wählen …"
+              />
+            </Field>
+            <Field label="Kommentar">
+              <input
+                value={adding.comments}
+                onChange={(e) => setAdding({ ...adding, comments: e.target.value })}
+              />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={adding.member_id === null}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    />
+    </>
   );
 }

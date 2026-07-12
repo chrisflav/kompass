@@ -10,6 +10,8 @@ import {
   DataTable,
   DownloadButton,
   EditableDetail,
+  Field,
+  Modal,
   PageHeader,
   QueryBoundary,
   Select,
@@ -18,13 +20,13 @@ import {
   type DetailRow,
 } from "../../components/ui";
 import { InlineTable } from "../../components/inline";
+import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
 import { ChoiceSelect, MultiSelect, WEEKDAY_OPTIONS, type Option } from "./_controls";
 import type { components } from "../../api/schema";
 
 type GroupOut = components["schemas"]["GroupOut"];
 type GroupUpdate = components["schemas"]["GroupUpdate"];
 type RegistrationPasswordCreate = components["schemas"]["RegistrationPasswordCreate"];
-type PermissionGroupOut = components["schemas"]["PermissionGroupOut"];
 type PermissionGroupUpdate = components["schemas"]["PermissionGroupUpdate"];
 
 /* --- list ----------------------------------------------------------------
@@ -199,6 +201,9 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
     [emailsQuery.data],
   );
 
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const [saving, setSaving] = useState(false);
+
   const mutation = useApiMutation(
     (body: GroupUpdate) =>
       unwrap(
@@ -207,17 +212,7 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
           body,
         }),
       ),
-    {
-      invalidate: [["groups"], ["groups", group.id]],
-      onSuccess: () => {
-        toast.success("Gespeichert.");
-        setEditing(false);
-      },
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
+    { invalidate: [["groups"], ["groups", group.id]] },
   );
 
   function startEditing() {
@@ -374,31 +369,42 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         setFieldErrors({});
-        mutation.mutate({
-          name: form.name,
-          description: form.description,
-          show_website: form.show_website,
-          year_from: Number(form.year_from),
-          year_to: Number(form.year_to),
-          weekday: form.weekday === "" ? null : Number(form.weekday),
-          start_time: form.start_time || null,
-          end_time: form.end_time || null,
-          show_website_year: form.show_website_year,
-          show_website_weekday: form.show_website_weekday,
-          show_website_time: form.show_website_time,
-          show_website_contact_email: form.show_website_contact_email,
-          contact_email_id: form.contact_email_id === "" ? null : Number(form.contact_email_id),
-          leiter_ids: form.leiter_ids,
-        });
+        setSaving(true);
+        try {
+          await mutation.mutateAsync({
+            name: form.name,
+            description: form.description,
+            show_website: form.show_website,
+            year_from: Number(form.year_from),
+            year_to: Number(form.year_to),
+            weekday: form.weekday === "" ? null : Number(form.weekday),
+            start_time: form.start_time || null,
+            end_time: form.end_time || null,
+            show_website_year: form.show_website_year,
+            show_website_weekday: form.show_website_weekday,
+            show_website_time: form.show_website_time,
+            show_website_contact_email: form.show_website_contact_email,
+            contact_email_id: form.contact_email_id === "" ? null : Number(form.contact_email_id),
+            leiter_ids: form.leiter_ids,
+          });
+          await runFlushes();
+          toast.success("Gespeichert.");
+          setEditing(false);
+        } catch (err) {
+          if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+          toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <div className="detail-actions">
         {editing ? (
           <>
-            <Button type="submit" busy={mutation.isPending}>
+            <Button type="submit" busy={saving}>
               Speichern
             </Button>
             <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -421,12 +427,12 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
           {
             id: "passwoerter",
             label: "Registrierungspasswörter",
-            content: <RegistrationPasswordsInline groupId={group.id} editing={editing} />,
+            content: <RegistrationPasswordsInline groupId={group.id} editing={editing} registerFlush={getRegistrar("passwords")} />,
           },
           {
             id: "berechtigungen",
             label: "Gruppenberechtigungen",
-            content: <PermissionGroupsInline groupId={group.id} editing={editing} />,
+            content: <PermissionGroupsInline groupId={group.id} editing={editing} registerFlush={getRegistrar("permissions")} />,
           },
         ]}
       />
@@ -438,14 +444,18 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
  * Registration-password inline (Django `RegistrationPasswordInline`). A group
  * may have several passwords; supports add, per-row password edit and delete.
  */
+type PasswordData = { password: string };
+
 function RegistrationPasswordsInline({
   groupId,
   editing,
+  registerFlush,
 }: {
   groupId: number;
   editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const toast = useToast();
+  const invalidate = [["groups", groupId, "registration-passwords"]];
   const listQuery = useApiQuery(["groups", groupId, "registration-passwords"], () =>
     unwrap(
       client.GET("/api/members/groups/{group_id}/registration-passwords", {
@@ -453,12 +463,7 @@ function RegistrationPasswordsInline({
       }),
     ),
   );
-  const invalidate = [["groups", groupId, "registration-passwords"]];
-
-  const [password, setPassword] = useState("");
-  const [drafts, setDrafts] = useState<Record<number, string>>({});
-
-  const create = useApiMutation(
+  const createM = useApiMutation(
     (body: RegistrationPasswordCreate) =>
       unwrap(
         client.POST("/api/members/groups/{group_id}/registration-passwords", {
@@ -466,29 +471,18 @@ function RegistrationPasswordsInline({
           body,
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => {
-        toast.success("Hinzugefügt.");
-        setPassword("");
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-  const remove = useApiMutation(
+  const removeM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/members/registration-passwords/{password_id}", {
           params: { path: { password_id: id } },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-  const patch = useApiMutation(
+  const patchM = useApiMutation(
     (vars: { id: number; password: string }) =>
       unwrap(
         client.PATCH("/api/members/registration-passwords/{password_id}", {
@@ -496,82 +490,109 @@ function RegistrationPasswordsInline({
           body: { password: vars.password },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Gespeichert."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
 
-  const rows = listQuery.data ?? [];
+  const serverRows = (listQuery.data ?? []).map((r) => ({
+    id: r.id,
+    data: { password: r.password ?? "" } as PasswordData,
+  }));
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<PasswordData>({
+    serverRows,
+    editing,
+    create: (d) => createM.mutateAsync({ password: d.password }),
+    update: (id, d) => patchM.mutateAsync({ id, password: d.password }),
+    remove: (id) => removeM.mutateAsync(id),
+    registerFlush,
+  });
+  const [adding, setAdding] = useState<PasswordData | null>(null);
 
   return (
-    <InlineTable
-      title="Registrierungspasswörter"
-      rows={rows}
-      rowKey={(r) => r.id}
-      editing={editing}
-      onDelete={(r) => remove.mutate(r.id)}
-      columns={[
-        {
-          header: "Passwort",
-          cell: (r) =>
-            editing ? (
-              <div className="stack">
+    <>
+      <InlineTable
+        title="Registrierungspasswörter"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        onDelete={(row) => removeRow(row)}
+        onAdd={() => setAdding({ password: "" })}
+        addLabel="Passwort"
+        columns={[
+          {
+            header: "Passwort",
+            cell: (row) =>
+              editing ? (
                 <input
-                  value={drafts[r.id] ?? r.password ?? ""}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
+                  value={row.data.password}
+                  onChange={(e) => setRow(row, { password: e.target.value })}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  busy={patch.isPending}
-                  onClick={() =>
-                    patch.mutate({ id: r.id, password: drafts[r.id] ?? r.password ?? "" })
-                  }
-                >
-                  Speichern
-                </Button>
-              </div>
-            ) : (
-              r.password || "—"
-            ),
-        },
-      ]}
-      renderAdd={() => (
-        <div className="stack">
-          <input
-            placeholder="Passwort"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button
-            type="button"
-            busy={create.isPending}
-            onClick={() => {
-              if (password.trim() === "") {
-                toast.error("Bitte ein Passwort eingeben.");
-                return;
-              }
-              create.mutate({ password });
-            }}
-          >
-            Hinzufügen
-          </Button>
-        </div>
+              ) : (
+                row.data.password || "—"
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Registrierungspasswort hinzufügen" onClose={() => setAdding(null)} size="sm">
+          <div className="stack">
+            <Field label="Passwort">
+              <input
+                value={adding.password}
+                onChange={(e) => setAdding({ password: e.target.value })}
+              />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={adding.password.trim() === ""}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
-    />
+    </>
   );
 }
 
+type PermGroupData = {
+  list_member_ids: number[];
+  view_member_ids: number[];
+  change_member_ids: number[];
+  delete_member_ids: number[];
+  list_group_ids: number[];
+  view_group_ids: number[];
+  change_group_ids: number[];
+  delete_group_ids: number[];
+};
+
+const emptyPermGroup: PermGroupData = {
+  list_member_ids: [],
+  view_member_ids: [],
+  change_member_ids: [],
+  delete_member_ids: [],
+  list_group_ids: [],
+  view_group_ids: [],
+  change_group_ids: [],
+  delete_group_ids: [],
+};
+
 /** The 8 ACL relations of a `PermissionGroup`, keyed by the API field name. */
-const PERM_MEMBER_FIELDS: { field: keyof PermissionGroupOut; label: string }[] = [
+const PERM_MEMBER_FIELDS: { field: keyof PermGroupData; label: string }[] = [
   { field: "list_member_ids", label: "Darf folgende Teilnehmer*innen listen" },
   { field: "view_member_ids", label: "Darf folgende Teilnehmer*innen anzeigen" },
   { field: "change_member_ids", label: "Darf folgende Teilnehmer*innen ändern" },
   { field: "delete_member_ids", label: "Darf folgende Teilnehmer*innen löschen" },
 ];
-const PERM_GROUP_FIELDS: { field: keyof PermissionGroupOut; label: string }[] = [
+const PERM_GROUP_FIELDS: { field: keyof PermGroupData; label: string }[] = [
   { field: "list_group_ids", label: "Darf Teilnehmer*innen folgender Gruppen listen" },
   { field: "view_group_ids", label: "Darf Teilnehmer*innen folgender Gruppen anzeigen" },
   { field: "change_group_ids", label: "Darf Teilnehmer*innen folgender Gruppen ändern" },
@@ -582,11 +603,19 @@ const PERM_GROUP_FIELDS: { field: keyof PermissionGroupOut; label: string }[] = 
  * Group-permissions inline (Django `PermissionOnGroupInline`). SENSITIVE: each
  * `PermissionGroup` grants ACL access (list/view/change/delete) over this
  * group's members to selected members and to members of selected groups.
- * `group` is a one-to-one relation, so there is at most one row; add creates the
- * empty ACL, and each of the 8 target selects patches its field immediately.
+ * `group` is a one-to-one relation, so there is at most one row; the target
+ * selects are edited in place and everything is applied on the main Save.
  */
-function PermissionGroupsInline({ groupId, editing }: { groupId: number; editing: boolean }) {
-  const toast = useToast();
+function PermissionGroupsInline({
+  groupId,
+  editing,
+  registerFlush,
+}: {
+  groupId: number;
+  editing: boolean;
+  registerFlush: (fn: () => Promise<void>) => void;
+}) {
+  const invalidate = [["groups", groupId, "permission-groups"]];
   const listQuery = useApiQuery(["groups", groupId, "permission-groups"], () =>
     unwrap(
       client.GET("/api/members/groups/{group_id}/permission-groups", {
@@ -615,8 +644,7 @@ function PermissionGroupsInline({ groupId, editing }: { groupId: number; editing
     [groupOptions],
   );
 
-  const invalidate = [["groups", groupId, "permission-groups"]];
-  const create = useApiMutation(
+  const createM = useApiMutation(
     (body: PermissionGroupUpdate) =>
       unwrap(
         client.POST("/api/members/groups/{group_id}/permission-groups", {
@@ -624,26 +652,18 @@ function PermissionGroupsInline({ groupId, editing }: { groupId: number; editing
           body,
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Berechtigungen angelegt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-  const remove = useApiMutation(
+  const removeM = useApiMutation(
     (id: number) =>
       unwrap(
         client.DELETE("/api/members/permission-groups/{permission_group_id}", {
           params: { path: { permission_group_id: id } },
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Entfernt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
-  const patch = useApiMutation(
+  const patchM = useApiMutation(
     (vars: { id: number; body: PermissionGroupUpdate }) =>
       unwrap(
         client.PATCH("/api/members/permission-groups/{permission_group_id}", {
@@ -651,21 +671,38 @@ function PermissionGroupsInline({ groupId, editing }: { groupId: number; editing
           body: vars.body,
         }),
       ),
-    {
-      invalidate,
-      onSuccess: () => toast.success("Gespeichert."),
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate },
   );
 
-  const rows = listQuery.data ?? [];
+  const serverRows = (listQuery.data ?? []).map((r) => ({
+    id: r.id,
+    data: {
+      list_member_ids: r.list_member_ids ?? [],
+      view_member_ids: r.view_member_ids ?? [],
+      change_member_ids: r.change_member_ids ?? [],
+      delete_member_ids: r.delete_member_ids ?? [],
+      list_group_ids: r.list_group_ids ?? [],
+      view_group_ids: r.view_group_ids ?? [],
+      change_group_ids: r.change_group_ids ?? [],
+      delete_group_ids: r.delete_group_ids ?? [],
+    } as PermGroupData,
+  }));
+
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<PermGroupData>({
+    serverRows,
+    editing,
+    create: (d) => createM.mutateAsync(d as PermissionGroupUpdate),
+    update: (id, d) => patchM.mutateAsync({ id, body: d as PermissionGroupUpdate }),
+    remove: (id) => removeM.mutateAsync(id),
+    registerFlush,
+  });
 
   const namesFor = (ids: number[], map: Map<number, string>) =>
     ids.length ? ids.map((id) => map.get(id) ?? `#${id}`).join(", ") : "—";
 
   const editSelect = (
-    row: PermissionGroupOut,
-    field: keyof PermissionGroupOut,
+    row: DraftRow<PermGroupData>,
+    field: keyof PermGroupData,
     label: string,
     options: Option[],
   ) => (
@@ -673,24 +710,24 @@ function PermissionGroupsInline({ groupId, editing }: { groupId: number; editing
       <span className="small">{label}</span>
       <MultiSelect
         options={options}
-        selected={row[field] as number[]}
-        onChange={(ids) =>
-          patch.mutate({ id: row.id, body: { [field]: ids } as unknown as PermissionGroupUpdate })
-        }
+        selected={row.data[field]}
+        onChange={(ids) => setRow(row, { ...row.data, [field]: ids } as PermGroupData)}
         searchable
       />
     </div>
   );
 
-  const summary = (row: PermissionGroupOut) => (
+  const summary = (row: DraftRow<PermGroupData>) => (
     <dl className="detail-list">
-      {[...PERM_MEMBER_FIELDS.map((f) => ({ ...f, map: memberNames })),
-        ...PERM_GROUP_FIELDS.map((f) => ({ ...f, map: groupNames }))]
-        .filter((f) => (row[f.field] as number[]).length > 0)
+      {[
+        ...PERM_MEMBER_FIELDS.map((f) => ({ ...f, map: memberNames })),
+        ...PERM_GROUP_FIELDS.map((f) => ({ ...f, map: groupNames })),
+      ]
+        .filter((f) => row.data[f.field].length > 0)
         .map((f) => (
           <div key={f.field}>
             <dt>{f.label}</dt>
-            <dd>{namesFor(row[f.field] as number[], f.map)}</dd>
+            <dd>{namesFor(row.data[f.field], f.map)}</dd>
           </div>
         ))}
     </dl>
@@ -700,19 +737,19 @@ function PermissionGroupsInline({ groupId, editing }: { groupId: number; editing
     <InlineTable
       title="Gruppenberechtigungen"
       rows={rows}
-      rowKey={(r) => r.id}
+      rowKey={(row) => row.key}
       editing={editing}
-      onDelete={(r) => remove.mutate(r.id)}
-      empty={editing ? "Keine Berechtigungen – unten anlegen." : "Keine Berechtigungen."}
+      onDelete={(row) => removeRow(row)}
+      onAdd={rows.length === 0 ? () => addRow({ ...emptyPermGroup }) : undefined}
+      addLabel="Berechtigungen"
+      empty={editing ? "Keine Berechtigungen – oben anlegen." : "Keine Berechtigungen."}
       columns={[
         {
           header: "Berechtigungen",
           cell: (row) =>
             editing ? (
               <div className="stack">
-                {PERM_MEMBER_FIELDS.map((f) =>
-                  editSelect(row, f.field, f.label, memberOptions),
-                )}
+                {PERM_MEMBER_FIELDS.map((f) => editSelect(row, f.field, f.label, memberOptions))}
                 {PERM_GROUP_FIELDS.map((f) => editSelect(row, f.field, f.label, groupOptions))}
               </div>
             ) : (
@@ -720,13 +757,6 @@ function PermissionGroupsInline({ groupId, editing }: { groupId: number; editing
             ),
         },
       ]}
-      renderAdd={() =>
-        rows.length === 0 ? (
-          <Button type="button" busy={create.isPending} onClick={() => create.mutate({})}>
-            Berechtigungen anlegen
-          </Button>
-        ) : null
-      }
     />
   );
 }
