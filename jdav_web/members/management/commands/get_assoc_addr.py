@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from members.models import Member
 
@@ -17,7 +18,7 @@ class Command(BaseCommand):
         # name, domain = match.groups()
         # address = "{}@{}".format(name, domain)
         # recipient = Member.objects.filter(email=address)
-        sender = Member.objects.filter(group__name="Jugendleiter", email=options["sender"]).first()
+        sender = Member.objects.filter(group__name=settings.YOUTH_LEADER_GROUP, email=options["sender"]).first()
         if not sender:
             return
         self.stdout.write(sender.association_email)
