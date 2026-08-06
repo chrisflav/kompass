@@ -1,0 +1,14 @@
+{% extends "admin/extra_view.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>{% trans "Group Timetable" %}</h1>
+<div style="overflow-x: auto;">
+{% include "members/timetable.html" %}
+</div>
+<p>
+  <a href="{% url 'admin:members_group_timetable_download' %}">&#8595; {% trans "Download as SVG" %}</a>
+  &nbsp;&nbsp;
+  <a href="{% url 'admin:members_group_changelist' %}">&#8592; {% trans "Back to groups" %}</a>
+</p>
+{% endblock %}
