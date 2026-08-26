@@ -110,7 +110,7 @@ class Group(models.Model):
             group_time = self.get_time_info()
         else:
             group_time = settings.GROUP_TIME_UNAVAILABLE_TEXT.format(
-                contact_email=self.contact_email
+                contact_email=self.contact_email or ""
             )
         if self.has_age_info():
             group_age = self.get_age_info()
@@ -122,5 +122,5 @@ class Group(models.Model):
             group_name=self.name,
             group_age=group_age,
             group_link=group_link,
-            contact_email=self.contact_email,
+            contact_email=self.contact_email or "",
         )
