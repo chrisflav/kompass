@@ -96,6 +96,7 @@ from members.tests.utils import add_memberonlist_by_local
 from members.tests.utils import BasicMemberTestCase
 from members.tests.utils import cleanup_excursion
 from members.tests.utils import create_custom_user
+from members.tests.utils import ECHO_DATA
 from members.tests.utils import INTERNAL_EMAIL
 from members.tests.utils import REGISTRATION_DATA
 from members.tests.utils import WAITER_DATA
@@ -3332,7 +3333,7 @@ class EchoViewTestCase(BasicMemberTestCase):
         response = self.client.post(
             url,
             data=dict(
-                REGISTRATION_DATA,
+                ECHO_DATA,
                 key=self.key,
                 password=self.fritz.echo_password,
                 save="",
@@ -3351,7 +3352,7 @@ class EchoViewTestCase(BasicMemberTestCase):
         response = self.client.post(
             url,
             data=dict(
-                REGISTRATION_DATA,
+                ECHO_DATA,
                 **EMERGENCY_CONTACT_DATA,
                 key=self.key,
                 password=self.fritz.echo_password,
@@ -3360,6 +3361,34 @@ class EchoViewTestCase(BasicMemberTestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Your data was successfully updated."))
+        self.fritz.refresh_from_db()
+        self.assertEqual(self.fritz.dav_badge_no, ECHO_DATA["dav_badge_no"])
+
+    def test_post_save_without_dav_badge_no(self):
+        # the DAV membership number is mandatory for echoing
+        data = dict(ECHO_DATA, **EMERGENCY_CONTACT_DATA)
+        data["dav_badge_no"] = ""
+        url = reverse("members:echo")
+        response = self.client.post(
+            url,
+            data=dict(
+                data,
+                key=self.key,
+                password=self.fritz.echo_password,
+                save="",
+            ),
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(
+            response,
+            _(
+                "Here is your current data. Please check if it is up to date and change accordingly."
+            ),
+        )
+        self.assertIn("dav_badge_no", response.context["form"].errors)
+        self.fritz.refresh_from_db()
+        self.assertFalse(self.fritz.echoed)
+        self.assertEqual(self.fritz.dav_badge_no, "")
 
     def test_post_save_without_registration_form(self):
         # Clear registration form to test member without registration_form case
@@ -3369,7 +3398,7 @@ class EchoViewTestCase(BasicMemberTestCase):
         response = self.client.post(
             url,
             data=dict(
-                REGISTRATION_DATA,
+                ECHO_DATA,
                 **EMERGENCY_CONTACT_DATA,
                 key=self.key,
                 password=self.fritz.echo_password,

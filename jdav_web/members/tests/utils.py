@@ -29,6 +29,9 @@ REGISTRATION_DATA = {
     "email": settings.TEST_MAIL,
     "alternative_email": settings.TEST_MAIL,
 }
+# data for the echo (re-registration) form, which additionally requires the
+# DAV membership number
+ECHO_DATA = dict(REGISTRATION_DATA, dav_badge_no="114/00/245891")
 WAITER_DATA = {
     "prename": "Peter",
     "lastname": "Wulter",
