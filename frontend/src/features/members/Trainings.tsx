@@ -9,17 +9,21 @@ import {
   Button,
   DataTable,
   EditableDetail,
+  Field,
+  Modal,
   MultiSelect,
   PageHeader,
   QueryBoundary,
   Select,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
 type TrainingBrief = components["schemas"]["TrainingBrief"];
 type TrainingOut = components["schemas"]["TrainingOut"];
+type TrainingCreate = components["schemas"]["MemberTrainingCreate"];
 type TrainingUpdate = components["schemas"]["MemberTrainingUpdate"];
 type TrainingCategoryOut = components["schemas"]["TrainingCategoryOut"];
 type ActivityCategoryOut = components["schemas"]["ActivityCategoryOut"];
@@ -45,6 +49,7 @@ const fieldsetTitle = { marginTop: "1.5rem" } as const;
 
 export function TrainingsList() {
   const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
   const query = useApiQuery(["trainings"], () => unwrap(client.GET("/api/members/trainings")));
   const rows = query.data ?? [];
 
@@ -112,7 +117,13 @@ export function TrainingsList() {
       <PageHeader
         breadcrumbs={[{ label: "Ausbildungen" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
+        actions={<Button onClick={() => setCreating(true)}>Neue Ausbildung</Button>}
       />
+      {creating && (
+        <Modal title="Neue Ausbildung" onClose={() => setCreating(false)}>
+          <TrainingCreateForm onDone={() => setCreating(false)} />
+        </Modal>
+      )}
       <ListToolbar view={view} />
       <QueryBoundary query={query} empty="Keine Ausbildungen sichtbar.">
         {() => (
@@ -154,6 +165,103 @@ export function TrainingsList() {
   );
 }
 
+/* --- create -------------------------------------------------------------- */
+
+function TrainingCreateForm({ onDone }: { onDone: () => void }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [memberId, setMemberId] = useState("");
+  const [title, setTitle] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [date, setDate] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const categoriesQuery = useApiQuery(["training-categories"], () =>
+    unwrap(client.GET("/api/members/training-categories")),
+  );
+  const memberOptions = useMemo(
+    () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
+    [membersQuery.data],
+  );
+  const categoryOptions = useMemo(
+    () => (categoriesQuery.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+    [categoriesQuery.data],
+  );
+
+  const mutation = useApiMutation(
+    (body: TrainingCreate) => unwrap(client.POST("/api/members/trainings", { body })),
+    {
+      invalidate: [["trainings"]],
+      onSuccess: (created: TrainingOut) => {
+        toast.success("Ausbildung angelegt.");
+        onDone();
+        navigate(`/app/trainings/${created.id}`);
+      },
+      onError: (e: Error) => {
+        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  return (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setFieldErrors({});
+        mutation.mutate({
+          member_id: Number(memberId),
+          title,
+          category_id: Number(categoryId),
+          date: date || null,
+          activity_ids: [],
+        });
+      }}
+    >
+      <Field label="Teilnehmende">
+        <Select
+          value={memberId}
+          onChange={(v) => setMemberId(v)}
+          options={memberOptions}
+          placeholder="Teilnehmende wählen …"
+        />
+        {fieldErrors.member_id && (
+          <div className="field-error">{fieldErrors.member_id.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Titel">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+        {fieldErrors.title && <div className="field-error">{fieldErrors.title.join(" ")}</div>}
+      </Field>
+      <Field label="Kategorie">
+        <Select
+          value={categoryId}
+          onChange={(v) => setCategoryId(v)}
+          options={categoryOptions}
+          placeholder="Kategorie wählen …"
+        />
+        {fieldErrors.category_id && (
+          <div className="field-error">{fieldErrors.category_id.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Datum">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        {fieldErrors.date && <div className="field-error">{fieldErrors.date.join(" ")}</div>}
+      </Field>
+      <div className="row-actions">
+        <Button type="submit" busy={mutation.isPending} disabled={memberId === "" || categoryId === ""}>
+          Anlegen
+        </Button>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /* --- detail + edit ------------------------------------------------------- */
 
 export function TrainingDetailPage() {
@@ -166,24 +274,15 @@ export function TrainingDetailPage() {
       }),
     ),
   );
+  const crumbs: Crumb[] = [
+    { label: "Ausbildungen", to: "/app/trainings" },
+    { label: query.data?.title ?? "Ausbildung" },
+  ];
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Ausbildungen", to: "/app/trainings" },
-          { label: query.data?.title ?? "Ausbildung" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(training: TrainingOut) => <TrainingDetailBody training={training} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(training: TrainingOut) => <TrainingDetailBody training={training} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
@@ -199,7 +298,7 @@ function makeDraft(t: TrainingOut) {
   };
 }
 
-function TrainingDetailBody({ training }: { training: TrainingOut }) {
+function TrainingDetailBody({ training, crumbs }: { training: TrainingOut; crumbs: Crumb[] }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeDraft(training));
@@ -357,22 +456,30 @@ function TrainingDetailBody({ training }: { training: TrainingOut }) {
         });
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <Button type="button" onClick={startEditing}>
-            Bearbeiten
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <h3 className="fieldset-title" style={fieldsetTitle}>
         Ausbildung
       </h3>

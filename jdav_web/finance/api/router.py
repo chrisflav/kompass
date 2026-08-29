@@ -24,6 +24,8 @@ from contrib.api.perms import partial_clean
 from contrib.api.perms import set_scalar_fields
 from contrib.permissions import scope_queryset
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from finance.models import Bill
@@ -43,6 +45,7 @@ from .schemas import BillCreate
 from .schemas import BillOut
 from .schemas import BillUpdate
 from .schemas import FinanceEnumsOut
+from .schemas import FinanceOverviewOut
 from .schemas import StatementBrief
 from .schemas import StatementCreate
 from .schemas import StatementOut
@@ -65,6 +68,42 @@ def validate_proof(upload):
     if upload.size > limit:
         raise ValidationError(
             _("Please keep filesize under %(mb)s MiB.") % {"mb": PROOF_MAX_UPLOAD_SIZE_MB}
+        )
+
+
+# Sentinel distinguishing "field omitted from the PATCH" from "set to null".
+_UNSET = object()
+
+
+def _resolve_recipient(statement, member_id):
+    """Resolve a statement recipient id to a Member, or ``None`` when cleared.
+
+    Mirrors ``StatementOnListForm``: recipients must be youth leaders of the
+    statement's excursion (a statement without an excursion accepts none).
+    """
+    if member_id is None:
+        return None
+    member = get_object_or_404(Member, pk=member_id)
+    excursion = statement.excursion
+    if excursion is None or not excursion.jugendleiter.filter(pk=member.pk).exists():
+        raise ValidationError(_("Only youth leaders of this excursion may receive contributions."))
+    return member
+
+
+def _validate_allowance_count(statement, members):
+    """Replicate ``StatementOnListForm.clean``: allowance recipients must not
+    exceed the excursion's approved youth-leader count."""
+    excursion = statement.excursion
+    if excursion is not None and len(members) > excursion.approved_staff_count:
+        raise ValidationError(
+            _(
+                "This excursion only has up to %(approved_count)s approved youth "
+                "leaders, but you listed %(entered_count)s."
+            )
+            % {
+                "approved_count": str(excursion.approved_staff_count),
+                "entered_count": str(len(members)),
+            }
         )
 
 
@@ -118,6 +157,75 @@ def retrieve_statement(request, statement_id: int):
     return get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
 
 
+@router.get("/statements/{statement_id}/overview", response=FinanceOverviewOut)
+def statement_finance_overview(request, statement_id: int):
+    """The excursion finance overview (``FreizeitAdmin.finance_overview``).
+
+    An estimate of the excursion's expenses vs. the association's contributions,
+    mirroring ``admin/freizeit_finance_overview.html``. Requires the statement to
+    be tied to an excursion (there is nothing to estimate otherwise).
+    """
+    statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
+    excursion = statement.excursion
+    if excursion is None:
+        raise Http404(_("This statement is not tied to an excursion."))
+
+    def recipient(member):
+        return {"name": member.name, "iban_valid": member.iban_valid} if member else None
+
+    return {
+        "statement_id": statement.pk,
+        "excursion_name": excursion.name,
+        "submitted": statement.submitted,
+        "bills": [
+            {
+                "short_description": bill.short_description,
+                "explanation": bill.explanation,
+                "amount": bill.amount,
+                "paid_by_name": bill.paid_by.name if bill.paid_by else None,
+                "paid_by_iban_valid": bool(bill.paid_by and bill.paid_by.iban_valid),
+            }
+            for bill in statement.bill_set.all()
+        ],
+        "total_bills_theoretic": statement.total_bills_theoretic,
+        "staff_count": statement.real_staff_count,
+        "nights": excursion.night_count,
+        "price_per_night": statement.real_night_cost,
+        "nights_per_yl": statement.nights_per_yl,
+        "duration": excursion.duration,
+        "allowance_per_day": statement._get_setting("ALLOWANCE_PER_DAY"),
+        "allowance_per_yl": statement.allowance_per_yl,
+        "kilometers_traveled": excursion.kilometers_traveled,
+        "means_of_transport": excursion.get_tour_approach(),
+        "euro_per_km": statement.euro_per_km,
+        "transportation_per_yl": statement.transportation_per_yl,
+        "allowances_paid": statement.allowances_paid,
+        "real_staff_count": statement.real_staff_count,
+        "allowance_to": [recipient(m) for m in statement.allowance_to.all()],
+        "allowance_to_valid": statement.allowance_to_valid,
+        "subsidy_to": recipient(statement.subsidy_to),
+        "total_subsidies": statement.total_subsidies,
+        "total_org_fee": statement.total_org_fee,
+        "total_org_fee_theoretical": statement.total_org_fee_theoretical,
+        "org_fee": statement._get_setting("EXCURSION_ORG_FEE"),
+        "old_participant_count": excursion.old_participant_count,
+        "ljp_to": recipient(statement.ljp_to),
+        "ljp_contributions": excursion.payable_ljp_contributions,
+        "total_seminar_days": excursion.total_seminar_days,
+        "ljp_participant_count": excursion.ljp_participant_count,
+        "theoretic_ljp_participant_count": excursion.theoretic_ljp_participant_count,
+        "seminar_days": [
+            {
+                "day": str(day["day"]),
+                "total_duration": day["total_duration"],
+                "sum_days": day["sum_days"],
+            }
+            for day in excursion.seminar_time_per_day
+        ],
+        "total_relative_costs": excursion.total_relative_costs,
+    }
+
+
 @router.patch("/statements/{statement_id}", response=StatementOut)
 def update_statement(request, statement_id: int, payload: StatementUpdate):
     """Update the editable subset of a draft statement, authorized per object."""
@@ -127,8 +235,31 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
     if statement.submitted:
         raise ValidationError(_("Submitted statements can no longer be edited."))
     data = payload.dict(exclude_unset=True)
-    set_scalar_fields(statement, data, list(data.keys()))
-    statement.save()
+    # The recipient relations mirror the admin's ``StatementOnListInline``
+    # (allowance_to / subsidy_to / ljp_to); apply them separately from the scalars.
+    allowance_to_ids = data.pop("allowance_to_ids", _UNSET)
+    subsidy_to_id = data.pop("subsidy_to_id", _UNSET)
+    ljp_to_id = data.pop("ljp_to_id", _UNSET)
+    # Resolve + validate every recipient BEFORE writing anything, and wrap the
+    # writes in a transaction, so a rejected recipient never leaves a partial
+    # update behind (mirrors the admin form validating in ``clean``).
+    subsidy_to = (
+        _resolve_recipient(statement, subsidy_to_id) if subsidy_to_id is not _UNSET else _UNSET
+    )
+    ljp_to = _resolve_recipient(statement, ljp_to_id) if ljp_to_id is not _UNSET else _UNSET
+    allowance_members = None
+    if allowance_to_ids is not _UNSET and allowance_to_ids is not None:
+        allowance_members = [_resolve_recipient(statement, mid) for mid in allowance_to_ids]
+        _validate_allowance_count(statement, allowance_members)
+    with transaction.atomic():
+        set_scalar_fields(statement, data, list(data.keys()))
+        if subsidy_to is not _UNSET:
+            statement.subsidy_to = subsidy_to
+        if ljp_to is not _UNSET:
+            statement.ljp_to = ljp_to
+        statement.save()
+        if allowance_members is not None:
+            statement.allowance_to.set(allowance_members)
     return statement
 
 
@@ -149,6 +280,24 @@ def submit_statement(request, statement_id: int):
     statement = get_authorized(request, Statement, statement_id, "finance.change_obj_statement")
     if statement.submitted:
         raise ValidationError(_("Statement is already submitted."))
+    # Reproduce the excursion finance-overview submit guards (FreizeitAdmin.
+    # finance_overview): valid allowance recipients, and a proof for every bill
+    # when LJP contributions are claimed.
+    if statement.excursion is not None:
+        if not statement.allowance_to_valid:
+            raise ValidationError(
+                _(
+                    "The configured recipients of the allowance don't match the "
+                    "regulations. Please correct this and try again."
+                )
+            )
+        if statement.ljp_to and len(statement.bills_without_proof) > 0:
+            raise ValidationError(
+                _(
+                    "The excursion is configured to claim LJP contributions. In that "
+                    "case, a proof must be uploaded for every bill."
+                )
+            )
     statement.submit(get_member(request))
     return statement
 

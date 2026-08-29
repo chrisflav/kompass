@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
+import { useApiQuery } from "../api/hooks";
+import { client, unwrap } from "../api/http";
 import { useMe } from "../api/me";
 import { useAuth } from "../auth";
 import { KompassMark } from "./Contour";
@@ -17,15 +19,56 @@ interface NavArea {
   to?: string;
   items: NavLeaf[];
 }
+/** A top-bar entry is either a dropdown area or a plain link. */
+type NavEntry = NavArea | NavLeaf;
 
-/** Public site navigation (shown to everyone). */
-const PUBLIC_NAV: NavLeaf[] = [
-  { to: "/aktuelles", label: "Aktuelles" },
-  { to: "/berichte", label: "Berichte" },
-  { to: "/gruppen", label: "Gruppen" },
-  { to: "/gruppen/faq", label: "FAQ" },
-  { to: "/impressum", label: "Impressum" },
-];
+function isArea(entry: NavEntry): entry is NavArea {
+  return "items" in entry;
+}
+
+/**
+ * Public site navigation, built from the live startpage navigation (mirrors the
+ * old Django dropdown navbar's organisation): an "Aktuelles/Berichte" area, one
+ * top-level entry per custom Section that opts into the nav, a Gruppen dropdown
+ * listing the public groups, and Impressum.
+ */
+function usePublicNav(enabled: boolean): NavEntry[] {
+  const query = useApiQuery(
+    ["public", "navigation"],
+    () => unwrap(client.GET("/api/startpage/public/navigation")),
+    { staleTime: 5 * 60_000, enabled },
+  );
+  const data = query.data;
+  const rootId = data?.root_section?.id;
+  const sections = (data?.sections ?? []).filter(
+    (s) => s.show_in_navigation && s.id !== rootId,
+  );
+  const groups = data?.groups ?? [];
+
+  return [
+    {
+      label: data?.root_section?.title || "Verein",
+      items: [
+        { to: "/aktuelles", label: "Aktuelles" },
+        { to: "/berichte", label: "Berichte" },
+      ],
+    },
+    ...sections.map((s) => ({
+      to: `/bereich/${encodeURIComponent(s.urlname)}`,
+      label: s.title,
+    })),
+    {
+      label: "Gruppen",
+      to: "/gruppen",
+      items: [
+        { to: "/gruppen", label: "Alle Gruppen" },
+        ...groups.map((g) => ({ to: `/gruppe/${encodeURIComponent(g.name)}`, label: g.name })),
+        { to: "/gruppen/faq", label: "FAQ" },
+      ],
+    },
+    { to: "/impressum", label: "Impressum" },
+  ];
+}
 
 /**
  * Kompass (admin) navigation, reorganised per NAVIGATION.md: intake ("Aufnahme")
@@ -43,6 +86,7 @@ const ADMIN_NAV: NavArea[] = [
     { to: "/app/groups", label: "Gruppen" },
     { to: "/app/excursions", label: "Ausfahrten" },
     { to: "/app/klettertreff", label: "Klettertreffs" },
+    { to: "/app/notelists", label: "Notizlisten" },
   ] },
   { label: "Finanzen", items: [
     { to: "/app/finance/statements", label: "Abrechnungen" },
@@ -163,6 +207,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
   const me = useMe();
   const { pathname } = useLocation();
   const [drawer, setDrawer] = useState(false);
+  const publicNav = usePublicNav(variant === "public");
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => setDrawer(false), [pathname]);
@@ -182,20 +227,19 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
 
         {/* Primary navigation (desktop). */}
         <nav className="topnav" aria-label="Hauptnavigation">
-          {variant === "public"
-            ? PUBLIC_NAV.map((i) => (
-                <NavLink
-                  key={i.to}
-                  to={i.to}
-                  end={i.to === "/gruppen"}
-                  className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
-                >
-                  {i.label}
-                </NavLink>
-              ))
-            : ADMIN_NAV.map((area) => (
-                <NavArea key={area.label} area={area} activePath={pathname} />
-              ))}
+          {(variant === "public" ? publicNav : ADMIN_NAV).map((entry) =>
+            isArea(entry) ? (
+              <NavArea key={entry.label} area={entry} activePath={pathname} />
+            ) : (
+              <NavLink
+                key={entry.to}
+                to={entry.to}
+                className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
+              >
+                {entry.label}
+              </NavLink>
+            ),
+          )}
         </nav>
 
         <div className="topbar-right">
@@ -243,27 +287,23 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
               </NavLink>
             </div>
           )}
-          {variant === "public" ? (
-            <div className="drawer-group">
-              {PUBLIC_NAV.map((i) => (
-                <NavLink key={i.to} to={i.to} end={i.to === "/gruppen"} className="drawer-item">
-                  {i.label}
+          {(variant === "public" ? publicNav : ADMIN_NAV).map((entry) =>
+            isArea(entry) ? (
+              <div className="drawer-group" key={entry.label}>
+                <span className="drawer-label">{entry.label}</span>
+                {entry.items.map((i) => (
+                  <NavLink key={i.to} to={i.to} className="drawer-item">
+                    {i.label}
+                  </NavLink>
+                ))}
+              </div>
+            ) : (
+              <div className="drawer-group" key={entry.to}>
+                <NavLink to={entry.to} className="drawer-item">
+                  {entry.label}
                 </NavLink>
-              ))}
-            </div>
-          ) : (
-            <>
-              {ADMIN_NAV.map((area) => (
-                <div className="drawer-group" key={area.label}>
-                  <span className="drawer-label">{area.label}</span>
-                  {area.items.map((i) => (
-                    <NavLink key={i.to} to={i.to} className="drawer-item">
-                      {i.label}
-                    </NavLink>
-                  ))}
-                </div>
-              ))}
-            </>
+              </div>
+            ),
           )}
           {token ? (
             <div className="drawer-group">

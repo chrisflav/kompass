@@ -15,6 +15,7 @@ import {
   Tabs,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -180,23 +181,15 @@ function TerminDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "Termine", to: "/app/events" },
+    { label: query.data?.title ?? "Termin" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Termine", to: "/app/events" },
-          { label: query.data?.title ?? "Termin" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(termin: TerminOut) => <TerminDetailBody termin={termin} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(termin: TerminOut) => <TerminDetailBody termin={termin} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
@@ -227,7 +220,7 @@ function draftFromTermin(termin: TerminOut): TerminFormValues {
   };
 }
 
-function TerminDetailBody({ termin }: { termin: TerminOut }) {
+function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb[] }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<TerminFormValues>(() => draftFromTermin(termin));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -507,41 +500,47 @@ function TerminDetailBody({ termin }: { termin: TerminOut }) {
         update.mutate(form);
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={update.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              busy={remove.isPending}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    message: "Diesen Termin wirklich löschen?",
-                    danger: true,
-                    confirmLabel: "Löschen",
-                  })
-                )
-                  remove.mutate(undefined);
-              }}
-            >
-              Löschen
-            </Button>
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={update.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={remove.isPending}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Diesen Termin wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    remove.mutate(undefined);
+                }}
+              >
+                Löschen
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           {

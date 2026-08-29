@@ -148,6 +148,8 @@ class MemberOut(ModelSchema):
             "gets_newsletter",
             "active",
             "confirmed",
+            "confirmed_mail",
+            "confirmed_alternative_mail",
             "created",
         ]
 
@@ -261,6 +263,9 @@ class ExcursionBrief(ModelSchema):
     id: int
     code: str
     date: datetime
+    # Back the list's group + participant filters (the admin's list_filter).
+    groups: list[GroupBrief] = []
+    participant_ids: list[int] = []
 
     class Meta:
         model = Freizeit
@@ -270,6 +275,18 @@ class ExcursionBrief(ModelSchema):
     @staticmethod
     def resolve_code(obj) -> str:
         return obj.code
+
+    @staticmethod
+    def resolve_groups(obj):
+        return obj.groups.all()
+
+    @staticmethod
+    def resolve_participant_ids(obj) -> list[int]:
+        # Anyone on the member list OR a youth leader — matches the admin's
+        # ParticipantFilter (Q(membersonlist__member) | Q(jugendleiter)).
+        member_ids = {mol.member_id for mol in obj.membersonlist.all()}
+        member_ids |= {j.pk for j in obj.jugendleiter.all()}
+        return sorted(member_ids)
 
 
 class ActivityCategoryBrief(Schema):
@@ -292,6 +309,10 @@ class ExcursionOut(ModelSchema):
     staff_count: int
     participant_count: int
     head_count: int
+    # The id of the associated statement (Statement.excursion is a OneToOne), or
+    # null when the excursion has no statement yet. Lets the SPA statement tab
+    # detect / reach the excursion's abrechnung.
+    statement_id: int | None = None
     groups: list[GroupBrief]
     jugendleiter: list[MemberBrief]
     activity: list[ActivityCategoryBrief]
@@ -316,6 +337,12 @@ class ExcursionOut(ModelSchema):
     @staticmethod
     def resolve_code(obj) -> str:
         return obj.code
+
+    @staticmethod
+    def resolve_statement_id(obj) -> int | None:
+        # Statement.excursion is a OneToOne; the reverse accessor raises
+        # DoesNotExist (not AttributeError) when absent, so guard with hasattr.
+        return obj.statement.pk if hasattr(obj, "statement") else None
 
     @staticmethod
     def resolve_tour_type_str(obj) -> str:
@@ -391,6 +418,32 @@ EXCURSION_APPROVAL_FIELDS = (
     "approval_comments",
     "approved_extra_youth_leader_count",
 )
+
+
+class ExcursionCreate(Schema):
+    """Create payload for an excursion.
+
+    ``difficulty`` and ``tour_type`` are required (no model default); other
+    scalars fall back to the model defaults when omitted. Relations
+    (``group_ids`` / ``jugendleiter_ids`` / ``activity_ids``) are applied in the
+    route. Approval fields are not settable at create (they mirror the admin's
+    permission-gated Approval fieldset, edited afterwards).
+    """
+
+    name: str | None = None
+    place: str | None = None
+    postcode: str | None = None
+    destination: str | None = None
+    date: datetime | None = None
+    end: datetime | None = None
+    description: str | None = None
+    difficulty: int
+    tour_type: int
+    tour_approach: int | None = None
+    kilometers_traveled: int | None = None
+    group_ids: list[int] = []
+    jugendleiter_ids: list[int] = []
+    activity_ids: list[int] = []
 
 
 class MemberUpdate(Schema):
@@ -598,6 +651,23 @@ class MemberTrainingUpdate(Schema):
     activity_ids: list[int] | None = None
 
 
+class MemberTrainingCreate(Schema):
+    """Create payload for a training record.
+
+    ``member_id``, ``title`` and ``category_id`` are required (the model's
+    non-null fields); ``activity_ids`` (M2M) is applied in the route.
+    """
+
+    title: str
+    member_id: int
+    category_id: int
+    date: Date | None = None
+    comments: str | None = None
+    participated: bool | None = None
+    passed: bool | None = None
+    activity_ids: list[int] = []
+
+
 class GroupUpdate(Schema):
     """Editable group fields (every editable change-view field).
 
@@ -619,6 +689,25 @@ class GroupUpdate(Schema):
     show_website_contact_email: bool | None = None
     contact_email_id: int | None = None
     leiter_ids: list[int] | None = None
+
+
+class GroupCreate(Schema):
+    """Create payload for a group (``name`` required, everything else optional).
+
+    Omitted scalar fields fall back to the model defaults; ``leiter_ids`` (M2M)
+    and ``contact_email_id`` (FK) are applied in the route.
+    """
+
+    name: str
+    description: str | None = None
+    show_website: bool | None = None
+    year_from: int | None = None
+    year_to: int | None = None
+    weekday: int | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    contact_email_id: int | None = None
+    leiter_ids: list[int] = []
 
 
 # Scalar group fields that are safe to ``setattr`` directly (excludes the
@@ -686,6 +775,16 @@ class KlettertreffUpdate(Schema):
     jugendleiter_ids: list[int] | None = None
 
 
+class KlettertreffCreate(Schema):
+    """Create payload for a Klettertreff (``group_id`` required)."""
+
+    date: Date | None = None
+    location: str | None = None
+    topic: str | None = None
+    group_id: int
+    jugendleiter_ids: list[int] = []
+
+
 class MemberNoteListBrief(ModelSchema):
     id: int
 
@@ -715,6 +814,33 @@ class MemberNoteListUpdate(Schema):
 
     title: str | None = None
     date: Date | None = None
+
+
+class MemberNoteListCreate(Schema):
+    """Create payload for a member note list (both fields optional)."""
+
+    title: str | None = None
+    date: Date | None = None
+
+
+class MemberCreate(Schema):
+    """Create payload for a member.
+
+    Mirrors the required subset of the admin add form: ``prename`` / ``lastname``
+    / ``gender`` are the model's non-defaulted fields; ``email`` and group
+    membership are collected too (the admin form requires them). Other fields
+    default per the model and are edited afterwards. ``group_ids`` (M2M) is
+    applied in the route.
+    """
+
+    prename: str
+    lastname: str
+    gender: int
+    email: str | None = None
+    birth_date: Date | None = None
+    phone_number: str | None = None
+    comments: str | None = None
+    group_ids: list[int] = []
 
 
 class WaiterInviteIn(Schema):

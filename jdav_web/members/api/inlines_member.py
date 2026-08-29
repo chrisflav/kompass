@@ -39,6 +39,7 @@ from django.utils.translation import gettext_lazy as _
 from members.models import EmergencyContact
 from members.models import Member
 from members.models import MemberDocument
+from members.models import MemberUnconfirmedProxy
 from members.models import PermissionMember
 from ninja import File
 from ninja import ModelSchema
@@ -203,6 +204,27 @@ def list_emergency_contacts(request, member_id: int):
     member = get_authorized(request, Member, member_id, "members.view_obj_member")
     authorize(request, "members.view_obj_emergencycontact", member)
     return member.emergencycontact_set.all().order_by("pk")
+
+
+@router.get(
+    "/registrations/{registration_id}/emergency-contacts",
+    response=list[MemberEmergencyContactOut],
+)
+def list_registration_emergency_contacts(request, registration_id: int):
+    """List an unconfirmed registration's emergency contacts (read-only).
+
+    Mirrors ``MemberUnconfirmedAdmin``'s ``EmergencyContactInline``. Registrations
+    are excluded from ``Member.objects`` (confirmed-only), so the object is
+    fetched via ``MemberUnconfirmedProxy`` and gated on the registration's view
+    rule — the same one :func:`retrieve_registration` uses.
+    """
+    registration = get_authorized(
+        request,
+        MemberUnconfirmedProxy,
+        registration_id,
+        "members.view_obj_memberunconfirmedproxy",
+    )
+    return registration.emergencycontact_set.all().order_by("pk")
 
 
 @router.post("/{member_id}/emergency-contacts", response={201: MemberEmergencyContactOut})

@@ -15,6 +15,7 @@ import {
   QueryBoundary,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -177,23 +178,15 @@ export function LinkDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "Links", to: "/app/cms/links" },
+    { label: query.data?.title || "Link" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Links", to: "/app/cms/links" },
-          { label: query.data?.title || "Link" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(link: LinkOut) => <LinkDetailBody link={link} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(link: LinkOut) => <LinkDetailBody link={link} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
@@ -206,7 +199,7 @@ function draftFromLink(link: LinkOut): LinkIn {
   };
 }
 
-function LinkDetailBody({ link }: { link: LinkOut }) {
+function LinkDetailBody({ link, crumbs }: { link: LinkOut; crumbs: Crumb[] }) {
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
@@ -314,43 +307,49 @@ function LinkDetailBody({ link }: { link: LinkOut }) {
         update.mutate(form);
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={update.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              busy={remove.isPending}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    message: "Diesen Link wirklich löschen?",
-                    danger: true,
-                    confirmLabel: "Löschen",
-                  })
-                )
-                  remove.mutate(undefined);
-              }}
-            >
-              Löschen
-            </Button>
-            {/* Icon-Upload ist über POST /api/startpage/links/{id}/icon möglich, hier
-                aber (Multipart) nicht umgesetzt — das Icon wird nur angezeigt. */}
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={update.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={remove.isPending}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Diesen Link wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    remove.mutate(undefined);
+                }}
+              >
+                Löschen
+              </Button>
+              {/* Icon-Upload ist über POST /api/startpage/links/{id}/icon möglich, hier
+                  aber (Multipart) nicht umgesetzt — das Icon wird nur angezeigt. */}
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
     </form>
   );

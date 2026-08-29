@@ -37,7 +37,11 @@ export interface paths {
          */
         get: operations["members_api_router_list_groups"];
         put?: never;
-        post?: never;
+        /**
+         * Create Group
+         * @description Create a group (``members.add_group``; matches ``GroupAdmin``).
+         */
+        post: operations["members_api_router_create_group"];
         delete?: never;
         options?: never;
         head?: never;
@@ -87,7 +91,14 @@ export interface paths {
          */
         get: operations["members_api_router_list_excursions"];
         put?: never;
-        post?: never;
+        /**
+         * Create Excursion
+         * @description Create an excursion (``members.add_global_freizeit``; matches ``FreizeitAdmin``).
+         *
+         *     Approval fields are not settable here (they mirror the admin's
+         *     permission-gated Approval fieldset, edited afterwards).
+         */
+        post: operations["members_api_router_create_excursion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -142,7 +153,14 @@ export interface paths {
          */
         get: operations["members_api_router_list_members"];
         put?: never;
-        post?: never;
+        /**
+         * Create Member
+         * @description Create a member (``members.add_global_member``; matches ``MemberAdmin``).
+         *
+         *     Collects the admin add form's required subset (name, gender, email, groups);
+         *     the remaining fields default per the model and are edited afterwards.
+         */
+        post: operations["members_api_router_create_member"];
         delete?: never;
         options?: never;
         head?: never;
@@ -238,7 +256,11 @@ export interface paths {
          */
         get: operations["members_api_router_list_trainings"];
         put?: never;
-        post?: never;
+        /**
+         * Create Training
+         * @description Create a training record (``members.add_global_membertraining``).
+         */
+        post: operations["members_api_router_create_training"];
         delete?: never;
         options?: never;
         head?: never;
@@ -294,7 +316,11 @@ export interface paths {
          */
         get: operations["members_api_router_list_klettertreff"];
         put?: never;
-        post?: never;
+        /**
+         * Create Klettertreff
+         * @description Create a Klettertreff event (``members.add_klettertreff``).
+         */
+        post: operations["members_api_router_create_klettertreff"];
         delete?: never;
         options?: never;
         head?: never;
@@ -344,7 +370,11 @@ export interface paths {
          */
         get: operations["members_api_router_list_note_lists"];
         put?: never;
-        post?: never;
+        /**
+         * Create Note List
+         * @description Create a member note list (``members.add_membernotelist``).
+         */
+        post: operations["members_api_router_create_note_list"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1027,6 +1057,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/registrations/{registration_id}/emergency-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Registration Emergency Contacts
+         * @description List an unconfirmed registration's emergency contacts (read-only).
+         *
+         *     Mirrors ``MemberUnconfirmedAdmin``'s ``EmergencyContactInline``. Registrations
+         *     are excluded from ``Member.objects`` (confirmed-only), so the object is
+         *     fetched via ``MemberUnconfirmedProxy`` and gated on the registration's view
+         *     rule — the same one :func:`retrieve_registration` uses.
+         */
+        get: operations["members_api_inlines_member_list_registration_emergency_contacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/emergency-contacts/{contact_id}": {
         parameters: {
             query?: never;
@@ -1587,6 +1642,30 @@ export interface paths {
          * @description Update the editable subset of a draft statement, authorized per object.
          */
         patch: operations["finance_api_router_update_statement"];
+        trace?: never;
+    };
+    "/api/finance/statements/{statement_id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Statement Finance Overview
+         * @description The excursion finance overview (``FreizeitAdmin.finance_overview``).
+         *
+         *     An estimate of the excursion's expenses vs. the association's contributions,
+         *     mirroring ``admin/freizeit_finance_overview.html``. Requires the statement to
+         *     be tied to an excursion (there is nothing to estimate otherwise).
+         */
+        get: operations["finance_api_router_statement_finance_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/finance/statements/{statement_id}/submit": {
@@ -3251,6 +3330,38 @@ export interface components {
             show_website_contact_email: boolean;
         };
         /**
+         * GroupCreate
+         * @description Create payload for a group (``name`` required, everything else optional).
+         *
+         *     Omitted scalar fields fall back to the model defaults; ``leiter_ids`` (M2M)
+         *     and ``contact_email_id`` (FK) are applied in the route.
+         */
+        GroupCreate: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Show Website */
+            show_website?: boolean | null;
+            /** Year From */
+            year_from?: number | null;
+            /** Year To */
+            year_to?: number | null;
+            /** Weekday */
+            weekday?: number | null;
+            /** Start Time */
+            start_time?: string | null;
+            /** End Time */
+            end_time?: string | null;
+            /** Contact Email Id */
+            contact_email_id?: number | null;
+            /**
+             * Leiter Ids
+             * @default []
+             */
+            leiter_ids: number[];
+        };
+        /**
          * GroupUpdate
          * @description Editable group fields (every editable change-view field).
          *
@@ -3298,6 +3409,16 @@ export interface components {
              * Format: date-time
              */
             date: string;
+            /**
+             * Groups
+             * @default []
+             */
+            groups: components["schemas"]["GroupBrief"][];
+            /**
+             * Participant Ids
+             * @default []
+             */
+            participant_ids: number[];
             /**
              * Aktivität
              * @default
@@ -3356,6 +3477,8 @@ export interface components {
             participant_count: number;
             /** Head Count */
             head_count: number;
+            /** Statement Id */
+            statement_id?: number | null;
             /** Groups */
             groups: components["schemas"]["GroupBrief"][];
             /** Jugendleiter */
@@ -3469,6 +3592,55 @@ export interface components {
             comments: string | null;
         };
         /**
+         * ExcursionCreate
+         * @description Create payload for an excursion.
+         *
+         *     ``difficulty`` and ``tour_type`` are required (no model default); other
+         *     scalars fall back to the model defaults when omitted. Relations
+         *     (``group_ids`` / ``jugendleiter_ids`` / ``activity_ids``) are applied in the
+         *     route. Approval fields are not settable at create (they mirror the admin's
+         *     permission-gated Approval fieldset, edited afterwards).
+         */
+        ExcursionCreate: {
+            /** Name */
+            name?: string | null;
+            /** Place */
+            place?: string | null;
+            /** Postcode */
+            postcode?: string | null;
+            /** Destination */
+            destination?: string | null;
+            /** Date */
+            date?: string | null;
+            /** End */
+            end?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Difficulty */
+            difficulty: number;
+            /** Tour Type */
+            tour_type: number;
+            /** Tour Approach */
+            tour_approach?: number | null;
+            /** Kilometers Traveled */
+            kilometers_traveled?: number | null;
+            /**
+             * Group Ids
+             * @default []
+             */
+            group_ids: number[];
+            /**
+             * Jugendleiter Ids
+             * @default []
+             */
+            jugendleiter_ids: number[];
+            /**
+             * Activity Ids
+             * @default []
+             */
+            activity_ids: number[];
+        };
+        /**
          * ExcursionUpdate
          * @description Editable excursion fields (every editable change-view field).
          *
@@ -3513,55 +3685,6 @@ export interface components {
             approval_comments?: string | null;
             /** Approved Extra Youth Leader Count */
             approved_extra_youth_leader_count?: number | null;
-        };
-        /**
-         * RegistrationBrief
-         * @description List representation of an unconfirmed registration (MemberUnconfirmedProxy).
-         *
-         *     Backs the admin's registration ``list_display`` columns: name, birth date,
-         *     age, groups, email-confirmation flags and whether the signed registration
-         *     form was uploaded.
-         */
-        RegistrationBrief: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Age */
-            age?: number | null;
-            /**
-             * Groups
-             * @default []
-             */
-            groups: string[];
-            /**
-             * Registration Form Uploaded
-             * @default false
-             */
-            registration_form_uploaded: boolean;
-            /** Vorname */
-            prename: string;
-            /** Nachname */
-            lastname: string;
-            /**
-             * Email
-             * @default
-             */
-            email: string;
-            /** Alternative Email */
-            alternative_email?: string | null;
-            /** Geburtsdatum */
-            birth_date?: string | null;
-            /**
-             * Emailadresse bestätigt
-             * @default false
-             */
-            confirmed_mail: boolean;
-            /**
-             * Alternative E-Mail Adresse bestätigt
-             * @default true
-             */
-            confirmed_alternative_mail: boolean;
         };
         /** MemberOut */
         MemberOut: {
@@ -3748,10 +3871,100 @@ export interface components {
              */
             confirmed: boolean;
             /**
+             * Emailadresse bestätigt
+             * @default false
+             */
+            confirmed_mail: boolean;
+            /**
+             * Alternative E-Mail Adresse bestätigt
+             * @default true
+             */
+            confirmed_alternative_mail: boolean;
+            /**
              * Erstellt
              * Format: date
              */
             created?: string;
+        };
+        /**
+         * MemberCreate
+         * @description Create payload for a member.
+         *
+         *     Mirrors the required subset of the admin add form: ``prename`` / ``lastname``
+         *     / ``gender`` are the model's non-defaulted fields; ``email`` and group
+         *     membership are collected too (the admin form requires them). Other fields
+         *     default per the model and are edited afterwards. ``group_ids`` (M2M) is
+         *     applied in the route.
+         */
+        MemberCreate: {
+            /** Prename */
+            prename: string;
+            /** Lastname */
+            lastname: string;
+            /** Gender */
+            gender: number;
+            /** Email */
+            email?: string | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /** Phone Number */
+            phone_number?: string | null;
+            /** Comments */
+            comments?: string | null;
+            /**
+             * Group Ids
+             * @default []
+             */
+            group_ids: number[];
+        };
+        /**
+         * RegistrationBrief
+         * @description List representation of an unconfirmed registration (MemberUnconfirmedProxy).
+         *
+         *     Backs the admin's registration ``list_display`` columns: name, birth date,
+         *     age, groups, email-confirmation flags and whether the signed registration
+         *     form was uploaded.
+         */
+        RegistrationBrief: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Age */
+            age?: number | null;
+            /**
+             * Groups
+             * @default []
+             */
+            groups: string[];
+            /**
+             * Registration Form Uploaded
+             * @default false
+             */
+            registration_form_uploaded: boolean;
+            /** Vorname */
+            prename: string;
+            /** Nachname */
+            lastname: string;
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+            /** Alternative Email */
+            alternative_email?: string | null;
+            /** Geburtsdatum */
+            birth_date?: string | null;
+            /**
+             * Emailadresse bestätigt
+             * @default false
+             */
+            confirmed_mail: boolean;
+            /**
+             * Alternative E-Mail Adresse bestätigt
+             * @default true
+             */
+            confirmed_alternative_mail: boolean;
         };
         /**
          * MeOut
@@ -3835,6 +4048,34 @@ export interface components {
             passed?: boolean | null;
         };
         /**
+         * MemberTrainingCreate
+         * @description Create payload for a training record.
+         *
+         *     ``member_id``, ``title`` and ``category_id`` are required (the model's
+         *     non-null fields); ``activity_ids`` (M2M) is applied in the route.
+         */
+        MemberTrainingCreate: {
+            /** Title */
+            title: string;
+            /** Member Id */
+            member_id: number;
+            /** Category Id */
+            category_id: number;
+            /** Date */
+            date?: string | null;
+            /** Comments */
+            comments?: string | null;
+            /** Participated */
+            participated?: boolean | null;
+            /** Passed */
+            passed?: boolean | null;
+            /**
+             * Activity Ids
+             * @default []
+             */
+            activity_ids: number[];
+        };
+        /**
          * MemberTrainingUpdate
          * @description Editable training fields (the change-view fields, JSON-editable).
          *
@@ -3913,6 +4154,25 @@ export interface components {
             topic: string;
         };
         /**
+         * KlettertreffCreate
+         * @description Create payload for a Klettertreff (``group_id`` required).
+         */
+        KlettertreffCreate: {
+            /** Date */
+            date?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Topic */
+            topic?: string | null;
+            /** Group Id */
+            group_id: number;
+            /**
+             * Jugendleiter Ids
+             * @default []
+             */
+            jugendleiter_ids: number[];
+        };
+        /**
          * KlettertreffUpdate
          * @description Editable Klettertreff fields (every editable change-view field).
          *
@@ -3955,6 +4215,16 @@ export interface components {
              */
             title: string;
             /** Datum */
+            date?: string | null;
+        };
+        /**
+         * MemberNoteListCreate
+         * @description Create payload for a member note list (both fields optional).
+         */
+        MemberNoteListCreate: {
+            /** Title */
+            title?: string | null;
+            /** Date */
             date?: string | null;
         };
         /**
@@ -4815,6 +5085,13 @@ export interface components {
             is_valid: boolean;
             /** Validity */
             validity: number;
+            /** Validity Display */
+            validity_display: string;
+            /**
+             * Transaction Issues
+             * @default []
+             */
+            transaction_issues: components["schemas"]["TransactionIssueOut"][];
             excursion?: components["schemas"]["ExcursionBrief"] | null;
             created_by?: components["schemas"]["MemberBrief"] | null;
             submitted_by?: components["schemas"]["MemberBrief"] | null;
@@ -4899,6 +5176,24 @@ export interface components {
             /** Bezahlt am */
             confirmed_date?: string | null;
         };
+        /**
+         * TransactionIssueOut
+         * @description A per-recipient mismatch between the planned transactions and the costs.
+         *
+         *     Resolves off ``finance.models.TransactionIssue`` (``member`` / ``current`` /
+         *     ``target`` / ``difference``); surfaced by ``StatementOut.transaction_issues``
+         *     so the SPA can render the soll/ist comparison from the submitted-statement
+         *     review screen.
+         */
+        TransactionIssueOut: {
+            member: components["schemas"]["MemberBrief"];
+            /** Current */
+            current: number;
+            /** Target */
+            target: number;
+            /** Difference */
+            difference: number;
+        };
         /** StatementCreate */
         StatementCreate: {
             /** Short Description */
@@ -4919,6 +5214,11 @@ export interface components {
         /**
          * StatementUpdate
          * @description Editable draft fields; PATCH semantics (only supplied fields applied).
+         *
+         *     ``allowance_to_ids`` / ``subsidy_to_id`` / ``ljp_to_id`` mirror the admin's
+         *     ``StatementOnListInline`` (edited from the excursion): the recipients of the
+         *     allowance / subsidy / LJP contributions. Passing ``null`` clears an FK; an
+         *     omitted field is left unchanged.
          */
         StatementUpdate: {
             /** Short Description */
@@ -4927,6 +5227,136 @@ export interface components {
             explanation?: string | null;
             /** Night Cost */
             night_cost?: number | null;
+            /** Allowance To Ids */
+            allowance_to_ids?: number[] | null;
+            /** Subsidy To Id */
+            subsidy_to_id?: number | null;
+            /** Ljp To Id */
+            ljp_to_id?: number | null;
+        };
+        /**
+         * FinanceOverviewOut
+         * @description The excursion's estimated cost / contribution overview.
+         *
+         *     Mirrors ``admin/freizeit_finance_overview.html`` (built from
+         *     ``Statement.template_context`` plus the excursion's LJP / cost properties).
+         *     An estimate, not a guaranteed cost plan.
+         */
+        FinanceOverviewOut: {
+            /** Statement Id */
+            statement_id: number;
+            /** Excursion Name */
+            excursion_name: string;
+            /** Submitted */
+            submitted: boolean;
+            /**
+             * Bills
+             * @default []
+             */
+            bills: components["schemas"]["OverviewBill"][];
+            /** Total Bills Theoretic */
+            total_bills_theoretic: number;
+            /** Staff Count */
+            staff_count: number;
+            /** Nights */
+            nights: number;
+            /** Price Per Night */
+            price_per_night: number;
+            /** Nights Per Yl */
+            nights_per_yl: number;
+            /** Duration */
+            duration: number;
+            /** Allowance Per Day */
+            allowance_per_day: number;
+            /** Allowance Per Yl */
+            allowance_per_yl: number;
+            /** Kilometers Traveled */
+            kilometers_traveled: number;
+            /** Means Of Transport */
+            means_of_transport: string;
+            /** Euro Per Km */
+            euro_per_km: number;
+            /** Transportation Per Yl */
+            transportation_per_yl: number;
+            /** Allowances Paid */
+            allowances_paid: number;
+            /** Real Staff Count */
+            real_staff_count: number;
+            /**
+             * Allowance To
+             * @default []
+             */
+            allowance_to: components["schemas"]["OverviewRecipient"][];
+            /** Allowance To Valid */
+            allowance_to_valid: boolean;
+            subsidy_to?: components["schemas"]["OverviewRecipient"] | null;
+            /** Total Subsidies */
+            total_subsidies: number;
+            /** Total Org Fee */
+            total_org_fee: number;
+            /** Total Org Fee Theoretical */
+            total_org_fee_theoretical: number;
+            /** Org Fee */
+            org_fee: number;
+            /** Old Participant Count */
+            old_participant_count: number;
+            ljp_to?: components["schemas"]["OverviewRecipient"] | null;
+            /** Ljp Contributions */
+            ljp_contributions: number;
+            /** Total Seminar Days */
+            total_seminar_days: number;
+            /** Ljp Participant Count */
+            ljp_participant_count: number;
+            /** Theoretic Ljp Participant Count */
+            theoretic_ljp_participant_count: number;
+            /**
+             * Seminar Days
+             * @default []
+             */
+            seminar_days: components["schemas"]["OverviewSeminarDay"][];
+            /** Total Relative Costs */
+            total_relative_costs: number;
+        };
+        /**
+         * OverviewBill
+         * @description A bill row in the finance overview's expenses table.
+         */
+        OverviewBill: {
+            /** Short Description */
+            short_description: string;
+            /** Explanation */
+            explanation: string;
+            /** Amount */
+            amount: number;
+            /** Paid By Name */
+            paid_by_name?: string | null;
+            /**
+             * Paid By Iban Valid
+             * @default false
+             */
+            paid_by_iban_valid: boolean;
+        };
+        /**
+         * OverviewRecipient
+         * @description A contribution recipient shown with its bank-account validity.
+         */
+        OverviewRecipient: {
+            /** Name */
+            name: string;
+            /** Iban Valid */
+            iban_valid: boolean;
+        };
+        /**
+         * OverviewSeminarDay
+         * @description A single seminar day derived from the LJP interventions.
+         */
+        OverviewSeminarDay: {
+            /** Day */
+            day: string;
+            /** Total Duration */
+            total_duration: number;
+            /** Sum Days */
+            sum_days: number;
         };
         /** BillOut */
         BillOut: {
@@ -5094,7 +5524,7 @@ export interface components {
             name: string;
             /**
              * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.
+             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.
              * @default false
              */
             internal_only: boolean;
@@ -5117,7 +5547,7 @@ export interface components {
             name: string;
             /**
              * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.
+             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.
              * @default false
              */
             internal_only: boolean;
@@ -6076,6 +6506,11 @@ export interface components {
             /** Section Id */
             section_id?: number | null;
             /**
+             * Section Urlname
+             * @default
+             */
+            section_urlname: string;
+            /**
              * Titel
              * @default
              */
@@ -6799,6 +7234,30 @@ export interface operations {
             };
         };
     };
+    members_api_router_create_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+        };
+    };
     members_api_router_retrieve_group: {
         parameters: {
             query?: never;
@@ -6867,6 +7326,30 @@ export interface operations {
             };
         };
     };
+    members_api_router_create_excursion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExcursionCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExcursionOut"];
+                };
+            };
+        };
+    };
     members_api_router_retrieve_excursion: {
         parameters: {
             query?: never;
@@ -6931,6 +7414,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberBrief"][];
+                };
+            };
+        };
+    };
+    members_api_router_create_member: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
                 };
             };
         };
@@ -7017,6 +7524,30 @@ export interface operations {
             };
         };
     };
+    members_api_router_create_training: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberTrainingCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingOut"];
+                };
+            };
+        };
+    };
     members_api_router_retrieve_training: {
         parameters: {
             query?: never;
@@ -7085,6 +7616,30 @@ export interface operations {
             };
         };
     };
+    members_api_router_create_klettertreff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KlettertreffCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KlettertreffOut"];
+                };
+            };
+        };
+    };
     members_api_router_retrieve_klettertreff: {
         parameters: {
             query?: never;
@@ -7149,6 +7704,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberNoteListBrief"][];
+                };
+            };
+        };
+    };
+    members_api_router_create_note_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberNoteListCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberNoteListOut"];
                 };
             };
         };
@@ -8009,6 +8588,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberEmergencyContactOut"];
+                };
+            };
+        };
+    };
+    members_api_inlines_member_list_registration_emergency_contacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registration_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberEmergencyContactOut"][];
                 };
             };
         };
@@ -9017,6 +9618,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatementOut"];
+                };
+            };
+        };
+    };
+    finance_api_router_statement_finance_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinanceOverviewOut"];
                 };
             };
         };

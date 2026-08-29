@@ -261,10 +261,17 @@ class PublicPostBrief(ModelSchema):
     id: int
     date: datetime.date | None = None
     section_id: int | None = None
+    # The section's urlname, so the SPA can build the post-detail link
+    # (/beitrag/<section_urlname>/<urlname>) without a second lookup.
+    section_urlname: str = ""
 
     class Meta:
         model = Post
         fields = ["title", "urlname", "website_text", "detailed"]
+
+    @staticmethod
+    def resolve_section_urlname(obj) -> str:
+        return obj.section.urlname if obj.section_id else ""
 
 
 class PublicMemberOnPost(Schema):

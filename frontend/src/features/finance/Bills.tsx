@@ -18,6 +18,7 @@ import {
   Tabs,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -318,25 +319,19 @@ export function BillDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "Belege", to: "/app/finance/bills" },
+    { label: query.data?.short_description ?? "Beleg" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Belege", to: "/app/finance/bills" },
-          { label: query.data?.short_description ?? "Beleg" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>{(bill: BillOut) => <BillDetailBody bill={bill} />}</QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(bill: BillOut) => <BillDetailBody bill={bill} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
-function BillDetailBody({ bill }: { bill: BillOut }) {
+function BillDetailBody({ bill, crumbs }: { bill: BillOut; crumbs: Crumb[] }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -489,25 +484,31 @@ function BillDetailBody({ bill }: { bill: BillOut }) {
         mutation.mutate(undefined);
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <BillActions bill={bill} />
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <BillActions bill={bill} />
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           { id: "beleg", label: "Beleg", content: <EditableDetail rows={rows} editing={editing} errors={fieldErrors} /> },
@@ -590,24 +591,22 @@ function BillActions({ bill }: { bill: BillOut }) {
   );
 
   return (
-    <div className="row-actions">
-      <Button
-        type="button"
-        variant="danger"
-        busy={deleteMutation.isPending}
-        onClick={async () => {
-          if (
-            await confirm({
-              message: "Beleg wirklich löschen?",
-              danger: true,
-              confirmLabel: "Löschen",
-            })
-          )
-            deleteMutation.mutate(undefined);
-        }}
-      >
-        Löschen
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant="danger"
+      busy={deleteMutation.isPending}
+      onClick={async () => {
+        if (
+          await confirm({
+            message: "Beleg wirklich löschen?",
+            danger: true,
+            confirmLabel: "Löschen",
+          })
+        )
+          deleteMutation.mutate(undefined);
+      }}
+    >
+      Löschen
+    </Button>
   );
 }

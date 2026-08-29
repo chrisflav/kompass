@@ -3,9 +3,10 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth";
 import { ContourField, KompassMark } from "../components/Contour";
-import { Button, Field } from "../components/ui";
+import { Button, Field, useDocumentTitle } from "../components/ui";
 
 export function Login() {
+  useDocumentTitle("Anmelden");
   const { token, login } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");

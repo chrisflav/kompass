@@ -52,6 +52,42 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "post": {
+        "operationId": "members_api_router_create_group",
+        "summary": "Create Group",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a group (``members.add_group``; matches ``GroupAdmin``).",
+        "tags": [
+          "members"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/groups/{group_id}": {
@@ -168,6 +204,42 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "post": {
+        "operationId": "members_api_router_create_excursion",
+        "summary": "Create Excursion",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcursionOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create an excursion (``members.add_global_freizeit``; matches ``FreizeitAdmin``).\n\nApproval fields are not settable here (they mirror the admin's\npermission-gated Approval fieldset, edited afterwards).",
+        "tags": [
+          "members"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExcursionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/excursions/{excursion_id}": {
@@ -279,6 +351,42 @@
         "tags": [
           "members"
         ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "members_api_router_create_member",
+        "summary": "Create Member",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a member (``members.add_global_member``; matches ``MemberAdmin``).\n\nCollects the admin add form's required subset (name, gender, email, groups);\nthe remaining fields default per the model and are edited afterwards.",
+        "tags": [
+          "members"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberCreate"
+              }
+            }
+          },
+          "required": true
+        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -414,6 +522,42 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "post": {
+        "operationId": "members_api_router_create_training",
+        "summary": "Create Training",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a training record (``members.add_global_membertraining``).",
+        "tags": [
+          "members"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberTrainingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/trainings/{training_id}": {
@@ -530,6 +674,42 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "post": {
+        "operationId": "members_api_router_create_klettertreff",
+        "summary": "Create Klettertreff",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KlettertreffOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a Klettertreff event (``members.add_klettertreff``).",
+        "tags": [
+          "members"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KlettertreffCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/klettertreff/{klettertreff_id}": {
@@ -641,6 +821,42 @@
         "tags": [
           "members"
         ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "members_api_router_create_note_list",
+        "summary": "Create Note List",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberNoteListOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a member note list (``members.add_membernotelist``).",
+        "tags": [
+          "members"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberNoteListCreate"
+              }
+            }
+          },
+          "required": true
+        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -2058,6 +2274,48 @@
           },
           "required": true
         },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/members/registrations/{registration_id}/emergency-contacts": {
+      "get": {
+        "operationId": "members_api_inlines_member_list_registration_emergency_contacts",
+        "summary": "List Registration Emergency Contacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registration_id",
+            "schema": {
+              "title": "Registration Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberEmergencyContactOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "List an unconfirmed registration's emergency contacts (read-only).\n\nMirrors ``MemberUnconfirmedAdmin``'s ``EmergencyContactInline``. Registrations\nare excluded from ``Member.objects`` (confirmed-only), so the object is\nfetched via ``MemberUnconfirmedProxy`` and gated on the registration's view\nrule — the same one :func:`retrieve_registration` uses.",
+        "tags": [
+          "members-inlines"
+        ],
         "security": [
           {
             "OAuth2Bearer": []
@@ -3801,6 +4059,44 @@
           }
         },
         "description": "Delete a draft statement (the rules guard forbids submitted ones).",
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/finance/statements/{statement_id}/overview": {
+      "get": {
+        "operationId": "finance_api_router_statement_finance_overview",
+        "summary": "Statement Finance Overview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "statement_id",
+            "schema": {
+              "title": "Statement Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinanceOverviewOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "The excursion finance overview (``FreizeitAdmin.finance_overview``).\n\nAn estimate of the excursion's expenses vs. the association's contributions,\nmirroring ``admin/freizeit_finance_overview.html``. Requires the statement to\nbe tied to an excursion (there is nothing to estimate otherwise).",
         "tags": [
           "finance"
         ],
@@ -8542,6 +8838,118 @@
         "title": "GroupOut",
         "type": "object"
       },
+      "GroupCreate": {
+        "description": "Create payload for a group (``name`` required, everything else optional).\n\nOmitted scalar fields fall back to the model defaults; ``leiter_ids`` (M2M)\nand ``contact_email_id`` (FK) are applied in the route.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "show_website": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Website"
+          },
+          "year_from": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year From"
+          },
+          "year_to": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year To"
+          },
+          "weekday": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekday"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "contact_email_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email Id"
+          },
+          "leiter_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Leiter Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GroupCreate",
+        "type": "object"
+      },
       "GroupUpdate": {
         "description": "Editable group fields (every editable change-view field).\n\nAll fields optional for PATCH semantics; only supplied fields are applied.\n``leiters`` (M2M) and ``contact_email`` (FK) are applied via ids in the route.",
         "properties": {
@@ -8723,6 +9131,22 @@
             "title": "Date",
             "type": "string"
           },
+          "groups": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GroupBrief"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "participant_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Participant Ids",
+            "type": "array"
+          },
           "name": {
             "default": "",
             "maxLength": 50,
@@ -8826,6 +9250,17 @@
           "head_count": {
             "title": "Head Count",
             "type": "integer"
+          },
+          "statement_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statement Id"
           },
           "groups": {
             "items": {
@@ -9085,6 +9520,150 @@
         "title": "MemberBrief",
         "type": "object"
       },
+      "ExcursionCreate": {
+        "description": "Create payload for an excursion.\n\n``difficulty`` and ``tour_type`` are required (no model default); other\nscalars fall back to the model defaults when omitted. Relations\n(``group_ids`` / ``jugendleiter_ids`` / ``activity_ids``) are applied in the\nroute. Approval fields are not settable at create (they mirror the admin's\npermission-gated Approval fieldset, edited afterwards).",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "postcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postcode"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "integer"
+          },
+          "tour_type": {
+            "title": "Tour Type",
+            "type": "integer"
+          },
+          "tour_approach": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tour Approach"
+          },
+          "kilometers_traveled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kilometers Traveled"
+          },
+          "group_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "jugendleiter_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Jugendleiter Ids",
+            "type": "array"
+          },
+          "activity_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Activity Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "difficulty",
+          "tour_type"
+        ],
+        "title": "ExcursionCreate",
+        "type": "object"
+      },
       "ExcursionUpdate": {
         "description": "Editable excursion fields (every editable change-view field).\n\nAll fields optional for PATCH semantics; only supplied fields are applied.\nThe Approval fieldset (``approved``, ``approval_comments``,\n``approved_extra_youth_leader_count``) is gated on\n``members.manage_approval_excursion`` in the route. Relations\n(``groups``, ``jugendleiter``, ``activity``) are applied via ids.",
         "properties": {
@@ -9288,101 +9867,6 @@
           }
         },
         "title": "ExcursionUpdate",
-        "type": "object"
-      },
-      "RegistrationBrief": {
-        "description": "List representation of an unconfirmed registration (MemberUnconfirmedProxy).\n\nBacks the admin's registration ``list_display`` columns: name, birth date,\nage, groups, email-confirmation flags and whether the signed registration\nform was uploaded.",
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "age": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Age"
-          },
-          "groups": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Groups",
-            "type": "array"
-          },
-          "registration_form_uploaded": {
-            "default": false,
-            "title": "Registration Form Uploaded",
-            "type": "boolean"
-          },
-          "prename": {
-            "maxLength": 20,
-            "title": "Vorname",
-            "type": "string"
-          },
-          "lastname": {
-            "maxLength": 20,
-            "title": "Nachname",
-            "type": "string"
-          },
-          "email": {
-            "default": "",
-            "maxLength": 100,
-            "title": "Email",
-            "type": "string"
-          },
-          "alternative_email": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Alternative Email"
-          },
-          "birth_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Geburtsdatum"
-          },
-          "confirmed_mail": {
-            "default": false,
-            "title": "Emailadresse bestätigt",
-            "type": "boolean"
-          },
-          "confirmed_alternative_mail": {
-            "default": true,
-            "title": "Alternative E-Mail Adresse bestätigt",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "prename",
-          "lastname"
-        ],
-        "title": "RegistrationBrief",
         "type": "object"
       },
       "MemberOut": {
@@ -9842,6 +10326,16 @@
             "title": "Bestätigt",
             "type": "boolean"
           },
+          "confirmed_mail": {
+            "default": false,
+            "title": "Emailadresse bestätigt",
+            "type": "boolean"
+          },
+          "confirmed_alternative_mail": {
+            "default": true,
+            "title": "Alternative E-Mail Adresse bestätigt",
+            "type": "boolean"
+          },
           "created": {
             "format": "date",
             "title": "Erstellt",
@@ -9863,6 +10357,178 @@
           "gender"
         ],
         "title": "MemberOut",
+        "type": "object"
+      },
+      "MemberCreate": {
+        "description": "Create payload for a member.\n\nMirrors the required subset of the admin add form: ``prename`` / ``lastname``\n/ ``gender`` are the model's non-defaulted fields; ``email`` and group\nmembership are collected too (the admin form requires them). Other fields\ndefault per the model and are edited afterwards. ``group_ids`` (M2M) is\napplied in the route.",
+        "properties": {
+          "prename": {
+            "title": "Prename",
+            "type": "string"
+          },
+          "lastname": {
+            "title": "Lastname",
+            "type": "string"
+          },
+          "gender": {
+            "title": "Gender",
+            "type": "integer"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "phone_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone Number"
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
+          },
+          "group_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Group Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "prename",
+          "lastname",
+          "gender"
+        ],
+        "title": "MemberCreate",
+        "type": "object"
+      },
+      "RegistrationBrief": {
+        "description": "List representation of an unconfirmed registration (MemberUnconfirmedProxy).\n\nBacks the admin's registration ``list_display`` columns: name, birth date,\nage, groups, email-confirmation flags and whether the signed registration\nform was uploaded.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "groups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "registration_form_uploaded": {
+            "default": false,
+            "title": "Registration Form Uploaded",
+            "type": "boolean"
+          },
+          "prename": {
+            "maxLength": 20,
+            "title": "Vorname",
+            "type": "string"
+          },
+          "lastname": {
+            "maxLength": 20,
+            "title": "Nachname",
+            "type": "string"
+          },
+          "email": {
+            "default": "",
+            "maxLength": 100,
+            "title": "Email",
+            "type": "string"
+          },
+          "alternative_email": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternative Email"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geburtsdatum"
+          },
+          "confirmed_mail": {
+            "default": false,
+            "title": "Emailadresse bestätigt",
+            "type": "boolean"
+          },
+          "confirmed_alternative_mail": {
+            "default": true,
+            "title": "Alternative E-Mail Adresse bestätigt",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prename",
+          "lastname"
+        ],
+        "title": "RegistrationBrief",
         "type": "object"
       },
       "MeOut": {
@@ -10102,6 +10768,83 @@
         "title": "TrainingOut",
         "type": "object"
       },
+      "MemberTrainingCreate": {
+        "description": "Create payload for a training record.\n\n``member_id``, ``title`` and ``category_id`` are required (the model's\nnon-null fields); ``activity_ids`` (M2M) is applied in the route.",
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "member_id": {
+            "title": "Member Id",
+            "type": "integer"
+          },
+          "category_id": {
+            "title": "Category Id",
+            "type": "integer"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
+          },
+          "participated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participated"
+          },
+          "passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed"
+          },
+          "activity_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Activity Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "member_id",
+          "category_id"
+        ],
+        "title": "MemberTrainingCreate",
+        "type": "object"
+      },
       "MemberTrainingUpdate": {
         "description": "Editable training fields (the change-view fields, JSON-editable).\n\nAll fields optional for PATCH semantics; only supplied fields are applied.\n``member``/``category`` are set via their ids, ``activity`` via a list of\nids. The ``certificate`` file is uploaded via a separate multipart route and\nis intentionally not part of this JSON schema.",
         "properties": {
@@ -10293,6 +11036,62 @@
         "title": "KlettertreffOut",
         "type": "object"
       },
+      "KlettertreffCreate": {
+        "description": "Create payload for a Klettertreff (``group_id`` required).",
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "jugendleiter_ids": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Jugendleiter Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "title": "KlettertreffCreate",
+        "type": "object"
+      },
       "KlettertreffUpdate": {
         "description": "Editable Klettertreff fields (every editable change-view field).\n\nAll fields optional for PATCH semantics; only supplied fields are applied.\n``group`` (FK) and ``jugendleiter`` (M2M) are applied via ids in the route.",
         "properties": {
@@ -10427,6 +11226,36 @@
           "members"
         ],
         "title": "MemberNoteListOut",
+        "type": "object"
+      },
+      "MemberNoteListCreate": {
+        "description": "Create payload for a member note list (both fields optional).",
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          }
+        },
+        "title": "MemberNoteListCreate",
         "type": "object"
       },
       "MemberNoteListUpdate": {
@@ -12764,6 +13593,18 @@
             "title": "Validity",
             "type": "integer"
           },
+          "validity_display": {
+            "title": "Validity Display",
+            "type": "string"
+          },
+          "transaction_issues": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TransactionIssueOut"
+            },
+            "title": "Transaction Issues",
+            "type": "array"
+          },
           "excursion": {
             "anyOf": [
               {
@@ -12997,6 +13838,7 @@
           "confirmed",
           "is_valid",
           "validity",
+          "validity_display",
           "total",
           "total_bills",
           "total_bills_theoretic",
@@ -13024,6 +13866,34 @@
           "short_description"
         ],
         "title": "StatementOut",
+        "type": "object"
+      },
+      "TransactionIssueOut": {
+        "description": "A per-recipient mismatch between the planned transactions and the costs.\n\nResolves off ``finance.models.TransactionIssue`` (``member`` / ``current`` /\n``target`` / ``difference``); surfaced by ``StatementOut.transaction_issues``\nso the SPA can render the soll/ist comparison from the submitted-statement\nreview screen.",
+        "properties": {
+          "member": {
+            "$ref": "#/components/schemas/MemberBrief"
+          },
+          "current": {
+            "title": "Current",
+            "type": "number"
+          },
+          "target": {
+            "title": "Target",
+            "type": "number"
+          },
+          "difference": {
+            "title": "Difference",
+            "type": "number"
+          }
+        },
+        "required": [
+          "member",
+          "current",
+          "target",
+          "difference"
+        ],
+        "title": "TransactionIssueOut",
         "type": "object"
       },
       "StatementCreate": {
@@ -13061,7 +13931,7 @@
         "type": "object"
       },
       "StatementUpdate": {
-        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).",
+        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).\n\n``allowance_to_ids`` / ``subsidy_to_id`` / ``ljp_to_id`` mirror the admin's\n``StatementOnListInline`` (edited from the excursion): the recipients of the\nallowance / subsidy / LJP contributions. Passing ``null`` clears an FK; an\nomitted field is left unchanged.",
         "properties": {
           "short_description": {
             "anyOf": [
@@ -13095,9 +13965,321 @@
               }
             ],
             "title": "Night Cost"
+          },
+          "allowance_to_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowance To Ids"
+          },
+          "subsidy_to_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subsidy To Id"
+          },
+          "ljp_to_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ljp To Id"
           }
         },
         "title": "StatementUpdate",
+        "type": "object"
+      },
+      "FinanceOverviewOut": {
+        "description": "The excursion's estimated cost / contribution overview.\n\nMirrors ``admin/freizeit_finance_overview.html`` (built from\n``Statement.template_context`` plus the excursion's LJP / cost properties).\nAn estimate, not a guaranteed cost plan.",
+        "properties": {
+          "statement_id": {
+            "title": "Statement Id",
+            "type": "integer"
+          },
+          "excursion_name": {
+            "title": "Excursion Name",
+            "type": "string"
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "boolean"
+          },
+          "bills": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OverviewBill"
+            },
+            "title": "Bills",
+            "type": "array"
+          },
+          "total_bills_theoretic": {
+            "title": "Total Bills Theoretic",
+            "type": "number"
+          },
+          "staff_count": {
+            "title": "Staff Count",
+            "type": "integer"
+          },
+          "nights": {
+            "title": "Nights",
+            "type": "integer"
+          },
+          "price_per_night": {
+            "title": "Price Per Night",
+            "type": "number"
+          },
+          "nights_per_yl": {
+            "title": "Nights Per Yl",
+            "type": "number"
+          },
+          "duration": {
+            "title": "Duration",
+            "type": "number"
+          },
+          "allowance_per_day": {
+            "title": "Allowance Per Day",
+            "type": "number"
+          },
+          "allowance_per_yl": {
+            "title": "Allowance Per Yl",
+            "type": "number"
+          },
+          "kilometers_traveled": {
+            "title": "Kilometers Traveled",
+            "type": "number"
+          },
+          "means_of_transport": {
+            "title": "Means Of Transport",
+            "type": "string"
+          },
+          "euro_per_km": {
+            "title": "Euro Per Km",
+            "type": "number"
+          },
+          "transportation_per_yl": {
+            "title": "Transportation Per Yl",
+            "type": "number"
+          },
+          "allowances_paid": {
+            "title": "Allowances Paid",
+            "type": "integer"
+          },
+          "real_staff_count": {
+            "title": "Real Staff Count",
+            "type": "integer"
+          },
+          "allowance_to": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OverviewRecipient"
+            },
+            "title": "Allowance To",
+            "type": "array"
+          },
+          "allowance_to_valid": {
+            "title": "Allowance To Valid",
+            "type": "boolean"
+          },
+          "subsidy_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverviewRecipient"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_subsidies": {
+            "title": "Total Subsidies",
+            "type": "number"
+          },
+          "total_org_fee": {
+            "title": "Total Org Fee",
+            "type": "number"
+          },
+          "total_org_fee_theoretical": {
+            "title": "Total Org Fee Theoretical",
+            "type": "number"
+          },
+          "org_fee": {
+            "title": "Org Fee",
+            "type": "number"
+          },
+          "old_participant_count": {
+            "title": "Old Participant Count",
+            "type": "integer"
+          },
+          "ljp_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverviewRecipient"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ljp_contributions": {
+            "title": "Ljp Contributions",
+            "type": "number"
+          },
+          "total_seminar_days": {
+            "title": "Total Seminar Days",
+            "type": "number"
+          },
+          "ljp_participant_count": {
+            "title": "Ljp Participant Count",
+            "type": "integer"
+          },
+          "theoretic_ljp_participant_count": {
+            "title": "Theoretic Ljp Participant Count",
+            "type": "integer"
+          },
+          "seminar_days": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OverviewSeminarDay"
+            },
+            "title": "Seminar Days",
+            "type": "array"
+          },
+          "total_relative_costs": {
+            "title": "Total Relative Costs",
+            "type": "number"
+          }
+        },
+        "required": [
+          "statement_id",
+          "excursion_name",
+          "submitted",
+          "total_bills_theoretic",
+          "staff_count",
+          "nights",
+          "price_per_night",
+          "nights_per_yl",
+          "duration",
+          "allowance_per_day",
+          "allowance_per_yl",
+          "kilometers_traveled",
+          "means_of_transport",
+          "euro_per_km",
+          "transportation_per_yl",
+          "allowances_paid",
+          "real_staff_count",
+          "allowance_to_valid",
+          "total_subsidies",
+          "total_org_fee",
+          "total_org_fee_theoretical",
+          "org_fee",
+          "old_participant_count",
+          "ljp_contributions",
+          "total_seminar_days",
+          "ljp_participant_count",
+          "theoretic_ljp_participant_count",
+          "total_relative_costs"
+        ],
+        "title": "FinanceOverviewOut",
+        "type": "object"
+      },
+      "OverviewBill": {
+        "description": "A bill row in the finance overview's expenses table.",
+        "properties": {
+          "short_description": {
+            "title": "Short Description",
+            "type": "string"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "paid_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid By Name"
+          },
+          "paid_by_iban_valid": {
+            "default": false,
+            "title": "Paid By Iban Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "short_description",
+          "explanation",
+          "amount"
+        ],
+        "title": "OverviewBill",
+        "type": "object"
+      },
+      "OverviewRecipient": {
+        "description": "A contribution recipient shown with its bank-account validity.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "iban_valid": {
+            "title": "Iban Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "iban_valid"
+        ],
+        "title": "OverviewRecipient",
+        "type": "object"
+      },
+      "OverviewSeminarDay": {
+        "description": "A single seminar day derived from the LJP interventions.",
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "total_duration": {
+            "title": "Total Duration",
+            "type": "number"
+          },
+          "sum_days": {
+            "title": "Sum Days",
+            "type": "number"
+          }
+        },
+        "required": [
+          "day",
+          "total_duration",
+          "sum_days"
+        ],
+        "title": "OverviewSeminarDay",
         "type": "object"
       },
       "BillOut": {
@@ -13590,7 +14772,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.",
+            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.",
             "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
             "type": "boolean"
           }
@@ -13648,7 +14830,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.",
+            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.",
             "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
             "type": "boolean"
           }
@@ -15847,6 +17029,11 @@
               }
             ],
             "title": "Section Id"
+          },
+          "section_urlname": {
+            "default": "",
+            "title": "Section Urlname",
+            "type": "string"
           },
           "title": {
             "default": "",

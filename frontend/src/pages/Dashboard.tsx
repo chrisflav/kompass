@@ -5,7 +5,7 @@ import { client, unwrap } from "../api/http";
 import { useApiQuery } from "../api/hooks";
 import { useMe } from "../api/me";
 import { ContourField, KompassMark } from "../components/Contour";
-import { Badge } from "../components/ui";
+import { Badge, useDocumentTitle } from "../components/ui";
 import type { components } from "../api/schema";
 
 type GroupOut = components["schemas"]["GroupOut"];
@@ -76,6 +76,7 @@ function Row({
 }
 
 export function Dashboard() {
+  useDocumentTitle("Übersicht");
   const me = useMe();
   const memberId = me.data?.member_id ?? null;
   const firstName = me.data?.name?.split(" ")[0];

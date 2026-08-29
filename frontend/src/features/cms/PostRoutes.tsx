@@ -23,6 +23,7 @@ import {
   Tabs,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -271,23 +272,15 @@ export function PostDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "Beiträge", to: "/app/cms/posts" },
+    { label: query.data?.title || "Beitrag" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Beiträge", to: "/app/cms/posts" },
-          { label: query.data?.title || "Beitrag" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(post: PostOut) => <PostDetailBody post={post} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(post: PostOut) => <PostDetailBody post={post} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
@@ -303,7 +296,7 @@ function draftFromPost(post: PostOut): PostIn {
   };
 }
 
-function PostDetailBody({ post }: { post: PostOut }) {
+function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
@@ -457,41 +450,47 @@ function PostDetailBody({ post }: { post: PostOut }) {
         }
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={saving}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              busy={remove.isPending}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    message: "Diesen Beitrag wirklich löschen?",
-                    danger: true,
-                    confirmLabel: "Löschen",
-                  })
-                )
-                  remove.mutate(undefined);
-              }}
-            >
-              Löschen
-            </Button>
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={saving}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={remove.isPending}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Diesen Beitrag wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    remove.mutate(undefined);
+                }}
+              >
+                Löschen
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           {

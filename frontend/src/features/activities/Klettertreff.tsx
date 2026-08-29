@@ -24,6 +24,7 @@ import type { components } from "../../api/schema";
 
 type KlettertreffBrief = components["schemas"]["KlettertreffBrief"];
 type KlettertreffOut = components["schemas"]["KlettertreffOut"];
+type KlettertreffCreate = components["schemas"]["KlettertreffCreate"];
 type KlettertreffUpdate = components["schemas"]["KlettertreffUpdate"];
 type KlettertreffAttendeeCreate = components["schemas"]["KlettertreffAttendeeCreate"];
 
@@ -59,6 +60,7 @@ function dateBucket(value: string | null | undefined, bucket: string): boolean {
 
 export function KlettertreffList() {
   const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
   const query = useApiQuery(["klettertreff"], () =>
     unwrap(client.GET("/api/members/klettertreff")),
   );
@@ -106,7 +108,13 @@ export function KlettertreffList() {
       <PageHeader
         breadcrumbs={[{ label: "Klettertreffs" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
+        actions={<Button onClick={() => setCreating(true)}>Neuer Klettertreff</Button>}
       />
+      {creating && (
+        <Modal title="Neuer Klettertreff" onClose={() => setCreating(false)}>
+          <KlettertreffCreateForm onDone={() => setCreating(false)} />
+        </Modal>
+      )}
       <ListToolbar view={view} />
       <QueryBoundary query={query} empty="Keine Klettertreff-Termine sichtbar.">
         {() => (
@@ -133,6 +141,91 @@ export function KlettertreffList() {
   );
 }
 
+/* --- create -------------------------------------------------------------- */
+
+function KlettertreffCreateForm({ onDone }: { onDone: () => void }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [groupId, setGroupId] = useState("");
+  const [date, setDate] = useState("");
+  const [location, setLocation] = useState("");
+  const [topic, setTopic] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const groupOptions = useMemo(
+    () => (groupsQuery.data ?? []).map((g) => ({ value: g.id, label: g.name })),
+    [groupsQuery.data],
+  );
+
+  const mutation = useApiMutation(
+    (body: KlettertreffCreate) => unwrap(client.POST("/api/members/klettertreff", { body })),
+    {
+      invalidate: [["klettertreff"]],
+      onSuccess: (created: KlettertreffOut) => {
+        toast.success("Klettertreff angelegt.");
+        onDone();
+        navigate(`/app/klettertreff/${created.id}`);
+      },
+      onError: (e: Error) => {
+        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  return (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setFieldErrors({});
+        mutation.mutate({
+          group_id: Number(groupId),
+          date: date || null,
+          location,
+          topic,
+          jugendleiter_ids: [],
+        });
+      }}
+    >
+      <Field label="Gruppe">
+        <Select
+          value={groupId}
+          onChange={(v) => setGroupId(v)}
+          options={groupOptions}
+          placeholder="Gruppe wählen …"
+        />
+        {fieldErrors.group_id && (
+          <div className="field-error">{fieldErrors.group_id.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Datum">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        {fieldErrors.date && <div className="field-error">{fieldErrors.date.join(" ")}</div>}
+      </Field>
+      <Field label="Ort">
+        <input value={location} onChange={(e) => setLocation(e.target.value)} />
+        {fieldErrors.location && (
+          <div className="field-error">{fieldErrors.location.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Thema">
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} />
+        {fieldErrors.topic && <div className="field-error">{fieldErrors.topic.join(" ")}</div>}
+      </Field>
+      <div className="row-actions">
+        <Button type="submit" busy={mutation.isPending} disabled={groupId === ""}>
+          Anlegen
+        </Button>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /* --- detail + edit ------------------------------------------------------- */
 
 export function KlettertreffDetailPage() {
@@ -147,22 +240,9 @@ export function KlettertreffDetailPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Klettertreffs", to: "/app/klettertreff" },
-          { label: query.data ? query.data.topic || query.data.group.name : "Klettertreff" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(kt: KlettertreffOut) => <KlettertreffDetailBody kt={kt} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(kt: KlettertreffOut) => <KlettertreffDetailBody kt={kt} />}
+    </QueryBoundary>
   );
 }
 
@@ -305,22 +385,33 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
         }
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={saving}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <Button type="button" onClick={startEditing}>
-            Bearbeiten
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Klettertreffs", to: "/app/klettertreff" },
+          { label: kt.topic || kt.group.name },
+        ]}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={saving}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           {

@@ -25,6 +25,7 @@ import { ChoiceSelect, MultiSelect, WEEKDAY_OPTIONS, type Option } from "./_cont
 import type { components } from "../../api/schema";
 
 type GroupOut = components["schemas"]["GroupOut"];
+type GroupCreate = components["schemas"]["GroupCreate"];
 type GroupUpdate = components["schemas"]["GroupUpdate"];
 type RegistrationPasswordCreate = components["schemas"]["RegistrationPasswordCreate"];
 type PermissionGroupUpdate = components["schemas"]["PermissionGroupUpdate"];
@@ -36,6 +37,7 @@ type PermissionGroupUpdate = components["schemas"]["PermissionGroupUpdate"];
 
 export function GroupsList() {
   const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
   const query = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
   const rows = query.data ?? [];
 
@@ -72,6 +74,7 @@ export function GroupsList() {
         subtitle={`${view.rows.length} / ${view.total}`}
         actions={
           <div className="row-actions">
+            <Button onClick={() => setCreating(true)}>Neue Gruppe</Button>
             <DownloadButton
               path="/api/members/documents/groups/overview"
               method="POST"
@@ -89,6 +92,11 @@ export function GroupsList() {
           </div>
         }
       />
+      {creating && (
+        <Modal title="Neue Gruppe" onClose={() => setCreating(false)}>
+          <GroupCreateForm onDone={() => setCreating(false)} />
+        </Modal>
+      )}
       <ListToolbar view={view} />
       <QueryBoundary query={query} empty="Keine Gruppen sichtbar.">
         {() => (
@@ -118,6 +126,86 @@ export function GroupsList() {
   );
 }
 
+/* --- create -------------------------------------------------------------- */
+
+function GroupCreateForm({ onDone }: { onDone: () => void }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [yearFrom, setYearFrom] = useState("");
+  const [yearTo, setYearTo] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const mutation = useApiMutation(
+    (body: GroupCreate) => unwrap(client.POST("/api/members/groups", { body })),
+    {
+      invalidate: [["groups"]],
+      onSuccess: (created: GroupOut) => {
+        toast.success("Gruppe angelegt.");
+        onDone();
+        navigate(`/app/groups/${created.id}`);
+      },
+      onError: (e: Error) => {
+        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  return (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setFieldErrors({});
+        mutation.mutate({
+          name,
+          description: description || null,
+          year_from: yearFrom === "" ? null : Number(yearFrom),
+          year_to: yearTo === "" ? null : Number(yearTo),
+          leiter_ids: [],
+        });
+      }}
+    >
+      <Field label="Name">
+        <input value={name} onChange={(e) => setName(e.target.value)} required />
+        {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
+      </Field>
+      <Field label="Beschreibung">
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+        {fieldErrors.description && (
+          <div className="field-error">{fieldErrors.description.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Ab Jahrgang">
+        <input
+          type="number"
+          value={yearFrom}
+          onChange={(e) => setYearFrom(e.target.value)}
+        />
+        {fieldErrors.year_from && (
+          <div className="field-error">{fieldErrors.year_from.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Bis Jahrgang">
+        <input type="number" value={yearTo} onChange={(e) => setYearTo(e.target.value)} />
+        {fieldErrors.year_to && (
+          <div className="field-error">{fieldErrors.year_to.join(" ")}</div>
+        )}
+      </Field>
+      <div className="row-actions">
+        <Button type="submit" busy={mutation.isPending}>
+          Anlegen
+        </Button>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /* --- detail + edit ------------------------------------------------------- */
 
 export function GroupDetailPage() {
@@ -132,22 +220,9 @@ export function GroupDetailPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Gruppen", to: "/app/groups" },
-          { label: query.data?.name ?? "Gruppe" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(group: GroupOut) => <GroupDetailBody group={group} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(group: GroupOut) => <GroupDetailBody group={group} />}
+    </QueryBoundary>
   );
 }
 
@@ -401,22 +476,30 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
         }
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={saving}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <Button type="button" onClick={startEditing}>
-            Bearbeiten
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={[{ label: "Gruppen", to: "/app/groups" }, { label: group.name }]}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={saving}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           {

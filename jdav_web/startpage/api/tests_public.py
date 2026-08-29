@@ -154,6 +154,24 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual(body["name"], "Alpenfuechse")
         self.assertEqual({p["id"] for p in body["people"]}, {self.leiter.pk})
 
+    def test_public_group_detail_with_weekday(self):
+        # Regression: a group with a weekday set previously returned 500 because
+        # the gettext_lazy weekday label reached pydantic as a proxy, not a str.
+        group = Group.objects.create(
+            name="Dienstagsgruppe",
+            year_from=2010,
+            year_to=2015,
+            show_website=True,
+            weekday=1,
+            start_time=datetime.time(18, 0),
+            end_time=datetime.time(20, 0),
+        )
+        r = self.client.get("/api/startpage/public/groups/{}".format(group.name))
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertTrue(body["weekday_display"])
+        self.assertIsInstance(body["weekday_display"], str)
+
     def test_public_group_detail_hidden_404(self):
         r = self.client.get("/api/startpage/public/groups/{}".format(self.hidden_group.name))
         self.assertEqual(r.status_code, 404)

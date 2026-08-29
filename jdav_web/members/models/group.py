@@ -73,7 +73,9 @@ class Group(models.Model):
 
     def get_weekday_display_info(self):
         if self.weekday is not None:
-            return WEEKDAYS[self.weekday][1]
+            # str() forces the gettext_lazy proxy to a real string; pydantic
+            # (used by the public API schema) rejects the bare proxy → HTTP 500.
+            return str(WEEKDAYS[self.weekday][1])
         return ""
 
     def get_time_slot_info(self):

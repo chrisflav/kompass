@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -251,6 +252,22 @@ export interface Tab {
 export function Tabs({ tabs }: { tabs: Tab[] }) {
   const [active, setActive] = useState(() => tabs[0]?.id);
   const activeId = tabs.some((t) => t.id === active) ? active : tabs[0]?.id;
+
+  // Surface validation errors on the tab that contains them: every panel stays
+  // mounted, so after each render we scan each panel's DOM for a `.field-error`
+  // and flag its tab red — the user sees which tab to open without hunting.
+  const panelRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [errorTabs, setErrorTabs] = useState<Set<string>>(() => new Set());
+  useLayoutEffect(() => {
+    const next = new Set<string>();
+    for (const t of tabs) {
+      if (panelRefs.current[t.id]?.querySelector(".field-error")) next.add(t.id);
+    }
+    const changed =
+      next.size !== errorTabs.size || [...next].some((id) => !errorTabs.has(id));
+    if (changed) setErrorTabs(next);
+  });
+
   return (
     <div className="tabs">
       <div className="tab-bar" role="tablist">
@@ -260,7 +277,7 @@ export function Tabs({ tabs }: { tabs: Tab[] }) {
             type="button"
             role="tab"
             aria-selected={t.id === activeId}
-            className={t.id === activeId ? "tab active" : "tab"}
+            className={`tab${t.id === activeId ? " active" : ""}${errorTabs.has(t.id) ? " has-error" : ""}`}
             onClick={() => setActive(t.id)}
           >
             {t.label}
@@ -268,7 +285,15 @@ export function Tabs({ tabs }: { tabs: Tab[] }) {
         ))}
       </div>
       {tabs.map((t) => (
-        <div key={t.id} role="tabpanel" hidden={t.id !== activeId} className="tab-panel">
+        <div
+          key={t.id}
+          ref={(el) => {
+            panelRefs.current[t.id] = el;
+          }}
+          role="tabpanel"
+          hidden={t.id !== activeId}
+          className="tab-panel"
+        >
           {t.content}
         </div>
       ))}
@@ -299,6 +324,8 @@ export interface DetailRow {
   edit?: ReactNode;
   /** Backend field name; a matching validation error is shown under this row. */
   field?: string;
+  /** Help text shown under the input while editing (recovered model help_text). */
+  hint?: string;
 }
 
 /**
@@ -328,6 +355,9 @@ export function EditableDetail({
             <dt>{row.label}</dt>
             <dd>
               {editing && row.edit !== undefined ? row.edit : (row.value ?? "—")}
+              {editing && row.edit !== undefined && row.hint && (
+                <div className="field-hint">{row.hint}</div>
+              )}
               {rowErrors && rowErrors.length > 0 && (
                 <div className="field-error">{rowErrors.join(" ")}</div>
               )}
@@ -357,6 +387,17 @@ export function Field({
       {hint && <span className="field-hint">{hint}</span>}
     </label>
   );
+}
+
+/* --- document title ------------------------------------------------------ */
+
+/** Sets the browser tab title to `<title> · Kompass` (or just `Kompass`) for as
+ *  long as the calling component is mounted. Used by `PageHeader` for every
+ *  list/detail page, and directly on the pages that don't render a header. */
+export function useDocumentTitle(title?: string) {
+  useEffect(() => {
+    document.title = title ? `${title} · Kompass` : "Kompass";
+  }, [title]);
 }
 
 /* --- breadcrumbs & page header ------------------------------------------- */
@@ -399,6 +440,11 @@ export function PageHeader({
   actions?: ReactNode;
   breadcrumbs?: Crumb[];
 }) {
+  // Keep the browser tab title in step with navigation: use the last breadcrumb
+  // (the current page) if it's a plain string, otherwise the `title` prop.
+  const lastCrumb = breadcrumbs?.[breadcrumbs.length - 1]?.label;
+  useDocumentTitle(typeof lastCrumb === "string" ? lastCrumb : title);
+
   return (
     <div className="page-header">
       <div>
@@ -834,10 +880,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => {
       const id = (prev[prev.length - 1]?.id ?? 0) + 1;
       const next = [...prev, { id, message, tone }];
-      setTimeout(() => setToasts((cur) => cur.filter((t) => t.id !== id)), 4000);
+      // Errors linger longer than confirmations — they carry more to read and
+      // are more costly to miss. Either can be dismissed early with a click.
+      const ttl = tone === "error" ? 7000 : 4000;
+      setTimeout(() => setToasts((cur) => cur.filter((t) => t.id !== id)), ttl);
       return next;
     });
   }, []);
+
+  const dismiss = useCallback(
+    (id: number) => setToasts((cur) => cur.filter((t) => t.id !== id)),
+    [],
+  );
 
   const api: ToastApi = {
     success: (m) => push(m, "success"),
@@ -849,8 +903,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toast-stack">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.tone}`}>
-            {t.message}
+          <div
+            key={t.id}
+            className={`toast ${t.tone}`}
+            role={t.tone === "error" ? "alert" : "status"}
+            onClick={() => dismiss(t.id)}
+            title="Zum Ausblenden klicken"
+          >
+            <span className="toast-tag">{t.tone === "success" ? "Erledigt" : "Fehler"}</span>
+            <span className="toast-msg">{t.message}</span>
           </div>
         ))}
       </div>

@@ -10,6 +10,9 @@ import {
   DataTable,
   DownloadButton,
   EditableDetail,
+  Field,
+  Menu,
+  Modal,
   PageHeader,
   QueryBoundary,
   Tabs,
@@ -21,6 +24,7 @@ import type { components } from "../../api/schema";
 
 type MemberNoteListBrief = components["schemas"]["MemberNoteListBrief"];
 type MemberNoteListOut = components["schemas"]["MemberNoteListOut"];
+type MemberNoteListCreate = components["schemas"]["MemberNoteListCreate"];
 type MemberNoteListUpdate = components["schemas"]["MemberNoteListUpdate"];
 
 function formatDate(value: string | null | undefined): string {
@@ -36,6 +40,7 @@ function formatDate(value: string | null | undefined): string {
 
 export function NoteListsList() {
   const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
   const query = useApiQuery(["note-lists"], () =>
     unwrap(client.GET("/api/members/note-lists")),
   );
@@ -60,7 +65,13 @@ export function NoteListsList() {
       <PageHeader
         breadcrumbs={[{ label: "Notizlisten" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
+        actions={<Button onClick={() => setCreating(true)}>Neue Notizliste</Button>}
       />
+      {creating && (
+        <Modal title="Neue Notizliste" onClose={() => setCreating(false)}>
+          <NoteListCreateForm onDone={() => setCreating(false)} />
+        </Modal>
+      )}
       <ListToolbar view={view} />
       <QueryBoundary query={query} empty="Keine Notizlisten sichtbar.">
         {() => (
@@ -81,6 +92,60 @@ export function NoteListsList() {
   );
 }
 
+/* --- create -------------------------------------------------------------- */
+
+function NoteListCreateForm({ onDone }: { onDone: () => void }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const mutation = useApiMutation(
+    (body: MemberNoteListCreate) => unwrap(client.POST("/api/members/note-lists", { body })),
+    {
+      invalidate: [["note-lists"]],
+      onSuccess: (created: MemberNoteListOut) => {
+        toast.success("Notizliste angelegt.");
+        onDone();
+        navigate(`/app/notelists/${created.id}`);
+      },
+      onError: (e: Error) => {
+        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  return (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setFieldErrors({});
+        mutation.mutate({ title, date: date || null });
+      }}
+    >
+      <Field label="Titel">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+        {fieldErrors.title && <div className="field-error">{fieldErrors.title.join(" ")}</div>}
+      </Field>
+      <Field label="Datum">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        {fieldErrors.date && <div className="field-error">{fieldErrors.date.join(" ")}</div>}
+      </Field>
+      <div className="row-actions">
+        <Button type="submit" busy={mutation.isPending}>
+          Anlegen
+        </Button>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /* --- detail + edit ------------------------------------------------------- */
 
 export function NoteListDetailPage() {
@@ -95,22 +160,9 @@ export function NoteListDetailPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Notizlisten", to: "/app/notelists" },
-          { label: query.data?.title || "Notizliste" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(list: MemberNoteListOut) => <NoteListDetailBody list={list} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(list: MemberNoteListOut) => <NoteListDetailBody list={list} />}
+    </QueryBoundary>
   );
 }
 
@@ -184,22 +236,42 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
         }
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={saving}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <Button type="button" onClick={startEditing}>
-            Bearbeiten
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Notizlisten", to: "/app/notelists" },
+          { label: list.title || "Notizliste" },
+        ]}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={saving}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Menu label="Dokumente">
+                <DownloadButton
+                  path={`/api/members/documents/note-lists/${list.id}/summary`}
+                  method="POST"
+                  filename={`Notizliste_${list.id}.pdf`}
+                >
+                  Zusammenfassung (pdf)
+                </DownloadButton>
+              </Menu>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           {
@@ -236,21 +308,6 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
                 ]}
                 registerFlush={getRegistrar("participants")}
               />
-            ),
-          },
-          {
-            id: "dokumente",
-            label: "Dokumente",
-            content: (
-              <div className="row-actions">
-                <DownloadButton
-                  path={`/api/members/documents/note-lists/${list.id}/summary`}
-                  method="POST"
-                  filename={`Notizliste_${list.id}.pdf`}
-                >
-                  Zusammenfassung (pdf)
-                </DownloadButton>
-              </div>
             ),
           },
         ]}

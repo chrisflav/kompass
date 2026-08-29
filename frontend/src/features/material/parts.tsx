@@ -163,22 +163,9 @@ export function PartDetailPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Material", to: "/app/material" },
-          { label: query.data?.name ?? "Materialteil" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(part: MaterialPartOut) => <PartDetailBody part={part} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(part: MaterialPartOut) => <PartDetailBody part={part} />}
+    </QueryBoundary>
   );
 }
 
@@ -367,41 +354,50 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
           }
         }}
       >
-        <div className="detail-actions">
-          {editing ? (
-            <>
-              <Button type="submit" busy={saving}>
-                Speichern
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-                Abbrechen
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button type="button" onClick={startEditing}>
-                Bearbeiten
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                busy={deletion.isPending}
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      message: "Material wirklich löschen?",
-                      danger: true,
-                      confirmLabel: "Löschen",
-                    })
-                  )
-                    deletion.mutate(undefined);
-                }}
-              >
-                Löschen
-              </Button>
-            </>
-          )}
-        </div>
+        <PageHeader
+          breadcrumbs={[
+            { label: "Material", to: "/app/material" },
+            { label: part.name },
+          ]}
+          actions={
+            editing ? (
+              <>
+                <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                  Abbrechen
+                </Button>
+                <Button type="submit" busy={saving}>
+                  Speichern
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="ghost" onClick={() => history.back()}>
+                  Zurück
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={deletion.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: "Material wirklich löschen?",
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      deletion.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+                <Button type="button" onClick={startEditing}>
+                  Bearbeiten
+                </Button>
+              </>
+            )
+          }
+        />
         <Tabs
           tabs={[
             {

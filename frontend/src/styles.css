@@ -382,15 +382,17 @@ h3 {
 }
 
 .page-actions,
-.detail-actions,
 .row-actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-.detail-actions {
-  margin-bottom: 1rem;
+/* Dropdown menus inside the header command cluster open flush to the button's
+   right edge so a right-aligned "Dokumente ▾" doesn't overflow the viewport. */
+.page-actions .menu-dropdown {
+  left: auto;
+  right: 0;
 }
 
 /* --- list toolbar (search / filter) -------------------------------------- */
@@ -491,23 +493,30 @@ h3 {
 
 /* --- tabs ----------------------------------------------------------------- */
 
+/* Tabs are section wayfinding, not commands: the map-margin "instrument" voice
+   (mono, uppercase, letter-spaced) sets them apart from sentence-case buttons
+   on three axes at once — type, shape (underline vs pill), and position. */
 .tab-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.15rem;
+  gap: 0 1.5rem;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .tab {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 0.55rem 0.9rem;
-  font: inherit;
+  padding: 0.5rem 0;
+  margin-bottom: -1px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
   cursor: pointer;
-  margin-bottom: -1px;
 }
 
 .tab:hover {
@@ -515,19 +524,57 @@ h3 {
 }
 
 .tab.active {
-  color: var(--accent);
+  color: var(--text);
   border-bottom-color: var(--accent);
   font-weight: 600;
+}
+
+/* A tab whose panel holds a validation error flags red with a trailing dot, so
+   the offending section is obvious even while another tab is open. */
+.tab.has-error {
+  color: var(--danger);
+}
+
+.tab.has-error::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  vertical-align: 0.1em;
+  background: var(--danger);
+}
+
+.tab.has-error.active {
+  border-bottom-color: var(--danger);
 }
 
 .tab-panel[hidden] {
   display: none;
 }
 
-/* Inside tabs the first fieldset/inline heading is redundant with the tab. */
-.tab-panel > .fieldset-title:first-child,
-.tab-panel > .inline-section > .fieldset-title:first-child {
+/* Inside tabs the first fieldset heading is redundant with the tab label. */
+.tab-panel > .fieldset-title:first-child {
   margin-top: 0.25rem;
+}
+
+/* An inline table that IS a tab's content (either first, or right after the
+   section's `.fieldset-help` intro) repeats the tab label in its own heading —
+   drop that heading, and pin the "add" button to the right edge in its place
+   (the inline-head's default space-between would otherwise strand a lone button
+   on the left). */
+.tab-panel > .inline-section:first-child,
+.tab-panel > .fieldset-help:first-child + .inline-section {
+  margin-top: 0;
+}
+.tab-panel > .inline-section:first-child > .inline-head > .fieldset-title,
+.tab-panel > .fieldset-help:first-child + .inline-section > .inline-head > .fieldset-title {
+  display: none;
+}
+.tab-panel > .inline-section:first-child > .inline-head,
+.tab-panel > .fieldset-help:first-child + .inline-section > .inline-head {
+  justify-content: flex-end;
 }
 
 /* --- fieldset groups & inline sections ----------------------------------- */
@@ -536,6 +583,18 @@ h3 {
   margin: 1.5rem 0 0.5rem;
   font-size: 1.05rem;
   color: var(--text);
+}
+
+/* Recovered admin fieldset description, shown above a detail section. */
+.fieldset-help {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--contour);
+  background: var(--contour-weak);
+  border-radius: 0 6px 6px 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .inline-section {
@@ -1126,31 +1185,261 @@ input[type="radio"] {
 
 /* --- toasts -------------------------------------------------------------- */
 
+/* Status messages read as map-legend annotations, centered under the top bar
+   (in the reading path, near where the action fired) rather than tucked in a
+   corner: a themed tinted panel with a tone-coloured left rule and a mono
+   status tag — the same instrument voice as badges and table headers. */
 .toast-stack {
   position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
+  top: 4.75rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0.5rem;
   z-index: 100;
+  width: max-content;
+  max-width: min(92vw, 460px);
+  /* Let clicks fall through the container gaps; toasts re-enable pointers. */
+  pointer-events: none;
 }
 
 .toast {
-  padding: 0.7rem 1rem;
-  border-radius: 8px;
-  color: #fff;
-  box-shadow: var(--shadow);
-  max-width: 320px;
-  font-size: 0.9rem;
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.7rem 0.95rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 22px rgba(20, 35, 44, 0.16);
+  font-size: 0.92rem;
+  animation: toast-in 0.22s ease;
+}
+
+.toast-tag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.toast-msg {
+  color: var(--text);
 }
 
 .toast.success {
-  background: var(--success);
+  background: var(--success-weak);
+  border-color: transparent;
+  border-left-color: var(--success);
+}
+
+.toast.success .toast-tag {
+  color: var(--success);
 }
 
 .toast.error {
-  background: var(--danger);
+  background: var(--danger-weak);
+  border-color: transparent;
+  border-left-color: var(--danger);
+}
+
+.toast.error .toast-tag {
+  color: var(--danger);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+/* --- prose (rendered Markdown + KaTeX for website posts) ----------------- */
+
+.prose {
+  line-height: 1.65;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose > :last-child {
+  margin-bottom: 0;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  line-height: 1.25;
+  margin: 1.6em 0 0.5em;
+}
+
+.prose h1 {
+  font-size: 1.6rem;
+}
+
+.prose h2 {
+  font-size: 1.3rem;
+}
+
+.prose h3 {
+  font-size: 1.1rem;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose table {
+  margin: 0 0 0.9em;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+}
+
+.prose li {
+  margin: 0.2em 0;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+
+.prose blockquote {
+  margin-left: 0;
+  padding: 0.2em 1em;
+  border-left: 3px solid var(--contour);
+  color: var(--muted);
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--panel-2);
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+}
+
+.prose pre {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+}
+
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+/* Display math shouldn't force horizontal page scroll on small screens. */
+.prose .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2em 0;
+}
+
+/* --- post teasers (news / reports previews) ------------------------------ */
+
+.post-teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--text);
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+
+.post-teaser:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 4px rgba(20, 35, 44, 0.06), 0 10px 26px rgba(20, 35, 44, 0.08);
+  transform: translateY(-1px);
+}
+
+.post-teaser-title {
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.post-teaser-date {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.post-teaser-excerpt {
+  margin: 0.15rem 0 0.35rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.post-teaser-more {
+  margin-top: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Section "Alle …" link, with a trailing arrow that nudges on hover. */
+.section-more {
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.section-more:hover {
+  text-decoration: underline;
 }
 
 /* --- public hero (topographic signature) --------------------------------- */

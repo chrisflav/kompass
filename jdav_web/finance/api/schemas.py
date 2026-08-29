@@ -23,6 +23,21 @@ class LedgerBrief(Schema):
     name: str
 
 
+class TransactionIssueOut(Schema):
+    """A per-recipient mismatch between the planned transactions and the costs.
+
+    Resolves off ``finance.models.TransactionIssue`` (``member`` / ``current`` /
+    ``target`` / ``difference``); surfaced by ``StatementOut.transaction_issues``
+    so the SPA can render the soll/ist comparison from the submitted-statement
+    review screen.
+    """
+
+    member: MemberBrief
+    current: float
+    target: float
+    difference: float
+
+
 class BillBrief(ModelSchema):
     id: int
     amount: float
@@ -97,6 +112,8 @@ class StatementOut(ModelSchema):
     confirmed: bool
     is_valid: bool
     validity: int
+    validity_display: str
+    transaction_issues: list[TransactionIssueOut] = []
     excursion: ExcursionBrief | None = None
     created_by: MemberBrief | None = None
     submitted_by: MemberBrief | None = None
@@ -151,6 +168,14 @@ class StatementOut(ModelSchema):
         return obj.is_valid()
 
     @staticmethod
+    def resolve_validity_display(obj) -> str:
+        return str(obj.validity_display)
+
+    @staticmethod
+    def resolve_transaction_issues(obj):
+        return obj.transaction_issues
+
+    @staticmethod
     def resolve_allowance_to(obj):
         return obj.allowance_to.all()
 
@@ -202,11 +227,20 @@ class StatementCreate(Schema):
 
 
 class StatementUpdate(Schema):
-    """Editable draft fields; PATCH semantics (only supplied fields applied)."""
+    """Editable draft fields; PATCH semantics (only supplied fields applied).
+
+    ``allowance_to_ids`` / ``subsidy_to_id`` / ``ljp_to_id`` mirror the admin's
+    ``StatementOnListInline`` (edited from the excursion): the recipients of the
+    allowance / subsidy / LJP contributions. Passing ``null`` clears an FK; an
+    omitted field is left unchanged.
+    """
 
     short_description: str | None = None
     explanation: str | None = None
     night_cost: float | None = None
+    allowance_to_ids: list[int] | None = None
+    subsidy_to_id: int | None = None
+    ljp_to_id: int | None = None
 
 
 class BillCreate(Schema):
@@ -238,3 +272,86 @@ class FinanceEnumsOut(Schema):
     """Labelled choices for the finance app's choice fields (for SPA selects)."""
 
     status: list[ChoiceOut]
+
+
+# --- excursion finance overview (the admin's "Finance overview" estimate) ---
+
+
+class OverviewRecipient(Schema):
+    """A contribution recipient shown with its bank-account validity."""
+
+    name: str
+    iban_valid: bool
+
+
+class OverviewBill(Schema):
+    """A bill row in the finance overview's expenses table."""
+
+    short_description: str
+    explanation: str
+    amount: float
+    paid_by_name: str | None = None
+    paid_by_iban_valid: bool = False
+
+
+class OverviewSeminarDay(Schema):
+    """A single seminar day derived from the LJP interventions."""
+
+    day: str
+    total_duration: float
+    sum_days: float
+
+
+class FinanceOverviewOut(Schema):
+    """The excursion's estimated cost / contribution overview.
+
+    Mirrors ``admin/freizeit_finance_overview.html`` (built from
+    ``Statement.template_context`` plus the excursion's LJP / cost properties).
+    An estimate, not a guaranteed cost plan.
+    """
+
+    statement_id: int
+    excursion_name: str
+    submitted: bool
+
+    # Expenses
+    bills: list[OverviewBill] = []
+    total_bills_theoretic: float
+
+    # Per-youth-leader contribution breakdown
+    staff_count: int
+    nights: int
+    price_per_night: float
+    nights_per_yl: float
+    duration: float
+    allowance_per_day: float
+    allowance_per_yl: float
+    kilometers_traveled: float
+    means_of_transport: str
+    euro_per_km: float
+    transportation_per_yl: float
+
+    # Allowance / subsidy recipients
+    allowances_paid: int
+    real_staff_count: int
+    allowance_to: list[OverviewRecipient] = []
+    allowance_to_valid: bool
+    subsidy_to: OverviewRecipient | None = None
+    total_subsidies: float
+
+    # Org fee
+    total_org_fee: float
+    total_org_fee_theoretical: float
+    org_fee: float
+    old_participant_count: int
+
+    # LJP contributions
+    ljp_to: OverviewRecipient | None = None
+    ljp_contributions: float
+    total_seminar_days: float
+    ljp_participant_count: int
+    theoretic_ljp_participant_count: int
+    seminar_days: list[OverviewSeminarDay] = []
+
+    # Summary
+    total_relative_costs: float

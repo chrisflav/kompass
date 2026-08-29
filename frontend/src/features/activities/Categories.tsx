@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useRowHints } from "../../api/helpTexts";
 import {
   Badge,
   Button,
@@ -149,28 +150,17 @@ export function ActivityCategoryDetailPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Aktivitätskategorien", to: "/app/activity-categories" },
-          { label: query.data?.name ?? "Aktivitätskategorie" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(cat: ActivityCategoryOut) => <ActivityCategoryDetailBody cat={cat} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(cat: ActivityCategoryOut) => <ActivityCategoryDetailBody cat={cat} />}
+    </QueryBoundary>
   );
 }
 
 function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
   const toast = useToast();
   const navigate = useNavigate();
+  // Attach recovered model help_text to each row by its backend field name.
+  const withHints = useRowHints();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => ({
     name: cat.name,
@@ -265,33 +255,42 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
         mutation.mutate(form);
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              busy={remove.isPending}
-              onClick={() => remove.mutate(undefined)}
-            >
-              Löschen
-            </Button>
-          </>
-        )}
-      </div>
-      <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
+      <PageHeader
+        breadcrumbs={[
+          { label: "Aktivitätskategorien", to: "/app/activity-categories" },
+          { label: cat.name },
+        ]}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={remove.isPending}
+                onClick={() => remove.mutate(undefined)}
+              >
+                Löschen
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
+      <EditableDetail rows={withHints(rows, "activitycategory")} editing={editing} errors={fieldErrors} />
     </form>
   );
 }
@@ -424,22 +423,9 @@ export function TrainingCategoryDetailPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Ausbildungskategorien", to: "/app/training-categories" },
-          { label: query.data?.name ?? "Ausbildungskategorie" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(cat: TrainingCategoryOut) => <TrainingCategoryDetailBody cat={cat} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(cat: TrainingCategoryOut) => <TrainingCategoryDetailBody cat={cat} />}
+    </QueryBoundary>
   );
 }
 
@@ -528,32 +514,41 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
         mutation.mutate(form);
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              busy={remove.isPending}
-              onClick={() => remove.mutate(undefined)}
-            >
-              Löschen
-            </Button>
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Ausbildungskategorien", to: "/app/training-categories" },
+          { label: cat.name },
+        ]}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={remove.isPending}
+                onClick={() => remove.mutate(undefined)}
+              >
+                Löschen
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
     </form>
   );

@@ -26,22 +26,28 @@ from .schemas import ActivityCategoryUpdate
 from .schemas import EXCURSION_APPROVAL_FIELDS
 from .schemas import EXCURSION_UPDATE_SCALAR_FIELDS
 from .schemas import ExcursionBrief
+from .schemas import ExcursionCreate
 from .schemas import ExcursionOut
 from .schemas import ExcursionUpdate
 from .schemas import GROUP_UPDATE_SCALAR_FIELDS
+from .schemas import GroupCreate
 from .schemas import GroupOut
 from .schemas import GroupUpdate
 from .schemas import KlettertreffBrief
+from .schemas import KlettertreffCreate
 from .schemas import KlettertreffOut
 from .schemas import KlettertreffUpdate
 from .schemas import MEMBER_ORGANIZATIONAL_FIELDS
 from .schemas import MEMBER_UPDATE_SCALAR_FIELDS
 from .schemas import MemberBrief
+from .schemas import MemberCreate
 from .schemas import MemberEnumChoice
 from .schemas import MemberNoteListBrief
+from .schemas import MemberNoteListCreate
 from .schemas import MemberNoteListOut
 from .schemas import MemberNoteListUpdate
 from .schemas import MemberOut
+from .schemas import MemberTrainingCreate
 from .schemas import MemberTrainingUpdate
 from .schemas import MemberUpdate
 from .schemas import MeOut
@@ -58,6 +64,35 @@ from .schemas import WaiterUpdate
 router = Router()
 
 
+def _create_instance(model, scalars, fk_ids=None, m2m=None):
+    """Build, validate and save ``model`` from a create payload.
+
+    ``scalars`` maps field name → value (only the fields the client supplied),
+    ``fk_ids`` maps FK field name → id (or ``None`` to leave unset), and ``m2m``
+    maps M2M accessor → list of ids, applied after ``save()``. Only the supplied
+    scalar/FK fields are validated (via :func:`partial_clean`), so unrelated
+    ``default="" blank=False`` fields don't spuriously fail like they would under
+    a full ``full_clean``.
+    """
+    instance = model()
+    changed = []
+    for name, value in scalars.items():
+        setattr(instance, name, value)
+        changed.append(name)
+    for name, value in (fk_ids or {}).items():
+        setattr(instance, f"{name}_id", value)
+        changed.append(name)
+    partial_clean(instance, changed)
+    instance.save()
+    # Reload so callable defaults are normalised to their stored form before the
+    # response schema serialises them (e.g. a ``DateField`` whose default is
+    # ``datetime.today`` holds a ``datetime`` in memory until re-read as a date).
+    instance.refresh_from_db()
+    for accessor, ids in (m2m or {}).items():
+        getattr(instance, accessor).set(ids)
+    return instance
+
+
 # --- groups ---------------------------------------------------------------
 
 
@@ -66,6 +101,22 @@ def list_groups(request):
     """Groups the user may view (plain Django ``members.view_group`` perm)."""
     authorize(request, "members.view_group")
     return Group.objects.all().order_by("name")
+
+
+@router.post("/groups", response={201: GroupOut})
+def create_group(request, payload: GroupCreate):
+    """Create a group (``members.add_group``; matches ``GroupAdmin``)."""
+    authorize(request, "members.add_group")
+    data = payload.dict(exclude_unset=True)
+    leiter_ids = data.pop("leiter_ids", [])
+    contact_email_id = data.pop("contact_email_id", None)
+    group = _create_instance(
+        Group,
+        data,
+        fk_ids={"contact_email": contact_email_id},
+        m2m={"leiters": leiter_ids},
+    )
+    return 201, group
 
 
 @router.get("/groups/{group_id}", response=GroupOut)
@@ -106,7 +157,34 @@ def update_group(request, group_id: int, payload: GroupUpdate):
 @router.get("/excursions", response=list[ExcursionBrief])
 def list_excursions(request):
     """Excursions the user may list (led groups / own leadership)."""
-    return scope_queryset(request.user, Freizeit.objects.all().order_by("-date"), model=Freizeit)
+    # Prefetch the relations the Brief resolves (groups + participants) so the
+    # list doesn't fan out into per-row queries for the filter data.
+    qs = (
+        Freizeit.objects.all()
+        .order_by("-date")
+        .prefetch_related("groups", "jugendleiter", "membersonlist")
+    )
+    return scope_queryset(request.user, qs, model=Freizeit)
+
+
+@router.post("/excursions", response={201: ExcursionOut})
+def create_excursion(request, payload: ExcursionCreate):
+    """Create an excursion (``members.add_global_freizeit``; matches ``FreizeitAdmin``).
+
+    Approval fields are not settable here (they mirror the admin's
+    permission-gated Approval fieldset, edited afterwards).
+    """
+    authorize(request, "members.add_global_freizeit")
+    data = payload.dict(exclude_unset=True)
+    group_ids = data.pop("group_ids", [])
+    jugendleiter_ids = data.pop("jugendleiter_ids", [])
+    activity_ids = data.pop("activity_ids", [])
+    excursion = _create_instance(
+        Freizeit,
+        data,
+        m2m={"groups": group_ids, "jugendleiter": jugendleiter_ids, "activity": activity_ids},
+    )
+    return 201, excursion
 
 
 @router.get("/excursions/{excursion_id}", response=ExcursionOut)
@@ -157,6 +235,20 @@ def list_members(request):
     """
     queryset = annotate_activity_score(Member.objects.all()).order_by("lastname")
     return scope_queryset(request.user, queryset, model=Member)
+
+
+@router.post("/", response={201: MemberOut})
+def create_member(request, payload: MemberCreate):
+    """Create a member (``members.add_global_member``; matches ``MemberAdmin``).
+
+    Collects the admin add form's required subset (name, gender, email, groups);
+    the remaining fields default per the model and are edited afterwards.
+    """
+    authorize(request, "members.add_global_member")
+    data = payload.dict(exclude_unset=True)
+    group_ids = data.pop("group_ids", [])
+    member = _create_instance(Member, data, m2m={"group": group_ids})
+    return 201, member
 
 
 @router.get("/registrations", response=list[RegistrationBrief])
@@ -234,6 +326,23 @@ def list_trainings(request):
     )
 
 
+@router.post("/trainings", response={201: TrainingOut})
+def create_training(request, payload: MemberTrainingCreate):
+    """Create a training record (``members.add_global_membertraining``)."""
+    authorize(request, "members.add_global_membertraining")
+    data = payload.dict(exclude_unset=True)
+    member_id = data.pop("member_id")
+    category_id = data.pop("category_id")
+    activity_ids = data.pop("activity_ids", [])
+    training = _create_instance(
+        MemberTraining,
+        data,
+        fk_ids={"member": member_id, "category": category_id},
+        m2m={"activity": activity_ids},
+    )
+    return 201, training
+
+
 @router.get("/trainings/{training_id}", response=TrainingOut)
 def retrieve_training(request, training_id: int):
     """Full training detail, authorized per object.
@@ -289,6 +398,22 @@ def list_klettertreff(request):
     return Klettertreff.objects.all().order_by("-date")
 
 
+@router.post("/klettertreff", response={201: KlettertreffOut})
+def create_klettertreff(request, payload: KlettertreffCreate):
+    """Create a Klettertreff event (``members.add_klettertreff``)."""
+    authorize(request, "members.add_klettertreff")
+    data = payload.dict(exclude_unset=True)
+    group_id = data.pop("group_id")
+    jugendleiter_ids = data.pop("jugendleiter_ids", [])
+    klettertreff = _create_instance(
+        Klettertreff,
+        data,
+        fk_ids={"group": group_id},
+        m2m={"jugendleiter": jugendleiter_ids},
+    )
+    return 201, klettertreff
+
+
 @router.get("/klettertreff/{klettertreff_id}", response=KlettertreffOut)
 def retrieve_klettertreff(request, klettertreff_id: int):
     """Full Klettertreff detail (plain Django ``members.view_klettertreff`` perm)."""
@@ -329,6 +454,15 @@ def list_note_lists(request):
     """
     authorize(request, "members.view_membernotelist")
     return MemberNoteList.objects.all().order_by("-date")
+
+
+@router.post("/note-lists", response={201: MemberNoteListOut})
+def create_note_list(request, payload: MemberNoteListCreate):
+    """Create a member note list (``members.add_membernotelist``)."""
+    authorize(request, "members.add_membernotelist")
+    data = payload.dict(exclude_unset=True)
+    note_list = _create_instance(MemberNoteList, data)
+    return 201, note_list
 
 
 @router.get("/note-lists/{notelist_id}", response=MemberNoteListOut)

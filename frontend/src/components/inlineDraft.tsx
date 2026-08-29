@@ -1,5 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ApiError } from "../api/http";
+
+/**
+ * Raised when a related-object inline fails to save during the parent form's
+ * Save. It is deliberately NOT an `ApiError`: a parent's submit catch routes
+ * `ApiError.fieldErrors` onto its OWN fields, and an inline's field names (e.g.
+ * an emergency contact's `phone_number`) would otherwise be shown on the parent
+ * record's like-named field in the wrong tab. Being a plain Error, it skips that
+ * routing and only surfaces as a toast, naming the failing section.
+ */
+export class InlineFlushError extends Error {
+  constructor(cause: unknown) {
+    const detail =
+      cause instanceof ApiError && Object.keys(cause.fieldErrors).length
+        ? Object.values(cause.fieldErrors).flat().join(" ")
+        : cause instanceof Error
+          ? cause.message
+          : String(cause);
+    super(`Ein verknüpfter Eintrag konnte nicht gespeichert werden: ${detail}`);
+    this.name = "InlineFlushError";
+  }
+}
+
 /**
  * Parent-side coordination for deferred inline editors. Each inline registers a
  * `flush` (keyed) via `getRegistrar(key)`; the parent form's Save calls
@@ -20,7 +43,15 @@ export function useFlushRegistry() {
   }, []);
 
   const runFlushes = useCallback(async () => {
-    for (const flush of flushers.current.values()) await flush();
+    for (const flush of flushers.current.values()) {
+      try {
+        await flush();
+      } catch (e) {
+        // Wrap so the parent's catch treats it as a section-level failure
+        // (toast) rather than mapping the inline's field errors onto itself.
+        throw new InlineFlushError(e);
+      }
+    }
   }, []);
 
   return { getRegistrar, runFlushes };

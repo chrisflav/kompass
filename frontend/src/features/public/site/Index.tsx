@@ -3,29 +3,14 @@ import { Link } from "react-router-dom";
 import { client, unwrap } from "../../../api/http";
 import { useApiQuery } from "../../../api/hooks";
 import { ContourField } from "../../../components/Contour";
-import { QueryBoundary } from "../../../components/ui";
+import { QueryBoundary, useDocumentTitle } from "../../../components/ui";
 import type { components } from "../../../api/schema";
-import { formatDate, Prose } from "./shared";
+import { PostTeaser } from "./shared";
 
 type IndexOut = components["schemas"]["IndexOut"];
-type PostBrief = components["schemas"]["PublicPostBrief"];
-
-function preview(text?: string | null): string {
-  if (!text) return "";
-  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
-}
-
-function PostTeaserCard({ post }: { post: PostBrief }) {
-  return (
-    <article className="shortcut-card">
-      <span className="shortcut-title">{post.title}</span>
-      {post.date && <span className="muted small">{formatDate(post.date)}</span>}
-      <Prose text={preview(post.website_text)} />
-    </article>
-  );
-}
 
 export function PublicIndex() {
+  useDocumentTitle("JDAV Ludwigsburg");
   const query = useApiQuery(["public", "index"], () =>
     unwrap(client.GET("/api/startpage/public/index")),
   );
@@ -50,14 +35,16 @@ export function PublicIndex() {
             <section>
               <div className="page-header">
                 <h2>Aktuelles</h2>
-                <Link to="/aktuelles">Alle Neuigkeiten</Link>
+                <Link to="/aktuelles" className="section-more">
+                  Alle Neuigkeiten →
+                </Link>
               </div>
               {data.recent_posts.length === 0 ? (
                 <p className="muted state">Keine aktuellen Beiträge.</p>
               ) : (
                 <div className="card-grid">
                   {data.recent_posts.map((p) => (
-                    <PostTeaserCard key={p.id} post={p} />
+                    <PostTeaser key={p.id} post={p} />
                   ))}
                 </div>
               )}
@@ -65,14 +52,16 @@ export function PublicIndex() {
             <section>
               <div className="page-header">
                 <h2>Berichte</h2>
-                <Link to="/berichte">Alle Berichte</Link>
+                <Link to="/berichte" className="section-more">
+                  Alle Berichte →
+                </Link>
               </div>
               {data.reports.length === 0 ? (
                 <p className="muted state">Keine Berichte.</p>
               ) : (
                 <div className="card-grid">
                   {data.reports.map((p) => (
-                    <PostTeaserCard key={p.id} post={p} />
+                    <PostTeaser key={p.id} post={p} />
                   ))}
                 </div>
               )}

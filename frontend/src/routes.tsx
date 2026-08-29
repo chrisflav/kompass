@@ -11,7 +11,11 @@ import { financeRoutes } from "./features/finance/routes";
 import { mailerRoutes } from "./features/mailer/routes";
 import { materialRoutes } from "./features/material/routes";
 import { membersRoutes } from "./features/members/routes";
-import { publicFlowRoutes, publicSiteRoutes } from "./features/public/routes";
+import {
+  legacyRedirectRoutes,
+  publicFlowRoutes,
+  publicSiteRoutes,
+} from "./features/public/routes";
 
 export function AppRoutes() {
   return (
@@ -36,6 +40,9 @@ export function AppRoutes() {
         {eventsRoutes}
         {cmsRoutes}
       </Route>
+
+      {/* Redirects from the old Django URLs to the new SPA flows. */}
+      {legacyRedirectRoutes}
 
       {/* Standalone public secret-key flows (no site chrome). */}
       {publicFlowRoutes}

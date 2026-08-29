@@ -1,17 +1,10 @@
-import { Link } from "react-router-dom";
-
 import { client, unwrap } from "../../../api/http";
 import { useApiQuery } from "../../../api/hooks";
 import { QueryBoundary } from "../../../components/ui";
 import type { components } from "../../../api/schema";
-import { formatDate, Prose, PublicPageHeader } from "./shared";
+import { PostTeaser, Prose, PublicPageHeader } from "./shared";
 
 type SectionPostsOut = components["schemas"]["SectionPostsOut"];
-
-function preview(text?: string | null): string {
-  if (!text) return "";
-  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
-}
 
 /**
  * News- / reports-style listing: a section heading plus a card per post linking
@@ -39,15 +32,7 @@ function SectionPosts({
             ) : (
               <div className="card-grid" style={{ marginTop: "1rem" }}>
                 {data.posts.map((post) => (
-                  <Link
-                    key={post.id}
-                    to={`/beitrag/${data.section.urlname}/${post.urlname}`}
-                    className="shortcut-card"
-                  >
-                    <span className="shortcut-title">{post.title}</span>
-                    {post.date && <span className="muted small">{formatDate(post.date)}</span>}
-                    <Prose text={preview(post.website_text)} />
-                  </Link>
+                  <PostTeaser key={post.id} post={post} />
                 ))}
               </div>
             )}

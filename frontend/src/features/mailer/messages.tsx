@@ -13,12 +13,14 @@ import {
   DataTable,
   EditableDetail,
   Field,
+  Menu,
   Modal,
   PageHeader,
   QueryBoundary,
   Tabs,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -324,27 +326,19 @@ export function MessageDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "Nachrichten", to: "/app/mailer/messages" },
+    { label: query.data?.subject || "Nachricht" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Nachrichten", to: "/app/mailer/messages" },
-          { label: query.data?.subject || "Nachricht" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(message: MessageOut) => <MessageDetailBody message={message} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(message: MessageOut) => <MessageDetailBody message={message} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
-function MessageDetailBody({ message }: { message: MessageOut }) {
+function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: Crumb[] }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<MessageFormState>(() => messageToForm(message));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -539,46 +533,54 @@ function MessageDetailBody({ message }: { message: MessageOut }) {
         }
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={saving}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            {!message.sent && (
-              <Button type="button" onClick={startEditing}>
-                Bearbeiten
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
               </Button>
-            )}
-            <SubmitAction message={message} />
-            {!message.sent && (
-              <Button
-                type="button"
-                variant="danger"
-                busy={deletion.isPending}
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      message: "Nachricht wirklich löschen?",
-                      danger: true,
-                      confirmLabel: "Löschen",
-                    })
-                  )
-                    deletion.mutate(undefined);
-                }}
-              >
-                Löschen
+              <Button type="submit" busy={saving}>
+                Speichern
               </Button>
-            )}
-          </>
-        )}
-      </div>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              {!message.sent && (
+                <>
+                  <Menu label="Aktionen">
+                    <SubmitAction message={message} />
+                    <Button
+                      type="button"
+                      variant="danger"
+                      busy={deletion.isPending}
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            message: "Nachricht wirklich löschen?",
+                            danger: true,
+                            confirmLabel: "Löschen",
+                          })
+                        )
+                          deletion.mutate(undefined);
+                      }}
+                    >
+                      Löschen
+                    </Button>
+                  </Menu>
+                  <Button type="button" onClick={startEditing}>
+                    Bearbeiten
+                  </Button>
+                </>
+              )}
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           {
@@ -622,6 +624,7 @@ function SubmitAction({ message }: { message: MessageOut }) {
   return (
     <Button
       type="button"
+      variant="ghost"
       busy={mutation.isPending}
       onClick={async () => {
         if (await confirm("Nachricht jetzt an alle Empfänger versenden?"))

@@ -1,4 +1,4 @@
-import { Route } from "react-router-dom";
+import { Navigate, Route, useLocation } from "react-router-dom";
 
 import { PublicIndex } from "./site/Index";
 import { PublicAktuelles, PublicBerichte } from "./site/SectionPosts";
@@ -35,6 +35,42 @@ export const publicSiteRoutes = (
     <Route path="impressum" element={<PublicImpressum />} />
     <Route path="bereich/:section" element={<PublicSection />} />
     <Route path="beitrag/:section/:post" element={<PublicPost />} />
+  </>
+);
+
+/** Redirects the pre-SPA Django URLs to their new SPA flow, preserving the
+ *  ``?key=`` query string. Keeps old bookmarked / e-mailed links working. */
+function LegacyRedirect({ to }: { to: string }) {
+  const { search } = useLocation();
+  return <Navigate to={`${to}${search}`} replace />;
+}
+
+// Old Django path (under /members, /newsletter, /login) → new SPA path.
+const LEGACY_FLOW_PATHS: [string, string][] = [
+  ["members/echo", "/echo"],
+  ["members/registration", "/anmeldung"],
+  ["members/register/upload", "/anmeldebogen"],
+  // The old download-form step is replaced by the upload page in the SPA.
+  ["members/register/download", "/anmeldebogen"],
+  ["members/register", "/registrierung"],
+  ["members/waitinglist/confirm", "/warteliste/bestaetigen"],
+  ["members/waitinglist/leave", "/warteliste/verlassen"],
+  ["members/waitinglist/invitation/confirm", "/einladung/annehmen"],
+  ["members/waitinglist/invitation/reject", "/einladung/ablehnen"],
+  ["members/waitinglist", "/warteliste"],
+  ["members/mail/confirm", "/mail/bestaetigen"],
+  ["newsletter/unsubscribe", "/abmelden"],
+  ["login/register", "/passwort"],
+];
+
+// Both the bare path and the German locale-prefixed variant (old URLs lived
+// inside Django's i18n_patterns, so real links carry a `/de/` prefix).
+export const legacyRedirectRoutes = (
+  <>
+    {LEGACY_FLOW_PATHS.flatMap(([from, to]) => [
+      <Route key={from} path={from} element={<LegacyRedirect to={to} />} />,
+      <Route key={`de/${from}`} path={`de/${from}`} element={<LegacyRedirect to={to} />} />,
+    ])}
   </>
 );
 

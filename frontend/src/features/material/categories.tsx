@@ -94,22 +94,9 @@ export function CategoryDetailPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Materialkategorien", to: "/app/material/categories" },
-          { label: query.data?.name ?? "Kategorie" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(category: MaterialCategoryOut) => <CategoryDetailBody category={category} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(category: MaterialCategoryOut) => <CategoryDetailBody category={category} />}
+    </QueryBoundary>
   );
 }
 
@@ -191,41 +178,50 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
         mutation.mutate(form);
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              busy={deletion.isPending}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    message: "Kategorie wirklich löschen?",
-                    danger: true,
-                    confirmLabel: "Löschen",
-                  })
-                )
-                  deletion.mutate(undefined);
-              }}
-            >
-              Löschen
-            </Button>
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Materialkategorien", to: "/app/material/categories" },
+          { label: category.name },
+        ]}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={deletion.isPending}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Kategorie wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    deletion.mutate(undefined);
+                }}
+              >
+                Löschen
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
       <h3>Material in dieser Kategorie</h3>
       <DataTable

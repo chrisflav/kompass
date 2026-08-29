@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useRowHints } from "../../api/helpTexts";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -15,6 +16,7 @@ import {
   QueryBoundary,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -109,27 +111,29 @@ export function EmailAddressDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "E-Mail-Adressen", to: "/app/mailer/addresses" },
+    { label: query.data?.name ?? "E-Mail-Adresse" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "E-Mail-Adressen", to: "/app/mailer/addresses" },
-          { label: query.data?.name ?? "E-Mail-Adresse" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(address: EmailAddressOut) => <EmailAddressDetailBody address={address} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(address: EmailAddressOut) => (
+        <EmailAddressDetailBody address={address} crumbs={crumbs} />
+      )}
+    </QueryBoundary>
   );
 }
 
-function EmailAddressDetailBody({ address }: { address: EmailAddressOut }) {
+function EmailAddressDetailBody({
+  address,
+  crumbs,
+}: {
+  address: EmailAddressOut;
+  crumbs: Crumb[];
+}) {
+  // Attach recovered model help_text to each row by its backend field name.
+  const withHints = useRowHints();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<AddressFormState>(() => addressToForm(address));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -268,42 +272,48 @@ function EmailAddressDetailBody({ address }: { address: EmailAddressOut }) {
         mutation.mutate(form);
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              busy={deletion.isPending}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    message: "Adresse wirklich löschen?",
-                    danger: true,
-                    confirmLabel: "Löschen",
-                  })
-                )
-                  deletion.mutate(undefined);
-              }}
-            >
-              Löschen
-            </Button>
-          </>
-        )}
-      </div>
-      <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={deletion.isPending}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Adresse wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    deletion.mutate(undefined);
+                }}
+              >
+                Löschen
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
+      <EditableDetail rows={withHints(rows, "emailaddress")} editing={editing} errors={fieldErrors} />
     </form>
   );
 }

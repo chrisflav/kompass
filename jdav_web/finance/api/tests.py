@@ -135,6 +135,9 @@ class FinanceApiTestCase(TestCase):
         self.assertEqual(body["id"], stmt.pk)
         self.assertEqual(body["total"], 0.0)
         self.assertFalse(body["submitted"])
+        # The submitted-statement review modal reads these off the detail payload.
+        self.assertEqual(body["transaction_issues"], [])
+        self.assertEqual(body["validity_display"], str(stmt.validity_display))
 
     def test_retrieve_other_forbidden(self):
         stmt = self.make_statement(self.other)

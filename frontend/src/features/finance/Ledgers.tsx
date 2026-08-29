@@ -14,6 +14,7 @@ import {
   QueryBoundary,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -133,27 +134,19 @@ export function LedgerDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "Konten", to: "/app/finance/ledgers" },
+    { label: query.data?.name ?? "Konto" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Konten", to: "/app/finance/ledgers" },
-          { label: query.data?.name ?? "Konto" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(ledger: LedgerDetailOut) => <LedgerDetailBody ledger={ledger} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(ledger: LedgerDetailOut) => <LedgerDetailBody ledger={ledger} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
-function LedgerDetailBody({ ledger }: { ledger: LedgerDetailOut }) {
+function LedgerDetailBody({ ledger, crumbs }: { ledger: LedgerDetailOut; crumbs: Crumb[] }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(ledger.name);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -222,41 +215,47 @@ function LedgerDetailBody({ ledger }: { ledger: LedgerDetailOut }) {
         mutation.mutate({ name });
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              busy={remove.isPending}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    message: "Dieses Konto wirklich löschen?",
-                    danger: true,
-                    confirmLabel: "Löschen",
-                  })
-                )
-                  remove.mutate(undefined);
-              }}
-            >
-              Löschen
-            </Button>
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                busy={remove.isPending}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Dieses Konto wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    remove.mutate(undefined);
+                }}
+              >
+                Löschen
+              </Button>
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
     </form>
   );

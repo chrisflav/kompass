@@ -6,6 +6,7 @@ import { getToken } from "../../auth";
 import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useRowHints, useSectionHelp } from "../../api/helpTexts";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
@@ -19,12 +20,14 @@ import {
   DataTable,
   EditableDetail,
   Field,
+  Menu,
   Modal,
   MultiSelect,
   PageHeader,
   QueryBoundary,
   Select,
   Tabs,
+  useConfirmDialog,
   useToast,
   type Crumb,
   type DetailRow,
@@ -33,6 +36,7 @@ import type { components } from "../../api/schema";
 
 type MemberBrief = components["schemas"]["MemberBrief"];
 type MemberOut = components["schemas"]["MemberOut"];
+type MemberCreate = components["schemas"]["MemberCreate"];
 type MemberUpdate = components["schemas"]["MemberUpdate"];
 type GroupOut = components["schemas"]["GroupOut"];
 type EnumChoice = components["schemas"]["MemberEnumChoice"];
@@ -231,6 +235,7 @@ type MemberBoolKey =
 
 function MembersList() {
   const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
   const query = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
   const rows = query.data ?? [];
 
@@ -276,7 +281,13 @@ function MembersList() {
       <PageHeader
         breadcrumbs={[{ label: "Teilnehmende" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
+        actions={<Button onClick={() => setCreating(true)}>Neues Mitglied</Button>}
       />
+      {creating && (
+        <Modal title="Neues Mitglied" onClose={() => setCreating(false)}>
+          <MemberCreateForm onDone={() => setCreating(false)} />
+        </Modal>
+      )}
       <ListToolbar view={view} />
       <QueryBoundary query={query} empty="Keine Teilnehmende sichtbar.">
         {() => (
@@ -309,6 +320,123 @@ function MembersList() {
         )}
       </QueryBoundary>
     </div>
+  );
+}
+
+/* --- create -------------------------------------------------------------- */
+
+function MemberCreateForm({ onDone }: { onDone: () => void }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [prename, setPrename] = useState("");
+  const [lastname, setLastname] = useState("");
+  const [gender, setGender] = useState("");
+  const [email, setEmail] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [groupIds, setGroupIds] = useState<number[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const enumsQuery = useApiQuery(["members", "enums"], () =>
+    unwrap(client.GET("/api/members/enums")),
+  );
+  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const genderChoices = enumsQuery.data?.gender ?? [];
+  const groups: GroupOut[] = groupsQuery.data ?? [];
+
+  const mutation = useApiMutation<MemberOut, MemberCreate>(
+    (body: MemberCreate) => unwrap(client.POST("/api/members/", { body })),
+    {
+      invalidate: [["members"]],
+      onSuccess: (created: MemberOut) => {
+        toast.success("Mitglied angelegt.");
+        onDone();
+        navigate(`/app/members/${created.id}`);
+      },
+      onError: (e: Error) => {
+        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  return (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setFieldErrors({});
+        mutation.mutate({
+          prename,
+          lastname,
+          gender: Number(gender),
+          email: email || null,
+          birth_date: birthDate || null,
+          phone_number: phoneNumber || null,
+          group_ids: groupIds,
+        });
+      }}
+    >
+      <Field label="Vorname">
+        <input value={prename} onChange={(e) => setPrename(e.target.value)} required />
+        {fieldErrors.prename && (
+          <div className="field-error">{fieldErrors.prename.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Nachname">
+        <input value={lastname} onChange={(e) => setLastname(e.target.value)} required />
+        {fieldErrors.lastname && (
+          <div className="field-error">{fieldErrors.lastname.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Geschlecht">
+        <Select
+          value={gender}
+          onChange={(v) => setGender(v)}
+          options={genderChoices.map((c: EnumChoice) => ({
+            value: String(c.value),
+            label: c.label,
+          }))}
+          placeholder="Geschlecht wählen …"
+        />
+        {fieldErrors.gender && <div className="field-error">{fieldErrors.gender.join(" ")}</div>}
+      </Field>
+      <Field label="E-Mail">
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        {fieldErrors.email && <div className="field-error">{fieldErrors.email.join(" ")}</div>}
+      </Field>
+      <Field label="Geburtsdatum">
+        <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+        {fieldErrors.birth_date && (
+          <div className="field-error">{fieldErrors.birth_date.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Telefon">
+        <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
+        {fieldErrors.phone_number && (
+          <div className="field-error">{fieldErrors.phone_number.join(" ")}</div>
+        )}
+      </Field>
+      <Field label="Gruppen">
+        <MultiSelect
+          options={groups.map((g) => ({ value: g.id, label: g.name }))}
+          selected={groupIds}
+          onChange={(ids) => setGroupIds(ids)}
+          placeholder="Gruppe hinzufügen"
+        />
+        {fieldErrors.group_ids && (
+          <div className="field-error">{fieldErrors.group_ids.join(" ")}</div>
+        )}
+      </Field>
+      <div className="row-actions">
+        <Button type="submit" busy={mutation.isPending} disabled={gender === ""}>
+          Anlegen
+        </Button>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -346,19 +474,9 @@ function MemberDetailPage() {
     : [{ label: "Teilnehmende", to: "/app/members" }, { label: memberName }];
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={crumbs}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(member: MemberOut) => <MemberDetailBody member={member} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(member: MemberOut) => <MemberDetailBody member={member} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
@@ -414,8 +532,16 @@ function MembersOfGroup() {
   );
 }
 
-function MemberDetailBody({ member }: { member: MemberOut }) {
+function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb[] }) {
   const toast = useToast();
+  // Attach recovered model help_text to each row by its backend field name.
+  const withHints = useRowHints();
+  // Recovered admin inline `description` intros for the related-object sections.
+  const sectionHelp = useSectionHelp();
+  const sectionNote = (section: string) => {
+    const note = sectionHelp(section);
+    return note ? <p className="fieldset-help">{note}</p> : null;
+  };
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeMemberDraft(member));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -665,35 +791,41 @@ function MemberDetailBody({ member }: { member: MemberOut }) {
         }
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={saving}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <MemberActions member={member} />
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={saving}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <MemberActions member={member} />
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
-          { id: "stammdaten", label: "Stammdaten", content: <EditableDetail rows={mainRows} editing={editing} errors={fieldErrors} /> },
-          { id: "kontakt", label: "Kontaktdaten", content: <EditableDetail rows={contactRows} editing={editing} errors={fieldErrors} /> },
-          { id: "skills", label: "Fähigkeiten", content: <EditableDetail rows={skillsRows} editing={editing} errors={fieldErrors} /> },
-          { id: "sonstiges", label: "Sonstiges", content: <EditableDetail rows={othersRows} editing={editing} errors={fieldErrors} /> },
-          { id: "org", label: "Organisatorisch", content: <EditableDetail rows={orgRows} editing={editing} errors={fieldErrors} /> },
-          { id: "notfall", label: "Notfallkontakte", content: <EmergencyContactsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("notfall")} /> },
-          { id: "dokumente", label: "Dokumente", content: <DocumentsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("dokumente")} /> },
-          { id: "ausbildungen", label: "Ausbildungen", content: <TrainingsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("trainings")} /> },
+          { id: "stammdaten", label: "Stammdaten", content: <EditableDetail rows={withHints(mainRows, "member")} editing={editing} errors={fieldErrors} /> },
+          { id: "kontakt", label: "Kontaktdaten", content: <EditableDetail rows={withHints(contactRows, "member")} editing={editing} errors={fieldErrors} /> },
+          { id: "skills", label: "Fähigkeiten", content: <EditableDetail rows={withHints(skillsRows, "member")} editing={editing} errors={fieldErrors} /> },
+          { id: "sonstiges", label: "Sonstiges", content: <EditableDetail rows={withHints(othersRows, "member")} editing={editing} errors={fieldErrors} /> },
+          { id: "org", label: "Organisatorisch", content: <EditableDetail rows={withHints(orgRows, "member")} editing={editing} errors={fieldErrors} /> },
+          { id: "notfall", label: "Notfallkontakte", content: <>{sectionNote("emergency-contacts")}<EmergencyContactsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("notfall")} /></> },
+          { id: "dokumente", label: "Dokumente", content: <>{sectionNote("documents")}<DocumentsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("dokumente")} /></> },
+          { id: "ausbildungen", label: "Ausbildungen", content: <>{sectionNote("trainings")}<TrainingsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("trainings")} /></> },
           { id: "berechtigungen", label: "Berechtigungen", content: <PermissionMembersInline memberId={member.id} editing={editing} registerFlush={getRegistrar("berechtigungen")} /> },
         ]}
       />
@@ -805,13 +937,13 @@ function EmergencyContactsInline({
       {adding && (
         <Modal title="Notfallkontakt hinzufügen" onClose={() => setAdding(null)} size="sm">
           <div className="stack">
-            <Field label="Vorname">
+            <Field label="Vorname *">
               <input
                 value={adding.prename}
                 onChange={(e) => setAdding({ ...adding, prename: e.target.value })}
               />
             </Field>
-            <Field label="Nachname">
+            <Field label="Nachname *">
               <input
                 value={adding.lastname}
                 onChange={(e) => setAdding({ ...adding, lastname: e.target.value })}
@@ -824,7 +956,7 @@ function EmergencyContactsInline({
                 onChange={(e) => setAdding({ ...adding, email: e.target.value })}
               />
             </Field>
-            <Field label="Telefonnummer (mobil)">
+            <Field label="Telefonnummer (mobil) *">
               <input
                 value={adding.phone_number}
                 onChange={(e) => setAdding({ ...adding, phone_number: e.target.value })}
@@ -833,7 +965,7 @@ function EmergencyContactsInline({
             <div className="row-actions">
               <Button
                 type="button"
-                disabled={!adding.prename || !adding.lastname}
+                disabled={!adding.prename.trim() || !adding.lastname.trim() || !adding.phone_number.trim()}
                 onClick={() => {
                   addRow(adding);
                   setAdding(null);
@@ -1292,12 +1424,10 @@ function PermissionMembersInline({
 /** Workflow-action buttons that POST to the members action endpoints. */
 function MemberActions({ member }: { member: MemberOut }) {
   const toast = useToast();
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
 
-  const action = (label: string, run: () => Promise<unknown>, invalidate = true) => ({
-    label,
-    run,
-    invalidate,
-  });
+  const action = (label: string, run: () => Promise<unknown>) => ({ label, run });
 
   const actions = [
     action("Echo anfordern", () =>
@@ -1321,38 +1451,68 @@ function MemberActions({ member }: { member: MemberOut }) {
         }),
       ),
     ),
-    action("Bestätigung aufheben", () =>
+  ];
+
+  const mutation = useApiMutation((run: () => Promise<unknown>) => run(), {
+    invalidate: [["members"], ["members", member.id]],
+    onSuccess: () => toast.success("Aktion ausgeführt."),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Unconfirming turns the member back into an unconfirmed registration, so it
+  // needs a confirmation and then navigates to where the record now lives —
+  // staying on this page would 404 (the member-only endpoint no longer resolves).
+  const unconfirmMutation = useApiMutation<unknown, void>(
+    () =>
       unwrap(
         client.POST("/api/members/{member_id}/unconfirm", {
           params: { path: { member_id: member.id } },
         }),
       ),
-    ),
-  ];
-
-  const mutation = useApiMutation(
-    (run: () => Promise<unknown>) => run(),
     {
-      invalidate: [["members"], ["members", member.id]],
-      onSuccess: () => toast.success("Aktion ausgeführt."),
+      invalidate: [["members"], ["members", member.id], ["registrations"]],
+      onSuccess: () => {
+        toast.success("Bestätigung aufgehoben.");
+        navigate("/app/registrations");
+      },
       onError: (e: Error) => toast.error(e.message),
     },
   );
 
+  const busy = mutation.isPending || unconfirmMutation.isPending;
+
   return (
-    <div className="row-actions">
+    <Menu label="Aktionen">
       {actions.map((a) => (
         <Button
           key={a.label}
           type="button"
           variant="ghost"
-          busy={mutation.isPending}
+          busy={busy}
           onClick={() => mutation.mutate(a.run)}
         >
           {a.label}
         </Button>
       ))}
-    </div>
+      <Button
+        type="button"
+        variant="danger"
+        busy={busy}
+        onClick={async () => {
+          if (
+            await confirm({
+              title: "Bestätigung aufheben",
+              message: `Die Bestätigung von ${member.name} aufheben? Der Eintrag wird wieder zu einer offenen Registrierung.`,
+              confirmLabel: "Aufheben",
+              danger: true,
+            })
+          )
+            unconfirmMutation.mutate();
+        }}
+      >
+        Bestätigung aufheben
+      </Button>
+    </Menu>
   );
 }
 

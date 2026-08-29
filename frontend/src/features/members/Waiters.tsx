@@ -16,6 +16,7 @@ import {
   Select,
   Tabs,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -175,24 +176,15 @@ export function WaiterDetailPage() {
       }),
     ),
   );
+  const crumbs: Crumb[] = [
+    { label: "Warteliste", to: "/app/waiters" },
+    { label: query.data?.name ?? "Wartelisten-Bewerbung" },
+  ];
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Warteliste", to: "/app/waiters" },
-          { label: query.data?.name ?? "Wartelisten-Bewerbung" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(waiter: WaiterOut) => <WaiterDetailBody waiter={waiter} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(waiter: WaiterOut) => <WaiterDetailBody waiter={waiter} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
@@ -208,7 +200,7 @@ function makeDraft(w: WaiterOut) {
   };
 }
 
-function WaiterDetailBody({ waiter }: { waiter: WaiterOut }) {
+function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb[] }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeDraft(waiter));
@@ -349,25 +341,31 @@ function WaiterDetailBody({ waiter }: { waiter: WaiterOut }) {
         });
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={mutation.isPending}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button type="button" onClick={startEditing}>
-              Bearbeiten
-            </Button>
-            <WaiterInvite waiter={waiter} />
-          </>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" busy={mutation.isPending}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <WaiterInvite waiter={waiter} />
+              <Button type="button" onClick={startEditing}>
+                Bearbeiten
+              </Button>
+            </>
+          )
+        }
+      />
       <Tabs
         tabs={[
           {
@@ -455,7 +453,7 @@ function WaiterInvite({ waiter }: { waiter: WaiterOut }) {
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button type="button" variant="ghost" onClick={() => setOpen(true)}>
         In Gruppe einladen
       </Button>
       {open && (

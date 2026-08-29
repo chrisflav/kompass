@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useRowHints, useSectionHelp } from "../../api/helpTexts";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
@@ -16,6 +17,7 @@ import {
   DownloadButton,
   EditableDetail,
   Field,
+  Menu,
   Modal,
   PageHeader,
   QueryBoundary,
@@ -23,6 +25,7 @@ import {
   Tabs,
   useConfirmDialog,
   useToast,
+  type Crumb,
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -256,28 +259,23 @@ export function StatementDetailPage() {
     ),
   );
 
+  const crumbs: Crumb[] = [
+    { label: "Abrechnungen", to: "/app/finance/statements" },
+    { label: query.data?.title ?? "Abrechnung" },
+  ];
+
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Abrechnungen", to: "/app/finance/statements" },
-          { label: query.data?.title ?? "Abrechnung" },
-        ]}
-        actions={
-          <Button variant="ghost" onClick={() => history.back()}>
-            Zurück
-          </Button>
-        }
-      />
-      <QueryBoundary query={query}>
-        {(statement: StatementOut) => <StatementDetailBody statement={statement} />}
-      </QueryBoundary>
-    </div>
+    <QueryBoundary query={query}>
+      {(statement: StatementOut) => <StatementDetailBody statement={statement} crumbs={crumbs} />}
+    </QueryBoundary>
   );
 }
 
-function StatementDetailBody({ statement }: { statement: StatementOut }) {
+function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; crumbs: Crumb[] }) {
   const toast = useToast();
+  // Attach recovered model help_text to each row by its backend field name.
+  const withHints = useRowHints();
+  const sectionHelp = useSectionHelp();
   const [editing, setEditing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form, setForm] = useState(() => ({
@@ -407,73 +405,53 @@ function StatementDetailBody({ statement }: { statement: StatementOut }) {
         }
       }}
     >
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <Button type="submit" busy={saving}>
-              Speichern
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </>
-        ) : (
-          <>
-            {!statement.submitted && (
-              <Button type="button" onClick={startEditing}>
-                Bearbeiten
+      <PageHeader
+        breadcrumbs={crumbs}
+        actions={
+          editing ? (
+            <>
+              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                Abbrechen
               </Button>
-            )}
-            <StatementActions statement={statement} />
-          </>
-        )}
-      </div>
+              <Button type="submit" busy={saving}>
+                Speichern
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={() => history.back()}>
+                Zurück
+              </Button>
+              <StatementActions statement={statement} />
+              {!statement.submitted && (
+                <Button type="button" onClick={startEditing}>
+                  Bearbeiten
+                </Button>
+              )}
+            </>
+          )
+        }
+      />
 
       <Tabs
         tabs={[
-          { id: "abrechnung", label: "Abrechnung", content: <EditableDetail rows={mainRows} editing={editing} errors={fieldErrors} /> },
-          { id: "empfaenger", label: "Empfänger", content: <EditableDetail rows={recipientRows} editing={editing} errors={fieldErrors} /> },
-          { id: "verwaltung", label: "Verwaltung", content: <EditableDetail rows={adminRows} editing={editing} errors={fieldErrors} /> },
+          { id: "abrechnung", label: "Abrechnung", content: <EditableDetail rows={withHints(mainRows, "statement")} editing={editing} errors={fieldErrors} /> },
+          { id: "empfaenger", label: "Empfänger", content: <EditableDetail rows={withHints(recipientRows, "statement")} editing={editing} errors={fieldErrors} /> },
+          { id: "verwaltung", label: "Verwaltung", content: <EditableDetail rows={withHints(adminRows, "statement")} editing={editing} errors={fieldErrors} /> },
           {
-            id: "betraege",
-            label: "Beträge",
+            id: "belege",
+            label: "Belege",
             content: (
-              <DetailList
-                items={[
-                  ["Gesamt", euro(statement.total)],
-                  ["Belege gesamt", euro(statement.total_bills)],
-                  ["Belege (nicht übernommen)", euro(statement.total_bills_not_covered)],
-                  ["Aufwandsentschädigung gesamt", euro(statement.total_allowance)],
-                  ["Aufwandsentschädigung pro JL", euro(statement.allowance_per_yl)],
-                  ["Ausgezahlte Aufwandsentschädigungen", statement.allowances_paid],
-                  ["Zuschüsse gesamt", euro(statement.total_subsidies)],
-                  ["Ausgezahlte Zuschüsse", euro(statement.subsidies_paid)],
-                  ["Fahrtkosten gesamt", euro(statement.total_transportation)],
-                  ["Fahrtkosten pro JL", euro(statement.transportation_per_yl)],
-                  ["Übernachtungen gesamt", euro(statement.total_nights)],
-                  ["Übernachtungen pro JL", euro(statement.nights_per_yl)],
-                  ["Kosten pro Übernachtung", euro(statement.real_night_cost)],
-                  ["Euro pro km", euro(statement.euro_per_km)],
-                  ["Gesamt pro JL", euro(statement.total_per_yl)],
-                  ["Personalkosten gesamt", euro(statement.total_staff)],
-                  ["Personalkosten ausgezahlt", euro(statement.total_staff_paid)],
-                  ["Reale Personenanzahl", statement.real_staff_count],
-                  ["Organisationspauschale gesamt", euro(statement.total_org_fee)],
-                  ["Gezahlte LJP-Beiträge", euro(statement.paid_ljp_contributions)],
-                ]}
-              />
+              <>
+                {sectionHelp("bills") && <p className="fieldset-help">{sectionHelp("bills")}</p>}
+                <StatementBillsInline
+                  statement={statement}
+                  editing={editing}
+                  registerFlush={getRegistrar("bills")}
+                />
+              </>
             ),
           },
-          { id: "belege", label: "Belege", content: <StatementBillsInline statement={statement} editing={editing} registerFlush={getRegistrar("bills")} /> },
-          ...(statement.submitted && !statement.confirmed
-            ? [
-                {
-                  id: "buchungen",
-                  label: "Buchungen",
-                  content: <StatementTransactionsInline statement={statement} />,
-                },
-              ]
-            : []),
         ]}
       />
     </form>
@@ -520,7 +498,7 @@ const emptyBill: BillData = {
  * POST), removed (DELETE) or a new bill added (multipart POST). All buttons are
  * type="button" — this renders inside the statement's <form>.
  */
-function StatementBillsInline({
+export function StatementBillsInline({
   statement,
   editing,
   registerFlush,
@@ -944,13 +922,9 @@ function StatementTransactionsInline({ statement }: { statement: StatementOut })
 
 /* --- state-machine actions ----------------------------------------------- */
 
-/**
- * How a destructive/irreversible action is gated before it runs: either a plain
- * "are you sure?" prompt (`simple`) or the finance overview popup that lets the
- * treasurer review the statement + its transactions before confirming
- * (`overview`).
- */
-type Gate = "simple" | "overview";
+/** How a state transition is gated before it runs: a plain "are you sure?"
+ * prompt. */
+type Gate = "simple";
 
 interface StatementAction {
   label: string;
@@ -960,75 +934,197 @@ interface StatementAction {
   gate?: Gate;
   /** Prompt text for the `simple` gate. */
   message?: string;
-  /** Label of the proceed button inside the gate Modal. */
-  proceedLabel?: string;
 }
 
 /**
- * Finance overview popup shown before confirming (paying) a statement — mirrors
- * the old admin "Abrechnung bestätigen" review screen. Summarises the statement
- * and lists its generated transactions so the treasurer can review before
- * paying, then offers "Bestätigen" (proceed → confirm), "Ablehnen" (→ reject)
- * and "Abbrechen" (just close).
+ * Consolidated processing modal for a submitted, unconfirmed statement — the
+ * single entry point that replaces the old "Buchungen"/"Beträge" tabs, the
+ * scattered workflow buttons and the confirm popup. Mirrors the admin review
+ * screen (`overview_submitted_statement.html`): lists the expenses (and, for
+ * excursions, the auto-generated contribution summary), lets the treasurer
+ * generate / edit / reduce the planned transactions and configure their ledgers
+ * (via {@link StatementTransactionsInline}), shows the soll/ist comparison, and
+ * offers confirm / confirm & send / reject — with confirm gated on the statement
+ * being valid. Every action invalidates the statement + transactions queries, so
+ * the refreshed `statement` prop re-drives validity, the issue list and the
+ * generate/reduce toggle without closing the modal.
  */
-function ConfirmOverviewModal({
+function StatementProcessingModal({
   statement,
-  busy,
-  proceedLabel,
-  onProceed,
-  onReject,
   onClose,
 }: {
   statement: StatementOut;
-  busy: boolean;
-  proceedLabel: string;
-  onProceed: () => void;
-  onReject: () => void;
   onClose: () => void;
 }) {
-  const query = useApiQuery(
-    ["finance", "statements", statement.id, "transactions"],
-    () =>
-      unwrap(
-        client.GET("/api/finance/statements/{statement_id}/transactions", {
-          params: { path: { statement_id: statement.id } },
-        }),
-      ),
+  const toast = useToast();
+  const path = { params: { path: { statement_id: statement.id } } } as const;
+
+  const txQuery = useApiQuery(["finance", "statements", statement.id, "transactions"], () =>
+    unwrap(
+      client.GET("/api/finance/statements/{statement_id}/transactions", {
+        params: { path: { statement_id: statement.id } },
+      }),
+    ),
   );
+  const txCount = txQuery.data?.length ?? 0;
+
+  const mutation = useApiMutation((run: () => Promise<unknown>) => run(), {
+    invalidate: [
+      ["finance", "statements"],
+      ["finance", "statements", statement.id],
+      ["finance", "statements", statement.id, "transactions"],
+    ],
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function run(fn: () => Promise<unknown>, opts: { success: string; close?: boolean }) {
+    mutation.mutate(fn, {
+      onSuccess: () => {
+        toast.success(opts.success);
+        if (opts.close) onClose();
+      },
+    });
+  }
+
+  const generate = () =>
+    run(
+      () =>
+        unwrap(client.POST("/api/finance/statements/{statement_id}/generate-transactions", path)),
+      { success: "Buchungen erzeugt." },
+    );
+  const reduce = () =>
+    run(
+      () => unwrap(client.POST("/api/finance/statements/{statement_id}/reduce-transactions", path)),
+      { success: "Buchungen zusammengefasst." },
+    );
+  const confirmStatement = (send: boolean) =>
+    run(
+      () =>
+        unwrap(
+          send
+            ? client.POST("/api/finance/statements/{statement_id}/confirm", {
+                params: { path: { statement_id: statement.id }, query: { send: true } },
+              })
+            : client.POST("/api/finance/statements/{statement_id}/confirm", path),
+        ),
+      { success: "Abrechnung bestätigt.", close: true },
+    );
+  const reject = () =>
+    run(() => unwrap(client.POST("/api/finance/statements/{statement_id}/reject", path)), {
+      success: "Abrechnung abgelehnt.",
+      close: true,
+    });
+
+  const isExcursion = statement.excursion !== null;
+  const issues = statement.transaction_issues;
 
   return (
-    <Modal title="Abrechnung bestätigen" onClose={onClose}>
+    <Modal title="Buchungen & Bestätigung" onClose={onClose} size="lg">
       <div className="stack">
         <DetailList
           items={[
             ["Titel", statement.title],
-            ["Gesamt", euro(statement.total)],
             ["Status", <StatusBadge statement={statement} />],
+            ["Gesamt", euro(statement.total)],
+            [
+              "Bereit zur Bestätigung",
+              statement.is_valid ? (
+                <Badge tone="success">Ja</Badge>
+              ) : (
+                <Badge tone="danger">{statement.validity_display}</Badge>
+              ),
+            ],
           ]}
         />
-        <QueryBoundary query={query} empty="Keine Buchungen.">
-          {(rows: TransactionOut[]) => (
-            <DataTable
-              rows={rows}
-              rowKey={(t) => t.id}
-              columns={[
-                { header: "Empfänger", cell: (t) => t.member.name },
-                { header: "Konto", cell: (t) => t.ledger?.name ?? "—" },
-                { header: "Betrag", cell: (t) => euro(t.amount) },
-                { header: "Verwendungszweck", cell: (t) => t.reference },
+
+        <section className="stack">
+          <h3>Ausgaben</h3>
+          <DataTable
+            rows={statement.bills}
+            rowKey={(b) => b.id}
+            empty="Keine Belege."
+            columns={[
+              { header: "Beschreibung", cell: (b) => b.short_description },
+              { header: "Betrag", cell: (b) => euro(b.amount) },
+              {
+                header: "Übernommen",
+                cell: (b) => (b.costs_covered ? <Badge tone="success">Ja</Badge> : "Nein"),
+              },
+            ]}
+          />
+          {isExcursion && (
+            <DetailList
+              items={[
+                ["Belege (übernommen)", euro(statement.total_bills)],
+                ["Aufwandsentschädigung", euro(statement.total_allowance)],
+                ["Zuschüsse", euro(statement.total_subsidies)],
+                ["Orga-Pauschale", euro(-statement.total_org_fee)],
+                ["LJP-Beiträge", euro(statement.paid_ljp_contributions)],
+                ["Gesamt", euro(statement.total)],
               ]}
             />
           )}
-        </QueryBoundary>
+        </section>
+
+        <section className="stack">
+          <h3>Geplante Buchungen</h3>
+          <div className="row-actions">
+            {txCount === 0 ? (
+              <Button type="button" busy={mutation.isPending} onClick={generate}>
+                Buchungen erzeugen
+              </Button>
+            ) : (
+              <Button type="button" variant="ghost" busy={mutation.isPending} onClick={reduce}>
+                Zusammenfassen
+              </Button>
+            )}
+          </div>
+          <StatementTransactionsInline statement={statement} />
+        </section>
+
+        <section className="stack">
+          <h3>Abgleich</h3>
+          {issues.length === 0 ? (
+            <p className="muted">Die Buchungen stimmen mit den Ausgaben überein.</p>
+          ) : (
+            <DataTable
+              rows={issues}
+              rowKey={(i) => i.member.id}
+              columns={[
+                { header: "Empfänger", cell: (i) => i.member.name },
+                { header: "Ist", cell: (i) => euro(i.current) },
+                { header: "Soll", cell: (i) => euro(i.target) },
+                {
+                  header: "Differenz",
+                  cell: (i) => <Badge tone="danger">{euro(i.difference)}</Badge>,
+                },
+              ]}
+            />
+          )}
+        </section>
+
         <div className="row-actions">
-          <Button type="button" busy={busy} onClick={onProceed}>
-            {proceedLabel}
+          <Button
+            type="button"
+            busy={mutation.isPending}
+            disabled={!statement.is_valid}
+            onClick={() => confirmStatement(false)}
+          >
+            Bestätigen
           </Button>
-          <Button type="button" variant="danger" busy={busy} onClick={onReject}>
+          <Button
+            type="button"
+            busy={mutation.isPending}
+            disabled={!statement.is_valid}
+            onClick={() => confirmStatement(true)}
+          >
+            Bestätigen & senden
+          </Button>
+          <Button type="button" variant="danger" busy={mutation.isPending} onClick={reject}>
             Ablehnen
           </Button>
           <Button type="button" variant="ghost" onClick={onClose}>
-            Abbrechen
+            Schließen
           </Button>
         </div>
       </div>
@@ -1041,6 +1137,7 @@ function StatementActions({ statement }: { statement: StatementOut }) {
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
   const [pending, setPending] = useState<StatementAction | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   const mutation = useApiMutation((run: () => Promise<unknown>) => run(), {
     invalidate: [["finance", "statements"], ["finance", "statements", statement.id]],
@@ -1073,11 +1170,6 @@ function StatementActions({ statement }: { statement: StatementOut }) {
   const confirmed = statement.confirmed;
   const processable = submitted && !confirmed;
 
-  // reject is reachable both as its own button and as the "Ablehnen" action
-  // inside the confirm overview popup, so keep its run in one place.
-  const rejectRun = () =>
-    unwrap(client.POST("/api/finance/statements/{statement_id}/reject", path));
-
   const actions: StatementAction[] = [];
 
   // submit only while still a draft
@@ -1087,43 +1179,6 @@ function StatementActions({ statement }: { statement: StatementOut }) {
       gate: "simple",
       message: "Wirklich einreichen?",
       run: () => unwrap(client.POST("/api/finance/statements/{statement_id}/submit", path)),
-    });
-  }
-  // process actions only while submitted & unconfirmed
-  if (processable) {
-    actions.push({
-      label: "Buchungen erzeugen",
-      run: () =>
-        unwrap(client.POST("/api/finance/statements/{statement_id}/generate-transactions", path)),
-    });
-    actions.push({
-      label: "Buchungen zusammenfassen",
-      run: () =>
-        unwrap(client.POST("/api/finance/statements/{statement_id}/reduce-transactions", path)),
-    });
-    actions.push({
-      label: "Bestätigen (bezahlen)",
-      gate: "overview",
-      proceedLabel: "Bestätigen",
-      run: () => unwrap(client.POST("/api/finance/statements/{statement_id}/confirm", path)),
-    });
-    actions.push({
-      label: "Bestätigen & Zusammenfassung senden",
-      gate: "overview",
-      proceedLabel: "Bestätigen & senden",
-      run: () =>
-        unwrap(
-          client.POST("/api/finance/statements/{statement_id}/confirm", {
-            params: { path: { statement_id: statement.id }, query: { send: true } },
-          }),
-        ),
-    });
-    actions.push({
-      label: "Ablehnen",
-      variant: "danger",
-      gate: "simple",
-      message: "Abrechnung wirklich ablehnen?",
-      run: rejectRun,
     });
   }
   // unconfirm only while confirmed
@@ -1137,24 +1192,67 @@ function StatementActions({ statement }: { statement: StatementOut }) {
     });
   }
 
+  // Workflow / state-transition buttons plus the destructive delete, grouped into
+  // a single "Aktionen ▾" menu (2+) or rendered as one ghost button (exactly 1).
+  const workflowButtons: ReactNode[] = actions.map((a) => (
+    <Button
+      key={a.label}
+      type="button"
+      variant={a.variant ?? "ghost"}
+      busy={mutation.isPending}
+      onClick={() => (a.gate ? setPending(a) : mutation.mutate(a.run))}
+    >
+      {a.label}
+    </Button>
+  ));
+  if (!submitted) {
+    workflowButtons.push(
+      <Button
+        key="__delete"
+        type="button"
+        variant="danger"
+        busy={deleteMutation.isPending}
+        onClick={async () => {
+          if (
+            await confirm({
+              message: "Abrechnung wirklich löschen?",
+              danger: true,
+              confirmLabel: "Löschen",
+            })
+          )
+            deleteMutation.mutate(undefined);
+        }}
+      >
+        Löschen
+      </Button>,
+    );
+  }
+
   return (
-    <div className="row-actions">
-      {actions.map((a) => (
-        <Button
-          key={a.label}
-          type="button"
-          variant={a.variant ?? "ghost"}
-          busy={mutation.isPending}
-          onClick={() => (a.gate ? setPending(a) : mutation.mutate(a.run))}
+    <>
+      {confirmed && (
+        <DownloadButton
+          path={`/api/finance/documents/statements/${statement.id}/summary`}
+          filename={`Abrechnung_${statement.id}_Zusammenfassung.pdf`}
         >
-          {a.label}
+          Zusammenfassung (PDF)
+        </DownloadButton>
+      )}
+      {/* The submitted-stage workflow is handled entirely inside one modal. */}
+      {processable && (
+        <Button type="button" onClick={() => setProcessing(true)}>
+          Buchungen & Bestätigung
         </Button>
-      ))}
-      {/* Portal the confirmation Modals to <body>: this component renders inside
-          the statement's <form>, and the Modal's untyped close button would
-          otherwise submit that form. */}
+      )}
+      {workflowButtons.length >= 2 ? (
+        <Menu label="Aktionen">{workflowButtons}</Menu>
+      ) : (
+        workflowButtons
+      )}
+      {/* Portal the modals to <body>: this component renders inside the
+          statement's <form>, and a Modal's untyped close button would otherwise
+          submit that form. */}
       {pending &&
-        pending.gate === "simple" &&
         createPortal(
           <Modal title="Bestätigen" onClose={() => setPending(null)}>
             <div className="stack">
@@ -1175,46 +1273,14 @@ function StatementActions({ statement }: { statement: StatementOut }) {
           </Modal>,
           document.body,
         )}
-      {pending &&
-        pending.gate === "overview" &&
+      {processing &&
         createPortal(
-          <ConfirmOverviewModal
+          <StatementProcessingModal
             statement={statement}
-            busy={mutation.isPending}
-            proceedLabel={pending.proceedLabel ?? "Bestätigen"}
-            onProceed={() => mutation.mutate(pending.run)}
-            onReject={() => mutation.mutate(rejectRun)}
-            onClose={() => setPending(null)}
+            onClose={() => setProcessing(false)}
           />,
           document.body,
         )}
-      {confirmed && (
-        <DownloadButton
-          path={`/api/finance/documents/statements/${statement.id}/summary`}
-          filename={`Abrechnung_${statement.id}_Zusammenfassung.pdf`}
-        >
-          Zusammenfassung (PDF)
-        </DownloadButton>
-      )}
-      {!submitted && (
-        <Button
-          type="button"
-          variant="danger"
-          busy={deleteMutation.isPending}
-          onClick={async () => {
-            if (
-              await confirm({
-                message: "Abrechnung wirklich löschen?",
-                danger: true,
-                confirmLabel: "Löschen",
-              })
-            )
-              deleteMutation.mutate(undefined);
-          }}
-        >
-          Löschen
-        </Button>
-      )}
-    </div>
+    </>
   );
 }
