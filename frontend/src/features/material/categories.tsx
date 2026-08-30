@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -24,6 +25,7 @@ type MaterialCategoryOut = components["schemas"]["MaterialCategoryOut"];
 /* --- list ---------------------------------------------------------------- */
 
 export function CategoriesList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["material", "categories"], () =>
@@ -47,7 +49,11 @@ export function CategoriesList() {
       <PageHeader
         breadcrumbs={[{ label: "Materialkategorien" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neue Kategorie</Button>}
+        actions={
+          can("material.add_materialcategory") && (
+            <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neue Kategorie" onClose={() => setCreating(false)}>

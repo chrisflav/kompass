@@ -2,9 +2,10 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, Route, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import climberIcon from "../../assets/climber.png";
+import { usePermissions } from "../../api/me";
 import { getToken } from "../../auth";
 import { API_BASE } from "../../api/client";
-import { ApiError, client, unwrap } from "../../api/http";
+import { ApiError, client, downloadArtifact, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { useRowHints, useSectionHelp } from "../../api/helpTexts";
 import { InlineTable } from "../../components/inline";
@@ -27,10 +28,11 @@ import {
   QueryBoundary,
   Select,
   Tabs,
-  useConfirmDialog,
-  useToast,
   type Crumb,
   type DetailRow,
+  useConfirmDialog,
+  useRowSelection,
+  useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
@@ -49,7 +51,6 @@ type MemberPermissionIn = components["schemas"]["MemberPermissionIn"];
 type TrainingBrief = components["schemas"]["TrainingBrief"];
 type TrainingOut = components["schemas"]["TrainingOut"];
 type MemberTrainingUpdate = components["schemas"]["MemberTrainingUpdate"];
-
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
@@ -143,17 +144,90 @@ function RegistrationFormEdit({ member }: { member: MemberOut }) {
   );
 }
 
-function fileRow(label: string, url: string | null | undefined): DetailRow {
-  return {
-    label,
-    value: url ? (
-      <a href={documentHref(url)} target="_blank" rel="noreferrer">
-        Öffnen
-      </a>
-    ) : (
-      "—"
-    ),
-  };
+/** Upload / replace / clear a member's photo (multipart), shown in edit mode. */
+function MemberImageEdit({ member }: { member: MemberOut }) {
+  const toast = useToast();
+  const [file, setFile] = useState<File | null>(null);
+
+  const upload = useApiMutation(
+    async (f: File) => {
+      const fd = new FormData();
+      fd.append("f", f);
+      const res = await fetch(`${API_BASE}/api/members/${member.id}/image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        let detail: unknown = null;
+        try {
+          detail = await res.json();
+        } catch {
+          /* non-JSON error body */
+        }
+        throw new ApiError(res.status, detail);
+      }
+      return res.json();
+    },
+    {
+      invalidate: [["members"], ["members", member.id]],
+      onSuccess: () => {
+        toast.success("Bild hochgeladen.");
+        setFile(null);
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
+  const clear = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/{member_id}/image", {
+          params: { path: { member_id: member.id } },
+        }),
+      ),
+    {
+      invalidate: [["members"], ["members", member.id]],
+      onSuccess: () => toast.success("Bild entfernt."),
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
+  return (
+    <div className="stack">
+      {member.image && (
+        <a href={documentHref(member.image)} target="_blank" rel="noreferrer">
+          Aktuelles Bild öffnen
+        </a>
+      )}
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/gif"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+      />
+      <div className="field-hint">JPEG, PNG oder GIF, maximal 5 MiB.</div>
+      <div className="row-actions">
+        <Button
+          type="button"
+          busy={upload.isPending}
+          disabled={!file}
+          onClick={() => file && upload.mutate(file)}
+        >
+          Hochladen
+        </Button>
+        {member.image && (
+          <Button
+            type="button"
+            variant="ghost"
+            busy={clear.isPending}
+            onClick={() => clear.mutate(undefined)}
+          >
+            Entfernen
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function makeMemberDraft(m: MemberOut) {
@@ -221,11 +295,7 @@ type MemberTextKey =
   | "good_conduct_certificate_presented_date";
 type MemberAreaKey = "comments" | "alpine_experience" | "allergies" | "medication";
 type MemberBoolKey =
-  | "active"
-  | "swimming_badge"
-  | "photos_may_be_taken"
-  | "has_key"
-  | "has_free_ticket_gym";
+  "active" | "swimming_badge" | "photos_may_be_taken" | "has_key" | "has_free_ticket_gym";
 
 /* --- list ----------------------------------------------------------------
  * Full parity with the Django MemberAdmin changelist: all list_display columns
@@ -234,6 +304,7 @@ type MemberBoolKey =
  * default ordering by lastname. This is the reference list for the SPA. */
 
 function MembersList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
@@ -258,7 +329,12 @@ function MembersList() {
           ],
           match: (m, v) => (v === "yes") === Boolean(m.echoed),
         },
-        { key: "group", label: "Gruppe", options: groupOptions, match: (m, v) => m.groups.includes(v) },
+        {
+          key: "group",
+          label: "Gruppe",
+          options: groupOptions,
+          match: (m, v) => m.groups.includes(v),
+        },
       ],
       sort: {
         lastname: (m) => m.lastname,
@@ -275,13 +351,22 @@ function MembersList() {
   );
 
   const view = useListView(rows, config);
+  const selection = useRowSelection<number>();
+  const selectedMembers = useMemo(
+    () => rows.filter((m) => selection.selected.has(m.id)),
+    [rows, selection.selected],
+  );
 
   return (
     <div>
       <PageHeader
         breadcrumbs={[{ label: "Teilnehmende" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neues Mitglied</Button>}
+        actions={
+          can("members.add_global_member") && (
+            <Button onClick={() => setCreating(true)}>Neues Mitglied</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neues Mitglied" onClose={() => setCreating(false)}>
@@ -289,6 +374,9 @@ function MembersList() {
         </Modal>
       )}
       <ListToolbar view={view} />
+      {selection.count > 0 && (
+        <MemberBulkActions members={selectedMembers} onDone={selection.clear} />
+      )}
       <QueryBoundary query={query} empty="Keine Teilnehmende sichtbar.">
         {() => (
           <DataTable
@@ -297,6 +385,11 @@ function MembersList() {
             onRowClick={(m) => navigate(`/app/members/${m.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
+            selection={{
+              selected: selection.selected as Set<string | number>,
+              onToggle: (k) => selection.toggle(Number(k)),
+              onToggleAll: (keys) => selection.toggleAll(keys.map(Number)),
+            }}
             columns={[
               { header: "Name", cell: (m) => m.name, sortKey: "lastname" },
               { header: "Geburtsdatum", cell: (m) => m.birth_date ?? "—", sortKey: "birth_date" },
@@ -320,6 +413,277 @@ function MembersList() {
         )}
       </QueryBoundary>
     </div>
+  );
+}
+
+/* --- bulk actions ---------------------------------------------------------
+ * The Django changelist's ``MemberAdmin.actions``: request an echo from, invite
+ * as users, or unconfirm the selected members, plus ``create_object_from``,
+ * which builds a note list / excursion / message / crisis-intervention list out
+ * of the selection. */
+
+function MemberBulkActions({ members, onDone }: { members: MemberBrief[]; onDone: () => void }) {
+  const toast = useToast();
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const [crisisOpen, setCrisisOpen] = useState(false);
+  const ids = members.map((m) => m.id);
+  const names = members.map((m) => m.name).join(", ");
+
+  /** Runs `call` for every selected member, reporting how many succeeded. */
+  const bulk = useApiMutation(
+    async (a: { call: (id: number) => Promise<unknown>; success: (n: number) => string }) => {
+      let ok = 0;
+      const failures: string[] = [];
+      for (const m of members) {
+        try {
+          await a.call(m.id);
+          ok += 1;
+        } catch (e) {
+          failures.push(`${m.name}: ${e instanceof Error ? e.message : "Fehler"}`);
+        }
+      }
+      return { ok, failures, success: a.success };
+    },
+    {
+      invalidate: [["members"], ["registrations"]],
+      onSuccess: (r: { ok: number; failures: string[]; success: (n: number) => string }) => {
+        if (r.ok) toast.success(r.success(r.ok));
+        // Report the failures too — a partial run must not look like a success.
+        if (r.failures.length) toast.error(r.failures.join(" · "));
+        onDone();
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
+  const run = async (
+    label: string,
+    question: string,
+    success: (n: number) => string,
+    call: (id: number) => Promise<unknown>,
+    danger = false,
+  ) => {
+    if (await confirm({ title: label, message: question, confirmLabel: label, danger }))
+      bulk.mutate({ call, success });
+  };
+
+  const createNoteList = useApiMutation(
+    async () => {
+      const list = await unwrap(
+        client.POST("/api/members/note-lists", {
+          body: { title: `Liste (${members.length} Teilnehmende)`, date: null },
+        }),
+      );
+      for (const id of ids) {
+        await unwrap(
+          client.POST("/api/members/note-lists/{notelist_id}/participants", {
+            params: { path: { notelist_id: list.id } },
+            body: { member_id: id, comments: "" },
+          }),
+        );
+      }
+      return list;
+    },
+    {
+      invalidate: [["note-lists"]],
+      onSuccess: (list: { id: number }) => {
+        toast.success("Notizliste aus der Auswahl angelegt.");
+        onDone();
+        navigate(`/app/notelists/${list.id}`);
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
+  return (
+    <div className="bulk-bar">
+      <span className="bulk-count">{members.length} ausgewählt</span>
+      <Menu label="Aktionen für Auswahl">
+        {can("members.change_global_member") && (
+          <Button
+            type="button"
+            variant="ghost"
+            busy={bulk.isPending}
+            onClick={() =>
+              run(
+                "Echo anfordern",
+                `${members.length} Teilnehmende per E-Mail auffordern, ihre Daten zu prüfen? (${names})`,
+                (n) => `Rückmeldung von ${n} Teilnehmenden angefordert.`,
+                (id) =>
+                  unwrap(
+                    client.POST("/api/members/{member_id}/request-echo", {
+                      params: { path: { member_id: id } },
+                    }),
+                  ),
+              )
+            }
+          >
+            Echo anfordern
+          </Button>
+        )}
+        {can("members.change_global_member") && (
+          <Button
+            type="button"
+            variant="ghost"
+            busy={bulk.isPending}
+            onClick={() =>
+              run(
+                "Als Nutzer einladen",
+                `${members.length} Teilnehmende einladen, einen Kompass-Zugang anzulegen?`,
+                (n) => `${n} Einladungen verschickt.`,
+                (id) =>
+                  unwrap(
+                    client.POST("/api/members/{member_id}/invite-as-user", {
+                      params: { path: { member_id: id } },
+                    }),
+                  ),
+              )
+            }
+          >
+            Als Nutzer einladen
+          </Button>
+        )}
+        {can("members.add_membernotelist") && (
+          <Button
+            type="button"
+            variant="ghost"
+            busy={createNoteList.isPending}
+            onClick={() => createNoteList.mutate(undefined)}
+          >
+            Notizliste aus Auswahl
+          </Button>
+        )}
+        <Button type="button" variant="ghost" onClick={() => setCrisisOpen(true)}>
+          Kriseninterventionsliste
+        </Button>
+        {can("members.change_global_member") && (
+          <Button
+            type="button"
+            variant="danger"
+            busy={bulk.isPending}
+            onClick={() =>
+              run(
+                "Bestätigung aufheben",
+                `Die Bestätigung von ${members.length} Teilnehmenden aufheben? Sie werden wieder zu offenen Registrierungen.`,
+                (n) => `${n} Bestätigungen aufgehoben.`,
+                (id) =>
+                  unwrap(
+                    client.POST("/api/members/{member_id}/unconfirm", {
+                      params: { path: { member_id: id } },
+                    }),
+                  ),
+                true,
+              )
+            }
+          >
+            Bestätigung aufheben
+          </Button>
+        )}
+      </Menu>
+      <Button type="button" variant="ghost" onClick={onDone}>
+        Auswahl aufheben
+      </Button>
+      {crisisOpen && (
+        <CrisisInterventionListModal members={members} onClose={() => setCrisisOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+/** The admin's ad-hoc crisis intervention list over a free member selection
+ *  (``MemberAdmin.create_crisis_intervention_list_view``). */
+function CrisisInterventionListModal({
+  members,
+  onClose,
+}: {
+  members: MemberBrief[];
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    activity: "",
+    place: "",
+    start_date: "",
+    end_date: "",
+    description: "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  const complete = form.activity.trim() && form.place.trim() && form.start_date && form.end_date;
+
+  return (
+    <Modal title="Kriseninterventionsliste erstellen" onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          try {
+            await downloadArtifact("/api/members/documents/crisis-intervention-list", {
+              method: "POST",
+              body: { ...form, member_ids: members.map((m) => m.id) },
+              filename: `Kriseninterventionsliste_${form.activity || "Aktivitaet"}.pdf`,
+            });
+            onClose();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Download fehlgeschlagen.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <p className="fieldset-help">
+          Für die {members.length} ausgewählten Teilnehmenden. Die Angaben erscheinen im Kopf der
+          Liste.
+        </p>
+        <Field label="Aktivität *">
+          <input
+            value={form.activity}
+            onChange={(e) => setForm({ ...form, activity: e.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Ort *">
+          <input
+            value={form.place}
+            onChange={(e) => setForm({ ...form, place: e.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Von *">
+          <input
+            type="date"
+            value={form.start_date}
+            onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Bis *">
+          <input
+            type="date"
+            value={form.end_date}
+            onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Beschreibung">
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+        </Field>
+        <div className="row-actions">
+          <Button type="submit" busy={busy} disabled={!complete}>
+            PDF erzeugen
+          </Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Abbrechen
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -379,9 +743,7 @@ function MemberCreateForm({ onDone }: { onDone: () => void }) {
     >
       <Field label="Vorname">
         <input value={prename} onChange={(e) => setPrename(e.target.value)} required />
-        {fieldErrors.prename && (
-          <div className="field-error">{fieldErrors.prename.join(" ")}</div>
-        )}
+        {fieldErrors.prename && <div className="field-error">{fieldErrors.prename.join(" ")}</div>}
       </Field>
       <Field label="Nachname">
         <input value={lastname} onChange={(e) => setLastname(e.target.value)} required />
@@ -448,9 +810,7 @@ function MemberDetailPage() {
   const [sp] = useSearchParams();
   const groupId = sp.get("group");
   const query = useApiQuery(["members", memberId], () =>
-    unwrap(
-      client.GET("/api/members/{member_id}", { params: { path: { member_id: memberId } } }),
-    ),
+    unwrap(client.GET("/api/members/{member_id}", { params: { path: { member_id: memberId } } })),
   );
   const groupQuery = useApiQuery(
     ["groups", Number(groupId)],
@@ -487,9 +847,7 @@ function MembersOfGroup() {
   const gid = Number(groupId);
   const navigate = useNavigate();
   const groupQuery = useApiQuery(["groups", gid], () =>
-    unwrap(
-      client.GET("/api/members/groups/{group_id}", { params: { path: { group_id: gid } } }),
-    ),
+    unwrap(client.GET("/api/members/groups/{group_id}", { params: { path: { group_id: gid } } })),
   );
   const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
   const groupName = groupQuery.data?.name;
@@ -533,6 +891,24 @@ function MembersOfGroup() {
 }
 
 function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb[] }) {
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const removeMutation = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/{member_id}", { params: { path: { member_id: member.id } } }),
+      ),
+    {
+      invalidate: [["members"]],
+      onSuccess: () => {
+        toast.success("Mitglied gelöscht.");
+        navigate("/app/members");
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const toast = useToast();
   // Attach recovered model help_text to each row by its backend field name.
   const withHints = useRowHints();
@@ -551,11 +927,9 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
     () => unwrap(client.GET("/api/members/enums")),
     { enabled: editing },
   );
-  const groupsQuery = useApiQuery(
-    ["groups"],
-    () => unwrap(client.GET("/api/members/groups")),
-    { enabled: editing },
-  );
+  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
+    enabled: editing,
+  });
   const genderChoices = enumsQuery.data?.gender ?? [];
   const groups: GroupOut[] = groupsQuery.data ?? [];
 
@@ -638,11 +1012,31 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
     { label: "Vorname", value: member.prename, edit: text("prename"), field: "prename" },
     { label: "Nachname", value: member.lastname, edit: text("lastname"), field: "lastname" },
     { label: "E-Mail", value: member.email || "—", edit: text("email"), field: "email" },
-    { label: "Alternative E-Mail", value: member.alternative_email || "—", edit: text("alternative_email"), field: "alternative_email" },
-    { label: "Telefon", value: member.phone_number || "—", edit: text("phone_number"), field: "phone_number" },
-    { label: "Geburtsdatum", value: formatDate(member.birth_date), edit: text("birth_date", "date"), field: "birth_date" },
+    {
+      label: "Alternative E-Mail",
+      value: member.alternative_email || "—",
+      edit: text("alternative_email"),
+      field: "alternative_email",
+    },
+    {
+      label: "Telefon",
+      value: member.phone_number || "—",
+      edit: text("phone_number"),
+      field: "phone_number",
+    },
+    {
+      label: "Geburtsdatum",
+      value: formatDate(member.birth_date),
+      edit: text("birth_date", "date"),
+      field: "birth_date",
+    },
     { label: "Alter", value: member.age ?? "—" },
-    { label: "Geschlecht", value: member.gender_display || member.gender_str, edit: genderEdit, field: "gender" },
+    {
+      label: "Geschlecht",
+      value: member.gender_display || member.gender_str,
+      edit: genderEdit,
+      field: "gender",
+    },
     {
       label: "Gruppen",
       value: member.groups.length ? member.groups.map((g) => g.name).join(", ") : "—",
@@ -660,11 +1054,41 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       ),
       edit: <RegistrationFormEdit member={member} />,
     },
-    fileRow("Bild", member.image),
-    { label: "Eintrittsdatum", value: formatDate(member.join_date), edit: text("join_date", "date"), field: "join_date" },
-    { label: "Austrittsdatum", value: formatDate(member.leave_date), edit: text("leave_date", "date"), field: "leave_date" },
-    { label: "Kommentare", value: member.comments || "—", edit: area("comments"), field: "comments" },
-    { label: "Erziehungsberechtigte", value: member.legal_guardians || "—", edit: text("legal_guardians"), field: "legal_guardians" },
+    {
+      label: "Bild",
+      value: member.image ? (
+        <a href={documentHref(member.image)} target="_blank" rel="noreferrer">
+          Öffnen
+        </a>
+      ) : (
+        "—"
+      ),
+      edit: <MemberImageEdit member={member} />,
+    },
+    {
+      label: "Eintrittsdatum",
+      value: formatDate(member.join_date),
+      edit: text("join_date", "date"),
+      field: "join_date",
+    },
+    {
+      label: "Austrittsdatum",
+      value: formatDate(member.leave_date),
+      edit: text("leave_date", "date"),
+      field: "leave_date",
+    },
+    {
+      label: "Kommentare",
+      value: member.comments || "—",
+      edit: area("comments"),
+      field: "comments",
+    },
+    {
+      label: "Erziehungsberechtigte",
+      value: member.legal_guardians || "—",
+      edit: text("legal_guardians"),
+      field: "legal_guardians",
+    },
     { label: "Aktiv", value: boolBadge(member.active), edit: check("active"), field: "active" },
     { label: "Echo erhalten", value: boolBadge(member.echoed) },
     { label: "Nutzer", value: member.user_display || "—" },
@@ -673,16 +1097,31 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
   ];
 
   const contactRows: DetailRow[] = [
-    { label: "Straße und Hausnummer", value: member.street || "—", edit: text("street"), field: "street" },
+    {
+      label: "Straße und Hausnummer",
+      value: member.street || "—",
+      edit: text("street"),
+      field: "street",
+    },
     { label: "PLZ", value: member.plz || "—", edit: text("plz"), field: "plz" },
     { label: "Ort", value: member.town || "—", edit: text("town"), field: "town" },
-    { label: "Adresszusatz", value: member.address_extra || "—", edit: text("address_extra"), field: "address_extra" },
+    {
+      label: "Adresszusatz",
+      value: member.address_extra || "—",
+      edit: text("address_extra"),
+      field: "address_extra",
+    },
     { label: "Land", value: member.country || "—", edit: text("country"), field: "country" },
     {
       label: "IBAN",
       value: member.iban ? (
         <>
-          {member.iban} {member.iban_valid ? <Badge tone="success">gültig</Badge> : <Badge tone="danger">ungültig</Badge>}
+          {member.iban}{" "}
+          {member.iban_valid ? (
+            <Badge tone="success">gültig</Badge>
+          ) : (
+            <Badge tone="danger">ungültig</Badge>
+          )}
         </>
       ) : (
         "—"
@@ -693,9 +1132,24 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
   ];
 
   const skillsRows: DetailRow[] = [
-    { label: "Schwimmabzeichen", value: boolBadge(member.swimming_badge), edit: check("swimming_badge"), field: "swimming_badge" },
-    { label: "Kletterabzeichen", value: member.climbing_badge || "—", edit: text("climbing_badge"), field: "climbing_badge" },
-    { label: "Alpine Erfahrung", value: member.alpine_experience || "—", edit: area("alpine_experience"), field: "alpine_experience" },
+    {
+      label: "Schwimmabzeichen",
+      value: boolBadge(member.swimming_badge),
+      edit: check("swimming_badge"),
+      field: "swimming_badge",
+    },
+    {
+      label: "Kletterabzeichen",
+      value: member.climbing_badge || "—",
+      edit: text("climbing_badge"),
+      field: "climbing_badge",
+    },
+    {
+      label: "Alpine Erfahrung",
+      value: member.alpine_experience || "—",
+      edit: area("alpine_experience"),
+      field: "alpine_experience",
+    },
     {
       label: "Ausflüge",
       value: member.activities.length
@@ -705,11 +1159,36 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
   ];
 
   const othersRows: DetailRow[] = [
-    { label: "DAV-Ausweisnummer", value: member.dav_badge_no || "—", edit: text("dav_badge_no"), field: "dav_badge_no" },
-    { label: "Ticketnummer", value: member.ticket_no || "—", edit: text("ticket_no"), field: "ticket_no" },
-    { label: "Allergien", value: member.allergies || "—", edit: area("allergies"), field: "allergies" },
-    { label: "Tetanusimpfung", value: member.tetanus_vaccination || "—", edit: text("tetanus_vaccination"), field: "tetanus_vaccination" },
-    { label: "Medikamente", value: member.medication || "—", edit: area("medication"), field: "medication" },
+    {
+      label: "DAV-Ausweisnummer",
+      value: member.dav_badge_no || "—",
+      edit: text("dav_badge_no"),
+      field: "dav_badge_no",
+    },
+    {
+      label: "Ticketnummer",
+      value: member.ticket_no || "—",
+      edit: text("ticket_no"),
+      field: "ticket_no",
+    },
+    {
+      label: "Allergien",
+      value: member.allergies || "—",
+      edit: area("allergies"),
+      field: "allergies",
+    },
+    {
+      label: "Tetanusimpfung",
+      value: member.tetanus_vaccination || "—",
+      edit: text("tetanus_vaccination"),
+      field: "tetanus_vaccination",
+    },
+    {
+      label: "Medikamente",
+      value: member.medication || "—",
+      edit: area("medication"),
+      field: "medication",
+    },
     {
       label: "Fotos dürfen gemacht werden",
       value: boolBadge(member.photos_may_be_taken),
@@ -732,8 +1211,18 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       field: "good_conduct_certificate_presented_date",
     },
     { label: "Führungszeugnis gültig", value: boolBadge(member.good_conduct_certificate_valid) },
-    { label: "Schlüssel", value: boolBadge(member.has_key), edit: check("has_key"), field: "has_key" },
-    { label: "Freikarte Halle", value: boolBadge(member.has_free_ticket_gym), edit: check("has_free_ticket_gym"), field: "has_free_ticket_gym" },
+    {
+      label: "Schlüssel",
+      value: boolBadge(member.has_key),
+      edit: check("has_key"),
+      field: "has_key",
+    },
+    {
+      label: "Freikarte Halle",
+      value: boolBadge(member.has_free_ticket_gym),
+      edit: check("has_free_ticket_gym"),
+      field: "has_free_ticket_gym",
+    },
   ];
 
   return (
@@ -809,6 +1298,25 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
                 Zurück
               </Button>
               <MemberActions member={member} />
+              {can("members.delete_global_member") && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={removeMutation.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${member.name}“ wirklich löschen?`,
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      removeMutation.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
@@ -818,15 +1326,114 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       />
       <Tabs
         tabs={[
-          { id: "stammdaten", label: "Stammdaten", content: <EditableDetail rows={withHints(mainRows, "member")} editing={editing} errors={fieldErrors} /> },
-          { id: "kontakt", label: "Kontaktdaten", content: <EditableDetail rows={withHints(contactRows, "member")} editing={editing} errors={fieldErrors} /> },
-          { id: "skills", label: "Fähigkeiten", content: <EditableDetail rows={withHints(skillsRows, "member")} editing={editing} errors={fieldErrors} /> },
-          { id: "sonstiges", label: "Sonstiges", content: <EditableDetail rows={withHints(othersRows, "member")} editing={editing} errors={fieldErrors} /> },
-          { id: "org", label: "Organisatorisch", content: <EditableDetail rows={withHints(orgRows, "member")} editing={editing} errors={fieldErrors} /> },
-          { id: "notfall", label: "Notfallkontakte", content: <>{sectionNote("emergency-contacts")}<EmergencyContactsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("notfall")} /></> },
-          { id: "dokumente", label: "Dokumente", content: <>{sectionNote("documents")}<DocumentsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("dokumente")} /></> },
-          { id: "ausbildungen", label: "Ausbildungen", content: <>{sectionNote("trainings")}<TrainingsInline memberId={member.id} editing={editing} registerFlush={getRegistrar("trainings")} /></> },
-          { id: "berechtigungen", label: "Berechtigungen", content: <PermissionMembersInline memberId={member.id} editing={editing} registerFlush={getRegistrar("berechtigungen")} /> },
+          {
+            id: "stammdaten",
+            label: "Stammdaten",
+            content: (
+              <EditableDetail
+                rows={withHints(mainRows, "member")}
+                editing={editing}
+                errors={fieldErrors}
+              />
+            ),
+          },
+          {
+            id: "kontakt",
+            label: "Kontaktdaten",
+            content: (
+              <EditableDetail
+                rows={withHints(contactRows, "member")}
+                editing={editing}
+                errors={fieldErrors}
+              />
+            ),
+          },
+          {
+            id: "skills",
+            label: "Fähigkeiten",
+            content: (
+              <EditableDetail
+                rows={withHints(skillsRows, "member")}
+                editing={editing}
+                errors={fieldErrors}
+              />
+            ),
+          },
+          {
+            id: "sonstiges",
+            label: "Sonstiges",
+            content: (
+              <EditableDetail
+                rows={withHints(othersRows, "member")}
+                editing={editing}
+                errors={fieldErrors}
+              />
+            ),
+          },
+          {
+            id: "org",
+            label: "Organisatorisch",
+            content: (
+              <EditableDetail
+                rows={withHints(orgRows, "member")}
+                editing={editing}
+                errors={fieldErrors}
+              />
+            ),
+          },
+          {
+            id: "notfall",
+            label: "Notfallkontakte",
+            content: (
+              <>
+                {sectionNote("emergency-contacts")}
+                <EmergencyContactsInline
+                  memberId={member.id}
+                  editing={editing}
+                  registerFlush={getRegistrar("notfall")}
+                />
+              </>
+            ),
+          },
+          {
+            id: "dokumente",
+            label: "Dokumente",
+            content: (
+              <>
+                {sectionNote("documents")}
+                <DocumentsInline
+                  memberId={member.id}
+                  editing={editing}
+                  registerFlush={getRegistrar("dokumente")}
+                />
+              </>
+            ),
+          },
+          {
+            id: "ausbildungen",
+            label: "Ausbildungen",
+            content: (
+              <>
+                {sectionNote("trainings")}
+                <TrainingsInline
+                  memberId={member.id}
+                  editing={editing}
+                  registerFlush={getRegistrar("trainings")}
+                />
+              </>
+            ),
+          },
+          {
+            id: "berechtigungen",
+            label: "Berechtigungen",
+            content: (
+              <PermissionMembersInline
+                memberId={member.id}
+                editing={editing}
+                registerFlush={getRegistrar("berechtigungen")}
+              />
+            ),
+          },
         ]}
       />
     </form>
@@ -965,7 +1572,9 @@ function EmergencyContactsInline({
             <div className="row-actions">
               <Button
                 type="button"
-                disabled={!adding.prename.trim() || !adding.lastname.trim() || !adding.phone_number.trim()}
+                disabled={
+                  !adding.prename.trim() || !adding.lastname.trim() || !adding.phone_number.trim()
+                }
                 onClick={() => {
                   addRow(adding);
                   setAdding(null);
@@ -1098,7 +1707,13 @@ function DocumentsInline({
       {adding && (
         <Modal title="Dokument hinzufügen" onClose={() => setAdding(false)} size="sm">
           <div className="stack">
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <Field label="Datei" hint="PDF oder Bild, maximal 5 MiB.">
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/gif"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </Field>
             <div className="row-actions">
               <Button
                 type="button"
@@ -1123,9 +1738,10 @@ function DocumentsInline({
 
 /* --- inline: Ausbildungen -------------------------------------------------
  * Edit-in-place for the straightforward fields (title, date, participated,
- * passed), flushed on the main Save. The trainings API exposes only GET/PATCH,
- * so there is no add/delete here; category & activities are edited on the
- * training's own detail page (the read-only title links there). */
+ * passed) plus add / remove, all flushed on the main Save — matching the
+ * admin's ``TrainingOnMemberInline`` (which had ``extra = 1``). The activities
+ * of a training are still edited on its own detail page (the title links there);
+ * the certificate of attendance is uploaded from the row. */
 
 type TrainingData = {
   title: string;
@@ -1133,6 +1749,8 @@ type TrainingData = {
   participated: boolean;
   passed: boolean;
   category_name: string;
+  category_id: number | null;
+  certificate: string | null;
 };
 
 function TrainingsInline({
@@ -1157,6 +1775,34 @@ function TrainingsInline({
       ),
     { invalidate: [["members", "trainings"]] },
   );
+  const createM = useApiMutation<TrainingOut, TrainingData>(
+    (d) =>
+      unwrap(
+        client.POST("/api/members/trainings", {
+          body: {
+            member_id: memberId,
+            category_id: d.category_id as number,
+            title: d.title,
+            date: d.date || null,
+            activity_ids: [],
+          },
+        }),
+      ),
+    { invalidate: [["members", "trainings"]] },
+  );
+  const removeM = useApiMutation<unknown, number>(
+    (id) =>
+      unwrap(
+        client.DELETE("/api/members/trainings/{training_id}", {
+          params: { path: { training_id: id } },
+        }),
+      ),
+    { invalidate: [["members", "trainings"]] },
+  );
+  const categories = useApiQuery(["training-categories"], () =>
+    unwrap(client.GET("/api/members/training-categories")),
+  );
+  const [adding, setAdding] = useState<TrainingData | null>(null);
 
   const serverRows = (query.data ?? [])
     .filter((t) => t.member_id === memberId)
@@ -1168,13 +1814,15 @@ function TrainingsInline({
         participated: t.participated ?? false,
         passed: t.passed ?? false,
         category_name: t.category_name,
+        category_id: t.category_id ?? null,
+        certificate: t.certificate ?? null,
       } as TrainingData,
     }));
 
-  const { rows, setRow } = useInlineDraft<TrainingData>({
+  const { rows, setRow, removeRow, addRow } = useInlineDraft<TrainingData>({
     serverRows,
     editing,
-    create: () => Promise.resolve(),
+    create: (d) => createM.mutateAsync(d),
     update: (id, d) =>
       updateM.mutateAsync({
         id,
@@ -1185,72 +1833,215 @@ function TrainingsInline({
           passed: d.passed,
         },
       }),
-    remove: () => Promise.resolve(),
+    remove: (id) => removeM.mutateAsync(id),
     registerFlush,
   });
 
+  const categoryOptions = (categories.data ?? []).map((c) => ({ value: c.id, label: c.name }));
+
   return (
-    <InlineTable
-      title="Ausbildungen"
-      rows={rows}
-      rowKey={(row) => row.key}
-      editing={editing}
-      empty="Keine Ausbildungen."
-      columns={[
-        { header: "Kategorie", cell: (row) => row.data.category_name },
-        {
-          header: "Titel",
-          cell: (row) =>
-            editing ? (
-              <input
-                value={row.data.title}
-                onChange={(e) => setRow(row, { ...row.data, title: e.target.value })}
+    <>
+      <InlineTable
+        title="Ausbildungen"
+        rows={rows}
+        rowKey={(row) => row.key}
+        editing={editing}
+        empty="Keine Ausbildungen."
+        onDelete={(row) => removeRow(row)}
+        onAdd={
+          categoryOptions.length
+            ? () =>
+                setAdding({
+                  title: "",
+                  date: "",
+                  participated: false,
+                  passed: false,
+                  category_name: categoryOptions[0].label,
+                  category_id: categoryOptions[0].value,
+                  certificate: null,
+                })
+            : undefined
+        }
+        addLabel="Ausbildung"
+        columns={[
+          { header: "Kategorie", cell: (row) => row.data.category_name },
+          {
+            header: "Titel",
+            cell: (row) =>
+              editing ? (
+                <input
+                  value={row.data.title}
+                  onChange={(e) => setRow(row, { ...row.data, title: e.target.value })}
+                />
+              ) : (
+                <Link to={`/app/trainings/${row.id}`}>{row.data.title || "—"}</Link>
+              ),
+          },
+          {
+            header: "Datum",
+            cell: (row) =>
+              editing ? (
+                <input
+                  type="date"
+                  value={row.data.date}
+                  onChange={(e) => setRow(row, { ...row.data, date: e.target.value })}
+                />
+              ) : (
+                formatDate(row.data.date)
+              ),
+          },
+          {
+            header: "Teilgenommen",
+            cell: (row) =>
+              editing ? (
+                <input
+                  type="checkbox"
+                  checked={row.data.participated}
+                  onChange={(e) => setRow(row, { ...row.data, participated: e.target.checked })}
+                />
+              ) : (
+                boolBadge(row.data.participated)
+              ),
+          },
+          {
+            header: "Bestanden",
+            cell: (row) =>
+              editing ? (
+                <input
+                  type="checkbox"
+                  checked={row.data.passed}
+                  onChange={(e) => setRow(row, { ...row.data, passed: e.target.checked })}
+                />
+              ) : (
+                boolBadge(row.data.passed)
+              ),
+          },
+          {
+            header: "Nachweis",
+            cell: (row) =>
+              row.id === null ? (
+                <span className="muted small">nach dem Speichern</span>
+              ) : (
+                <TrainingCertificate
+                  trainingId={row.id}
+                  url={row.data.certificate}
+                  editing={editing}
+                />
+              ),
+          },
+        ]}
+      />
+      {adding && (
+        <Modal title="Ausbildung hinzufügen" onClose={() => setAdding(null)} size="sm">
+          <div className="stack">
+            <Field label="Kategorie *">
+              <Select
+                value={String(adding.category_id ?? "")}
+                onChange={(v) => {
+                  const opt = categoryOptions.find((o) => String(o.value) === v);
+                  setAdding({ ...adding, category_id: Number(v), category_name: opt?.label ?? "" });
+                }}
+                options={categoryOptions}
               />
-            ) : (
-              <Link to={`/app/trainings/${row.id}`}>{row.data.title || "—"}</Link>
-            ),
-        },
-        {
-          header: "Datum",
-          cell: (row) =>
-            editing ? (
+            </Field>
+            <Field label="Titel *">
+              <input
+                value={adding.title}
+                onChange={(e) => setAdding({ ...adding, title: e.target.value })}
+              />
+            </Field>
+            <Field label="Datum">
               <input
                 type="date"
-                value={row.data.date}
-                onChange={(e) => setRow(row, { ...row.data, date: e.target.value })}
+                value={adding.date}
+                onChange={(e) => setAdding({ ...adding, date: e.target.value })}
               />
-            ) : (
-              formatDate(row.data.date)
-            ),
-        },
-        {
-          header: "Teilgenommen",
-          cell: (row) =>
-            editing ? (
-              <input
-                type="checkbox"
-                checked={row.data.participated}
-                onChange={(e) => setRow(row, { ...row.data, participated: e.target.checked })}
-              />
-            ) : (
-              boolBadge(row.data.participated)
-            ),
-        },
-        {
-          header: "Bestanden",
-          cell: (row) =>
-            editing ? (
-              <input
-                type="checkbox"
-                checked={row.data.passed}
-                onChange={(e) => setRow(row, { ...row.data, passed: e.target.checked })}
-              />
-            ) : (
-              boolBadge(row.data.passed)
-            ),
-        },
-      ]}
-    />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                disabled={!adding.title.trim() || !adding.category_id}
+                onClick={() => {
+                  addRow(adding);
+                  setAdding(null);
+                }}
+              >
+                Hinzufügen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/** Upload / open a training's certificate of attendance (multipart). */
+function TrainingCertificate({
+  trainingId,
+  url,
+  editing,
+}: {
+  trainingId: number;
+  url: string | null;
+  editing: boolean;
+}) {
+  const toast = useToast();
+  const upload = useApiMutation(
+    async (f: File) => {
+      const fd = new FormData();
+      fd.append("f", f);
+      const res = await fetch(`${API_BASE}/api/members/trainings/${trainingId}/certificate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        let detail: unknown = null;
+        try {
+          detail = await res.json();
+        } catch {
+          /* non-JSON error body */
+        }
+        throw new ApiError(res.status, detail);
+      }
+      return res.json();
+    },
+    {
+      invalidate: [["members", "trainings"]],
+      onSuccess: () => toast.success("Nachweis hochgeladen."),
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
+  if (!editing) {
+    return url ? (
+      <a href={documentHref(url)} target="_blank" rel="noreferrer">
+        Öffnen
+      </a>
+    ) : (
+      <span className="muted">—</span>
+    );
+  }
+  return (
+    <div className="stack">
+      {url && (
+        <a href={documentHref(url)} target="_blank" rel="noreferrer">
+          Aktuellen Nachweis öffnen
+        </a>
+      )}
+      <input
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/gif"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) upload.mutate(f);
+        }}
+      />
+    </div>
   );
 }
 
@@ -1404,8 +2195,12 @@ function PermissionMembersInline({
         cell: (row: DraftRow<PermData>) =>
           editing ? (
             <div className="stack">
-              {memberSelect(row.data[p.mk], (v) => setRow(row, { ...row.data, [p.mk]: v } as PermData))}
-              {groupSelect(row.data[p.gk], (v) => setRow(row, { ...row.data, [p.gk]: v } as PermData))}
+              {memberSelect(row.data[p.mk], (v) =>
+                setRow(row, { ...row.data, [p.mk]: v } as PermData),
+              )}
+              {groupSelect(row.data[p.gk], (v) =>
+                setRow(row, { ...row.data, [p.gk]: v } as PermData),
+              )}
             </div>
           ) : (
             <div className="small">
@@ -1413,7 +2208,9 @@ function PermissionMembersInline({
                 Teilnehmende:{" "}
                 {row.data[p.mk].length ? row.data[p.mk].map(memberName).join(", ") : "—"}
               </div>
-              <div>Gruppen: {row.data[p.gk].length ? row.data[p.gk].map(groupName).join(", ") : "—"}</div>
+              <div>
+                Gruppen: {row.data[p.gk].length ? row.data[p.gk].map(groupName).join(", ") : "—"}
+              </div>
             </div>
           ),
       }))}
@@ -1427,35 +2224,67 @@ function MemberActions({ member }: { member: MemberOut }) {
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
 
-  const action = (label: string, run: () => Promise<unknown>) => ({ label, run });
+  const recipient = member.email || member.name;
 
+  const action = (
+    label: string,
+    question: string,
+    success: string,
+    run: () => Promise<unknown>,
+  ) => ({ label, question, success, run });
+
+  // Each of these sends an e-mail immediately, so each asks first and then says
+  // what was sent and to whom.
   const actions = [
-    action("Echo anfordern", () =>
-      unwrap(
-        client.POST("/api/members/{member_id}/request-echo", {
-          params: { path: { member_id: member.id } },
-        }),
-      ),
+    action(
+      "Echo anfordern",
+      `${member.name} per E-Mail an ${recipient} auffordern, die eigenen Daten zu prüfen?`,
+      `Rückmeldungs-Anfrage an ${recipient} verschickt.`,
+      () =>
+        unwrap(
+          client.POST("/api/members/{member_id}/request-echo", {
+            params: { path: { member_id: member.id } },
+          }),
+        ),
     ),
-    action("Als Nutzer einladen", () =>
-      unwrap(
-        client.POST("/api/members/{member_id}/invite-as-user", {
-          params: { path: { member_id: member.id } },
-        }),
-      ),
+    action(
+      "Als Nutzer einladen",
+      `${member.name} per E-Mail an ${recipient} einladen, einen Kompass-Zugang anzulegen?`,
+      `Einladung an ${recipient} verschickt.`,
+      () =>
+        unwrap(
+          client.POST("/api/members/{member_id}/invite-as-user", {
+            params: { path: { member_id: member.id } },
+          }),
+        ),
     ),
-    action("Passwort-Reset anfordern", () =>
-      unwrap(
-        client.POST("/api/members/{member_id}/request-password-reset", {
-          params: { path: { member_id: member.id } },
-        }),
-      ),
+    action(
+      "Passwort-Reset anfordern",
+      `${member.name} per E-Mail an ${recipient} einen Link zum Zurücksetzen des Passworts schicken?`,
+      `Passwort-Link an ${recipient} verschickt.`,
+      () =>
+        unwrap(
+          client.POST("/api/members/{member_id}/request-password-reset", {
+            params: { path: { member_id: member.id } },
+          }),
+        ),
+    ),
+    action(
+      "Anmeldebogen anfordern",
+      `${member.name} per E-Mail an ${recipient} auffordern, den unterschriebenen Anmeldebogen hochzuladen?`,
+      `Anfrage an ${recipient} verschickt.`,
+      () =>
+        unwrap(
+          client.POST("/api/members/{member_id}/request-registration-form", {
+            params: { path: { member_id: member.id } },
+          }),
+        ),
     ),
   ];
 
-  const mutation = useApiMutation((run: () => Promise<unknown>) => run(), {
+  const mutation = useApiMutation((a: (typeof actions)[number]) => a.run(), {
     invalidate: [["members"], ["members", member.id]],
-    onSuccess: () => toast.success("Aktion ausgeführt."),
+    onSuccess: (_data, a) => toast.success(a.success),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -1489,7 +2318,10 @@ function MemberActions({ member }: { member: MemberOut }) {
           type="button"
           variant="ghost"
           busy={busy}
-          onClick={() => mutation.mutate(a.run)}
+          onClick={async () => {
+            if (await confirm({ title: a.label, message: a.question, confirmLabel: "Senden" }))
+              mutation.mutate(a);
+          }}
         >
           {a.label}
         </Button>

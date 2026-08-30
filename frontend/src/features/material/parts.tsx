@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
+import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
@@ -13,15 +14,16 @@ import {
   DataTable,
   EditableDetail,
   Field,
+  formatDate,
   Modal,
   MultiSelect,
   PageHeader,
   QueryBoundary,
   Select,
   Tabs,
+  type DetailRow,
   useConfirmDialog,
   useToast,
-  type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
@@ -39,6 +41,7 @@ function ownersText(owners: PartOwnerBrief[]): string {
 /* --- list ---------------------------------------------------------------- */
 
 export function PartsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["material", "parts"], () =>
@@ -101,7 +104,11 @@ export function PartsList() {
       <PageHeader
         breadcrumbs={[{ label: "Material" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neues Material</Button>}
+        actions={
+          can("material.add_materialpart") && (
+            <Button onClick={() => setCreating(true)}>Neues Material</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neues Material" onClose={() => setCreating(false)}>
@@ -126,9 +133,9 @@ export function PartsList() {
             columns={[
               { header: "Name", cell: (p) => p.name, sortKey: "name" },
               { header: "Beschreibung", cell: (p) => p.description || "—", sortKey: "description" },
-              { header: "Verfügbar", cell: (p) => p.quantity_real, sortKey: "quantity" },
+              { header: "Anzahl", cell: (p) => p.quantity_real, sortKey: "quantity" },
               { header: "Besitzer", cell: (p) => ownersText(p.owners) },
-              { header: "Kaufdatum", cell: (p) => p.buy_date, sortKey: "buy_date" },
+              { header: "Kaufdatum", cell: (p) => formatDate(p.buy_date), sortKey: "buy_date" },
               { header: "Lebenszeit", cell: (p) => p.lifetime, sortKey: "lifetime" },
               {
                 header: "Zustand",
@@ -271,11 +278,11 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
         />
       ),
     },
-    { label: "Verfügbar (nach Besitz)", value: part.quantity_real },
+    { label: "Anzahl (zugeordnet / gesamt)", value: part.quantity_real },
     {
       label: "Kaufdatum",
       field: "buy_date",
-      value: part.buy_date,
+      value: formatDate(part.buy_date),
       edit: (
         <input
           type="date"

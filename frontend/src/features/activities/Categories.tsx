@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { useRowHints } from "../../api/helpTexts";
 import {
@@ -14,6 +15,7 @@ import {
   PageHeader,
   QueryBoundary,
   Select,
+  useConfirmDialog,
   useToast,
   type DetailRow,
 } from "../../components/ui";
@@ -30,6 +32,7 @@ type TrainingCategoryUpdate = components["schemas"]["TrainingCategoryUpdate"];
 /* ====================================================================== */
 
 export function ActivityCategoriesList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const toast = useToast();
   const query = useApiQuery(["activity-categories"], () =>
@@ -69,7 +72,9 @@ export function ActivityCategoriesList() {
         subtitle={query.data ? `${query.data.length} Kategorien` : undefined}
         actions={
           <div className="row-actions">
-            <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
+            {can("members.add_activitycategory") && (
+              <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
+            )}
             <Button variant="ghost" onClick={() => navigate("/app/training-categories")}>
               Ausbildungskategorien
             </Button>
@@ -161,6 +166,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
   const navigate = useNavigate();
   // Attach recovered model help_text to each row by its backend field name.
   const withHints = useRowHints();
+  const confirm = useConfirmDialog();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => ({
     name: cat.name,
@@ -279,7 +285,16 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
                 type="button"
                 variant="danger"
                 busy={remove.isPending}
-                onClick={() => remove.mutate(undefined)}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Diese Aktivitätskategorie wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    remove.mutate(undefined);
+                }}
               >
                 Löschen
               </Button>
@@ -290,7 +305,11 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
           )
         }
       />
-      <EditableDetail rows={withHints(rows, "activitycategory")} editing={editing} errors={fieldErrors} />
+      <EditableDetail
+        rows={withHints(rows, "activitycategory")}
+        editing={editing}
+        errors={fieldErrors}
+      />
     </form>
   );
 }
@@ -300,6 +319,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
 /* ====================================================================== */
 
 export function TrainingCategoriesList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const toast = useToast();
   const query = useApiQuery(["training-categories"], () =>
@@ -337,7 +357,9 @@ export function TrainingCategoriesList() {
         subtitle={query.data ? `${query.data.length} Kategorien` : undefined}
         actions={
           <div className="row-actions">
-            <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
+            {can("members.add_trainingcategory") && (
+              <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
+            )}
             <Button variant="ghost" onClick={() => navigate("/app/activity-categories")}>
               Aktivitätskategorien
             </Button>
@@ -432,6 +454,7 @@ export function TrainingCategoryDetailPage() {
 function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
   const toast = useToast();
   const navigate = useNavigate();
+  const confirm = useConfirmDialog();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => ({
     name: cat.name,
@@ -538,7 +561,16 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
                 type="button"
                 variant="danger"
                 busy={remove.isPending}
-                onClick={() => remove.mutate(undefined)}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      message: "Diese Ausbildungskategorie wirklich löschen?",
+                      danger: true,
+                      confirmLabel: "Löschen",
+                    })
+                  )
+                    remove.mutate(undefined);
+                }}
               >
                 Löschen
               </Button>

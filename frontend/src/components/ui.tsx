@@ -177,6 +177,7 @@ export function DataTable<T>({
   empty = "Keine Einträge.",
   sort,
   onSort,
+  selection,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -185,13 +186,31 @@ export function DataTable<T>({
   empty?: ReactNode;
   sort?: SortState;
   onSort?: (key: string) => void;
+  /** Enables the leading checkbox column (the admin's bulk-action selector). */
+  selection?: {
+    selected: Set<string | number>;
+    onToggle: (key: string | number) => void;
+    onToggleAll: (keys: (string | number)[]) => void;
+  };
 }) {
   if (rows.length === 0) return <EmptyState>{empty}</EmptyState>;
+  const keys = rows.map(rowKey);
+  const allSelected = keys.length > 0 && keys.every((k) => selection?.selected.has(k));
   return (
     <div className="table-wrap">
       <table className="data-table">
         <thead>
           <tr>
+            {selection && (
+              <th className="select-col">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  aria-label="Alle auswählen"
+                  onChange={() => selection.onToggleAll(keys)}
+                />
+              </th>
+            )}
             {columns.map((c) => {
               const sortable = onSort && c.sortKey;
               const active = sort && c.sortKey === sort.key;
@@ -217,21 +236,59 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr
-              key={rowKey(row)}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={onRowClick ? "clickable" : undefined}
-            >
-              {columns.map((c) => (
-                <td key={c.header}>{c.cell(row)}</td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const key = rowKey(row);
+            return (
+              <tr
+                key={key}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={onRowClick ? "clickable" : undefined}
+              >
+                {selection && (
+                  // Stop the click here: selecting a row must not also open it.
+                  <td className="select-col" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selection.selected.has(key)}
+                      aria-label="Zeile auswählen"
+                      onChange={() => selection.onToggle(key)}
+                    />
+                  </td>
+                )}
+                {columns.map((c) => (
+                  <td key={c.header}>{c.cell(row)}</td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
+}
+
+/**
+ * Bulk-selection state for a list, mirroring the admin changelist's action bar.
+ * Selection is kept as row keys so it survives re-sorting and re-filtering.
+ */
+export function useRowSelection<K extends string | number>() {
+  const [selected, setSelected] = useState<Set<K>>(() => new Set());
+  const toggle = useCallback((key: K) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+  const toggleAll = useCallback((keys: K[]) => {
+    setSelected((prev) => {
+      const allOn = keys.length > 0 && keys.every((k) => prev.has(k));
+      return allOn ? new Set() : new Set(keys);
+    });
+  }, []);
+  const clear = useCallback(() => setSelected(new Set()), []);
+  return { selected, toggle, toggleAll, clear, count: selected.size };
 }
 
 /* --- tabs ---------------------------------------------------------------- */
@@ -387,6 +444,19 @@ export function Field({
       {hint && <span className="field-hint">{hint}</span>}
     </label>
   );
+}
+
+/* --- formatting ----------------------------------------------------------- */
+
+/** Render an ISO date (``YYYY-MM-DD``) as a German date, tolerating null.
+ *
+ * Dates used to be shown raw in material, Termine and the CMS while members and
+ * excursions formatted theirs, so the same value looked different depending on
+ * which page you were on. */
+export function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("de-DE");
 }
 
 /* --- document title ------------------------------------------------------ */
@@ -763,11 +833,16 @@ export function Modal({
   // Rendered via a portal to <body> so the dialog is never nested inside a page
   // <form> — a modal button (incl. the × / type=submit save) can't accidentally
   // submit an outer form, and it always overlays regardless of layout context.
+  // The portal only breaks the *DOM* nesting though: React replays events along
+  // the component tree, so a submit inside the dialog would still reach the
+  // onSubmit of the page form this modal is rendered from. Stop it here — a
+  // dialog is its own surface and never submits what is behind it.
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className={`modal ${size}`}
         onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={title}
       >
@@ -872,6 +947,10 @@ const ToastContext = createContext<ToastApi | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // Auto-dismiss timers, so a pending one cannot fire after this provider is
+  // gone (it would set state on an unmounted tree).
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const push = useCallback((message: string, tone: "success" | "error") => {
     // Derive a stable-enough id from the current queue length + timestamp is not
@@ -883,7 +962,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       // Errors linger longer than confirmations — they carry more to read and
       // are more costly to miss. Either can be dismissed early with a click.
       const ttl = tone === "error" ? 7000 : 4000;
-      setTimeout(() => setToasts((cur) => cur.filter((t) => t.id !== id)), ttl);
+      timers.current.push(
+        setTimeout(() => setToasts((cur) => cur.filter((t) => t.id !== id)), ttl),
+      );
       return next;
     });
   }, []);

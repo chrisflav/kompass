@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { useFieldsetHelp, useRowHints, useSectionHelp } from "../../api/helpTexts";
 import { InlineTable } from "../../components/inline";
@@ -21,9 +22,9 @@ import {
   QueryBoundary,
   Select,
   Tabs,
+  type DetailRow,
   useConfirmDialog,
   useToast,
-  type DetailRow,
 } from "../../components/ui";
 import {
   ChoiceSelect,
@@ -77,6 +78,7 @@ function approvedBadge(approved: boolean | null | undefined) {
  * approved filter, and sortable date defaulting to newest first. */
 
 export function ExcursionsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["excursions"], () => unwrap(client.GET("/api/members/excursions")));
@@ -154,7 +156,9 @@ export function ExcursionsList() {
             <Button variant="ghost" onClick={() => navigate("/app/activity-categories")}>
               Kategorien verwalten
             </Button>
-            <Button onClick={() => setCreating(true)}>Neue Ausfahrt</Button>
+            {can("members.add_global_freizeit") && (
+              <Button onClick={() => setCreating(true)}>Neue Ausfahrt</Button>
+            )}
           </div>
         }
       />
@@ -177,11 +181,7 @@ export function ExcursionsList() {
               { header: "Aktivität", cell: (e) => e.name || "—", sortKey: "name" },
               { header: "Datum", cell: (e) => formatDate(e.date), sortKey: "date" },
               { header: "Ort", cell: (e) => e.place || "—", sortKey: "place" },
-              {
-                header: "Genehmigt",
-                cell: (e) => approvedBadge(e.approved),
-                sortKey: "approved",
-              },
+              { header: "Genehmigt", cell: (e) => approvedBadge(e.approved), sortKey: "approved" },
             ]}
           />
         )}
@@ -368,6 +368,26 @@ function makeForm(e: ExcursionOut) {
 }
 
 function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const removeMutation = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/excursions/{excursion_id}", {
+          params: { path: { excursion_id: excursion.id } },
+        }),
+      ),
+    {
+      invalidate: [["excursions"]],
+      onSuccess: () => {
+        toast.success("Ausfahrt gelöscht.");
+        navigate("/app/excursions");
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const toast = useToast();
   // Attach recovered model help_text to each row by its backend field name.
   const withHints = useRowHints();
@@ -389,16 +409,12 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
   const [showFinance, setShowFinance] = useState(false);
   const { getRegistrar, runFlushes } = useFlushRegistry();
 
-  const groupsQuery = useApiQuery(
-    ["groups"],
-    () => unwrap(client.GET("/api/members/groups")),
-    { enabled: editing },
-  );
-  const membersQuery = useApiQuery(
-    ["members"],
-    () => unwrap(client.GET("/api/members/")),
-    { enabled: editing },
-  );
+  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
+    enabled: editing,
+  });
+  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
+    enabled: editing,
+  });
   const categoriesQuery = useApiQuery(
     ["activity-categories"],
     () => unwrap(client.GET("/api/members/activity-categories")),
@@ -695,9 +711,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         <input
           type="number"
           value={form.approved_extra_youth_leader_count}
-          onChange={(e) =>
-            setForm({ ...form, approved_extra_youth_leader_count: e.target.value })
-          }
+          onChange={(e) => setForm({ ...form, approved_extra_youth_leader_count: e.target.value })}
         />
       ),
     },
@@ -794,7 +808,9 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
     if ((form.approval_comments || "") !== (excursion.approval_comments || "")) {
       body.approval_comments = form.approval_comments || null;
     }
-    if (Number(form.approved_extra_youth_leader_count) !== excursion.approved_extra_youth_leader_count) {
+    if (
+      Number(form.approved_extra_youth_leader_count) !== excursion.approved_extra_youth_leader_count
+    ) {
       body.approved_extra_youth_leader_count = Number(form.approved_extra_youth_leader_count);
     }
     try {
@@ -912,6 +928,25 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
                   SJR-Antrag
                 </DownloadButton>
               </Menu>
+              {can("members.delete_global_freizeit") && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={removeMutation.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${excursion.name || excursion.code}“ wirklich löschen?`,
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      removeMutation.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
@@ -928,7 +963,11 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
             content: (
               <>
                 {fsetNote("name")}
-                <EditableDetail rows={withHints(generalRows, "freizeit")} editing={editing} errors={fieldErrors} />
+                <EditableDetail
+                  rows={withHints(generalRows, "freizeit")}
+                  editing={editing}
+                  errors={fieldErrors}
+                />
               </>
             ),
           },
@@ -938,7 +977,11 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
             content: (
               <>
                 {fsetNote("approved")}
-                <EditableDetail rows={withHints(approvalRows, "freizeit")} editing={editing} errors={fieldErrors} />
+                <EditableDetail
+                  rows={withHints(approvalRows, "freizeit")}
+                  editing={editing}
+                  errors={fieldErrors}
+                />
               </>
             ),
           },
@@ -951,27 +994,27 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
                 <ParticipantsInline
                   title="Teilnehmer*innen"
                   editing={editing}
-                queryKey={["excursions", excursion.id, "participants"]}
-                listFn={() =>
-                  unwrap(
-                    client.GET("/api/members/excursions/{excursion_id}/participants", {
-                      params: { path: { excursion_id: excursion.id } },
-                    }),
-                  )
-                }
-                createFn={(body) =>
-                  unwrap(
-                    client.POST("/api/members/excursions/{excursion_id}/participants", {
-                      params: { path: { excursion_id: excursion.id } },
-                      body,
-                    }),
-                  )
-                }
-                invalidate={[
-                  ["excursions", excursion.id, "participants"],
-                  ["excursions", excursion.id],
-                ]}
-                registerFlush={getRegistrar("participants")}
+                  queryKey={["excursions", excursion.id, "participants"]}
+                  listFn={() =>
+                    unwrap(
+                      client.GET("/api/members/excursions/{excursion_id}/participants", {
+                        params: { path: { excursion_id: excursion.id } },
+                      }),
+                    )
+                  }
+                  createFn={(body) =>
+                    unwrap(
+                      client.POST("/api/members/excursions/{excursion_id}/participants", {
+                        params: { path: { excursion_id: excursion.id } },
+                        body,
+                      }),
+                    )
+                  }
+                  invalidate={[
+                    ["excursions", excursion.id, "participants"],
+                    ["excursions", excursion.id],
+                  ]}
+                  registerFlush={getRegistrar("participants")}
                 />
               </>
             ),
@@ -982,7 +1025,11 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
             content: (
               <>
                 {sectionNote("ljp")}
-                <EditableDetail rows={withHints(ljpRows, "ljpproposal")} editing={editing} errors={fieldErrors} />
+                <EditableDetail
+                  rows={withHints(ljpRows, "ljpproposal")}
+                  editing={editing}
+                  errors={fieldErrors}
+                />
                 <InterventionsInline
                   proposalId={ljp?.id ?? null}
                   interventions={ljp?.interventions ?? []}
@@ -1116,16 +1163,17 @@ function StatementSection({
     },
   );
 
-  const [draft, setDraft] = useState<StatementDraft>(() =>
-    statement ? statementToDraft(statement) : {
-      short_description: "",
-      explanation: "",
-      night_cost: "0",
-      allowance_to_ids: [],
-      subsidy_to_id: "",
-      ljp_to_id: "",
-    },
-  );
+  // Always starts empty: the statement query cannot have resolved during this
+  // component's first render, and the effect below seeds the draft as soon as it
+  // does (and whenever edit mode toggles).
+  const [draft, setDraft] = useState<StatementDraft>(() => ({
+    short_description: "",
+    explanation: "",
+    night_cost: "0",
+    allowance_to_ids: [],
+    subsidy_to_id: "",
+    ljp_to_id: "",
+  }));
 
   // Reseed the draft when the statement (re)loads or when edit mode toggles; a
   // stable statement identity means in-progress edits are preserved mid-edit.
@@ -1174,12 +1222,7 @@ function StatementSection({
         const editable = editing && !submitted;
         const recipientName = (m: MemberBrief | null | undefined) => (m ? m.name : "—");
         const rows: DetailRow[] = [
-          {
-            label: "Titel",
-            value: (
-              <Link to={`/app/finance/statements/${s.id}`}>{s.title}</Link>
-            ),
-          },
+          { label: "Titel", value: <Link to={`/app/finance/statements/${s.id}`}>{s.title}</Link> },
           {
             label: "Status",
             value: (
@@ -1262,13 +1305,7 @@ function StatementSection({
 
 /* --- Finance overview modal (the admin "Finance overview" estimate) ------ */
 
-function OverviewTable({
-  head,
-  rows,
-}: {
-  head: string[];
-  rows: (string | number)[][];
-}) {
+function OverviewTable({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
   return (
     <table className="data-table">
       <thead>
@@ -1363,9 +1400,7 @@ function FinanceOverviewModal({
             <p>Erwartete Gesamtausgaben: {euro(o.total_bills_theoretic)}</p>
 
             <h3 className="fieldset-title">Zuschüsse durch den Verein</h3>
-            <p>
-              {o.staff_count} Jugendleiter*in(nen) erhalten laut Richtlinien je:
-            </p>
+            <p>{o.staff_count} Jugendleiter*in(nen) erhalten laut Richtlinien je:</p>
             <ul>
               <li>
                 {o.nights} Übernachtungen à {euro(o.price_per_night)} = {euro(o.nights_per_yl)}
@@ -1448,7 +1483,10 @@ function FinanceOverviewModal({
                 ["Ausgaben", euro(o.total_bills_theoretic)],
                 ["Organisationspauschale", euro(o.total_org_fee)],
                 ["Zuschüsse durch den Verein", `-${euro(o.total_subsidies)}`],
-                [o.ljp_to ? "LJP-Beiträge" : "Potenzielle LJP-Beiträge", `-${euro(o.ljp_contributions)}`],
+                [
+                  o.ljp_to ? "LJP-Beiträge" : "Potenzielle LJP-Beiträge",
+                  `-${euro(o.ljp_contributions)}`,
+                ],
                 ["Verbleibende Kosten", euro(o.total_relative_costs)],
               ]}
             />

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -79,6 +80,7 @@ function SectionFormFields({
 }
 
 export function SectionsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
@@ -129,7 +131,7 @@ export function SectionsList() {
       <PageHeader
         breadcrumbs={[{ label: "Bereiche" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={openCreate}>Neuer Bereich</Button>}
+        actions={can("startpage.add_section") && <Button onClick={openCreate}>Neuer Bereich</Button>}
       />
       {creating && (
         <Modal title="Neuer Bereich" onClose={() => setCreating(false)}>
@@ -169,7 +171,11 @@ export function SectionsList() {
             columns={[
               { header: "Titel", cell: (s) => s.title, sortKey: "title" },
               { header: "URL-Kürzel", cell: (s) => s.urlname, sortKey: "urlname" },
-              { header: "Absoluter Pfad", cell: (s) => s.absolute_urlname, sortKey: "absolute_urlname" },
+              {
+                header: "Auf der Webseite",
+                cell: (s) => (s.urlname ? `/bereich/${s.urlname}` : "—"),
+                sortKey: "absolute_urlname",
+              },
               {
                 header: "Navigation",
                 cell: (s) =>
@@ -286,7 +292,14 @@ function SectionDetailBody({ section, crumbs }: { section: SectionOut; crumbs: C
         <input value={form.urlname} onChange={(e) => set({ urlname: e.target.value })} required />
       ),
     },
-    { label: "Absoluter Pfad", value: section.absolute_urlname },
+    {
+      label: "Auf der Webseite",
+      value: section.urlname ? (
+        <Link to={`/bereich/${section.urlname}`}>/bereich/{section.urlname}</Link>
+      ) : (
+        "—"
+      ),
+    },
     {
       label: "Webseitentext",
       field: "website_text",

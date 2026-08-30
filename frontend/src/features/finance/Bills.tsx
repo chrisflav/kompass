@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getToken } from "../../auth";
+import { usePermissions } from "../../api/me";
 import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
@@ -12,14 +13,15 @@ import {
   DataTable,
   EditableDetail,
   Field,
+  Modal,
   PageHeader,
   QueryBoundary,
   Select,
   Tabs,
-  useConfirmDialog,
-  useToast,
   type Crumb,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
@@ -59,11 +61,10 @@ export async function postMultipart(path: string, form: FormData): Promise<BillO
 /* --- list ---------------------------------------------------------------- */
 
 export function BillsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
-  const query = useApiQuery(["finance", "bills"], () =>
-    unwrap(client.GET("/api/finance/bills")),
-  );
+  const query = useApiQuery(["finance", "bills"], () => unwrap(client.GET("/api/finance/bills")));
   const statements = useApiQuery(["finance", "statements"], () =>
     unwrap(client.GET("/api/finance/statements")),
   );
@@ -132,9 +133,17 @@ export function BillsList() {
       <PageHeader
         breadcrumbs={[{ label: "Belege" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neuer Beleg</Button>}
+        actions={
+          can("finance.view_statement") && (
+            <Button onClick={() => setCreating(true)}>Neuer Beleg</Button>
+          )
+        }
       />
-      {creating && <BillCreateForm onDone={() => setCreating(false)} />}
+      {creating && (
+        <Modal title="Neuer Beleg" onClose={() => setCreating(false)}>
+          <BillCreateForm onDone={() => setCreating(false)} />
+        </Modal>
+      )}
       <ListToolbar view={view} />
       <QueryBoundary query={query} empty="Keine Belege sichtbar.">
         {() => (
@@ -145,7 +154,11 @@ export function BillsList() {
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
-              { header: "Beschreibung", cell: (b) => b.short_description, sortKey: "short_description" },
+              {
+                header: "Beschreibung",
+                cell: (b) => b.short_description,
+                sortKey: "short_description",
+              },
               {
                 header: "Abrechnung",
                 cell: (b) => statementTitle.get(b.statement_id) ?? `#${b.statement_id}`,
@@ -153,7 +166,11 @@ export function BillsList() {
               },
               { header: "Erklärung", cell: (b) => b.explanation || "—" },
               { header: "Betrag", cell: (b) => euro(b.amount), sortKey: "amount" },
-              { header: "Bezahlt von", cell: (b) => (b.paid_by ? b.paid_by.name : "—"), sortKey: "paid_by" },
+              {
+                header: "Bezahlt von",
+                cell: (b) => (b.paid_by ? b.paid_by.name : "—"),
+                sortKey: "paid_by",
+              },
               {
                 header: "Übernommen",
                 cell: (b) => (b.costs_covered ? <Badge tone="success">Ja</Badge> : "Nein"),
@@ -189,6 +206,7 @@ function BillCreateForm({ onDone }: { onDone: () => void }) {
   const statements = useApiQuery(["finance", "statements"], () =>
     unwrap(client.GET("/api/finance/statements")),
   );
+  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
 
   const mutation = useApiMutation(
     () => {
@@ -265,9 +283,7 @@ function BillCreateForm({ onDone }: { onDone: () => void }) {
           value={form.amount}
           onChange={(e) => setForm({ ...form, amount: e.target.value })}
         />
-        {fieldErrors.amount && (
-          <div className="field-error">{fieldErrors.amount.join(" ")}</div>
-        )}
+        {fieldErrors.amount && <div className="field-error">{fieldErrors.amount.join(" ")}</div>}
       </Field>
       <Field label="Übernommen">
         <input
@@ -283,16 +299,16 @@ function BillCreateForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setProof(e.target.files?.[0] ?? null)}
         />
       </Field>
-      {/* BACKEND-GAP: no endpoint to list members, so "Bezahlt von" is entered as a numeric member id. */}
-      <Field label="Bezahlt von (Teilnehmenden-ID)">
-        <input
-          type="number"
+      <Field label="Bezahlt von">
+        <Select
           value={form.paid_by_id}
-          onChange={(e) => setForm({ ...form, paid_by_id: e.target.value })}
+          onChange={(v) => setForm({ ...form, paid_by_id: v })}
+          options={(members.data ?? []).map((m) => ({ value: m.id, label: m.name }))}
+          placeholder="— niemand —"
+          allowEmpty
+          emptyLabel="— niemand —"
         />
-        {fieldErrors.paid_by && (
-          <div className="field-error">{fieldErrors.paid_by.join(" ")}</div>
-        )}
+        {fieldErrors.paid_by && <div className="field-error">{fieldErrors.paid_by.join(" ")}</div>}
       </Field>
       <div className="row-actions">
         <Button type="submit" busy={mutation.isPending}>
@@ -312,11 +328,7 @@ export function BillDetailPage() {
   const { id } = useParams();
   const billId = Number(id);
   const query = useApiQuery(["finance", "bills", billId], () =>
-    unwrap(
-      client.GET("/api/finance/bills/{bill_id}", {
-        params: { path: { bill_id: billId } },
-      }),
-    ),
+    unwrap(client.GET("/api/finance/bills/{bill_id}", { params: { path: { bill_id: billId } } })),
   );
 
   const crumbs: Crumb[] = [
@@ -333,6 +345,7 @@ export function BillDetailPage() {
 
 function BillDetailBody({ bill, crumbs }: { bill: BillOut; crumbs: Crumb[] }) {
   const toast = useToast();
+  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
   const [editing, setEditing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form, setForm] = useState(() => ({
@@ -360,7 +373,10 @@ function BillDetailBody({ bill, crumbs }: { bill: BillOut; crumbs: Crumb[] }) {
         }),
       ),
     {
-      invalidate: [["finance", "bills"], ["finance", "bills", bill.id]],
+      invalidate: [
+        ["finance", "bills"],
+        ["finance", "bills", bill.id],
+      ],
       onSuccess: () => {
         toast.success("Gespeichert.");
         setEditing(false);
@@ -425,13 +441,14 @@ function BillDetailBody({ bill, crumbs }: { bill: BillOut; crumbs: Crumb[] }) {
       label: "Bezahlt von",
       value: bill.paid_by ? bill.paid_by.name : "—",
       field: "paid_by",
-      /* BACKEND-GAP: no endpoint to list members, so "Bezahlt von" is entered as a numeric member id. */
       edit: (
-        <input
-          type="number"
-          placeholder="Teilnehmenden-ID"
+        <Select
           value={form.paid_by_id}
-          onChange={(e) => setForm({ ...form, paid_by_id: e.target.value })}
+          onChange={(v) => setForm({ ...form, paid_by_id: v })}
+          options={(members.data ?? []).map((m) => ({ value: m.id, label: m.name }))}
+          placeholder="— niemand —"
+          allowEmpty
+          emptyLabel="— niemand —"
         />
       ),
     },
@@ -511,12 +528,12 @@ function BillDetailBody({ bill, crumbs }: { bill: BillOut; crumbs: Crumb[] }) {
       />
       <Tabs
         tabs={[
-          { id: "beleg", label: "Beleg", content: <EditableDetail rows={rows} editing={editing} errors={fieldErrors} /> },
           {
-            id: "proof",
-            label: "Beleg-Scan hochladen",
-            content: <BillProofUpload bill={bill} />,
+            id: "beleg",
+            label: "Beleg",
+            content: <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />,
           },
+          { id: "proof", label: "Beleg-Scan hochladen", content: <BillProofUpload bill={bill} /> },
         ]}
       />
     </form>
@@ -536,7 +553,10 @@ function BillProofUpload({ bill }: { bill: BillOut }) {
       return postMultipart(`/api/finance/bills/${bill.id}/proof`, fd);
     },
     {
-      invalidate: [["finance", "bills"], ["finance", "bills", bill.id]],
+      invalidate: [
+        ["finance", "bills"],
+        ["finance", "bills", bill.id],
+      ],
       onSuccess: () => {
         toast.success("Beleg-Scan hochgeladen.");
         setProof(null);
@@ -576,9 +596,7 @@ function BillActions({ bill }: { bill: BillOut }) {
   const deleteMutation = useApiMutation(
     () =>
       unwrap(
-        client.DELETE("/api/finance/bills/{bill_id}", {
-          params: { path: { bill_id: bill.id } },
-        }),
+        client.DELETE("/api/finance/bills/{bill_id}", { params: { path: { bill_id: bill.id } } }),
       ),
     {
       invalidate: [["finance", "bills"]],

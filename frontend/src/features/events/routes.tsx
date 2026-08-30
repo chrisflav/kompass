@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Route, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -9,14 +10,15 @@ import {
   DataTable,
   DownloadButton,
   EditableDetail,
+  formatDate,
   Modal,
   PageHeader,
   QueryBoundary,
   Tabs,
-  useConfirmDialog,
-  useToast,
   type Crumb,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 import {
@@ -39,6 +41,7 @@ type TerminOut = components["schemas"]["TerminOut"];
 /* --- list ---------------------------------------------------------------- */
 
 function TermineList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
@@ -108,15 +111,19 @@ function TermineList() {
         subtitle={`${view.rows.length} / ${view.total}`}
         actions={
           <>
-            <DownloadButton
-              path="/api/ludwigsburgalpin/documents/termine/overview"
-              method="POST"
-              body={{ termin_ids: null }}
-              filename="Termine_Uebersicht.xlsx"
-            >
-              Übersicht (Excel)
-            </DownloadButton>
-            <Button onClick={() => setCreating(true)}>Neuer Termin</Button>
+            {can("ludwigsburgalpin.view_termin") && (
+              <DownloadButton
+                path="/api/ludwigsburgalpin/documents/termine/overview"
+                method="POST"
+                body={{ termin_ids: null }}
+                filename="Termine_Uebersicht.xlsx"
+              >
+                Übersicht (Excel)
+              </DownloadButton>
+            )}
+            {can("ludwigsburgalpin.add_termin") && (
+              <Button onClick={() => setCreating(true)}>Neuer Termin</Button>
+            )}
           </>
         }
       />
@@ -155,11 +162,11 @@ function TermineList() {
             onSort={view.toggleSort}
             columns={[
               { header: "Titel", cell: (t) => t.title, sortKey: "title" },
-              { header: "Von", cell: (t) => t.start_date, sortKey: "start_date" },
-              { header: "Bis", cell: (t) => t.end_date, sortKey: "end_date" },
+              { header: "Von", cell: (t) => formatDate(t.start_date), sortKey: "start_date" },
+              { header: "Bis", cell: (t) => formatDate(t.end_date), sortKey: "end_date" },
               { header: "Gruppe", cell: (t) => t.group_display, sortKey: "group" },
               { header: "Kategorie", cell: (t) => t.category_display, sortKey: "category" },
-              { header: "Organisator", cell: (t) => t.responsible || "—", sortKey: "responsible" },
+              { header: "Organisator:in", cell: (t) => t.responsible || "—", sortKey: "responsible" },
             ]}
           />
         )}
@@ -292,7 +299,7 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
     {
       label: "Von",
       field: "start_date",
-      value: termin.start_date,
+      value: formatDate(termin.start_date),
       edit: (
         <input
           type="date"
@@ -305,7 +312,7 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
     {
       label: "Bis",
       field: "end_date",
-      value: termin.end_date,
+      value: formatDate(termin.end_date),
       edit: (
         <input
           type="date"
@@ -322,7 +329,7 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
       edit: <Select value={form.group} options={GRUPPE} onChange={(v) => set("group", v)} />,
     },
     {
-      label: "Organisator",
+      label: "Organisator:in",
       field: "responsible",
       value: termin.responsible,
       edit: (

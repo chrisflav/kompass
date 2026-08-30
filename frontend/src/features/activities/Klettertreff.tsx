@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -14,8 +15,9 @@ import {
   QueryBoundary,
   Select,
   Tabs,
-  useToast,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
@@ -34,15 +36,18 @@ function formatDate(value: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("de-DE");
 }
 
-/** Standard Django date drill-down buckets, evaluated client-side. */
-function dateBucket(value: string | null | undefined, bucket: string): boolean {
+/**
+ * Standard Django date drill-down buckets, evaluated client-side. Exported for
+ * its own unit test: an unknown bucket cannot come from the list filter, whose
+ * options are fixed, so that fallback is only reachable directly.
+ */
+export function dateBucket(value: string | null | undefined, bucket: string): boolean {
   if (bucket === "none") return !value;
   if (!value) return false;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return false;
   const now = new Date();
-  if (bucket === "today")
-    return d.toDateString() === now.toDateString();
+  if (bucket === "today") return d.toDateString() === now.toDateString();
   if (bucket === "7days") {
     const diff = (now.getTime() - d.getTime()) / 86_400_000;
     return diff >= 0 && diff <= 7;
@@ -59,6 +64,7 @@ function dateBucket(value: string | null | undefined, bucket: string): boolean {
  * -date (API). */
 
 export function KlettertreffList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["klettertreff"], () =>
@@ -76,7 +82,12 @@ export function KlettertreffList() {
     () => ({
       search: (k) => [k.date, k.location, k.topic, k.group.name],
       filters: [
-        { key: "group", label: "Gruppe", options: groupOptions, match: (k, v) => k.group.name === v },
+        {
+          key: "group",
+          label: "Gruppe",
+          options: groupOptions,
+          match: (k, v) => k.group.name === v,
+        },
         {
           key: "date",
           label: "Datum",
@@ -108,7 +119,11 @@ export function KlettertreffList() {
       <PageHeader
         breadcrumbs={[{ label: "Klettertreffs" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neuer Klettertreff</Button>}
+        actions={
+          can("members.add_klettertreff") && (
+            <Button onClick={() => setCreating(true)}>Neuer Klettertreff</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neuer Klettertreff" onClose={() => setCreating(false)}>
@@ -257,21 +272,37 @@ function makeForm(kt: KlettertreffOut) {
 }
 
 function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const removeMutation = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/klettertreff/{klettertreff_id}", {
+          params: { path: { klettertreff_id: kt.id } },
+        }),
+      ),
+    {
+      invalidate: [["klettertreff"]],
+      onSuccess: () => {
+        toast.success("Klettertreff gelöscht.");
+        navigate("/app/klettertreff");
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeForm(kt));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const groupsQuery = useApiQuery(
-    ["groups"],
-    () => unwrap(client.GET("/api/members/groups")),
-    { enabled: editing },
-  );
-  const membersQuery = useApiQuery(
-    ["members"],
-    () => unwrap(client.GET("/api/members/")),
-    { enabled: editing },
-  );
+  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
+    enabled: editing,
+  });
+  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
+    enabled: editing,
+  });
   const groupOptions = useMemo(
     () => (groupsQuery.data ?? []).map((g) => ({ value: g.id, label: g.name })),
     [groupsQuery.data],
@@ -405,6 +436,25 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
+              {can("members.delete_klettertreff") && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={removeMutation.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${kt.topic || kt.group.name}“ wirklich löschen?`,
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      removeMutation.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
@@ -422,7 +472,13 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
           {
             id: "teilnehmer",
             label: "Teilnehmer*innen",
-            content: <KlettertreffAttendeesInline klettertreffId={kt.id} editing={editing} registerFlush={getRegistrar("attendees")} />,
+            content: (
+              <KlettertreffAttendeesInline
+                klettertreffId={kt.id}
+                editing={editing}
+                registerFlush={getRegistrar("attendees")}
+              />
+            ),
           },
         ]}
       />
@@ -453,11 +509,9 @@ function KlettertreffAttendeesInline({
       }),
     ),
   );
-  const membersQuery = useApiQuery(
-    ["members"],
-    () => unwrap(client.GET("/api/members/")),
-    { enabled: editing },
-  );
+  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
+    enabled: editing,
+  });
   const memberOptions: Option[] = useMemo(
     () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
     [membersQuery.data],

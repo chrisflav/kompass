@@ -75,6 +75,22 @@ const EMPTY_CONTACT: EmergencyContactIn = {
   email: "",
 };
 
+/** True when the user added a contact row but never typed anything into it. */
+export function isBlankContact(c: EmergencyContactIn): boolean {
+  return !(c.prename.trim() || c.lastname.trim() || c.phone_number.trim() || (c.email ?? "").trim());
+}
+
+/**
+ * The contacts worth submitting: untouched extra rows are dropped rather than
+ * stored as empty records. Always keeps at least the first row so the backend's
+ * "at least one emergency contact" rule still reports a missing contact rather
+ * than an empty list silently passing.
+ */
+export function cleanContacts(contacts: EmergencyContactIn[]): EmergencyContactIn[] {
+  const filled = contacts.filter((c) => !isBlankContact(c));
+  return filled.length ? filled : contacts.slice(0, 1);
+}
+
 /**
  * Editor for the ``emergency_contacts`` list required by the registration and
  * echo submissions (the backend enforces at least one, mirroring the formset's
@@ -96,20 +112,26 @@ export function EmergencyContactsEditor({
       <h3 style={{ margin: 0 }}>Notfallkontakte</h3>
       {contacts.map((contact, index) => (
         <div key={index} className="stack" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
-          <Field label="Vorname">
+          {/* Only the first contact is mandatory (the admin formset's
+              `min_num=1`). Marking every block required would make an added but
+              untouched block block submission instead of simply being dropped. */}
+          <Field label={index === 0 ? "Vorname *" : "Vorname"}>
             <input
+              required={index === 0}
               value={contact.prename}
               onChange={(e) => update(index, { prename: e.target.value })}
             />
           </Field>
-          <Field label="Nachname">
+          <Field label={index === 0 ? "Nachname *" : "Nachname"}>
             <input
+              required={index === 0}
               value={contact.lastname}
               onChange={(e) => update(index, { lastname: e.target.value })}
             />
           </Field>
-          <Field label="Telefon">
+          <Field label={index === 0 ? "Telefon *" : "Telefon"}>
             <input
+              required={index === 0}
               value={contact.phone_number}
               onChange={(e) => update(index, { phone_number: e.target.value })}
             />

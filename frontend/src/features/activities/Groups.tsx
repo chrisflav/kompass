@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -16,8 +17,9 @@ import {
   QueryBoundary,
   Select,
   Tabs,
-  useToast,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
@@ -36,6 +38,7 @@ type PermissionGroupUpdate = components["schemas"]["PermissionGroupUpdate"];
  * we add the name search + sortable name and default to name ascending. */
 
 export function GroupsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
@@ -55,11 +58,7 @@ export function GroupsList() {
           match: (g, v) => (v === "yes") === Boolean(g.show_website),
         },
       ],
-      sort: {
-        name: (g) => g.name,
-        year_from: (g) => g.year_from,
-        year_to: (g) => g.year_to,
-      },
+      sort: { name: (g) => g.name, year_from: (g) => g.year_from, year_to: (g) => g.year_to },
       defaultSort: { key: "name", dir: "asc" },
     }),
     [],
@@ -74,21 +73,27 @@ export function GroupsList() {
         subtitle={`${view.rows.length} / ${view.total}`}
         actions={
           <div className="row-actions">
-            <Button onClick={() => setCreating(true)}>Neue Gruppe</Button>
-            <DownloadButton
-              path="/api/members/documents/groups/overview"
-              method="POST"
-              filename="Gruppenuebersicht.xlsx"
-            >
-              Übersicht (xlsx)
-            </DownloadButton>
-            <DownloadButton
-              path="/api/members/documents/groups/checklist"
-              method="POST"
-              filename="Gruppen-Checkliste.pdf"
-            >
-              Checkliste (pdf)
-            </DownloadButton>
+            {can("members.add_group") && (
+              <Button onClick={() => setCreating(true)}>Neue Gruppe</Button>
+            )}
+            {can("members.view_group") && (
+              <DownloadButton
+                path="/api/members/documents/groups/overview"
+                method="POST"
+                filename="Gruppenuebersicht.xlsx"
+              >
+                Übersicht (xlsx)
+              </DownloadButton>
+            )}
+            {can("members.view_group") && (
+              <DownloadButton
+                path="/api/members/documents/groups/checklist"
+                method="POST"
+                filename="Gruppen-Checkliste.pdf"
+              >
+                Checkliste (pdf)
+              </DownloadButton>
+            )}
           </div>
         }
       />
@@ -162,13 +167,13 @@ function GroupCreateForm({ onDone }: { onDone: () => void }) {
         mutation.mutate({
           name,
           description: description || null,
-          year_from: yearFrom === "" ? null : Number(yearFrom),
-          year_to: yearTo === "" ? null : Number(yearTo),
+          year_from: Number(yearFrom),
+          year_to: Number(yearTo),
           leiter_ids: [],
         });
       }}
     >
-      <Field label="Name">
+      <Field label="Name *">
         <input value={name} onChange={(e) => setName(e.target.value)} required />
         {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
       </Field>
@@ -178,24 +183,27 @@ function GroupCreateForm({ onDone }: { onDone: () => void }) {
           <div className="field-error">{fieldErrors.description.join(" ")}</div>
         )}
       </Field>
-      <Field label="Ab Jahrgang">
+      <Field label="Ab Jahrgang *" hint="Frühester Jahrgang, der zu dieser Gruppe gehört.">
         <input
           type="number"
           value={yearFrom}
           onChange={(e) => setYearFrom(e.target.value)}
+          required
         />
         {fieldErrors.year_from && (
           <div className="field-error">{fieldErrors.year_from.join(" ")}</div>
         )}
       </Field>
-      <Field label="Bis Jahrgang">
-        <input type="number" value={yearTo} onChange={(e) => setYearTo(e.target.value)} />
-        {fieldErrors.year_to && (
-          <div className="field-error">{fieldErrors.year_to.join(" ")}</div>
-        )}
+      <Field label="Bis Jahrgang *" hint="Spätester Jahrgang, der zu dieser Gruppe gehört.">
+        <input type="number" value={yearTo} onChange={(e) => setYearTo(e.target.value)} required />
+        {fieldErrors.year_to && <div className="field-error">{fieldErrors.year_to.join(" ")}</div>}
       </Field>
       <div className="row-actions">
-        <Button type="submit" busy={mutation.isPending}>
+        <Button
+          type="submit"
+          busy={mutation.isPending}
+          disabled={!name.trim() || yearFrom === "" || yearTo === ""}
+        >
           Anlegen
         </Button>
         <Button type="button" variant="ghost" onClick={onDone}>
@@ -213,9 +221,7 @@ export function GroupDetailPage() {
   const groupId = Number(id);
   const query = useApiQuery(["groups", groupId], () =>
     unwrap(
-      client.GET("/api/members/groups/{group_id}", {
-        params: { path: { group_id: groupId } },
-      }),
+      client.GET("/api/members/groups/{group_id}", { params: { path: { group_id: groupId } } }),
     ),
   );
 
@@ -249,6 +255,26 @@ function makeForm(group: GroupOut) {
 }
 
 function GroupDetailBody({ group }: { group: GroupOut }) {
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const removeMutation = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/groups/{group_id}", {
+          params: { path: { group_id: group.id } },
+        }),
+      ),
+    {
+      invalidate: [["groups"]],
+      onSuccess: () => {
+        toast.success("Gruppe gelöscht.");
+        navigate("/app/groups");
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeForm(group));
@@ -257,11 +283,9 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
   // Options for the editable relations. `leiters` is Jugendleiter-restricted in
   // the admin form; the API has no filtered member endpoint, so we offer every
   // visible member here. BACKEND-GAP: no Jugendleiter-only member endpoint.
-  const membersQuery = useApiQuery(
-    ["members"],
-    () => unwrap(client.GET("/api/members/")),
-    { enabled: editing },
-  );
+  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
+    enabled: editing,
+  });
   const emailsQuery = useApiQuery(
     ["mailer", "email-addresses"],
     () => unwrap(client.GET("/api/mailer/email-addresses")),
@@ -493,6 +517,25 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
+              {can("members.delete_group") && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={removeMutation.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${group.name}“ wirklich löschen?`,
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      removeMutation.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
@@ -510,12 +553,24 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
           {
             id: "passwoerter",
             label: "Registrierungspasswörter",
-            content: <RegistrationPasswordsInline groupId={group.id} editing={editing} registerFlush={getRegistrar("passwords")} />,
+            content: (
+              <RegistrationPasswordsInline
+                groupId={group.id}
+                editing={editing}
+                registerFlush={getRegistrar("passwords")}
+              />
+            ),
           },
           {
             id: "berechtigungen",
             label: "Gruppenberechtigungen",
-            content: <PermissionGroupsInline groupId={group.id} editing={editing} registerFlush={getRegistrar("permissions")} />,
+            content: (
+              <PermissionGroupsInline
+                groupId={group.id}
+                editing={editing}
+                registerFlush={getRegistrar("permissions")}
+              />
+            ),
           },
         ]}
       />

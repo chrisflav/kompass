@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -25,6 +26,7 @@ type LedgerDetailOut = components["schemas"]["LedgerDetailOut"];
 /* --- list ---------------------------------------------------------------- */
 
 export function LedgersList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["ledgers"], () =>
@@ -48,7 +50,7 @@ export function LedgersList() {
       <PageHeader
         breadcrumbs={[{ label: "Konten" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neues Konto</Button>}
+        actions={can("finance.add_ledger") && <Button onClick={() => setCreating(true)}>Neues Konto</Button>}
       />
       {creating && (
         <Modal title="Neues Konto" onClose={() => setCreating(false)}>

@@ -5,6 +5,7 @@ import { NotFound } from "./components/Placeholder";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { activitiesRoutes } from "./features/activities/routes";
+import { adminRoutes } from "./features/admin/routes";
 import { cmsRoutes } from "./features/cms/routes";
 import { eventsRoutes } from "./features/events/routes";
 import { financeRoutes } from "./features/finance/routes";
@@ -39,6 +40,7 @@ export function AppRoutes() {
         {materialRoutes}
         {eventsRoutes}
         {cmsRoutes}
+        {adminRoutes}
       </Route>
 
       {/* Redirects from the old Django URLs to the new SPA flows. */}

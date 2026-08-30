@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { useRowHints } from "../../api/helpTexts";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
@@ -29,6 +30,7 @@ type EmailAddressIn = components["schemas"]["EmailAddressIn"];
 /* --- list ---------------------------------------------------------------- */
 
 export function EmailAddressesList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["mailer", "email-addresses"], () =>
@@ -56,7 +58,7 @@ export function EmailAddressesList() {
       <PageHeader
         breadcrumbs={[{ label: "E-Mail-Adressen" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neue Adresse</Button>}
+        actions={can("mailer.add_emailaddress") && <Button onClick={() => setCreating(true)}>Neue Adresse</Button>}
       />
       {creating && (
         <Modal title="Neue E-Mail-Adresse" onClose={() => setCreating(false)}>
@@ -87,7 +89,7 @@ export function EmailAddressesList() {
               {
                 header: "Intern",
                 cell: (a) =>
-                  a.internal_only ? <Badge tone="info">Nur intern</Badge> : "—",
+                  a.internal_only ? <Badge tone="info">Ja</Badge> : <Badge>Nein</Badge>,
                 sortKey: "internal_only",
               },
             ]}

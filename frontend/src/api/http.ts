@@ -1,6 +1,71 @@
 import { getToken } from "../auth";
 import { API_BASE, client } from "./client";
 
+/* --- error normalisation --------------------------------------------------
+ *
+ * Three different error shapes reach the client and all of them used to leak
+ * raw internals into the UI:
+ *
+ * 1. django-ninja request validation -> `{detail: [{type, loc, msg, ctx}, ...]}`.
+ *    Joining that array produced the literal string "[object Object]".
+ * 2. Our own `ValidationError` -> `{detail: ["..."], errors: {field: ["..."]}}`.
+ * 3. The permission layer -> `{detail: "members.view_group"}` on a 403, i.e. a
+ *    Django permission codename that must never be shown to a user.
+ */
+
+/** One entry of django-ninja's request-validation error list. */
+interface NinjaValidationItem {
+  loc?: (string | number)[];
+  msg?: string;
+  type?: string;
+}
+
+function isNinjaValidationList(d: unknown): d is NinjaValidationItem[] {
+  return (
+    Array.isArray(d) &&
+    d.length > 0 &&
+    d.every((i) => i !== null && typeof i === "object" && "msg" in (i as object))
+  );
+}
+
+/** German equivalents for the pydantic error types we can actually hit. */
+const VALIDATION_TEXT: Record<string, string> = {
+  missing: "Dieses Feld ist erforderlich.",
+  string_too_short: "Dieses Feld darf nicht leer sein.",
+  string_too_long: "Dieser Wert ist zu lang.",
+  int_parsing: "Bitte eine ganze Zahl eingeben.",
+  float_parsing: "Bitte eine Zahl eingeben.",
+  decimal_parsing: "Bitte einen Betrag eingeben.",
+  date_parsing: "Bitte ein gültiges Datum eingeben.",
+  date_from_datetime_parsing: "Bitte ein gültiges Datum eingeben.",
+  datetime_parsing: "Bitte einen gültigen Zeitpunkt eingeben.",
+  bool_parsing: "Bitte Ja oder Nein wählen.",
+  value_error: "Dieser Wert ist ungültig.",
+  greater_than: "Dieser Wert ist zu klein.",
+  less_than: "Dieser Wert ist zu groß.",
+};
+
+function messageForItem(item: NinjaValidationItem): string {
+  return (item.type && VALIDATION_TEXT[item.type]) || item.msg || "Ungültige Eingabe.";
+}
+
+/**
+ * The field a validation item belongs to. ninja's `loc` is prefixed with the
+ * request part and the payload name (`["body", "payload", "prename"]`), and for
+ * nested lists it carries an index (`[..., "emergency_contacts", 0, "phone"]`).
+ * The last string segment is the field the SPA knows by name.
+ */
+function fieldForItem(item: NinjaValidationItem): string | null {
+  const loc = item.loc ?? [];
+  for (let i = loc.length - 1; i >= 0; i--) {
+    const part = loc[i];
+    if (typeof part === "string" && part !== "body" && part !== "payload" && part !== "query") {
+      return part;
+    }
+  }
+  return null;
+}
+
 /** Error carrying the HTTP status and any parsed `{detail}` body. */
 export class ApiError extends Error {
   status: number;
@@ -12,26 +77,76 @@ export class ApiError extends Error {
     this.detail = detail;
   }
 
-  /** Per-field validation errors ({field: [messages]}) from a 422, if present. */
+  /** Per-field validation errors ({field: [messages]}), from either error shape. */
   get fieldErrors(): Record<string, string[]> {
-    if (this.detail && typeof this.detail === "object" && "errors" in this.detail) {
-      const errs = (this.detail as { errors: unknown }).errors;
-      if (errs && typeof errs === "object") return errs as Record<string, string[]>;
+    if (this.detail && typeof this.detail === "object") {
+      if ("errors" in this.detail) {
+        const errs = (this.detail as { errors: unknown }).errors;
+        if (errs && typeof errs === "object") return errs as Record<string, string[]>;
+      }
+      const d = (this.detail as { detail?: unknown }).detail;
+      if (isNinjaValidationList(d)) {
+        const out: Record<string, string[]> = {};
+        for (const item of d) {
+          const field = fieldForItem(item);
+          if (!field) continue;
+          (out[field] ??= []).push(messageForItem(item));
+        }
+        return out;
+      }
     }
     return {};
   }
 
   static messageFor(status: number, detail: unknown): string {
+    // A 401/403 body carries internals (a permission codename, "Unauthorized"),
+    // so the status decides the wording, never the payload.
+    if (status === 401) return "Nicht angemeldet. Bitte melde dich erneut an.";
+    if (status === 403) return "Dazu fehlt dir die Berechtigung.";
+
     if (detail && typeof detail === "object" && "detail" in detail) {
       const d = (detail as { detail: unknown }).detail;
-      if (typeof d === "string") return d;
-      if (Array.isArray(d)) return d.join(" ");
+      if (isNinjaValidationList(d)) {
+        // Name the offending fields so the toast is useful even where the form
+        // cannot render per-field errors.
+        const parts = d.map((item) => {
+          const field = fieldForItem(item);
+          return field ? `${field}: ${messageForItem(item)}` : messageForItem(item);
+        });
+        return parts.join(" ");
+      }
+      if (Array.isArray(d)) return d.map((x) => String(x)).join(" ");
+      // Django's get_object_or_404 text ("No Member matches the given query")
+      // is developer-facing and untranslated; a 404 always reads the same.
+      if (status === 404) return "Nicht gefunden.";
+      if (typeof d === "string" && d.trim() !== "") return d;
     }
-    if (status === 401) return "Nicht angemeldet.";
-    if (status === 403) return "Keine Berechtigung.";
+
     if (status === 404) return "Nicht gefunden.";
-    return `Fehler ${status}.`;
+    if (status === 413) return "Die Datei ist zu groß.";
+    if (status >= 500) {
+      return "Serverfehler — die Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut.";
+    }
+    return `Die Anfrage ist fehlgeschlagen (Fehler ${status}).`;
   }
+}
+
+/* --- session expiry -------------------------------------------------------
+ *
+ * An access token expires while the app is open, and every request then 401s.
+ * The AuthProvider registers a handler here so a single place can drop the
+ * stale token and send the user back to the login screen, instead of every
+ * page rendering an "unauthorized" error state.
+ */
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
+function raise(status: number, detail: unknown): never {
+  if (status === 401) onUnauthorized?.();
+  throw new ApiError(status, detail);
 }
 
 /**
@@ -43,7 +158,7 @@ export async function unwrap<T>(
 ): Promise<T> {
   const { data, error, response } = await p;
   if (!response.ok || error !== undefined) {
-    throw new ApiError(response.status, error);
+    raise(response.status, error);
   }
   return data as T;
 }
@@ -76,7 +191,7 @@ export async function downloadArtifact(
     } catch {
       /* non-JSON error body */
     }
-    throw new ApiError(res.status, detail);
+    raise(res.status, detail);
   }
   const blob = await res.blob();
   const filename = opts.filename ?? filenameFromResponse(res) ?? "download";

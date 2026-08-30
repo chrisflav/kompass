@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 
+import { useDocumentTitle } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 
 type PostBrief = components["schemas"]["PublicPostBrief"];
@@ -28,8 +29,14 @@ export function Prose({ text }: { text?: string | null }) {
   );
 }
 
-/** Shared heading + optional lead paragraph for a public page. */
+/** Shared heading + optional lead paragraph for a public page.
+ *
+ * Also sets the browser tab title, exactly as the admin's `PageHeader` does —
+ * without this every public page was just "Kompass", which is the half that
+ * actually gets bookmarked and shared.
+ */
 export function PublicPageHeader({ title, lead }: { title: string; lead?: ReactNode }) {
+  useDocumentTitle(title);
   return (
     <header style={{ marginBottom: "1.5rem" }}>
       <h1 style={{ margin: 0 }}>{title}</h1>

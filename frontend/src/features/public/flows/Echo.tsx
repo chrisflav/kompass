@@ -5,14 +5,7 @@ import { client, unwrap } from "../../../api/http";
 import { useApiMutation, useApiQuery } from "../../../api/hooks";
 import { Button, Field, QueryBoundary } from "../../../components/ui";
 import type { components } from "../../../api/schema";
-import {
-  EmergencyContactsEditor,
-  FlowResult,
-  FlowShell,
-  GenderSelect,
-  newEmergencyContact,
-  useFlowKey,
-} from "./shared";
+import { EmergencyContactsEditor, FlowResult, FlowShell, GenderSelect, cleanContacts, newEmergencyContact, useFlowKey } from "./shared";
 
 type EchoVerifyOut = components["schemas"]["EchoVerifyOut"];
 type EchoPrefillOut = components["schemas"]["EchoPrefillOut"];
@@ -115,7 +108,7 @@ function EchoEditForm({
 
   const mutation = useApiMutation(
     () => {
-      const body: EchoSubmitIn = { ...member, password, emergency_contacts: contacts };
+      const body: EchoSubmitIn = { ...member, password, emergency_contacts: cleanContacts(contacts) };
       return unwrap(
         client.POST("/api/members/public/echo/{key}", {
           params: { path: { key: flowKey } },

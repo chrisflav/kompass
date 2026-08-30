@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { usePermissions } from "../../api/me";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -10,14 +11,16 @@ import {
   DataTable,
   EditableDetail,
   Field,
+  Menu,
   Modal,
   PageHeader,
   QueryBoundary,
   Select,
   Tabs,
-  useToast,
   type Crumb,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
@@ -140,7 +143,11 @@ export function WaitersList() {
             onSort={view.toggleSort}
             columns={[
               { header: "Name", cell: (w) => w.name, sortKey: "name" },
-              { header: "Geburtsdatum", cell: (w) => formatDate(w.birth_date), sortKey: "birth_date" },
+              {
+                header: "Geburtsdatum",
+                cell: (w) => formatDate(w.birth_date),
+                sortKey: "birth_date",
+              },
               { header: "Alter", cell: (w) => w.age ?? "—", sortKey: "age" },
               { header: "Geschlecht", cell: (w) => genderLabel(w.gender), sortKey: "gender" },
               {
@@ -155,7 +162,11 @@ export function WaitersList() {
                 sortKey: "confirmed_mail",
               },
               { header: "Wartestatus", cell: (w) => waitingBadge(w.waiting_confirmed) },
-              { header: "Verpasste Erinnerungen", cell: (w) => w.sent_reminders, sortKey: "sent_reminders" },
+              {
+                header: "Verpasste Erinnerungen",
+                cell: (w) => w.sent_reminders,
+                sortKey: "sent_reminders",
+              },
             ]}
           />
         )}
@@ -171,9 +182,7 @@ export function WaiterDetailPage() {
   const waiterId = Number(id);
   const query = useApiQuery(["waiters", waiterId], () =>
     unwrap(
-      client.GET("/api/members/waiters/{waiter_id}", {
-        params: { path: { waiter_id: waiterId } },
-      }),
+      client.GET("/api/members/waiters/{waiter_id}", { params: { path: { waiter_id: waiterId } } }),
     ),
   );
   const crumbs: Crumb[] = [
@@ -201,6 +210,26 @@ function makeDraft(w: WaiterOut) {
 }
 
 function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb[] }) {
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const removeMutation = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/waiters/{waiter_id}", {
+          params: { path: { waiter_id: waiter.id } },
+        }),
+      ),
+    {
+      invalidate: [["waiters"]],
+      onSuccess: () => {
+        toast.success("Bewerbung gelöscht.");
+        navigate("/app/waiters");
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeDraft(waiter));
@@ -247,7 +276,10 @@ function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb
       value: waiter.prename,
       field: "prename",
       edit: (
-        <input value={form.prename} onChange={(e) => setForm({ ...form, prename: e.target.value })} />
+        <input
+          value={form.prename}
+          onChange={(e) => setForm({ ...form, prename: e.target.value })}
+        />
       ),
     },
     {
@@ -255,14 +287,19 @@ function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb
       value: waiter.lastname,
       field: "lastname",
       edit: (
-        <input value={form.lastname} onChange={(e) => setForm({ ...form, lastname: e.target.value })} />
+        <input
+          value={form.lastname}
+          onChange={(e) => setForm({ ...form, lastname: e.target.value })}
+        />
       ),
     },
     {
       label: "E-Mail",
       value: waiter.email || "—",
       field: "email",
-      edit: <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />,
+      edit: (
+        <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+      ),
     },
     {
       label: "Geburtsdatum",
@@ -319,7 +356,11 @@ function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb
     { label: "Verpasste Erinnerungen", value: waiter.sent_reminders },
     {
       label: "E-Mail bestätigt",
-      value: waiter.confirmed_mail ? <Badge tone="success">Ja</Badge> : <Badge tone="warning">Nein</Badge>,
+      value: waiter.confirmed_mail ? (
+        <Badge tone="success">Ja</Badge>
+      ) : (
+        <Badge tone="warning">Nein</Badge>
+      ),
     },
     { label: "Wartestatus bestätigt", value: waitingBadge(waiter.waiting_confirmed) },
     { label: "Letzte Gruppeneinladung", value: waiter.latest_group_invitation || "—" },
@@ -359,6 +400,26 @@ function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb
                 Zurück
               </Button>
               <WaiterInvite waiter={waiter} />
+              <WaiterReminders waiter={waiter} />
+              {can("members.delete_global_memberwaitinglist") && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={removeMutation.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${waiter.name}“ wirklich löschen?`,
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      removeMutation.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
@@ -386,7 +447,6 @@ function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb
 
 /** Read-only history of the waiter's group invitations. */
 function WaiterInvitations({ waiter }: { waiter: WaiterOut }) {
-  if (!waiter.invitations.length) return null;
   return (
     <div>
       <h3 className="fieldset-title" style={{ marginTop: "1.5rem" }}>
@@ -406,6 +466,77 @@ function WaiterInvitations({ waiter }: { waiter: WaiterOut }) {
   );
 }
 
+/** The waiting-list reminder actions (``MemberWaitingListAdmin.actions``). */
+function WaiterReminders({ waiter }: { waiter: WaiterOut }) {
+  const toast = useToast();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+
+  const run = useApiMutation((a: { success: string; call: () => Promise<unknown> }) => a.call(), {
+    invalidate: [["waiters"], ["waiters", waiter.id]],
+    onSuccess: (_data, a) => toast.success(a.success),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!can("members.change_global_memberwaitinglist")) return null;
+
+  const recipient = waiter.email || waiter.name;
+  const actions = [
+    {
+      label: "Wartebestätigung anfordern",
+      question: `${waiter.name} per E-Mail an ${recipient} fragen, ob die Bewerbung weiter gelten soll?`,
+      success: `Anfrage an ${recipient} verschickt.`,
+      call: () =>
+        unwrap(
+          client.POST("/api/members/waiters/{waiter_id}/request-wait-confirmation", {
+            params: { path: { waiter_id: waiter.id } },
+          }),
+        ),
+    },
+    {
+      label: "Bestätigungsmail an alle Adressen",
+      question: `Bestätigungsmail an ${recipient} senden?`,
+      success: `Bestätigungsmail an ${recipient} verschickt.`,
+      call: () =>
+        unwrap(
+          client.POST("/api/members/waiters/{waiter_id}/request-mail-confirmation", {
+            params: { path: { waiter_id: waiter.id }, query: { rerequest: true } },
+          }),
+        ),
+    },
+    {
+      label: "Bestätigungsmail nur an offene Adressen",
+      question: `Bestätigungsmail nur an noch unbestätigte Adressen von ${waiter.name} senden?`,
+      success: "Offene Bestätigungen erneut angefordert.",
+      call: () =>
+        unwrap(
+          client.POST("/api/members/waiters/{waiter_id}/request-mail-confirmation", {
+            params: { path: { waiter_id: waiter.id }, query: { rerequest: false } },
+          }),
+        ),
+    },
+  ];
+
+  return (
+    <Menu label="Erinnerungen">
+      {actions.map((a) => (
+        <Button
+          key={a.label}
+          type="button"
+          variant="ghost"
+          busy={run.isPending}
+          onClick={async () => {
+            if (await confirm({ title: a.label, message: a.question, confirmLabel: "Senden" }))
+              run.mutate(a);
+          }}
+        >
+          {a.label}
+        </Button>
+      ))}
+    </Menu>
+  );
+}
+
 /** "In Gruppe einladen": pick a group, edit the invitation text, then send. */
 function WaiterInvite({ waiter }: { waiter: WaiterOut }) {
   const toast = useToast();
@@ -413,11 +544,9 @@ function WaiterInvite({ waiter }: { waiter: WaiterOut }) {
   const [groupId, setGroupId] = useState<string>("");
   const [text, setText] = useState("");
 
-  const groupsQuery = useApiQuery(
-    ["groups"],
-    () => unwrap(client.GET("/api/members/groups")),
-    { enabled: open },
-  );
+  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
+    enabled: open,
+  });
   const groups = groupsQuery.data ?? [];
 
   const mutation = useApiMutation<WaiterOut, void>(

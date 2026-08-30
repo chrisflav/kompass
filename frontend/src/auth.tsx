@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { API_BASE } from "./api/client";
+import { setUnauthorizedHandler } from "./api/http";
 
 const TOKEN_KEY = "kompass_token";
 const CLIENT_ID = "kompass-frontend-dev";
@@ -29,23 +30,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       client_id: CLIENT_ID,
     });
-    const res = await fetch(`${API_BASE}/o/token/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/o/token/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+    } catch {
+      throw new Error("Der Server ist nicht erreichbar. Bitte versuche es später erneut.");
+    }
     if (!res.ok) {
-      throw new Error("Login failed — check credentials and that the dev OAuth app exists.");
+      // 400 with invalid_grant is the wrong-credentials case; anything else is
+      // a server/configuration problem the user cannot act on.
+      const isCredentials = res.status === 400 || res.status === 401;
+      throw new Error(
+        isCredentials
+          ? "Benutzername oder Passwort ist falsch."
+          : "Anmeldung derzeit nicht möglich. Bitte wende dich an die Administration.",
+      );
     }
     const data = (await res.json()) as { access_token: string };
     localStorage.setItem(TOKEN_KEY, data.access_token);
     setToken(data.access_token);
   }
 
-  function logout() {
+  const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
-  }
+  }, []);
+
+  // An expired token makes every request 401; drop it once, centrally, so the
+  // route guard sends the user to the login screen instead of each page
+  // rendering its own "not authorised" state.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (getToken()) logout();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
 
   return <AuthContext.Provider value={{ token, login, logout }}>{children}</AuthContext.Provider>;
 }

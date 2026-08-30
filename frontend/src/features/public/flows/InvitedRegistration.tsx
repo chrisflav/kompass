@@ -4,20 +4,14 @@ import { client, unwrap } from "../../../api/http";
 import { useApiMutation, useApiQuery } from "../../../api/hooks";
 import { Button, QueryBoundary } from "../../../components/ui";
 import type { components } from "../../../api/schema";
-import {
-  EmergencyContactsEditor,
-  FlowResult,
-  FlowShell,
-  newEmergencyContact,
-  useFlowKey,
-} from "./shared";
+import { EmergencyContactsEditor, FlowResult, FlowShell, cleanContacts, newEmergencyContact, useFlowKey } from "./shared";
 import { RegisterMemberFields } from "./RegisterFields";
 import { RegistrationDone } from "./Register";
 
 type InvitedRegisterPrefillOut = components["schemas"]["InvitedRegisterPrefillOut"];
 type InvitedRegisterSubmitIn = components["schemas"]["InvitedRegisterSubmitIn"];
 type RegistrationSuccessOut = components["schemas"]["RegistrationSuccessOut"];
-type RegisterMemberData = components["schemas"]["RegisterMemberData"];
+type RegisterMemberData = components["schemas"]["RegisterMemberFields"];
 type EmergencyContactIn = components["schemas"]["EmergencyContactIn"];
 
 /** Invited registration keyed by an ``InvitationToGroup.key`` (``anmeldung``). */
@@ -66,7 +60,7 @@ function InvitedForm({
 
   const mutation = useApiMutation(
     () => {
-      const body: InvitedRegisterSubmitIn = { ...member, emergency_contacts: contacts };
+      const body: InvitedRegisterSubmitIn = { ...member, emergency_contacts: cleanContacts(contacts) };
       return unwrap(
         client.POST("/api/members/public/invited-registration/{key}", {
           params: { path: { key: flowKey } },

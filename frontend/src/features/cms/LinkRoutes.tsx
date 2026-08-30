@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
+import { getToken } from "../../auth";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -66,6 +69,7 @@ function LinkFormFields({
 }
 
 export function LinksList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
@@ -115,7 +119,7 @@ export function LinksList() {
       <PageHeader
         breadcrumbs={[{ label: "Links" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={openCreate}>Neuer Link</Button>}
+        actions={can("startpage.add_link") && <Button onClick={openCreate}>Neuer Link</Button>}
       />
       {creating && (
         <Modal title="Neuer Link" onClose={() => setCreating(false)}>
@@ -197,6 +201,65 @@ function draftFromLink(link: LinkOut): LinkIn {
     url: link.url,
     visible: link.visible,
   };
+}
+
+/** Upload / replace a link's icon (multipart, so it bypasses openapi-fetch). */
+function LinkIconEdit({ link }: { link: LinkOut }) {
+  const toast = useToast();
+  const [file, setFile] = useState<File | null>(null);
+
+  const upload = useApiMutation(
+    async (f: File) => {
+      const fd = new FormData();
+      fd.append("f", f);
+      const res = await fetch(`${API_BASE}/api/startpage/links/${link.id}/icon`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        let detail: unknown = null;
+        try {
+          detail = await res.json();
+        } catch {
+          /* non-JSON error body */
+        }
+        throw new ApiError(res.status, detail);
+      }
+      return res.json();
+    },
+    {
+      invalidate: [["startpage", "links"], ["startpage", "links", link.id]],
+      onSuccess: () => {
+        toast.success("Icon hochgeladen.");
+        setFile(null);
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
+  return (
+    <div className="stack">
+      {link.icon && (
+        <img src={link.icon} alt="Icon" style={{ maxHeight: "3rem", maxWidth: "100%" }} />
+      )}
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/svg+xml"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+      />
+      <div className="row-actions">
+        <Button
+          type="button"
+          busy={upload.isPending}
+          disabled={!file}
+          onClick={() => file && upload.mutate(file)}
+        >
+          Hochladen
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function LinkDetailBody({ link, crumbs }: { link: LinkOut; crumbs: Crumb[] }) {
@@ -296,6 +359,7 @@ function LinkDetailBody({ link, crumbs }: { link: LinkOut; crumbs: Crumb[] }) {
       ) : (
         "—"
       ),
+      edit: <LinkIconEdit link={link} />,
     },
   ];
 
@@ -341,8 +405,6 @@ function LinkDetailBody({ link, crumbs }: { link: LinkOut; crumbs: Crumb[] }) {
               >
                 Löschen
               </Button>
-              {/* Icon-Upload ist über POST /api/startpage/links/{id}/icon möglich, hier
-                  aber (Multipart) nicht umgesetzt — das Icon wird nur angezeigt. */}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>

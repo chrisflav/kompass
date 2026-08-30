@@ -87,6 +87,8 @@ const ADMIN_NAV: NavArea[] = [
     { to: "/app/excursions", label: "Ausfahrten" },
     { to: "/app/klettertreff", label: "Klettertreffs" },
     { to: "/app/notelists", label: "Notizlisten" },
+    { to: "/app/activity-categories", label: "Aktivitätskategorien" },
+    { to: "/app/training-categories", label: "Ausbildungskategorien" },
   ] },
   { label: "Finanzen", items: [
     { to: "/app/finance/statements", label: "Abrechnungen" },
@@ -98,14 +100,21 @@ const ADMIN_NAV: NavArea[] = [
     { to: "/app/mailer/messages", label: "Nachrichten" },
     { to: "/app/mailer/addresses", label: "E-Mail-Adressen" },
   ] },
-  { label: "Mehr", items: [
-    { to: "/app/events", label: "Termine" },
-    { to: "/app/material", label: "Material" },
-    { to: "/app/material/categories", label: "Materialkategorien" },
+  // The startpage content has its own area again (FRONTEND_ISSUES asked for
+  // this; the NAVIGATION.md rework had folded it into a catch-all "Mehr").
+  { label: "Website", items: [
     { to: "/app/cms/posts", label: "Beiträge" },
     { to: "/app/cms/sections", label: "Bereiche" },
     { to: "/app/cms/faqs", label: "FAQ" },
     { to: "/app/cms/links", label: "Links" },
+  ] },
+  { label: "Verwaltung", items: [
+    { to: "/app/events", label: "Termine" },
+    { to: "/app/material", label: "Material" },
+    { to: "/app/material/categories", label: "Materialkategorien" },
+    { to: "/app/users", label: "Benutzer" },
+    { to: "/app/permission-groups", label: "Rechtegruppen" },
+    { to: "/app/registration-passwords", label: "Registrierungspasswörter" },
   ] },
 ];
 

@@ -189,7 +189,7 @@ export function SubmitTerminFlow() {
         <Field label="Voraussetzungen">
           <textarea value={form.voraussetzungen} onChange={(e) => set({ voraussetzungen: e.target.value })} rows={2} />
         </Field>
-        <Field label="Verantwortliche:r">
+        <Field label="Organisator:in">
           <input value={form.responsible} onChange={(e) => set({ responsible: e.target.value })} />
         </Field>
         <Field label="Telefon">

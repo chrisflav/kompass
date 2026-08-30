@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 
 import { API_BASE } from "../../api/client";
+import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { InlineTable } from "../../components/inline";
@@ -14,6 +15,7 @@ import {
   DataTable,
   EditableDetail,
   Field,
+  formatDate,
   Modal,
   MultiSelect,
   PageHeader,
@@ -21,10 +23,10 @@ import {
   Select,
   Spinner,
   Tabs,
-  useConfirmDialog,
-  useToast,
   type Crumb,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
@@ -152,6 +154,7 @@ function PostForm({
 }
 
 export function PostsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
@@ -215,7 +218,7 @@ export function PostsList() {
       <PageHeader
         breadcrumbs={[{ label: "Beiträge" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neuer Beitrag</Button>}
+        actions={can("startpage.add_post") && <Button onClick={() => setCreating(true)}>Neuer Beitrag</Button>}
       />
       {creating && (
         <Modal
@@ -252,9 +255,13 @@ export function PostsList() {
             onSort={view.toggleSort}
             columns={[
               { header: "Titel", cell: (p) => p.title || "—", sortKey: "title" },
-              { header: "Datum", cell: (p) => p.date ?? "—", sortKey: "date" },
+              { header: "Datum", cell: (p) => formatDate(p.date), sortKey: "date" },
               { header: "Bereich", cell: (p) => p.section_title || "—", sortKey: "section" },
-              { header: "URL", cell: (p) => p.absolute_urlname, sortKey: "absolute_urlname" },
+              {
+                header: "URL",
+                cell: (p) => (p.urlname ? `/beitrag/${p.section_urlname ?? ""}/${p.urlname}` : "—"),
+                sortKey: "absolute_urlname",
+              },
             ]}
           />
         )}
@@ -364,11 +371,20 @@ function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
       value: post.urlname || "—",
       edit: <input value={form.urlname} onChange={(e) => set({ urlname: e.target.value })} />,
     },
-    { label: "Absoluter Pfad", value: post.absolute_urlname },
+    {
+      label: "Auf der Webseite",
+      value: post.section?.urlname && post.urlname ? (
+        <Link to={`/beitrag/${post.section.urlname}/${post.urlname}`}>
+          /beitrag/{post.section.urlname}/{post.urlname}
+        </Link>
+      ) : (
+        "—"
+      ),
+    },
     {
       label: "Datum",
       field: "date",
-      value: post.date ?? "—",
+      value: formatDate(post.date),
       edit: (
         <input
           type="date"
@@ -603,11 +619,13 @@ function PostImagesInline({
       {adding && (
         <Modal title="Bild hinzufügen" onClose={() => setAdding(false)} size="sm">
           <div className="stack">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
+            <Field label="Bilddatei" hint="JPEG, PNG oder GIF, maximal 5 MiB.">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </Field>
             <div className="row-actions">
               <Button
                 type="button"

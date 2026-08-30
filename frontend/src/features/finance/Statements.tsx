@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { useRowHints, useSectionHelp } from "../../api/helpTexts";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
@@ -55,6 +56,7 @@ function formatDate(value: string | null | undefined): string {
 /* --- list ---------------------------------------------------------------- */
 
 export function StatementsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["finance", "statements"], () =>
@@ -98,7 +100,11 @@ export function StatementsList() {
       <PageHeader
         breadcrumbs={[{ label: "Abrechnungen" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neue Abrechnung</Button>}
+        actions={
+          can("finance.add_global_statement") && (
+            <Button onClick={() => setCreating(true)}>Neue Abrechnung</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neue Abrechnung" onClose={() => setCreating(false)}>
@@ -366,7 +372,9 @@ function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; c
   ];
 
   // Fieldset "Empfänger": M2M/FK recipients driving allowance/subsidy/LJP
-  // transactions. Read-only in the API (edited in Django via the excursion inline).
+  // transactions. Deliberately read-only here — they are edited on the excursion's
+  // "Abrechnung" tab, which is where the admin put them (StatementOnListInline)
+  // and where the "only this excursion's youth leaders" rule can be applied.
   const recipientRows: DetailRow[] = [
     { label: "Aufwandsentschädigung an", value: joinMembers(statement.allowance_to) },
     { label: "Zuschuss an", value: memberName(statement.subsidy_to) },
@@ -436,7 +444,33 @@ function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; c
       <Tabs
         tabs={[
           { id: "abrechnung", label: "Abrechnung", content: <EditableDetail rows={withHints(mainRows, "statement")} editing={editing} errors={fieldErrors} /> },
-          { id: "empfaenger", label: "Empfänger", content: <EditableDetail rows={withHints(recipientRows, "statement")} editing={editing} errors={fieldErrors} /> },
+          {
+            id: "empfaenger",
+            label: "Empfänger",
+            content: (
+              <>
+                <p className="fieldset-help">
+                  {statement.excursion ? (
+                    <>
+                      Diese Felder werden auf der Ausfahrt gepflegt, weil nur deren
+                      Jugendleiter*innen Zuschüsse erhalten dürfen:{" "}
+                      <Link to={`/app/excursions/${statement.excursion.id}`}>
+                        {statement.excursion.name || statement.excursion.code} öffnen
+                      </Link>
+                      .
+                    </>
+                  ) : (
+                    "Aufwandsentschädigung, Zuschuss und LJP-Beitrag gibt es nur für Abrechnungen, die zu einer Ausfahrt gehören."
+                  )}
+                </p>
+                <EditableDetail
+                  rows={withHints(recipientRows, "statement")}
+                  editing={false}
+                  errors={fieldErrors}
+                />
+              </>
+            ),
+          },
           { id: "verwaltung", label: "Verwaltung", content: <EditableDetail rows={withHints(adminRows, "statement")} editing={editing} errors={fieldErrors} /> },
           {
             id: "belege",

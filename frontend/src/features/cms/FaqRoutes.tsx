@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -58,6 +59,7 @@ function FaqFormFields({
 }
 
 export function FaqList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
@@ -103,7 +105,7 @@ export function FaqList() {
       <PageHeader
         breadcrumbs={[{ label: "FAQ" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={openCreate}>Neue Frage</Button>}
+        actions={can("startpage.add_faq") && <Button onClick={openCreate}>Neue Frage</Button>}
       />
       {creating && (
         <Modal title="Neue Frage" onClose={() => setCreating(false)}>

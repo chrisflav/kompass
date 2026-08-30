@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -15,9 +16,10 @@ import {
   PageHeader,
   QueryBoundary,
   Select,
-  useToast,
   type Crumb,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
@@ -48,6 +50,7 @@ const fieldsetTitle = { marginTop: "1.5rem" } as const;
  * headers, default ordering by -date. */
 
 export function TrainingsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const query = useApiQuery(["trainings"], () => unwrap(client.GET("/api/members/trainings")));
@@ -117,7 +120,11 @@ export function TrainingsList() {
       <PageHeader
         breadcrumbs={[{ label: "Ausbildungen" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neue Ausbildung</Button>}
+        actions={
+          can("members.add_global_membertraining") && (
+            <Button onClick={() => setCreating(true)}>Neue Ausbildung</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neue Ausbildung" onClose={() => setCreating(false)}>
@@ -299,6 +306,26 @@ function makeDraft(t: TrainingOut) {
 }
 
 function TrainingDetailBody({ training, crumbs }: { training: TrainingOut; crumbs: Crumb[] }) {
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const removeMutation = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/trainings/{training_id}", {
+          params: { path: { training_id: training.id } },
+        }),
+      ),
+    {
+      invalidate: [["members", "trainings"]],
+      onSuccess: () => {
+        toast.success("Ausbildung gelöscht.");
+        navigate("/app/trainings");
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => makeDraft(training));
@@ -473,6 +500,25 @@ function TrainingDetailBody({ training, crumbs }: { training: TrainingOut; crumb
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
+              {can("members.delete_global_membertraining") && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={removeMutation.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${training.title || "Ausbildung"}“ wirklich löschen?`,
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      removeMutation.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>

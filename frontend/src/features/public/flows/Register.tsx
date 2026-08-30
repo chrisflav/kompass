@@ -5,18 +5,13 @@ import { client, unwrap } from "../../../api/http";
 import { useApiMutation } from "../../../api/hooks";
 import { Button, Field } from "../../../components/ui";
 import type { components } from "../../../api/schema";
-import {
-  EmergencyContactsEditor,
-  FlowResult,
-  FlowShell,
-  newEmergencyContact,
-} from "./shared";
+import { EmergencyContactsEditor, FlowResult, FlowShell, cleanContacts, newEmergencyContact } from "./shared";
 import { emptyRegisterMember, RegisterMemberFields } from "./RegisterFields";
 
 type RegisterVerifyOut = components["schemas"]["RegisterVerifyOut"];
 type RegisterSubmitIn = components["schemas"]["RegisterSubmitIn"];
 type RegistrationSuccessOut = components["schemas"]["RegistrationSuccessOut"];
-type RegisterMemberData = components["schemas"]["RegisterMemberData"];
+type RegisterMemberData = components["schemas"]["RegisterMemberFields"];
 type EmergencyContactIn = components["schemas"]["EmergencyContactIn"];
 
 /** Password-gated public self-registration (``/api/members/public/register``). */
@@ -72,7 +67,7 @@ function RegisterForm({ password, groupName }: { password: string; groupName: st
 
   const mutation = useApiMutation(
     () => {
-      const body: RegisterSubmitIn = { ...member, password, emergency_contacts: contacts };
+      const body: RegisterSubmitIn = { ...member, password, emergency_contacts: cleanContacts(contacts) };
       return unwrap(client.POST("/api/members/public/register", { body }));
     },
     { onSuccess: (data: RegistrationSuccessOut) => setDone(data) },

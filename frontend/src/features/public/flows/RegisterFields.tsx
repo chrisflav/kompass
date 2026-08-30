@@ -2,7 +2,7 @@ import { Field } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 import { GenderSelect } from "./shared";
 
-type RegisterMemberData = components["schemas"]["RegisterMemberData"];
+type RegisterMemberData = components["schemas"]["RegisterMemberFields"];
 
 export function emptyRegisterMember(): RegisterMemberData {
   return {

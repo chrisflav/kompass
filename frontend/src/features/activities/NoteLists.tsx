@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
+import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { useFlushRegistry } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
@@ -16,8 +17,9 @@ import {
   PageHeader,
   QueryBoundary,
   Tabs,
-  useToast,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import { ParticipantsInline } from "./_controls";
 import type { components } from "../../api/schema";
@@ -39,20 +41,16 @@ function formatDate(value: string | null | undefined): string {
  * the effective field, title. */
 
 export function NoteListsList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
-  const query = useApiQuery(["note-lists"], () =>
-    unwrap(client.GET("/api/members/note-lists")),
-  );
+  const query = useApiQuery(["note-lists"], () => unwrap(client.GET("/api/members/note-lists")));
   const rows = query.data ?? [];
 
   const config: ListViewConfig<MemberNoteListBrief> = useMemo(
     () => ({
       search: (n) => [n.title],
-      sort: {
-        title: (n) => n.title,
-        date: (n) => n.date,
-      },
+      sort: { title: (n) => n.title, date: (n) => n.date },
       defaultSort: { key: "date", dir: "desc" },
     }),
     [],
@@ -65,7 +63,11 @@ export function NoteListsList() {
       <PageHeader
         breadcrumbs={[{ label: "Notizlisten" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neue Notizliste</Button>}
+        actions={
+          can("members.add_membernotelist") && (
+            <Button onClick={() => setCreating(true)}>Neue Notizliste</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neue Notizliste" onClose={() => setCreating(false)}>
@@ -167,12 +169,29 @@ export function NoteListDetailPage() {
 }
 
 function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
+  const navigate = useNavigate();
+  const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const removeMutation = useApiMutation(
+    () =>
+      unwrap(
+        client.DELETE("/api/members/note-lists/{notelist_id}", {
+          params: { path: { notelist_id: list.id } },
+        }),
+      ),
+    {
+      invalidate: [["note-lists"]],
+      onSuccess: () => {
+        toast.success("Notizliste gelöscht.");
+        navigate("/app/notelists");
+      },
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
+
   const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(() => ({
-    title: list.title ?? "",
-    date: list.date ?? "",
-  }));
+  const [form, setForm] = useState(() => ({ title: list.title ?? "", date: list.date ?? "" }));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const { getRegistrar, runFlushes } = useFlushRegistry();
   const [saving, setSaving] = useState(false);
@@ -265,6 +284,25 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
                   Zusammenfassung (pdf)
                 </DownloadButton>
               </Menu>
+              {can("members.delete_membernotelist") && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  busy={removeMutation.isPending}
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        message: `„${list.title || "Notizliste"}“ wirklich löschen?`,
+                        danger: true,
+                        confirmLabel: "Löschen",
+                      })
+                    )
+                      removeMutation.mutate(undefined);
+                  }}
+                >
+                  Löschen
+                </Button>
+              )}
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>

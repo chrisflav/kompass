@@ -1856,3 +1856,49 @@ a:focus-visible,
     gap: 0.15rem;
   }
 }
+
+/* Numbered steps in a public self-service flow (download → sign → upload). */
+.flow-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: var(--muted);
+}
+.flow-steps strong {
+  color: var(--text);
+}
+
+/* Unadorned list used inside a detail cell (e.g. a permission group's rights). */
+.plain-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Bulk-selection column on a list table (the admin's action selector). */
+.data-table th.select-col,
+.data-table td.select-col {
+  width: 1%;
+  padding-right: 0;
+  white-space: nowrap;
+}
+
+/* Action bar shown above a list once rows are selected. */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--accent);
+  background: var(--accent-weak);
+  border-radius: var(--radius);
+}
+.bulk-bar .bulk-count {
+  font-weight: 600;
+}

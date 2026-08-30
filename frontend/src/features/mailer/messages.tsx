@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
+import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
@@ -18,10 +19,10 @@ import {
   PageHeader,
   QueryBoundary,
   Tabs,
-  useConfirmDialog,
-  useToast,
   type Crumb,
   type DetailRow,
+  useConfirmDialog,
+  useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 import { MultiSelect, SingleSelect, type Option } from "./selects";
@@ -33,6 +34,7 @@ type MessageIn = components["schemas"]["MessageIn"];
 /* --- list ---------------------------------------------------------------- */
 
 export function MessagesList() {
+  const { can } = usePermissions();
   const navigate = useNavigate();
   // `?compose=1` opens the create dialog straight away, so a "Nachricht senden"
   // shortcut (e.g. from the dashboard) lands directly in composing.
@@ -84,7 +86,11 @@ export function MessagesList() {
       <PageHeader
         breadcrumbs={[{ label: "Nachrichten" }]}
         subtitle={`${view.rows.length} / ${view.total}`}
-        actions={<Button onClick={() => setCreating(true)}>Neue Nachricht</Button>}
+        actions={
+          can("mailer.add_global_message") && (
+            <Button onClick={() => setCreating(true)}>Neue Nachricht</Button>
+          )
+        }
       />
       {creating && (
         <Modal title="Neue Nachricht" onClose={closeCreate}>
@@ -216,24 +222,35 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
     return true;
   }
 
+  // Both mutations report their own failure through `onError` (toast + field
+  // errors), so the rejection is swallowed here — leaving it unhandled would
+  // only surface as an "unhandled promise rejection" in the console.
   async function saveDraft() {
     if (!valid()) return;
     setFieldErrors({});
-    const msg = await create.mutateAsync(form);
-    toast.success("Als Entwurf gespeichert.");
-    onClose();
-    navigate(`/app/mailer/messages/${msg.id}`);
+    try {
+      const msg = await create.mutateAsync(form);
+      toast.success("Als Entwurf gespeichert.");
+      onClose();
+      navigate(`/app/mailer/messages/${msg.id}`);
+    } catch {
+      /* reported by the mutation's onError */
+    }
   }
 
   async function sendNow() {
     if (!valid()) return;
     if (!(await confirm("Nachricht jetzt an alle Empfänger versenden?"))) return;
     setFieldErrors({});
-    const msg = await create.mutateAsync(form);
-    await submit.mutateAsync(msg.id);
-    toast.success("Nachricht versendet.");
-    onClose();
-    navigate(`/app/mailer/messages/${msg.id}`);
+    try {
+      const msg = await create.mutateAsync(form);
+      await submit.mutateAsync(msg.id);
+      toast.success("Nachricht versendet.");
+      onClose();
+      navigate(`/app/mailer/messages/${msg.id}`);
+    } catch {
+      /* reported by the mutation's onError */
+    }
   }
 
   return (
@@ -735,7 +752,9 @@ function Attachments({
       {adding && (
         <Modal title="Anhang hinzufügen" onClose={() => setAdding(false)} size="sm">
           <div className="stack">
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <Field label="Datei" hint="Wird der Nachricht als Anhang beigelegt.">
+              <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            </Field>
             <div className="row-actions">
               <Button
                 type="button"

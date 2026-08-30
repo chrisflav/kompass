@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { client, unwrap } from "../../../api/http";
 import { useApiMutation, useApiQuery } from "../../../api/hooks";
@@ -59,11 +60,18 @@ function PasswordForm({ flowKey, info }: { flowKey: string; info: RegisterInfo }
 
   if (done) {
     return (
-      <FlowResult tone="success">
-        {done.is_reset_mode
-          ? "Dein Passwort wurde geändert. Du kannst dich jetzt anmelden."
-          : "Dein Konto wurde erstellt. Du kannst dich jetzt anmelden."}
-      </FlowResult>
+      <div className="stack">
+        <FlowResult tone="success">
+          {done.is_reset_mode
+            ? "Dein Passwort wurde geändert."
+            : "Dein Konto wurde erstellt."}
+        </FlowResult>
+        <div className="row-actions">
+          <Link to="/login" className="btn">
+            Zur Anmeldung
+          </Link>
+        </div>
+      </div>
     );
   }
 

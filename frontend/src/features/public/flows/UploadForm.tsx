@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { client, unwrap } from "../../../api/http";
 import { useApiMutation, useApiQuery } from "../../../api/hooks";
-import { Button, Field, QueryBoundary } from "../../../components/ui";
+import { Button, DownloadButton, Field, QueryBoundary } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 import { FlowResult, FlowShell, useFlowKey } from "./shared";
 
@@ -80,10 +80,29 @@ function UploadForm({ flowKey, info }: { flowKey: string; info: UploadFormVerify
         mutation.mutate(undefined);
       }}
     >
-      <p className="muted">
-        Hallo {info.name}, bitte lade deinen unterschriebenen Anmeldebogen hoch (PDF oder Bild,
-        max. 5 MiB).
-      </p>
+      <ol className="flow-steps">
+        <li>
+          <strong>Anmeldebogen herunterladen.</strong> Er ist bereits mit deinen Daten
+          ausgefüllt.
+          <div className="row-actions" style={{ marginTop: ".5rem" }}>
+            <DownloadButton
+              path={`/api/members/public/registration-form/${flowKey}`}
+              filename={`Anmeldebogen_${info.name}.pdf`}
+            >
+              Anmeldebogen herunterladen (PDF)
+            </DownloadButton>
+          </div>
+        </li>
+        <li>
+          <strong>Ausfüllen und unterschreiben.</strong> Bitte ergänze die fehlenden Felder und
+          lies die allgemeinen Bedingungen. Wenn du noch nicht volljährig bist, lass bitte eine
+          erziehungsberechtigte Person unterschreiben.
+        </li>
+        <li>
+          <strong>Wieder hochladen.</strong> Ein Scan oder ein Foto genügt (PDF oder Bild,
+          max. 5 MiB).
+        </li>
+      </ol>
       {info.has_registration_form && (
         <FlowResult tone="success">
           Es liegt bereits ein Anmeldebogen vor. Du kannst ihn hier ersetzen.
