@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 22:26+0200\n"
+"POT-Creation-Date: 2026-08-30 10:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,6 +46,17 @@ msgstr "Berechtigungen"
 
 msgid "Important dates"
 msgstr "Wichtigen Daten"
+
+msgid "Registration key is invalid or has expired."
+msgstr "Der Registrierungscode ist ungültig oder abgelaufen."
+
+
+msgid "You entered a wrong password."
+msgstr "Das eingegebene Passwort ist falsch."
+
+msgid "Registration failed."
+msgstr "Die Registrierung ist fehlgeschlagen."
+
 
 msgid "Authentication"
 msgstr "Authentifizierung"
@@ -141,9 +152,6 @@ msgid "You successfully set your login data. You can now proceed to"
 msgstr ""
 "Du hast deine Zugangsdaten erfolgreich festgelegt. Du kannst nun weiter zum"
 
-msgid "You entered a wrong password."
-msgstr "Das eingegebene Passwort ist falsch."
-
 msgid "Documentation"
 msgstr "Dokumentation"
 
@@ -211,7 +219,8 @@ msgid "current theme"
 msgstr "Aktuelles Thema"
 
 msgid "History"
-msgstr ""
+msgstr "Verlauf"
+
 
 msgid "View on site"
 msgstr "Auf der Website anzeigen"

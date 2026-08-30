@@ -66,11 +66,18 @@ class PostBrief(ModelSchema):
     date: datetime.date | None = None
     section_id: int | None = None
     section_title: str | None = None
+    # The section's url segment, so a list row can link to the SPA route
+    # (/beitrag/<section>/<post>) instead of showing the legacy Django path.
+    section_urlname: str | None = None
     absolute_urlname: str
 
     class Meta:
         model = Post
         fields = ["title", "urlname", "detailed"]
+
+    @staticmethod
+    def resolve_section_urlname(obj) -> str | None:
+        return obj.section.urlname if obj.section else None
 
     @staticmethod
     def resolve_section_title(obj) -> str | None:

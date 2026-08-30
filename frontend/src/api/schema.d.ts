@@ -65,7 +65,11 @@ export interface paths {
         get: operations["members_api_router_retrieve_group"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Group
+         * @description Delete a group (``members.delete_group``; matches ``GroupAdmin``).
+         */
+        delete: operations["members_api_router_delete_group"];
         options?: never;
         head?: never;
         /**
@@ -119,7 +123,11 @@ export interface paths {
         get: operations["members_api_router_retrieve_excursion"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Excursion
+         * @description Delete an excursion, authorized per object (``delete_obj_freizeit``).
+         */
+        delete: operations["members_api_router_delete_excursion"];
         options?: never;
         head?: never;
         /**
@@ -212,10 +220,22 @@ export interface paths {
         get: operations["members_api_router_retrieve_registration"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Registration
+         * @description Delete an unconfirmed registration, authorized per object.
+         */
+        delete: operations["members_api_router_delete_registration"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Registration
+         * @description Update an unconfirmed registration (``MemberUnconfirmedAdmin``'s change form).
+         *
+         *     Same field handling as :func:`update_member`, but resolved through
+         *     ``MemberUnconfirmedProxy`` (the default manager filters ``confirmed=True``)
+         *     and gated on the proxy's ``change_obj`` rule.
+         */
+        patch: operations["members_api_router_update_registration"];
         trace?: never;
     };
     "/api/members/me": {
@@ -286,7 +306,14 @@ export interface paths {
         get: operations["members_api_router_retrieve_training"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Training
+         * @description Delete a training, authorized against its owning member.
+         *
+         *     Like retrieve/update, ``MemberTraining``'s rules_permissions are evaluated
+         *     against the parent ``Member`` (the model is used as an admin inline).
+         */
+        delete: operations["members_api_router_delete_training"];
         options?: never;
         head?: never;
         /**
@@ -341,7 +368,11 @@ export interface paths {
         get: operations["members_api_router_retrieve_klettertreff"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Klettertreff
+         * @description Delete a Klettertreff (``members.delete_klettertreff``).
+         */
+        delete: operations["members_api_router_delete_klettertreff"];
         options?: never;
         head?: never;
         /**
@@ -395,7 +426,11 @@ export interface paths {
         get: operations["members_api_router_retrieve_note_list"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Note List
+         * @description Delete a note list (``members.delete_membernotelist``).
+         */
+        delete: operations["members_api_router_delete_note_list"];
         options?: never;
         head?: never;
         /**
@@ -439,7 +474,11 @@ export interface paths {
         get: operations["members_api_router_retrieve_waiter"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Waiter
+         * @description Remove an applicant from the waiting list, authorized per object.
+         */
+        delete: operations["members_api_router_delete_waiter"];
         options?: never;
         head?: never;
         /**
@@ -479,6 +518,54 @@ export interface paths {
          *     falls back to that default.
          */
         post: operations["members_api_router_invite_waiter_to_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/members/waiters/{waiter_id}/request-wait-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Wait Confirmation
+         * @description Ask an applicant to confirm they still want to wait.
+         *
+         *     Mirrors ``MemberWaitingListAdmin.ask_for_wait_confirmation``: generates a
+         *     fresh confirmation key and sends the reminder mail (which also carries the
+         *     "leave the waiting list" link).
+         */
+        post: operations["members_api_router_request_wait_confirmation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/members/waiters/{waiter_id}/request-mail-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Waiter Mail Confirmation
+         * @description Ask an applicant to confirm their e-mail address.
+         *
+         *     Mirrors ``MemberWaitingListAdmin.request_mail_confirmation`` (``rerequest``
+         *     true) and ``request_required_mail_confirmation`` (``rerequest`` false, which
+         *     only mails addresses that are still unconfirmed).
+         */
+        post: operations["members_api_router_request_waiter_mail_confirmation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -612,6 +699,29 @@ export interface paths {
          *     (the admin's "re-request missing confirmations" variant).
          */
         post: operations["members_api_router_request_mail_confirmation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/members/{member_id}/request-registration-form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Registration Form
+         * @description Ask a member to (re-)upload their signed registration form.
+         *
+         *     Mirrors ``MemberUnconfirmedAdmin.request_registration_form_view``: generates
+         *     the upload key and mails the person the link to the upload page.
+         */
+        post: operations["members_api_router_request_registration_form"];
         delete?: never;
         options?: never;
         head?: never;
@@ -782,7 +892,11 @@ export interface paths {
         get: operations["members_api_router_retrieve_member"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Member
+         * @description Delete a member, authorized per object (``delete_obj_member``).
+         */
+        delete: operations["members_api_router_delete_member"];
         options?: never;
         head?: never;
         /**
@@ -1223,6 +1337,60 @@ export interface paths {
          * @description Edit a member's ACL row (SENSITIVE → gated on parent ``change``).
          */
         patch: operations["members_api_inlines_member_update_permission_member"];
+        trace?: never;
+    };
+    "/api/members/{member_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Member Image
+         * @description Upload/replace a member's photo (multipart; parent ``change`` gate).
+         *
+         *     Mirrors the ``Member.image`` ``RestrictedFileField`` constraints, which the
+         *     admin enforced through the form widget.
+         */
+        post: operations["members_api_inlines_member_upload_member_image"];
+        /**
+         * Clear Member Image
+         * @description Remove a member's photo (parent ``change`` gate).
+         */
+        delete: operations["members_api_inlines_member_clear_member_image"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/members/trainings/{training_id}/certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Training Certificate
+         * @description Upload a training's certificate of attendance (multipart).
+         *
+         *     ``MemberTraining``'s rules are evaluated against the owning member (the model
+         *     is an admin inline), so the gate is the member's ``change_obj``.
+         */
+        post: operations["members_api_inlines_member_upload_training_certificate"];
+        /**
+         * Clear Training Certificate
+         * @description Remove a training's certificate of attendance.
+         */
+        delete: operations["members_api_inlines_member_clear_training_certificate"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/members/groups/{group_id}/registration-passwords": {
@@ -3034,6 +3202,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/public/registration-form/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Registration Form
+         * @description Serve the applicant's pre-filled registration form as a PDF.
+         *
+         *     The JSON counterpart of ``members.views.download_registration_form``: the
+         *     person downloads this LaTeX-rendered form, signs it and uploads the scan via
+         *     ``/upload-registration-form/{key}``. Without it there is nothing to sign.
+         *
+         *     Returns the generated ``HttpResponse`` verbatim (no ``response`` schema), as
+         *     the authenticated document endpoints do.
+         */
+        get: operations["members_api_public_download_registration_form"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/public/waiting-list": {
         parameters: {
             query?: never;
@@ -3221,6 +3416,171 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Users
+         * @description All login accounts (``LoginDatumAdmin.list_display`` plus their groups).
+         */
+        get: operations["logindata_api_admin_router_list_users"];
+        put?: never;
+        /**
+         * Create User
+         * @description Create a login account via Django's ``UserCreationForm`` (as the admin does).
+         */
+        post: operations["logindata_api_admin_router_create_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve User */
+        get: operations["logindata_api_admin_router_retrieve_user"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete User
+         * @description Delete a login account, refusing to delete the caller's own.
+         */
+        delete: operations["logindata_api_admin_router_delete_user"];
+        options?: never;
+        head?: never;
+        /**
+         * Update User
+         * @description Update the admin's editable user fields (never the password).
+         */
+        patch: operations["logindata_api_admin_router_update_user"];
+        trace?: never;
+    };
+    "/api/logindata/users/{user_id}/set-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set User Password
+         * @description Set a user's password via ``SetPasswordForm`` (same validators as the admin).
+         */
+        post: operations["logindata_api_admin_router_set_user_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/permission-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Permission Groups */
+        get: operations["logindata_api_admin_router_list_permission_groups"];
+        put?: never;
+        /** Create Permission Group */
+        post: operations["logindata_api_admin_router_create_permission_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/permission-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve Permission Group */
+        get: operations["logindata_api_admin_router_retrieve_permission_group"];
+        put?: never;
+        post?: never;
+        /** Delete Permission Group */
+        delete: operations["logindata_api_admin_router_delete_permission_group"];
+        options?: never;
+        head?: never;
+        /** Update Permission Group */
+        patch: operations["logindata_api_admin_router_update_permission_group"];
+        trace?: never;
+    };
+    "/api/logindata/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Permissions
+         * @description Every assignable Django permission, for the group editor's picker.
+         */
+        get: operations["logindata_api_admin_router_list_permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/registration-passwords": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Registration Passwords
+         * @description The shared secrets that gate the "set your password" invite flow.
+         */
+        get: operations["logindata_api_admin_router_list_registration_passwords"];
+        put?: never;
+        /** Create Registration Password */
+        post: operations["logindata_api_admin_router_create_registration_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/registration-passwords/{password_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Registration Password */
+        delete: operations["logindata_api_admin_router_delete_registration_password"];
+        options?: never;
+        head?: never;
+        /** Update Registration Password */
+        patch: operations["logindata_api_admin_router_update_registration_password"];
         trace?: never;
     };
     "/api/ludwigsburgalpin/public/termine": {
@@ -3967,6 +4327,83 @@ export interface components {
             confirmed_alternative_mail: boolean;
         };
         /**
+         * MemberUpdate
+         * @description Editable member fields (every non-readonly change-view field).
+         *
+         *     All fields optional for PATCH semantics; only supplied fields are applied.
+         *     Per-field permission gates (``group`` → ``may_change_member_group``; ``user``
+         *     → ``may_set_auth_user``; the organizational fields → ``may_change_organizationals``)
+         *     are enforced in the route, not here.
+         */
+        MemberUpdate: {
+            /** Prename */
+            prename?: string | null;
+            /** Lastname */
+            lastname?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Alternative Email */
+            alternative_email?: string | null;
+            /** Phone Number */
+            phone_number?: string | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /** Gender */
+            gender?: number | null;
+            /** Street */
+            street?: string | null;
+            /** Plz */
+            plz?: string | null;
+            /** Town */
+            town?: string | null;
+            /** Address Extra */
+            address_extra?: string | null;
+            /** Country */
+            country?: string | null;
+            /** Iban */
+            iban?: string | null;
+            /** Join Date */
+            join_date?: string | null;
+            /** Leave Date */
+            leave_date?: string | null;
+            /** Dav Badge No */
+            dav_badge_no?: string | null;
+            /** Ticket No */
+            ticket_no?: string | null;
+            /** Swimming Badge */
+            swimming_badge?: boolean | null;
+            /** Climbing Badge */
+            climbing_badge?: string | null;
+            /** Alpine Experience */
+            alpine_experience?: string | null;
+            /** Allergies */
+            allergies?: string | null;
+            /** Medication */
+            medication?: string | null;
+            /** Tetanus Vaccination */
+            tetanus_vaccination?: string | null;
+            /** Legal Guardians */
+            legal_guardians?: string | null;
+            /** Comments */
+            comments?: string | null;
+            /** Active */
+            active?: boolean | null;
+            /** Photos May Be Taken */
+            photos_may_be_taken?: boolean | null;
+            /** May Cancel Appointment Independently */
+            may_cancel_appointment_independently?: boolean | null;
+            /** Group Ids */
+            group_ids?: number[] | null;
+            /** User Id */
+            user_id?: number | null;
+            /** Good Conduct Certificate Presented Date */
+            good_conduct_certificate_presented_date?: string | null;
+            /** Has Key */
+            has_key?: boolean | null;
+            /** Has Free Ticket Gym */
+            has_free_ticket_gym?: boolean | null;
+        };
+        /**
          * MeOut
          * @description The authenticated user's own identity.
          *
@@ -3989,6 +4426,16 @@ export interface components {
              * @default false
              */
             is_staff: boolean;
+            /**
+             * Is Superuser
+             * @default false
+             */
+            is_superuser: boolean;
+            /**
+             * Permissions
+             * @default []
+             */
+            permissions: string[];
         };
         /** TrainingBrief */
         TrainingBrief: {
@@ -4445,83 +4892,6 @@ export interface components {
             label: string;
         };
         /**
-         * MemberUpdate
-         * @description Editable member fields (every non-readonly change-view field).
-         *
-         *     All fields optional for PATCH semantics; only supplied fields are applied.
-         *     Per-field permission gates (``group`` → ``may_change_member_group``; ``user``
-         *     → ``may_set_auth_user``; the organizational fields → ``may_change_organizationals``)
-         *     are enforced in the route, not here.
-         */
-        MemberUpdate: {
-            /** Prename */
-            prename?: string | null;
-            /** Lastname */
-            lastname?: string | null;
-            /** Email */
-            email?: string | null;
-            /** Alternative Email */
-            alternative_email?: string | null;
-            /** Phone Number */
-            phone_number?: string | null;
-            /** Birth Date */
-            birth_date?: string | null;
-            /** Gender */
-            gender?: number | null;
-            /** Street */
-            street?: string | null;
-            /** Plz */
-            plz?: string | null;
-            /** Town */
-            town?: string | null;
-            /** Address Extra */
-            address_extra?: string | null;
-            /** Country */
-            country?: string | null;
-            /** Iban */
-            iban?: string | null;
-            /** Join Date */
-            join_date?: string | null;
-            /** Leave Date */
-            leave_date?: string | null;
-            /** Dav Badge No */
-            dav_badge_no?: string | null;
-            /** Ticket No */
-            ticket_no?: string | null;
-            /** Swimming Badge */
-            swimming_badge?: boolean | null;
-            /** Climbing Badge */
-            climbing_badge?: string | null;
-            /** Alpine Experience */
-            alpine_experience?: string | null;
-            /** Allergies */
-            allergies?: string | null;
-            /** Medication */
-            medication?: string | null;
-            /** Tetanus Vaccination */
-            tetanus_vaccination?: string | null;
-            /** Legal Guardians */
-            legal_guardians?: string | null;
-            /** Comments */
-            comments?: string | null;
-            /** Active */
-            active?: boolean | null;
-            /** Photos May Be Taken */
-            photos_may_be_taken?: boolean | null;
-            /** May Cancel Appointment Independently */
-            may_cancel_appointment_independently?: boolean | null;
-            /** Group Ids */
-            group_ids?: number[] | null;
-            /** User Id */
-            user_id?: number | null;
-            /** Good Conduct Certificate Presented Date */
-            good_conduct_certificate_presented_date?: string | null;
-            /** Has Key */
-            has_key?: boolean | null;
-            /** Has Free Ticket Gym */
-            has_free_ticket_gym?: boolean | null;
-        };
-        /**
          * SjrApplicationIn
          * @description The invoice selection the admin's ``GenerateSjrForm`` collects.
          *
@@ -4720,18 +5090,26 @@ export interface components {
             delete_group_ids?: number[] | null;
         };
         /**
-         * RegistrationPasswordOut
-         * @description A group's registration password (admin ``RegistrationPasswordInline``).
+         * MemberImageOut
+         * @description The member's photo url after upload/clear.
          */
+        MemberImageOut: {
+            /** Image */
+            image?: string | null;
+        };
+        /**
+         * TrainingCertificateOut
+         * @description The training's certificate url after upload/clear.
+         */
+        TrainingCertificateOut: {
+            /** Certificate */
+            certificate?: string | null;
+        };
+        /** RegistrationPasswordOut */
         RegistrationPasswordOut: {
             /** Id */
             id: number;
-            /** Group Id */
-            group_id: number;
-            /**
-             * Passwort
-             * @default
-             */
+            /** Password */
             password: string;
         };
         /**
@@ -5209,7 +5587,7 @@ export interface components {
              * Night Cost
              * @default 0
              */
-            night_cost: number;
+            night_cost: number | string;
         };
         /**
          * StatementUpdate
@@ -5226,7 +5604,7 @@ export interface components {
             /** Explanation */
             explanation?: string | null;
             /** Night Cost */
-            night_cost?: number | null;
+            night_cost?: number | string | null;
             /** Allowance To Ids */
             allowance_to_ids?: number[] | null;
             /** Subsidy To Id */
@@ -5401,7 +5779,7 @@ export interface components {
              * Amount
              * @default 0
              */
-            amount: number;
+            amount: number | string;
             /** Paid By Id */
             paid_by_id?: number | null;
             /**
@@ -5417,7 +5795,7 @@ export interface components {
             /** Explanation */
             explanation?: string | null;
             /** Amount */
-            amount?: number | null;
+            amount?: number | string | null;
             /** Paid By Id */
             paid_by_id?: number | null;
             /** Costs Covered */
@@ -5524,7 +5902,7 @@ export interface components {
             name: string;
             /**
              * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.
+             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.
              * @default false
              */
             internal_only: boolean;
@@ -5547,7 +5925,7 @@ export interface components {
             name: string;
             /**
              * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.
+             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.
              * @default false
              */
             internal_only: boolean;
@@ -6231,6 +6609,8 @@ export interface components {
             section_id?: number | null;
             /** Section Title */
             section_title?: string | null;
+            /** Section Urlname */
+            section_urlname?: string | null;
             /** Absolute Urlname */
             absolute_urlname: string;
             /**
@@ -6749,10 +7129,13 @@ export interface components {
             email: string;
         };
         /**
-         * EchoMemberData
+         * EchoMemberFields
          * @description The subset of member fields the echo edit form exposes (``MemberForm``).
+         *
+         *     Permissive on purpose: this is the shape of the prefill RESPONSE, and an
+         *     existing member may legitimately have blanks in any of these fields.
          */
-        EchoMemberData: {
+        EchoMemberFields: {
             /** Prename */
             prename: string;
             /** Lastname */
@@ -6797,7 +7180,7 @@ export interface components {
         };
         /** EchoPrefillOut */
         EchoPrefillOut: {
-            member: components["schemas"]["EchoMemberData"];
+            member: components["schemas"]["EchoMemberFields"];
             /**
              * Emergency Contacts
              * @default []
@@ -6882,13 +7265,14 @@ export interface components {
         /** InvitedRegisterPrefillOut */
         InvitedRegisterPrefillOut: {
             group: components["schemas"]["GroupBrief"];
-            member: components["schemas"]["RegisterMemberData"];
+            member: components["schemas"]["RegisterMemberFields"];
         };
         /**
-         * RegisterMemberData
-         * @description Fields of ``MemberRegistrationForm``.
+         * RegisterMemberFields
+         * @description Fields of ``MemberRegistrationForm``, permissive — the prefill RESPONSE
+         *     shape, where the applicant's address is not known yet.
          */
-        RegisterMemberData: {
+        RegisterMemberFields: {
             /** Prename */
             prename: string;
             /** Lastname */
@@ -6980,7 +7364,7 @@ export interface components {
         };
         /**
          * WaitingListRegisterIn
-         * @description Fields of ``MemberRegistrationWaitingListForm``.
+         * @description Fields of ``MemberRegistrationWaitingListForm`` (``birth_date`` required).
          */
         WaitingListRegisterIn: {
             /** Prename */
@@ -7108,6 +7492,143 @@ export interface components {
             new_password2: string;
             /** Username */
             username?: string | null;
+        };
+        /** LoginUserBrief */
+        LoginUserBrief: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Staff */
+            is_staff: boolean;
+            /** Is Superuser */
+            is_superuser: boolean;
+            /** Last Login */
+            last_login?: string | null;
+            /**
+             * Groups
+             * @default []
+             */
+            groups: string[];
+            /** Member Name */
+            member_name?: string | null;
+        };
+        /** AuthGroupBrief */
+        AuthGroupBrief: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Permission Count */
+            permission_count: number;
+            /** User Count */
+            user_count: number;
+        };
+        /** LoginUserOut */
+        LoginUserOut: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Staff */
+            is_staff: boolean;
+            /** Is Superuser */
+            is_superuser: boolean;
+            /** Last Login */
+            last_login?: string | null;
+            /** Date Joined */
+            date_joined?: string | null;
+            /**
+             * Groups
+             * @default []
+             */
+            groups: components["schemas"]["AuthGroupBrief"][];
+            /** Member Id */
+            member_id?: number | null;
+            /** Member Name */
+            member_name?: string | null;
+        };
+        /**
+         * LoginUserCreate
+         * @description Mirrors ``LoginDatumAdmin.add_fieldsets`` (username + password twice).
+         */
+        LoginUserCreate: {
+            /** Username */
+            username: string;
+            /** Password1 */
+            password1: string;
+            /** Password2 */
+            password2: string;
+        };
+        /**
+         * LoginUserUpdate
+         * @description Mirrors ``LoginDatumAdmin.fieldsets`` minus the password field.
+         *
+         *     The password is changed through the dedicated ``set-password`` route so it is
+         *     never mixed into an ordinary field update.
+         */
+        LoginUserUpdate: {
+            /** Username */
+            username?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Is Staff */
+            is_staff?: boolean | null;
+            /** Is Superuser */
+            is_superuser?: boolean | null;
+            /** Group Ids */
+            group_ids?: number[] | null;
+        };
+        /** SetPasswordIn */
+        SetPasswordIn: {
+            /** New Password1 */
+            new_password1: string;
+            /** New Password2 */
+            new_password2: string;
+        };
+        /** AuthGroupOut */
+        AuthGroupOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Permissions
+             * @default []
+             */
+            permissions: components["schemas"]["PermissionBrief"][];
+            /** User Count */
+            user_count: number;
+        };
+        /**
+         * PermissionBrief
+         * @description One Django permission, identified by its app-qualified codename.
+         */
+        PermissionBrief: {
+            /** Id */
+            id: number;
+            /** Codename */
+            codename: string;
+            /** Label */
+            label: string;
+            /** App Label */
+            app_label: string;
+        };
+        /** AuthGroupIn */
+        AuthGroupIn: {
+            /** Name */
+            name: string;
+            /** Permission Ids */
+            permission_ids?: number[] | null;
+        };
+        /** RegistrationPasswordIn */
+        RegistrationPasswordIn: {
+            /** Password */
+            password: string;
         };
         /**
          * TerminSubmit
@@ -7280,6 +7801,26 @@ export interface operations {
             };
         };
     };
+    members_api_router_delete_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     members_api_router_update_group: {
         parameters: {
             query?: never;
@@ -7369,6 +7910,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ExcursionOut"];
                 };
+            };
+        };
+    };
+    members_api_router_delete_excursion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                excursion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -7484,6 +8045,52 @@ export interface operations {
             };
         };
     };
+    members_api_router_delete_registration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registration_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    members_api_router_update_registration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registration_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+        };
+    };
     members_api_router_retrieve_me: {
         parameters: {
             query?: never;
@@ -7567,6 +8174,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TrainingOut"];
                 };
+            };
+        };
+    };
+    members_api_router_delete_training: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -7662,6 +8289,26 @@ export interface operations {
             };
         };
     };
+    members_api_router_delete_klettertreff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                klettertreff_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     members_api_router_update_klettertreff: {
         parameters: {
             query?: never;
@@ -7754,6 +8401,26 @@ export interface operations {
             };
         };
     };
+    members_api_router_delete_note_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notelist_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     members_api_router_update_note_list: {
         parameters: {
             query?: never;
@@ -7822,6 +8489,26 @@ export interface operations {
             };
         };
     };
+    members_api_router_delete_waiter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                waiter_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     members_api_router_update_waiter: {
         parameters: {
             query?: never;
@@ -7862,6 +8549,52 @@ export interface operations {
                 "application/json": components["schemas"]["WaiterInviteIn"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaiterOut"];
+                };
+            };
+        };
+    };
+    members_api_router_request_wait_confirmation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                waiter_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaiterOut"];
+                };
+            };
+        };
+    };
+    members_api_router_request_waiter_mail_confirmation: {
+        parameters: {
+            query?: {
+                rerequest?: boolean;
+            };
+            header?: never;
+            path: {
+                waiter_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -7989,6 +8722,28 @@ export interface operations {
             query?: {
                 rerequest?: boolean;
             };
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+        };
+    };
+    members_api_router_request_registration_form: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
                 member_id: number;
@@ -8293,6 +9048,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MemberOut"];
                 };
+            };
+        };
+    };
+    members_api_router_delete_member: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -8878,6 +9653,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberPermissionOut"];
+                };
+            };
+        };
+    };
+    members_api_inlines_member_upload_member_image: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * F
+                     * Format: binary
+                     */
+                    f: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberImageOut"];
+                };
+            };
+        };
+    };
+    members_api_inlines_member_clear_member_image: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberImageOut"];
+                };
+            };
+        };
+    };
+    members_api_inlines_member_upload_training_certificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * F
+                     * Format: binary
+                     */
+                    f: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingCertificateOut"];
+                };
+            };
+        };
+    };
+    members_api_inlines_member_clear_training_certificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingCertificateOut"];
                 };
             };
         };
@@ -9821,7 +10704,7 @@ export interface operations {
                      * Amount
                      * @default 0
                      */
-                    amount?: number;
+                    amount?: number | string;
                     /** Paid By Id */
                     paid_by_id?: number | null;
                     /**
@@ -12191,6 +13074,26 @@ export interface operations {
             };
         };
     };
+    members_api_public_download_registration_form: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     members_api_public_register_waiting_list: {
         parameters: {
             query?: never;
@@ -12483,6 +13386,366 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RegisterResult"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_list_users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginUserBrief"][];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_create_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginUserCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginUserOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_retrieve_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginUserOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_delete_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logindata_api_admin_router_update_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginUserUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginUserOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_set_user_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPasswordIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginUserOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_list_permission_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthGroupBrief"][];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_create_permission_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthGroupIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthGroupOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_retrieve_permission_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthGroupOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_delete_permission_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logindata_api_admin_router_update_permission_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthGroupIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthGroupOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_list_permissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionBrief"][];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_list_registration_passwords: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationPasswordOut"][];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_create_registration_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationPasswordIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationPasswordOut"];
+                };
+            };
+        };
+    };
+    logindata_api_admin_router_delete_registration_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                password_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    logindata_api_admin_router_update_registration_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                password_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationPasswordIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationPasswordOut"];
                 };
             };
         };

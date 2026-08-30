@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 09:35+0100\n"
+"POT-Creation-Date: 2026-08-30 10:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -44,6 +44,20 @@ msgstr "Fehler beim Senden der Emails"
 
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
+
+msgid "Can't verify this link. Try again!"
+msgstr "Ungültiger Link. Bitte nochmal versuchen!"
+
+msgid "Either a group or at least one member is required as forward recipient."
+msgstr ""
+"Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
+"Empfänger*in ausgewählt werden."
+
+msgid ""
+"Either a group, a memberlist or at least one member is required as recipient"
+msgstr ""
+"Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
+"ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
 
 msgid "mailer"
 msgstr "Verteiler"
@@ -91,11 +105,6 @@ msgstr "Email-Adresse"
 msgid "email addresses"
 msgstr "Email-Adressen"
 
-msgid "Either a group or at least one member is required as forward recipient."
-msgstr ""
-"Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
-"Empfänger*in ausgewählt werden."
-
 msgid "subject"
 msgstr "Betreff"
 
@@ -140,12 +149,6 @@ msgstr "Nachrichten"
 
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
-
-msgid ""
-"Either a group, a memberlist or at least one member is required as recipient"
-msgstr ""
-"Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
-"ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
 
 msgid "file"
 msgstr "Datei"
@@ -233,9 +236,6 @@ msgstr "Hier kannst du dich vom Newsletter abmelden"
 
 msgid "Successfully unsubscribed from the newsletter for "
 msgstr "Newsletter erfolgreich abbestellt für "
-
-msgid "Can't verify this link. Try again!"
-msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"

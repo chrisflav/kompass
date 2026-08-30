@@ -1,13 +1,17 @@
 """Read/write schemas for the finance API.
 
 Money figures are surfaced as ``float`` to keep the JSON contract simple for the
-TypeScript frontend; the underlying model stores them as ``Decimal``. The rich
+TypeScript frontend; the underlying model stores them as ``Decimal``. Write
+schemas keep money as ``Decimal`` so a client-supplied amount is never assigned
+to a ``DecimalField`` as a float — the in-memory instance would then mix the two
+types and every computed money property would raise ``Decimal + float``. The rich
 ``StatementOut`` mirrors the values that ``Statement.template_context`` and the
 computed money properties expose, while ``StatementBrief`` carries only the
 identity/status a list row needs.
 """
 
 from datetime import datetime
+from decimal import Decimal
 
 from finance.models import Bill
 from finance.models import Statement
@@ -223,7 +227,7 @@ class StatementCreate(Schema):
     short_description: str
     explanation: str = ""
     excursion_id: int | None = None
-    night_cost: float = 0
+    night_cost: Decimal = Decimal(0)
 
 
 class StatementUpdate(Schema):
@@ -237,7 +241,7 @@ class StatementUpdate(Schema):
 
     short_description: str | None = None
     explanation: str | None = None
-    night_cost: float | None = None
+    night_cost: Decimal | None = None
     allowance_to_ids: list[int] | None = None
     subsidy_to_id: int | None = None
     ljp_to_id: int | None = None
@@ -247,7 +251,7 @@ class BillCreate(Schema):
     statement_id: int
     short_description: str
     explanation: str = ""
-    amount: float = 0
+    amount: Decimal = Decimal(0)
     paid_by_id: int | None = None
     costs_covered: bool = False
 
@@ -255,7 +259,7 @@ class BillCreate(Schema):
 class BillUpdate(Schema):
     short_description: str | None = None
     explanation: str | None = None
-    amount: float | None = None
+    amount: Decimal | None = None
     paid_by_id: int | None = None
     costs_covered: bool | None = None
     refunded: bool | None = None

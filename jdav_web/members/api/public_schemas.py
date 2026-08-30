@@ -8,18 +8,27 @@ model secret tokens rather than by the object's primary key.
 """
 
 from datetime import date
+from typing import Annotated
 
 from ninja import Schema
+from pydantic import StringConstraints
 
 from .schemas import GroupBrief
+
+# The Django forms these schemas mirror rejected blank values for every field
+# that is required on the model (``prename``/``lastname``/``email``/``gender``)
+# plus the ones listed in each form's ``Meta.required``. Plain ``str`` would
+# accept "" and let a caller create an entirely empty member, so required text
+# fields use this trimmed, non-empty alias.
+RequiredStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class EmergencyContactIn(Schema):
     """One emergency contact (mirrors ``EmergencyContactForm``)."""
 
-    prename: str
-    lastname: str
-    phone_number: str
+    prename: RequiredStr
+    lastname: RequiredStr
+    phone_number: RequiredStr
     email: str = ""
 
 
@@ -43,8 +52,12 @@ class EchoPasswordIn(Schema):
     password: str
 
 
-class EchoMemberData(Schema):
-    """The subset of member fields the echo edit form exposes (``MemberForm``)."""
+class EchoMemberFields(Schema):
+    """The subset of member fields the echo edit form exposes (``MemberForm``).
+
+    Permissive on purpose: this is the shape of the prefill RESPONSE, and an
+    existing member may legitimately have blanks in any of these fields.
+    """
 
     prename: str
     lastname: str
@@ -58,8 +71,15 @@ class EchoMemberData(Schema):
     photos_may_be_taken: bool = False
 
 
+class EchoMemberData(EchoMemberFields):
+    """Same fields on the way IN, with the form's required ones enforced."""
+
+    prename: RequiredStr
+    lastname: RequiredStr
+
+
 class EchoPrefillOut(Schema):
-    member: EchoMemberData
+    member: EchoMemberFields
     emergency_contacts: list[EmergencyContactOut] = []
 
 
@@ -87,8 +107,9 @@ class RegisterVerifyOut(Schema):
     group: GroupBrief
 
 
-class RegisterMemberData(Schema):
-    """Fields of ``MemberRegistrationForm``."""
+class RegisterMemberFields(Schema):
+    """Fields of ``MemberRegistrationForm``, permissive — the prefill RESPONSE
+    shape, where the applicant's address is not known yet."""
 
     prename: str
     lastname: str
@@ -104,6 +125,21 @@ class RegisterMemberData(Schema):
     photos_may_be_taken: bool = False
 
 
+class RegisterMemberData(RegisterMemberFields):
+    """Same fields on the way IN, with the form's required ones enforced.
+
+    ``street``/``plz``/``town`` are blank-able on the model but listed in the
+    form's ``Meta.required``, so they are required here too.
+    """
+
+    prename: RequiredStr
+    lastname: RequiredStr
+    email: RequiredStr
+    street: RequiredStr
+    plz: RequiredStr
+    town: RequiredStr
+
+
 class RegisterSubmitIn(RegisterMemberData):
     password: str
     emergency_contacts: list[EmergencyContactIn]
@@ -115,7 +151,7 @@ class InvitedRegisterSubmitIn(RegisterMemberData):
 
 class InvitedRegisterPrefillOut(Schema):
     group: GroupBrief
-    member: RegisterMemberData
+    member: RegisterMemberFields
 
 
 class RegistrationSuccessOut(Schema):
@@ -139,12 +175,12 @@ class UploadFormSuccessOut(Schema):
 
 
 class WaitingListRegisterIn(Schema):
-    """Fields of ``MemberRegistrationWaitingListForm``."""
+    """Fields of ``MemberRegistrationWaitingListForm`` (``birth_date`` required)."""
 
-    prename: str
-    lastname: str
+    prename: RequiredStr
+    lastname: RequiredStr
     gender: int
-    email: str
+    email: RequiredStr
     birth_date: date
     application_text: str = ""
 

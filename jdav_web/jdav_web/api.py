@@ -60,6 +60,7 @@ def _register_routers():
     from finance.api.inlines import router as finance_inlines_router
     from finance.api.ledgers import router as finance_ledgers_router
     from finance.api.router import router as finance_router
+    from logindata.api.admin_router import router as logindata_admin_router
     from logindata.api.router import router as logindata_router
     from ludwigsburgalpin.api.documents import router as ludwigsburgalpin_documents_router
     from ludwigsburgalpin.api.public import router as ludwigsburgalpin_public_router
@@ -103,6 +104,7 @@ def _register_routers():
     api.add_router("/members/public", members_public_router, tags=["members-public"])
     api.add_router("/mailer/public", mailer_public_router, tags=["mailer", "public"])
     api.add_router("/logindata", logindata_router, tags=["logindata", "public"])
+    api.add_router("/logindata", logindata_admin_router, tags=["logindata"])
     api.add_router(
         "/ludwigsburgalpin/public",
         ludwigsburgalpin_public_router,

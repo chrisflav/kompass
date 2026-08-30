@@ -172,6 +172,35 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_group",
+        "summary": "Delete Group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "schema": {
+              "title": "Group Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete a group (``members.delete_group``; matches ``GroupAdmin``).",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/excursions": {
@@ -324,6 +353,35 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_excursion",
+        "summary": "Delete Excursion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "excursion_id",
+            "schema": {
+              "title": "Excursion Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete an excursion, authorized per object (``delete_obj_freizeit``).",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/": {
@@ -454,6 +512,81 @@
           }
         },
         "description": "Full detail of an unconfirmed registration, authorized per object.\n\nFetched via ``MemberUnconfirmedProxy`` (which the default ``Member.objects``\nmanager excludes, since it filters ``confirmed=True``) so clicking an\nunconfirmed registration no longer 404s. Gated on the proxy's view rule\n(``view_obj_memberunconfirmedproxy`` = may_view | may_manage_all_registrations).",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "members_api_router_update_registration",
+        "summary": "Update Registration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registration_id",
+            "schema": {
+              "title": "Registration Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Update an unconfirmed registration (``MemberUnconfirmedAdmin``'s change form).\n\nSame field handling as :func:`update_member`, but resolved through\n``MemberUnconfirmedProxy`` (the default manager filters ``confirmed=True``)\nand gated on the proxy's ``change_obj`` rule.",
+        "tags": [
+          "members"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_registration",
+        "summary": "Delete Registration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registration_id",
+            "schema": {
+              "title": "Registration Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete an unconfirmed registration, authorized per object.",
         "tags": [
           "members"
         ],
@@ -642,6 +775,35 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_training",
+        "summary": "Delete Training",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "training_id",
+            "schema": {
+              "title": "Training Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete a training, authorized against its owning member.\n\nLike retrieve/update, ``MemberTraining``'s rules_permissions are evaluated\nagainst the parent ``Member`` (the model is used as an admin inline).",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/klettertreff": {
@@ -789,6 +951,35 @@
           },
           "required": true
         },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_klettertreff",
+        "summary": "Delete Klettertreff",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "klettertreff_id",
+            "schema": {
+              "title": "Klettertreff Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete a Klettertreff (``members.delete_klettertreff``).",
+        "tags": [
+          "members"
+        ],
         "security": [
           {
             "OAuth2Bearer": []
@@ -946,6 +1137,35 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_note_list",
+        "summary": "Delete Note List",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notelist_id",
+            "schema": {
+              "title": "Notelist Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete a note list (``members.delete_membernotelist``).",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/waiters": {
@@ -1062,6 +1282,35 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_waiter",
+        "summary": "Delete Waiter",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "waiter_id",
+            "schema": {
+              "title": "Waiter Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Remove an applicant from the waiting list, authorized per object.",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/members/waiters/{waiter_id}/invite": {
@@ -1105,6 +1354,92 @@
           },
           "required": true
         },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/members/waiters/{waiter_id}/request-wait-confirmation": {
+      "post": {
+        "operationId": "members_api_router_request_wait_confirmation",
+        "summary": "Request Wait Confirmation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "waiter_id",
+            "schema": {
+              "title": "Waiter Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaiterOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ask an applicant to confirm they still want to wait.\n\nMirrors ``MemberWaitingListAdmin.ask_for_wait_confirmation``: generates a\nfresh confirmation key and sends the reminder mail (which also carries the\n\"leave the waiting list\" link).",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/members/waiters/{waiter_id}/request-mail-confirmation": {
+      "post": {
+        "operationId": "members_api_router_request_waiter_mail_confirmation",
+        "summary": "Request Waiter Mail Confirmation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "waiter_id",
+            "schema": {
+              "title": "Waiter Id",
+              "type": "integer"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "rerequest",
+            "schema": {
+              "default": true,
+              "title": "Rerequest",
+              "type": "boolean"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaiterOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ask an applicant to confirm their e-mail address.\n\nMirrors ``MemberWaitingListAdmin.request_mail_confirmation`` (``rerequest``\ntrue) and ``request_required_mail_confirmation`` (``rerequest`` false, which\nonly mails addresses that are still unconfirmed).",
+        "tags": [
+          "members"
+        ],
         "security": [
           {
             "OAuth2Bearer": []
@@ -1340,6 +1675,44 @@
           }
         },
         "description": "Ask an unconfirmed registration to confirm its email address(es).\n\nWith ``rerequest=false`` only addresses that were never asked are contacted\n(the admin's \"re-request missing confirmations\" variant).",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/members/{member_id}/request-registration-form": {
+      "post": {
+        "operationId": "members_api_router_request_registration_form",
+        "summary": "Request Registration Form",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ask a member to (re-)upload their signed registration form.\n\nMirrors ``MemberUnconfirmedAdmin.request_registration_form_view``: generates\nthe upload key and mails the person the link to the upload page.",
         "tags": [
           "members"
         ],
@@ -1855,6 +2228,35 @@
           },
           "required": true
         },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "members_api_router_delete_member",
+        "summary": "Delete Member",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete a member, authorized per object (``delete_obj_member``).",
+        "tags": [
+          "members"
+        ],
         "security": [
           {
             "OAuth2Bearer": []
@@ -2780,6 +3182,196 @@
           }
         },
         "description": "Delete a member's ACL row (SENSITIVE → gated on parent ``change``).",
+        "tags": [
+          "members-inlines"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/members/{member_id}/image": {
+      "post": {
+        "operationId": "members_api_inlines_member_upload_member_image",
+        "summary": "Upload Member Image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberImageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Upload/replace a member's photo (multipart; parent ``change`` gate).\n\nMirrors the ``Member.image`` ``RestrictedFileField`` constraints, which the\nadmin enforced through the form widget.",
+        "tags": [
+          "members-inlines"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "f": {
+                    "format": "binary",
+                    "title": "F",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "f"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "members_api_inlines_member_clear_member_image",
+        "summary": "Clear Member Image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberImageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Remove a member's photo (parent ``change`` gate).",
+        "tags": [
+          "members-inlines"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/members/trainings/{training_id}/certificate": {
+      "post": {
+        "operationId": "members_api_inlines_member_upload_training_certificate",
+        "summary": "Upload Training Certificate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "training_id",
+            "schema": {
+              "title": "Training Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingCertificateOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Upload a training's certificate of attendance (multipart).\n\n``MemberTraining``'s rules are evaluated against the owning member (the model\nis an admin inline), so the gate is the member's ``change_obj``.",
+        "tags": [
+          "members-inlines"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "f": {
+                    "format": "binary",
+                    "title": "F",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "f"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "members_api_inlines_member_clear_training_certificate",
+        "summary": "Clear Training Certificate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "training_id",
+            "schema": {
+              "title": "Training Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingCertificateOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Remove a training's certificate of attendance.",
         "tags": [
           "members-inlines"
         ],
@@ -4417,9 +5009,17 @@
                     "type": "string"
                   },
                   "amount": {
-                    "default": 0,
-                    "title": "Amount",
-                    "type": "number"
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                        "type": "string"
+                      }
+                    ],
+                    "default": "0",
+                    "title": "Amount"
                   },
                   "paid_by_id": {
                     "anyOf": [
@@ -8194,6 +8794,32 @@
         }
       }
     },
+    "/api/members/public/registration-form/{key}": {
+      "get": {
+        "operationId": "members_api_public_download_registration_form",
+        "summary": "Download Registration Form",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Serve the applicant's pre-filled registration form as a PDF.\n\nThe JSON counterpart of ``members.views.download_registration_form``: the\nperson downloads this LaTeX-rendered form, signs it and uploads the scan via\n``/upload-registration-form/{key}``. Without it there is nothing to sign.\n\nReturns the generated ``HttpResponse`` verbatim (no ``response`` schema), as\nthe authenticated document endpoints do.",
+        "tags": [
+          "members-public"
+        ]
+      }
+    },
     "/api/members/public/waiting-list": {
       "post": {
         "operationId": "members_api_public_register_waiting_list",
@@ -8625,6 +9251,584 @@
           },
           "required": true
         }
+      }
+    },
+    "/api/logindata/users": {
+      "get": {
+        "operationId": "logindata_api_admin_router_list_users",
+        "summary": "List Users",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LoginUserBrief"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "All login accounts (``LoginDatumAdmin.list_display`` plus their groups).",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "logindata_api_admin_router_create_user",
+        "summary": "Create User",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginUserOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a login account via Django's ``UserCreationForm`` (as the admin does).",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginUserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/users/{user_id}": {
+      "get": {
+        "operationId": "logindata_api_admin_router_retrieve_user",
+        "summary": "Retrieve User",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginUserOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "logindata_api_admin_router_update_user",
+        "summary": "Update User",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginUserOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Update the admin's editable user fields (never the password).",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginUserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "logindata_api_admin_router_delete_user",
+        "summary": "Delete User",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Delete a login account, refusing to delete the caller's own.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/users/{user_id}/set-password": {
+      "post": {
+        "operationId": "logindata_api_admin_router_set_user_password",
+        "summary": "Set User Password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginUserOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Set a user's password via ``SetPasswordForm`` (same validators as the admin).",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/permission-groups": {
+      "get": {
+        "operationId": "logindata_api_admin_router_list_permission_groups",
+        "summary": "List Permission Groups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuthGroupBrief"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "logindata_api_admin_router_create_permission_group",
+        "summary": "Create Permission Group",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthGroupOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/permission-groups/{group_id}": {
+      "get": {
+        "operationId": "logindata_api_admin_router_retrieve_permission_group",
+        "summary": "Retrieve Permission Group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "schema": {
+              "title": "Group Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthGroupOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "logindata_api_admin_router_update_permission_group",
+        "summary": "Update Permission Group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "schema": {
+              "title": "Group Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthGroupOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "logindata_api_admin_router_delete_permission_group",
+        "summary": "Delete Permission Group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "schema": {
+              "title": "Group Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/permissions": {
+      "get": {
+        "operationId": "logindata_api_admin_router_list_permissions",
+        "summary": "List Permissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionBrief"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Every assignable Django permission, for the group editor's picker.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/registration-passwords": {
+      "get": {
+        "operationId": "logindata_api_admin_router_list_registration_passwords",
+        "summary": "List Registration Passwords",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RegistrationPasswordOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "The shared secrets that gate the \"set your password\" invite flow.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "logindata_api_admin_router_create_registration_password",
+        "summary": "Create Registration Password",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationPasswordOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationPasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/registration-passwords/{password_id}": {
+      "patch": {
+        "operationId": "logindata_api_admin_router_update_registration_password",
+        "summary": "Update Registration Password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "password_id",
+            "schema": {
+              "title": "Password Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationPasswordOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationPasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "logindata_api_admin_router_delete_registration_password",
+        "summary": "Delete Registration Password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "password_id",
+            "schema": {
+              "title": "Password Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/ludwigsburgalpin/public/termine": {
@@ -10531,6 +11735,383 @@
         "title": "RegistrationBrief",
         "type": "object"
       },
+      "MemberUpdate": {
+        "description": "Editable member fields (every non-readonly change-view field).\n\nAll fields optional for PATCH semantics; only supplied fields are applied.\nPer-field permission gates (``group`` → ``may_change_member_group``; ``user``\n→ ``may_set_auth_user``; the organizational fields → ``may_change_organizationals``)\nare enforced in the route, not here.",
+        "properties": {
+          "prename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prename"
+          },
+          "lastname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastname"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "alternative_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternative Email"
+          },
+          "phone_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone Number"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender"
+          },
+          "street": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Street"
+          },
+          "plz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plz"
+          },
+          "town": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Town"
+          },
+          "address_extra": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Extra"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
+          },
+          "join_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join Date"
+          },
+          "leave_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leave Date"
+          },
+          "dav_badge_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dav Badge No"
+          },
+          "ticket_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket No"
+          },
+          "swimming_badge": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swimming Badge"
+          },
+          "climbing_badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Climbing Badge"
+          },
+          "alpine_experience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpine Experience"
+          },
+          "allergies": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allergies"
+          },
+          "medication": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medication"
+          },
+          "tetanus_vaccination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tetanus Vaccination"
+          },
+          "legal_guardians": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Guardians"
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "photos_may_be_taken": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photos May Be Taken"
+          },
+          "may_cancel_appointment_independently": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "May Cancel Appointment Independently"
+          },
+          "group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Ids"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "good_conduct_certificate_presented_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Good Conduct Certificate Presented Date"
+          },
+          "has_key": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Key"
+          },
+          "has_free_ticket_gym": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Free Ticket Gym"
+          }
+        },
+        "title": "MemberUpdate",
+        "type": "object"
+      },
       "MeOut": {
         "description": "The authenticated user's own identity.\n\nDrives the SPA's top bar (name → profile link) and the personal (\"Meine …\")\nviews. ``member_id`` is null for accounts without a linked ``Member``; the\nfrontend then falls back to the username for display and hides the personal\nsection.",
         "properties": {
@@ -10561,6 +12142,19 @@
             "default": false,
             "title": "Is Staff",
             "type": "boolean"
+          },
+          "is_superuser": {
+            "default": false,
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "permissions": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
           }
         },
         "required": [
@@ -11800,383 +13394,6 @@
         "title": "MemberEnumChoice",
         "type": "object"
       },
-      "MemberUpdate": {
-        "description": "Editable member fields (every non-readonly change-view field).\n\nAll fields optional for PATCH semantics; only supplied fields are applied.\nPer-field permission gates (``group`` → ``may_change_member_group``; ``user``\n→ ``may_set_auth_user``; the organizational fields → ``may_change_organizationals``)\nare enforced in the route, not here.",
-        "properties": {
-          "prename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Prename"
-          },
-          "lastname": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lastname"
-          },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
-          },
-          "alternative_email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Alternative Email"
-          },
-          "phone_number": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Phone Number"
-          },
-          "birth_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Birth Date"
-          },
-          "gender": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Gender"
-          },
-          "street": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Street"
-          },
-          "plz": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Plz"
-          },
-          "town": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Town"
-          },
-          "address_extra": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Address Extra"
-          },
-          "country": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Country"
-          },
-          "iban": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Iban"
-          },
-          "join_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Join Date"
-          },
-          "leave_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Leave Date"
-          },
-          "dav_badge_no": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dav Badge No"
-          },
-          "ticket_no": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ticket No"
-          },
-          "swimming_badge": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Swimming Badge"
-          },
-          "climbing_badge": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Climbing Badge"
-          },
-          "alpine_experience": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Alpine Experience"
-          },
-          "allergies": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Allergies"
-          },
-          "medication": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Medication"
-          },
-          "tetanus_vaccination": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tetanus Vaccination"
-          },
-          "legal_guardians": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Legal Guardians"
-          },
-          "comments": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Comments"
-          },
-          "active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Active"
-          },
-          "photos_may_be_taken": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photos May Be Taken"
-          },
-          "may_cancel_appointment_independently": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "May Cancel Appointment Independently"
-          },
-          "group_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Group Ids"
-          },
-          "user_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "User Id"
-          },
-          "good_conduct_certificate_presented_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Good Conduct Certificate Presented Date"
-          },
-          "has_key": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Has Key"
-          },
-          "has_free_ticket_gym": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Has Free Ticket Gym"
-          }
-        },
-        "title": "MemberUpdate",
-        "type": "object"
-      },
       "SjrApplicationIn": {
         "description": "The invoice selection the admin's ``GenerateSjrForm`` collects.\n\n``bill_id`` identifies the bill whose uploaded proof is embedded as the\ninvoice attachment; ``None`` produces the application without an invoice.",
         "properties": {
@@ -12639,27 +13856,56 @@
         "title": "MemberPermissionIn",
         "type": "object"
       },
+      "MemberImageOut": {
+        "description": "The member's photo url after upload/clear.",
+        "properties": {
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          }
+        },
+        "title": "MemberImageOut",
+        "type": "object"
+      },
+      "TrainingCertificateOut": {
+        "description": "The training's certificate url after upload/clear.",
+        "properties": {
+          "certificate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate"
+          }
+        },
+        "title": "TrainingCertificateOut",
+        "type": "object"
+      },
       "RegistrationPasswordOut": {
-        "description": "A group's registration password (admin ``RegistrationPasswordInline``).",
         "properties": {
           "id": {
             "title": "Id",
             "type": "integer"
           },
-          "group_id": {
-            "title": "Group Id",
-            "type": "integer"
-          },
           "password": {
-            "default": "",
-            "maxLength": 20,
-            "title": "Passwort",
+            "title": "Password",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "group_id"
+          "password"
         ],
         "title": "RegistrationPasswordOut",
         "type": "object"
@@ -13919,9 +15165,17 @@
             "title": "Excursion Id"
           },
           "night_cost": {
-            "default": 0,
-            "title": "Night Cost",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Night Cost"
           }
         },
         "required": [
@@ -13959,6 +15213,10 @@
             "anyOf": [
               {
                 "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -14374,9 +15632,17 @@
             "type": "string"
           },
           "amount": {
-            "default": 0,
-            "title": "Amount",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Amount"
           },
           "paid_by_id": {
             "anyOf": [
@@ -14430,6 +15696,10 @@
             "anyOf": [
               {
                 "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -14772,7 +16042,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.",
+            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.",
             "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
             "type": "boolean"
           }
@@ -14830,7 +16100,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: example.org.",
+            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.",
             "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
             "type": "boolean"
           }
@@ -16420,6 +17690,17 @@
             ],
             "title": "Section Title"
           },
+          "section_urlname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Urlname"
+          },
           "absolute_urlname": {
             "title": "Absolute Urlname",
             "type": "string"
@@ -17387,10 +18668,12 @@
       "EchoSubmitIn": {
         "properties": {
           "prename": {
+            "minLength": 1,
             "title": "Prename",
             "type": "string"
           },
           "lastname": {
+            "minLength": 1,
             "title": "Lastname",
             "type": "string"
           },
@@ -17459,14 +18742,17 @@
         "description": "One emergency contact (mirrors ``EmergencyContactForm``).",
         "properties": {
           "prename": {
+            "minLength": 1,
             "title": "Prename",
             "type": "string"
           },
           "lastname": {
+            "minLength": 1,
             "title": "Lastname",
             "type": "string"
           },
           "phone_number": {
+            "minLength": 1,
             "title": "Phone Number",
             "type": "string"
           },
@@ -17484,8 +18770,8 @@
         "title": "EmergencyContactIn",
         "type": "object"
       },
-      "EchoMemberData": {
-        "description": "The subset of member fields the echo edit form exposes (``MemberForm``).",
+      "EchoMemberFields": {
+        "description": "The subset of member fields the echo edit form exposes (``MemberForm``).\n\nPermissive on purpose: this is the shape of the prefill RESPONSE, and an\nexisting member may legitimately have blanks in any of these fields.",
         "properties": {
           "prename": {
             "title": "Prename",
@@ -17540,13 +18826,13 @@
           "lastname",
           "gender"
         ],
-        "title": "EchoMemberData",
+        "title": "EchoMemberFields",
         "type": "object"
       },
       "EchoPrefillOut": {
         "properties": {
           "member": {
-            "$ref": "#/components/schemas/EchoMemberData"
+            "$ref": "#/components/schemas/EchoMemberFields"
           },
           "emergency_contacts": {
             "default": [],
@@ -17650,10 +18936,12 @@
       "RegisterSubmitIn": {
         "properties": {
           "prename": {
+            "minLength": 1,
             "title": "Prename",
             "type": "string"
           },
           "lastname": {
+            "minLength": 1,
             "title": "Lastname",
             "type": "string"
           },
@@ -17662,18 +18950,22 @@
             "type": "integer"
           },
           "email": {
+            "minLength": 1,
             "title": "Email",
             "type": "string"
           },
           "street": {
+            "minLength": 1,
             "title": "Street",
             "type": "string"
           },
           "plz": {
+            "minLength": 1,
             "title": "Plz",
             "type": "string"
           },
           "town": {
+            "minLength": 1,
             "title": "Town",
             "type": "string"
           },
@@ -17747,7 +19039,7 @@
             "$ref": "#/components/schemas/GroupBrief"
           },
           "member": {
-            "$ref": "#/components/schemas/RegisterMemberData"
+            "$ref": "#/components/schemas/RegisterMemberFields"
           }
         },
         "required": [
@@ -17757,8 +19049,8 @@
         "title": "InvitedRegisterPrefillOut",
         "type": "object"
       },
-      "RegisterMemberData": {
-        "description": "Fields of ``MemberRegistrationForm``.",
+      "RegisterMemberFields": {
+        "description": "Fields of ``MemberRegistrationForm``, permissive — the prefill RESPONSE\nshape, where the applicant's address is not known yet.",
         "properties": {
           "prename": {
             "title": "Prename",
@@ -17836,16 +19128,18 @@
           "plz",
           "town"
         ],
-        "title": "RegisterMemberData",
+        "title": "RegisterMemberFields",
         "type": "object"
       },
       "InvitedRegisterSubmitIn": {
         "properties": {
           "prename": {
+            "minLength": 1,
             "title": "Prename",
             "type": "string"
           },
           "lastname": {
+            "minLength": 1,
             "title": "Lastname",
             "type": "string"
           },
@@ -17854,18 +19148,22 @@
             "type": "integer"
           },
           "email": {
+            "minLength": 1,
             "title": "Email",
             "type": "string"
           },
           "street": {
+            "minLength": 1,
             "title": "Street",
             "type": "string"
           },
           "plz": {
+            "minLength": 1,
             "title": "Plz",
             "type": "string"
           },
           "town": {
+            "minLength": 1,
             "title": "Town",
             "type": "string"
           },
@@ -17973,13 +19271,15 @@
         "type": "object"
       },
       "WaitingListRegisterIn": {
-        "description": "Fields of ``MemberRegistrationWaitingListForm``.",
+        "description": "Fields of ``MemberRegistrationWaitingListForm`` (``birth_date`` required).",
         "properties": {
           "prename": {
+            "minLength": 1,
             "title": "Prename",
             "type": "string"
           },
           "lastname": {
+            "minLength": 1,
             "title": "Lastname",
             "type": "string"
           },
@@ -17988,6 +19288,7 @@
             "type": "integer"
           },
           "email": {
+            "minLength": 1,
             "title": "Email",
             "type": "string"
           },
@@ -18241,6 +19542,392 @@
           "new_password2"
         ],
         "title": "RegisterIn",
+        "type": "object"
+      },
+      "LoginUserBrief": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_staff": {
+            "title": "Is Staff",
+            "type": "boolean"
+          },
+          "is_superuser": {
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "last_login": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login"
+          },
+          "groups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Name"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "is_active",
+          "is_staff",
+          "is_superuser"
+        ],
+        "title": "LoginUserBrief",
+        "type": "object"
+      },
+      "AuthGroupBrief": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permission_count": {
+            "title": "Permission Count",
+            "type": "integer"
+          },
+          "user_count": {
+            "title": "User Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "permission_count",
+          "user_count"
+        ],
+        "title": "AuthGroupBrief",
+        "type": "object"
+      },
+      "LoginUserOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_staff": {
+            "title": "Is Staff",
+            "type": "boolean"
+          },
+          "is_superuser": {
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
+          "last_login": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login"
+          },
+          "date_joined": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Joined"
+          },
+          "groups": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AuthGroupBrief"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          },
+          "member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Name"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "is_active",
+          "is_staff",
+          "is_superuser"
+        ],
+        "title": "LoginUserOut",
+        "type": "object"
+      },
+      "LoginUserCreate": {
+        "description": "Mirrors ``LoginDatumAdmin.add_fieldsets`` (username + password twice).",
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "password1": {
+            "title": "Password1",
+            "type": "string"
+          },
+          "password2": {
+            "title": "Password2",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password1",
+          "password2"
+        ],
+        "title": "LoginUserCreate",
+        "type": "object"
+      },
+      "LoginUserUpdate": {
+        "description": "Mirrors ``LoginDatumAdmin.fieldsets`` minus the password field.\n\nThe password is changed through the dedicated ``set-password`` route so it is\nnever mixed into an ordinary field update.",
+        "properties": {
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "is_staff": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Staff"
+          },
+          "is_superuser": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Superuser"
+          },
+          "group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Ids"
+          }
+        },
+        "title": "LoginUserUpdate",
+        "type": "object"
+      },
+      "SetPasswordIn": {
+        "properties": {
+          "new_password1": {
+            "title": "New Password1",
+            "type": "string"
+          },
+          "new_password2": {
+            "title": "New Password2",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password1",
+          "new_password2"
+        ],
+        "title": "SetPasswordIn",
+        "type": "object"
+      },
+      "AuthGroupOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PermissionBrief"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "user_count": {
+            "title": "User Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "user_count"
+        ],
+        "title": "AuthGroupOut",
+        "type": "object"
+      },
+      "PermissionBrief": {
+        "description": "One Django permission, identified by its app-qualified codename.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "codename": {
+            "title": "Codename",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "app_label": {
+            "title": "App Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "codename",
+          "label",
+          "app_label"
+        ],
+        "title": "PermissionBrief",
+        "type": "object"
+      },
+      "AuthGroupIn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permission_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permission Ids"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AuthGroupIn",
+        "type": "object"
+      },
+      "RegistrationPasswordIn": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "RegistrationPasswordIn",
         "type": "object"
       },
       "TerminSubmit": {

@@ -40,6 +40,12 @@ class MeOut(Schema):
     name: str
     member_id: int | None = None
     is_staff: bool = False
+    is_superuser: bool = False
+    # Every global permission codename the caller holds ("app.codename"). The
+    # SPA uses these to hide actions it knows will be refused, the way the admin
+    # hid buttons the user had no permission for. Object-level rules still
+    # decide per row, and the backend re-checks everything.
+    permissions: list[str] = []
 
 
 class GroupBrief(Schema):

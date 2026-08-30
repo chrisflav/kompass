@@ -14,6 +14,8 @@ resolve to ``404``; state guards that the views turn into an error page
 django ``ValidationError`` (rendered as ``422`` by the root API handler).
 """
 
+from contrib.media import ensure_media_dir
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -24,6 +26,7 @@ from members.models import InvitationToGroup
 from members.models import Member
 from members.models import MemberWaitingList
 from members.models import RegistrationPassword
+from members.pdf import render_tex
 from ninja import File
 from ninja import Router
 from ninja.files import UploadedFile
@@ -265,6 +268,26 @@ def upload_registration_form_verify(request, key: str):
     """Verify an upload key and report whether a form is already present."""
     member = get_object_or_404(Member.all_objects, upload_registration_form_key=key)
     return {"name": member.prename, "has_registration_form": bool(member.registration_form)}
+
+
+@router.get("/registration-form/{key}", auth=None)
+def download_registration_form(request, key: str):
+    """Serve the applicant's pre-filled registration form as a PDF.
+
+    The JSON counterpart of ``members.views.download_registration_form``: the
+    person downloads this LaTeX-rendered form, signs it and uploads the scan via
+    ``/upload-registration-form/{key}``. Without it there is nothing to sign.
+
+    Returns the generated ``HttpResponse`` verbatim (no ``response`` schema), as
+    the authenticated document endpoints do.
+    """
+    member = get_object_or_404(Member.all_objects, upload_registration_form_key=key)
+    ensure_media_dir()
+    return render_tex(
+        "Anmeldeformular_" + member.name,
+        "members/registration_form.tex",
+        {"member": member, "settings": settings},
+    )
 
 
 @router.post("/upload-registration-form/{key}", auth=None, response=UploadFormSuccessOut)

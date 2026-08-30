@@ -39,6 +39,7 @@ from django.utils.translation import gettext_lazy as _
 from members.models import EmergencyContact
 from members.models import Member
 from members.models import MemberDocument
+from members.models import MemberTraining
 from members.models import MemberUnconfirmedProxy
 from members.models import PermissionMember
 from ninja import File
@@ -393,3 +394,93 @@ def delete_permission_member(request, permission_id: int):
     authorize(request, "members.change_obj_member", permission.member)
     permission.delete()
     return 204, None
+
+
+# --- member photo (Member.image file) --------------------------------------
+
+MEMBER_IMAGE_CONTENT_TYPES = ["image/jpeg", "image/png", "image/gif"]
+MEMBER_IMAGE_MAX_MB = 5
+
+
+class MemberImageOut(Schema):
+    """The member's photo url after upload/clear."""
+
+    image: str | None = None
+
+
+def _image_payload(member):
+    return {"image": member.image.url if member.image else None}
+
+
+@router.post("/{member_id}/image", response=MemberImageOut)
+def upload_member_image(request, member_id: int, f: UploadedFile = File(...)):
+    """Upload/replace a member's photo (multipart; parent ``change`` gate).
+
+    Mirrors the ``Member.image`` ``RestrictedFileField`` constraints, which the
+    admin enforced through the form widget.
+    """
+    member = get_authorized(request, Member, member_id, "members.change_obj_member")
+    if f.content_type not in MEMBER_IMAGE_CONTENT_TYPES:
+        raise ValidationError(_("Filetype not supported."))
+    if f.size > MEMBER_IMAGE_MAX_MB * 1024 * 1024:
+        raise ValidationError(
+            _("Please keep filesize under %(mb)s MiB.") % {"mb": MEMBER_IMAGE_MAX_MB}
+        )
+    member.image = f
+    member.save()
+    return _image_payload(member)
+
+
+@router.delete("/{member_id}/image", response=MemberImageOut)
+def clear_member_image(request, member_id: int):
+    """Remove a member's photo (parent ``change`` gate)."""
+    member = get_authorized(request, Member, member_id, "members.change_obj_member")
+    member.image = None
+    member.save()
+    return _image_payload(member)
+
+
+# --- training certificate (MemberTraining.certificate file) ----------------
+
+CERTIFICATE_CONTENT_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/gif"]
+CERTIFICATE_MAX_MB = 5
+
+
+class TrainingCertificateOut(Schema):
+    """The training's certificate url after upload/clear."""
+
+    certificate: str | None = None
+
+
+def _certificate_payload(training):
+    return {"certificate": training.certificate.url if training.certificate else None}
+
+
+@router.post("/trainings/{training_id}/certificate", response=TrainingCertificateOut)
+def upload_training_certificate(request, training_id: int, f: UploadedFile = File(...)):
+    """Upload a training's certificate of attendance (multipart).
+
+    ``MemberTraining``'s rules are evaluated against the owning member (the model
+    is an admin inline), so the gate is the member's ``change_obj``.
+    """
+    training = get_object_or_404(MemberTraining, pk=training_id)
+    authorize(request, "members.change_obj_membertraining", training.member)
+    if f.content_type not in CERTIFICATE_CONTENT_TYPES:
+        raise ValidationError(_("Filetype not supported."))
+    if f.size > CERTIFICATE_MAX_MB * 1024 * 1024:
+        raise ValidationError(
+            _("Please keep filesize under %(mb)s MiB.") % {"mb": CERTIFICATE_MAX_MB}
+        )
+    training.certificate = f
+    training.save()
+    return _certificate_payload(training)
+
+
+@router.delete("/trainings/{training_id}/certificate", response=TrainingCertificateOut)
+def clear_training_certificate(request, training_id: int):
+    """Remove a training's certificate of attendance."""
+    training = get_object_or_404(MemberTraining, pk=training_id)
+    authorize(request, "members.change_obj_membertraining", training.member)
+    training.certificate = None
+    training.save()
+    return _certificate_payload(training)

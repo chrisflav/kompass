@@ -22,6 +22,7 @@ from contrib.permissions import scope_queryset
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from mailer.models import Attachment
 from mailer.models import EmailAddress
 from mailer.models import Message
@@ -61,7 +62,7 @@ def retrieve_email_address(request, address_id: int):
 def _apply_email_address(address, payload):
     if not payload.to_members and not payload.to_groups:
         raise ValidationError(
-            "Either a group or at least one member is required as forward recipient."
+            _("Either a group or at least one member is required as forward recipient.")
         )
     address.name = payload.name
     address.internal_only = payload.internal_only
@@ -115,7 +116,7 @@ def retrieve_message(request, message_id: int):
 def _apply_message(message, payload):
     if not payload.to_groups and not payload.to_members and payload.to_freizeit is None:
         raise ValidationError(
-            "Either a group, a memberlist or at least one member is required as recipient"
+            _("Either a group, a memberlist or at least one member is required as recipient")
         )
     message.subject = payload.subject
     message.content = payload.content

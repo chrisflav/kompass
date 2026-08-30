@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 23:49+0200\n"
+"POT-Creation-Date: 2026-08-30 10:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -161,6 +161,86 @@ msgstr "Beleg herunterladen"
 msgid "Length"
 msgstr "Länge"
 
+msgid "Statement is not yet confirmed."
+msgstr "Diese Abrechnung ist noch nicht bestätigt."
+
+
+msgid "Filetype not supported."
+msgstr "Dieser Dateityp wird nicht unterstützt."
+
+
+#, python-format
+msgid "Please keep filesize under %(mb)s MiB."
+msgstr "Bitte halte die Dateigröße unter %(mb)s MiB."
+
+
+msgid "Only youth leaders of this excursion may receive contributions."
+msgstr "Nur Jugendleiter*innen dieser Ausfahrt können Zuschüsse erhalten."
+
+
+#, python-format
+msgid ""
+"This excursion only has up to %(approved_count)s approved youth leaders, but "
+"you listed %(entered_count)s."
+msgstr "Für diese Ausfahrt sind nur bis zu %(approved_count)s Jugendleiter*innen genehmigt, du hast aber %(entered_count)s eingetragen."
+
+
+msgid "This excursion already has a statement."
+msgstr "Diese Ausfahrt hat bereits eine Abrechnung."
+
+
+msgid "This statement is not tied to an excursion."
+msgstr "Diese Abrechnung gehört zu keiner Ausfahrt."
+
+
+msgid "Submitted statements can no longer be edited."
+msgstr "Eingereichte Abrechnungen können nicht mehr bearbeitet werden."
+
+
+msgid "Statement is already submitted."
+msgstr "Diese Abrechnung wurde bereits eingereicht."
+
+
+msgid ""
+"The configured recipients of the allowance don't match the regulations. "
+"Please correct this and try again."
+msgstr "Die ausgewählten Empfänger*innen der Aufwandsentschädigung entsprechen nicht den Regularien. Bitte korrigiere das und versuche es erneut."
+
+
+msgid ""
+"The excursion is configured to claim LJP contributions. In that case, a "
+"proof must be uploaded for every bill."
+msgstr "Für diese Ausfahrt sollen LJP-Zuschüsse beantragt werden. Dafür muss zu jedem Beleg ein Scan hochgeladen sein."
+
+
+msgid "Only submitted, unconfirmed statements can be processed."
+msgstr "Nur eingereichte, noch nicht bestätigte Abrechnungen können bearbeitet werden."
+
+
+msgid "Statement already has transactions."
+msgstr "Für diese Abrechnung wurden bereits Buchungen erzeugt."
+
+
+msgid "Could not generate transactions. Ensure every covered bill has a payer."
+msgstr "Die Buchungen konnten nicht erzeugt werden. Bitte trage bei jedem übernommenen Beleg ein, wer ihn bezahlt hat."
+
+
+msgid "Statement is not ready to be confirmed."
+msgstr "Diese Abrechnung kann noch nicht bestätigt werden."
+
+
+msgid "Only submitted, unconfirmed statements can be rejected."
+msgstr "Nur eingereichte, noch nicht bestätigte Abrechnungen können abgelehnt werden."
+
+
+msgid "Statement is not confirmed."
+msgstr "Diese Abrechnung ist nicht bestätigt."
+
+
+msgid "Transactions can only be edited on submitted, unconfirmed statements."
+msgstr "Buchungen können nur bei eingereichten, noch nicht bestätigten Abrechnungen bearbeitet werden."
+
+
 msgid "Finance"
 msgstr "Finanzen"
 
@@ -268,6 +348,26 @@ msgstr "Ausfahrt %(excursion)s"
 
 msgid "Ready to confirm"
 msgstr "Bereit zur Abwicklung"
+
+msgid "At least one transaction has no ledger configured."
+msgstr "Mindestens eine Buchung hat noch kein Konto. Bitte trage das nach."
+
+
+msgid "The transactions do not match the calculated costs."
+msgstr "Die Buchungen stimmen nicht mit den berechneten Kosten überein."
+
+
+msgid "The members receiving the allowance don't match the regulations."
+msgstr "Die Empfänger*innen der Aufwandsentschädigung entsprechen nicht den Regularien."
+
+
+msgid "The total of all transactions differs from the calculated total payout."
+msgstr "Die Summe aller Buchungen weicht von der berechneten Auszahlungssumme ab."
+
+
+msgid "Everything is correct."
+msgstr "Alles in Ordnung."
+
 
 #, python-format
 msgid "Allowance for %(excu)s"

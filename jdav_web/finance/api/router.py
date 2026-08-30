@@ -142,13 +142,21 @@ def create_statement(request, payload: StatementCreate):
     excursion = None
     if payload.excursion_id is not None:
         excursion = get_object_or_404(Freizeit, pk=payload.excursion_id)
-    return Statement.objects.create(
+        # ``Statement.excursion`` is unique: without this guard a second create
+        # for the same excursion surfaces as a raw IntegrityError (500).
+        if Statement.objects.filter(excursion=excursion).exists():
+            raise ValidationError(_("This excursion already has a statement."))
+    statement = Statement.objects.create(
         short_description=payload.short_description,
         explanation=payload.explanation,
         night_cost=payload.night_cost,
         excursion=excursion,
         created_by=get_member(request),
     )
+    # Read the row back so every field carries its database-native type before
+    # the computed money properties run during serialization.
+    statement.refresh_from_db()
+    return statement
 
 
 @router.get("/statements/{statement_id}", response=StatementOut)
@@ -260,6 +268,7 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
         statement.save()
         if allowance_members is not None:
             statement.allowance_to.set(allowance_members)
+    statement.refresh_from_db()
     return statement
 
 

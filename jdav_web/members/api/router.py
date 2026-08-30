@@ -93,6 +93,32 @@ def _create_instance(model, scalars, fk_ids=None, m2m=None):
     return instance
 
 
+def _apply_member_update(request, member, payload):
+    """Apply a ``MemberUpdate`` payload with the admin's per-field permissions.
+
+    Shared by the member and the unconfirmed-registration change endpoints;
+    the caller has already resolved and authorized the object.
+    """
+    data = payload.dict(exclude_unset=True)
+    if "group_ids" in data:
+        authorize(request, "members.may_change_member_group")
+    if "user_id" in data:
+        authorize(request, "members.may_set_auth_user")
+    if any(field in data for field in MEMBER_ORGANIZATIONAL_FIELDS):
+        authorize(request, "members.may_change_organizationals")
+    changed = set_scalar_fields(
+        member, data, MEMBER_UPDATE_SCALAR_FIELDS + MEMBER_ORGANIZATIONAL_FIELDS
+    )
+    if "user_id" in data:
+        member.user_id = data["user_id"]
+        changed.append("user")
+    partial_clean(member, changed)
+    member.save()
+    if data.get("group_ids") is not None:
+        member.group.set(data["group_ids"])
+    return member
+
+
 # --- groups ---------------------------------------------------------------
 
 
@@ -149,6 +175,14 @@ def update_group(request, group_id: int, payload: GroupUpdate):
     if "leiter_ids" in data and data["leiter_ids"] is not None:
         group.leiters.set(data["leiter_ids"])
     return group
+
+
+@router.delete("/groups/{group_id}", response={204: None})
+def delete_group(request, group_id: int):
+    """Delete a group (``members.delete_group``; matches ``GroupAdmin``)."""
+    authorize(request, "members.delete_group")
+    get_object_or_404(Group, pk=group_id).delete()
+    return 204, None
 
 
 # --- excursions -----------------------------------------------------------
@@ -221,6 +255,14 @@ def update_excursion(request, excursion_id: int, payload: ExcursionUpdate):
     return excursion
 
 
+@router.delete("/excursions/{excursion_id}", response={204: None})
+def delete_excursion(request, excursion_id: int):
+    """Delete an excursion, authorized per object (``delete_obj_freizeit``)."""
+    excursion = get_authorized(request, Freizeit, excursion_id, "members.delete_obj_freizeit")
+    excursion.delete()
+    return 204, None
+
+
 # --- members --------------------------------------------------------------
 
 
@@ -287,6 +329,36 @@ def retrieve_registration(request, registration_id: int):
     )
 
 
+@router.patch("/registrations/{registration_id}", response=MemberOut)
+def update_registration(request, registration_id: int, payload: MemberUpdate):
+    """Update an unconfirmed registration (``MemberUnconfirmedAdmin``'s change form).
+
+    Same field handling as :func:`update_member`, but resolved through
+    ``MemberUnconfirmedProxy`` (the default manager filters ``confirmed=True``)
+    and gated on the proxy's ``change_obj`` rule.
+    """
+    registration = get_authorized(
+        request,
+        MemberUnconfirmedProxy,
+        registration_id,
+        "members.change_obj_memberunconfirmedproxy",
+    )
+    return _apply_member_update(request, registration, payload)
+
+
+@router.delete("/registrations/{registration_id}", response={204: None})
+def delete_registration(request, registration_id: int):
+    """Delete an unconfirmed registration, authorized per object."""
+    registration = get_authorized(
+        request,
+        MemberUnconfirmedProxy,
+        registration_id,
+        "members.delete_obj_memberunconfirmedproxy",
+    )
+    registration.delete()
+    return 204, None
+
+
 @router.get("/me", response=MeOut)
 def retrieve_me(request):
     """The authenticated user's own identity (name + linked member, if any).
@@ -304,6 +376,11 @@ def retrieve_me(request):
         "name": member.name if member is not None else user.get_username(),
         "member_id": member.pk if member is not None else None,
         "is_staff": bool(getattr(user, "is_staff", False)),
+        "is_superuser": bool(getattr(user, "is_superuser", False)),
+        # A superuser holds every permission, so sending the full list would be
+        # ~300 strings the client would never consult — `is_superuser` already
+        # short-circuits its checks.
+        "permissions": [] if user.is_superuser else sorted(user.get_all_permissions()),
     }
 
 
@@ -384,6 +461,19 @@ def update_training(request, training_id: int, payload: MemberTrainingUpdate):
     return training
 
 
+@router.delete("/trainings/{training_id}", response={204: None})
+def delete_training(request, training_id: int):
+    """Delete a training, authorized against its owning member.
+
+    Like retrieve/update, ``MemberTraining``'s rules_permissions are evaluated
+    against the parent ``Member`` (the model is used as an admin inline).
+    """
+    training = get_object_or_404(MemberTraining, pk=training_id)
+    authorize(request, "members.delete_obj_membertraining", training.member)
+    training.delete()
+    return 204, None
+
+
 # --- klettertreff ---------------------------------------------------------
 
 
@@ -442,6 +532,14 @@ def update_klettertreff(request, klettertreff_id: int, payload: KlettertreffUpda
     return klettertreff
 
 
+@router.delete("/klettertreff/{klettertreff_id}", response={204: None})
+def delete_klettertreff(request, klettertreff_id: int):
+    """Delete a Klettertreff (``members.delete_klettertreff``)."""
+    authorize(request, "members.delete_klettertreff")
+    get_object_or_404(Klettertreff, pk=klettertreff_id).delete()
+    return 204, None
+
+
 # --- note lists -----------------------------------------------------------
 
 
@@ -482,6 +580,14 @@ def update_note_list(request, notelist_id: int, payload: MemberNoteListUpdate):
     partial_clean(notelist, changed)
     notelist.save()
     return notelist
+
+
+@router.delete("/note-lists/{notelist_id}", response={204: None})
+def delete_note_list(request, notelist_id: int):
+    """Delete a note list (``members.delete_membernotelist``)."""
+    authorize(request, "members.delete_membernotelist")
+    get_object_or_404(MemberNoteList, pk=notelist_id).delete()
+    return 204, None
 
 
 # --- waiting list ---------------------------------------------------------
@@ -552,6 +658,47 @@ def invite_waiter_to_group(request, waiter_id: int, payload: WaiterInviteIn):
     creator = request.user.member if hasattr(request.user, "member") else None
     waiter.invite_to_group(group, text_template=payload.text or None, creator=creator)
     return waiter
+
+
+@router.post("/waiters/{waiter_id}/request-wait-confirmation", response=WaiterOut)
+def request_wait_confirmation(request, waiter_id: int):
+    """Ask an applicant to confirm they still want to wait.
+
+    Mirrors ``MemberWaitingListAdmin.ask_for_wait_confirmation``: generates a
+    fresh confirmation key and sends the reminder mail (which also carries the
+    "leave the waiting list" link).
+    """
+    authorize(request, "members.change_global_memberwaitinglist")
+    waiter = get_object_or_404(MemberWaitingList, pk=waiter_id)
+    waiter.generate_wait_confirmation_key()
+    waiter.ask_for_wait_confirmation()
+    waiter.refresh_from_db()
+    return waiter
+
+
+@router.post("/waiters/{waiter_id}/request-mail-confirmation", response=WaiterOut)
+def request_waiter_mail_confirmation(request, waiter_id: int, rerequest: bool = True):
+    """Ask an applicant to confirm their e-mail address.
+
+    Mirrors ``MemberWaitingListAdmin.request_mail_confirmation`` (``rerequest``
+    true) and ``request_required_mail_confirmation`` (``rerequest`` false, which
+    only mails addresses that are still unconfirmed).
+    """
+    authorize(request, "members.change_global_memberwaitinglist")
+    waiter = get_object_or_404(MemberWaitingList, pk=waiter_id)
+    waiter.request_mail_confirmation(rerequest=rerequest)
+    waiter.refresh_from_db()
+    return waiter
+
+
+@router.delete("/waiters/{waiter_id}", response={204: None})
+def delete_waiter(request, waiter_id: int):
+    """Remove an applicant from the waiting list, authorized per object."""
+    waiter = get_authorized(
+        request, MemberWaitingList, waiter_id, "members.delete_obj_memberwaitinglist"
+    )
+    waiter.delete()
+    return 204, None
 
 
 # --- member workflow actions ---------------------------------------------
@@ -648,6 +795,19 @@ def request_mail_confirmation(request, member_id: int, rerequest: bool = True):
         "members.change_obj_memberunconfirmedproxy",
     )
     member.request_mail_confirmation(rerequest=rerequest)
+    return member
+
+
+@router.post("/{member_id}/request-registration-form", response=MemberOut)
+def request_registration_form(request, member_id: int):
+    """Ask a member to (re-)upload their signed registration form.
+
+    Mirrors ``MemberUnconfirmedAdmin.request_registration_form_view``: generates
+    the upload key and mails the person the link to the upload page.
+    """
+    member = get_authorized(request, Member, member_id, "members.change_obj_member")
+    member.request_registration_form()
+    member.refresh_from_db()
     return member
 
 
@@ -810,21 +970,12 @@ def update_member(request, member_id: int, payload: MemberUpdate):
     validated with ``full_clean`` (→ 422 on error).
     """
     member = get_authorized(request, Member, member_id, "members.change_obj_member")
-    data = payload.dict(exclude_unset=True)
-    if "group_ids" in data:
-        authorize(request, "members.may_change_member_group")
-    if "user_id" in data:
-        authorize(request, "members.may_set_auth_user")
-    if any(field in data for field in MEMBER_ORGANIZATIONAL_FIELDS):
-        authorize(request, "members.may_change_organizationals")
-    changed = set_scalar_fields(
-        member, data, MEMBER_UPDATE_SCALAR_FIELDS + MEMBER_ORGANIZATIONAL_FIELDS
-    )
-    if "user_id" in data:
-        member.user_id = data["user_id"]
-        changed.append("user")
-    partial_clean(member, changed)
-    member.save()
-    if data.get("group_ids") is not None:
-        member.group.set(data["group_ids"])
-    return member
+    return _apply_member_update(request, member, payload)
+
+
+@router.delete("/{member_id}", response={204: None})
+def delete_member(request, member_id: int):
+    """Delete a member, authorized per object (``delete_obj_member``)."""
+    member = get_authorized(request, Member, member_id, "members.delete_obj_member")
+    member.delete()
+    return 204, None

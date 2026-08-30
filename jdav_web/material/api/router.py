@@ -10,6 +10,7 @@ from contrib.api.perms import authorize
 from contrib.api.perms import set_scalar_fields
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from material.models import MaterialCategory
 from material.models import MaterialPart
 from material.models import Ownership
@@ -41,9 +42,9 @@ MAX_PHOTO_SIZE = 10 * 1024 * 1024
 
 def _validate_photo(photo):
     if photo.content_type not in ALLOWED_PHOTO_TYPES:
-        raise ValidationError("Filetype not supported.")
+        raise ValidationError(_("Filetype not supported."))
     if photo.size > MAX_PHOTO_SIZE:
-        raise ValidationError("File too large.")
+        raise ValidationError(_("File too large."))
 
 
 # --- categories -----------------------------------------------------------
