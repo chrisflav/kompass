@@ -180,24 +180,40 @@ h3 {
   display: block;
 }
 
-/* Primary navigation (desktop). */
+/* Primary navigation: a ruled band under the brand row, in the spirit of the
+   legend strip along the edge of a map sheet. Recessed a shade off the paper so
+   it reads as part of the sheet rather than as a second toolbar. */
+.navrail {
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+}
+
 .topnav {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  /* Deduct the tabs' own inset so the first label lands on the same left grid
+     line as the compass mark and the page content below, not 14px right of it. */
+  padding: 0 calc(2rem - 0.9rem);
   display: flex;
-  align-items: center;
-  gap: 0.1rem;
-  flex: 1;
+  align-items: stretch;
+  /* Wrap rather than overflow: a seventh area, or a section-heavy public nav,
+     drops onto a second line instead of painting over the account cluster. */
+  flex-wrap: wrap;
   min-width: 0;
 }
 
 .nav-link,
 .nav-area-btn {
   font: inherit;
+  font-size: 0.92rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.4rem 0.55rem;
-  border-radius: 7px;
+  gap: 0.3rem;
+  min-height: 42px;
+  padding: 0 0.9rem;
   border: none;
+  border-radius: 0;
   background: none;
   color: var(--text);
   text-decoration: none;
@@ -205,15 +221,24 @@ h3 {
   white-space: nowrap;
 }
 
+/* Pointing at an area only colours its label. Leaving the ground alone keeps
+   the current tab the single filled element in the band, so "where I am" and
+   "what I am pointing at" never read the same. */
 .nav-link:hover,
 .nav-area-btn:hover {
-  background: var(--panel-2);
+  color: var(--accent);
 }
 
+/* The area you are in is a tab lifted out of the band onto paper white, marked
+   by a contour tick on the band's lower edge — bistre, the one place the
+   cartographic hairline surfaces in the chrome. The label stays ink: the mark
+   carries the position, the way a map ticks your place on a scale. */
 .nav-link.active,
 .nav-area-btn.active {
-  color: var(--accent);
+  background: var(--panel);
+  color: var(--text);
   font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--contour);
 }
 
 .nav-caret {
@@ -223,12 +248,15 @@ h3 {
 
 .nav-area {
   position: relative;
+  display: flex;
 }
 
 .nav-dropdown {
   position: absolute;
   z-index: 50;
-  top: calc(100% + 5px);
+  /* Hangs off the band's lower rule, so the open panel reads as pulled out of
+     the rail rather than floating near it. */
+  top: 100%;
   left: 0;
   min-width: 200px;
   background: var(--panel);
@@ -1786,10 +1814,11 @@ a:focus-visible,
 
 /* --- responsive ---------------------------------------------------------- */
 
-/* Collapse the top bar into a hamburger + drawer once the primary nav no
-   longer fits comfortably. */
-@media (max-width: 1080px) {
-  .topnav,
+/* Collapse into the hamburger + drawer only once the rail itself runs out of
+   room. With the nav on its own full-width row that is far narrower than the
+   old 1080px, so a laptop keeps the whole navigation instead of hiding it. */
+@media (max-width: 860px) {
+  .navrail,
   .context-switch,
   .user-menu {
     display: none;

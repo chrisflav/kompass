@@ -72,8 +72,9 @@ function usePublicNav(enabled: boolean): NavEntry[] {
 
 /**
  * Kompass (admin) navigation, reorganised per NAVIGATION.md: intake ("Aufnahme")
- * is split from the maintenance of existing members, and the long tail collapses
- * into "Mehr" so the primary bar stays scannable.
+ * is split from the maintenance of existing members. Every area is a top-level
+ * entry on the nav rail — the rail has the full container width, so the list
+ * does not need a catch-all "Mehr" to stay inside the bar.
  */
 const ADMIN_NAV: NavArea[] = [
   { label: "Teilnehmende", items: [
@@ -234,23 +235,6 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
           <span>JDAV Ludwigsburg</span>
         </Link>
 
-        {/* Primary navigation (desktop). */}
-        <nav className="topnav" aria-label="Hauptnavigation">
-          {(variant === "public" ? publicNav : ADMIN_NAV).map((entry) =>
-            isArea(entry) ? (
-              <NavArea key={entry.label} area={entry} activePath={pathname} />
-            ) : (
-              <NavLink
-                key={entry.to}
-                to={entry.to}
-                className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
-              >
-                {entry.label}
-              </NavLink>
-            ),
-          )}
-        </nav>
-
         <div className="topbar-right">
           {token ? (
             <>
@@ -281,6 +265,27 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
             ☰
           </button>
         </div>
+      </div>
+
+      {/* Primary navigation, on its own full-width rail below the brand row.
+          It shares the row with nothing, so the areas have the whole container
+          to themselves and the bar cannot collide with the account cluster. */}
+      <div className="navrail">
+        <nav className="topnav" aria-label="Hauptnavigation">
+          {(variant === "public" ? publicNav : ADMIN_NAV).map((entry) =>
+            isArea(entry) ? (
+              <NavArea key={entry.label} area={entry} activePath={pathname} />
+            ) : (
+              <NavLink
+                key={entry.to}
+                to={entry.to}
+                className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
+              >
+                {entry.label}
+              </NavLink>
+            ),
+          )}
+        </nav>
       </div>
 
       {/* Mobile drawer: the same navigation, fully expanded. */}
