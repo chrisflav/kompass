@@ -177,7 +177,7 @@ describe("Breadcrumbs", () => {
     renderWithApp(
       <Breadcrumbs
         items={[
-          { label: "Ausfahrten", to: "/app/excursions" },
+          { label: "Ausfahrten", to: "/kompass/excursions" },
           { label: "Archiv" },
           { label: "F26-01" },
         ]}

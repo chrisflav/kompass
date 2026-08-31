@@ -100,7 +100,7 @@ function detailReturns(overrides: Record<string, unknown> = {}, contacts = [CONT
 describe("member detail", () => {
   it("shows the member across its tabs", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
 
     // The name appears twice by design: in the breadcrumb and in the Name row.
     expect(await screen.findAllByText("Anna Ärmel")).toHaveLength(2);
@@ -115,7 +115,7 @@ describe("member detail", () => {
 
   it("stays read-only until Bearbeiten is pressed", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await screen.findByText("anna@example.org");
 
     expect(screen.queryByDisplayValue("Anna")).not.toBeInTheDocument();
@@ -133,7 +133,7 @@ describe("member detail", () => {
         return HttpResponse.json({ ...MEMBER, prename: "Anne" });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const prename = screen.getByDisplayValue("Anna");
@@ -162,7 +162,7 @@ describe("member detail", () => {
         djangoValidation({ email: ["Gib eine gültige E-Mail-Adresse ein."] }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -185,7 +185,7 @@ describe("member detail — emergency contacts inline", () => {
         return HttpResponse.json({ ...CONTACT, id: 4, prename: "Neu" });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Notfallkontakte" }));
 
@@ -218,7 +218,7 @@ describe("member detail — actions and permissions", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -230,7 +230,7 @@ describe("member detail — actions and permissions", () => {
   it("hides editing and deleting from a read-only account", async () => {
     useMe({ permissions: ["members.view_member"] });
     detailReturns();
-    renderRoute("/app/members/42");
+    renderRoute("/kompass/members/42");
     await screen.findByText("anna@example.org");
 
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();

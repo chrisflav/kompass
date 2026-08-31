@@ -69,7 +69,7 @@ async function fillRequired(
 describe("events — Termine list", () => {
   it("lists the dates with their group and category", async () => {
     listReturns();
-    renderRoute("/app/events");
+    renderRoute("/kompass/events");
     expect(await screen.findByText("Klettersteig Allgäu")).toBeInTheDocument();
     expect(screen.getByText("Jugend")).toBeInTheDocument();
     expect(screen.getByText("Klettersteig")).toBeInTheDocument();
@@ -78,21 +78,21 @@ describe("events — Termine list", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/events");
+    renderRoute("/kompass/events");
     expect(await screen.findByText("Keine Termine vorhanden.")).toBeInTheDocument();
   });
 
   it("opens a date from its row", async () => {
     listReturns();
     detailReturns();
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
     await user.click(await screen.findByText("Klettersteig Allgäu"));
     expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
   });
 
   it("shows an em dash for a date without an organiser", async () => {
     listReturns([{ ...TERMIN_BRIEF, responsible: "" }]);
-    renderRoute("/app/events");
+    renderRoute("/kompass/events");
     await screen.findByText("Klettersteig Allgäu");
     expect(screen.getByText("—")).toBeInTheDocument();
   });
@@ -108,7 +108,7 @@ describe("events — Termine list", () => {
         group_display: "Familie",
       },
     ]);
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
     await screen.findByText("Klettersteig Allgäu");
 
     await user.click(screen.getByRole("button", { name: /Gruppe:/ }));
@@ -122,7 +122,7 @@ describe("events — Termine list", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([TERMIN_BRIEF, { ...TERMIN_BRIEF, id: 7, title: "Zweiter", responsible: "" }]);
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
     await screen.findByText("Klettersteig Allgäu");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -131,7 +131,7 @@ describe("events — Termine list", () => {
   it("hides the export and create actions without the permissions", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/events");
+    renderRoute("/kompass/events");
     await screen.findByText("Klettersteig Allgäu");
     expect(screen.queryByRole("button", { name: /Übersicht \(Excel\)/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Neuer Termin" })).not.toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("events — Termine list", () => {
         return HttpResponse.json({});
       }),
     );
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
     await user.click(await screen.findByRole("button", { name: /Übersicht \(Excel\)/ }));
     // `null` means "every visible Termin", not a selection.
     await waitFor(() => expect(body).toEqual({ termin_ids: null }));
@@ -176,7 +176,7 @@ describe("events — Termine list", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
     await user.click(await screen.findByRole("button", { name: "Neuer Termin" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -230,7 +230,7 @@ describe("events — Termine list", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
     await user.click(await screen.findByRole("button", { name: "Neuer Termin" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -292,7 +292,7 @@ describe("events — Termine list", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
     await user.click(await screen.findByRole("button", { name: "Neuer Termin" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -310,7 +310,7 @@ describe("events — Termine list", () => {
   it("closes the create modal on Abbrechen and on ×", async () => {
     useMe({ permissions: ["ludwigsburgalpin.add_termin"] });
     listReturns();
-    const { user } = renderRoute("/app/events");
+    const { user } = renderRoute("/kompass/events");
 
     await user.click(await screen.findByRole("button", { name: "Neuer Termin" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
@@ -325,7 +325,7 @@ describe("events — Termine list", () => {
 describe("events — Termin detail", () => {
   it("shows the date across its three tabs", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
 
     expect(await screen.findAllByText("Klettersteig Allgäu")).toHaveLength(2);
     expect(screen.getByText("Ingo Iller")).toBeInTheDocument();
@@ -348,7 +348,7 @@ describe("events — Termin detail", () => {
       anforderung_strecke: null,
       anforderung_dauer: null,
     });
-    renderRoute("/app/events/6");
+    renderRoute("/kompass/events/6");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -362,7 +362,7 @@ describe("events — Termin detail", () => {
         return HttpResponse.json(TERMIN);
       }),
     );
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const title = screen.getByDisplayValue("Klettersteig Allgäu");
@@ -392,7 +392,7 @@ describe("events — Termin detail", () => {
         djangoValidation({ end_date: ["Liegt vor dem Start."] }),
       ),
     );
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -402,7 +402,7 @@ describe("events — Termin detail", () => {
 
   it("leaves edit mode on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("Klettersteig Allgäu")).not.toBeInTheDocument();
@@ -418,7 +418,7 @@ describe("events — Termin detail", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
 
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     const dialog = within(await screen.findByRole("dialog"));
@@ -441,7 +441,7 @@ describe("events — Termin detail", () => {
         HttpResponse.json({ detail: "ludwigsburgalpin.delete_termin" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -451,7 +451,7 @@ describe("events — Termin detail", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -467,7 +467,7 @@ describe("events — every detail field", () => {
         return HttpResponse.json(TERMIN);
       }),
     );
-    const { user } = renderRoute("/app/events/6");
+    const { user } = renderRoute("/kompass/events/6");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     for (const tab of ["Allgemein", "Anforderungen", "Beschreibung"]) {

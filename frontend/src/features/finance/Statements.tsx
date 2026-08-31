@@ -117,7 +117,7 @@ export function StatementsList() {
           <DataTable
             rows={view.rows}
             rowKey={(s) => s.id}
-            onRowClick={(s) => navigate(`/app/finance/statements/${s.id}`)}
+            onRowClick={(s) => navigate(`/kompass/finance/statements/${s.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -176,7 +176,7 @@ function StatementCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: StatementOut) => {
         toast.success("Abrechnung angelegt.");
         onDone();
-        navigate(`/app/finance/statements/${created.id}`);
+        navigate(`/kompass/finance/statements/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -266,7 +266,7 @@ export function StatementDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Abrechnungen", to: "/app/finance/statements" },
+    { label: "Abrechnungen", to: "/kompass/finance/statements" },
     { label: query.data?.title ?? "Abrechnung" },
   ];
 
@@ -454,7 +454,7 @@ function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; c
                     <>
                       Diese Felder werden auf der Ausfahrt gepflegt, weil nur deren
                       Jugendleiter*innen Zuschüsse erhalten dürfen:{" "}
-                      <Link to={`/app/excursions/${statement.excursion.id}`}>
+                      <Link to={`/kompass/excursions/${statement.excursion.id}`}>
                         {statement.excursion.name || statement.excursion.code} öffnen
                       </Link>
                       .
@@ -716,7 +716,7 @@ export function StatementBillsInline({
                   onChange={(e) => setRow(row, { ...row.data, proof: e.target.files?.[0] ?? null })}
                 />
               ) : row.id !== null ? (
-                <Link to={`/app/finance/bills/${row.id}`}>Öffnen</Link>
+                <Link to={`/kompass/finance/bills/${row.id}`}>Öffnen</Link>
               ) : (
                 <span className="muted small">(neu)</span>
               ),
@@ -1193,7 +1193,7 @@ function StatementActions({ statement }: { statement: StatementOut }) {
       invalidate: [["finance", "statements"]],
       onSuccess: () => {
         toast.success("Abrechnung gelöscht.");
-        navigate("/app/finance/statements");
+        navigate("/kompass/finance/statements");
       },
       onError: (e: Error) => toast.error(e.message),
     },

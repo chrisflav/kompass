@@ -92,7 +92,7 @@ export function UsersList() {
           <DataTable
             rows={view.rows}
             rowKey={(u) => u.id}
-            onRowClick={(u) => navigate(`/app/users/${u.id}`)}
+            onRowClick={(u) => navigate(`/kompass/users/${u.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -135,7 +135,7 @@ function UserCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: LoginUserOut) => {
         toast.success("Benutzer angelegt.");
         onDone();
-        navigate(`/app/users/${created.id}`);
+        navigate(`/kompass/users/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -260,7 +260,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       invalidate: [["auth", "users"]],
       onSuccess: () => {
         toast.success("Benutzer gelöscht.");
-        navigate("/app/users");
+        navigate("/kompass/users");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -289,7 +289,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
     {
       label: "Teilnehmende:r",
       value: user.member_id ? (
-        <Link to={`/app/members/${user.member_id}`}>{user.member_name}</Link>
+        <Link to={`/kompass/members/${user.member_id}`}>{user.member_name}</Link>
       ) : (
         "—"
       ),
@@ -338,7 +338,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       }}
     >
       <PageHeader
-        breadcrumbs={[{ label: "Benutzer", to: "/app/users" }, { label: user.username }]}
+        breadcrumbs={[{ label: "Benutzer", to: "/kompass/users" }, { label: user.username }]}
         actions={
           editing ? (
             <>

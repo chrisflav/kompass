@@ -103,7 +103,7 @@ export function MessagesList() {
           <DataTable
             rows={view.rows}
             rowKey={(m) => m.id}
-            onRowClick={(m) => navigate(`/app/mailer/messages/${m.id}`)}
+            onRowClick={(m) => navigate(`/kompass/mailer/messages/${m.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -232,7 +232,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
       const msg = await create.mutateAsync(form);
       toast.success("Als Entwurf gespeichert.");
       onClose();
-      navigate(`/app/mailer/messages/${msg.id}`);
+      navigate(`/kompass/mailer/messages/${msg.id}`);
     } catch {
       /* reported by the mutation's onError */
     }
@@ -247,7 +247,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
       await submit.mutateAsync(msg.id);
       toast.success("Nachricht versendet.");
       onClose();
-      navigate(`/app/mailer/messages/${msg.id}`);
+      navigate(`/kompass/mailer/messages/${msg.id}`);
     } catch {
       /* reported by the mutation's onError */
     }
@@ -344,7 +344,7 @@ export function MessageDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Nachrichten", to: "/app/mailer/messages" },
+    { label: "Nachrichten", to: "/kompass/mailer/messages" },
     { label: query.data?.subject || "Nachricht" },
   ];
 
@@ -404,7 +404,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
       invalidate: [["mailer", "messages"]],
       onSuccess: () => {
         toast.success("Nachricht gelöscht.");
-        navigate("/app/mailer/messages");
+        navigate("/kompass/mailer/messages");
       },
       onError: (e: Error) => toast.error(e.message),
     },

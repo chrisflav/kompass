@@ -49,7 +49,7 @@ async function waitForList() {
 describe("members list", () => {
   it("renders every member the API returns, with the total in the header", async () => {
     listReturns();
-    renderRoute("/app/members");
+    renderRoute("/kompass/members");
     await waitForList();
 
     expect(screen.getByText("Nele Braun")).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe("members list", () => {
 
   it("filters as the user types, keeping the unfiltered total visible", async () => {
     listReturns();
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await waitForList();
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "Braun");
@@ -70,7 +70,7 @@ describe("members list", () => {
 
   it("offers a way back when a search matches nothing", async () => {
     listReturns();
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await waitForList();
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "gibtesnicht");
@@ -84,7 +84,7 @@ describe("members list", () => {
 
   it("shows the create button to someone who may add members", async () => {
     listReturns();
-    renderRoute("/app/members");
+    renderRoute("/kompass/members");
     await waitForList();
     expect(screen.getByRole("button", { name: "Neues Mitglied" })).toBeInTheDocument();
   });
@@ -94,7 +94,7 @@ describe("members list", () => {
     // filled-in modal that ends in a 403 is worse than no button.
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/members");
+    renderRoute("/kompass/members");
     await waitForList();
     expect(screen.queryByRole("button", { name: "Neues Mitglied" })).not.toBeInTheDocument();
   });
@@ -103,7 +103,7 @@ describe("members list", () => {
 describe("members list — bulk actions", () => {
   it("reveals the action bar once rows are selected", async () => {
     listReturns();
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await waitForList();
 
     expect(screen.queryByText(/ausgewählt/)).not.toBeInTheDocument();
@@ -117,7 +117,7 @@ describe("members list — bulk actions", () => {
 
   it("counts a select-all and clears again", async () => {
     listReturns();
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await waitForList();
 
     await user.click(screen.getByLabelText("Alle auswählen"));
@@ -137,7 +137,7 @@ describe("members list — bulk actions", () => {
       }),
     );
 
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await waitForList();
     await user.click(screen.getByLabelText("Alle auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen für Auswahl/ }));
@@ -162,7 +162,7 @@ describe("members list — bulk actions", () => {
       ),
     );
 
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await waitForList();
     await user.click(screen.getByLabelText("Alle auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen für Auswahl/ }));
@@ -183,7 +183,7 @@ describe("members list — permission errors", () => {
         HttpResponse.json({ detail: "members.view_member" }, { status: 403 }),
       ),
     );
-    renderRoute("/app/members");
+    renderRoute("/kompass/members");
 
     expect(await screen.findByText("Dazu fehlt dir die Berechtigung.")).toBeInTheDocument();
     expect(screen.queryByText(/members\.view_member/)).not.toBeInTheDocument();

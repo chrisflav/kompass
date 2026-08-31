@@ -382,7 +382,7 @@ function MembersList() {
           <DataTable
             rows={view.rows}
             rowKey={(m) => m.id}
-            onRowClick={(m) => navigate(`/app/members/${m.id}`)}
+            onRowClick={(m) => navigate(`/kompass/members/${m.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             selection={{
@@ -491,7 +491,7 @@ function MemberBulkActions({ members, onDone }: { members: MemberBrief[]; onDone
       onSuccess: (list: { id: number }) => {
         toast.success("Notizliste aus der Auswahl angelegt.");
         onDone();
-        navigate(`/app/notelists/${list.id}`);
+        navigate(`/kompass/notelists/${list.id}`);
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -715,7 +715,7 @@ function MemberCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: MemberOut) => {
         toast.success("Mitglied angelegt.");
         onDone();
-        navigate(`/app/members/${created.id}`);
+        navigate(`/kompass/members/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -827,11 +827,11 @@ function MemberDetailPage() {
   // otherwise from the flat members list.
   const crumbs: Crumb[] = groupId
     ? [
-        { label: "Gruppen", to: "/app/groups" },
-        { label: groupQuery.data?.name ?? "Gruppe", to: `/app/groups/${groupId}/members` },
+        { label: "Gruppen", to: "/kompass/groups" },
+        { label: groupQuery.data?.name ?? "Gruppe", to: `/kompass/groups/${groupId}/members` },
         { label: memberName },
       ]
-    : [{ label: "Teilnehmende", to: "/app/members" }, { label: memberName }];
+    : [{ label: "Teilnehmende", to: "/kompass/members" }, { label: memberName }];
 
   return (
     <QueryBoundary query={query}>
@@ -858,14 +858,14 @@ function MembersOfGroup() {
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Gruppen", to: "/app/groups" }, { label: groupName ?? "Gruppe" }]}
+        breadcrumbs={[{ label: "Gruppen", to: "/kompass/groups" }, { label: groupName ?? "Gruppe" }]}
         subtitle={`${rows.length} Teilnehmende`}
         actions={
           <>
             <Button variant="ghost" onClick={() => history.back()}>
               Zurück
             </Button>
-            <Button variant="ghost" onClick={() => navigate(`/app/groups/${gid}`)}>
+            <Button variant="ghost" onClick={() => navigate(`/kompass/groups/${gid}`)}>
               Gruppe bearbeiten
             </Button>
           </>
@@ -876,7 +876,7 @@ function MembersOfGroup() {
           <DataTable
             rows={rows}
             rowKey={(m) => m.id}
-            onRowClick={(m) => navigate(`/app/members/${m.id}?group=${gid}`)}
+            onRowClick={(m) => navigate(`/kompass/members/${m.id}?group=${gid}`)}
             columns={[
               { header: "Name", cell: (m) => m.name },
               { header: "Vorname", cell: (m) => m.prename },
@@ -903,7 +903,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       invalidate: [["members"]],
       onSuccess: () => {
         toast.success("Mitglied gelöscht.");
-        navigate("/app/members");
+        navigate("/kompass/members");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -1874,7 +1874,7 @@ function TrainingsInline({
                   onChange={(e) => setRow(row, { ...row.data, title: e.target.value })}
                 />
               ) : (
-                <Link to={`/app/trainings/${row.id}`}>{row.data.title || "—"}</Link>
+                <Link to={`/kompass/trainings/${row.id}`}>{row.data.title || "—"}</Link>
               ),
           },
           {
@@ -2302,7 +2302,7 @@ function MemberActions({ member }: { member: MemberOut }) {
       invalidate: [["members"], ["members", member.id], ["registrations"]],
       onSuccess: () => {
         toast.success("Bestätigung aufgehoben.");
-        navigate("/app/registrations");
+        navigate("/kompass/registrations");
       },
       onError: (e: Error) => toast.error(e.message),
     },

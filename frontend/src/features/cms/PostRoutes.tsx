@@ -169,7 +169,7 @@ export function PostsList() {
       onSuccess: (created: PostOut) => {
         toast.success("Beitrag angelegt.");
         setCreating(false);
-        navigate(`/app/cms/posts/${created.id}`);
+        navigate(`/kompass/cms/posts/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -250,7 +250,7 @@ export function PostsList() {
           <DataTable
             rows={view.rows}
             rowKey={(p) => p.id}
-            onRowClick={(p) => navigate(`/app/cms/posts/${p.id}`)}
+            onRowClick={(p) => navigate(`/kompass/cms/posts/${p.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -280,7 +280,7 @@ export function PostDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Beiträge", to: "/app/cms/posts" },
+    { label: "Beiträge", to: "/kompass/cms/posts" },
     { label: query.data?.title || "Beitrag" },
   ];
 
@@ -344,7 +344,7 @@ function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
       invalidate: [["posts"]],
       onSuccess: () => {
         toast.success("Beitrag gelöscht.");
-        navigate("/app/cms/posts");
+        navigate("/kompass/cms/posts");
       },
       onError: (e: Error) => toast.error(e.message),
     },

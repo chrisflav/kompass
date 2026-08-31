@@ -39,7 +39,7 @@ function Providers({ children, route }: { children: ReactNode; route: string }) 
 export interface RenderOptions {
   /** Initial location; also what `useParams` resolves against when `path` is set. */
   route?: string;
-  /** Route pattern to mount `ui` under, e.g. "/app/members/:id". */
+  /** Route pattern to mount `ui` under, e.g. "/kompass/members/:id". */
   path?: string;
   /** Whether a token is present (components behind `ProtectedRoute` need one). */
   authenticated?: boolean;

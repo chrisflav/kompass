@@ -69,7 +69,7 @@ function detailReturns(overrides: Record<string, unknown> = {}) {
 describe("activities — Klettertreff list", () => {
   it("lists the dates with group, place, topic and leaders", async () => {
     listReturns();
-    renderRoute("/app/klettertreff");
+    renderRoute("/kompass/klettertreff");
     expect(await screen.findByText("Kletterhalle")).toBeInTheDocument();
     expect(screen.getByText("Vorstieg")).toBeInTheDocument();
     expect(screen.getByText("Klettergruppe")).toBeInTheDocument();
@@ -78,20 +78,20 @@ describe("activities — Klettertreff list", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/klettertreff");
+    renderRoute("/kompass/klettertreff");
     expect(await screen.findByText("Keine Klettertreff-Termine sichtbar.")).toBeInTheDocument();
   });
 
   it("shows an em dash for missing place, topic and leaders", async () => {
     listReturns([{ ...KT_BRIEF, location: "", topic: "", jugendleiter: [], date: null }]);
-    renderRoute("/app/klettertreff");
+    renderRoute("/kompass/klettertreff");
     await screen.findByText("Klettergruppe");
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(3);
   });
 
   it("searches over date, place, topic and group", async () => {
     listReturns([KT_BRIEF, { ...KT_BRIEF, id: 10, location: "Fels", topic: "Sichern" }]);
-    const { user } = renderRoute("/app/klettertreff");
+    const { user } = renderRoute("/kompass/klettertreff");
     await screen.findByText("Kletterhalle");
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "fels");
@@ -107,7 +107,7 @@ describe("activities — Klettertreff list", () => {
       { ...KT_BRIEF, id: 12, date: null, location: "Datumslos" },
       { ...KT_BRIEF, id: 13, date: "irgendwann", location: "Kaputt" },
     ]);
-    const { user } = renderRoute("/app/klettertreff");
+    const { user } = renderRoute("/kompass/klettertreff");
     await screen.findAllByText("Kletterhalle");
 
     const pickDate = async (label: string) => {
@@ -140,7 +140,7 @@ describe("activities — Klettertreff list", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([KT_BRIEF, { ...KT_BRIEF, id: 10, location: "", topic: "", date: null }]);
-    const { user } = renderRoute("/app/klettertreff");
+    const { user } = renderRoute("/kompass/klettertreff");
     await screen.findByText("Kletterhalle");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -149,7 +149,7 @@ describe("activities — Klettertreff list", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/klettertreff");
+    renderRoute("/kompass/klettertreff");
     await screen.findByText("Kletterhalle");
     expect(screen.queryByRole("button", { name: "Neuer Klettertreff" })).not.toBeInTheDocument();
   });
@@ -165,7 +165,7 @@ describe("activities — Klettertreff list", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/app/klettertreff");
+    const { user } = renderRoute("/kompass/klettertreff");
     await user.click(await screen.findByRole("button", { name: "Neuer Klettertreff" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -198,7 +198,7 @@ describe("activities — Klettertreff list", () => {
         return djangoValidation({ topic: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/klettertreff");
+    const { user } = renderRoute("/kompass/klettertreff");
     await user.click(await screen.findByRole("button", { name: "Neuer Klettertreff" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -228,7 +228,7 @@ describe("activities — Klettertreff list", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/klettertreff");
+    const { user } = renderRoute("/kompass/klettertreff");
     await user.click(await screen.findByRole("button", { name: "Neuer Klettertreff" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -248,14 +248,14 @@ describe("activities — Klettertreff list", () => {
 describe("activities — Klettertreff detail", () => {
   it("shows the date and its leaders", async () => {
     detailReturns();
-    renderRoute("/app/klettertreff/9");
+    renderRoute("/kompass/klettertreff/9");
     expect(await screen.findByText("Kletterhalle")).toBeInTheDocument();
     expect(screen.getByText("Anna Ärmel")).toBeInTheDocument();
   });
 
   it("shows an em dash for missing place, topic and leaders", async () => {
     detailReturns({ location: "", topic: "", jugendleiter: [], jugendleiter_ids: [] });
-    renderRoute("/app/klettertreff/9");
+    renderRoute("/kompass/klettertreff/9");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(3);
   });
@@ -269,7 +269,7 @@ describe("activities — Klettertreff detail", () => {
         return HttpResponse.json(KT);
       }),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const topic = screen.getByDisplayValue("Vorstieg");
@@ -297,7 +297,7 @@ describe("activities — Klettertreff detail", () => {
         djangoValidation({ topic: ["Das Thema fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Das Thema fehlt.")).not.toHaveLength(0);
@@ -316,7 +316,7 @@ describe("activities — Klettertreff detail", () => {
         return HttpResponse.json({ id: 30 });
       }),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
@@ -345,7 +345,7 @@ describe("activities — Klettertreff detail", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
 
@@ -359,7 +359,7 @@ describe("activities — Klettertreff detail", () => {
 
   it("closes the attendee dialog on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
@@ -383,7 +383,7 @@ describe("activities — Klettertreff detail", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
 
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
@@ -401,14 +401,14 @@ describe("activities — Klettertreff detail", () => {
   it("hides the delete button without the permission", async () => {
     useMe({ permissions: [] });
     detailReturns();
-    renderRoute("/app/klettertreff/9");
+    renderRoute("/kompass/klettertreff/9");
     await screen.findByText("Kletterhalle");
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
   });
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -454,7 +454,7 @@ describe("activities — Klettertreff: remaining paths", () => {
     useMe({ permissions: ["members.add_klettertreff"] });
     listReturns();
     detailReturns();
-    const { user } = renderRoute("/app/klettertreff");
+    const { user } = renderRoute("/kompass/klettertreff");
 
     await user.click(await screen.findByRole("button", { name: "Neuer Klettertreff" }));
     await user.click(
@@ -469,7 +469,7 @@ describe("activities — Klettertreff: remaining paths", () => {
   it("names a date by its group when it has no topic", async () => {
     useMe({ permissions: ["members.delete_klettertreff"] });
     detailReturns({ topic: "" });
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     expect(
       within(await screen.findByRole("dialog")).getByText(/„Klettergruppe“ wirklich löschen\?/),
@@ -478,7 +478,7 @@ describe("activities — Klettertreff: remaining paths", () => {
 
   it("copes with an API that sends null for every optional field", async () => {
     detailReturns({ date: null, location: null, topic: null, jugendleiter: [] });
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
@@ -492,7 +492,7 @@ describe("activities — Klettertreff: remaining paths", () => {
         return HttpResponse.json(KT);
       }),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.clear(screen.getByDisplayValue(TODAY));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -501,7 +501,7 @@ describe("activities — Klettertreff: remaining paths", () => {
 
   it("closes the attendee dialog with ×", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
@@ -518,7 +518,7 @@ describe("activities — Klettertreff: remaining paths", () => {
         HttpResponse.json([{ id: 30, member: { id: 43, name: "" } }]),
       ),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
@@ -535,7 +535,7 @@ describe("activities — Klettertreff: every field", () => {
         return HttpResponse.json(KT);
       }),
     );
-    const { user } = renderRoute("/app/klettertreff/9");
+    const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;

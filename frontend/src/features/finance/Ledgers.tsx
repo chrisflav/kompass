@@ -63,7 +63,7 @@ export function LedgersList() {
           <DataTable
             rows={view.rows}
             rowKey={(l) => l.id}
-            onRowClick={(l) => navigate(`/app/finance/ledgers/${l.id}`)}
+            onRowClick={(l) => navigate(`/kompass/finance/ledgers/${l.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[{ header: "Name", cell: (l) => l.name, sortKey: "name" }]}
@@ -89,7 +89,7 @@ function LedgerCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: LedgerDetailOut) => {
         toast.success("Konto angelegt.");
         onDone();
-        navigate(`/app/finance/ledgers/${created.id}`);
+        navigate(`/kompass/finance/ledgers/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -137,7 +137,7 @@ export function LedgerDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Konten", to: "/app/finance/ledgers" },
+    { label: "Konten", to: "/kompass/finance/ledgers" },
     { label: query.data?.name ?? "Konto" },
   ];
 
@@ -167,7 +167,7 @@ function LedgerDetailBody({ ledger, crumbs }: { ledger: LedgerDetailOut; crumbs:
       invalidate: [["ledgers"]],
       onSuccess: () => {
         toast.success("Konto gelöscht.");
-        navigate("/app/finance/ledgers");
+        navigate("/kompass/finance/ledgers");
       },
       onError: (e: Error) => toast.error(e.message),
     },

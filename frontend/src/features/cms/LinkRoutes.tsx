@@ -85,7 +85,7 @@ export function LinksList() {
       onSuccess: (created: LinkOut) => {
         toast.success("Link angelegt.");
         setCreating(false);
-        navigate(`/app/cms/links/${created.id}`);
+        navigate(`/kompass/cms/links/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -153,7 +153,7 @@ export function LinksList() {
           <DataTable
             rows={view.rows}
             rowKey={(l) => l.id}
-            onRowClick={(l) => navigate(`/app/cms/links/${l.id}`)}
+            onRowClick={(l) => navigate(`/kompass/cms/links/${l.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -183,7 +183,7 @@ export function LinkDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Links", to: "/app/cms/links" },
+    { label: "Links", to: "/kompass/cms/links" },
     { label: query.data?.title || "Link" },
   ];
 
@@ -303,7 +303,7 @@ function LinkDetailBody({ link, crumbs }: { link: LinkOut; crumbs: Crumb[] }) {
       invalidate: [["links"]],
       onSuccess: () => {
         toast.success("Link gelöscht.");
-        navigate("/app/cms/links");
+        navigate("/kompass/cms/links");
       },
       onError: (e: Error) => toast.error(e.message),
     },

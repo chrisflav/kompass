@@ -96,7 +96,7 @@ export function SectionsList() {
       onSuccess: (created: SectionOut) => {
         toast.success("Bereich angelegt.");
         setCreating(false);
-        navigate(`/app/cms/sections/${created.id}`);
+        navigate(`/kompass/cms/sections/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -165,7 +165,7 @@ export function SectionsList() {
           <DataTable
             rows={view.rows}
             rowKey={(s) => s.id}
-            onRowClick={(s) => navigate(`/app/cms/sections/${s.id}`)}
+            onRowClick={(s) => navigate(`/kompass/cms/sections/${s.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -202,7 +202,7 @@ export function SectionDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Bereiche", to: "/app/cms/sections" },
+    { label: "Bereiche", to: "/kompass/cms/sections" },
     { label: query.data?.title ?? "Bereich" },
   ];
 
@@ -263,7 +263,7 @@ function SectionDetailBody({ section, crumbs }: { section: SectionOut; crumbs: C
       invalidate: [["sections"]],
       onSuccess: () => {
         toast.success("Bereich gelöscht.");
-        navigate("/app/cms/sections");
+        navigate("/kompass/cms/sections");
       },
       onError: (e: Error) => toast.error(e.message),
     },

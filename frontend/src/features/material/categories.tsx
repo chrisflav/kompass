@@ -63,7 +63,7 @@ export function CategoriesList() {
             onSubmit={(body) => unwrap(client.POST("/api/material/categories", { body }))}
             onSuccess={(c) => {
               setCreating(false);
-              navigate(`/app/material/categories/${c.id}`);
+              navigate(`/kompass/material/categories/${c.id}`);
             }}
             onCancel={() => setCreating(false)}
           />
@@ -75,7 +75,7 @@ export function CategoriesList() {
           <DataTable
             rows={view.rows}
             rowKey={(c) => c.id}
-            onRowClick={(c) => navigate(`/app/material/categories/${c.id}`)}
+            onRowClick={(c) => navigate(`/kompass/material/categories/${c.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[{ header: "Name", cell: (c) => c.name, sortKey: "name" }]}
@@ -149,7 +149,7 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
       invalidate: [["material", "categories"]],
       onSuccess: () => {
         toast.success("Kategorie gelöscht.");
-        navigate("/app/material/categories");
+        navigate("/kompass/material/categories");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -186,7 +186,7 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Materialkategorien", to: "/app/material/categories" },
+          { label: "Materialkategorien", to: "/kompass/material/categories" },
           { label: category.name },
         ]}
         actions={
@@ -233,7 +233,7 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
       <DataTable
         rows={category.material_parts}
         rowKey={(p) => p.id}
-        onRowClick={(p) => navigate(`/app/material/${p.id}`)}
+        onRowClick={(p) => navigate(`/kompass/material/${p.id}`)}
         columns={[{ header: "Name", cell: (p) => p.name }]}
         empty="Kein Material in dieser Kategorie."
       />

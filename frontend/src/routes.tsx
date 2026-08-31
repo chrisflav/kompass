@@ -25,7 +25,7 @@ export function AppRoutes() {
 
       {/* Authenticated administration app. */}
       <Route
-        path="/app"
+        path="/kompass"
         element={
           <ProtectedRoute>
             <AppLayout />

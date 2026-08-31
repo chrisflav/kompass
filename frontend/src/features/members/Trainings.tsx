@@ -137,7 +137,7 @@ export function TrainingsList() {
           <DataTable
             rows={view.rows}
             rowKey={(t) => t.id}
-            onRowClick={(t) => navigate(`/app/trainings/${t.id}`)}
+            onRowClick={(t) => navigate(`/kompass/trainings/${t.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -203,7 +203,7 @@ function TrainingCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: TrainingOut) => {
         toast.success("Ausbildung angelegt.");
         onDone();
-        navigate(`/app/trainings/${created.id}`);
+        navigate(`/kompass/trainings/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -282,7 +282,7 @@ export function TrainingDetailPage() {
     ),
   );
   const crumbs: Crumb[] = [
-    { label: "Ausbildungen", to: "/app/trainings" },
+    { label: "Ausbildungen", to: "/kompass/trainings" },
     { label: query.data?.title ?? "Ausbildung" },
   ];
 
@@ -320,7 +320,7 @@ function TrainingDetailBody({ training, crumbs }: { training: TrainingOut; crumb
       invalidate: [["members", "trainings"]],
       onSuccess: () => {
         toast.success("Ausbildung gelöscht.");
-        navigate("/app/trainings");
+        navigate("/kompass/trainings");
       },
       onError: (e: Error) => toast.error(e.message),
     },

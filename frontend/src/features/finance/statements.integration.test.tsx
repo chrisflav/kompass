@@ -142,7 +142,7 @@ function listReturns() {
 describe("statements list", () => {
   it("shows both statements with their status", async () => {
     listReturns();
-    renderRoute("/app/finance/statements");
+    renderRoute("/kompass/finance/statements");
 
     expect(await screen.findByText("F26-01 Skifreizeit")).toBeInTheDocument();
     expect(screen.getByText("F26-02 Materialkauf")).toBeInTheDocument();
@@ -153,7 +153,7 @@ describe("statements list", () => {
 
   it("filters by the status enum fetched from the backend", async () => {
     listReturns();
-    const { user } = renderRoute("/app/finance/statements");
+    const { user } = renderRoute("/kompass/finance/statements");
     await screen.findByText("F26-01 Skifreizeit");
 
     // The status filter is a custom combobox, not a native <select>.
@@ -172,7 +172,7 @@ describe("statements list", () => {
   it("hides the create button without finance.add_global_statement", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/finance/statements");
+    renderRoute("/kompass/finance/statements");
     await screen.findByText("F26-01 Skifreizeit");
     expect(screen.queryByRole("button", { name: "Neue Abrechnung" })).not.toBeInTheDocument();
   });
@@ -181,7 +181,7 @@ describe("statements list", () => {
 describe("statements list — remaining paths", () => {
   it("searches by title and short description", async () => {
     listReturns();
-    const { user } = renderRoute("/app/finance/statements");
+    const { user } = renderRoute("/kompass/finance/statements");
     await screen.findByText("F26-01 Skifreizeit");
     await user.type(screen.getByPlaceholderText("Suchen…"), "material");
     await waitFor(() =>
@@ -191,7 +191,7 @@ describe("statements list — remaining paths", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns();
-    const { user } = renderRoute("/app/finance/statements");
+    const { user } = renderRoute("/kompass/finance/statements");
     await screen.findByText("F26-01 Skifreizeit");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -204,7 +204,7 @@ describe("statements list — remaining paths", () => {
       ),
       http.get(api("/api/finance/enums"), () => HttpResponse.json(ENUMS)),
     );
-    renderRoute("/app/finance/statements");
+    renderRoute("/kompass/finance/statements");
     await screen.findByText("F26-01 Skifreizeit");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -213,7 +213,7 @@ describe("statements list — remaining paths", () => {
     listReturns();
     detailReturns();
     server.use(http.get(api("/api/members/excursions"), () => HttpResponse.json([])));
-    const { user } = renderRoute("/app/finance/statements");
+    const { user } = renderRoute("/kompass/finance/statements");
 
     await user.click(await screen.findByRole("button", { name: "Neue Abrechnung" }));
     await user.click(
@@ -236,7 +236,7 @@ describe("statements list — remaining paths", () => {
       allowance_to: null,
       excursion: { id: 3, code: "F26-01", name: "" },
     });
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
 
@@ -252,7 +252,7 @@ describe("statements list — remaining paths", () => {
         new HttpResponse("<html>500</html>", { status: 500 }),
       ),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(
@@ -274,7 +274,7 @@ describe("statements list — remaining paths", () => {
         return HttpResponse.json(statement());
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bestätigung aufheben" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Bestätigen" }),
@@ -298,7 +298,7 @@ describe("creating a statement", () => {
     );
     detailReturns();
 
-    const { user } = renderRoute("/app/finance/statements");
+    const { user } = renderRoute("/kompass/finance/statements");
     await screen.findByText("F26-01 Skifreizeit");
     await user.click(screen.getByRole("button", { name: "Neue Abrechnung" }));
 
@@ -334,7 +334,7 @@ describe("creating a statement — rejections", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/finance/statements");
+    const { user } = renderRoute("/kompass/finance/statements");
     await user.click(await screen.findByRole("button", { name: "Neue Abrechnung" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -363,7 +363,7 @@ describe("creating a statement — rejections", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements");
+    const { user } = renderRoute("/kompass/finance/statements");
     await user.click(await screen.findByRole("button", { name: "Neue Abrechnung" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -380,7 +380,7 @@ describe("creating a statement — rejections", () => {
 describe("statement detail — draft", () => {
   it("offers editing, submitting and deleting", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
 
     // Two workflow buttons collapse into one "Aktionen ▾" menu.
@@ -402,7 +402,7 @@ describe("statement detail — draft", () => {
         return HttpResponse.json(statement({ submitted: true, status: 1 }));
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await screen.findByRole("button", { name: "Bearbeiten" });
 
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
@@ -425,7 +425,7 @@ describe("statement detail — draft", () => {
         return HttpResponse.json(statement({ night_cost: 9 }));
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const nightCost = screen.getByDisplayValue("11");
@@ -442,7 +442,7 @@ describe("statement detail — draft", () => {
 describe("statement detail — validity and rejected saves", () => {
   it("marks an invalid statement as such", async () => {
     detailReturns({ is_valid: false, validity_display: "Belege fehlen" });
-    renderRoute("/app/finance/statements/1");
+    renderRoute("/kompass/finance/statements/1");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getByText("Nein")).toBeInTheDocument();
   });
@@ -454,7 +454,7 @@ describe("statement detail — validity and rejected saves", () => {
         djangoValidation({ night_cost: ["Höchstens 11 €."] }),
       ),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -464,7 +464,7 @@ describe("statement detail — validity and rejected saves", () => {
 
   it("leaves edit mode on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("11")).not.toBeInTheDocument();
@@ -472,7 +472,7 @@ describe("statement detail — validity and rejected saves", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -488,7 +488,7 @@ describe("statement detail — validity and rejected saves", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Löschen" }));
     await user.click(
@@ -507,7 +507,7 @@ describe("statement detail — validity and rejected saves", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Löschen" }));
     await user.click(
@@ -523,7 +523,7 @@ describe("statement detail — validity and rejected saves", () => {
         HttpResponse.json({ detail: "Es fehlen Belege." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Einreichen" }));
     await user.click(
@@ -541,7 +541,7 @@ describe("statement detail — validity and rejected saves", () => {
         return HttpResponse.json(statement());
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Einreichen" }));
     await user.click(
@@ -567,14 +567,14 @@ const BILL: Record<string, unknown> = {
 describe("statement detail — Belege inline", () => {
   it("says so when the statement has no bills yet", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("tab", { name: "Belege" }));
     expect(await screen.findByText("Keine Belege.")).toBeInTheDocument();
   });
 
   it("lists the bills read-only, linking each to its own page", async () => {
     detailReturns({ bills: [BILL] });
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("tab", { name: "Belege" }));
 
     expect(await screen.findByText("Verpflegung")).toBeInTheDocument();
@@ -582,13 +582,13 @@ describe("statement detail — Belege inline", () => {
     expect(screen.getByText("Mila Nowak")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Öffnen" })).toHaveAttribute(
       "href",
-      "/app/finance/bills/12",
+      "/kompass/finance/bills/12",
     );
   });
 
   it("shows an em dash for a bill nobody paid", async () => {
     detailReturns({ bills: [{ ...BILL, paid_by: null }] });
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("tab", { name: "Belege" }));
     await screen.findByText("Verpflegung");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
@@ -607,7 +607,7 @@ describe("statement detail — Belege inline", () => {
         return HttpResponse.json(BILL);
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
     await user.click(await screen.findByRole("button", { name: "+ Beleg" }));
@@ -645,7 +645,7 @@ describe("statement detail — Belege inline", () => {
 
   it("closes the bill dialog with ×, and clears a chosen scan", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
     await user.click(await screen.findByRole("button", { name: "+ Beleg" }));
@@ -660,7 +660,7 @@ describe("statement detail — Belege inline", () => {
 
   it("clears a bill row's scan again", async () => {
     detailReturns({ bills: [BILL] });
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
 
@@ -676,7 +676,7 @@ describe("statement detail — Belege inline", () => {
     detailReturns({
       bills: [{ ...BILL, short_description: null, explanation: null, amount: null }],
     });
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
     expect((await screen.findAllByDisplayValue("")).length).toBeGreaterThan(0);
@@ -684,7 +684,7 @@ describe("statement detail — Belege inline", () => {
 
   it("drops a staged bill again on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
     await user.click(await screen.findByRole("button", { name: "+ Beleg" }));
@@ -706,7 +706,7 @@ describe("statement detail — Belege inline", () => {
         return HttpResponse.json(BILL);
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
 
@@ -742,7 +742,7 @@ describe("statement detail — Belege inline", () => {
         return HttpResponse.json(BILL);
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
     await user.upload(
@@ -764,7 +764,7 @@ describe("statement detail — Belege inline", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
     await user.click(await screen.findByRole("button", { name: "Entfernen" }));
@@ -782,7 +782,7 @@ describe("statement detail — Belege inline", () => {
         HttpResponse.json({ detail: "Der Betrag fehlt." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Belege" }));
     await user.click(await screen.findByRole("button", { name: "+ Beleg" }));
@@ -802,7 +802,7 @@ describe("statement detail — Belege inline", () => {
 describe("statement detail — Empfänger tab", () => {
   it("says where the recipients are actually edited and links there", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await screen.findByRole("button", { name: "Bearbeiten" });
     await user.click(screen.getByRole("tab", { name: "Empfänger" }));
 
@@ -813,13 +813,13 @@ describe("statement detail — Empfänger tab", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Skifreizeit öffnen/ })).toHaveAttribute(
       "href",
-      "/app/excursions/3",
+      "/kompass/excursions/3",
     );
   });
 
   it("explains the empty case for a statement without an excursion", async () => {
     detailReturns({ excursion: null });
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await screen.findByRole("button", { name: "Bearbeiten" });
     await user.click(screen.getByRole("tab", { name: "Empfänger" }));
 
@@ -852,7 +852,7 @@ describe("statement processing modal", () => {
         HttpResponse.json(transactions),
       ),
     );
-    const rendered = renderRoute("/app/finance/statements/1");
+    const rendered = renderRoute("/kompass/finance/statements/1");
     await rendered.user.click(
       await screen.findByRole("button", { name: "Buchungen & Bestätigung" }),
     );
@@ -1124,7 +1124,7 @@ describe("statement processing modal", () => {
 describe("statement detail — submitted and confirmed", () => {
   it("swaps editing for the confirmation workflow once submitted", async () => {
     detailReturns({ submitted: true, status: 1, status_display: "Eingereicht" });
-    renderRoute("/app/finance/statements/1");
+    renderRoute("/kompass/finance/statements/1");
 
     expect(
       await screen.findByRole("button", { name: "Buchungen & Bestätigung" }),
@@ -1143,7 +1143,7 @@ describe("statement detail — submitted and confirmed", () => {
         return HttpResponse.json(statement({ submitted: true, confirmed: true, status: 2 }));
       }),
     );
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
     await user.click(await screen.findByRole("button", { name: "Buchungen & Bestätigung" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -1162,7 +1162,7 @@ describe("statement detail — submitted and confirmed", () => {
       confirmed_by: { id: 8, name: "Tobias Werner" },
       confirmed_date: "2026-05-10",
     });
-    const { user } = renderRoute("/app/finance/statements/1");
+    const { user } = renderRoute("/kompass/finance/statements/1");
 
     expect(
       await screen.findByRole("button", { name: /Zusammenfassung \(PDF\)/ }),

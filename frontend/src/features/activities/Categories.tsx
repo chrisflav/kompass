@@ -56,7 +56,7 @@ export function ActivityCategoriesList() {
         setDescription("");
         setLjp(LJP_CATEGORY_OPTIONS[0].value);
         setCreating(false);
-        navigate(`/app/activity-categories/${created.id}`);
+        navigate(`/kompass/activity-categories/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -75,7 +75,7 @@ export function ActivityCategoriesList() {
             {can("members.add_activitycategory") && (
               <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
             )}
-            <Button variant="ghost" onClick={() => navigate("/app/training-categories")}>
+            <Button variant="ghost" onClick={() => navigate("/kompass/training-categories")}>
               Ausbildungskategorien
             </Button>
           </div>
@@ -130,7 +130,7 @@ export function ActivityCategoriesList() {
           <DataTable
             rows={rows}
             rowKey={(c) => c.id}
-            onRowClick={(c) => navigate(`/app/activity-categories/${c.id}`)}
+            onRowClick={(c) => navigate(`/kompass/activity-categories/${c.id}`)}
             columns={[
               { header: "Name", cell: (c) => c.name },
               { header: "LJP-Kategorie", cell: (c) => c.ljp_category_display || c.ljp_category },
@@ -207,7 +207,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
       invalidate: [["activity-categories"]],
       onSuccess: () => {
         toast.success("Gelöscht.");
-        navigate("/app/activity-categories");
+        navigate("/kompass/activity-categories");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -263,7 +263,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Aktivitätskategorien", to: "/app/activity-categories" },
+          { label: "Aktivitätskategorien", to: "/kompass/activity-categories" },
           { label: cat.name },
         ]}
         actions={
@@ -341,7 +341,7 @@ export function TrainingCategoriesList() {
         setName("");
         setPermissionNeeded(false);
         setCreating(false);
-        navigate(`/app/training-categories/${created.id}`);
+        navigate(`/kompass/training-categories/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -360,7 +360,7 @@ export function TrainingCategoriesList() {
             {can("members.add_trainingcategory") && (
               <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
             )}
-            <Button variant="ghost" onClick={() => navigate("/app/activity-categories")}>
+            <Button variant="ghost" onClick={() => navigate("/kompass/activity-categories")}>
               Aktivitätskategorien
             </Button>
           </div>
@@ -417,7 +417,7 @@ export function TrainingCategoriesList() {
           <DataTable
             rows={rows}
             rowKey={(c) => c.id}
-            onRowClick={(c) => navigate(`/app/training-categories/${c.id}`)}
+            onRowClick={(c) => navigate(`/kompass/training-categories/${c.id}`)}
             columns={[
               { header: "Name", cell: (c) => c.name },
               {
@@ -494,7 +494,7 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
       invalidate: [["training-categories"]],
       onSuccess: () => {
         toast.success("Gelöscht.");
-        navigate("/app/training-categories");
+        navigate("/kompass/training-categories");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -539,7 +539,7 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Ausbildungskategorien", to: "/app/training-categories" },
+          { label: "Ausbildungskategorien", to: "/kompass/training-categories" },
           { label: cat.name },
         ]}
         actions={

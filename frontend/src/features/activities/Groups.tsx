@@ -108,7 +108,7 @@ export function GroupsList() {
           <DataTable
             rows={view.rows}
             rowKey={(g) => g.id}
-            onRowClick={(g) => navigate(`/app/groups/${g.id}/members`)}
+            onRowClick={(g) => navigate(`/kompass/groups/${g.id}/members`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -149,7 +149,7 @@ function GroupCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: GroupOut) => {
         toast.success("Gruppe angelegt.");
         onDone();
-        navigate(`/app/groups/${created.id}`);
+        navigate(`/kompass/groups/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -269,7 +269,7 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
       invalidate: [["groups"]],
       onSuccess: () => {
         toast.success("Gruppe gelöscht.");
-        navigate("/app/groups");
+        navigate("/kompass/groups");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -501,7 +501,7 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
       }}
     >
       <PageHeader
-        breadcrumbs={[{ label: "Gruppen", to: "/app/groups" }, { label: group.name }]}
+        breadcrumbs={[{ label: "Gruppen", to: "/kompass/groups" }, { label: group.name }]}
         actions={
           editing ? (
             <>

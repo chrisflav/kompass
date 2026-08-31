@@ -58,7 +58,7 @@ describe("mailer — E-Mail-Adressen", () => {
 
   it("lists the managed addresses", async () => {
     listReturns();
-    renderRoute("/app/mailer/addresses");
+    renderRoute("/kompass/mailer/addresses");
     expect(await screen.findByText("jugend@example.org")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });
@@ -70,20 +70,20 @@ describe("mailer — E-Mail-Adressen", () => {
         HttpResponse.json({ ...ADDRESS, internal_only: false }),
       ),
     );
-    renderRoute("/app/mailer/addresses/2");
+    renderRoute("/kompass/mailer/addresses/2");
     await screen.findAllByText("jugend");
     expect(screen.getAllByText("Nein").length).toBeGreaterThan(0);
   });
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/mailer/addresses");
+    renderRoute("/kompass/mailer/addresses");
     expect(await screen.findByText("Keine E-Mail-Adressen vorhanden.")).toBeInTheDocument();
   });
 
   it("sorts by every column in both directions", async () => {
     listReturns([ADDRESS_BRIEF, { ...ADDRESS_BRIEF, id: 3, name: "vorstand", internal_only: false }]);
-    const { user } = renderRoute("/app/mailer/addresses");
+    const { user } = renderRoute("/kompass/mailer/addresses");
     await screen.findByText("jugend");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -92,7 +92,7 @@ describe("mailer — E-Mail-Adressen", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/mailer/addresses");
+    renderRoute("/kompass/mailer/addresses");
     await screen.findByText("jugend@example.org");
     expect(screen.queryByRole("button", { name: "Neue Adresse" })).not.toBeInTheDocument();
   });
@@ -110,7 +110,7 @@ describe("mailer — E-Mail-Adressen", () => {
         HttpResponse.json({ ...ADDRESS, id: 9 }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/addresses");
+    const { user } = renderRoute("/kompass/mailer/addresses");
     await user.click(await screen.findByRole("button", { name: "Neue Adresse" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -145,7 +145,7 @@ describe("mailer — E-Mail-Adressen", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/addresses");
+    const { user } = renderRoute("/kompass/mailer/addresses");
     await user.click(await screen.findByRole("button", { name: "Neue Adresse" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -162,7 +162,7 @@ describe("mailer — E-Mail-Adressen", () => {
   it("closes the create modal on Abbrechen", async () => {
     useMe({ permissions: ["mailer.add_emailaddress"] });
     listReturns();
-    const { user } = renderRoute("/app/mailer/addresses");
+    const { user } = renderRoute("/kompass/mailer/addresses");
     await user.click(await screen.findByRole("button", { name: "Neue Adresse" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -175,7 +175,7 @@ describe("mailer — E-Mail-Adressen", () => {
         HttpResponse.json([ADDRESS_BRIEF, { ...ADDRESS_BRIEF, id: 3, internal_only: false }]),
       ),
     );
-    renderRoute("/app/mailer/addresses");
+    renderRoute("/kompass/mailer/addresses");
     await screen.findAllByText("jugend@example.org");
     expect(screen.getByText("Ja")).toBeInTheDocument();
     expect(screen.getByText("Nein")).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe("mailer — E-Mail-Adressen", () => {
         return HttpResponse.json(ADDRESS);
       }),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     await user.click(screen.getByRole("checkbox"));
@@ -216,7 +216,7 @@ describe("mailer — E-Mail-Adressen", () => {
     server.use(
       http.get(api("/api/mailer/email-addresses/2"), () => HttpResponse.json(ADDRESS)),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
 
     expect(await screen.findByText("hannah@example.org")).toBeInTheDocument();
     expect(screen.getByText("Klettergruppe")).toBeInTheDocument();
@@ -238,7 +238,7 @@ describe("mailer — E-Mail-Adressen", () => {
         return HttpResponse.json(ADDRESS);
       }),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Ungültiger Name.")).not.toHaveLength(0);
@@ -258,7 +258,7 @@ describe("mailer — E-Mail-Adressen", () => {
     server.use(
       http.get(api("/api/mailer/email-addresses/2"), () => HttpResponse.json(ADDRESS)),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("jugend")).not.toBeInTheDocument();
@@ -278,7 +278,7 @@ describe("mailer — E-Mail-Adressen", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
 
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
@@ -303,7 +303,7 @@ describe("mailer — E-Mail-Adressen", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
@@ -316,7 +316,7 @@ describe("mailer — E-Mail-Adressen", () => {
     server.use(
       http.get(api("/api/mailer/email-addresses/2"), () => HttpResponse.json(ADDRESS)),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -375,7 +375,7 @@ describe("mailer — Nachrichten", () => {
 
   it("lists messages and filters by sent status", async () => {
     listReturns([MESSAGE_BRIEF, { ...MESSAGE_BRIEF, id: 5, subject: "Alt", sent: true }]);
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await screen.findByText("Sommerfahrt");
 
     await user.click(screen.getByRole("button", { name: /Status:/ }));
@@ -388,13 +388,13 @@ describe("mailer — Nachrichten", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/mailer/messages");
+    renderRoute("/kompass/mailer/messages");
     expect(await screen.findByText("Keine Nachrichten vorhanden.")).toBeInTheDocument();
   });
 
   it("searches by subject and names an untitled message", async () => {
     listReturns([{ ...MESSAGE_BRIEF, subject: "" }, { ...MESSAGE_BRIEF, id: 5, subject: "Alt" }]);
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await screen.findByText("(ohne Betreff)");
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "alt");
@@ -403,7 +403,7 @@ describe("mailer — Nachrichten", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([MESSAGE_BRIEF, { ...MESSAGE_BRIEF, id: 5, subject: "Alt", created_by: null }]);
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await screen.findByText("Sommerfahrt");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -412,7 +412,7 @@ describe("mailer — Nachrichten", () => {
   it("hides the compose button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/mailer/messages");
+    renderRoute("/kompass/mailer/messages");
     await screen.findByText("Sommerfahrt");
     expect(screen.queryByRole("button", { name: "Neue Nachricht" })).not.toBeInTheDocument();
   });
@@ -420,7 +420,7 @@ describe("mailer — Nachrichten", () => {
   it("opens the compose dialog straight from ?compose=1", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();
-    renderRoute("/app/mailer/messages?compose=1");
+    renderRoute("/kompass/mailer/messages?compose=1");
     // The dashboard's "Nachricht senden" shortcut lands here.
     expect(await screen.findByRole("dialog", { name: "Neue Nachricht" })).toBeInTheDocument();
   });
@@ -428,7 +428,7 @@ describe("mailer — Nachrichten", () => {
   it("drops ?compose=1 from the URL when the dialog is closed", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();
-    const { user } = renderRoute("/app/mailer/messages?compose=1");
+    const { user } = renderRoute("/kompass/mailer/messages?compose=1");
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
     );
@@ -445,7 +445,7 @@ describe("mailer — Nachrichten", () => {
         djangoValidation({ content: ["Der Inhalt ist zu lang."] }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -457,7 +457,7 @@ describe("mailer — Nachrichten", () => {
 
   it("names the linked excursion on the detail page", async () => {
     detailReturns({ to_freizeit: { id: 3, code: "F26-01", name: "Skifreizeit" } });
-    renderRoute("/app/mailer/messages/4");
+    renderRoute("/kompass/mailer/messages/4");
     expect(await screen.findByText("F26-01 · Skifreizeit")).toBeInTheDocument();
   });
 
@@ -471,7 +471,7 @@ describe("mailer — Nachrichten", () => {
         return HttpResponse.json(MESSAGE);
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Als Entwurf speichern" }),
@@ -493,7 +493,7 @@ describe("mailer — Nachrichten", () => {
       http.get(api("/api/mailer/messages/4"), () => HttpResponse.json(MESSAGE)),
       http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -531,7 +531,7 @@ describe("mailer — Nachrichten", () => {
       http.get(api("/api/mailer/messages/4"), () => HttpResponse.json({ ...MESSAGE, sent: true })),
       http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -564,7 +564,7 @@ describe("mailer — Nachrichten", () => {
         return HttpResponse.json(MESSAGE);
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -584,7 +584,7 @@ describe("mailer — Nachrichten", () => {
   it("asks before discarding an edited draft, and keeps it when declined", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -603,7 +603,7 @@ describe("mailer — Nachrichten", () => {
   it("closes an untouched compose dialog without asking", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -617,7 +617,7 @@ describe("mailer — Nachrichten", () => {
         djangoValidation({ subject: ["Der Betreff ist zu lang."] }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -636,7 +636,7 @@ describe("mailer — Nachrichten", () => {
         djangoValidation({ subject: ["Der Betreff ist zu lang."] }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -657,7 +657,7 @@ describe("mailer — Nachrichten", () => {
 
   it("offers editing, sending and deleting on an unsent message", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
 
     expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
@@ -667,7 +667,7 @@ describe("mailer — Nachrichten", () => {
 
   it("freezes a sent message", async () => {
     detailReturns({ sent: true });
-    renderRoute("/app/mailer/messages/4");
+    renderRoute("/kompass/mailer/messages/4");
     await screen.findByText("Bitte anmelden.");
     expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Aktionen/ })).not.toBeInTheDocument();
@@ -682,7 +682,7 @@ describe("mailer — Nachrichten", () => {
         return HttpResponse.json({ ...MESSAGE, sent: true });
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Versenden" }));
 
@@ -703,7 +703,7 @@ describe("mailer — Nachrichten", () => {
         HttpResponse.json({ detail: "Es fehlen Empfänger." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Versenden" }));
     const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
@@ -724,7 +724,7 @@ describe("mailer — Nachrichten", () => {
         return HttpResponse.json(MESSAGE);
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const subject = screen.getByDisplayValue("Sommerfahrt");
@@ -744,7 +744,7 @@ describe("mailer — Nachrichten", () => {
         djangoValidation({ content: ["Der Inhalt fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -754,7 +754,7 @@ describe("mailer — Nachrichten", () => {
 
   it("leaves edit mode on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("Sommerfahrt")).not.toBeInTheDocument();
@@ -770,7 +770,7 @@ describe("mailer — Nachrichten", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Löschen" }));
     await user.click(
@@ -787,7 +787,7 @@ describe("mailer — Nachrichten", () => {
         HttpResponse.json([{ id: 8, filename: "Programm.pdf", url: "/media/programm.pdf" }]),
       ),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("tab", { name: "Anhänge" }));
 
     expect(await screen.findByRole("link", { name: "Programm.pdf" })).toHaveAttribute(
@@ -798,7 +798,7 @@ describe("mailer — Nachrichten", () => {
 
   it("says so when there are no attachments", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("tab", { name: "Anhänge" }));
     expect(await screen.findByText("Keine Anhänge.")).toBeInTheDocument();
   });
@@ -813,7 +813,7 @@ describe("mailer — Nachrichten", () => {
         return HttpResponse.json({ id: 9, filename: "Programm.pdf", url: "/media/p.pdf" });
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Anhänge" }));
     await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
@@ -835,7 +835,7 @@ describe("mailer — Nachrichten", () => {
 
   it("drops a staged attachment again without uploading it", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Anhänge" }));
     await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
@@ -863,7 +863,7 @@ describe("mailer — Nachrichten", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Anhänge" }));
     await user.click(await screen.findByRole("button", { name: "Entfernen" }));
@@ -891,7 +891,7 @@ describe("mailer — remaining paths", () => {
       ),
       http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByText("Sommerfahrt"));
 
     expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
@@ -902,7 +902,7 @@ describe("mailer — remaining paths", () => {
   it("closes the compose dialog with ×", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     messageListReturns();
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
@@ -919,7 +919,7 @@ describe("mailer — remaining paths", () => {
         new HttpResponse("<html>500</html>", { status: 500 }),
       ),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(
@@ -933,7 +933,7 @@ describe("mailer — remaining paths", () => {
       http.get(api("/api/mailer/messages/4"), () => HttpResponse.json(MESSAGE)),
       http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Anhänge" }));
     await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
@@ -962,7 +962,7 @@ describe("mailer — remaining paths", () => {
         return HttpResponse.json({ id: 9 });
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Anhänge" }));
     // A row the API returned without a URL still renders as staged.
@@ -981,7 +981,7 @@ describe("mailer — remaining paths", () => {
       http.get(api("/api/mailer/email-addresses"), () => HttpResponse.json([ADDRESS_BRIEF])),
       http.get(api("/api/mailer/email-addresses/2"), () => HttpResponse.json(ADDRESS)),
     );
-    const { user } = renderRoute("/app/mailer/addresses");
+    const { user } = renderRoute("/kompass/mailer/addresses");
 
     await user.click(await screen.findByRole("button", { name: "Neue Adresse" }));
     await user.click(
@@ -1008,7 +1008,7 @@ describe("mailer — every field", () => {
         return HttpResponse.json(MESSAGE);
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages/4");
+    const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
@@ -1038,7 +1038,7 @@ describe("mailer — every field", () => {
       ),
       http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
     );
-    renderRoute("/app/mailer/messages/4");
+    renderRoute("/kompass/mailer/messages/4");
     await screen.findAllByText("Sommerfahrt");
     expect((document.querySelector("form") as HTMLElement).textContent).toContain("—");
   });
@@ -1054,7 +1054,7 @@ describe("mailer — every field", () => {
         return djangoValidation({ subject: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/mailer/messages");
+    const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -1083,7 +1083,7 @@ describe("mailer — every field", () => {
         return HttpResponse.json(ADDRESS);
       }),
     );
-    const { user } = renderRoute("/app/mailer/addresses/2");
+    const { user } = renderRoute("/kompass/mailer/addresses/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const form = document.querySelector("form") as HTMLElement;
@@ -1108,7 +1108,7 @@ describe("mailer — every field", () => {
         }),
       ),
     );
-    renderRoute("/app/mailer/addresses/2");
+    renderRoute("/kompass/mailer/addresses/2");
     await screen.findAllByText("jugend");
     expect((document.querySelector("form") as HTMLElement).textContent).toContain("—");
   });
@@ -1124,7 +1124,7 @@ describe("mailer — every field", () => {
         return djangoValidation({ name: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/mailer/addresses");
+    const { user } = renderRoute("/kompass/mailer/addresses");
     await user.click(await screen.findByRole("button", { name: "Neue Adresse" }));
 
     const dialog = await screen.findByRole("dialog");

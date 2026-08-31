@@ -40,7 +40,7 @@ export function MeineGruppen() {
               <DataTable
                 rows={rows}
                 rowKey={(g) => g.id}
-                onRowClick={(g) => navigate(`/app/groups/${g.id}/members`)}
+                onRowClick={(g) => navigate(`/kompass/groups/${g.id}/members`)}
                 columns={[
                   { header: "Gruppe", cell: (g) => g.name },
                   { header: "Treffen", cell: (g) => g.time_info || "—" },

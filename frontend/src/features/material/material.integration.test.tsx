@@ -34,21 +34,21 @@ describe("material — Kategorien", () => {
 
   it("lists the categories", async () => {
     listReturns();
-    renderRoute("/app/material/categories");
+    renderRoute("/kompass/material/categories");
     expect(await screen.findByText("Seile")).toBeInTheDocument();
     expect(screen.getByText("2 / 2")).toBeInTheDocument();
   });
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/material/categories");
+    renderRoute("/kompass/material/categories");
     expect(await screen.findByText("Keine Kategorien vorhanden.")).toBeInTheDocument();
   });
 
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/material/categories");
+    renderRoute("/kompass/material/categories");
     await screen.findByText("Seile");
     expect(screen.queryByRole("button", { name: "Neue Kategorie" })).not.toBeInTheDocument();
   });
@@ -66,7 +66,7 @@ describe("material — Kategorien", () => {
         HttpResponse.json({ id: 3, name: "Karabiner", material_parts: [] }),
       ),
     );
-    const { user } = renderRoute("/app/material/categories");
+    const { user } = renderRoute("/kompass/material/categories");
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -85,7 +85,7 @@ describe("material — Kategorien", () => {
         djangoValidation({ name: ["Diese Kategorie gibt es schon."] }),
       ),
     );
-    const { user } = renderRoute("/app/material/categories");
+    const { user } = renderRoute("/kompass/material/categories");
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -107,7 +107,7 @@ describe("material — Kategorien", () => {
         }),
       ),
     );
-    renderRoute("/app/material/categories/1");
+    renderRoute("/kompass/material/categories/1");
     expect(await screen.findByText("Halbseil 60m")).toBeInTheDocument();
   });
 
@@ -125,7 +125,7 @@ describe("material — Kategorien", () => {
       http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/material/categories/1");
+    const { user } = renderRoute("/kompass/material/categories/1");
     await user.click(await screen.findByText("Halbseil 60m"));
     expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
   });
@@ -136,7 +136,7 @@ describe("material — Kategorien", () => {
         HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
       ),
     );
-    renderRoute("/app/material/categories/1");
+    renderRoute("/kompass/material/categories/1");
     expect(await screen.findByText("Kein Material in dieser Kategorie.")).toBeInTheDocument();
   });
 
@@ -154,7 +154,7 @@ describe("material — Kategorien", () => {
         return HttpResponse.json({ id: 1, name: "Seile & Reepschnüre", material_parts: [] });
       }),
     );
-    const { user } = renderRoute("/app/material/categories/1");
+    const { user } = renderRoute("/kompass/material/categories/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Name fehlt.")).not.toHaveLength(0);
@@ -172,7 +172,7 @@ describe("material — Kategorien", () => {
         HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
       ),
     );
-    const { user } = renderRoute("/app/material/categories/1");
+    const { user } = renderRoute("/kompass/material/categories/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("Seile")).not.toBeInTheDocument();
@@ -193,7 +193,7 @@ describe("material — Kategorien", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/material/categories/1");
+    const { user } = renderRoute("/kompass/material/categories/1");
 
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
@@ -214,7 +214,7 @@ describe("material — Kategorien", () => {
         HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
       ),
     );
-    const { user } = renderRoute("/app/material/categories/1");
+    const { user } = renderRoute("/kompass/material/categories/1");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -272,7 +272,7 @@ describe("material — Material", () => {
 
   it("lists the parts with their owners and condition", async () => {
     listReturns();
-    renderRoute("/app/material");
+    renderRoute("/kompass/material");
     expect(await screen.findByText("Halbseil 60m")).toBeInTheDocument();
     expect(screen.getByText("In Ordnung")).toBeInTheDocument();
     expect(screen.getByText(/Mila Nowak/)).toBeInTheDocument();
@@ -280,13 +280,13 @@ describe("material — Material", () => {
 
   it("says so when there is none", async () => {
     listReturns([]);
-    renderRoute("/app/material");
+    renderRoute("/kompass/material");
     expect(await screen.findByText("Kein Material vorhanden.")).toBeInTheDocument();
   });
 
   it("searches by name and description", async () => {
     listReturns([PART_BRIEF, { ...PART_BRIEF, id: 5, name: "Klettergurt", description: "Blau" }]);
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
     await screen.findByText("Halbseil 60m");
     await user.type(screen.getByPlaceholderText("Suchen…"), "blau");
     await waitFor(() => expect(screen.queryByText("Halbseil 60m")).not.toBeInTheDocument());
@@ -304,7 +304,7 @@ describe("material — Material", () => {
         owners: [{ owner_name: "Tobias Werner", count: 1 }],
       },
     ]);
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
     await screen.findByText("Halbseil 60m");
 
     await user.click(screen.getByRole("button", { name: /Zustand:/ }));
@@ -323,7 +323,7 @@ describe("material — Material", () => {
       PART_BRIEF,
       { ...PART_BRIEF, id: 5, name: "Klettergurt", description: "", owners: [] },
     ]);
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
     await screen.findByText("Halbseil 60m");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -332,7 +332,7 @@ describe("material — Material", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/material");
+    renderRoute("/kompass/material");
     await screen.findByText("Halbseil 60m");
     expect(screen.queryByRole("button", { name: "Neues Material" })).not.toBeInTheDocument();
   });
@@ -353,7 +353,7 @@ describe("material — Material", () => {
       http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
     await user.click(await screen.findByRole("button", { name: "Neues Material" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -397,7 +397,7 @@ describe("material — Material", () => {
       http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
     await user.click(await screen.findByRole("button", { name: "Neues Material" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -424,7 +424,7 @@ describe("material — Material", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
     await user.click(await screen.findByRole("button", { name: "Neues Material" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -446,7 +446,7 @@ describe("material — Material", () => {
 
   it("shows the part with its categories and condition", async () => {
     detailReturns();
-    renderRoute("/app/material/4");
+    renderRoute("/kompass/material/4");
     // The name appears in the breadcrumb and in the Name row.
     expect(await screen.findAllByText("Halbseil 60m")).toHaveLength(2);
     expect(screen.getByText("Seile")).toBeInTheDocument();
@@ -456,13 +456,13 @@ describe("material — Material", () => {
 
   it("marks an expired part as too old", async () => {
     detailReturns({ not_too_old: false });
-    renderRoute("/app/material/4");
+    renderRoute("/kompass/material/4");
     expect(await screen.findByText("Zu alt")).toBeInTheDocument();
   });
 
   it("links an existing photo", async () => {
     detailReturns({ photo: "/media/seil.png" });
-    renderRoute("/app/material/4");
+    renderRoute("/kompass/material/4");
     expect(await screen.findByRole("link", { name: "Foto ansehen" })).toHaveAttribute(
       "href",
       "http://localhost:8000/media/seil.png",
@@ -479,7 +479,7 @@ describe("material — Material", () => {
         return HttpResponse.json(PART);
       }),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const name = screen.getByDisplayValue("Halbseil 60m");
@@ -502,7 +502,7 @@ describe("material — Material", () => {
         djangoValidation({ name: ["Der Name fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -512,7 +512,7 @@ describe("material — Material", () => {
 
   it("leaves edit mode on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("Halbseil 60m")).not.toBeInTheDocument();
@@ -527,7 +527,7 @@ describe("material — Material", () => {
         return HttpResponse.json({ ...PART, photo: "/media/seil.png" });
       }),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     await user.upload(
@@ -545,7 +545,7 @@ describe("material — Material", () => {
         HttpResponse.json({ detail: "Die Datei ist zu groß." }, { status: 413 }),
       ),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.upload(
       document.querySelector('input[type="file"]') as HTMLInputElement,
@@ -564,7 +564,7 @@ describe("material — Material", () => {
         return HttpResponse.json({ id: 30 });
       }),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
 
@@ -607,7 +607,7 @@ describe("material — Material", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
 
@@ -637,7 +637,7 @@ describe("material — Material", () => {
         djangoValidation({ count: ["Mehr als vorhanden."] }),
       ),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
     await user.click(await screen.findByRole("button", { name: "+ Verantwortliche:r" }));
@@ -665,7 +665,7 @@ describe("material — Material", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -681,7 +681,7 @@ describe("material — Material", () => {
         HttpResponse.json({ detail: "material.delete_materialpart" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -691,7 +691,7 @@ describe("material — Material", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -726,7 +726,7 @@ describe("material — remaining paths", () => {
     useMe({ permissions: ["material.add_materialpart"] });
     partListReturns();
     partDetailReturns();
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
 
     await user.click(await screen.findByRole("button", { name: "Neues Material" }));
     const dialog = await screen.findByRole("dialog");
@@ -742,14 +742,14 @@ describe("material — remaining paths", () => {
 
   it("copes with an API that sends null for the optional fields", async () => {
     partDetailReturns({ description: null, buy_date: null, lifetime: null, categories: [] });
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
 
   it("closes the responsible-person dialog with ×", async () => {
     partDetailReturns();
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
     await user.click(await screen.findByRole("button", { name: "+ Verantwortliche:r" }));
@@ -768,7 +768,7 @@ describe("material — remaining paths", () => {
         ]),
       ),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("tab", { name: "Verantwortliche" }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
@@ -782,7 +782,7 @@ describe("material — remaining paths", () => {
         HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
       ),
     );
-    const { user } = renderRoute("/app/material/categories");
+    const { user } = renderRoute("/kompass/material/categories");
 
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
     await user.click(
@@ -805,7 +805,7 @@ describe("material — every field", () => {
         return HttpResponse.json(PART);
       }),
     );
-    const { user } = renderRoute("/app/material/4");
+    const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
@@ -831,7 +831,7 @@ describe("material — every field", () => {
       owners: [],
       photo: null,
     });
-    renderRoute("/app/material/4");
+    renderRoute("/kompass/material/4");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect((document.querySelector("form") as HTMLElement).textContent).toContain("—");
   });
@@ -846,7 +846,7 @@ describe("material — every field", () => {
         return djangoValidation({ name: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/material");
+    const { user } = renderRoute("/kompass/material");
     await user.click(await screen.findByRole("button", { name: "Neues Material" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -877,7 +877,7 @@ describe("material — every field", () => {
         return HttpResponse.json({ id: 1, name: "Text", material_parts: [] });
       }),
     );
-    const { user } = renderRoute("/app/material/categories/1");
+    const { user } = renderRoute("/kompass/material/categories/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await fillEveryField(user, document.querySelector("form") as HTMLElement);
     await user.click(screen.getByRole("button", { name: "Speichern" }));

@@ -106,7 +106,7 @@ export function TransactionsList() {
           <DataTable
             rows={view.rows}
             rowKey={(t) => t.id}
-            onRowClick={(t) => navigate(`/app/finance/transactions/${t.id}`)}
+            onRowClick={(t) => navigate(`/kompass/finance/transactions/${t.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -159,7 +159,7 @@ export function TransactionDetailPage() {
     <div>
       <PageHeader
         breadcrumbs={[
-          { label: "Buchungen", to: "/app/finance/transactions" },
+          { label: "Buchungen", to: "/kompass/finance/transactions" },
           { label: query.data?.reference ?? "Buchung" },
         ]}
         actions={
@@ -184,7 +184,7 @@ export function TransactionDetailPage() {
               ["Autorisiert von", tx.confirmed_by ? tx.confirmed_by.name : "—"],
               [
                 "Abrechnung",
-                <Link to={`/app/finance/statements/${tx.statement_id}`}>#{tx.statement_id}</Link>,
+                <Link to={`/kompass/finance/statements/${tx.statement_id}`}>#{tx.statement_id}</Link>,
               ],
               ["EPC-QR (Code)", <code style={{ wordBreak: "break-all" }}>{tx.code}</code>],
             ]}

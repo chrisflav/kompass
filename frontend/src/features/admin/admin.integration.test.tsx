@@ -37,7 +37,7 @@ const GROUPS = [{ id: 1, name: "Standard", permission_count: 15, user_count: 5 }
 describe("users list", () => {
   it("lists accounts with their linked member and rights", async () => {
     server.use(http.get(api("/api/logindata/users"), () => HttpResponse.json(USERS)));
-    renderRoute("/app/users");
+    renderRoute("/kompass/users");
 
     expect(await screen.findByText("jdav_admin")).toBeInTheDocument();
     expect(screen.getByText("Tobias Werner")).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe("users list", () => {
         HttpResponse.json({ detail: "auth.view_user" }, { status: 403 }),
       ),
     );
-    renderRoute("/app/users");
+    renderRoute("/kompass/users");
 
     expect(await screen.findByText("Dazu fehlt dir die Berechtigung.")).toBeInTheDocument();
     expect(screen.queryByText(/auth\.view_user/)).not.toBeInTheDocument();
@@ -66,7 +66,7 @@ describe("users list", () => {
         djangoValidation({ password2: ["Die beiden Passwörter stimmen nicht überein."] }),
       ),
     );
-    const { user } = renderRoute("/app/users");
+    const { user } = renderRoute("/kompass/users");
     await screen.findByText("jdav_admin");
     await user.click(screen.getByRole("button", { name: "Neuer Benutzer" }));
 
@@ -89,7 +89,7 @@ describe("users list — search, filter and create", () => {
 
   it("searches by username and by linked member", async () => {
     listReturns();
-    const { user } = renderRoute("/app/users");
+    const { user } = renderRoute("/kompass/users");
     await screen.findByText("jdav_admin");
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "hannah");
@@ -99,7 +99,7 @@ describe("users list — search, filter and create", () => {
 
   it("searches by username, member and rights group, and filters by the flags", async () => {
     listReturns();
-    const { user } = renderRoute("/app/users");
+    const { user } = renderRoute("/kompass/users");
     await screen.findByText("jdav_admin");
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "standard");
@@ -126,7 +126,7 @@ describe("users list — search, filter and create", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns();
-    const { user } = renderRoute("/app/users");
+    const { user } = renderRoute("/kompass/users");
     await screen.findByText("jdav_admin");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -135,14 +135,14 @@ describe("users list — search, filter and create", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: ["auth.view_user"] });
     listReturns();
-    renderRoute("/app/users");
+    renderRoute("/kompass/users");
     await screen.findByText("jdav_admin");
     expect(screen.queryByRole("button", { name: "Neuer Benutzer" })).not.toBeInTheDocument();
   });
 
   it("says so when no account is visible", async () => {
     listReturns([]);
-    renderRoute("/app/users");
+    renderRoute("/kompass/users");
     expect(await screen.findByText("Keine Benutzer sichtbar.")).toBeInTheDocument();
   });
 
@@ -170,7 +170,7 @@ describe("users list — search, filter and create", () => {
       ),
       http.get(api("/api/logindata/permission-groups"), () => HttpResponse.json(GROUPS)),
     );
-    const { user } = renderRoute("/app/users");
+    const { user } = renderRoute("/kompass/users");
     await user.click(await screen.findByRole("button", { name: "Neuer Benutzer" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -201,7 +201,7 @@ describe("users list — search, filter and create", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/users");
+    const { user } = renderRoute("/kompass/users");
     await user.click(await screen.findByRole("button", { name: "Neuer Benutzer" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -221,7 +221,7 @@ describe("users list — search, filter and create", () => {
 describe("users list — remaining paths", () => {
   it("closes the create modal with ×", async () => {
     server.use(http.get(api("/api/logindata/users"), () => HttpResponse.json(USERS)));
-    const { user } = renderRoute("/app/users");
+    const { user } = renderRoute("/kompass/users");
     await user.click(await screen.findByRole("button", { name: "Neuer Benutzer" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
@@ -235,7 +235,7 @@ describe("users list — remaining paths", () => {
         HttpResponse.json([{ ...USERS[1], last_login: null, member_name: null, groups: [] }]),
       ),
     );
-    renderRoute("/app/users");
+    renderRoute("/kompass/users");
     await screen.findByText("hannah.becker");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -266,10 +266,10 @@ describe("user detail", () => {
 
   it("links the account to its member profile", async () => {
     detailReturns();
-    renderRoute("/app/users/2");
+    renderRoute("/kompass/users/2");
     expect(await screen.findByRole("link", { name: "Hannah Beckers" })).toHaveAttribute(
       "href",
-      "/app/members/7",
+      "/kompass/members/7",
     );
   });
 
@@ -280,7 +280,7 @@ describe("user detail", () => {
       ),
       http.get(api("/api/logindata/permission-groups"), () => HttpResponse.json(GROUPS)),
     );
-    renderRoute("/app/users/2");
+    renderRoute("/kompass/users/2");
     await screen.findByRole("button", { name: "Passwort setzen" });
     expect(screen.queryByRole("link", { name: /Beckers/ })).not.toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
@@ -288,7 +288,7 @@ describe("user detail", () => {
 
   it("never displays a password hash", async () => {
     detailReturns();
-    renderRoute("/app/users/2");
+    renderRoute("/kompass/users/2");
     await screen.findByRole("button", { name: "Passwort setzen" });
     // Django's admin shows the encoded hash; this surface must not.
     expect(document.body.textContent).not.toMatch(/pbkdf2|argon2|bcrypt/i);
@@ -308,7 +308,7 @@ describe("user detail", () => {
         return HttpResponse.json(DETAIL);
       }),
     );
-    const { user } = renderRoute("/app/users/2");
+    const { user } = renderRoute("/kompass/users/2");
     await user.click(await screen.findByRole("button", { name: "Passwort setzen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -336,7 +336,7 @@ describe("user detail", () => {
         return HttpResponse.json(DETAIL);
       }),
     );
-    const { user } = renderRoute("/app/users/2");
+    const { user } = renderRoute("/kompass/users/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const username = screen.getByDisplayValue("hannah.becker");
@@ -365,7 +365,7 @@ describe("user detail", () => {
         djangoValidation({ username: ["Ungültiger Benutzername."] }),
       ),
     );
-    const { user } = renderRoute("/app/users/2");
+    const { user } = renderRoute("/kompass/users/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Ungültiger Benutzername.")).not.toHaveLength(0);
@@ -381,7 +381,7 @@ describe("user detail", () => {
         djangoValidation({ new_password1: ["Zu kurz."], new_password2: ["Stimmt nicht überein."] }),
       ),
     );
-    const { user } = renderRoute("/app/users/2");
+    const { user } = renderRoute("/kompass/users/2");
     await user.click(await screen.findByRole("button", { name: "Passwort setzen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -398,7 +398,7 @@ describe("user detail", () => {
   it("hides both edit actions from a read-only account", async () => {
     useMe({ permissions: ["auth.view_user"] });
     detailReturns();
-    renderRoute("/app/users/2");
+    renderRoute("/kompass/users/2");
     // Breadcrumb plus the Benutzername row.
     await screen.findAllByText("hannah.becker");
     expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
@@ -408,7 +408,7 @@ describe("user detail", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/users/2");
+    const { user } = renderRoute("/kompass/users/2");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -420,7 +420,7 @@ describe("user detail", () => {
         HttpResponse.json({ detail: "auth.delete_user" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/users/2");
+    const { user } = renderRoute("/kompass/users/2");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -437,7 +437,7 @@ describe("user detail", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/users/2");
+    const { user } = renderRoute("/kompass/users/2");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -494,7 +494,7 @@ describe("permission groups", () => {
 
   it("shows how many rights and users a group carries", async () => {
     listReturns();
-    renderRoute("/app/permission-groups");
+    renderRoute("/kompass/permission-groups");
 
     expect(await screen.findByText("Standard")).toBeInTheDocument();
     expect(screen.getByText("15")).toBeInTheDocument();
@@ -503,7 +503,7 @@ describe("permission groups", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([...GROUPS, { id: 2, name: "Kasse", permission_count: 2, user_count: 1 }]);
-    const { user } = renderRoute("/app/permission-groups");
+    const { user } = renderRoute("/kompass/permission-groups");
     await screen.findByText("Standard");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -512,7 +512,7 @@ describe("permission groups", () => {
   it("searches by name and opens a group from its row", async () => {
     listReturns([...GROUPS, { id: 2, name: "Kasse", permission_count: 2, user_count: 1 }]);
     detailReturns();
-    const { user } = renderRoute("/app/permission-groups");
+    const { user } = renderRoute("/kompass/permission-groups");
     await screen.findByText("Standard");
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "kasse");
@@ -526,7 +526,7 @@ describe("permission groups", () => {
   it("closes the create modal with ×", async () => {
     useMe({ permissions: ["auth.add_group"] });
     listReturns();
-    const { user } = renderRoute("/app/permission-groups");
+    const { user } = renderRoute("/kompass/permission-groups");
     await user.click(await screen.findByRole("button", { name: "Neue Rechtegruppe" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
@@ -536,14 +536,14 @@ describe("permission groups", () => {
 
   it("says so when none are visible", async () => {
     listReturns([]);
-    renderRoute("/app/permission-groups");
+    renderRoute("/kompass/permission-groups");
     expect(await screen.findByText("Keine Rechtegruppen sichtbar.")).toBeInTheDocument();
   });
 
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/permission-groups");
+    renderRoute("/kompass/permission-groups");
     await screen.findByText("Standard");
     expect(screen.queryByRole("button", { name: "Neue Rechtegruppe" })).not.toBeInTheDocument();
   });
@@ -561,7 +561,7 @@ describe("permission groups", () => {
     detailReturns();
     // detailReturns narrows the permissions; restore the create right.
     useMe({ permissions: ["auth.add_group", "auth.change_group"] });
-    const { user } = renderRoute("/app/permission-groups");
+    const { user } = renderRoute("/kompass/permission-groups");
     await user.click(await screen.findByRole("button", { name: "Neue Rechtegruppe" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -590,7 +590,7 @@ describe("permission groups", () => {
         djangoValidation({ name: ["Diese Gruppe gibt es schon."] }),
       ),
     );
-    const { user } = renderRoute("/app/permission-groups");
+    const { user } = renderRoute("/kompass/permission-groups");
     await user.click(await screen.findByRole("button", { name: "Neue Rechtegruppe" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -604,7 +604,7 @@ describe("permission groups", () => {
 
   it("lists a group's rights with their codenames", async () => {
     detailReturns();
-    renderRoute("/app/permission-groups/1");
+    renderRoute("/kompass/permission-groups/1");
     // The codename is what an administrator recognises from the rules files.
     expect(await screen.findByText("finance.add_global_statement")).toBeInTheDocument();
     expect(screen.getByText("Can add_global Statement")).toBeInTheDocument();
@@ -612,7 +612,7 @@ describe("permission groups", () => {
 
   it("shows an em dash for a group carrying no rights", async () => {
     detailReturns({ permissions: [] });
-    renderRoute("/app/permission-groups/1");
+    renderRoute("/kompass/permission-groups/1");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getByText("—")).toBeInTheDocument();
   });
@@ -626,7 +626,7 @@ describe("permission groups", () => {
         return HttpResponse.json(DETAIL);
       }),
     );
-    const { user } = renderRoute("/app/permission-groups/1");
+    const { user } = renderRoute("/kompass/permission-groups/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const name = screen.getByDisplayValue("Standard");
@@ -652,7 +652,7 @@ describe("permission groups", () => {
         djangoValidation({ name: ["Der Name fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/permission-groups/1");
+    const { user } = renderRoute("/kompass/permission-groups/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Der Name fehlt.")).not.toHaveLength(0);
@@ -670,7 +670,7 @@ describe("permission groups", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/permission-groups/1");
+    const { user } = renderRoute("/kompass/permission-groups/1");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -688,7 +688,7 @@ describe("permission groups", () => {
         HttpResponse.json({ detail: "auth.delete_group" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/permission-groups/1");
+    const { user } = renderRoute("/kompass/permission-groups/1");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -699,7 +699,7 @@ describe("permission groups", () => {
   it("hides both edit actions from a read-only account", async () => {
     detailReturns();
     useMe({ permissions: [] });
-    renderRoute("/app/permission-groups/1");
+    renderRoute("/kompass/permission-groups/1");
     await screen.findByText("finance.add_global_statement");
     expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
@@ -707,7 +707,7 @@ describe("permission groups", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/permission-groups/1");
+    const { user } = renderRoute("/kompass/permission-groups/1");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -724,7 +724,7 @@ describe("registration passwords", () => {
 
   it("explains what the shared secret is for and lists it", async () => {
     listReturns();
-    renderRoute("/app/registration-passwords");
+    renderRoute("/kompass/registration-passwords");
 
     expect(await screen.findByText("testtest")).toBeInTheDocument();
     expect(screen.getByText(/Wer per E-Mail eingeladen wird/)).toBeInTheDocument();
@@ -732,7 +732,7 @@ describe("registration passwords", () => {
 
   it("says so when none are set", async () => {
     listReturns([]);
-    renderRoute("/app/registration-passwords");
+    renderRoute("/kompass/registration-passwords");
     expect(
       await screen.findByText("Kein Registrierungspasswort hinterlegt."),
     ).toBeInTheDocument();
@@ -748,7 +748,7 @@ describe("registration passwords", () => {
         return HttpResponse.json({ id: 2, password: "neuneu" });
       }),
     );
-    const { user } = renderRoute("/app/registration-passwords");
+    const { user } = renderRoute("/kompass/registration-passwords");
     await user.click(await screen.findByRole("button", { name: "Neues Passwort" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -770,7 +770,7 @@ describe("registration passwords", () => {
         return HttpResponse.json({ id: 1, password: "anders" });
       }),
     );
-    const { user } = renderRoute("/app/registration-passwords");
+    const { user } = renderRoute("/kompass/registration-passwords");
     await user.click(await screen.findByRole("button", { name: "Ändern" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -795,7 +795,7 @@ describe("registration passwords", () => {
         return djangoValidation({ password: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/registration-passwords");
+    const { user } = renderRoute("/kompass/registration-passwords");
     await user.click(await screen.findByRole("button", { name: "Neues Passwort" }));
     const dialog = await screen.findByRole("dialog");
     await fillEveryField(user, dialog);
@@ -820,7 +820,7 @@ describe("registration passwords", () => {
         return djangoValidation({ name: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/permission-groups");
+    const { user } = renderRoute("/kompass/permission-groups");
     await user.click(await screen.findByRole("button", { name: "Neue Rechtegruppe" }));
     const dialog = await screen.findByRole("dialog");
     await fillEveryField(user, dialog);
@@ -837,7 +837,7 @@ describe("registration passwords", () => {
         djangoValidation({ password: ["Zu kurz."] }),
       ),
     );
-    const { user } = renderRoute("/app/registration-passwords");
+    const { user } = renderRoute("/kompass/registration-passwords");
     await user.click(await screen.findByRole("button", { name: "Neues Passwort" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -859,7 +859,7 @@ describe("registration passwords", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/registration-passwords");
+    const { user } = renderRoute("/kompass/registration-passwords");
     await user.click(await screen.findByRole("button", { name: "Entfernen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -882,7 +882,7 @@ describe("registration passwords", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/registration-passwords");
+    const { user } = renderRoute("/kompass/registration-passwords");
     await user.click(await screen.findByRole("button", { name: "Entfernen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
@@ -898,7 +898,7 @@ describe("registration passwords", () => {
         HttpResponse.json({ detail: "logindata.delete_registrationpassword" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/registration-passwords");
+    const { user } = renderRoute("/kompass/registration-passwords");
     await user.click(await screen.findByRole("button", { name: "Entfernen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -909,7 +909,7 @@ describe("registration passwords", () => {
   it("hides every action from someone without the rights", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/registration-passwords");
+    renderRoute("/kompass/registration-passwords");
     await screen.findByText("testtest");
     expect(screen.queryByRole("button", { name: "Neues Passwort" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ändern" })).not.toBeInTheDocument();

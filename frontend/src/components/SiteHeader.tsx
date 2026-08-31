@@ -78,44 +78,44 @@ function usePublicNav(enabled: boolean): NavEntry[] {
  */
 const ADMIN_NAV: NavArea[] = [
   { label: "Teilnehmende", items: [
-    { to: "/app/members", label: "Alle Teilnehmende" },
-    { to: "/app/trainings", label: "Ausbildungen" },
-    { to: "/app/registrations", label: "Registrierungen" },
-    { to: "/app/waiters", label: "Warteliste" },
+    { to: "/kompass/members", label: "Alle Teilnehmende" },
+    { to: "/kompass/trainings", label: "Ausbildungen" },
+    { to: "/kompass/registrations", label: "Registrierungen" },
+    { to: "/kompass/waiters", label: "Warteliste" },
   ] },
   { label: "Aktivitäten", items: [
-    { to: "/app/groups", label: "Gruppen" },
-    { to: "/app/excursions", label: "Ausfahrten" },
-    { to: "/app/klettertreff", label: "Klettertreffs" },
-    { to: "/app/notelists", label: "Notizlisten" },
-    { to: "/app/activity-categories", label: "Aktivitätskategorien" },
-    { to: "/app/training-categories", label: "Ausbildungskategorien" },
+    { to: "/kompass/groups", label: "Gruppen" },
+    { to: "/kompass/excursions", label: "Ausfahrten" },
+    { to: "/kompass/klettertreff", label: "Klettertreffs" },
+    { to: "/kompass/notelists", label: "Notizlisten" },
+    { to: "/kompass/activity-categories", label: "Aktivitätskategorien" },
+    { to: "/kompass/training-categories", label: "Ausbildungskategorien" },
   ] },
   { label: "Finanzen", items: [
-    { to: "/app/finance/statements", label: "Abrechnungen" },
-    { to: "/app/finance/bills", label: "Belege" },
-    { to: "/app/finance/transactions", label: "Buchungen" },
-    { to: "/app/finance/ledgers", label: "Konten" },
+    { to: "/kompass/finance/statements", label: "Abrechnungen" },
+    { to: "/kompass/finance/bills", label: "Belege" },
+    { to: "/kompass/finance/transactions", label: "Buchungen" },
+    { to: "/kompass/finance/ledgers", label: "Konten" },
   ] },
   { label: "Kommunikation", items: [
-    { to: "/app/mailer/messages", label: "Nachrichten" },
-    { to: "/app/mailer/addresses", label: "E-Mail-Adressen" },
+    { to: "/kompass/mailer/messages", label: "Nachrichten" },
+    { to: "/kompass/mailer/addresses", label: "E-Mail-Adressen" },
   ] },
   // The startpage content has its own area again (FRONTEND_ISSUES asked for
   // this; the NAVIGATION.md rework had folded it into a catch-all "Mehr").
   { label: "Website", items: [
-    { to: "/app/cms/posts", label: "Beiträge" },
-    { to: "/app/cms/sections", label: "Bereiche" },
-    { to: "/app/cms/faqs", label: "FAQ" },
-    { to: "/app/cms/links", label: "Links" },
+    { to: "/kompass/cms/posts", label: "Beiträge" },
+    { to: "/kompass/cms/sections", label: "Bereiche" },
+    { to: "/kompass/cms/faqs", label: "FAQ" },
+    { to: "/kompass/cms/links", label: "Links" },
   ] },
   { label: "Verwaltung", items: [
-    { to: "/app/events", label: "Termine" },
-    { to: "/app/material", label: "Material" },
-    { to: "/app/material/categories", label: "Materialkategorien" },
-    { to: "/app/users", label: "Benutzer" },
-    { to: "/app/permission-groups", label: "Rechtegruppen" },
-    { to: "/app/registration-passwords", label: "Registrierungspasswörter" },
+    { to: "/kompass/events", label: "Termine" },
+    { to: "/kompass/material", label: "Material" },
+    { to: "/kompass/material/categories", label: "Materialkategorien" },
+    { to: "/kompass/users", label: "Benutzer" },
+    { to: "/kompass/permission-groups", label: "Rechtegruppen" },
+    { to: "/kompass/registration-passwords", label: "Registrierungspasswörter" },
   ] },
 ];
 
@@ -195,7 +195,7 @@ function UserMenu({ memberId, name }: { memberId: number | null; name: string })
       {open && (
         <div className="nav-dropdown right" onClick={() => setOpen(false)}>
           {memberId !== null ? (
-            <Link to={`/app/members/${memberId}`} className="nav-drop-item">
+            <Link to={`/kompass/members/${memberId}`} className="nav-drop-item">
               Mein Profil
             </Link>
           ) : (
@@ -230,7 +230,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
       <div className="topbar-inner">
         {/* Stay within the current mode: the brand lands on the Kompass
             dashboard in the app, on the public home on the website. */}
-        <Link to={variant === "app" ? "/app" : "/"} className="brand topbar-brand">
+        <Link to={variant === "app" ? "/kompass" : "/"} className="brand topbar-brand">
           <KompassMark size={24} />
           <span>JDAV Ludwigsburg</span>
         </Link>
@@ -243,7 +243,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
                 <NavLink to="/" end className={variant === "public" ? "ctx active" : "ctx"}>
                   Website
                 </NavLink>
-                <NavLink to="/app" className={variant === "app" ? "ctx active" : "ctx"}>
+                <NavLink to="/kompass" className={variant === "app" ? "ctx active" : "ctx"}>
                   Kompass
                 </NavLink>
               </div>
@@ -296,7 +296,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
               <NavLink to="/" end className={variant === "public" ? "ctx active" : "ctx"}>
                 Website
               </NavLink>
-              <NavLink to="/app" className={variant === "app" ? "ctx active" : "ctx"}>
+              <NavLink to="/kompass" className={variant === "app" ? "ctx active" : "ctx"}>
                 Kompass
               </NavLink>
             </div>
@@ -322,7 +322,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
           {token ? (
             <div className="drawer-group">
               {memberId !== null && (
-                <NavLink to={`/app/members/${memberId}`} className="drawer-item">
+                <NavLink to={`/kompass/members/${memberId}`} className="drawer-item">
                   Mein Profil
                 </NavLink>
               )}

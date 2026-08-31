@@ -119,7 +119,7 @@ export function RegistrationsList() {
           <DataTable
             rows={view.rows}
             rowKey={(r) => r.id}
-            onRowClick={(r) => navigate(`/app/registrations/${r.id}`)}
+            onRowClick={(r) => navigate(`/kompass/registrations/${r.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -168,7 +168,7 @@ export function RegistrationDetailPage() {
     ),
   );
   const crumbs: Crumb[] = [
-    { label: "Registrierungen", to: "/app/registrations" },
+    { label: "Registrierungen", to: "/kompass/registrations" },
     { label: query.data?.name ?? "Registrierung" },
   ];
 
@@ -513,7 +513,7 @@ function RegistrationActions({ member }: { member: MemberOut }) {
       // registration, so move to its new home rather than leaving a dead page.
       onSuccess: () => {
         toast.success("Registrierung bestätigt.");
-        navigate(`/app/members/${member.id}`);
+        navigate(`/kompass/members/${member.id}`);
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -559,7 +559,7 @@ function RegistrationActions({ member }: { member: MemberOut }) {
       // Now a waiting-list entry, not a registration — land on the waiting list.
       onSuccess: () => {
         toast.success("Auf die Warteliste zurückgestuft.");
-        navigate("/app/waiters");
+        navigate("/kompass/waiters");
       },
       onError: (e: Error) => toast.error(e.message),
     },

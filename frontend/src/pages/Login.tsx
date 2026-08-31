@@ -14,7 +14,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (token) return <Navigate to="/app" replace />;
+  if (token) return <Navigate to="/kompass" replace />;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -22,7 +22,7 @@ export function Login() {
     setBusy(true);
     try {
       await login(username, password);
-      navigate("/app", { replace: true });
+      navigate("/kompass", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Anmeldung fehlgeschlagen.");
     } finally {

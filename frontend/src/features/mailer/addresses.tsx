@@ -68,7 +68,7 @@ export function EmailAddressesList() {
             onSubmit={(body) => unwrap(client.POST("/api/mailer/email-addresses", { body }))}
             onSuccess={(a) => {
               setCreating(false);
-              navigate(`/app/mailer/addresses/${a.id}`);
+              navigate(`/kompass/mailer/addresses/${a.id}`);
             }}
             onCancel={() => setCreating(false)}
           />
@@ -80,7 +80,7 @@ export function EmailAddressesList() {
           <DataTable
             rows={view.rows}
             rowKey={(a) => a.id}
-            onRowClick={(a) => navigate(`/app/mailer/addresses/${a.id}`)}
+            onRowClick={(a) => navigate(`/kompass/mailer/addresses/${a.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -114,7 +114,7 @@ export function EmailAddressDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "E-Mail-Adressen", to: "/app/mailer/addresses" },
+    { label: "E-Mail-Adressen", to: "/kompass/mailer/addresses" },
     { label: query.data?.name ?? "E-Mail-Adresse" },
   ];
 
@@ -183,7 +183,7 @@ function EmailAddressDetailBody({
       invalidate: [["mailer", "email-addresses"]],
       onSuccess: () => {
         toast.success("Adresse gelöscht.");
-        navigate("/app/mailer/addresses");
+        navigate("/kompass/mailer/addresses");
       },
       onError: (e: Error) => toast.error(e.message),
     },

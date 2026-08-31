@@ -153,7 +153,7 @@ export function ExcursionsList() {
         subtitle={`${view.rows.length} / ${view.total}`}
         actions={
           <div className="row-actions">
-            <Button variant="ghost" onClick={() => navigate("/app/activity-categories")}>
+            <Button variant="ghost" onClick={() => navigate("/kompass/activity-categories")}>
               Kategorien verwalten
             </Button>
             {can("members.add_global_freizeit") && (
@@ -173,7 +173,7 @@ export function ExcursionsList() {
           <DataTable
             rows={view.rows}
             rowKey={(e) => e.id}
-            onRowClick={(e) => navigate(`/app/excursions/${e.id}`)}
+            onRowClick={(e) => navigate(`/kompass/excursions/${e.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -238,7 +238,7 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: ExcursionOut) => {
         toast.success("Ausfahrt angelegt.");
         onDone();
-        navigate(`/app/excursions/${created.id}`);
+        navigate(`/kompass/excursions/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -382,7 +382,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
       invalidate: [["excursions"]],
       onSuccess: () => {
         toast.success("Ausfahrt gelöscht.");
-        navigate("/app/excursions");
+        navigate("/kompass/excursions");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -847,7 +847,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Ausfahrten", to: "/app/excursions" },
+          { label: "Ausfahrten", to: "/kompass/excursions" },
           { label: excursion.name || excursion.code },
         ]}
         actions={
@@ -1222,7 +1222,7 @@ function StatementSection({
         const editable = editing && !submitted;
         const recipientName = (m: MemberBrief | null | undefined) => (m ? m.name : "—");
         const rows: DetailRow[] = [
-          { label: "Titel", value: <Link to={`/app/finance/statements/${s.id}`}>{s.title}</Link> },
+          { label: "Titel", value: <Link to={`/kompass/finance/statements/${s.id}`}>{s.title}</Link> },
           {
             label: "Status",
             value: (

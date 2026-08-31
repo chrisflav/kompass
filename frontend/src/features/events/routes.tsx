@@ -59,7 +59,7 @@ function TermineList() {
       onSuccess: (created: TerminOut) => {
         toast.success("Termin angelegt.");
         setCreating(false);
-        navigate(`/app/events/${created.id}`);
+        navigate(`/kompass/events/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -157,7 +157,7 @@ function TermineList() {
           <DataTable
             rows={view.rows}
             rowKey={(t) => t.id}
-            onRowClick={(t) => navigate(`/app/events/${t.id}`)}
+            onRowClick={(t) => navigate(`/kompass/events/${t.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -189,7 +189,7 @@ function TerminDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Termine", to: "/app/events" },
+    { label: "Termine", to: "/kompass/events" },
     { label: query.data?.title ?? "Termin" },
   ];
 
@@ -270,7 +270,7 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
       invalidate: [["termine"]],
       onSuccess: () => {
         toast.success("Termin gelöscht.");
-        navigate("/app/events");
+        navigate("/kompass/events");
       },
       onError: (e: Error) => toast.error(e.message),
     },

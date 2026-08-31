@@ -112,7 +112,7 @@ describe("Registrierungen", () => {
 
   it("lists the open registrations with their confirmation state", async () => {
     listReturns();
-    renderRoute("/app/registrations");
+    renderRoute("/kompass/registrations");
     expect(await screen.findByText("Nils Neu")).toBeInTheDocument();
     expect(screen.getByText("Klettergruppe")).toBeInTheDocument();
     expect(screen.getByText("1.3.2012")).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe("Registrierungen", () => {
 
   it("says so when there are none open", async () => {
     listReturns([]);
-    renderRoute("/app/registrations");
+    renderRoute("/kompass/registrations");
     expect(await screen.findByText("Keine offenen Registrierungen.")).toBeInTheDocument();
   });
 
@@ -134,7 +134,7 @@ describe("Registrierungen", () => {
         confirmed_mail: false,
       },
     ]);
-    renderRoute("/app/registrations");
+    renderRoute("/kompass/registrations");
     await screen.findByText("Nils Neu");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -152,7 +152,7 @@ describe("Registrierungen", () => {
         registration_form_uploaded: false,
       },
     ]);
-    const { user } = renderRoute("/app/registrations");
+    const { user } = renderRoute("/kompass/registrations");
     await screen.findByText("Nils Neu");
 
     await user.click(screen.getByRole("button", { name: /Anmeldeformular:/ }));
@@ -180,7 +180,7 @@ describe("Registrierungen", () => {
       REGISTRATION_BRIEF,
       { ...REGISTRATION_BRIEF, id: 51, name: "Ohne Alles", email: "sonst@example.org" },
     ]);
-    const { user } = renderRoute("/app/registrations");
+    const { user } = renderRoute("/kompass/registrations");
     await screen.findByText("Nils Neu");
     await user.type(screen.getByPlaceholderText("Suchen…"), "sonst@");
     await waitFor(() => expect(screen.queryByText("Nils Neu")).not.toBeInTheDocument());
@@ -188,7 +188,7 @@ describe("Registrierungen", () => {
 
   it("shows an em dash for a registration without an alternative address", async () => {
     listReturns([{ ...REGISTRATION_BRIEF, alternative_email: null, birth_date: "irgendwann" }]);
-    renderRoute("/app/registrations");
+    renderRoute("/kompass/registrations");
     await screen.findByText("Nils Neu");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     // An unparseable date is passed through rather than shown as "Invalid Date".
@@ -200,7 +200,7 @@ describe("Registrierungen", () => {
       REGISTRATION_BRIEF,
       { ...REGISTRATION_BRIEF, id: 51, name: "Ohne Alles", age: null, birth_date: null },
     ]);
-    const { user } = renderRoute("/app/registrations");
+    const { user } = renderRoute("/kompass/registrations");
     await screen.findByText("Nils Neu");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -215,7 +215,7 @@ describe("Registrierungen", () => {
         ]),
       ),
     );
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
 
     expect(await screen.findAllByText("Nils Neu")).toHaveLength(2);
     await user.click(screen.getByRole("tab", { name: "Kontaktdaten" }));
@@ -227,7 +227,7 @@ describe("Registrierungen", () => {
 
   it("says so when no emergency contact is on file", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("tab", { name: "Notfallkontakte" }));
     expect(await screen.findByText("Keine Notfallkontakte hinterlegt.")).toBeInTheDocument();
   });
@@ -242,7 +242,7 @@ describe("Registrierungen", () => {
       }),
     );
     useMe({ permissions: ["members.change_memberunconfirmedproxy"] });
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const prename = screen.getByDisplayValue("Nils");
@@ -263,7 +263,7 @@ describe("Registrierungen", () => {
       ),
     );
     useMe({ permissions: ["members.change_memberunconfirmedproxy"] });
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Keine gültige Adresse.")).not.toHaveLength(0);
@@ -290,7 +290,7 @@ describe("Registrierungen", () => {
       http.get(api("/api/members/training-categories"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Bestätigen" }));
     await user.click(
@@ -314,7 +314,7 @@ describe("Registrierungen", () => {
         return HttpResponse.json({});
       }),
     );
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
 
     // The two mail-confirmation variants fire straight away; the form request
     // asks first.
@@ -345,7 +345,7 @@ describe("Registrierungen", () => {
       }),
       http.get(api("/api/members/waiters"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Auf Warteliste zurückstufen" }));
     await user.click(
@@ -359,7 +359,7 @@ describe("Registrierungen", () => {
   it("hides the edit action without the permission", async () => {
     useMe({ permissions: [] });
     detailReturns();
-    renderRoute("/app/registrations/50");
+    renderRoute("/kompass/registrations/50");
     await screen.findAllByText("Nils Neu");
     expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
   });
@@ -367,7 +367,7 @@ describe("Registrierungen", () => {
   it("opens a registration from its row", async () => {
     listReturns();
     detailReturns();
-    const { user } = renderRoute("/app/registrations");
+    const { user } = renderRoute("/kompass/registrations");
     await user.click(await screen.findByText("Nils Neu"));
     expect(await screen.findByRole("button", { name: /Aktionen/ })).toBeInTheDocument();
   });
@@ -399,7 +399,7 @@ describe("Registrierungen", () => {
       ),
     );
     useMe({ permissions: ["members.change_memberunconfirmedproxy"] });
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
 
@@ -410,7 +410,7 @@ describe("Registrierungen", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -464,7 +464,7 @@ describe("Warteliste", () => {
       { ...WAITER_BRIEF, age: null, birth_date: "irgendwann" },
       { ...WAITER_BRIEF, id: 61, name: "Bea Berg", email: "bea@example.org" },
     ]);
-    const { user } = renderRoute("/app/waiters");
+    const { user } = renderRoute("/kompass/waiters");
     await screen.findByText("Wanda Wartend");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     expect(screen.getByText("irgendwann")).toBeInTheDocument();
@@ -475,7 +475,7 @@ describe("Warteliste", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([WAITER_BRIEF, { ...WAITER_BRIEF, id: 61, name: "Bea Berg", lastname: "Berg" }]);
-    const { user } = renderRoute("/app/waiters");
+    const { user } = renderRoute("/kompass/waiters");
     await screen.findByText("Wanda Wartend");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -483,7 +483,7 @@ describe("Warteliste", () => {
 
   it("lists the applications with their waiting status", async () => {
     listReturns();
-    renderRoute("/app/waiters");
+    renderRoute("/kompass/waiters");
     expect(await screen.findByText("Wanda Wartend")).toBeInTheDocument();
     // A null waiting status is "pending", not a yes/no.
     expect(screen.getByText("Ausstehend")).toBeInTheDocument();
@@ -492,7 +492,7 @@ describe("Warteliste", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/waiters");
+    renderRoute("/kompass/waiters");
     expect(await screen.findByText("Keine Wartelisten-Bewerbungen sichtbar.")).toBeInTheDocument();
   });
 
@@ -511,7 +511,7 @@ describe("Warteliste", () => {
         latest_group_invitation: "Klettergruppe",
       },
     ]);
-    const { user } = renderRoute("/app/waiters");
+    const { user } = renderRoute("/kompass/waiters");
     await screen.findByText("Wanda Wartend");
 
     await user.click(screen.getByRole("button", { name: /Wartestatus:/ }));
@@ -541,14 +541,14 @@ describe("Warteliste", () => {
 
   it("shows an expired waiting status as such", async () => {
     listReturns([{ ...WAITER_BRIEF, waiting_confirmed: false }]);
-    renderRoute("/app/waiters");
+    renderRoute("/kompass/waiters");
     await screen.findByText("Wanda Wartend");
     expect(screen.getAllByText("Nein").length).toBeGreaterThan(0);
   });
 
   it("marks an unconfirmed e-mail address on the detail", async () => {
     detailReturns({ confirmed_mail: false });
-    renderRoute("/app/waiters/60");
+    renderRoute("/kompass/waiters/60");
     await screen.findAllByText("Wanda Wartend");
     expect(screen.getAllByText("Nein").length).toBeGreaterThan(0);
   });
@@ -562,7 +562,7 @@ describe("Warteliste", () => {
         return HttpResponse.json(WAITER);
       }),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const comments = screen.getAllByRole("textbox").slice(-1)[0];
@@ -583,7 +583,7 @@ describe("Warteliste", () => {
         return HttpResponse.json(WAITER);
       }),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -598,7 +598,7 @@ describe("Warteliste", () => {
         djangoValidation({ email: ["Keine gültige Adresse."] }),
       ),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Keine gültige Adresse.")).not.toHaveLength(0);
@@ -617,7 +617,7 @@ describe("Warteliste", () => {
         return HttpResponse.json(WAITER);
       }),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "In Gruppe einladen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -643,7 +643,7 @@ describe("Warteliste", () => {
         return HttpResponse.json(WAITER);
       }),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "In Gruppe einladen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -657,7 +657,7 @@ describe("Warteliste", () => {
   it("says so when no group is available to invite into", async () => {
     detailReturns();
     server.use(http.get(api("/api/members/groups"), () => HttpResponse.json([])));
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "In Gruppe einladen" }));
     expect(await screen.findByText("Keine Gruppen verfügbar.")).toBeInTheDocument();
   });
@@ -665,7 +665,7 @@ describe("Warteliste", () => {
   it("closes the invitation dialog again", async () => {
     detailReturns();
     server.use(http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)));
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "In Gruppe einladen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
@@ -686,7 +686,7 @@ describe("Warteliste", () => {
         return HttpResponse.json({});
       }),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
 
     for (const label of [
       "Wartebestätigung anfordern",
@@ -707,7 +707,7 @@ describe("Warteliste", () => {
   it("hides the reminders from an account without the permission", async () => {
     useMe({ permissions: [] });
     detailReturns();
-    renderRoute("/app/waiters/60");
+    renderRoute("/kompass/waiters/60");
     await screen.findAllByText("Wanda Wartend");
     expect(screen.queryByRole("button", { name: /Erinnerungen/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
@@ -724,7 +724,7 @@ describe("Warteliste", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -736,7 +736,7 @@ describe("Warteliste", () => {
   it("opens an application from its row", async () => {
     listReturns();
     detailReturns();
-    const { user } = renderRoute("/app/waiters");
+    const { user } = renderRoute("/kompass/waiters");
     await user.click(await screen.findByText("Wanda Wartend"));
     expect(await screen.findByRole("button", { name: "In Gruppe einladen" })).toBeInTheDocument();
   });
@@ -752,7 +752,7 @@ describe("Warteliste", () => {
       comments: null,
       invitations: [],
     });
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
@@ -763,7 +763,7 @@ describe("Warteliste", () => {
         { id: 1, group: { id: 5, name: "Klettergruppe" }, status: "offen", date: "2026-02-01" },
       ],
     });
-    renderRoute("/app/waiters/60");
+    renderRoute("/kompass/waiters/60");
     expect(await screen.findByText("Klettergruppe")).toBeInTheDocument();
     expect(screen.getByText("offen")).toBeInTheDocument();
   });
@@ -775,7 +775,7 @@ describe("Warteliste", () => {
         HttpResponse.json({ detail: "Keine E-Mail hinterlegt." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: /Erinnerungen/ }));
     await user.click(screen.getByRole("button", { name: "Wartebestätigung anfordern" }));
     await user.click(
@@ -792,7 +792,7 @@ describe("Warteliste", () => {
         HttpResponse.json({ detail: "Gruppe ist voll." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "In Gruppe einladen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -807,7 +807,7 @@ describe("Warteliste", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -863,7 +863,7 @@ describe("Ausbildungen", () => {
 
   it("lists the trainings with their certificate link", async () => {
     listReturns();
-    renderRoute("/app/trainings");
+    renderRoute("/kompass/trainings");
     expect(await screen.findByText("Trainer C")).toBeInTheDocument();
     expect(screen.getByText("Anna Ärmel")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Öffnen" })).toBeInTheDocument();
@@ -871,7 +871,7 @@ describe("Ausbildungen", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/trainings");
+    renderRoute("/kompass/trainings");
     expect(await screen.findByText("Keine Ausbildungen sichtbar.")).toBeInTheDocument();
   });
 
@@ -891,7 +891,7 @@ describe("Ausbildungen", () => {
         certificate: null,
       },
     ]);
-    const { user } = renderRoute("/app/trainings");
+    const { user } = renderRoute("/kompass/trainings");
     await screen.findByText("Trainer C");
 
     await user.click(screen.getByRole("button", { name: /Kategorie:/ }));
@@ -919,7 +919,7 @@ describe("Ausbildungen", () => {
       { ...TRAINING_BRIEF, date: "irgendwann" },
       { ...TRAINING_BRIEF, id: 71, title: "Trainer B", activities: ["Bouldern"] },
     ]);
-    const { user } = renderRoute("/app/trainings");
+    const { user } = renderRoute("/kompass/trainings");
     await screen.findByText("Trainer C");
     expect(screen.getByText("irgendwann")).toBeInTheDocument();
 
@@ -934,7 +934,7 @@ describe("Ausbildungen", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([TRAINING_BRIEF, { ...TRAINING_BRIEF, id: 71, title: "Trainer B", date: null }]);
-    const { user } = renderRoute("/app/trainings");
+    const { user } = renderRoute("/kompass/trainings");
     await screen.findByText("Trainer C");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -943,7 +943,7 @@ describe("Ausbildungen", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/trainings");
+    renderRoute("/kompass/trainings");
     await screen.findByText("Trainer C");
     expect(screen.queryByRole("button", { name: "Neue Ausbildung" })).not.toBeInTheDocument();
   });
@@ -960,7 +960,7 @@ describe("Ausbildungen", () => {
       http.get(api("/api/members/activity-categories"), () => HttpResponse.json([])),
       http.get(api("/api/members/trainings/70"), () => HttpResponse.json(TRAINING)),
     );
-    const { user } = renderRoute("/app/trainings");
+    const { user } = renderRoute("/kompass/trainings");
     await user.click(await screen.findByRole("button", { name: "Neue Ausbildung" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -995,7 +995,7 @@ describe("Ausbildungen", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/trainings");
+    const { user } = renderRoute("/kompass/trainings");
     await user.click(await screen.findByRole("button", { name: "Neue Ausbildung" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -1023,7 +1023,7 @@ describe("Ausbildungen", () => {
         return HttpResponse.json(TRAINING);
       }),
     );
-    const { user } = renderRoute("/app/trainings/70");
+    const { user } = renderRoute("/kompass/trainings/70");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     await user.clear(screen.getByDisplayValue("2026-03-01"));
@@ -1046,7 +1046,7 @@ describe("Ausbildungen", () => {
 
   it("shows an em dash for a training without activities or a certificate", async () => {
     detailReturns({ activities: [], activity_ids: [], certificate: null, comments: "" });
-    renderRoute("/app/trainings/70");
+    renderRoute("/kompass/trainings/70");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -1058,7 +1058,7 @@ describe("Ausbildungen", () => {
         djangoValidation({ title: ["Der Titel fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/trainings/70");
+    const { user } = renderRoute("/kompass/trainings/70");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Der Titel fehlt.")).not.toHaveLength(0);
@@ -1079,7 +1079,7 @@ describe("Ausbildungen", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/trainings/70");
+    const { user } = renderRoute("/kompass/trainings/70");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -1092,7 +1092,7 @@ describe("Ausbildungen", () => {
     useMe({ permissions: ["members.add_global_membertraining"] });
     listReturns();
     detailReturns();
-    const { user } = renderRoute("/app/trainings");
+    const { user } = renderRoute("/kompass/trainings");
 
     await user.click(await screen.findByRole("button", { name: "Neue Ausbildung" }));
     await user.click(
@@ -1117,7 +1117,7 @@ describe("Ausbildungen", () => {
       activity_ids: [],
       certificate: null,
     });
-    const { user } = renderRoute("/app/trainings/70");
+    const { user } = renderRoute("/kompass/trainings/70");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
@@ -1130,7 +1130,7 @@ describe("Ausbildungen", () => {
         HttpResponse.json({ detail: "members.delete_global_membertraining" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/trainings/70");
+    const { user } = renderRoute("/kompass/trainings/70");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -1140,7 +1140,7 @@ describe("Ausbildungen", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/trainings/70");
+    const { user } = renderRoute("/kompass/trainings/70");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -1176,7 +1176,7 @@ describe("Registrierung — every field", () => {
         return HttpResponse.json(DETAIL);
       }),
     );
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     for (const tab of ["Stammdaten", "Kontaktdaten", "Fähigkeiten", "Sonstiges", "Organisatorisch"]) {
@@ -1221,7 +1221,7 @@ describe("Registrierung — every field", () => {
       good_conduct_certificate_presented_date: null,
       created: null,
     });
-    const { user } = renderRoute("/app/registrations/50");
+    const { user } = renderRoute("/kompass/registrations/50");
     await screen.findAllByText("Nils Neu");
 
     for (const tab of ["Stammdaten", "Kontaktdaten", "Fähigkeiten", "Sonstiges", "Organisatorisch"]) {
@@ -1245,7 +1245,7 @@ describe("Warteliste — every field", () => {
         return HttpResponse.json(WAITER);
       }),
     );
-    const { user } = renderRoute("/app/waiters/60");
+    const { user } = renderRoute("/kompass/waiters/60");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const form = document.querySelector("form") as HTMLElement;
@@ -1283,7 +1283,7 @@ describe("Warteliste — every field", () => {
       ),
       http.get(api("/api/members/enums"), () => HttpResponse.json(ENUMS)),
     );
-    renderRoute("/app/waiters/60");
+    renderRoute("/kompass/waiters/60");
     await screen.findAllByText("Wanda Wartend");
     expect((document.querySelector("form") as HTMLElement).textContent).toContain("—");
   });
@@ -1307,7 +1307,7 @@ describe("Ausbildung — every field", () => {
         return HttpResponse.json(TRAINING);
       }),
     );
-    const { user } = renderRoute("/app/trainings/70");
+    const { user } = renderRoute("/kompass/trainings/70");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const form = document.querySelector("form") as HTMLElement;

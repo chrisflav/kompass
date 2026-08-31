@@ -122,7 +122,7 @@ describe("central 401 handling", () => {
         HttpResponse.json({ detail: "Unauthorized" }, { status: 401 }),
       ),
     );
-    renderRoute("/app/groups");
+    renderRoute("/kompass/groups");
 
     // The expired token is dropped once, centrally, and the route guard takes
     // over — rather than every page rendering its own "not authorised" state.
@@ -141,7 +141,7 @@ describe("central 401 handling", () => {
         HttpResponse.json({ detail: "Unauthorized" }, { status: 401 }),
       ),
     );
-    renderRoute("/app/groups");
+    renderRoute("/kompass/groups");
 
     await waitFor(() => expect(localStorage.getItem("kompass_token")).toBeNull());
     const tokenRemovals = removeItem.mock.calls.filter(([k]) => k === "kompass_token");

@@ -108,7 +108,7 @@ function detailReturns(overrides: Record<string, unknown> = {}, ljp: unknown = n
 describe("activities — Ausfahrten list", () => {
   it("lists the excursions with their approval state", async () => {
     listReturns();
-    renderRoute("/app/excursions");
+    renderRoute("/kompass/excursions");
     expect(await screen.findByText("F26-01")).toBeInTheDocument();
     expect(screen.getByText("Skifreizeit")).toBeInTheDocument();
     expect(screen.getByText("Südtirol")).toBeInTheDocument();
@@ -116,20 +116,20 @@ describe("activities — Ausfahrten list", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/excursions");
+    renderRoute("/kompass/excursions");
     expect(await screen.findByText("Keine Ausfahrten sichtbar.")).toBeInTheDocument();
   });
 
   it("shows an em dash for a nameless excursion without a place", async () => {
     listReturns([{ ...BRIEF, name: "", place: "", date: null }]);
-    renderRoute("/app/excursions");
+    renderRoute("/kompass/excursions");
     await screen.findByText("F26-01");
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 
   it("searches by name, code and place", async () => {
     listReturns([BRIEF, { ...BRIEF, id: 4, code: "F26-02", name: "Sommerfahrt", place: "Allgäu" }]);
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
     await screen.findByText("Skifreizeit");
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "allgäu");
@@ -151,7 +151,7 @@ describe("activities — Ausfahrten list", () => {
       },
       { ...BRIEF, id: 5, code: "F26-03", name: "Offen", approved: null, participant_ids: [] },
     ]);
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
     await screen.findByText("Skifreizeit");
 
     const pick = async (filter: RegExp, option: string) => {
@@ -177,7 +177,7 @@ describe("activities — Ausfahrten list", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([BRIEF, { ...BRIEF, id: 4, code: "F26-02", name: "", place: "", approved: null }]);
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
     await screen.findByText("F26-01");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -188,7 +188,7 @@ describe("activities — Ausfahrten list", () => {
     server.use(
       http.get(api("/api/members/activity-categories"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
     await user.click(await screen.findByRole("button", { name: "Kategorien verwalten" }));
     expect(await screen.findByText("Keine Kategorien.")).toBeInTheDocument();
   });
@@ -196,7 +196,7 @@ describe("activities — Ausfahrten list", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/excursions");
+    renderRoute("/kompass/excursions");
     await screen.findByText("Skifreizeit");
     expect(screen.queryByRole("button", { name: "Neue Ausfahrt" })).not.toBeInTheDocument();
   });
@@ -211,7 +211,7 @@ describe("activities — Ausfahrten list", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
     await user.click(await screen.findByRole("button", { name: "Neue Ausfahrt" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -254,7 +254,7 @@ describe("activities — Ausfahrten list", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
     await user.click(await screen.findByRole("button", { name: "Neue Ausfahrt" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -272,7 +272,7 @@ describe("activities — Ausfahrten list", () => {
         djangoValidation({ name: ["Der Name fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
     await user.click(await screen.findByRole("button", { name: "Neue Ausfahrt" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -287,7 +287,7 @@ describe("activities — Ausfahrten list", () => {
 describe("activities — Ausfahrt detail", () => {
   it("shows the excursion across its tabs", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
 
     // The code shows in the breadcrumb and in the Code row.
     expect(await screen.findAllByText("F26-01")).not.toHaveLength(0);
@@ -304,7 +304,7 @@ describe("activities — Ausfahrt detail", () => {
 
   it("shows an em dash for an excursion with no leaders", async () => {
     detailReturns({ jugendleiter: [] });
-    renderRoute("/app/excursions/3");
+    renderRoute("/kompass/excursions/3");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -318,7 +318,7 @@ describe("activities — Ausfahrt detail", () => {
         return HttpResponse.json(EXCURSION);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(patched).not.toBeNull());
@@ -357,7 +357,7 @@ describe("activities — Ausfahrt detail", () => {
         return HttpResponse.json(EXCURSION);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Genehmigung" }));
 
@@ -380,7 +380,7 @@ describe("activities — Ausfahrt detail", () => {
         return HttpResponse.json({ id: 40 });
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
@@ -403,7 +403,7 @@ describe("activities — Ausfahrt detail", () => {
         return HttpResponse.json(EXCURSION);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const place = screen.getByDisplayValue("Südtirol");
@@ -429,7 +429,7 @@ describe("activities — Ausfahrt detail", () => {
         djangoValidation({ place: ["Der Ort fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Der Ort fehlt.")).not.toHaveLength(0);
@@ -458,7 +458,7 @@ describe("activities — Ausfahrt detail", () => {
         }),
       );
     }
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
 
     for (const label of [
       "Kriseninterventionsliste",
@@ -487,7 +487,7 @@ describe("activities — Ausfahrt detail", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -499,14 +499,14 @@ describe("activities — Ausfahrt detail", () => {
   it("hides the delete button without the permission", async () => {
     useMe({ permissions: [] });
     detailReturns();
-    renderRoute("/app/excursions/3");
+    renderRoute("/kompass/excursions/3");
     await screen.findByText("Südtirol");
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
   });
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -529,7 +529,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
 
   it("says the proposal must be saved before a schedule can be added", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "LJP-Antrag" }));
     expect(
       await screen.findByText(
@@ -548,7 +548,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
         return HttpResponse.json(LJP);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
 
@@ -578,7 +578,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
         return HttpResponse.json(LJP);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -597,7 +597,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
         return HttpResponse.json(LJP);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
 
@@ -641,7 +641,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
 
@@ -681,7 +681,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
         { id: 7, date_start: "2026-02-14T09:00:00Z", duration: 2, activity: "" },
       ],
     });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "LJP-Antrag" }));
 
     // A schedule entry without an activity reads as an em dash.
@@ -691,7 +691,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
 
   it("says so when the proposal has no schedule yet", async () => {
     detailReturns({}, LJP);
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "LJP-Antrag" }));
     expect(await screen.findByText("Keine Programmpunkte.")).toBeInTheDocument();
   });
@@ -709,7 +709,7 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
         HttpResponse.json(ACTIVITY_CATEGORIES),
       ),
     );
-    renderRoute("/app/excursions/3");
+    renderRoute("/kompass/excursions/3");
     // The page still renders; only the LJP section is missing its data.
     expect(await screen.findByText("Südtirol")).toBeInTheDocument();
   });
@@ -790,7 +790,7 @@ describe("activities — Ausfahrt Abrechnung: remaining paths", () => {
         return HttpResponse.json(FULL_STATEMENT);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Abrechnung" }));
 
@@ -813,7 +813,7 @@ describe("activities — Ausfahrt Abrechnung: remaining paths", () => {
         return HttpResponse.json(FULL_STATEMENT);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
     await user.click(await screen.findByRole("button", { name: "Abrechnung anlegen" }));
     await waitFor(() => expect(body).toMatchObject({ short_description: "F26-01" }));
@@ -824,7 +824,7 @@ describe("activities — Ausfahrt Abrechnung: remaining paths", () => {
     server.use(
       http.get(api("/api/finance/statements/1"), () => HttpResponse.json(FULL_STATEMENT)),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
@@ -842,7 +842,7 @@ describe("activities — Ausfahrt Abrechnung: remaining paths", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
     expect(await screen.findByText("Bezahlt")).toBeInTheDocument();
   });
@@ -871,7 +871,7 @@ describe("activities — Ausfahrt Abrechnung", () => {
         return HttpResponse.json(STATEMENT);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
 
     expect(await screen.findByText("Diese Ausfahrt hat noch keine Abrechnung.")).toBeInTheDocument();
@@ -887,7 +887,7 @@ describe("activities — Ausfahrt Abrechnung", () => {
         HttpResponse.json({ detail: "finance.add_global_statement" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
     await user.click(await screen.findByRole("button", { name: "Abrechnung anlegen" }));
     expect(await screen.findByText("Dazu fehlt dir die Berechtigung.")).toBeInTheDocument();
@@ -903,12 +903,12 @@ describe("activities — Ausfahrt Abrechnung", () => {
         return HttpResponse.json(STATEMENT);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
 
     expect(await screen.findByRole("link", { name: "F26-01 Skifreizeit" })).toHaveAttribute(
       "href",
-      "/app/finance/statements/1",
+      "/kompass/finance/statements/1",
     );
 
     await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
@@ -930,7 +930,7 @@ describe("activities — Ausfahrt Abrechnung", () => {
 
   it("freezes a submitted statement", async () => {
     withStatement({ submitted: true, status: 1, status_display: "Eingereicht" });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
 
     expect(
@@ -1004,7 +1004,7 @@ describe("activities — Finanzübersicht", () => {
 
   it("estimates the costs and contributions", async () => {
     overviewReturns();
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -1028,7 +1028,7 @@ describe("activities — Finanzübersicht", () => {
         },
       ],
     });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getAllByText("—").length).toBeGreaterThan(0);
@@ -1047,7 +1047,7 @@ describe("activities — Finanzübersicht", () => {
       theoretic_ljp_participant_count: 3,
       seminar_days: [],
     });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -1073,7 +1073,7 @@ describe("activities — Finanzübersicht", () => {
         return HttpResponse.json({ id: 1 });
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Einreichen" }),
@@ -1088,7 +1088,7 @@ describe("activities — Finanzübersicht", () => {
 
   it("offers no submit for an already submitted statement, and closes", async () => {
     overviewReturns({ submitted: true });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -1106,7 +1106,7 @@ describe("activities — Finanzübersicht", () => {
         HttpResponse.json({ detail: "Es fehlen Belege." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Einreichen" }),
@@ -1118,7 +1118,7 @@ describe("activities — Finanzübersicht", () => {
 
   it("offers no finance overview without a statement", async () => {
     detailReturns();
-    renderRoute("/app/excursions/3");
+    renderRoute("/kompass/excursions/3");
     await screen.findByText("Südtirol");
     expect(screen.queryByRole("button", { name: "Finanzübersicht" })).not.toBeInTheDocument();
   });
@@ -1128,7 +1128,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
   it("opens an excursion from its row and closes the create modal with ×", async () => {
     listReturns();
     detailReturns();
-    const { user } = renderRoute("/app/excursions");
+    const { user } = renderRoute("/kompass/excursions");
 
     await user.click(await screen.findByRole("button", { name: "Neue Ausfahrt" }));
     const dialog = await screen.findByRole("dialog");
@@ -1142,7 +1142,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
 
   it("passes an unparseable date through in the list", async () => {
     listReturns([{ ...BRIEF, date: "irgendwann" }]);
-    renderRoute("/app/excursions");
+    renderRoute("/kompass/excursions");
     await screen.findByText("F26-01");
     expect(screen.getByText("irgendwann")).toBeInTheDocument();
   });
@@ -1164,7 +1164,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
       tour_approach_str: "",
       approved_extra_youth_leader_count: null,
     });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
@@ -1178,7 +1178,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
         return HttpResponse.json(EXCURSION);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.clear(screen.getByDisplayValue("39030"));
     const description = screen
@@ -1198,7 +1198,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
   it("names a nameless excursion by its code when deleting", async () => {
     useMe({ permissions: ["members.delete_global_freizeit"] });
     detailReturns({ name: "" });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     expect(
       within(await screen.findByRole("dialog")).getByText(/„F26-01“ wirklich löschen\?/),
@@ -1219,7 +1219,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
       goal_strategy: "",
       interventions: [],
     });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
 
@@ -1260,7 +1260,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
         return HttpResponse.json({ id: 7 });
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
 
@@ -1291,7 +1291,7 @@ describe("activities — Ausfahrt: remaining paths", () => {
       goal_strategy: "",
       interventions: [{ id: 7, date_start: null, duration: 2, activity: "" }],
     });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: "LJP-Antrag" }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
@@ -1327,7 +1327,7 @@ describe("activities — Ausfahrt: every field", () => {
         return HttpResponse.json(LJP_FULL);
       }),
     );
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     for (const tab of ["Allgemein", "Genehmigung", "LJP-Antrag"]) {
@@ -1369,7 +1369,7 @@ describe("activities — Ausfahrt: every field", () => {
       approval_comments: "",
       approved: null,
     });
-    const { user } = renderRoute("/app/excursions/3");
+    const { user } = renderRoute("/kompass/excursions/3");
     await screen.findByRole("button", { name: "Bearbeiten" });
 
     for (const tab of ["Allgemein", "Genehmigung"]) {

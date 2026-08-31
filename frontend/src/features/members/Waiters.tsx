@@ -138,7 +138,7 @@ export function WaitersList() {
           <DataTable
             rows={view.rows}
             rowKey={(w) => w.id}
-            onRowClick={(w) => navigate(`/app/waiters/${w.id}`)}
+            onRowClick={(w) => navigate(`/kompass/waiters/${w.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -186,7 +186,7 @@ export function WaiterDetailPage() {
     ),
   );
   const crumbs: Crumb[] = [
-    { label: "Warteliste", to: "/app/waiters" },
+    { label: "Warteliste", to: "/kompass/waiters" },
     { label: query.data?.name ?? "Wartelisten-Bewerbung" },
   ];
 
@@ -224,7 +224,7 @@ function WaiterDetailBody({ waiter, crumbs }: { waiter: WaiterOut; crumbs: Crumb
       invalidate: [["waiters"]],
       onSuccess: () => {
         toast.success("Bewerbung gelöscht.");
-        navigate("/app/waiters");
+        navigate("/kompass/waiters");
       },
       onError: (e: Error) => toast.error(e.message),
     },

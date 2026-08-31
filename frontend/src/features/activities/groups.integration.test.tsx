@@ -54,7 +54,7 @@ function groupsReturn(rows = [GROUP]) {
 describe("groups list", () => {
   it("lists the groups with their document actions", async () => {
     groupsReturn();
-    renderRoute("/app/groups");
+    renderRoute("/kompass/groups");
     await waitFor(() => expect(screen.getByText("Klettergruppe")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Neue Gruppe" })).toBeInTheDocument();
   });
@@ -62,7 +62,7 @@ describe("groups list", () => {
   it("hides the document downloads from someone who may not view groups", async () => {
     useMe({ permissions: [] });
     groupsReturn();
-    renderRoute("/app/groups");
+    renderRoute("/kompass/groups");
     await waitFor(() => expect(screen.getByText("Klettergruppe")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: /Übersicht \(xlsx\)/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Checkliste \(pdf\)/ })).not.toBeInTheDocument();
@@ -72,7 +72,7 @@ describe("groups list", () => {
 describe("group create modal", () => {
   it("keeps the submit disabled until the required fields are filled", async () => {
     groupsReturn();
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
     await waitFor(() => expect(screen.getByText("Klettergruppe")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Neue Gruppe" }));
 
@@ -108,7 +108,7 @@ describe("group create modal", () => {
       http.get(api("/api/mailer/email-addresses"), () => HttpResponse.json([])),
     );
 
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
     await waitFor(() => expect(screen.getByText("Klettergruppe")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Neue Gruppe" }));
 
@@ -132,7 +132,7 @@ describe("group create modal", () => {
         return djangoValidation({ name: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
     await waitFor(() => expect(screen.getByText("Klettergruppe")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Neue Gruppe" }));
 
@@ -156,7 +156,7 @@ describe("group create modal", () => {
         djangoValidation({ name: ["Eine Gruppe mit diesem Namen gibt es bereits."] }),
       ),
     );
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
     await waitFor(() => expect(screen.getByText("Klettergruppe")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Neue Gruppe" }));
 
@@ -185,7 +185,7 @@ describe("group create modal", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
     await waitFor(() => expect(screen.getByText("Klettergruppe")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Neue Gruppe" }));
 
@@ -223,7 +223,7 @@ describe("group detail — delete", () => {
       }),
     );
 
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -243,7 +243,7 @@ describe("group detail — delete", () => {
       }),
     );
 
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     const dialog = within(await screen.findByRole("dialog"));
     await user.click(dialog.getByRole("button", { name: "Löschen" }));
@@ -255,7 +255,7 @@ describe("group detail — delete", () => {
   it("offers no delete button without the permission", async () => {
     useMe({ permissions: ["members.view_group"] });
     detailReturns();
-    renderRoute("/app/groups/7");
+    renderRoute("/kompass/groups/7");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
   });
@@ -290,7 +290,7 @@ describe("group list — documents", () => {
         return HttpResponse.json({});
       }),
     );
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
 
     await user.click(await screen.findByRole("button", { name: /Übersicht \(xlsx\)/ }));
     await user.click(screen.getByRole("button", { name: /Checkliste \(pdf\)/ }));
@@ -299,7 +299,7 @@ describe("group list — documents", () => {
 
   it("sorts by every column in both directions", async () => {
     groupsReturn([GROUP, { ...GROUP, id: 8, name: "Bouldergruppe", weekday_display: "" }]);
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
     await screen.findByText("Klettergruppe");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -307,7 +307,7 @@ describe("group list — documents", () => {
 
   it("says so when no group is visible", async () => {
     groupsReturn([]);
-    renderRoute("/app/groups");
+    renderRoute("/kompass/groups");
     expect(await screen.findByText("Keine Gruppen sichtbar.")).toBeInTheDocument();
   });
 });
@@ -344,7 +344,7 @@ function fullDetailReturns(overrides: Record<string, unknown> = {}, extra: Param
 describe("group detail — general", () => {
   it("shows the group with its website flags", async () => {
     fullDetailReturns();
-    renderRoute("/app/groups/7");
+    renderRoute("/kompass/groups/7");
     expect(await screen.findByText("jugend@example.org")).toBeInTheDocument();
     expect(screen.getByText("Sonntag")).toBeInTheDocument();
     expect(screen.getByText("18:00–20:00")).toBeInTheDocument();
@@ -363,7 +363,7 @@ describe("group detail — general", () => {
       time_info: "",
       age_info: "",
     });
-    renderRoute("/app/groups/7");
+    renderRoute("/kompass/groups/7");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(5);
   });
@@ -377,7 +377,7 @@ describe("group detail — general", () => {
         return HttpResponse.json(FULL_GROUP);
       }),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const name = screen.getByDisplayValue("Klettergruppe");
@@ -417,7 +417,7 @@ describe("group detail — general", () => {
         return HttpResponse.json(FULL_GROUP);
       }),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -437,7 +437,7 @@ describe("group detail — general", () => {
         djangoValidation({ name: ["Der Name fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Der Name fehlt.")).not.toHaveLength(0);
@@ -448,7 +448,7 @@ describe("group detail — general", () => {
 
   it("goes back through the browser history", async () => {
     fullDetailReturns();
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -465,7 +465,7 @@ describe("group detail — Registrierungspasswörter", () => {
         return HttpResponse.json({ id: 12, password: "kletter26" });
       }),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Registrierungspasswörter" }));
     await user.click(await screen.findByRole("button", { name: "+ Passwort" }));
@@ -499,7 +499,7 @@ describe("group detail — Registrierungspasswörter", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Registrierungspasswörter" }));
 
@@ -522,7 +522,7 @@ describe("group detail — Registrierungspasswörter", () => {
         HttpResponse.json([{ id: 12, password: "" }]),
       ),
     ]);
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("tab", { name: "Registrierungspasswörter" }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
@@ -530,7 +530,7 @@ describe("group detail — Registrierungspasswörter", () => {
 
   it("closes the password dialog on Abbrechen", async () => {
     fullDetailReturns();
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Registrierungspasswörter" }));
     await user.click(await screen.findByRole("button", { name: "+ Passwort" }));
@@ -544,7 +544,7 @@ describe("group detail — Registrierungspasswörter", () => {
 describe("group detail — Gruppenberechtigungen", () => {
   it("says so when there are none, differently in edit mode", async () => {
     fullDetailReturns();
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("tab", { name: "Gruppenberechtigungen" }));
     expect(await screen.findByText("Keine Berechtigungen.")).toBeInTheDocument();
 
@@ -565,7 +565,7 @@ describe("group detail — Gruppenberechtigungen", () => {
         return HttpResponse.json({ id: 15 });
       }),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Gruppenberechtigungen" }));
     await user.click(await screen.findByRole("button", { name: "+ Berechtigungen" }));
@@ -610,7 +610,7 @@ describe("group detail — Gruppenberechtigungen", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
 
     // Read-only first: ids resolve to names, unknown ones stay as "#id".
     await user.click(await screen.findByRole("tab", { name: "Gruppenberechtigungen" }));
@@ -657,7 +657,7 @@ describe("group detail — Gruppenberechtigungen", () => {
         ]),
       ),
     ]);
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Gruppenberechtigungen" }));
     await screen.findByRole("button", { name: "Entfernen" });
@@ -679,7 +679,7 @@ describe("group list — remaining paths", () => {
         time_info: "",
       },
     ]);
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
     await screen.findByText("Klettergruppe");
 
     await user.type(screen.getByPlaceholderText("Suchen…"), "boulder");
@@ -699,7 +699,7 @@ describe("group list — remaining paths", () => {
         HttpResponse.json([{ id: 42, name: "Anna Ärmel", groups: ["Klettergruppe"] }]),
       ),
     );
-    const { user } = renderRoute("/app/groups");
+    const { user } = renderRoute("/kompass/groups");
 
     await user.click(await screen.findByRole("button", { name: "Neue Gruppe" }));
     await user.click(
@@ -714,14 +714,14 @@ describe("group list — remaining paths", () => {
 
   it("marks a group that is hidden from the website", async () => {
     groupsReturn([{ ...GROUP, show_website: false }]);
-    renderRoute("/app/groups");
+    renderRoute("/kompass/groups");
     await screen.findByText("Klettergruppe");
     expect(screen.getByText("Nein")).toBeInTheDocument();
   });
 
   it("shows an em dash for a group with no meeting time", async () => {
     groupsReturn([{ ...GROUP, weekday_display: "", time_info: "", age_info: "" }]);
-    renderRoute("/app/groups");
+    renderRoute("/kompass/groups");
     await screen.findByText("Klettergruppe");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -742,7 +742,7 @@ describe("group detail — remaining paths", () => {
       age_info: "",
       invitation_text_template: null,
     });
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
@@ -758,7 +758,7 @@ describe("group detail — remaining paths", () => {
         djangoValidation({ password: ["Zu kurz."] }),
       ),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
 
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
@@ -780,7 +780,7 @@ describe("group detail — remaining paths", () => {
 
   it("closes the password dialog with ×", async () => {
     fullDetailReturns();
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Registrierungspasswörter" }));
     await user.click(await screen.findByRole("button", { name: "+ Passwort" }));
@@ -801,7 +801,7 @@ describe("group detail — every field", () => {
         return HttpResponse.json(FULL_GROUP);
       }),
     );
-    const { user } = renderRoute("/app/groups/7");
+    const { user } = renderRoute("/kompass/groups/7");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;

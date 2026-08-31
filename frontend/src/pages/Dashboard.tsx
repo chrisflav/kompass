@@ -109,7 +109,7 @@ export function Dashboard() {
             {firstName && memberId !== null ? (
               <>
                 Willkommen,{" "}
-                <Link to={`/app/members/${memberId}`} className="dash-hero-name">
+                <Link to={`/kompass/members/${memberId}`} className="dash-hero-name">
                   {firstName}
                 </Link>
               </>
@@ -122,7 +122,7 @@ export function Dashboard() {
           <p className="dash-hero-sub">Kompass · Verwaltung der JDAV Ludwigsburg</p>
         </div>
         <div className="dash-hero-side">
-          <Link to="/app/mailer/messages?compose=1" className="btn dash-hero-cta">
+          <Link to="/kompass/mailer/messages?compose=1" className="btn dash-hero-cta">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="3" y="5" width="18" height="14" rx="2" />
               <path d="m3 7 9 6 9-6" />
@@ -135,12 +135,12 @@ export function Dashboard() {
 
       <div className="dash-columns">
         <section className="dash-section">
-          <SectionHead label="Meine Gruppen" to="/app/groups" seeAll="Alle Gruppen →" />
+          <SectionHead label="Meine Gruppen" to="/kompass/groups" seeAll="Alle Gruppen →" />
           <ListPanel loading={groups.isLoading} empty="Du leitest aktuell keine Gruppe.">
             {myGroups.map((g) => (
               <Row
                 key={g.id}
-                to={`/app/groups/${g.id}/members`}
+                to={`/kompass/groups/${g.id}/members`}
                 main={g.name}
                 sub={g.time_info || undefined}
                 meta={g.age_info || undefined}
@@ -150,12 +150,12 @@ export function Dashboard() {
         </section>
 
         <section className="dash-section">
-          <SectionHead label="Neueste Ausfahrten" to="/app/excursions" seeAll="Alle Ausfahrten →" />
+          <SectionHead label="Neueste Ausfahrten" to="/kompass/excursions" seeAll="Alle Ausfahrten →" />
           <ListPanel loading={excursions.isLoading} empty="Keine Ausfahrten.">
             {recentExcursions.map((e) => (
               <Row
                 key={e.id}
-                to={`/app/excursions/${e.id}`}
+                to={`/kompass/excursions/${e.id}`}
                 main={e.name || e.code || "Ausfahrt"}
                 sub={e.place || undefined}
                 meta={formatDate(e.date)}
@@ -167,14 +167,14 @@ export function Dashboard() {
         <section className="dash-section">
           <SectionHead
             label="Neueste Abrechnungen"
-            to="/app/finance/statements"
+            to="/kompass/finance/statements"
             seeAll="Alle Abrechnungen →"
           />
           <ListPanel loading={statements.isLoading} empty="Keine Abrechnungen.">
             {recentStatements.map((s) => (
               <Row
                 key={s.id}
-                to={`/app/finance/statements/${s.id}`}
+                to={`/kompass/finance/statements/${s.id}`}
                 main={s.title || "Abrechnung"}
                 sub={s.status_display ? <Badge>{s.status_display}</Badge> : undefined}
                 meta={s.total_pretty || undefined}

@@ -118,10 +118,10 @@ function dashboardReturns({
 describe("Dashboard", () => {
   it("greets the user by first name, linked to their own profile", async () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     const name = await screen.findByRole("link", { name: "Hannah" });
-    expect(name).toHaveAttribute("href", "/app/members/7");
+    expect(name).toHaveAttribute("href", "/kompass/members/7");
     expect(document.title).toBe("Übersicht · Kompass");
   });
 
@@ -140,7 +140,7 @@ describe("Dashboard", () => {
       ),
     );
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     expect(await screen.findByText("Willkommen, Admin")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Admin" })).not.toBeInTheDocument();
@@ -148,17 +148,17 @@ describe("Dashboard", () => {
 
   it("falls back to a neutral greeting before /me answers", () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
     expect(screen.getByText("Willkommen zurück")).toBeInTheDocument();
   });
 
   it("lists only the groups the user actually leads", async () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     expect(await screen.findByRole("link", { name: /Klettergruppe/ })).toHaveAttribute(
       "href",
-      "/app/groups/5/members",
+      "/kompass/groups/5/members",
     );
     expect(screen.getByText("montags 18:00")).toBeInTheDocument();
     expect(screen.queryByText("Fremde Gruppe")).not.toBeInTheDocument();
@@ -166,11 +166,11 @@ describe("Dashboard", () => {
 
   it("lists the newest excursions, coping with missing names and dates", async () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     expect(await screen.findByRole("link", { name: /Südtirol/ })).toHaveAttribute(
       "href",
-      "/app/excursions/3",
+      "/kompass/excursions/3",
     );
     expect(screen.getByText("14.2.2026")).toBeInTheDocument();
     // Falls back to the code, and shows an em dash rather than "Invalid Date".
@@ -182,20 +182,20 @@ describe("Dashboard", () => {
     dashboardReturns({
       excursions: [{ id: 4, code: "F26-02", name: "Kaputt", place: "", date: "irgendwann" }],
     });
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
     expect(await screen.findByText("irgendwann")).toBeInTheDocument();
   });
 
   it("lists the newest statements with their status", async () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
     expect(await screen.findByText("Entwurf")).toBeInTheDocument();
     expect(screen.getByText("240,50 €")).toBeInTheDocument();
   });
 
   it("shows only visible links, titled by their URL when unnamed", async () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     expect(await screen.findByRole("link", { name: /JL-Wiki/ })).toHaveAttribute(
       "href",
@@ -207,7 +207,7 @@ describe("Dashboard", () => {
 
   it("drops the links panel entirely when none are visible", async () => {
     dashboardReturns({ links: [] });
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
     await screen.findByText("Willkommen zurück");
     expect(screen.queryByText("Nützliche Links")).not.toBeInTheDocument();
   });
@@ -218,7 +218,7 @@ describe("Dashboard", () => {
       excursions: [{ id: 4, code: "", name: "", place: "", date: null }],
       statements: [{ id: 1, title: "", status_display: "", total_pretty: "" }],
     });
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     // Every row falls back to a neutral label rather than rendering blanks.
     expect(await screen.findByText("Ausfahrt")).toBeInTheDocument();
@@ -227,7 +227,7 @@ describe("Dashboard", () => {
 
   it("says so for each empty panel rather than showing a blank card", async () => {
     dashboardReturns({ groups: [], excursions: [], statements: [] });
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     expect(await screen.findByText("Du leitest aktuell keine Gruppe.")).toBeInTheDocument();
     expect(screen.getByText("Keine Ausfahrten.")).toBeInTheDocument();
@@ -236,22 +236,22 @@ describe("Dashboard", () => {
 
   it("shows a loading state per panel while the queries are in flight", async () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
     expect(screen.getAllByText("Lädt…").length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.queryByText("Lädt…")).not.toBeInTheDocument());
   });
 
   it("offers the compose shortcut and a see-all link per section", async () => {
     dashboardReturns();
-    renderWithApp(<Dashboard />, { route: "/app" });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
 
     expect(screen.getByRole("link", { name: /Nachricht senden/ })).toHaveAttribute(
       "href",
-      "/app/mailer/messages?compose=1",
+      "/kompass/mailer/messages?compose=1",
     );
     expect(await screen.findByRole("link", { name: "Alle Gruppen →" })).toHaveAttribute(
       "href",
-      "/app/groups",
+      "/kompass/groups",
     );
     expect(screen.getByRole("link", { name: "Alle Ausfahrten →" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alle Abrechnungen →" })).toBeInTheDocument();

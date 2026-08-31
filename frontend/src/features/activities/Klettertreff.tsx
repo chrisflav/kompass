@@ -136,7 +136,7 @@ export function KlettertreffList() {
           <DataTable
             rows={view.rows}
             rowKey={(k) => k.id}
-            onRowClick={(k) => navigate(`/app/klettertreff/${k.id}`)}
+            onRowClick={(k) => navigate(`/kompass/klettertreff/${k.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -180,7 +180,7 @@ function KlettertreffCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: KlettertreffOut) => {
         toast.success("Klettertreff angelegt.");
         onDone();
-        navigate(`/app/klettertreff/${created.id}`);
+        navigate(`/kompass/klettertreff/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -286,7 +286,7 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
       invalidate: [["klettertreff"]],
       onSuccess: () => {
         toast.success("Klettertreff gelöscht.");
-        navigate("/app/klettertreff");
+        navigate("/kompass/klettertreff");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -418,7 +418,7 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Klettertreffs", to: "/app/klettertreff" },
+          { label: "Klettertreffs", to: "/kompass/klettertreff" },
           { label: kt.topic || kt.group.name },
         ]}
         actions={

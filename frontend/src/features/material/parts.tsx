@@ -115,7 +115,7 @@ export function PartsList() {
           <PartCreateForm
             onSuccess={(p) => {
               setCreating(false);
-              navigate(`/app/material/${p.id}`);
+              navigate(`/kompass/material/${p.id}`);
             }}
             onCancel={() => setCreating(false)}
           />
@@ -127,7 +127,7 @@ export function PartsList() {
           <DataTable
             rows={view.rows}
             rowKey={(p) => p.id}
-            onRowClick={(p) => navigate(`/app/material/${p.id}`)}
+            onRowClick={(p) => navigate(`/kompass/material/${p.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -227,7 +227,7 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
       invalidate: [["material", "parts"]],
       onSuccess: () => {
         toast.success("Material gelöscht.");
-        navigate("/app/material");
+        navigate("/kompass/material");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -363,7 +363,7 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
       >
         <PageHeader
           breadcrumbs={[
-            { label: "Material", to: "/app/material" },
+            { label: "Material", to: "/kompass/material" },
             { label: part.name },
           ]}
           actions={

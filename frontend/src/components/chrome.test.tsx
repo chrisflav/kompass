@@ -69,7 +69,7 @@ describe("ProtectedRoute", () => {
     renderWithApp(
       <Routes>
         <Route
-          path="/app"
+          path="/kompass"
           element={
             <ProtectedRoute>
               <p>Geheim</p>
@@ -78,7 +78,7 @@ describe("ProtectedRoute", () => {
         />
         <Route path="/login" element={<p>Anmeldung</p>} />
       </Routes>,
-      { route: "/app" },
+      { route: "/kompass" },
     );
     expect(screen.getByText("Geheim")).toBeInTheDocument();
   });
@@ -87,7 +87,7 @@ describe("ProtectedRoute", () => {
     renderWithApp(
       <Routes>
         <Route
-          path="/app"
+          path="/kompass"
           element={
             <ProtectedRoute>
               <p>Geheim</p>
@@ -96,7 +96,7 @@ describe("ProtectedRoute", () => {
         />
         <Route path="/login" element={<p>Anmeldung</p>} />
       </Routes>,
-      { route: "/app", authenticated: false },
+      { route: "/kompass", authenticated: false },
     );
     expect(screen.getByText("Anmeldung")).toBeInTheDocument();
     expect(screen.queryByText("Geheim")).not.toBeInTheDocument();
@@ -108,10 +108,10 @@ describe("layouts", () => {
     renderWithApp(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/app" element={<p>Inhalt</p>} />
+          <Route path="/kompass" element={<p>Inhalt</p>} />
         </Route>
       </Routes>,
-      { route: "/app" },
+      { route: "/kompass" },
     );
     expect(await screen.findByText("Inhalt")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Hauptnavigation" })).toBeInTheDocument();
@@ -134,7 +134,7 @@ describe("layouts", () => {
 
 describe("SiteHeader — admin variant", () => {
   it("opens an area dropdown and closes it on a click outside", async () => {
-    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/app/members" });
+    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass/members" });
 
     const trigger = screen.getByRole("button", { name: /Teilnehmende/ });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -145,7 +145,7 @@ describe("SiteHeader — admin variant", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("link", { name: "Warteliste" })).toHaveAttribute(
       "href",
-      "/app/waiters",
+      "/kompass/waiters",
     );
 
     await user.click(document.body);
@@ -153,7 +153,7 @@ describe("SiteHeader — admin variant", () => {
   });
 
   it("closes an open dropdown on Escape", async () => {
-    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     const trigger = screen.getByRole("button", { name: /Finanzen/ });
     await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -163,7 +163,7 @@ describe("SiteHeader — admin variant", () => {
   });
 
   it("selecting an item closes the dropdown again", async () => {
-    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     const trigger = screen.getByRole("button", { name: /Website/ });
     await user.click(trigger);
     await user.click(screen.getByRole("link", { name: "Beiträge" }));
@@ -171,13 +171,13 @@ describe("SiteHeader — admin variant", () => {
   });
 
   it("offers the profile and logout under the user's name", async () => {
-    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
 
     const menu = await screen.findByRole("button", { name: /Hannah Beckers/ });
     await user.click(menu);
     expect(screen.getByRole("link", { name: "Mein Profil" })).toHaveAttribute(
       "href",
-      "/app/members/7",
+      "/kompass/members/7",
     );
 
     await user.click(screen.getByRole("button", { name: "Abmelden" }));
@@ -198,19 +198,19 @@ describe("SiteHeader — admin variant", () => {
         }),
       ),
     );
-    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     await user.click(await screen.findByRole("button", { name: /Admin/ }));
     expect(screen.getByText("Kein Teilnehmenden-Profil")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Mein Profil" })).not.toBeInTheDocument();
   });
 
   it("falls back to a neutral label before /me has answered", () => {
-    renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     expect(screen.getByRole("button", { name: /Konto/ })).toBeInTheDocument();
   });
 
   it("shows the public ↔ Kompass switch only while signed in", () => {
-    renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     expect(screen.getByRole("group", { name: "Bereich wechseln" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Anmelden" })).not.toBeInTheDocument();
   });
@@ -223,8 +223,8 @@ describe("SiteHeader — admin variant", () => {
   });
 
   it("points the brand at the dashboard in the app and at the site outside it", () => {
-    const app = renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
-    expect(screen.getByRole("link", { name: /JDAV Ludwigsburg/ })).toHaveAttribute("href", "/app");
+    const app = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
+    expect(screen.getByRole("link", { name: /JDAV Ludwigsburg/ })).toHaveAttribute("href", "/kompass");
     app.unmount();
 
     navReturns();
@@ -293,14 +293,14 @@ describe("SiteHeader — public variant", () => {
   it("does not fetch the public navigation inside the app", () => {
     // No handler is registered: MSW is set to fail on any unhandled request, so
     // this passing at all proves the query stayed disabled.
-    renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     expect(screen.getByRole("button", { name: /Verwaltung/ })).toBeInTheDocument();
   });
 });
 
 describe("SiteHeader — mobile drawer", () => {
   it("expands the whole navigation and the account actions", async () => {
-    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/app" });
+    const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     await user.click(screen.getByRole("button", { name: "Menü" }));
 
     const drawer = document.querySelector(".topnav-drawer") as HTMLElement;
@@ -312,7 +312,7 @@ describe("SiteHeader — mobile drawer", () => {
     await waitFor(() =>
       expect(inDrawer.getByRole("link", { name: "Mein Profil" })).toHaveAttribute(
         "href",
-        "/app/members/7",
+        "/kompass/members/7",
       ),
     );
     await user.click(inDrawer.getByRole("button", { name: "Abmelden" }));

@@ -75,7 +75,7 @@ export function FaqList() {
       onSuccess: (created: FAQOut) => {
         toast.success("Frage angelegt.");
         setCreating(false);
-        navigate(`/app/cms/faqs/${created.id}`);
+        navigate(`/kompass/cms/faqs/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -139,7 +139,7 @@ export function FaqList() {
           <DataTable
             rows={view.rows}
             rowKey={(f) => f.id}
-            onRowClick={(f) => navigate(`/app/cms/faqs/${f.id}`)}
+            onRowClick={(f) => navigate(`/kompass/cms/faqs/${f.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[{ header: "Frage", cell: (f) => f.question, sortKey: "question" }]}
@@ -160,7 +160,7 @@ export function FaqDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "FAQ", to: "/app/cms/faqs" },
+    { label: "FAQ", to: "/kompass/cms/faqs" },
     { label: query.data?.question ?? "Frage" },
   ];
 
@@ -210,7 +210,7 @@ function FaqDetailBody({ faq, crumbs }: { faq: FAQOut; crumbs: Crumb[] }) {
       invalidate: [["faqs"]],
       onSuccess: () => {
         toast.success("Frage gelöscht.");
-        navigate("/app/cms/faqs");
+        navigate("/kompass/cms/faqs");
       },
       onError: (e: Error) => toast.error(e.message),
     },

@@ -150,7 +150,7 @@ export function BillsList() {
           <DataTable
             rows={view.rows}
             rowKey={(b) => b.id}
-            onRowClick={(b) => navigate(`/app/finance/bills/${b.id}`)}
+            onRowClick={(b) => navigate(`/kompass/finance/bills/${b.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -225,7 +225,7 @@ function BillCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: BillOut) => {
         toast.success("Beleg angelegt.");
         onDone();
-        navigate(`/app/finance/bills/${created.id}`);
+        navigate(`/kompass/finance/bills/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -332,7 +332,7 @@ export function BillDetailPage() {
   );
 
   const crumbs: Crumb[] = [
-    { label: "Belege", to: "/app/finance/bills" },
+    { label: "Belege", to: "/kompass/finance/bills" },
     { label: query.data?.short_description ?? "Beleg" },
   ];
 
@@ -478,7 +478,7 @@ function BillDetailBody({ bill, crumbs }: { bill: BillOut; crumbs: Crumb[] }) {
     },
     {
       label: "Abrechnung",
-      value: <Link to={`/app/finance/statements/${bill.statement_id}`}>#{bill.statement_id}</Link>,
+      value: <Link to={`/kompass/finance/statements/${bill.statement_id}`}>#{bill.statement_id}</Link>,
     },
     {
       label: "Beleg-Scan",
@@ -602,7 +602,7 @@ function BillActions({ bill }: { bill: BillOut }) {
       invalidate: [["finance", "bills"]],
       onSuccess: () => {
         toast.success("Beleg gelöscht.");
-        navigate("/app/finance/bills");
+        navigate("/kompass/finance/bills");
       },
       onError: (e: Error) => toast.error(e.message),
     },

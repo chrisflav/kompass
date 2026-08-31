@@ -56,7 +56,7 @@ function membersListReturns(rows: unknown[] = [MEMBER_BRIEF]) {
 describe("Meine Gruppen", () => {
   it("lists only the groups the signed-in user leads", async () => {
     server.use(http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)));
-    renderRoute("/app/meine/gruppen");
+    renderRoute("/kompass/meine/gruppen");
 
     expect(await screen.findByText("Klettergruppe")).toBeInTheDocument();
     expect(screen.getByText("montags 18:00")).toBeInTheDocument();
@@ -66,20 +66,20 @@ describe("Meine Gruppen", () => {
 
   it("says so when the user leads none", async () => {
     server.use(http.get(api("/api/members/groups"), () => HttpResponse.json([GROUPS[1]])));
-    renderRoute("/app/meine/gruppen");
+    renderRoute("/kompass/meine/gruppen");
     expect(await screen.findByText("Du leitest aktuell keine Gruppe.")).toBeInTheDocument();
   });
 
   it("says so when the list is empty altogether", async () => {
     server.use(http.get(api("/api/members/groups"), () => HttpResponse.json([])));
-    renderRoute("/app/meine/gruppen");
+    renderRoute("/kompass/meine/gruppen");
     expect(await screen.findByText("Du leitest aktuell keine Gruppe.")).toBeInTheDocument();
   });
 
   it("explains an account with no member profile instead of showing nothing", async () => {
     useMe({ member_id: null as unknown as number });
     server.use(http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)));
-    renderRoute("/app/meine/gruppen");
+    renderRoute("/kompass/meine/gruppen");
     expect(
       await screen.findByText("Dein Konto ist mit keinem Teilnehmenden-Profil verknüpft."),
     ).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("Meine Gruppen", () => {
       http.get(api("/api/members/groups/5"), () => HttpResponse.json(GROUPS[0])),
       http.get(api("/api/members/"), () => HttpResponse.json([MEMBER_BRIEF])),
     );
-    const { user } = renderRoute("/app/meine/gruppen");
+    const { user } = renderRoute("/kompass/meine/gruppen");
     await user.click(await screen.findByText("Klettergruppe"));
     expect(await screen.findByText("1 Teilnehmende")).toBeInTheDocument();
   });
@@ -107,7 +107,7 @@ describe("members of a group", () => {
 
   it("lists the group's members and counts them", async () => {
     groupMembersReturns([MEMBER_BRIEF, { ...MEMBER_BRIEF, id: 43, name: "Fremd", groups: ["Andere"] }]);
-    renderRoute("/app/groups/5/members");
+    renderRoute("/kompass/groups/5/members");
 
     expect(await screen.findByText("Anna Ärmel")).toBeInTheDocument();
     expect(screen.getByText("1 Teilnehmende")).toBeInTheDocument();
@@ -116,13 +116,13 @@ describe("members of a group", () => {
 
   it("says so when the group is empty", async () => {
     groupMembersReturns([]);
-    renderRoute("/app/groups/5/members");
+    renderRoute("/kompass/groups/5/members");
     expect(await screen.findByText("Keine Teilnehmende in dieser Gruppe.")).toBeInTheDocument();
   });
 
   it("shows an em dash for a member without an e-mail", async () => {
     groupMembersReturns([{ ...MEMBER_BRIEF, email: "" }]);
-    renderRoute("/app/groups/5/members");
+    renderRoute("/kompass/groups/5/members");
     await screen.findByText("Anna Ärmel");
     expect(screen.getByText("—")).toBeInTheDocument();
   });
@@ -135,7 +135,7 @@ describe("members of a group", () => {
       http.get(api("/api/mailer/email-addresses"), () => HttpResponse.json([])),
       http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)),
     );
-    const { user } = renderRoute("/app/groups/5/members");
+    const { user } = renderRoute("/kompass/groups/5/members");
     await screen.findByText("Anna Ärmel");
     await user.click(screen.getByRole("button", { name: "Gruppe bearbeiten" }));
     expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
@@ -155,17 +155,17 @@ describe("members of a group", () => {
       http.get(api("/api/members/enums"), () => HttpResponse.json({ gender: [] })),
       http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)),
     );
-    const { user } = renderRoute("/app/groups/5/members");
+    const { user } = renderRoute("/kompass/groups/5/members");
     await user.click(await screen.findByText("Anna Ärmel"));
 
     // The trail starts at Gruppen, not at the flat member list.
     expect(await screen.findByRole("link", { name: "Gruppen" })).toHaveAttribute(
       "href",
-      "/app/groups",
+      "/kompass/groups",
     );
     expect(screen.getByRole("link", { name: "Klettergruppe" })).toHaveAttribute(
       "href",
-      "/app/groups/5/members",
+      "/kompass/groups/5/members",
     );
   });
 });
@@ -180,7 +180,7 @@ describe("members list — extras", () => {
       { ...MEMBER_BRIEF, id: 46, name: "Eva", activity_score: 40 },
       { ...MEMBER_BRIEF, id: 47, name: "Fina", activity_score: null },
     ]);
-    renderRoute("/app/members");
+    renderRoute("/kompass/members");
     await screen.findByText("Anna Ärmel");
 
     // One icon per level, 1–5, and an em dash when the score is unknown.
@@ -192,7 +192,7 @@ describe("members list — extras", () => {
 
   it("shows an em dash for a member without an e-mail", async () => {
     membersListReturns([{ ...MEMBER_BRIEF, email: "" }]);
-    renderRoute("/app/members");
+    renderRoute("/kompass/members");
     await screen.findByText("Anna Ärmel");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -202,7 +202,7 @@ describe("members list — extras", () => {
       MEMBER_BRIEF,
       { ...MEMBER_BRIEF, id: 43, name: "Bea Berg", age: null, groups: [], activity_score: null },
     ]);
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await screen.findByText("Anna Ärmel");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -226,7 +226,7 @@ describe("members list — extras", () => {
       http.get(api("/api/members/trainings"), () => HttpResponse.json([])),
       http.get(api("/api/members/training-categories"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByRole("button", { name: "Neues Mitglied" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -270,7 +270,7 @@ describe("members list — extras", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByRole("button", { name: "Neues Mitglied" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -310,7 +310,7 @@ describe("members list — extras", () => {
         HttpResponse.json({ id: 77, title: "Liste", date: null, participants: [] }),
       ),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Notizliste aus Auswahl" }));
@@ -340,7 +340,7 @@ describe("members list — extras", () => {
         return HttpResponse.json({});
       }),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: /Kriseninterventionsliste/ }));
@@ -372,7 +372,7 @@ describe("members list — extras", () => {
         HttpResponse.json({ detail: "Keine Daten." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: /Kriseninterventionsliste/ }));
@@ -389,7 +389,7 @@ describe("members list — extras", () => {
 
   it("closes the crisis list dialog on Abbrechen", async () => {
     membersListReturns();
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: /Kriseninterventionsliste/ }));
@@ -408,7 +408,7 @@ describe("members list — extras", () => {
         return HttpResponse.json({});
       }),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Als Nutzer einladen" }));
@@ -429,7 +429,7 @@ describe("members list — extras", () => {
       }),
       http.get(api("/api/members/registrations"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Bestätigung aufheben" }));
@@ -525,21 +525,21 @@ describe("member detail — uploads and actions", () => {
 
   it("shows an IBAN with its validity badge", async () => {
     detailReturns({ iban: "DE02120300000000202051", iban_valid: true });
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Kontaktdaten" }));
     expect(screen.getByText("gültig")).toBeInTheDocument();
   });
 
   it("marks an invalid IBAN as such", async () => {
     detailReturns({ iban: "DE00", iban_valid: false });
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Kontaktdaten" }));
     expect(screen.getByText("ungültig")).toBeInTheDocument();
   });
 
   it("lists the member's activities", async () => {
     detailReturns({ activities: [{ id: 1, code: "F26-01", name: "Skifreizeit" }] });
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Fähigkeiten" }));
     expect(screen.getByText("Skifreizeit")).toBeInTheDocument();
   });
@@ -556,7 +556,7 @@ describe("member detail — uploads and actions", () => {
         return HttpResponse.json(MEMBER);
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const inputs = document.querySelectorAll('input[type="file"]');
@@ -575,7 +575,7 @@ describe("member detail — uploads and actions", () => {
 
   it("offers the current registration form for opening while replacing it", async () => {
     detailReturns({ registration_form: "/media/bogen.pdf" });
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(
       screen.getByRole("link", { name: "Aktuelles Formular öffnen" }),
@@ -589,7 +589,7 @@ describe("member detail — uploads and actions", () => {
         new HttpResponse("<html>502</html>", { status: 502 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.upload(
       document.querySelectorAll('input[type="file"]')[1] as HTMLInputElement,
@@ -610,7 +610,7 @@ describe("member detail — uploads and actions", () => {
         return HttpResponse.json(MEMBER);
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -626,7 +626,7 @@ describe("member detail — uploads and actions", () => {
         new HttpResponse("<html>502</html>", { status: 502 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Dokumente" }));
     await user.click(await screen.findByRole("button", { name: "+ Dokument" }));
@@ -666,7 +666,7 @@ describe("member detail — uploads and actions", () => {
         new HttpResponse("<html>502</html>", { status: 502 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Ausbildungen" }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
@@ -704,7 +704,7 @@ describe("member detail — uploads and actions", () => {
         return HttpResponse.json({ id: 4 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Berechtigungen" }));
 
@@ -719,7 +719,7 @@ describe("member detail — uploads and actions", () => {
 
   it("links an existing registration form and photo", async () => {
     detailReturns({ registration_form: "/media/bogen.pdf", image: "/media/anna.jpg" });
-    renderRoute("/app/members/42");
+    renderRoute("/kompass/members/42");
     const links = await screen.findAllByRole("link", { name: "Öffnen" });
     expect(links[0]).toHaveAttribute("href", "http://localhost:8000/media/bogen.pdf");
   });
@@ -738,7 +738,7 @@ describe("member detail — uploads and actions", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const inputs = document.querySelectorAll('input[type="file"]');
@@ -768,7 +768,7 @@ describe("member detail — uploads and actions", () => {
         }),
       );
     }
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
 
     for (const label of [
       "Echo anfordern",
@@ -799,7 +799,7 @@ describe("member detail — uploads and actions", () => {
         HttpResponse.json({ detail: "Keine E-Mail hinterlegt." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Echo anfordern" }));
     await user.click(
@@ -818,7 +818,7 @@ describe("member detail — uploads and actions", () => {
       }),
       http.get(api("/api/members/registrations"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Bestätigung aufheben" }));
     await user.click(
@@ -839,7 +839,7 @@ describe("member detail — uploads and actions", () => {
         return HttpResponse.json({ id: 3, filename: "attest.pdf", file_url: "/media/attest.pdf" });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Dokumente" }));
     await user.click(await screen.findByRole("button", { name: "+ Dokument" }));
@@ -872,7 +872,7 @@ describe("member detail — uploads and actions", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Dokumente" }));
 
@@ -895,7 +895,7 @@ describe("member detail — uploads and actions", () => {
         return HttpResponse.json({ id: 5 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Ausbildungen" }));
     await user.click(await screen.findByRole("button", { name: "+ Ausbildung" }));
@@ -953,7 +953,7 @@ describe("member detail — uploads and actions", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Ausbildungen" }));
 
@@ -1002,7 +1002,7 @@ describe("member detail — uploads and actions", () => {
         return HttpResponse.json({ id: 5 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Ausbildungen" }));
     expect(await screen.findByRole("link", { name: "Öffnen" })).toBeInTheDocument();
 
@@ -1027,7 +1027,7 @@ describe("member detail — uploads and actions", () => {
         return HttpResponse.json({ id: 4 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Berechtigungen" }));
     await user.click(await screen.findByRole("button", { name: "+ Berechtigungssatz" }));
@@ -1062,7 +1062,7 @@ describe("member detail — uploads and actions", () => {
         ]),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Berechtigungen" }));
 
     // Ids are resolved to names, falling back to "#id" when the option list is
@@ -1102,7 +1102,7 @@ describe("member detail — uploads and actions", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Berechtigungen" }));
     await user.click(await screen.findByRole("button", { name: "Entfernen" }));
@@ -1112,7 +1112,7 @@ describe("member detail — uploads and actions", () => {
 
   it("says so when there are no permission sets", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Berechtigungen" }));
     expect(await screen.findByText("Keine Berechtigungen.")).toBeInTheDocument();
   });
@@ -1142,7 +1142,7 @@ describe("member detail — uploads and actions", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Notfallkontakte" }));
 
@@ -1170,7 +1170,7 @@ describe("Meine Gruppen — remaining paths", () => {
         HttpResponse.json([{ ...GROUPS[0], time_info: "", age_info: "", contact_email_display: "" }]),
       ),
     );
-    renderRoute("/app/meine/gruppen");
+    renderRoute("/kompass/meine/gruppen");
     await screen.findByText("Klettergruppe");
     expect(screen.getAllByText("—")).toHaveLength(3);
   });
@@ -1182,7 +1182,7 @@ describe("members list — remaining paths", () => {
       MEMBER_BRIEF,
       { ...MEMBER_BRIEF, id: 43, name: "Bea Berg", echoed: true, groups: ["Bouldergruppe"] },
     ]);
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await screen.findByText("Anna Ärmel");
 
     await user.click(screen.getByRole("button", { name: /Echo:/ }));
@@ -1208,7 +1208,7 @@ describe("members list — remaining paths", () => {
       http.get(api("/api/members/trainings"), () => HttpResponse.json([])),
       http.get(api("/api/members/training-categories"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
 
     await user.click(await screen.findByRole("button", { name: "Neues Mitglied" }));
     await user.click(
@@ -1233,7 +1233,7 @@ describe("members list — remaining paths", () => {
         HttpResponse.json({ detail: "Keine E-Mail." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByLabelText("Zeile auswählen"));
 
     await user.click(screen.getByRole("button", { name: /Aktionen/ }));
@@ -1258,7 +1258,7 @@ describe("members of a group — remaining paths", () => {
       http.get(api("/api/members/groups/5"), () => HttpResponse.json(GROUPS[0])),
       http.get(api("/api/members/"), () => HttpResponse.json([MEMBER_BRIEF])),
     );
-    const { user } = renderRoute("/app/groups/5/members");
+    const { user } = renderRoute("/kompass/groups/5/members");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -1352,7 +1352,7 @@ describe("member detail — every field", () => {
         return HttpResponse.json(MEMBER);
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     for (const tab of ["Stammdaten", "Kontaktdaten", "Fähigkeiten", "Sonstiges", "Organisatorisch"]) {
@@ -1394,7 +1394,7 @@ describe("member detail — every field", () => {
         HttpResponse.json([{ id: 1, name: "Grundkurs" }]),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const cases: [string, string][] = [
@@ -1439,7 +1439,7 @@ describe("member detail — every field", () => {
         return djangoValidation({ prename: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/members");
+    const { user } = renderRoute("/kompass/members");
     await user.click(await screen.findByRole("button", { name: "Neues Mitglied" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -1477,7 +1477,7 @@ describe("member detail — every field", () => {
         return HttpResponse.json({ id: 5 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     await user.click(screen.getByRole("tab", { name: "Notfallkontakte" }));
@@ -1531,7 +1531,7 @@ describe("member detail — every field", () => {
         return HttpResponse.json({ id: 5 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Ausbildungen" }));
 
@@ -1548,7 +1548,7 @@ describe("member detail — every field", () => {
 
   it("goes back and leaves edit mode from the detail header", async () => {
     returns();
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     await user.click(screen.getByRole("button", { name: "Zurück" }));
@@ -1562,7 +1562,7 @@ describe("member detail — every field", () => {
         HttpResponse.json({ detail: "members.delete_global_member" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -1600,7 +1600,7 @@ describe("member detail — every field", () => {
         HttpResponse.json([{ id: 6 }]),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await screen.findByRole("button", { name: "Bearbeiten" });
 
     for (const tab of ["Notfallkontakte", "Ausbildungen", "Berechtigungen"]) {
@@ -1615,14 +1615,14 @@ describe("member detail — every field", () => {
 
   it("passes an unparseable birth date through unchanged", async () => {
     returns({ birth_date: "irgendwann" });
-    renderRoute("/app/members/42");
+    renderRoute("/kompass/members/42");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getByText("irgendwann")).toBeInTheDocument();
   });
 
   it("names an excursion by its code when it has none", async () => {
     returns({ activities: [{ id: 1, code: "F26-01", name: "" }] });
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Fähigkeiten" }));
     expect(screen.getByText("F26-01")).toBeInTheDocument();
   });
@@ -1637,7 +1637,7 @@ describe("member detail — every field", () => {
         HttpResponse.json({ detail: "Kein Bild." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const inputs = [...document.querySelectorAll('input[type="file"]')] as HTMLInputElement[];
@@ -1672,7 +1672,7 @@ describe("member detail — every field", () => {
         HttpResponse.json({ detail: "Kein Nachweis." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Ausbildungen" }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
@@ -1691,7 +1691,7 @@ describe("member detail — every field", () => {
         HttpResponse.json({ detail: "Kein Dokument." }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Dokumente" }));
     await user.click(await screen.findByRole("button", { name: "+ Dokument" }));
@@ -1725,7 +1725,7 @@ describe("member detail — every field", () => {
         ]),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     await user.click(screen.getByRole("tab", { name: "Dokumente" }));
@@ -1751,7 +1751,7 @@ describe("member detail — every field", () => {
         HttpResponse.json({ detail: "Nicht gefunden" }, { status: 404 }),
       ),
     );
-    renderRoute("/app/members/42?group=5");
+    renderRoute("/kompass/members/42?group=5");
     // The trail still reads "Gruppe" rather than breaking.
     expect(await screen.findByRole("link", { name: "Gruppe" })).toBeInTheDocument();
   });
@@ -1765,7 +1765,7 @@ describe("member detail — every field", () => {
         ]),
       ),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("tab", { name: "Dokumente" }));
     expect(await screen.findByRole("link", { name: "attest.pdf" })).toHaveAttribute(
       "href",
@@ -1775,7 +1775,7 @@ describe("member detail — every field", () => {
 
   it("clears a chosen file again in every upload field", async () => {
     returns();
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const inputs = [...document.querySelectorAll('input[type="file"]')] as HTMLInputElement[];
@@ -1804,7 +1804,7 @@ describe("member detail — every field", () => {
         return HttpResponse.json({ id: 5 });
       }),
     );
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.clear(screen.getByDisplayValue("2011-05-04"));
 
@@ -1854,7 +1854,7 @@ describe("member detail — every field", () => {
       skills: [],
       activities: [],
     });
-    const { user } = renderRoute("/app/members/42");
+    const { user } = renderRoute("/kompass/members/42");
     await screen.findByRole("button", { name: "Bearbeiten" });
 
     for (const tab of ["Stammdaten", "Kontaktdaten", "Fähigkeiten", "Sonstiges", "Organisatorisch"]) {

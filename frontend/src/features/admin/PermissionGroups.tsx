@@ -69,7 +69,7 @@ export function PermissionGroupsList() {
           <DataTable
             rows={view.rows}
             rowKey={(g) => g.id}
-            onRowClick={(g) => navigate(`/app/permission-groups/${g.id}`)}
+            onRowClick={(g) => navigate(`/kompass/permission-groups/${g.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -131,7 +131,7 @@ function PermissionGroupForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: AuthGroupOut) => {
         toast.success("Rechtegruppe angelegt.");
         onDone();
-        navigate(`/app/permission-groups/${created.id}`);
+        navigate(`/kompass/permission-groups/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -231,7 +231,7 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
       invalidate: [["auth", "permission-groups"]],
       onSuccess: () => {
         toast.success("Rechtegruppe gelöscht.");
-        navigate("/app/permission-groups");
+        navigate("/kompass/permission-groups");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -278,7 +278,7 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Rechtegruppen", to: "/app/permission-groups" },
+          { label: "Rechtegruppen", to: "/kompass/permission-groups" },
           { label: group.name },
         ]}
         actions={

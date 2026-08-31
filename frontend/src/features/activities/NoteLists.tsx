@@ -80,7 +80,7 @@ export function NoteListsList() {
           <DataTable
             rows={view.rows}
             rowKey={(n) => n.id}
-            onRowClick={(n) => navigate(`/app/notelists/${n.id}`)}
+            onRowClick={(n) => navigate(`/kompass/notelists/${n.id}`)}
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
@@ -110,7 +110,7 @@ function NoteListCreateForm({ onDone }: { onDone: () => void }) {
       onSuccess: (created: MemberNoteListOut) => {
         toast.success("Notizliste angelegt.");
         onDone();
-        navigate(`/app/notelists/${created.id}`);
+        navigate(`/kompass/notelists/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -183,7 +183,7 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
       invalidate: [["note-lists"]],
       onSuccess: () => {
         toast.success("Notizliste gelöscht.");
-        navigate("/app/notelists");
+        navigate("/kompass/notelists");
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -257,7 +257,7 @@ function NoteListDetailBody({ list }: { list: MemberNoteListOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Notizlisten", to: "/app/notelists" },
+          { label: "Notizlisten", to: "/kompass/notelists" },
           { label: list.title || "Notizliste" },
         ]}
         actions={

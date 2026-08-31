@@ -32,20 +32,20 @@ describe("cms — FAQ", () => {
 
   it("lists the questions with a count", async () => {
     listReturns();
-    renderRoute("/app/cms/faqs");
+    renderRoute("/kompass/cms/faqs");
     expect(await screen.findByText("Was kostet das?")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/cms/faqs");
+    renderRoute("/kompass/cms/faqs");
     expect(await screen.findByText("Keine Fragen vorhanden.")).toBeInTheDocument();
   });
 
   it("sorts by its column in both directions", async () => {
     listReturns([FAQ, { ...FAQ, id: 2, question: "Und sonst?" }]);
-    const { user } = renderRoute("/app/cms/faqs");
+    const { user } = renderRoute("/kompass/cms/faqs");
     await screen.findByText("Was kostet das?");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -54,7 +54,7 @@ describe("cms — FAQ", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/app/cms/faqs");
+    renderRoute("/kompass/cms/faqs");
     await screen.findByText("Was kostet das?");
     expect(screen.queryByRole("button", { name: "Neue Frage" })).not.toBeInTheDocument();
   });
@@ -72,7 +72,7 @@ describe("cms — FAQ", () => {
         HttpResponse.json({ ...FAQ, id: 2, question: "Neu?" }),
       ),
     );
-    const { user } = renderRoute("/app/cms/faqs");
+    const { user } = renderRoute("/kompass/cms/faqs");
     await user.click(await screen.findByRole("button", { name: "Neue Frage" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -95,7 +95,7 @@ describe("cms — FAQ", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/cms/faqs");
+    const { user } = renderRoute("/kompass/cms/faqs");
     await user.click(await screen.findByRole("button", { name: "Neue Frage" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -110,7 +110,7 @@ describe("cms — FAQ", () => {
   it("closes the create modal on Abbrechen", async () => {
     useMe({ permissions: ["startpage.add_faq"] });
     listReturns();
-    const { user } = renderRoute("/app/cms/faqs");
+    const { user } = renderRoute("/kompass/cms/faqs");
     await user.click(await screen.findByRole("button", { name: "Neue Frage" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -120,7 +120,7 @@ describe("cms — FAQ", () => {
     useMe({ permissions: ["startpage.add_faq"] });
     listReturns();
     server.use(http.get(api("/api/startpage/faqs/1"), () => HttpResponse.json(FAQ)));
-    const { user } = renderRoute("/app/cms/faqs");
+    const { user } = renderRoute("/kompass/cms/faqs");
 
     await user.click(await screen.findByRole("button", { name: "Neue Frage" }));
     await user.click(
@@ -139,7 +139,7 @@ describe("cms — FAQ", () => {
         return HttpResponse.json({ ...FAQ, answer: "Doch etwas." });
       }),
     );
-    const { user } = renderRoute("/app/cms/faqs");
+    const { user } = renderRoute("/kompass/cms/faqs");
     await user.click(await screen.findByText("Was kostet das?"));
 
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
@@ -156,7 +156,7 @@ describe("cms — FAQ", () => {
 
   it("leaves edit mode again on Abbrechen", async () => {
     server.use(http.get(api("/api/startpage/faqs/1"), () => HttpResponse.json(FAQ)));
-    const { user } = renderRoute("/app/cms/faqs/1");
+    const { user } = renderRoute("/kompass/cms/faqs/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("Nichts.")).not.toBeInTheDocument();
@@ -169,7 +169,7 @@ describe("cms — FAQ", () => {
         djangoValidation({ answer: ["Die Antwort fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/faqs/1");
+    const { user } = renderRoute("/kompass/cms/faqs/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -187,7 +187,7 @@ describe("cms — FAQ", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/cms/faqs/1");
+    const { user } = renderRoute("/kompass/cms/faqs/1");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -209,7 +209,7 @@ describe("cms — FAQ", () => {
         HttpResponse.json({ detail: "startpage.delete_faq" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/cms/faqs/1");
+    const { user } = renderRoute("/kompass/cms/faqs/1");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -219,7 +219,7 @@ describe("cms — FAQ", () => {
 
   it("goes back through the browser history", async () => {
     server.use(http.get(api("/api/startpage/faqs/1"), () => HttpResponse.json(FAQ)));
-    const { user } = renderRoute("/app/cms/faqs/1");
+    const { user } = renderRoute("/kompass/cms/faqs/1");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -243,7 +243,7 @@ describe("cms — Links", () => {
 
   it("lists links with their visibility", async () => {
     listReturns([LINK, { ...LINK, id: 4, title: "", visible: false }]);
-    renderRoute("/app/cms/links");
+    renderRoute("/kompass/cms/links");
     expect(await screen.findByText("JL-Wiki")).toBeInTheDocument();
     // An unnamed link still shows its URL rather than a blank row.
     expect(screen.getAllByText("https://wiki.example.org")).toHaveLength(2);
@@ -252,7 +252,7 @@ describe("cms — Links", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([LINK, { ...LINK, id: 4, title: "", visible: false }]);
-    const { user } = renderRoute("/app/cms/links");
+    const { user } = renderRoute("/kompass/cms/links");
     await screen.findByText("JL-Wiki");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -268,7 +268,7 @@ describe("cms — Links", () => {
         return djangoValidation({ url: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/cms/links");
+    const { user } = renderRoute("/kompass/cms/links");
     await user.click(await screen.findByRole("button", { name: "Neuer Link" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -287,7 +287,7 @@ describe("cms — Links", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/cms/links");
+    renderRoute("/kompass/cms/links");
     expect(await screen.findByText("Keine Links vorhanden.")).toBeInTheDocument();
   });
 
@@ -302,7 +302,7 @@ describe("cms — Links", () => {
       }),
       http.get(api("/api/startpage/links/9"), () => HttpResponse.json({ ...LINK, id: 9 })),
     );
-    const { user } = renderRoute("/app/cms/links");
+    const { user } = renderRoute("/kompass/cms/links");
     await user.click(await screen.findByRole("button", { name: "Neuer Link" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -325,7 +325,7 @@ describe("cms — Links", () => {
         return HttpResponse.json({ ...LINK, visible: false });
       }),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const title = screen.getByDisplayValue("JL-Wiki");
@@ -347,7 +347,7 @@ describe("cms — Links", () => {
         return HttpResponse.json({ ...LINK, icon: "/media/icon.png" });
       }),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -366,7 +366,7 @@ describe("cms — Links", () => {
         HttpResponse.json({ detail: "Die Datei ist zu groß." }, { status: 413 }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.upload(
       document.querySelector('input[type="file"]') as HTMLInputElement,
@@ -383,7 +383,7 @@ describe("cms — Links", () => {
         new HttpResponse("<html>502</html>", { status: 502 }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.upload(
       document.querySelector('input[type="file"]') as HTMLInputElement,
@@ -401,7 +401,7 @@ describe("cms — Links", () => {
         HttpResponse.json({ ...LINK, icon: "/media/icon.png" }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getByRole("img", { name: "Icon" })).toHaveAttribute("src", "/media/icon.png");
   });
@@ -412,7 +412,7 @@ describe("cms — Links", () => {
         HttpResponse.json({ ...LINK, icon: "/media/icon.png" }),
       ),
     );
-    renderRoute("/app/cms/links/3");
+    renderRoute("/kompass/cms/links/3");
     expect(await screen.findByRole("img", { name: "Icon" })).toHaveAttribute(
       "src",
       "/media/icon.png",
@@ -427,7 +427,7 @@ describe("cms — Links", () => {
         djangoValidation({ url: ["Bitte eine gültige URL angeben."] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links");
+    const { user } = renderRoute("/kompass/cms/links");
     await user.click(await screen.findByRole("button", { name: "Neuer Link" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -444,7 +444,7 @@ describe("cms — Links", () => {
         djangoValidation({ url: ["Bitte eine gültige URL angeben."] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Bitte eine gültige URL angeben.")).not.toHaveLength(0);
@@ -463,7 +463,7 @@ describe("cms — Links", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links");
+    const { user } = renderRoute("/kompass/cms/links");
     await user.click(await screen.findByRole("button", { name: "Neuer Link" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -488,7 +488,7 @@ describe("cms — Links", () => {
   it("opens a link from its row and leaves edit mode again", async () => {
     listReturns();
     server.use(http.get(api("/api/startpage/links/3"), () => HttpResponse.json(LINK)));
-    const { user } = renderRoute("/app/cms/links");
+    const { user } = renderRoute("/kompass/cms/links");
     await user.click(await screen.findByText("JL-Wiki"));
 
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
@@ -503,7 +503,7 @@ describe("cms — Links", () => {
         HttpResponse.json({ ...LINK, title: null, description: null, visible: false }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     // The nulls become empty strings in the draft rather than "null".
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
@@ -516,7 +516,7 @@ describe("cms — Links", () => {
         HttpResponse.json({ detail: "startpage.delete_link" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -526,7 +526,7 @@ describe("cms — Links", () => {
 
   it("clears a chosen icon file again", async () => {
     server.use(http.get(api("/api/startpage/links/3"), () => HttpResponse.json(LINK)));
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -549,7 +549,7 @@ describe("cms — Links", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -576,14 +576,14 @@ describe("cms — Bereiche", () => {
 
   it("lists the sections with their public link", async () => {
     listReturns();
-    renderRoute("/app/cms/sections");
+    renderRoute("/kompass/cms/sections");
     expect(await screen.findByText("Ausbildung")).toBeInTheDocument();
     expect(screen.getByText("ausbildung")).toBeInTheDocument();
   });
 
   it("sorts by every column in both directions", async () => {
     listReturns([SECTION, { ...SECTION, id: 3, title: "Zweiter", show_in_navigation: false }]);
-    const { user } = renderRoute("/app/cms/sections");
+    const { user } = renderRoute("/kompass/cms/sections");
     await screen.findByText("Ausbildung");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -599,7 +599,7 @@ describe("cms — Bereiche", () => {
         return djangoValidation({ urlname: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/cms/sections");
+    const { user } = renderRoute("/kompass/cms/sections");
     await user.click(await screen.findByRole("button", { name: "Neuer Bereich" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -618,7 +618,7 @@ describe("cms — Bereiche", () => {
 
   it("shows an em dash for a section without a slug", async () => {
     listReturns([{ ...SECTION, urlname: "" }]);
-    renderRoute("/app/cms/sections");
+    renderRoute("/kompass/cms/sections");
     await screen.findByText("Ausbildung");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
@@ -626,7 +626,7 @@ describe("cms — Bereiche", () => {
   it("closes the create modal on Abbrechen", async () => {
     useMe({ permissions: ["startpage.add_section"] });
     listReturns();
-    const { user } = renderRoute("/app/cms/sections");
+    const { user } = renderRoute("/kompass/cms/sections");
     await user.click(await screen.findByRole("button", { name: "Neuer Bereich" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
@@ -636,7 +636,7 @@ describe("cms — Bereiche", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/cms/sections");
+    renderRoute("/kompass/cms/sections");
     expect(await screen.findByText("Keine Bereiche vorhanden.")).toBeInTheDocument();
   });
 
@@ -651,7 +651,7 @@ describe("cms — Bereiche", () => {
       }),
       http.get(api("/api/startpage/sections/9"), () => HttpResponse.json({ ...SECTION, id: 9 })),
     );
-    const { user } = renderRoute("/app/cms/sections");
+    const { user } = renderRoute("/kompass/cms/sections");
     await user.click(await screen.findByRole("button", { name: "Neuer Bereich" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -677,7 +677,7 @@ describe("cms — Bereiche", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/cms/sections");
+    const { user } = renderRoute("/kompass/cms/sections");
     await user.click(await screen.findByRole("button", { name: "Neuer Bereich" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -698,7 +698,7 @@ describe("cms — Bereiche", () => {
         djangoValidation({ title: ["Der Titel fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/sections/2");
+    const { user } = renderRoute("/kompass/cms/sections/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Der Titel fehlt.")).not.toHaveLength(0);
@@ -708,7 +708,7 @@ describe("cms — Bereiche", () => {
     server.use(
       http.get(api("/api/startpage/sections/2"), () => HttpResponse.json(SECTION)),
     );
-    const withSlug = renderRoute("/app/cms/sections/2");
+    const withSlug = renderRoute("/kompass/cms/sections/2");
     expect(await screen.findByRole("link", { name: "/bereich/ausbildung" })).toHaveAttribute(
       "href",
       "/bereich/ausbildung",
@@ -720,7 +720,7 @@ describe("cms — Bereiche", () => {
         HttpResponse.json({ ...SECTION, urlname: "" }),
       ),
     );
-    renderRoute("/app/cms/sections/2");
+    renderRoute("/kompass/cms/sections/2");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.queryByRole("link", { name: /bereich/ })).not.toBeInTheDocument();
   });
@@ -730,7 +730,7 @@ describe("cms — Bereiche", () => {
     server.use(
       http.get(api("/api/startpage/sections/2"), () => HttpResponse.json(SECTION)),
     );
-    const { user } = renderRoute("/app/cms/sections");
+    const { user } = renderRoute("/kompass/cms/sections");
     await user.click(await screen.findByText("Ausbildung"));
 
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
@@ -748,7 +748,7 @@ describe("cms — Bereiche", () => {
         HttpResponse.json({ detail: "startpage.delete_section" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/cms/sections");
+    const { user } = renderRoute("/kompass/cms/sections");
     await user.click(await screen.findByRole("button", { name: "Neuer Bereich" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
@@ -769,7 +769,7 @@ describe("cms — Bereiche", () => {
         HttpResponse.json({ ...SECTION, website_text: null, show_in_navigation: false }),
       ),
     );
-    const { user } = renderRoute("/app/cms/sections/2");
+    const { user } = renderRoute("/kompass/cms/sections/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
@@ -789,7 +789,7 @@ describe("cms — Bereiche", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/cms/sections/2");
+    const { user } = renderRoute("/kompass/cms/sections/2");
 
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("checkbox"));
@@ -859,7 +859,7 @@ describe("cms — Beiträge", () => {
       POST_BRIEF,
       { ...POST_BRIEF, id: 6, title: "Sommerfahrt", section_id: 3, section_title: "Aktuelles" },
     ]);
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await screen.findByText("Skifreizeit");
 
     // The filter's options are derived from the rows themselves, mirroring the
@@ -874,7 +874,7 @@ describe("cms — Beiträge", () => {
 
   it("searches by title", async () => {
     listReturns([POST_BRIEF, { ...POST_BRIEF, id: 6, title: "Sommerfahrt" }]);
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await screen.findByText("Skifreizeit");
     await user.type(screen.getByPlaceholderText("Suchen…"), "sommer");
     await waitFor(() => expect(screen.queryByText("Skifreizeit")).not.toBeInTheDocument());
@@ -884,7 +884,7 @@ describe("cms — Beiträge", () => {
 
   it("sorts by every column in both directions", async () => {
     listReturns([POST_BRIEF, { ...POST_BRIEF, id: 6, title: "", date: null, section_title: null }]);
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await screen.findByText("Skifreizeit");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -892,7 +892,7 @@ describe("cms — Beiträge", () => {
 
   it("marks a detailed post and one with no groups", async () => {
     detailReturns({ detailed: true, groups: [], group_ids: [] });
-    renderRoute("/app/cms/posts/5");
+    renderRoute("/kompass/cms/posts/5");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getByText("Ja")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
@@ -900,14 +900,14 @@ describe("cms — Beiträge", () => {
 
   it("shows an em dash for a post without a slug", async () => {
     listReturns([{ ...POST_BRIEF, urlname: "", section_urlname: null }]);
-    renderRoute("/app/cms/posts");
+    renderRoute("/kompass/cms/posts");
     await screen.findByText("Skifreizeit");
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/app/cms/posts");
+    renderRoute("/kompass/cms/posts");
     expect(await screen.findByText("Keine Beiträge vorhanden.")).toBeInTheDocument();
   });
 
@@ -925,7 +925,7 @@ describe("cms — Beiträge", () => {
       http.get(api("/api/startpage/member-on-posts"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await user.click(await screen.findByRole("button", { name: "Neuer Beitrag" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -963,7 +963,7 @@ describe("cms — Beiträge", () => {
         djangoValidation({ website_text: ["Der Text fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await user.click(await screen.findByRole("button", { name: "Neuer Beitrag" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -983,7 +983,7 @@ describe("cms — Beiträge", () => {
         djangoValidation({ title: ["Der Titel fehlt."] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await user.click(await screen.findByRole("button", { name: "Neuer Beitrag" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -1004,7 +1004,7 @@ describe("cms — Beiträge", () => {
   it("opens a post from its row, leaves edit mode and goes back", async () => {
     listReturns();
     detailReturns();
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await user.click(await screen.findByText("Skifreizeit"));
 
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
@@ -1020,7 +1020,7 @@ describe("cms — Beiträge", () => {
         HttpResponse.json({ detail: "startpage.delete_post" }, { status: 403 }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -1030,7 +1030,7 @@ describe("cms — Beiträge", () => {
 
   it("closes the image and person dialogs with × and with Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     await user.click(screen.getByRole("tab", { name: "Bilder" }));
@@ -1080,7 +1080,7 @@ describe("cms — Beiträge", () => {
         return HttpResponse.json({ id: 21 });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Personen" }));
 
@@ -1102,7 +1102,7 @@ describe("cms — Beiträge", () => {
         return HttpResponse.json({ id: 11 });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Bilder" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -1126,7 +1126,7 @@ describe("cms — Beiträge", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await user.click(await screen.findByRole("button", { name: "Neuer Beitrag" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -1157,7 +1157,7 @@ describe("cms — Beiträge", () => {
       group_ids: [],
       date: null,
     });
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     // Clearing the (optional) section select sends null rather than 0.
@@ -1172,7 +1172,7 @@ describe("cms — Beiträge", () => {
         new HttpResponse("<html>500</html>", { status: 500 }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(
@@ -1193,7 +1193,7 @@ describe("cms — Beiträge", () => {
         HttpResponse.json({ id: 21, post_id: 5, tag: null, description: null, members: [] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("tab", { name: "Bilder" }));
     let panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
@@ -1205,7 +1205,7 @@ describe("cms — Beiträge", () => {
 
   it("clears a chosen image file again", async () => {
     detailReturns();
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Bilder" }));
     await user.click(await screen.findByRole("button", { name: "+ Bild" }));
@@ -1225,7 +1225,7 @@ describe("cms — Beiträge", () => {
       POST_BRIEF,
       { ...POST_BRIEF, id: 6, title: "Ohne Bereich", section_id: null, section_title: null },
     ]);
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await screen.findByText("Skifreizeit");
     // The section filter's options come from the rows, so a row without one is
     // matched by the empty value rather than dropping out of the list.
@@ -1236,7 +1236,7 @@ describe("cms — Beiträge", () => {
 
   it("links the detail page to the public post", async () => {
     detailReturns();
-    renderRoute("/app/cms/posts/5");
+    renderRoute("/kompass/cms/posts/5");
     expect(
       await screen.findByRole("link", { name: "/beitrag/berichte/skifreizeit" }),
     ).toHaveAttribute("href", "/beitrag/berichte/skifreizeit");
@@ -1244,7 +1244,7 @@ describe("cms — Beiträge", () => {
 
   it("shows an em dash instead of a broken public link", async () => {
     detailReturns({ urlname: "", section: null });
-    renderRoute("/app/cms/posts/5");
+    renderRoute("/kompass/cms/posts/5");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.queryByRole("link", { name: /beitrag/ })).not.toBeInTheDocument();
   });
@@ -1258,7 +1258,7 @@ describe("cms — Beiträge", () => {
         return HttpResponse.json(POST);
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.clear(screen.getByDisplayValue("2026-02-20"));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -1281,7 +1281,7 @@ describe("cms — Beiträge", () => {
         return HttpResponse.json({ id: 11, post_id: 5, name: "bild.png", f: "/media/bild.png" });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Bilder" }));
     await user.click(await screen.findByRole("button", { name: "+ Bild" }));
@@ -1316,7 +1316,7 @@ describe("cms — Beiträge", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Bilder" }));
 
@@ -1341,7 +1341,7 @@ describe("cms — Beiträge", () => {
         return HttpResponse.json({ id: 21 });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Personen" }));
     await user.click(await screen.findByRole("button", { name: "+ Person" }));
@@ -1387,7 +1387,7 @@ describe("cms — Beiträge", () => {
         return HttpResponse.json({ id: 21 });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Personen" }));
 
@@ -1422,7 +1422,7 @@ describe("cms — Beiträge", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("tab", { name: "Personen" }));
     // The row's own remove button, not the badge remove inside its MultiSelect.
@@ -1451,7 +1451,7 @@ describe("cms — Beiträge", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("tab", { name: "Personen" }));
 
     expect(await screen.findByText("Tobias Werner")).toBeInTheDocument();
@@ -1469,7 +1469,7 @@ describe("cms — Beiträge", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
@@ -1485,7 +1485,7 @@ describe("cms — Beiträge", () => {
         djangoValidation({ urlname: ["Dieses Kürzel ist vergeben."] }),
       ),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Dieses Kürzel ist vergeben.")).not.toHaveLength(0);
@@ -1513,7 +1513,7 @@ describe("cms — every field", () => {
         return HttpResponse.json(POST);
       }),
     );
-    const { user } = renderRoute("/app/cms/posts/5");
+    const { user } = renderRoute("/kompass/cms/posts/5");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
@@ -1545,7 +1545,7 @@ describe("cms — every field", () => {
         return HttpResponse.json(SECTION);
       }),
     );
-    const { user } = renderRoute("/app/cms/sections/2");
+    const { user } = renderRoute("/kompass/cms/sections/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await fillEveryField(user, document.querySelector("form") as HTMLElement);
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -1568,7 +1568,7 @@ describe("cms — every field", () => {
         return HttpResponse.json(LINK);
       }),
     );
-    const { user } = renderRoute("/app/cms/links/3");
+    const { user } = renderRoute("/kompass/cms/links/3");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     // The icon field is a file input, which fillEveryField deliberately skips.
     await fillEveryField(user, document.querySelector("form") as HTMLElement);
@@ -1592,7 +1592,7 @@ describe("cms — every field", () => {
         return HttpResponse.json(FAQ);
       }),
     );
-    const { user } = renderRoute("/app/cms/faqs/1");
+    const { user } = renderRoute("/kompass/cms/faqs/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await fillEveryField(user, document.querySelector("form") as HTMLElement);
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -1623,7 +1623,7 @@ describe("cms — every field", () => {
         return djangoValidation({ title: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/app/cms/posts");
+    const { user } = renderRoute("/kompass/cms/posts");
     await user.click(await screen.findByRole("button", { name: "Neuer Beitrag" }));
 
     const dialog = await screen.findByRole("dialog");
