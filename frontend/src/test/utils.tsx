@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactElement, ReactNode } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { useEffect, type ReactElement, type ReactNode } from "react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import { AuthProvider } from "../auth";
 import { ConfirmProvider, ToastProvider } from "../components/ui";
@@ -21,6 +21,32 @@ function testQueryClient() {
   });
 }
 
+/* --- reading the URL under test ------------------------------------------
+ *
+ * The tests run on MemoryRouter, so `window.location` never moves. This probe
+ * mirrors the router's location out so a test can assert what a user would
+ * bookmark or share.
+ */
+let currentLocation = { pathname: "/", search: "" };
+
+function LocationProbe() {
+  const location = useLocation();
+  useEffect(() => {
+    currentLocation = { pathname: location.pathname, search: location.search };
+  }, [location]);
+  return null;
+}
+
+/** The location the app is on now, e.g. "/kompass/categories?type=training". */
+export function currentUrl(): string {
+  return currentLocation.pathname + currentLocation.search;
+}
+
+/** Just the query string, e.g. "?type=training" (empty when there is none). */
+export function currentSearch(): string {
+  return currentLocation.search;
+}
+
 /** The provider stack from `main.tsx`, minus the browser router. */
 function Providers({ children, route }: { children: ReactNode; route: string }) {
   return (
@@ -28,7 +54,10 @@ function Providers({ children, route }: { children: ReactNode; route: string }) 
       <AuthProvider>
         <ToastProvider>
           <ConfirmProvider>
-            <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
+            <MemoryRouter initialEntries={[route]}>
+              <LocationProbe />
+              {children}
+            </MemoryRouter>
           </ConfirmProvider>
         </ToastProvider>
       </AuthProvider>

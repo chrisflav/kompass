@@ -1,9 +1,8 @@
 import { Route } from "react-router-dom";
 
 import {
-  ActivityCategoriesList,
   ActivityCategoryDetailPage,
-  TrainingCategoriesList,
+  CategoriesPage,
   TrainingCategoryDetailPage,
 } from "./Categories";
 import { ExcursionDetailPage, ExcursionsList } from "./Excursions";
@@ -21,9 +20,8 @@ export const activitiesRoutes = (
     <Route path="klettertreff/:id" element={<KlettertreffDetailPage />} />
     <Route path="notelists" element={<NoteListsList />} />
     <Route path="notelists/:id" element={<NoteListDetailPage />} />
-    <Route path="activity-categories" element={<ActivityCategoriesList />} />
-    <Route path="activity-categories/:id" element={<ActivityCategoryDetailPage />} />
-    <Route path="training-categories" element={<TrainingCategoriesList />} />
-    <Route path="training-categories/:id" element={<TrainingCategoryDetailPage />} />
+    <Route path="categories" element={<CategoriesPage />} />
+    <Route path="categories/activity/:id" element={<ActivityCategoryDetailPage />} />
+    <Route path="categories/training/:id" element={<TrainingCategoryDetailPage />} />
   </>
 );

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { api, djangoValidation, http, HttpResponse, server, useMe } from "../../test/server";
 import {
+  currentSearch,
   fillEveryField,
   pickEverySelect,
   renderRoute,
@@ -11,7 +12,13 @@ import {
 
 const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
 
-/* --- Aktivitätskategorien ------------------------------------------------- */
+/**
+ * The tab you are actually looking at. Both panels of the Kategorien page stay
+ * mounted (only the inactive one is `hidden`), so an assertion about "the list"
+ * has to say which list, or it matches the one behind the tab too.
+ */
+const visiblePanel = () =>
+  within(document.querySelector(".tab-panel:not([hidden])") as HTMLElement);
 
 const ACTIVITY = {
   id: 1,
@@ -21,11 +28,24 @@ const ACTIVITY = {
   description: "Am Fels und in der Halle",
 };
 
+const TRAINING_CAT = { id: 2, name: "Grundkurs", permission_needed: true };
+
+/** Both lists load together, so a test that renders the page answers both. */
+function categoriesReturn({
+  activity = [ACTIVITY] as unknown[],
+  training = [TRAINING_CAT] as unknown[],
+} = {}) {
+  server.use(
+    http.get(api("/api/members/activity-categories"), () => HttpResponse.json(activity)),
+    http.get(api("/api/members/training-categories"), () => HttpResponse.json(training)),
+  );
+}
+
+/* --- Aktivitätskategorien ------------------------------------------------- */
+
 describe("activities — Aktivitätskategorien", () => {
-  function listReturns(rows = [ACTIVITY]) {
-    server.use(
-      http.get(api("/api/members/activity-categories"), () => HttpResponse.json(rows)),
-    );
+  function listReturns(rows: unknown[] = [ACTIVITY]) {
+    categoriesReturn({ activity: rows, training: [] });
   }
 
   function detailReturns(overrides: Record<string, unknown> = {}) {
@@ -38,20 +58,20 @@ describe("activities — Aktivitätskategorien", () => {
 
   it("lists the categories with their LJP mapping", async () => {
     listReturns();
-    renderRoute("/kompass/activity-categories");
+    renderRoute("/kompass/categories");
     expect(await screen.findByText("Am Fels und in der Halle")).toBeInTheDocument();
-    expect(screen.getByText("1 Kategorien")).toBeInTheDocument();
+    expect(screen.getByText("1 Aktivitätskategorien")).toBeInTheDocument();
   });
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/kompass/activity-categories");
-    expect(await screen.findByText("Keine Kategorien.")).toBeInTheDocument();
+    renderRoute("/kompass/categories");
+    await waitFor(() => expect(visiblePanel().getByText("Keine Kategorien.")).toBeInTheDocument());
   });
 
   it("shows an em dash for a category without a description", async () => {
     listReturns([{ ...ACTIVITY, description: "", ljp_category: "", ljp_category_display: "" }]);
-    renderRoute("/kompass/activity-categories");
+    renderRoute("/kompass/categories");
     await screen.findByText("Klettern");
     expect(screen.getByText("—")).toBeInTheDocument();
   });
@@ -59,19 +79,20 @@ describe("activities — Aktivitätskategorien", () => {
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/kompass/activity-categories");
+    renderRoute("/kompass/categories");
     await screen.findAllByText("Klettern");
     expect(screen.queryByRole("button", { name: "Neue Kategorie" })).not.toBeInTheDocument();
   });
 
-  it("crosses over to the training categories", async () => {
-    listReturns();
-    server.use(
-      http.get(api("/api/members/training-categories"), () => HttpResponse.json([])),
-    );
-    const { user } = renderRoute("/kompass/activity-categories");
-    await user.click(await screen.findByRole("button", { name: "Ausbildungskategorien" }));
-    expect(await screen.findByText("Keine Kategorien.")).toBeInTheDocument();
+  it("switches to the Ausbildungen tab and records it in the URL", async () => {
+    categoriesReturn();
+    const { user } = renderRoute("/kompass/categories");
+    await screen.findByText("Am Fels und in der Halle");
+
+    await user.click(screen.getByRole("tab", { name: "Ausbildungen" }));
+    expect(visiblePanel().getByText("Grundkurs")).toBeInTheDocument();
+    // The open tab is a bookmark, not just component state.
+    expect(currentSearch()).toBe("?type=training");
   });
 
   it("creates a category with its LJP mapping", async () => {
@@ -85,7 +106,7 @@ describe("activities — Aktivitätskategorien", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/kompass/activity-categories");
+    const { user } = renderRoute("/kompass/categories");
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -116,7 +137,7 @@ describe("activities — Aktivitätskategorien", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/kompass/activity-categories");
+    const { user } = renderRoute("/kompass/categories");
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -140,7 +161,7 @@ describe("activities — Aktivitätskategorien", () => {
         return djangoValidation({ name: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/kompass/activity-categories");
+    const { user } = renderRoute("/kompass/categories");
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
 
     const dialog = await screen.findByRole("dialog");
@@ -161,7 +182,7 @@ describe("activities — Aktivitätskategorien", () => {
         return HttpResponse.json(ACTIVITY);
       }),
     );
-    const { user } = renderRoute("/kompass/activity-categories/1");
+    const { user } = renderRoute("/kompass/categories/activity/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     const form = document.querySelector("form") as HTMLElement;
     await fillEveryField(user, form);
@@ -184,7 +205,7 @@ describe("activities — Aktivitätskategorien", () => {
         return HttpResponse.json(ACTIVITY);
       }),
     );
-    const { user } = renderRoute("/kompass/activity-categories/1");
+    const { user } = renderRoute("/kompass/categories/activity/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Der Name fehlt.")).not.toHaveLength(0);
@@ -201,7 +222,7 @@ describe("activities — Aktivitätskategorien", () => {
 
   it("leaves edit mode on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/kompass/activity-categories/1");
+    const { user } = renderRoute("/kompass/categories/activity/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("Klettern")).not.toBeInTheDocument();
@@ -220,7 +241,7 @@ describe("activities — Aktivitätskategorien", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/kompass/activity-categories/1");
+    const { user } = renderRoute("/kompass/categories/activity/1");
 
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
@@ -237,7 +258,7 @@ describe("activities — Aktivitätskategorien", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/kompass/activity-categories/1");
+    const { user } = renderRoute("/kompass/categories/activity/1");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -245,13 +266,9 @@ describe("activities — Aktivitätskategorien", () => {
 
 /* --- Ausbildungskategorien ------------------------------------------------ */
 
-const TRAINING_CAT = { id: 2, name: "Grundkurs", permission_needed: true };
-
 describe("activities — Ausbildungskategorien", () => {
-  function listReturns(rows = [TRAINING_CAT]) {
-    server.use(
-      http.get(api("/api/members/training-categories"), () => HttpResponse.json(rows)),
-    );
+  function listReturns(rows: unknown[] = [TRAINING_CAT]) {
+    categoriesReturn({ activity: [], training: rows });
   }
 
   function detailReturns(overrides: Record<string, unknown> = {}) {
@@ -264,7 +281,7 @@ describe("activities — Ausbildungskategorien", () => {
 
   it("marks which categories need a permission", async () => {
     listReturns([TRAINING_CAT, { id: 3, name: "Aufbaukurs", permission_needed: false }]);
-    renderRoute("/kompass/training-categories");
+    renderRoute("/kompass/categories?type=training");
     expect(await screen.findByText("Grundkurs")).toBeInTheDocument();
     expect(screen.getByText("Ja")).toBeInTheDocument();
     expect(screen.getByText("Nein")).toBeInTheDocument();
@@ -272,26 +289,27 @@ describe("activities — Ausbildungskategorien", () => {
 
   it("says so when there are none", async () => {
     listReturns([]);
-    renderRoute("/kompass/training-categories");
-    expect(await screen.findByText("Keine Kategorien.")).toBeInTheDocument();
+    renderRoute("/kompass/categories?type=training");
+    await waitFor(() => expect(visiblePanel().getByText("Keine Kategorien.")).toBeInTheDocument());
   });
 
   it("hides the create button without the permission", async () => {
     useMe({ permissions: [] });
     listReturns();
-    renderRoute("/kompass/training-categories");
+    renderRoute("/kompass/categories?type=training");
     await screen.findByText("Grundkurs");
     expect(screen.queryByRole("button", { name: "Neue Kategorie" })).not.toBeInTheDocument();
   });
 
-  it("crosses over to the activity categories", async () => {
-    listReturns();
-    server.use(
-      http.get(api("/api/members/activity-categories"), () => HttpResponse.json([])),
-    );
-    const { user } = renderRoute("/kompass/training-categories");
-    await user.click(await screen.findByRole("button", { name: "Aktivitätskategorien" }));
-    expect(await screen.findByText("Keine Kategorien.")).toBeInTheDocument();
+  it("opens on the tab the URL names, and drops the param going back", async () => {
+    categoriesReturn();
+    const { user } = renderRoute("/kompass/categories?type=training");
+    await waitFor(() => expect(visiblePanel().getByText("Grundkurs")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("tab", { name: "Aktivitäten" }));
+    expect(visiblePanel().getByText("Am Fels und in der Halle")).toBeInTheDocument();
+    // The default tab is the bare URL, so it never accumulates a redundant param.
+    expect(currentSearch()).toBe("");
   });
 
   it("creates a category, carrying the permission flag", async () => {
@@ -305,7 +323,7 @@ describe("activities — Ausbildungskategorien", () => {
       }),
     );
     detailReturns();
-    const { user } = renderRoute("/kompass/training-categories");
+    const { user } = renderRoute("/kompass/categories?type=training");
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
 
     const dialog = within(await screen.findByRole("dialog"));
@@ -330,7 +348,7 @@ describe("activities — Ausbildungskategorien", () => {
         }),
       ),
     );
-    const { user } = renderRoute("/kompass/training-categories");
+    const { user } = renderRoute("/kompass/categories?type=training");
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -355,7 +373,7 @@ describe("activities — Ausbildungskategorien", () => {
         return HttpResponse.json(TRAINING_CAT);
       }),
     );
-    const { user } = renderRoute("/kompass/training-categories/2");
+    const { user } = renderRoute("/kompass/categories/training/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findAllByText("Der Name fehlt.")).not.toHaveLength(0);
@@ -370,7 +388,7 @@ describe("activities — Ausbildungskategorien", () => {
 
   it("leaves edit mode on Abbrechen", async () => {
     detailReturns();
-    const { user } = renderRoute("/kompass/training-categories/2");
+    const { user } = renderRoute("/kompass/categories/training/2");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByDisplayValue("Grundkurs")).not.toBeInTheDocument();
@@ -389,7 +407,7 @@ describe("activities — Ausbildungskategorien", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const { user } = renderRoute("/kompass/training-categories/2");
+    const { user } = renderRoute("/kompass/categories/training/2");
 
     await user.click(await screen.findByRole("button", { name: "Löschen" }));
     await user.click(
@@ -406,7 +424,7 @@ describe("activities — Ausbildungskategorien", () => {
 
   it("goes back through the browser history", async () => {
     detailReturns();
-    const { user } = renderRoute("/kompass/training-categories/2");
+    const { user } = renderRoute("/kompass/categories/training/2");
     await user.click(await screen.findByRole("button", { name: "Zurück" }));
     expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
   });
@@ -508,7 +526,7 @@ describe("activities — Kategorien: remaining paths", () => {
       http.get(api("/api/members/activity-categories"), () => HttpResponse.json([ACTIVITY])),
       http.get(api("/api/members/activity-categories/1"), () => HttpResponse.json(ACTIVITY)),
     );
-    const { user } = renderRoute("/kompass/activity-categories");
+    const { user } = renderRoute("/kompass/categories");
 
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
     await user.click(
@@ -526,7 +544,7 @@ describe("activities — Kategorien: remaining paths", () => {
       http.get(api("/api/members/training-categories"), () => HttpResponse.json([TRAINING_CAT])),
       http.get(api("/api/members/training-categories/2"), () => HttpResponse.json(TRAINING_CAT)),
     );
-    const { user } = renderRoute("/kompass/training-categories");
+    const { user } = renderRoute("/kompass/categories?type=training");
 
     await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
     await user.click(
@@ -544,7 +562,7 @@ describe("activities — Kategorien: remaining paths", () => {
         HttpResponse.json({ ...ACTIVITY, ljp_category_display: "" }),
       ),
     );
-    renderRoute("/kompass/activity-categories/1");
+    renderRoute("/kompass/categories/activity/1");
     await screen.findByRole("button", { name: "Bearbeiten" });
     expect(screen.getAllByText("Klettern").length).toBeGreaterThan(0);
   });
@@ -555,7 +573,7 @@ describe("activities — Kategorien: remaining paths", () => {
         HttpResponse.json({ ...TRAINING_CAT, permission_needed: false }),
       ),
     );
-    renderRoute("/kompass/training-categories/2");
+    renderRoute("/kompass/categories/training/2");
     expect(await screen.findByText("Nein")).toBeInTheDocument();
   });
 
@@ -565,7 +583,7 @@ describe("activities — Kategorien: remaining paths", () => {
         HttpResponse.json({ ...ACTIVITY, description: null, ljp_category: null }),
       ),
     );
-    const { user } = renderRoute("/kompass/activity-categories/1");
+    const { user } = renderRoute("/kompass/categories/activity/1");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });

@@ -306,8 +306,21 @@ export interface Tab {
  * so a single Save persists every tab. Tab buttons are type="button" — they
  * live inside the parent <form> and must never submit it.
  */
-export function Tabs({ tabs }: { tabs: Tab[] }) {
-  const [active, setActive] = useState(() => tabs[0]?.id);
+export function Tabs({
+  tabs,
+  active: controlledActive,
+  onChange,
+}: {
+  tabs: Tab[];
+  /** Controlled active tab. Omit to let Tabs keep the state itself. */
+  active?: string;
+  /** Called instead of the internal setter when the tab is controlled. */
+  onChange?: (id: string) => void;
+}) {
+  const [uncontrolledActive, setActive] = useState(() => tabs[0]?.id);
+  const active = controlledActive ?? uncontrolledActive;
+  // An unknown id (a hand-edited URL, a tab that has gone away) falls back to
+  // the first tab rather than rendering an empty panel.
   const activeId = tabs.some((t) => t.id === active) ? active : tabs[0]?.id;
 
   // Surface validation errors on the tab that contains them: every panel stays
@@ -335,7 +348,7 @@ export function Tabs({ tabs }: { tabs: Tab[] }) {
             role="tab"
             aria-selected={t.id === activeId}
             className={`tab${t.id === activeId ? " active" : ""}${errorTabs.has(t.id) ? " has-error" : ""}`}
-            onClick={() => setActive(t.id)}
+            onClick={() => (onChange ? onChange(t.id) : setActive(t.id))}
           >
             {t.label}
           </button>

@@ -153,7 +153,7 @@ export function ExcursionsList() {
         subtitle={`${view.rows.length} / ${view.total}`}
         actions={
           <div className="row-actions">
-            <Button variant="ghost" onClick={() => navigate("/kompass/activity-categories")}>
+            <Button variant="ghost" onClick={() => navigate("/kompass/categories")}>
               Kategorien verwalten
             </Button>
             {can("members.add_global_freizeit") && (

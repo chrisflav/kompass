@@ -88,8 +88,7 @@ const ADMIN_NAV: NavArea[] = [
     { to: "/kompass/excursions", label: "Ausfahrten" },
     { to: "/kompass/klettertreff", label: "Klettertreffs" },
     { to: "/kompass/notelists", label: "Notizlisten" },
-    { to: "/kompass/activity-categories", label: "Aktivitätskategorien" },
-    { to: "/kompass/training-categories", label: "Ausbildungskategorien" },
+    { to: "/kompass/categories", label: "Kategorien" },
   ] },
   { label: "Finanzen", items: [
     { to: "/kompass/finance/statements", label: "Abrechnungen" },

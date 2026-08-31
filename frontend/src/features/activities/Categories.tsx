@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
@@ -15,6 +15,7 @@ import {
   PageHeader,
   QueryBoundary,
   Select,
+  Tabs,
   useConfirmDialog,
   useToast,
   type DetailRow,
@@ -27,19 +28,128 @@ type ActivityCategoryUpdate = components["schemas"]["ActivityCategoryUpdate"];
 type TrainingCategoryOut = components["schemas"]["TrainingCategoryOut"];
 type TrainingCategoryUpdate = components["schemas"]["TrainingCategoryUpdate"];
 
+/**
+ * Activity and training categories share one screen.
+ *
+ * Both are small reference tables that are edited rarely, and each list used to
+ * carry a "jump to the other one" button — the split cost a nav entry and a
+ * click without separating anything a user thinks of as separate. They are two
+ * tabs of a single "Kategorien" page instead.
+ *
+ * The open tab lives in `?type=`, so a bookmark, the back button and the
+ * breadcrumb out of a detail page all return to the tab you were on.
+ */
+type CategoryKind = "activity" | "training";
+
+const DEFAULT_KIND: CategoryKind = "activity";
+
+function kindFromParam(value: string | null): CategoryKind {
+  return value === "training" ? "training" : DEFAULT_KIND;
+}
+
+/** The list URL for a kind — also where a detail page's breadcrumb returns to. */
+export function categoriesPath(kind: CategoryKind): string {
+  return kind === DEFAULT_KIND ? "/kompass/categories" : `/kompass/categories?type=${kind}`;
+}
+
+/* ====================================================================== */
+/* The combined list page                                                 */
+/* ====================================================================== */
+
+export function CategoriesPage() {
+  const { can } = usePermissions();
+  const [params, setParams] = useSearchParams();
+  const kind = kindFromParam(params.get("type"));
+
+  const activityQuery = useApiQuery(["activity-categories"], () =>
+    unwrap(client.GET("/api/members/activity-categories")),
+  );
+  const trainingQuery = useApiQuery(["training-categories"], () =>
+    unwrap(client.GET("/api/members/training-categories")),
+  );
+
+  const [creating, setCreating] = useState(false);
+
+  const count = kind === "activity" ? activityQuery.data?.length : trainingQuery.data?.length;
+  const mayAdd = can(
+    kind === "activity" ? "members.add_activitycategory" : "members.add_trainingcategory",
+  );
+  // Name the kind: a bare "3 Kategorien" above two tabs reads as a total.
+  const noun = kind === "activity" ? "Aktivitätskategorien" : "Ausbildungskategorien";
+
+  return (
+    <div>
+      <PageHeader
+        breadcrumbs={[{ label: "Kategorien" }]}
+        subtitle={count !== undefined ? `${count} ${noun}` : undefined}
+        actions={
+          mayAdd ? <Button onClick={() => setCreating(true)}>Neue Kategorie</Button> : undefined
+        }
+      />
+
+      {creating && kind === "activity" && (
+        <NewActivityCategoryModal onClose={() => setCreating(false)} />
+      )}
+      {creating && kind === "training" && (
+        <NewTrainingCategoryModal onClose={() => setCreating(false)} />
+      )}
+
+      <Tabs
+        active={kind}
+        onChange={(id) => {
+          // Close a half-filled create dialog rather than carrying it across to
+          // the other kind, where its fields do not apply.
+          setCreating(false);
+          setParams(id === DEFAULT_KIND ? {} : { type: id }, { replace: true });
+        }}
+        tabs={[
+          {
+            id: "activity",
+            label: "Aktivitäten",
+            content: <ActivityCategoryTable query={activityQuery} />,
+          },
+          {
+            id: "training",
+            label: "Ausbildungen",
+            content: <TrainingCategoryTable query={trainingQuery} />,
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
 /* ====================================================================== */
 /* ActivityCategory (Aktivitätskategorien)                                */
 /* ====================================================================== */
 
-export function ActivityCategoriesList() {
-  const { can } = usePermissions();
+function ActivityCategoryTable({
+  query,
+}: {
+  query: ReturnType<typeof useApiQuery<ActivityCategoryOut[]>>;
+}) {
+  const navigate = useNavigate();
+  return (
+    <QueryBoundary query={query} empty="Keine Kategorien.">
+      {(rows: ActivityCategoryOut[]) => (
+        <DataTable
+          rows={rows}
+          rowKey={(c) => c.id}
+          onRowClick={(c) => navigate(`/kompass/categories/activity/${c.id}`)}
+          columns={[
+            { header: "Name", cell: (c) => c.name },
+            { header: "LJP-Kategorie", cell: (c) => c.ljp_category_display || c.ljp_category },
+            { header: "Beschreibung", cell: (c) => c.description || "—" },
+          ]}
+        />
+      )}
+    </QueryBoundary>
+  );
+}
+
+function NewActivityCategoryModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const query = useApiQuery(["activity-categories"], () =>
-    unwrap(client.GET("/api/members/activity-categories")),
-  );
-
-  const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [ljp, setLjp] = useState(LJP_CATEGORY_OPTIONS[0].value);
   const [description, setDescription] = useState("");
@@ -52,11 +162,8 @@ export function ActivityCategoriesList() {
       invalidate: [["activity-categories"]],
       onSuccess: (created: ActivityCategoryOut) => {
         toast.success("Kategorie angelegt.");
-        setName("");
-        setDescription("");
-        setLjp(LJP_CATEGORY_OPTIONS[0].value);
-        setCreating(false);
-        navigate(`/kompass/activity-categories/${created.id}`);
+        onClose();
+        navigate(`/kompass/categories/activity/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -66,80 +173,41 @@ export function ActivityCategoriesList() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[{ label: "Aktivitätskategorien" }]}
-        subtitle={query.data ? `${query.data.length} Kategorien` : undefined}
-        actions={
-          <div className="row-actions">
-            {can("members.add_activitycategory") && (
-              <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
-            )}
-            <Button variant="ghost" onClick={() => navigate("/kompass/training-categories")}>
-              Ausbildungskategorien
-            </Button>
-          </div>
-        }
-      />
-
-      {creating && (
-        <Modal title="Neue Aktivitätskategorie" onClose={() => setCreating(false)}>
-          <form
-            className="stack"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setFieldErrors({});
-              create.mutate({ name, ljp_category: ljp, description });
-            }}
-          >
-            <Field label="Name">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                maxLength={20}
-              />
-            </Field>
-            {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
-            <Field label="LJP-Kategorie">
-              <Select value={ljp} onChange={(v) => setLjp(v)} options={LJP_CATEGORY_OPTIONS} />
-            </Field>
-            {fieldErrors.ljp_category && (
-              <div className="field-error">{fieldErrors.ljp_category.join(" ")}</div>
-            )}
-            <Field label="Beschreibung">
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-            </Field>
-            {fieldErrors.description && (
-              <div className="field-error">{fieldErrors.description.join(" ")}</div>
-            )}
-            <div className="row-actions">
-              <Button type="submit" busy={create.isPending}>
-                Anlegen
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setCreating(false)}>
-                Abbrechen
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      <QueryBoundary query={query} empty="Keine Kategorien.">
-        {(rows: ActivityCategoryOut[]) => (
-          <DataTable
-            rows={rows}
-            rowKey={(c) => c.id}
-            onRowClick={(c) => navigate(`/kompass/activity-categories/${c.id}`)}
-            columns={[
-              { header: "Name", cell: (c) => c.name },
-              { header: "LJP-Kategorie", cell: (c) => c.ljp_category_display || c.ljp_category },
-              { header: "Beschreibung", cell: (c) => c.description || "—" },
-            ]}
-          />
+    <Modal title="Neue Aktivitätskategorie" onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setFieldErrors({});
+          create.mutate({ name, ljp_category: ljp, description });
+        }}
+      >
+        <Field label="Name">
+          <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={20} />
+        </Field>
+        {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
+        <Field label="LJP-Kategorie">
+          <Select value={ljp} onChange={(v) => setLjp(v)} options={LJP_CATEGORY_OPTIONS} />
+        </Field>
+        {fieldErrors.ljp_category && (
+          <div className="field-error">{fieldErrors.ljp_category.join(" ")}</div>
         )}
-      </QueryBoundary>
-    </div>
+        <Field label="Beschreibung">
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+        </Field>
+        {fieldErrors.description && (
+          <div className="field-error">{fieldErrors.description.join(" ")}</div>
+        )}
+        <div className="row-actions">
+          <Button type="submit" busy={create.isPending}>
+            Anlegen
+          </Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Abbrechen
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -207,7 +275,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
       invalidate: [["activity-categories"]],
       onSuccess: () => {
         toast.success("Gelöscht.");
-        navigate("/kompass/activity-categories");
+        navigate(categoriesPath("activity"));
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -263,7 +331,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Aktivitätskategorien", to: "/kompass/activity-categories" },
+          { label: "Kategorien", to: categoriesPath("activity") },
           { label: cat.name },
         ]}
         actions={
@@ -318,15 +386,36 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
 /* TrainingCategory (Ausbildungskategorien)                               */
 /* ====================================================================== */
 
-export function TrainingCategoriesList() {
-  const { can } = usePermissions();
+function TrainingCategoryTable({
+  query,
+}: {
+  query: ReturnType<typeof useApiQuery<TrainingCategoryOut[]>>;
+}) {
+  const navigate = useNavigate();
+  return (
+    <QueryBoundary query={query} empty="Keine Kategorien.">
+      {(rows: TrainingCategoryOut[]) => (
+        <DataTable
+          rows={rows}
+          rowKey={(c) => c.id}
+          onRowClick={(c) => navigate(`/kompass/categories/training/${c.id}`)}
+          columns={[
+            { header: "Name", cell: (c) => c.name },
+            {
+              header: "Berechtigung erforderlich",
+              cell: (c) =>
+                c.permission_needed ? <Badge tone="warning">Ja</Badge> : <Badge>Nein</Badge>,
+            },
+          ]}
+        />
+      )}
+    </QueryBoundary>
+  );
+}
+
+function NewTrainingCategoryModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const query = useApiQuery(["training-categories"], () =>
-    unwrap(client.GET("/api/members/training-categories")),
-  );
-
-  const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [permissionNeeded, setPermissionNeeded] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -338,10 +427,8 @@ export function TrainingCategoriesList() {
       invalidate: [["training-categories"]],
       onSuccess: (created: TrainingCategoryOut) => {
         toast.success("Kategorie angelegt.");
-        setName("");
-        setPermissionNeeded(false);
-        setCreating(false);
-        navigate(`/kompass/training-categories/${created.id}`);
+        onClose();
+        navigate(`/kompass/categories/training/${created.id}`);
       },
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
@@ -351,85 +438,43 @@ export function TrainingCategoriesList() {
   );
 
   return (
-    <div>
-      <PageHeader
-        breadcrumbs={[{ label: "Ausbildungskategorien" }]}
-        subtitle={query.data ? `${query.data.length} Kategorien` : undefined}
-        actions={
-          <div className="row-actions">
-            {can("members.add_trainingcategory") && (
-              <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
-            )}
-            <Button variant="ghost" onClick={() => navigate("/kompass/activity-categories")}>
-              Aktivitätskategorien
-            </Button>
-          </div>
-        }
-      />
-
-      {creating && (
-        <Modal title="Neue Ausbildungskategorie" onClose={() => setCreating(false)}>
-          <form
-            className="stack"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setFieldErrors({});
-              create.mutate({ name, permission_needed: permissionNeeded });
-            }}
-          >
-            <Field label="Name">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                maxLength={50}
-              />
-            </Field>
-            {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
-            <label
-              className="field"
-              style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}
-            >
-              <input
-                type="checkbox"
-                checked={permissionNeeded}
-                onChange={(e) => setPermissionNeeded(e.target.checked)}
-              />
-              <span className="field-label">Berechtigung erforderlich</span>
-            </label>
-            {fieldErrors.permission_needed && (
-              <div className="field-error">{fieldErrors.permission_needed.join(" ")}</div>
-            )}
-            <div className="row-actions">
-              <Button type="submit" busy={create.isPending}>
-                Anlegen
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setCreating(false)}>
-                Abbrechen
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      <QueryBoundary query={query} empty="Keine Kategorien.">
-        {(rows: TrainingCategoryOut[]) => (
-          <DataTable
-            rows={rows}
-            rowKey={(c) => c.id}
-            onRowClick={(c) => navigate(`/kompass/training-categories/${c.id}`)}
-            columns={[
-              { header: "Name", cell: (c) => c.name },
-              {
-                header: "Berechtigung erforderlich",
-                cell: (c) =>
-                  c.permission_needed ? <Badge tone="warning">Ja</Badge> : <Badge>Nein</Badge>,
-              },
-            ]}
+    <Modal title="Neue Ausbildungskategorie" onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setFieldErrors({});
+          create.mutate({ name, permission_needed: permissionNeeded });
+        }}
+      >
+        <Field label="Name">
+          <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={50} />
+        </Field>
+        {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
+        <label
+          className="field"
+          style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}
+        >
+          <input
+            type="checkbox"
+            checked={permissionNeeded}
+            onChange={(e) => setPermissionNeeded(e.target.checked)}
           />
+          <span className="field-label">Berechtigung erforderlich</span>
+        </label>
+        {fieldErrors.permission_needed && (
+          <div className="field-error">{fieldErrors.permission_needed.join(" ")}</div>
         )}
-      </QueryBoundary>
-    </div>
+        <div className="row-actions">
+          <Button type="submit" busy={create.isPending}>
+            Anlegen
+          </Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Abbrechen
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -494,7 +539,7 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
       invalidate: [["training-categories"]],
       onSuccess: () => {
         toast.success("Gelöscht.");
-        navigate("/kompass/training-categories");
+        navigate(categoriesPath("training"));
       },
       onError: (e: Error) => toast.error(e.message),
     },
@@ -539,7 +584,7 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Ausbildungskategorien", to: "/kompass/training-categories" },
+          { label: "Kategorien", to: categoriesPath("training") },
           { label: cat.name },
         ]}
         actions={
