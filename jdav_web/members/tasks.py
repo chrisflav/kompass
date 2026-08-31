@@ -1,9 +1,13 @@
+import logging
+
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 
 from .models import Freizeit
 from .models import MemberWaitingList
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -27,16 +31,34 @@ def ask_for_waiting_confirmation():
     return no
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def send_crisis_intervention_list():
     """
     Send crisis intervention lists for all excursions that start on the current day and
     that have not been sent yet.
+
+    One excursion failing must not cost the others their list, so failures are collected
+    and only raised once every excursion has been attempted. Retrying is worthwhile
+    because an excursion leaves the queryset as soon as it starts: a list that fails at
+    night is not picked up by the next nightly run. Excursions that did go out are
+    already marked as sent, so a retry only reattempts the ones that failed.
     """
     no = 0
+    failed = []
     for excursion in Freizeit.to_send_crisis_intervention_list():
-        excursion.send_crisis_intervention_list()
-        no += 1
+        try:
+            excursion.send_crisis_intervention_list()
+        except Exception:
+            logger.exception(
+                "Could not send the crisis intervention list for excursion %s.", excursion.code
+            )
+            failed.append(excursion.code)
+        else:
+            no += 1
+    if failed:
+        raise RuntimeError(
+            "Could not send crisis intervention lists for: {}".format(", ".join(failed))
+        )
     return no
 
 

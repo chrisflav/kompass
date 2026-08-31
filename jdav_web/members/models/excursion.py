@@ -609,7 +609,8 @@ class Freizeit(CommonModel):
         responsible and the youth leaders of this excursion.
 
         The excursion is only marked as sent once the mail has actually been
-        handed to the mail backend; otherwise the next run picks it up again.
+        handed to the mail backend, so an undelivered list is raised to the
+        calling task instead of being recorded as sent.
         """
         filename = self.crisis_intervention_list_pdf(save_only=True)
         leaders = ", ".join([yl.name for yl in self.jugendleiter.all()])
