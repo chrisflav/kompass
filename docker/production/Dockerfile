@@ -10,6 +10,11 @@ RUN groupadd -g 501 app && useradd -g 501 -u 501 -m -d /app app
 # in docker-compose.yaml, the permissions are inherited during the mount.
 RUN mkdir -p /var/www/jdav_web/static && chown -R app:app /var/www/jdav_web/static
 
+# create media directory and set permissions, when doing this before mounting a named volume
+# in docker-compose.yaml, the permissions are inherited during the mount. The celery worker
+# writes generated PDFs here, so it must be writable even where nothing is mounted over it.
+RUN mkdir -p /var/www/jdav_web/media && chown -R app:app /var/www/jdav_web/media
+
 # create static directory and set permissions, when doing this before mounting a named volume
 # in docker-compose.yaml, the permissions are inherited during the mount.
 RUN mkdir -p /tmp/uwsgi && chown -R app:app /tmp/uwsgi

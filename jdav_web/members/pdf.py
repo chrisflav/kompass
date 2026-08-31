@@ -11,6 +11,7 @@ from contrib.media import find_template
 from contrib.media import media_dir
 from contrib.media import media_path
 from contrib.media import serve_media
+from django.conf import settings
 from django.template.loader import get_template
 from PIL import Image
 from pypdf import PageObject
@@ -192,3 +193,88 @@ def merge_pdfs(name, filenames, date=None, save_only=False):
     if save_only:
         return filename_pdf
     return serve_pdf(filename_pdf)
+
+
+def generate_crisis_intervention_list_pdf(
+    *,
+    name,
+    description,
+    code,
+    place,
+    destination,
+    groups,
+    staff,
+    start_date,
+    end_date,
+    tour_type,
+    tour_approach,
+    members,
+    filename_base=None,
+    save_only=False,
+):
+    """Generate a crisis intervention list PDF.
+
+    Args:
+        name: Activity name
+        description: Activity description
+        code: Activity code (e.g., K-260101)
+        place: Location of the activity
+        destination: Destination (optional, e.g., a peak)
+        groups: List or queryset of Group objects
+        staff: List or queryset of Member objects (youth leaders)
+        start_date: Start date of the activity
+        end_date: End date of the activity
+        tour_type: Tour type identifier (empty string for ad-hoc lists)
+        tour_approach: Tour approach identifier (empty string for ad-hoc lists)
+        members: List of Member objects participating in the activity
+        filename_base: Base name of the generated file. Defaults to the activity
+            name, or its description if the name is too long for a file name.
+        save_only: Return the file name of the generated PDF instead of an
+            HttpResponse serving it.
+
+    Returns:
+        HttpResponse with the generated PDF, or its file name if `save_only`
+    """
+    # Format groups string
+    groups_str = ", ".join([g.name for g in groups]) if groups else ""
+
+    # Format staff string
+    staff_str = ", ".join([s.name for s in staff]) if staff else ""
+
+    # Format time period string
+    # Handle both date and datetime objects
+    start_date_only = start_date.date() if hasattr(start_date, "date") else start_date
+    end_date_only = end_date.date() if hasattr(end_date, "date") else end_date
+
+    if start_date_only == end_date_only:
+        time_period_str = start_date_only.strftime("%d.%m.%Y")
+    else:
+        time_period_str = (
+            f"{start_date_only.strftime('%d.%m.%Y')} - {end_date_only.strftime('%d.%m.%Y')}"
+        )
+
+    context = {
+        "name": name,
+        "description": description,
+        "code": code,
+        "place": place,
+        "destination": destination,
+        "groups_str": groups_str,
+        "staff_str": staff_str,
+        "time_period_str": time_period_str,
+        "tour_type": tour_type,
+        "tour_approach": tour_approach,
+        "members": members,
+        "settings": settings,
+    }
+
+    if filename_base is None:
+        # Use description for filename if name is long, otherwise use name
+        filename_base = description if len(name) > 30 else name
+    return render_tex(
+        f"{filename_base}_Krisenliste",
+        "members/crisis_intervention_list.tex",
+        context,
+        date=start_date,
+        save_only=save_only,
+    )
