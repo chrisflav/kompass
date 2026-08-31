@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 19:42+0200\n"
+"POT-Creation-Date: 2026-08-29 16:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2074,6 +2074,9 @@ msgstr "Nachname des*der Teilnehmenden"
 
 msgid "phone number of child or parent"
 msgstr "Telefonnummer des*der Teilnehmenden oder einer Kontaktperson"
+
+msgid "You can find this number on your DAV membership card."
+msgstr "Diese Nummer findest du auf deinem DAV Mitgliedsausweis."
 
 msgid ""
 "Are we allowed to take photos of you during activities? We use them for our "

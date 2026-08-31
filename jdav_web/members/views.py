@@ -23,6 +23,12 @@ from .pdf import render_tex
 
 
 class MemberForm(RequiredFieldsMixin, ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for field in self.Meta.required:
+            self.fields[field].required = True
+
     class Meta:
         model = Member
         fields = [
@@ -42,10 +48,12 @@ class MemberForm(RequiredFieldsMixin, ModelForm):
             "prename": _("Prename of the member."),
             "lastname": _("Lastname of the member."),
             "phone_number": _("phone number of child or parent"),
+            "dav_badge_no": _("You can find this number on your DAV membership card."),
             "photos_may_be_taken": _(
                 "Are we allowed to take photos of you during activities? We use them for our public relations work."
             ),
         }
+        required = ["dav_badge_no"]
 
 
 class MemberRegistrationForm(RequiredFieldsMixin, ModelForm):
