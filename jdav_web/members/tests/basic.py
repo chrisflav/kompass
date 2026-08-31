@@ -19,6 +19,7 @@ from django.contrib.messages import get_messages
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
@@ -1353,7 +1354,7 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertContains(response, self.peter.name)
         self.assertContains(response, _("Location"))
 
-    @mock.patch("members.admin.render_tex")
+    @mock.patch("members.pdf.render_tex")
     def test_crisis_intervention_list_form_with_youth_leaders_and_groups(self, mock_render_tex):
         """Test crisis intervention list form with youth leaders and groups."""
         # Mock render_tex to return a PDF response
@@ -1587,8 +1588,39 @@ class FreizeitTestCase(BasicMemberTestCase):
 
     def test_send_crisis_intervention_list(self):
         self.ex2.crisis_intervention_list_sent = False
+        self.ex2.add_members(Member.objects.filter(pk=self.lara.pk))
+        mail.outbox = []
+
         self.ex2.send_crisis_intervention_list()
+
         self.assertTrue(self.ex2.crisis_intervention_list_sent)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, [settings.SEKTION_CRISIS_INTERVENTION_MAIL])
+        self.assertIn(self.fritz.email, message.cc)
+        self.assertEqual(len(message.attachments), 1)
+        filename, content, _mimetype = message.attachments[0]
+        self.assertTrue(filename.startswith(self.ex2.code))
+        # the attached list has to contain the excursion and its participants,
+        # an empty form is of no use in a crisis
+        text = PdfReader(BytesIO(content)).pages[0].extract_text()
+        self.assertIn(self.ex2.name, text)
+        self.assertIn(self.lara.name, text)
+
+    @override_settings(EMAIL_BACKEND="members.tests.utils.FailingEmailBackend")
+    def test_send_crisis_intervention_list_keeps_flag_on_failure(self):
+        """An undelivered list has to be retried, not silently marked as sent."""
+        self.ex2.date = timezone.now() + timezone.timedelta(hours=4)
+        self.ex2.crisis_intervention_list_sent = False
+        self.ex2.save()
+
+        with self.assertRaises(RuntimeError):
+            self.ex2.send_crisis_intervention_list()
+
+        self.assertFalse(self.ex2.crisis_intervention_list_sent)
+        self.ex2.refresh_from_db()
+        self.assertFalse(self.ex2.crisis_intervention_list_sent)
+        self.assertIn(self.ex2, Freizeit.to_send_crisis_intervention_list())
 
     def test_filter_queryset_by_permissions(self):
         qs = Freizeit.filter_queryset_by_permissions(self.fritz)

@@ -138,6 +138,26 @@ class TasksTestCase(TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(mock_send.call_count, 1)
 
+    @patch.object(Freizeit, "send_crisis_intervention_list")
+    def test_send_crisis_intervention_list_continues_after_failure(self, mock_send):
+        """One excursion failing must not cost the others their list."""
+        Freizeit.objects.create(
+            name="Today Excursion 3",
+            date=timezone.now() + timezone.timedelta(hours=4),
+            tour_type=GEMEINSCHAFTS_TOUR,
+            kilometers_traveled=10,
+            difficulty=1,
+            crisis_intervention_list_sent=False,
+            notification_crisis_intervention_list_sent=False,
+        )
+        mock_send.side_effect = [RuntimeError("sending failed"), None]
+
+        with self.assertRaises(RuntimeError):
+            send_crisis_intervention_list()
+
+        # both excursions were attempted, not just the ones before the failure
+        self.assertEqual(mock_send.call_count, 2)
+
     @patch.object(Freizeit, "notify_leaders_crisis_intervention_list")
     def test_send_notification_crisis_intervention_list(self, mock_notify):
         """Test send_notification_crisis_intervention_list task calls correct excursions."""

@@ -10,6 +10,11 @@ RUN groupadd -g 501 app && useradd -g 501 -u 501 -m -d /app app
 # in docker-compose.yaml, the permissions are inherited during the mount.
 RUN mkdir -p /var/www/jdav_web/static && chown -R app:app /var/www/jdav_web/static
 
+# create media directory and set permissions, so that the celery worker can render PDFs
+# here in deployments that do not mount anything over it. Where ./media is bind mounted in
+# docker-compose.yaml, the ownership of the host directory applies instead.
+RUN mkdir -p /var/www/jdav_web/media && chown -R app:app /var/www/jdav_web/media
+
 # create static directory and set permissions, when doing this before mounting a named volume
 # in docker-compose.yaml, the permissions are inherited during the mount.
 RUN mkdir -p /tmp/uwsgi && chown -R app:app /tmp/uwsgi

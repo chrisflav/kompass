@@ -1,9 +1,11 @@
 import datetime
+from smtplib import SMTPException
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.contrib.auth import models as authmodels
 from django.contrib.auth.models import User
+from django.core.mail.backends.base import BaseEmailBackend
 from django.test import TestCase
 from django.utils import timezone
 from mailer.models import EmailAddress
@@ -60,6 +62,15 @@ def create_custom_user(username, groups, prename, lastname):
         g = authmodels.Group.objects.get(name=group)
         user.groups.add(g)
     return user
+
+
+class FailingEmailBackend(BaseEmailBackend):
+    """
+    Email backend that always fails, to test that senders notice undelivered mail.
+    """
+
+    def send_messages(self, email_messages):
+        raise SMTPException("sending failed")
 
 
 class BasicMemberTestCase(TestCase):
