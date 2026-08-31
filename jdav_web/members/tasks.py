@@ -31,7 +31,7 @@ def ask_for_waiting_confirmation():
     return no
 
 
-@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+@shared_task(autoretry_for=(Exception,), retry_backoff=60, max_retries=3)
 def send_crisis_intervention_list():
     """
     Send crisis intervention lists for all excursions that start on the current day and
@@ -40,8 +40,9 @@ def send_crisis_intervention_list():
     One excursion failing must not cost the others their list, so failures are collected
     and only raised once every excursion has been attempted. Retrying is worthwhile
     because an excursion leaves the queryset as soon as it starts: a list that fails at
-    night is not picked up by the next nightly run. Excursions that did go out are
-    already marked as sent, so a retry only reattempts the ones that failed.
+    night is not picked up by the next nightly run. The backoff spans minutes rather
+    than seconds so that a short mail or broker outage is survived. Excursions that did
+    go out are already marked as sent, so a retry only reattempts the ones that failed.
     """
     no = 0
     failed = []
