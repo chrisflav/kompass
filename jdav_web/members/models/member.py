@@ -15,10 +15,10 @@ from django.db.models import When
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from mailer.mailutils import app_link
 from mailer.mailutils import flow_link
 from mailer.mailutils import get_echo_link
 from mailer.mailutils import get_invite_as_user_key
-from mailer.mailutils import prepend_base_url
 from mailer.mailutils import send as send_mail
 from members.rules import may_change
 from members.rules import may_delete
@@ -391,9 +391,7 @@ class Member(Person):
         # notify jugendleiters of group of registration
         jls = [jl for group in self.group.all() for jl in group.leiters.all()]
         for jl in jls:
-            link = prepend_base_url(
-                reverse("admin:members_memberunconfirmedproxy_change", args=[str(self.id)])
-            )
+            link = app_link("/registrations/{}".format(self.id))
             send_mail(
                 _("New unconfirmed registration for group %(group)s") % {"group": group},
                 settings.NEW_UNCONFIRMED_REGISTRATION.format(

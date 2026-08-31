@@ -59,7 +59,6 @@ base_settings = [
     "components/api.py",
     "components/database.py",
     "components/cache.py",
-    "components/jet.py",
     "components/emails.py",
     "components/texts.py",
     "components/locale.py",

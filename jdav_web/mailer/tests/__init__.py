@@ -1,6 +1,5 @@
 # ruff: noqa F403
 
-from .admin import *
 from .api_public import *
 from .mailutils import *
 from .models import *

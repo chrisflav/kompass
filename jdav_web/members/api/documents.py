@@ -1,14 +1,13 @@
 """Document / artifact generation endpoints for the members API.
 
 Per ``MIGRATION.md`` the backend generates PDFs / spreadsheets / documents on
-request and serves them as artifacts. These routes expose the exact generator
-functions the Django admin uses (``members.pdf`` / ``members.excel`` and the
-shared ``generate_crisis_intervention_list_pdf`` helper), each behind the same
-permission gate the admin enforces:
+request and serves them as artifacts. These routes own the generator functions
+(``members.pdf`` / ``members.excel``, including the shared
+``generate_crisis_intervention_list_pdf`` helper), each behind the permission
+gate the retired admin enforced:
 
-* **group overview / checklist** — the plain ``members.view_group`` permission
-  (``GroupAdmin.group_overview`` / ``group_checklist``).
-* **excursion / note-list documents** — the admin's ``may_view_excursion`` /
+* **group overview / checklist** — the plain ``members.view_group`` permission.
+* **excursion / note-list documents** — the ``may_view_excursion`` /
   ``may_view_notelist`` gate, i.e. ``view_global_member`` *or* a linked member
   that ``may_view`` every member on the list. That is captured exactly by the
   ``members.view_obj_member`` object permission (``may_view |
@@ -32,7 +31,6 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from finance.models import Bill
-from members.admin import generate_crisis_intervention_list_pdf
 from members.excel import generate_group_overview
 from members.excel import generate_ljp_vbk
 from members.models import Freizeit
@@ -41,6 +39,7 @@ from members.models import Member
 from members.models import MemberNoteList
 from members.models import WEEKDAYS
 from members.pdf import fill_pdf_form
+from members.pdf import generate_crisis_intervention_list_pdf
 from members.pdf import render_docx
 from members.pdf import render_tex
 from members.pdf import render_tex_with_attachments
