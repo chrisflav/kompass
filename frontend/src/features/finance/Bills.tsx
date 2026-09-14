@@ -22,16 +22,13 @@ import {
   type DetailRow,
   useConfirmDialog,
   useToast,
+  euro,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
 
 type BillBrief = components["schemas"]["BillBrief"];
 type BillOut = components["schemas"]["BillOut"];
 type StatementBrief = components["schemas"]["StatementBrief"];
-
-function euro(value: number): string {
-  return `${value.toFixed(2)} €`;
-}
 
 /**
  * Multipart POST with the bearer token attached, mirroring `downloadArtifact`'s

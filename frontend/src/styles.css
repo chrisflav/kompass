@@ -1931,3 +1931,870 @@ a:focus-visible,
 .bulk-bar .bulk-count {
   font-weight: 600;
 }
+
+/* ==========================================================================
+   Statement flows — the submission route and the review pipeline.
+
+   Both are guided, multi-leg screens rather than field editors, so they get a
+   shared vocabulary: a rail of legs at the top, one panel of content, one
+   forward/back bar at the bottom. Restrained on purpose — the palette, the mono
+   instrument voice and the north-tick are the identity; no contour flourish in
+   the admin.
+   ========================================================================== */
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* --- the Etappen rail ----------------------------------------------------- */
+
+/* A leg carries the figure it settled, not a step number, so a mismatch between
+   two legs (expenses vs bookings) is visible without opening either. */
+.etappen ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.etappe {
+  background: var(--panel);
+  display: flex;
+}
+
+.etappe-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-top: 2px solid var(--border);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+button.etappe-body {
+  cursor: pointer;
+}
+
+button.etappe-body:hover {
+  background: var(--panel-2);
+}
+
+.etappe-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.etappe-body[aria-disabled="true"] {
+  opacity: 0.5;
+}
+
+/* The rule along the top doubles as the progress bar: bistre behind you, the
+   compass-needle red where you stand. */
+.etappe.is-done .etappe-body {
+  border-top-color: var(--contour);
+}
+
+.etappe.is-current .etappe-body {
+  border-top-color: var(--nord);
+  background: var(--panel-2);
+}
+
+.etappe-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.etappe.is-current .etappe-label {
+  color: var(--text);
+}
+
+.etappe-index {
+  color: var(--contour);
+}
+
+.etappe-readout {
+  font-size: 0.95rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.etappe.is-ahead .etappe-readout {
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .etappen ol {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+}
+
+/* --- panel + navigation --------------------------------------------------- */
+
+.flow-panel {
+  animation: flow-in 140ms ease-out;
+}
+
+@keyframes flow-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-panel {
+    animation: none;
+  }
+}
+
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  max-width: 46rem;
+}
+
+.flow-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.flow-lead {
+  margin: -0.6rem 0 0;
+  color: var(--muted);
+  max-width: 44rem;
+}
+
+.flow-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+
+.flow-nav-fwd {
+  display: flex;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.flow-block {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-left: 3px solid var(--warning);
+  padding-left: 0.75rem;
+}
+
+/* --- step 1: choosing the occasion ---------------------------------------- */
+
+.choice-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+.choice-card:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.choice-card:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.choice-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.choice-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.choice-title {
+  font-weight: 600;
+}
+
+.choice-hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Facts the payout is derived from — stated in the instrument voice so they
+   read as given, not as something to fill in. */
+.readout {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--contour);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 0.85rem 1rem;
+}
+
+.readout-caption,
+.payout-caption {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.readout dl {
+  margin: 0.6rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.6rem 1.2rem;
+}
+
+.readout dl div {
+  display: flex;
+  flex-direction: column;
+}
+
+.readout dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.readout dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- receipts ------------------------------------------------------------- */
+
+.beleg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.beleg {
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.beleg-empty {
+  background: var(--panel);
+  padding: 1.1rem 0.9rem;
+  color: var(--muted);
+}
+
+.beleg-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.beleg-title {
+  font-weight: 500;
+}
+
+.beleg-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.beleg-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.beleg-actions,
+.beleg-decide {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.beleg.is-editing {
+  display: block;
+  padding: 1rem 0.9rem;
+  background: var(--panel-2);
+}
+
+.beleg-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.beleg-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.beleg-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.beleg-total strong {
+  font-size: 1.15rem;
+}
+
+/* --- payout preview + summary --------------------------------------------- */
+
+.payout {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 1rem;
+}
+
+.payout dl,
+.summary-lines {
+  margin: 0.7rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.payout dl div,
+.summary-lines div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.payout dt,
+.summary-lines dt {
+  color: var(--muted);
+}
+
+.payout dd,
+.summary-lines dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.payout-sum {
+  border-top: 1px solid var(--border);
+  padding-top: 0.4rem;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.payout-sum dt {
+  color: var(--text) !important;
+}
+
+.payout-note {
+  margin: 0.8rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.summary-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 1rem;
+}
+
+.summary-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-head strong {
+  font-size: 1.25rem;
+}
+
+/* --- pre-flight checks ---------------------------------------------------- */
+
+/* Blockers are shown before the irreversible button, not returned by it. */
+.preflight {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preflight-item {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius);
+  border-left: 3px solid transparent;
+}
+
+.preflight-item.ok {
+  background: var(--success-weak);
+  border-left-color: var(--success);
+}
+
+.preflight-item.bad {
+  background: var(--danger-weak);
+  border-left-color: var(--danger);
+}
+
+.preflight-mark {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.preflight-item.ok .preflight-mark {
+  color: var(--success);
+}
+
+.preflight-item.bad .preflight-mark {
+  color: var(--danger);
+}
+
+/* --- review: decisions beside their evidence ------------------------------ */
+
+.review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.review-proof {
+  position: sticky;
+  top: 5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+@media (max-width: 980px) {
+  .review {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-proof {
+    position: static;
+  }
+}
+
+.beleg.is-decidable {
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.beleg-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+  background: none;
+  border: 0;
+  border-left: 3px solid transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.beleg-pick:hover {
+  background: var(--panel-2);
+}
+
+.beleg-pick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.beleg.is-selected .beleg-pick {
+  border-left-color: var(--nord);
+  background: var(--panel-2);
+}
+
+.beleg.is-covered .beleg-amount {
+  color: var(--success);
+}
+
+.beleg.is-decidable:not(.is-covered) .beleg-amount {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.beleg.is-decidable .beleg-decide {
+  padding: 0 0.9rem 0.7rem;
+}
+
+@media (min-width: 640px) {
+  .beleg.is-decidable .beleg-decide {
+    padding: 0 0.9rem;
+  }
+}
+
+.decide-tally {
+  display: flex;
+  gap: 2rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.decide-tally div {
+  display: flex;
+  flex-direction: column;
+}
+
+.tally-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.decide-tally strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+}
+
+.proof img,
+.proof object {
+  width: 100%;
+  max-height: 26rem;
+  height: auto;
+  object-fit: contain;
+  border-radius: calc(var(--radius) - 3px);
+  background: var(--panel-2);
+}
+
+.proof object {
+  height: 26rem;
+}
+
+.proof {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.proof figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.proof-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+/* --- review: bookings ----------------------------------------------------- */
+
+.stage-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-items: flex-start;
+  background: var(--panel);
+}
+
+.stage-empty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.stage-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stage-hint {
+  font-size: 0.85rem;
+  color: var(--warning);
+}
+
+.abgleich {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.9rem 1rem;
+}
+
+.abgleich.ok {
+  border-left-color: var(--success);
+}
+
+.abgleich.bad {
+  border-left-color: var(--danger);
+}
+
+.abgleich p {
+  margin: 0.4rem 0 0;
+}
+
+/* --- review: the payout --------------------------------------------------- */
+
+/* The irreversible step carries only what is about to happen. Everything that
+   could still change the outcome lives on the stages behind it. */
+.payout-final {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+/* One transfer per row: who, which account, how much, and the EPC-QR that
+   carries all of it into a banking app. */
+.payout-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.payout-row {
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+.payout-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.payout-row-name {
+  font-weight: 600;
+}
+
+/* Bank details get the instrument voice — they are read and typed, not prose. */
+.payout-row-iban {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.payout-row-ref {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.payout-row-ledger {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Fixed columns so the amounts line up down the list even when a row has no
+   QR to show — a column of figures is read by scanning it. */
+.payout-row-amount {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 7rem;
+  text-align: right;
+}
+
+.payout-row-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-align: center;
+  min-width: 9rem;
+}
+
+/* The code must stay pure black on white to scan reliably, whatever the
+   surrounding panel does. */
+.payout-row-qr svg {
+  background: #ffffff;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.payout-qr-caption {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .payout-row {
+    flex-wrap: wrap;
+  }
+
+  .payout-row-qr {
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  .payout-row-amount {
+    min-width: 0;
+  }
+}
+
+.payout-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 0.7rem;
+  border-top: 2px solid var(--contour);
+  font-variant-numeric: tabular-nums;
+}
+
+.payout-total strong {
+  font-size: 1.25rem;
+}
+
+/* The acknowledgement that stands between the list and the irreversible act. */
+.payout-gate {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--nord);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.payout-gate input {
+  margin-top: 0.15rem;
+}
+
+/* The bookings stage carries a full transaction table, so it is not held to the
+   reading measure the narrow form steps use. */
+.flow-step-wide {
+  max-width: none;
+}
+
+/* A lone button inside a flow step is an action, not a row: keep it to its own
+   width instead of letting the flex column stretch it across the measure. */
+.flow-step > .btn,
+.review-list > .btn {
+  align-self: flex-start;
+}
+
+/* A portalled select panel positions itself in JS, so it must not inherit the
+   in-flow anchoring (top/left/right) from `.ms-dropdown`. */
+.ms-dropdown.is-anchored {
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ms-dropdown.is-anchored .ms-options {
+  overflow-y: auto;
+}
+
+/* Busy buttons keep their label (so nothing reflows) and simply read as
+   inert while the request is in flight. */
+.btn.is-busy {
+  opacity: 0.6;
+  cursor: progress;
+}

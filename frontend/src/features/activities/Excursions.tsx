@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
@@ -8,7 +8,6 @@ import { useFieldsetHelp, useRowHints, useSectionHelp } from "../../api/helpText
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
-import { StatementBillsInline } from "../finance/Statements";
 import {
   Badge,
   Button,
@@ -25,6 +24,7 @@ import {
   type DetailRow,
   useConfirmDialog,
   useToast,
+  euro,
 } from "../../components/ui";
 import {
   ChoiceSelect,
@@ -50,19 +50,12 @@ type LJPProposalOut = components["schemas"]["LJPProposalOut"];
 type LJPProposalCreate = components["schemas"]["LJPProposalCreate"];
 type LJPProposalUpdate = components["schemas"]["LJPProposalUpdate"];
 type LJPInterventionOut = components["schemas"]["LJPInterventionOut"];
-type StatementOut = components["schemas"]["StatementOut"];
-type StatementUpdate = components["schemas"]["StatementUpdate"];
 type FinanceOverviewOut = components["schemas"]["FinanceOverviewOut"];
-type MemberBrief = components["schemas"]["MemberBrief"];
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("de-DE");
-}
-
-function euro(value: number | null | undefined): string {
-  return `${(Number(value) || 0).toFixed(2)} €`;
 }
 
 function approvedBadge(approved: boolean | null | undefined) {
@@ -868,6 +861,22 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
+              {/* The statement is its own surface with its own flow, so the
+                  excursion only points at it — or starts one with this trip
+                  already chosen. */}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  navigate(
+                    excursion.statement_id != null
+                      ? `/kompass/finance/statements/${excursion.statement_id}`
+                      : `/kompass/finance/statements/new?excursion=${excursion.id}`,
+                  )
+                }
+              >
+                {excursion.statement_id != null ? "Abrechnung" : "Abrechnung anlegen"}
+              </Button>
               {excursion.statement_id != null && (
                 <Button type="button" variant="ghost" onClick={() => setShowFinance(true)}>
                   Finanzübersicht
@@ -1040,19 +1049,6 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
               </>
             ),
           },
-          {
-            id: "abrechnung",
-            label: "Abrechnung",
-            content: (
-              <StatementSection
-                excursion={excursion}
-                editing={editing}
-                jugendleiter={excursion.jugendleiter}
-                registerFlush={getRegistrar("statement")}
-                registerBillsFlush={getRegistrar("statement-bills")}
-              />
-            ),
-          },
         ]}
       />
 
@@ -1064,242 +1060,6 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         />
       )}
     </form>
-  );
-}
-
-/* --- Abrechnung (statement) tab ------------------------------------------ */
-
-type StatementDraft = {
-  short_description: string;
-  explanation: string;
-  night_cost: string;
-  allowance_to_ids: number[];
-  subsidy_to_id: string;
-  ljp_to_id: string;
-};
-
-function statementToDraft(s: StatementOut): StatementDraft {
-  return {
-    short_description: s.short_description ?? "",
-    explanation: s.explanation ?? "",
-    night_cost: String(s.night_cost ?? "0"),
-    allowance_to_ids: (s.allowance_to ?? []).map((m) => m.id),
-    subsidy_to_id: s.subsidy_to ? String(s.subsidy_to.id) : "",
-    ljp_to_id: s.ljp_to ? String(s.ljp_to.id) : "",
-  };
-}
-
-/**
- * The excursion's statement, edited inline exactly like the admin's
- * ``StatementOnListInline`` (+ its nested ``BillOnExcursionInline``): the
- * night-cost and the allowance / subsidy / LJP recipients (restricted to the
- * excursion's youth leaders), plus the bills. When there is no statement yet a
- * button creates one; once the statement is **submitted** every field is frozen
- * (matching ``StatementAdmin.get_readonly_fields``). Field edits are flushed with
- * the excursion's Save (they never save on their own).
- */
-function StatementSection({
-  excursion,
-  editing,
-  jugendleiter,
-  registerFlush,
-  registerBillsFlush,
-}: {
-  excursion: ExcursionOut;
-  editing: boolean;
-  jugendleiter: MemberBrief[];
-  registerFlush: (fn: () => Promise<void>) => void;
-  registerBillsFlush: (fn: () => Promise<void>) => void;
-}) {
-  const toast = useToast();
-  const statementId = excursion.statement_id;
-
-  const statementQuery = useApiQuery(
-    ["finance", "statements", statementId],
-    () =>
-      unwrap(
-        client.GET("/api/finance/statements/{statement_id}", {
-          params: { path: { statement_id: statementId as number } },
-        }),
-      ),
-    { enabled: statementId != null },
-  );
-  const statement = statementQuery.data ?? null;
-  const submitted = statement?.submitted ?? false;
-
-  const createM = useApiMutation(
-    () =>
-      unwrap(
-        client.POST("/api/finance/statements", {
-          body: {
-            short_description: excursion.name || excursion.code,
-            explanation: "",
-            excursion_id: excursion.id,
-            night_cost: 0,
-          },
-        }),
-      ),
-    {
-      invalidate: [["excursions", excursion.id], ["excursions"], ["finance", "statements"]],
-      onSuccess: () => toast.success("Abrechnung angelegt."),
-      onError: (e: Error) => toast.error(e.message),
-    },
-  );
-
-  const patchM = useApiMutation(
-    (body: StatementUpdate) =>
-      unwrap(
-        client.PATCH("/api/finance/statements/{statement_id}", {
-          params: { path: { statement_id: statementId as number } },
-          body,
-        }),
-      ),
-    {
-      invalidate: [
-        ["finance", "statements"],
-        ["finance", "statements", statementId],
-        ["excursions", excursion.id],
-      ],
-    },
-  );
-
-  // Always starts empty: the statement query cannot have resolved during this
-  // component's first render, and the effect below seeds the draft as soon as it
-  // does (and whenever edit mode toggles).
-  const [draft, setDraft] = useState<StatementDraft>(() => ({
-    short_description: "",
-    explanation: "",
-    night_cost: "0",
-    allowance_to_ids: [],
-    subsidy_to_id: "",
-    ljp_to_id: "",
-  }));
-
-  // Reseed the draft when the statement (re)loads or when edit mode toggles; a
-  // stable statement identity means in-progress edits are preserved mid-edit.
-  useEffect(() => {
-    if (statement) setDraft(statementToDraft(statement));
-  }, [statement, editing]);
-
-  // Register the field flush with the excursion's Save. It PATCHes the editable
-  // statement fields, but never a submitted (frozen) statement.
-  const flushImpl = useRef<() => Promise<void>>(async () => {});
-  flushImpl.current = async () => {
-    if (statementId == null || submitted) return;
-    await patchM.mutateAsync({
-      short_description: draft.short_description,
-      explanation: draft.explanation,
-      night_cost: Number(draft.night_cost) || 0,
-      allowance_to_ids: draft.allowance_to_ids,
-      subsidy_to_id: draft.subsidy_to_id ? Number(draft.subsidy_to_id) : null,
-      ljp_to_id: draft.ljp_to_id ? Number(draft.ljp_to_id) : null,
-    });
-  };
-  const flush = useCallback(() => flushImpl.current(), []);
-  useEffect(() => registerFlush(flush), [registerFlush, flush]);
-
-  const ylOptions = useMemo(
-    () => jugendleiter.map((j) => ({ value: j.id, label: j.name })),
-    [jugendleiter],
-  );
-
-  if (statementId == null) {
-    return (
-      <div className="stack">
-        <p className="muted">Diese Ausfahrt hat noch keine Abrechnung.</p>
-        <div>
-          <Button type="button" onClick={() => createM.mutate(undefined)} busy={createM.isPending}>
-            Abrechnung anlegen
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <QueryBoundary query={statementQuery}>
-      {(s: StatementOut) => {
-        const editable = editing && !submitted;
-        const recipientName = (m: MemberBrief | null | undefined) => (m ? m.name : "—");
-        const rows: DetailRow[] = [
-          { label: "Titel", value: <Link to={`/kompass/finance/statements/${s.id}`}>{s.title}</Link> },
-          {
-            label: "Status",
-            value: (
-              <Badge tone={s.confirmed ? "success" : s.submitted ? "info" : "warning"}>
-                {s.status_display}
-              </Badge>
-            ),
-          },
-          {
-            label: "Preis pro Übernachtung",
-            value: euro(Number(s.night_cost) || 0),
-            edit: editable ? (
-              <input
-                type="number"
-                step="0.01"
-                value={draft.night_cost}
-                onChange={(e) => setDraft({ ...draft, night_cost: e.target.value })}
-              />
-            ) : undefined,
-          },
-          {
-            label: "Aufwandsentschädigung an",
-            value: s.allowance_to.length ? s.allowance_to.map((m) => m.name).join(", ") : "—",
-            edit: editable ? (
-              <MultiSelect
-                options={ylOptions}
-                selected={draft.allowance_to_ids}
-                onChange={(ids) => setDraft({ ...draft, allowance_to_ids: ids })}
-              />
-            ) : undefined,
-          },
-          {
-            label: "Zuschuss an",
-            value: recipientName(s.subsidy_to),
-            edit: editable ? (
-              <Select
-                value={draft.subsidy_to_id}
-                onChange={(v) => setDraft({ ...draft, subsidy_to_id: v })}
-                options={ylOptions}
-                placeholder="— niemand —"
-                allowEmpty
-                emptyLabel="— niemand —"
-              />
-            ) : undefined,
-          },
-          {
-            label: "LJP-Beitrag an",
-            value: recipientName(s.ljp_to),
-            edit: editable ? (
-              <Select
-                value={draft.ljp_to_id}
-                onChange={(v) => setDraft({ ...draft, ljp_to_id: v })}
-                options={ylOptions}
-                placeholder="— niemand —"
-                allowEmpty
-                emptyLabel="— niemand —"
-              />
-            ) : undefined,
-          },
-        ];
-        return (
-          <div className="stack">
-            {submitted && (
-              <p className="fieldset-help">
-                Die Abrechnung wurde eingereicht und kann nicht mehr geändert werden.
-              </p>
-            )}
-            <EditableDetail rows={rows} editing={editable} />
-            <StatementBillsInline
-              statement={s}
-              editing={editable}
-              registerFlush={registerBillsFlush}
-            />
-          </div>
-        );
-      }}
-    </QueryBoundary>
   );
 }
 

@@ -334,7 +334,7 @@ describe("finance — Buchungen", () => {
     expect(await screen.findByText("Fahrtkosten")).toBeInTheDocument();
     expect(screen.getByText("Mila Nowak")).toBeInTheDocument();
     expect(screen.getByText("Jugendetat")).toBeInTheDocument();
-    expect(screen.getByText("42.50 €")).toBeInTheDocument();
+    expect(screen.getByText("42,50 €")).toBeInTheDocument();
   });
 
   it("says so when none are visible", async () => {
@@ -505,7 +505,7 @@ describe("finance — Belege", () => {
     listReturns();
     renderRoute("/kompass/finance/bills");
     expect(await screen.findByText("Verpflegung")).toBeInTheDocument();
-    expect(screen.getByText("40.00 €")).toBeInTheDocument();
+    expect(screen.getByText("40,00 €")).toBeInTheDocument();
     expect(screen.getByText("F26-01 Skifreizeit")).toBeInTheDocument();
   });
 
@@ -981,12 +981,11 @@ describe("finance — every field", () => {
     });
   });
 
-  it("Abrechnung: carries every edited field into the PATCH", async () => {
+  it("Abrechnung: carries every edited field of the flow into the PATCH", async () => {
     server.use(
       http.get(api("/api/finance/statements/1"), () => HttpResponse.json(FULL_STATEMENT)),
-      http.get(api("/api/finance/statements/1/transactions"), () => HttpResponse.json([])),
+      http.get(api("/api/members/excursions"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json(MEMBERS)),
-      http.get(api("/api/finance/ledgers/"), () => HttpResponse.json(LEDGERS)),
     );
     let patched: Record<string, unknown> | null = null;
     server.use(
@@ -995,32 +994,24 @@ describe("finance — every field", () => {
         return HttpResponse.json(FULL_STATEMENT);
       }),
     );
-    const { user } = renderRoute("/kompass/finance/statements/1");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=purpose");
 
-    for (const tab of ["Abrechnung", "Verwaltung"]) {
-      await user.click(screen.getByRole("tab", { name: tab }));
-      const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
-      await fillEveryField(user, panel);
-    }
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    const step = (await screen.findByRole("heading", { name: "Wofür ist diese Abrechnung?" }))
+      .closest("section") as HTMLElement;
+    await fillEveryField(user, step);
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
 
     await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toMatchObject({
-      short_description: "Text",
-      explanation: "Text",
-      night_cost: 3,
-    });
+    expect(patched).toMatchObject({ short_description: "Text", explanation: "Text" });
   });
 
-  it("Abrechnung: fills every field of the create form", async () => {
+  it("Abrechnung: legt im Anlass-Schritt der Einreichung an", async () => {
     server.use(
-      http.get(api("/api/finance/statements"), () => HttpResponse.json(STATEMENT_BRIEFS)),
-      http.get(api("/api/finance/enums"), () =>
-        HttpResponse.json({ status: [{ value: 0, label: "Entwurf" }] }),
-      ),
       http.get(api("/api/members/excursions"), () =>
         HttpResponse.json([{ id: 3, code: "F26-01", name: "Skifreizeit" }]),
+      ),
+      http.get(api("/api/members/excursions/3"), () =>
+        HttpResponse.json({ id: 3, code: "F26-01", name: "Skifreizeit", jugendleiter: [] }),
       ),
     );
     let body: Record<string, unknown> | null = null;
@@ -1030,21 +1021,19 @@ describe("finance — every field", () => {
         return djangoValidation({ short_description: ["Stop."] });
       }),
     );
-    const { user } = renderRoute("/kompass/finance/statements");
-    await user.click(await screen.findByRole("button", { name: "Neue Abrechnung" }));
+    const { user } = renderRoute("/kompass/finance/statements/new");
 
-    const dialog = await screen.findByRole("dialog");
-    await fillEveryField(user, dialog);
-    await pickEverySelect(user, dialog);
-    await user.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+    const step = (await screen.findByRole("heading", { name: "Wofür ist diese Abrechnung?" }))
+      .closest("section") as HTMLElement;
+    await pickEverySelect(user, step);
+    await fillEveryField(user, step);
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
       short_description: "Text",
       explanation: "Text",
-      night_cost: 3,
-      // The optional excursion select clears on its first option.
-      excursion_id: null,
+      excursion_id: 3,
     });
   });
 });

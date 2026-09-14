@@ -4,16 +4,20 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { client, unwrap } from "../../api/http";
 import { useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
-import { Badge, Button, DataTable, DetailList, PageHeader, QueryBoundary } from "../../components/ui";
+import {
+  Badge,
+  Button,
+  DataTable,
+  DetailList,
+  euro,
+  PageHeader,
+  QueryBoundary,
+} from "../../components/ui";
 import type { components } from "../../api/schema";
 
 type TransactionBrief = components["schemas"]["TransactionBrief"];
 type TransactionOut = components["schemas"]["TransactionOut"];
 type StatementBrief = components["schemas"]["StatementBrief"];
-
-function euro(value: number): string {
-  return `${value.toFixed(2)} €`;
-}
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";

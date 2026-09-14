@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -15,14 +16,80 @@ import { Link } from "react-router-dom";
 import { downloadArtifact } from "../api/http";
 
 /** Close the popover when a click/focus lands outside `ref`. */
-function useOutsideClose(ref: React.RefObject<HTMLElement | null>, close: () => void) {
+function useOutsideClose(
+  ref: React.RefObject<HTMLElement | null>,
+  close: () => void,
+  // A portalled dropdown is not a DOM descendant of its trigger, so without
+  // this the mousedown on an option would close the menu and unmount the
+  // button before its click could fire — the option would never be selectable.
+  alsoInside?: React.RefObject<HTMLElement | null>,
+) {
   useEffect(() => {
     function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return;
+      if (alsoInside?.current?.contains(target)) return;
+      close();
     }
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
-  }, [ref, close]);
+  }, [ref, close, alsoInside]);
+}
+
+/**
+ * A dropdown panel rendered into <body>, positioned against its trigger.
+ *
+ * Selects are used inside `.table-wrap`, which scrolls horizontally and
+ * therefore clips vertically too — an in-flow dropdown was cut off, and on the
+ * last row it stretched the scroll container instead of overlaying it. Fixed
+ * positioning in a portal escapes every ancestor's overflow. It flips above the
+ * trigger when there is not enough room below, and never runs off either edge.
+ */
+function AnchoredDropdown({
+  anchorRef,
+  panelRef,
+  children,
+}: {
+  anchorRef: React.RefObject<HTMLElement | null>;
+  panelRef: React.RefObject<HTMLDivElement>;
+  children: ReactNode;
+}) {
+  const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
+
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const place = () => {
+      const r = anchor.getBoundingClientRect();
+      const width = Math.max(r.width, 200);
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+      const panelHeight = panelRef.current?.offsetHeight ?? 260;
+      const openUp = window.innerHeight - r.bottom < panelHeight && r.top > panelHeight;
+      setStyle({
+        position: "fixed",
+        width,
+        left,
+        ...(openUp
+          ? { bottom: window.innerHeight - r.top + 4 }
+          : { top: r.bottom + 4, maxHeight: window.innerHeight - r.bottom - 16 }),
+      });
+    };
+    place();
+    // `true` catches scrolls of any ancestor, including the table wrapper.
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [anchorRef, panelRef]);
+
+  return createPortal(
+    <div className="ms-dropdown is-anchored" ref={panelRef} style={style}>
+      {children}
+    </div>,
+    document.body,
+  );
 }
 
 /* --- state views --------------------------------------------------------- */
@@ -89,7 +156,9 @@ export function Button({
   const resolvedType = type ?? "button";
   return (
     <button
-      className={`btn ${variant}`}
+      // Keep the label while busy: swapping it for "…" collapses the button's
+      // width, which reflowed every row it sat in on each quick mutation.
+      className={`btn ${variant}${busy ? " is-busy" : ""}`}
       type={resolvedType}
       disabled={busy || rest.disabled}
       onClick={(e) => {
@@ -103,7 +172,7 @@ export function Button({
       }}
       {...rest}
     >
-      {busy ? "…" : children}
+      {children}
     </button>
   );
 }
@@ -461,6 +530,17 @@ export function Field({
 
 /* --- formatting ----------------------------------------------------------- */
 
+/** Render an amount as German currency (comma decimal), e.g. ``1.234,50 €``.
+ *
+ * The finance surface used to carry four copies of a dot-decimal formatter, so
+ * the same amount read ``40.00 €`` on one page and ``40,00 €`` on the next. */
+export function euro(value: number | null | undefined): string {
+  return `${(Number(value) || 0).toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} €`;
+}
+
 /** Render an ISO date (``YYYY-MM-DD``) as a German date, tolerating null.
  *
  * Dates used to be shown raw in material, Termine and the CMS while members and
@@ -549,7 +629,8 @@ export function PageHeader({
 export function Menu({ label, children }: { label: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useOutsideClose(ref, () => setOpen(false));
+  const panelRef = useRef<HTMLDivElement>(null!);
+  useOutsideClose(ref, () => setOpen(false), panelRef);
   return (
     <div className="menu" ref={ref}>
       <Button type="button" variant="ghost" onClick={() => setOpen((o) => !o)}>
@@ -593,7 +674,8 @@ export function MultiSelect({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  useOutsideClose(ref, () => setOpen(false));
+  const panelRef = useRef<HTMLDivElement>(null!);
+  useOutsideClose(ref, () => setOpen(false), panelRef);
 
   const selectedSet = new Set(selected);
   const byValue = new Map(options.map((o) => [o.value, o.label]));
@@ -626,7 +708,7 @@ export function MultiSelect({
         </button>
       </div>
       {open && (
-        <div className="ms-dropdown">
+        <AnchoredDropdown anchorRef={ref} panelRef={panelRef}>
           <input
             className="ms-search"
             type="search"
@@ -652,7 +734,7 @@ export function MultiSelect({
               ))
             )}
           </div>
-        </div>
+        </AnchoredDropdown>
       )}
     </div>
   );
@@ -682,7 +764,8 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  useOutsideClose(ref, () => setOpen(false));
+  const panelRef = useRef<HTMLDivElement>(null!);
+  useOutsideClose(ref, () => setOpen(false), panelRef);
 
   const current = options.find((o) => o.value === value);
   const needle = q.trim().toLowerCase();
@@ -708,7 +791,7 @@ export function SearchableSelect({
         <span className="ss-caret">▾</span>
       </button>
       {open && (
-        <div className="ms-dropdown">
+        <AnchoredDropdown anchorRef={ref} panelRef={panelRef}>
           <input
             className="ms-search"
             type="search"
@@ -738,7 +821,7 @@ export function SearchableSelect({
               </button>
             ))}
           </div>
-        </div>
+        </AnchoredDropdown>
       )}
     </div>
   );
@@ -770,7 +853,8 @@ export function Select({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  useOutsideClose(ref, () => setOpen(false));
+  const panelRef = useRef<HTMLDivElement>(null!);
+  useOutsideClose(ref, () => setOpen(false), panelRef);
 
   const opts = options.map((o) => ({ value: String(o.value), label: o.label }));
   const current = opts.find((o) => o.value === value);
@@ -791,7 +875,7 @@ export function Select({
         <span className="ss-caret">▾</span>
       </button>
       {open && (
-        <div className="ms-dropdown">
+        <AnchoredDropdown anchorRef={ref} panelRef={panelRef}>
           <input
             className="ms-search"
             type="search"
@@ -823,7 +907,7 @@ export function Select({
               </button>
             ))}
           </div>
-        </div>
+        </AnchoredDropdown>
       )}
     </div>
   );

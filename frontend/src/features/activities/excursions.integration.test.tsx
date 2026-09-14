@@ -766,184 +766,45 @@ const FULL_STATEMENT = {
     confirmed_date: null,
   };
 
-describe("activities — Ausfahrt Abrechnung: remaining paths", () => {
-  it("edits every statement field on the excursion's own tab", async () => {
+describe("activities — Ausfahrt Abrechnung", () => {
+  it("has no statement tab: the statement is its own surface", async () => {
     detailReturns({ statement_id: 1 });
-    server.use(
-      http.get(api("/api/finance/statements/1"), () =>
-        HttpResponse.json({
-          ...FULL_STATEMENT,
-          short_description: null,
-          explanation: null,
-          night_cost: null,
-          subsidy_to: { id: 42, name: "Anna Ärmel" },
-          ljp_to: { id: 42, name: "Anna Ärmel" },
-          allowance_to: [{ id: 42, name: "Anna Ärmel" }],
-        }),
-      ),
-    );
-    let patched: Record<string, unknown> | null = null;
-    server.use(
-      http.patch(api("/api/members/excursions/3"), () => HttpResponse.json(EXCURSION)),
-      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
-        patched = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(FULL_STATEMENT);
-      }),
-    );
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Abrechnung" }));
-
-    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
-    await fillEveryField(user, panel);
-    await pickEverySelect(user, panel);
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-
-    await waitFor(() => expect(patched).not.toBeNull());
-    // Clearing the optional recipient selects sends null, not 0.
-    expect(patched).toMatchObject({ subsidy_to_id: null, ljp_to_id: null, night_cost: 3 });
+    renderRoute("/kompass/excursions/3");
+    await screen.findByRole("button", { name: "Bearbeiten" });
+    expect(screen.queryByRole("tab", { name: "Abrechnung" })).not.toBeInTheDocument();
   });
 
-  it("names the statement after the excursion's code when it has no name", async () => {
-    detailReturns({ name: "" });
-    let body: Record<string, unknown> | null = null;
-    server.use(
-      http.post(api("/api/finance/statements"), async ({ request }) => {
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(FULL_STATEMENT);
-      }),
-    );
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
-    await user.click(await screen.findByRole("button", { name: "Abrechnung anlegen" }));
-    await waitFor(() => expect(body).toMatchObject({ short_description: "F26-01" }));
-  });
-
-  it("shows an em dash for a statement with no recipients", async () => {
+  it("opens the excursion's statement from the header", async () => {
     detailReturns({ statement_id: 1 });
     server.use(
       http.get(api("/api/finance/statements/1"), () => HttpResponse.json(FULL_STATEMENT)),
     );
     const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
-    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
-    await waitFor(() => expect(panel.textContent).toContain("—"));
+    await user.click(await screen.findByRole("button", { name: "Abrechnung" }));
+
+    expect(await screen.findByRole("button", { name: "Weiter bearbeiten" })).toBeInTheDocument();
   });
 
-  it("marks a confirmed statement as paid", async () => {
-    detailReturns({ statement_id: 1 });
-    server.use(
-      http.get(api("/api/finance/statements/1"), () =>
-        HttpResponse.json({
-          ...FULL_STATEMENT,
-          submitted: true,
-          confirmed: true,
-          status_display: "Bezahlt",
-        }),
-      ),
-    );
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
-    expect(await screen.findByText("Bezahlt")).toBeInTheDocument();
-  });
-});
-
-describe("activities — Ausfahrt Abrechnung", () => {
-  const STATEMENT = FULL_STATEMENT;
-
-  function withStatement(overrides: Record<string, unknown> = {}) {
-    detailReturns({ statement_id: 1 });
-    server.use(
-      http.get(api("/api/finance/statements/1"), () =>
-        HttpResponse.json({ ...STATEMENT, ...overrides }),
-      ),
-    );
-  }
-
-  it("offers to create a statement when there is none", async () => {
+  it("starts a statement with this trip already chosen when there is none", async () => {
     detailReturns();
-    let created = false;
-    server.use(
-      http.post(api("/api/finance/statements"), async ({ request }) => {
-        const body = (await request.json()) as { excursion_id: number };
-        expect(body.excursion_id).toBe(3);
-        created = true;
-        return HttpResponse.json(STATEMENT);
-      }),
-    );
+    server.use(http.get(api("/api/members/excursions"), () => HttpResponse.json([EXCURSION])));
     const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
-
-    expect(await screen.findByText("Diese Ausfahrt hat noch keine Abrechnung.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Abrechnung anlegen" }));
-    await waitFor(() => expect(created).toBe(true));
-    expect(await screen.findByText("Abrechnung angelegt.")).toBeInTheDocument();
-  });
-
-  it("reports a refused statement creation", async () => {
-    detailReturns();
-    server.use(
-      http.post(api("/api/finance/statements"), () =>
-        HttpResponse.json({ detail: "finance.add_global_statement" }, { status: 403 }),
-      ),
-    );
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
     await user.click(await screen.findByRole("button", { name: "Abrechnung anlegen" }));
-    expect(await screen.findByText("Dazu fehlt dir die Berechtigung.")).toBeInTheDocument();
-  });
 
-  it("links the statement and edits its recipients on the excursion's Save", async () => {
-    withStatement();
-    let patched: Record<string, unknown> | null = null;
-    server.use(
-      http.patch(api("/api/members/excursions/3"), () => HttpResponse.json(EXCURSION)),
-      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
-        patched = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(STATEMENT);
-      }),
-    );
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
-
-    expect(await screen.findByRole("link", { name: "F26-01 Skifreizeit" })).toHaveAttribute(
-      "href",
-      "/kompass/finance/statements/1",
-    );
-
-    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Abrechnung" }));
-
-    const panel = within(document.querySelector(".tab-panel:not([hidden])") as HTMLElement);
-    await user.click(panel.getByRole("button", { name: "+ Auswählen…" }));
-    await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-
-    await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toMatchObject({
-      allowance_to_ids: [42],
-      subsidy_to_id: null,
-      ljp_to_id: null,
-      night_cost: 11,
-    });
-  });
-
-  it("freezes a submitted statement", async () => {
-    withStatement({ submitted: true, status: 1, status_display: "Eingereicht" });
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("tab", { name: "Abrechnung" }));
-
+    // The flow opens on its first step, preselected — nothing is created until
+    // the leader confirms it there.
     expect(
-      await screen.findByText(
-        "Die Abrechnung wurde eingereicht und kann nicht mehr geändert werden.",
-      ),
+      await screen.findByRole("heading", { name: "Wofür ist diese Abrechnung?" }),
     ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Skifreizeit")).toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Abrechnung" }));
-    // No editable field appears even in edit mode.
-    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
-    expect(panel.querySelector("input")).toBeNull();
+  it("offers only the create button while the excursion has no statement", async () => {
+    detailReturns();
+    renderRoute("/kompass/excursions/3");
+    await screen.findByRole("button", { name: "Abrechnung anlegen" });
+    // The finance overview belongs to an existing statement.
+    expect(screen.queryByRole("button", { name: "Finanzübersicht" })).not.toBeInTheDocument();
   });
 });
 
