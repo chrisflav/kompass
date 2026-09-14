@@ -3074,6 +3074,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Feedback
+         * @description All feedback, newest first.
+         */
+        get: operations["feedback_api_router_list_feedback"];
+        put?: never;
+        /**
+         * Create Feedback
+         * @description Store one piece of feedback, attributing it when the sender is signed in.
+         */
+        post: operations["feedback_api_router_create_feedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/{feedback_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve Feedback
+         * @description One piece of feedback.
+         */
+        get: operations["feedback_api_router_retrieve_feedback"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Feedback
+         * @description Discard a piece of feedback once it has been dealt with.
+         */
+        delete: operations["feedback_api_router_delete_feedback"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/public/echo/{key}": {
         parameters: {
             query?: never;
@@ -7063,6 +7111,69 @@ export interface components {
              * @default false
              */
             detailed: boolean;
+        };
+        /**
+         * FeedbackOut
+         * @description Full feedback detail.
+         */
+        FeedbackOut: {
+            /** Id */
+            id: number;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created: string;
+            submitted_by?: components["schemas"]["MemberBrief"] | null;
+            /** Has Context */
+            has_context: boolean;
+            /** Message */
+            message: string;
+            /** Page */
+            page_url?: string | null;
+            /** Browser */
+            user_agent?: string | null;
+        };
+        /**
+         * FeedbackIn
+         * @description One submission from the feedback dialog.
+         *
+         *     ``page_url`` and ``user_agent`` arrive only when the sender ticked "send the
+         *     current page"; both are optional and default to empty.
+         */
+        FeedbackIn: {
+            /** Message */
+            message: string;
+            /**
+             * Page Url
+             * @default
+             */
+            page_url: string;
+            /**
+             * User Agent
+             * @default
+             */
+            user_agent: string;
+        };
+        /**
+         * FeedbackBrief
+         * @description A row in the feedback list.
+         */
+        FeedbackBrief: {
+            /** Id */
+            id: number;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created: string;
+            submitted_by?: components["schemas"]["MemberBrief"] | null;
+            /** Has Context */
+            has_context: boolean;
+            /** Message */
+            message: string;
+            /** Page */
+            page_url?: string | null;
         };
         /**
          * EchoVerifyOut
@@ -12868,6 +12979,92 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PublicPostDetail"];
                 };
+            };
+        };
+    };
+    feedback_api_router_list_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackBrief"][];
+                };
+            };
+        };
+    };
+    feedback_api_router_create_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+        };
+    };
+    feedback_api_router_retrieve_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedback_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+        };
+    };
+    feedback_api_router_delete_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedback_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

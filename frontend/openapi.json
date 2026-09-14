@@ -8452,6 +8452,136 @@
         ]
       }
     },
+    "/api/feedback": {
+      "post": {
+        "operationId": "feedback_api_router_create_feedback",
+        "summary": "Create Feedback",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Store one piece of feedback, attributing it when the sender is signed in.",
+        "tags": [
+          "feedback"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackIn"
+              }
+            }
+          },
+          "required": true
+        }
+      },
+      "get": {
+        "operationId": "feedback_api_router_list_feedback",
+        "summary": "List Feedback",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackBrief"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "All feedback, newest first.",
+        "tags": [
+          "feedback"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/feedback/{feedback_id}": {
+      "get": {
+        "operationId": "feedback_api_router_retrieve_feedback",
+        "summary": "Retrieve Feedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "schema": {
+              "title": "Feedback Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "One piece of feedback.",
+        "tags": [
+          "feedback"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "feedback_api_router_delete_feedback",
+        "summary": "Delete Feedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "schema": {
+              "title": "Feedback Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Discard a piece of feedback once it has been dealt with.",
+        "tags": [
+          "feedback"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/members/public/echo/{key}": {
       "get": {
         "operationId": "members_api_public_echo_verify",
@@ -18670,6 +18800,146 @@
           "people"
         ],
         "title": "PublicPostDetail",
+        "type": "object"
+      },
+      "FeedbackOut": {
+        "description": "Full feedback detail.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "created": {
+            "format": "date-time",
+            "title": "Created",
+            "type": "string"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_context": {
+            "title": "Has Context",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "page_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser"
+          }
+        },
+        "required": [
+          "id",
+          "created",
+          "has_context",
+          "message"
+        ],
+        "title": "FeedbackOut",
+        "type": "object"
+      },
+      "FeedbackIn": {
+        "description": "One submission from the feedback dialog.\n\n``page_url`` and ``user_agent`` arrive only when the sender ticked \"send the\ncurrent page\"; both are optional and default to empty.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "page_url": {
+            "default": "",
+            "title": "Page Url",
+            "type": "string"
+          },
+          "user_agent": {
+            "default": "",
+            "title": "User Agent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "FeedbackIn",
+        "type": "object"
+      },
+      "FeedbackBrief": {
+        "description": "A row in the feedback list.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "created": {
+            "format": "date-time",
+            "title": "Created",
+            "type": "string"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_context": {
+            "title": "Has Context",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "page_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          }
+        },
+        "required": [
+          "id",
+          "created",
+          "has_context",
+          "message"
+        ],
+        "title": "FeedbackBrief",
         "type": "object"
       },
       "EchoVerifyOut": {

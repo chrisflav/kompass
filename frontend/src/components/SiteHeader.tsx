@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-
 import { useApiQuery } from "../api/hooks";
 import { client, unwrap } from "../api/http";
 import { useMe } from "../api/me";
 import { useAuth } from "../auth";
 import { KompassMark } from "./Contour";
+import { FeedbackButton } from "./FeedbackButton";
 
 /* --- navigation model ----------------------------------------------------- */
 
@@ -118,6 +118,7 @@ const ADMIN_NAV: NavArea[] = [
     { to: "/kompass/users", label: "Benutzer" },
     { to: "/kompass/permission-groups", label: "Rechtegruppen" },
     { to: "/kompass/registration-passwords", label: "Registrierungspasswörter" },
+    { to: "/kompass/feedback", label: "Feedback" },
   ] },
 ];
 
@@ -238,6 +239,9 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
         </Link>
 
         <div className="topbar-right">
+          {/* Outside the auth branch: feedback is for everyone, signed in or
+              not, and stays reachable when the rest collapses on mobile. */}
+          <FeedbackButton />
           {token ? (
             <>
               {/* The public ↔ Kompass seam, present in both worlds. */}
