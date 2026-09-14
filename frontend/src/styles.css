@@ -2798,3 +2798,303 @@ button.etappe-body:hover {
   opacity: 0.6;
   cursor: progress;
 }
+
+/* ==========================================================================
+   Public landing page.
+
+   News and reports are different kinds of content and are shaped differently:
+   the newest story leads, the rest of the news is a dated ledger, and the trip
+   reports close as a picture strip. Previously both were identical grids of
+   equal-weight cards, so nothing was foregrounded.
+   ========================================================================== */
+
+.start {
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
+}
+
+.start-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.start-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* --- the lead story ------------------------------------------------------- */
+
+.lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--panel);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.lead:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+/* The picture fills whatever height the text column sets (with a floor), rather
+   than dictating it from its own aspect ratio. */
+.lead-figure {
+  display: block;
+  position: relative;
+  min-height: 15rem;
+  background: var(--panel-2);
+}
+
+@media (max-width: 760px) {
+  .lead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lead-figure {
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+
+  .lead-figure img {
+    position: static;
+  }
+}
+
+.lead-figure img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lead-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.6rem 1.75rem;
+}
+
+.lead-date {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--contour);
+}
+
+.lead-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.lead-excerpt {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.lead-more {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+/* --- the news ledger ------------------------------------------------------ */
+
+/* Older news reads as the section's logbook: a mono date rail, hairline-ruled,
+   so it is unmistakably a different kind of thing from the lead above it. */
+.ledger {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+
+.ledger li + li {
+  border-top: 1px solid var(--border);
+}
+
+.ledger-row {
+  display: flex;
+  gap: 1.1rem;
+  align-items: baseline;
+  padding: 0.8rem 0.25rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.ledger-row:hover {
+  background: var(--panel-2);
+}
+
+.ledger-row:hover .ledger-title {
+  color: var(--accent);
+}
+
+.ledger-date {
+  flex: none;
+  width: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  line-height: 1.15;
+}
+
+.ledger-day {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.ledger-rest {
+  font-size: 0.66rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ledger-title {
+  font-weight: 500;
+}
+
+/* --- the join panel ------------------------------------------------------- */
+
+/* The page's one call to action, running the full column between the news and
+   the reports — as a sidebar card it read as an advert pinned beside the page
+   rather than part of it. A weak glacier fill and a contour rule tie it into the
+   page's own material; the compass-needle accent is spent only on the eyebrow. */
+.join {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 2.5rem;
+  padding: 1.75rem 2rem;
+  border-radius: var(--radius);
+  background: var(--accent-weak);
+  border-top: 2px solid var(--contour);
+}
+
+.join-text {
+  flex: 1 1 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.join-text p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  /* Wide enough that the copy and the actions read as one band rather than two
+     islands with a void between them, still short of an unreadable measure. */
+  max-width: 62ch;
+}
+
+.join-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--nord);
+}
+
+.join-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.15;
+}
+
+.join-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.join-actions .btn {
+  text-decoration: none;
+}
+
+/* --- the report strip ----------------------------------------------------- */
+
+/* A trip report's hook is the photo and the place, not a truncated paragraph —
+   so these carry no excerpt at all. */
+.report-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1.1rem;
+}
+
+.report-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.report-figure {
+  display: block;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.report-figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.report-card:hover .report-figure img {
+  transform: scale(1.03);
+}
+
+.report-card:hover .report-title {
+  color: var(--accent);
+}
+
+.report-title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.report-date {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-figure img {
+    transition: none;
+  }
+
+  .report-card:hover .report-figure img {
+    transform: none;
+  }
+}

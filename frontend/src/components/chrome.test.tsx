@@ -263,6 +263,11 @@ describe("SiteHeader — public variant", () => {
       "/gruppe/Klettergruppe",
     );
     expect(screen.getByRole("link", { name: "FAQ" })).toHaveAttribute("href", "/gruppen/faq");
+    // Signing up belongs with the groups it signs you up for.
+    expect(screen.getByRole("link", { name: "Auf die Warteliste" })).toHaveAttribute(
+      "href",
+      "/warteliste",
+    );
   });
 
   it("still renders a usable bar when the navigation endpoint gives nothing", async () => {

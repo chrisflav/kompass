@@ -110,6 +110,74 @@ describe("public index", () => {
     );
   });
 
+  it("leads with the newest story and lists the rest as a dated ledger", async () => {
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({
+          recent_posts: [
+            { ...POST, id: 1, title: "Sommerfahrt", urlname: "sommerfahrt", image: "/media/a.jpg" },
+            { ...POST, id: 2, title: "Klettertreff", urlname: "klettertreff" },
+            { ...POST, id: 3, title: "Boulderabend", urlname: "boulderabend" },
+          ],
+          reports: [],
+        }),
+      ),
+    );
+    const { container } = renderWithApp(<PublicIndex />, anon);
+
+    // The newest post is the lead — image, excerpt and all.
+    const lead = (await screen.findByText("Sommerfahrt")).closest(".lead") as HTMLElement;
+    expect(lead).not.toBeNull();
+    expect(lead.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/media/a.jpg"),
+    );
+
+    // The rest are ledger rows, not lead cards.
+    const rows = container.querySelectorAll(".ledger-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Klettertreff");
+    expect(rows[0]).toHaveAttribute("href", "/beitrag/berichte/klettertreff");
+  });
+
+  it("offers the way in that the page previously lacked", async () => {
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({ recent_posts: [], reports: [] }),
+      ),
+    );
+    renderWithApp(<PublicIndex />, anon);
+    expect(await screen.findByRole("link", { name: "Auf die Warteliste" })).toHaveAttribute(
+      "href",
+      "/warteliste",
+    );
+    expect(screen.getByRole("link", { name: "Unsere Gruppen" })).toHaveAttribute(
+      "href",
+      "/gruppen",
+    );
+  });
+
+  it("shows reports as picture cards without an excerpt", async () => {
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({
+          recent_posts: [],
+          reports: [{ ...POST, id: 5, title: "Arco", urlname: "arco", image: "/media/b.jpg" }],
+        }),
+      ),
+    );
+    const { container } = renderWithApp(<PublicIndex />, anon);
+
+    const card = (await screen.findByText("Arco")).closest(".report-card") as HTMLElement;
+    expect(card.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/media/b.jpg"),
+    );
+    // A report's hook is the picture, so no truncated paragraph rides along.
+    expect(container.querySelector(".report-card .lead-excerpt")).toBeNull();
+    expect(card).toHaveTextContent("20. Februar 2026");
+  });
+
   it("says both sections are empty rather than showing bare headings", async () => {
     server.use(
       http.get(api("/api/startpage/public/index"), () =>

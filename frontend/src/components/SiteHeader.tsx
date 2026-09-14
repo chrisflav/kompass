@@ -63,6 +63,9 @@ function usePublicNav(enabled: boolean): NavEntry[] {
       items: [
         { to: "/gruppen", label: "Alle Gruppen" },
         ...groups.map((g) => ({ to: `/gruppe/${encodeURIComponent(g.name)}`, label: g.name })),
+        // Joining is the point of the group pages, so the sign-up sits with
+        // them; the route existed but nothing linked to it.
+        { to: "/warteliste", label: "Auf die Warteliste" },
         { to: "/gruppen/faq", label: "FAQ" },
       ],
     },
