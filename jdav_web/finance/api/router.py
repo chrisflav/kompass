@@ -90,6 +90,25 @@ def _resolve_recipient(statement, member_id):
     return member
 
 
+def _authorize_bill_change(request, bill):
+    """Authorize editing ``bill``, honouring the finance officer's review right.
+
+    A statement freezes on submit, so ``change_obj_statement`` alone would lock
+    the finance officer out of the one field that exists for them:
+    ``costs_covered`` ("bills that are marked for reimbursement by the finance
+    officer"). ``BillOnStatementProxy`` already encodes the admin's rule —
+    editable while a draft, or at any time with ``process_statementsubmitted``.
+    Its predicates are written against the *statement* (that is what the admin
+    inline passes them), hence ``bill.statement`` as the object.
+
+    The check is a union so it only ever widens: every caller the statement rule
+    already allowed keeps working.
+    """
+    if request.user.has_perm("finance.change_obj_statement", bill.statement):
+        return
+    authorize(request, "finance.change_obj_billonstatementproxy", bill.statement)
+
+
 def _validate_allowance_count(statement, members):
     """Replicate ``StatementOnListForm.clean``: allowance recipients must not
     exceed the excursion's approved youth-leader count."""
@@ -248,6 +267,16 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
     allowance_to_ids = data.pop("allowance_to_ids", _UNSET)
     subsidy_to_id = data.pop("subsidy_to_id", _UNSET)
     ljp_to_id = data.pop("ljp_to_id", _UNSET)
+    excursion_id = data.pop("excursion_id", _UNSET)
+    # The excursion is applied to the in-memory instance FIRST, because every
+    # recipient is validated against ``statement.excursion``. Resolving the
+    # recipients before the swap would check them against the outgoing
+    # excursion and accept youth leaders who don't lead the incoming one.
+    excursion_changed = False
+    if excursion_id is not _UNSET:
+        excursion = get_object_or_404(Freizeit, pk=excursion_id) if excursion_id else None
+        excursion_changed = excursion != statement.excursion
+        statement.excursion = excursion
     # Resolve + validate every recipient BEFORE writing anything, and wrap the
     # writes in a transaction, so a rejected recipient never leaves a partial
     # update behind (mirrors the admin form validating in ``clean``).
@@ -261,6 +290,13 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
         _validate_allowance_count(statement, allowance_members)
     with transaction.atomic():
         set_scalar_fields(statement, data, list(data.keys()))
+        # Recipients carried over from the previous excursion are no longer
+        # admissible, so drop the ones this request didn't explicitly restate.
+        if excursion_changed:
+            if subsidy_to is _UNSET:
+                statement.subsidy_to = None
+            if ljp_to is _UNSET:
+                statement.ljp_to = None
         if subsidy_to is not _UNSET:
             statement.subsidy_to = subsidy_to
         if ljp_to is not _UNSET:
@@ -268,6 +304,8 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
         statement.save()
         if allowance_members is not None:
             statement.allowance_to.set(allowance_members)
+        elif excursion_changed:
+            statement.allowance_to.clear()
     statement.refresh_from_db()
     return statement
 
@@ -435,7 +473,7 @@ def update_bill(request, bill_id: int, payload: BillUpdate):
     the remaining fields.
     """
     bill = get_object_or_404(Bill, pk=bill_id)
-    authorize(request, "finance.change_obj_statement", bill.statement)
+    _authorize_bill_change(request, bill)
     data = payload.dict(exclude_unset=True)
     if "paid_by_id" in data:
         paid_by_id = data.pop("paid_by_id")

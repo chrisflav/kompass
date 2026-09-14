@@ -49,10 +49,25 @@ class BillBrief(ModelSchema):
     refunded: bool
     statement_id: int
     paid_by: MemberBrief | None = None
+    # Proof info is carried on the brief (not just ``BillOut``) so the statement
+    # flow can flag bills without a receipt and the review screen can show the
+    # evidence without fetching every bill individually.
+    proof_url: str | None = None
+    has_proof: bool
 
     class Meta:
         model = Bill
         fields = ["short_description", "explanation"]
+
+    @staticmethod
+    def resolve_proof_url(obj) -> str | None:
+        if obj.proof:
+            return obj.proof.url
+        return None
+
+    @staticmethod
+    def resolve_has_proof(obj) -> bool:
+        return bool(obj.proof)
 
 
 class BillOut(ModelSchema):
@@ -213,6 +228,12 @@ class TransactionOut(ModelSchema):
     ledger: LedgerBrief | None = None
     confirmed_by: MemberBrief | None = None
     code: str
+    # The payout screen lists the account each transfer goes to and renders
+    # ``code`` as an EPC-QR, mirroring the admin's confirm view. The IBAN rides
+    # on the transaction rather than on ``MemberBrief`` (which is embedded all
+    # over the API) so bank details stay scoped to this screen's payload.
+    iban: str = ""
+    iban_valid: bool = False
 
     class Meta:
         model = Transaction
@@ -221,6 +242,14 @@ class TransactionOut(ModelSchema):
     @staticmethod
     def resolve_code(obj) -> str:
         return obj.code()
+
+    @staticmethod
+    def resolve_iban(obj) -> str:
+        return obj.member.iban or ""
+
+    @staticmethod
+    def resolve_iban_valid(obj) -> bool:
+        return obj.member.iban_valid
 
 
 class StatementCreate(Schema):
@@ -242,6 +271,10 @@ class StatementUpdate(Schema):
     short_description: str | None = None
     explanation: str | None = None
     night_cost: Decimal | None = None
+    # The associated excursion stays editable while the statement is a draft, so
+    # picking the wrong one in the submission flow is a correction rather than a
+    # delete-and-start-over. ``update_statement`` refuses any edit once submitted.
+    excursion_id: int | None = None
     allowance_to_ids: list[int] | None = None
     subsidy_to_id: int | None = None
     ljp_to_id: int | None = None

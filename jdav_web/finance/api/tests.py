@@ -22,7 +22,10 @@ from finance.models import Bill
 from finance.models import Statement
 from finance.models import Transaction
 from members.models import DIVERSE
+from members.models import Freizeit
+from members.models import GEMEINSCHAFTS_TOUR
 from members.models import Member
+from members.models import MUSKELKRAFT_ANREISE
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
@@ -95,6 +98,18 @@ class FinanceApiTestCase(TestCase):
             night_cost=0,
             created_by=created_by,
         )
+
+    def make_excursion(self, name, *leaders):
+        excursion = Freizeit.objects.create(
+            name=name,
+            kilometers_traveled=100,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        for leader in leaders:
+            excursion.jugendleiter.add(leader)
+        return excursion
 
     # --- authentication ---------------------------------------------------
 
@@ -378,6 +393,189 @@ class FinanceApiTestCase(TestCase):
         # No creation endpoint is exposed for transactions.
         r = self.client.post("/api/finance/transactions", **self.auth(self.manager_user))
         self.assertIn(r.status_code, (404, 405))
+
+    # --- the excursion stays editable while a draft ------------------------
+
+    def test_update_sets_the_excursion_on_a_draft(self):
+        """The submission flow asks what a statement is for on its first step, so
+        picking the wrong trip has to be a correction, not a delete-and-restart."""
+        stmt = self.make_statement(self.owner)
+        excursion = self.make_excursion("Skifreizeit", self.owner)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(stmt.pk),
+            data={"excursion_id": excursion.pk},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        stmt.refresh_from_db()
+        self.assertEqual(stmt.excursion, excursion)
+
+    def test_update_clears_recipients_when_the_excursion_changes(self):
+        old_trip = self.make_excursion("Old", self.owner)
+        stmt = self.make_statement(self.owner)
+        stmt.excursion = old_trip
+        stmt.subsidy_to = self.owner
+        stmt.save()
+        stmt.allowance_to.add(self.owner)
+
+        new_trip = self.make_excursion("New", self.other)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(stmt.pk),
+            data={"excursion_id": new_trip.pk},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        stmt.refresh_from_db()
+        # The old recipients don't lead the new trip, so they cannot stay.
+        self.assertIsNone(stmt.subsidy_to)
+        self.assertEqual(list(stmt.allowance_to.all()), [])
+
+    def test_update_validates_recipients_against_the_incoming_excursion(self):
+        """A combined change must not check the recipients against the outgoing
+        trip, which would admit someone who doesn't lead the new one."""
+        stmt = self.make_statement(self.owner)
+        stmt.excursion = self.make_excursion("Old", self.owner)
+        stmt.save()
+        new_trip = self.make_excursion("New", self.other)
+
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(stmt.pk),
+            data={"excursion_id": new_trip.pk, "subsidy_to_id": self.owner.pk},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        stmt.refresh_from_db()
+        self.assertIsNone(stmt.subsidy_to)
+
+    def test_update_accepts_a_recipient_of_the_incoming_excursion(self):
+        stmt = self.make_statement(self.owner)
+        stmt.excursion = self.make_excursion("Old", self.owner)
+        stmt.save()
+        new_trip = self.make_excursion("New", self.other)
+
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(stmt.pk),
+            data={"excursion_id": new_trip.pk, "subsidy_to_id": self.other.pk},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        stmt.refresh_from_db()
+        self.assertEqual(stmt.excursion, new_trip)
+        self.assertEqual(stmt.subsidy_to, self.other)
+
+    # --- who may decide that a bill is covered -----------------------------
+
+    def test_finance_officer_covers_a_bill_on_a_submitted_statement(self):
+        """``costs_covered`` exists for the finance officer, who sets it during
+        review — after the statement has been submitted and frozen for its
+        author. The statement's own change rule would deny that."""
+        officer_user, _officer = make_member_user("officer")
+        officer_user = grant(
+            officer_user,
+            "change_global_billonstatementproxy",
+            "process_statementsubmitted",
+        )
+        stmt = self.make_statement(self.owner)
+        bill = Bill.objects.create(statement=stmt, short_description="Rope", amount=Decimal("10"))
+        stmt.submit(self.owner)
+
+        r = self.client.patch(
+            "/api/finance/bills/{}".format(bill.pk),
+            data={"costs_covered": True},
+            content_type="application/json",
+            **self.auth(officer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        bill.refresh_from_db()
+        self.assertTrue(bill.costs_covered)
+
+    def test_author_may_not_edit_a_bill_once_submitted(self):
+        stmt = self.make_statement(self.owner)
+        bill = Bill.objects.create(statement=stmt, short_description="Rope", amount=Decimal("10"))
+        stmt.submit(self.owner)
+
+        r = self.client.patch(
+            "/api/finance/bills/{}".format(bill.pk),
+            data={"amount": "99"},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_stranger_may_not_edit_a_bill(self):
+        stmt = self.make_statement(self.owner)
+        bill = Bill.objects.create(statement=stmt, short_description="Rope", amount=Decimal("10"))
+
+        r = self.client.patch(
+            "/api/finance/bills/{}".format(bill.pk),
+            data={"costs_covered": True},
+            content_type="application/json",
+            **self.auth(self.other_user),
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_statement_bills_carry_their_proof(self):
+        """The flow flags receipts without a scan and the review screen shows the
+        evidence, both from the statement's own payload."""
+        stmt = self.make_statement(self.owner)
+        Bill.objects.create(
+            statement=stmt,
+            short_description="Scanned",
+            amount=Decimal("10"),
+            proof=SimpleUploadedFile("p.pdf", b"%PDF-1.4", content_type="application/pdf"),
+        )
+        Bill.objects.create(statement=stmt, short_description="Bare", amount=Decimal("5"))
+
+        r = self.client.get(
+            "/api/finance/statements/{}".format(stmt.pk), **self.auth(self.owner_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        bills = {b["short_description"]: b for b in r.json()["bills"]}
+        self.assertTrue(bills["Scanned"]["has_proof"])
+        self.assertIn(".pdf", bills["Scanned"]["proof_url"])
+        self.assertFalse(bills["Bare"]["has_proof"])
+        self.assertIsNone(bills["Bare"]["proof_url"])
+
+    def test_transaction_carries_the_iban_and_epc_payload(self):
+        """The payout screen lists each transfer's account and renders ``code``
+        as an EPC-QR, so both must survive the serializer."""
+        self.owner.iban = "DE02120300000000202051"
+        self.owner.save()
+        stmt = self.make_statement(self.owner)
+        trans = Transaction.objects.create(
+            statement=stmt, member=self.owner, amount=Decimal("42.50"), reference="Fahrtkosten"
+        )
+
+        r = self.client.get(
+            "/api/finance/transactions/{}".format(trans.pk), **self.auth(self.manager_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertEqual(body["iban"], "DE02120300000000202051")
+        self.assertTrue(body["iban_valid"])
+        self.assertTrue(body["code"].startswith("BCD"))
+        self.assertIn("DE02120300000000202051", body["code"])
+
+    def test_transaction_without_a_valid_iban_has_no_epc_payload(self):
+        """An unpayable transfer must say so rather than render a QR that would
+        send money nowhere."""
+        self.owner.iban = "not-an-iban"
+        self.owner.save()
+        stmt = self.make_statement(self.owner)
+        trans = Transaction.objects.create(
+            statement=stmt, member=self.owner, amount=Decimal("42.50"), reference="Fahrtkosten"
+        )
+
+        r = self.client.get(
+            "/api/finance/transactions/{}".format(trans.pk), **self.auth(self.manager_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(r.json()["iban_valid"])
+        self.assertEqual(r.json()["code"], "")
 
     def test_transactions_require_view_permission(self):
         r = self.client.get("/api/finance/transactions", **self.auth(self.owner_user))
