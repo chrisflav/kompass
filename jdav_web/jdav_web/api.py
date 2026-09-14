@@ -56,6 +56,7 @@ def ping(request):
 
 def _register_routers():
     """Attach app routers. Imported lazily to avoid app-registry import cycles."""
+    from feedback.api.router import router as feedback_router
     from finance.api.documents import router as finance_documents_router
     from finance.api.inlines import router as finance_inlines_router
     from finance.api.ledgers import router as finance_ledgers_router
@@ -98,6 +99,10 @@ def _register_routers():
         tags=["ludwigsburgalpin"],
     )
     api.add_router("/startpage", startpage_router, tags=["startpage"])
+    # Reading is permission-gated inside the router; POST is open to everyone
+    # (the feedback button is on the public site too) and attributes the
+    # sender when a bearer token is present.
+    api.add_router("/feedback", feedback_router, tags=["feedback"])
 
     # Public (unauthenticated, secret-key or read-only) surfaces. Every route in
     # these routers sets auth=None itself, so the prefix carries no ambient auth.

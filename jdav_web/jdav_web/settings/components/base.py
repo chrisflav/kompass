@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "mailer.apps.MailerConfig",
     "finance.apps.FinanceConfig",
     "ludwigsburgalpin.apps.LudwigsburgalpinConfig",
+    "feedback.apps.FeedbackConfig",
     #'easy_select2',
     "markdownify.apps.MarkdownifyConfig",
     "markdownx",
