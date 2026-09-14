@@ -2589,10 +2589,9 @@ export interface paths {
         put?: never;
         /**
          * Termin Overview
-         * @description Excel overview of the selected Termine (``TerminAdmin.make_overview``).
+         * @description Excel overview of the selected Termine.
          *
-         *     Gated on ``ludwigsburgalpin.view_termin``. The admin's bound generator is
-         *     reused verbatim so the workbook layout stays identical.
+         *     Gated on ``ludwigsburgalpin.view_termin``.
          */
         post: operations["ludwigsburgalpin_api_documents_termin_overview"];
         delete?: never;
@@ -2898,6 +2897,11 @@ export interface paths {
         /**
          * Public Index
          * @description Landing-page content: recent news posts and reports (``views.index``).
+         *
+         *     Bounded: the landing page leads with one story, lists a few more and shows a
+         *     short strip of reports — the full archives live behind /aktuelles and
+         *     /berichte. It previously returned *every* post in both sections, so the page
+         *     grew without limit as the section published.
          */
         get: operations["startpage_api_router_public_index"];
         put?: never;
@@ -5442,6 +5446,10 @@ export interface components {
             /** Statement Id */
             statement_id: number;
             paid_by?: components["schemas"]["MemberBrief"] | null;
+            /** Proof Url */
+            proof_url?: string | null;
+            /** Has Proof */
+            has_proof: boolean;
             /** Kurzbeschreibung */
             short_description: string;
             /** Erklärung */
@@ -5605,6 +5613,8 @@ export interface components {
             explanation?: string | null;
             /** Night Cost */
             night_cost?: number | string | null;
+            /** Excursion Id */
+            excursion_id?: number | null;
             /** Allowance To Ids */
             allowance_to_ids?: number[] | null;
             /** Subsidy To Id */
@@ -5845,6 +5855,16 @@ export interface components {
             confirmed_by?: components["schemas"]["MemberBrief"] | null;
             /** Code */
             code: string;
+            /**
+             * Iban
+             * @default
+             */
+            iban: string;
+            /**
+             * Iban Valid
+             * @default false
+             */
+            iban_valid: boolean;
             /** Verwendungszweck */
             reference: string;
         };
@@ -6537,9 +6557,8 @@ export interface components {
          * LudwigsburgalpinTerminOverviewIn
          * @description Termin selection for the overview export.
          *
-         *     ``termin_ids`` restricts the export to the given Termine (mirroring the
-         *     admin action operating on the selected changelist queryset); ``None``
-         *     exports every Termin.
+         *     ``termin_ids`` restricts the export to the given Termine; ``None`` exports
+         *     every Termin.
          */
         LudwigsburgalpinTerminOverviewIn: {
             /** Termin Ids */
@@ -6890,6 +6909,8 @@ export interface components {
              * @default
              */
             section_urlname: string;
+            /** Image */
+            image?: string | null;
             /**
              * Titel
              * @default

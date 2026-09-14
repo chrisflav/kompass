@@ -7004,7 +7004,7 @@
             "description": "OK"
           }
         },
-        "description": "Excel overview of the selected Termine (``TerminAdmin.make_overview``).\n\nGated on ``ludwigsburgalpin.view_termin``. The admin's bound generator is\nreused verbatim so the workbook layout stays identical.",
+        "description": "Excel overview of the selected Termine.\n\nGated on ``ludwigsburgalpin.view_termin``.",
         "tags": [
           "ludwigsburgalpin"
         ],
@@ -8211,7 +8211,7 @@
             }
           }
         },
-        "description": "Landing-page content: recent news posts and reports (``views.index``).",
+        "description": "Landing-page content: recent news posts and reports (``views.index``).\n\nBounded: the landing page leads with one story, lists a few more and shows a\nshort strip of reports — the full archives live behind /aktuelles and\n/berichte. It previously returned *every* post in both sections, so the page\ngrew without limit as the section published.",
         "tags": [
           "startpage"
         ]
@@ -14781,6 +14781,21 @@
               }
             ]
           },
+          "proof_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proof Url"
+          },
+          "has_proof": {
+            "title": "Has Proof",
+            "type": "boolean"
+          },
           "short_description": {
             "maxLength": 30,
             "title": "Kurzbeschreibung",
@@ -14804,6 +14819,7 @@
           "costs_covered",
           "refunded",
           "statement_id",
+          "has_proof",
           "short_description"
         ],
         "title": "BillBrief",
@@ -15223,6 +15239,17 @@
               }
             ],
             "title": "Night Cost"
+          },
+          "excursion_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excursion Id"
           },
           "allowance_to_ids": {
             "anyOf": [
@@ -15887,6 +15914,16 @@
           "code": {
             "title": "Code",
             "type": "string"
+          },
+          "iban": {
+            "default": "",
+            "title": "Iban",
+            "type": "string"
+          },
+          "iban_valid": {
+            "default": false,
+            "title": "Iban Valid",
+            "type": "boolean"
           },
           "reference": {
             "title": "Verwendungszweck",
@@ -17520,7 +17557,7 @@
         "type": "object"
       },
       "LudwigsburgalpinTerminOverviewIn": {
-        "description": "Termin selection for the overview export.\n\n``termin_ids`` restricts the export to the given Termine (mirroring the\nadmin action operating on the selected changelist queryset); ``None``\nexports every Termin.",
+        "description": "Termin selection for the overview export.\n\n``termin_ids`` restricts the export to the given Termine; ``None`` exports\nevery Termin.",
         "properties": {
           "termin_ids": {
             "anyOf": [
@@ -18315,6 +18352,17 @@
             "default": "",
             "title": "Section Urlname",
             "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
           },
           "title": {
             "default": "",
