@@ -12,6 +12,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 from members.models import DIVERSE
@@ -20,6 +21,7 @@ from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 from startpage.models import FAQ
+from startpage.models import Image
 from startpage.models import MemberOnPost
 from startpage.models import Post
 from startpage.models import Section
@@ -107,6 +109,39 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual({p["id"] for p in body["recent_posts"]}, {self.recent_post.pk})
         self.assertEqual({p["id"] for p in body["reports"]}, {self.report_post.pk})
         self.assertEqual(body["recent_posts"][0]["website_text"], "Wir waren unterwegs.")
+
+    def test_public_index_is_bounded(self):
+        """The landing page leads with one story and lists a few; the full
+        archives live behind /aktuelles and /berichte. It used to return every
+        post, so the page grew without limit as the section published."""
+        for i in range(9):
+            Post.objects.create(
+                title=f"Extra {i}",
+                urlname=f"extra-{i}",
+                section=self.recent,
+                date=datetime.date(2026, 1, 1) + datetime.timedelta(days=i),
+                website_text="x",
+            )
+        r = self.client.get("/api/startpage/public/index")
+        self.assertEqual(r.status_code, 200)
+        self.assertLessEqual(len(r.json()["recent_posts"]), 5)
+
+    def test_public_post_carries_its_lead_image(self):
+        """Posts have always had images; no public schema exposed them, so the
+        whole public site rendered text-only."""
+        Image.objects.create(
+            post=self.recent_post,
+            f=SimpleUploadedFile("berg.jpg", b"\xff\xd8\xff", content_type="image/jpeg"),
+        )
+        r = self.client.get("/api/startpage/public/index")
+        self.assertEqual(r.status_code, 200)
+        post = next(p for p in r.json()["recent_posts"] if p["id"] == self.recent_post.pk)
+        self.assertIn("berg", post["image"])
+
+    def test_public_post_without_an_image_reports_none(self):
+        r = self.client.get("/api/startpage/public/index")
+        post = next(p for p in r.json()["reports"] if p["id"] == self.report_post.pk)
+        self.assertIsNone(post["image"])
 
     # --- aktuelles / berichte ---------------------------------------------
 

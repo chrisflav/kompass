@@ -271,10 +271,19 @@ class PublicPostBrief(ModelSchema):
     # The section's urlname, so the SPA can build the post-detail link
     # (/beitrag/<section_urlname>/<urlname>) without a second lookup.
     section_urlname: str = ""
+    # The post's first image, used as the lead picture in the public listings.
+    # Posts have carried images all along; no public schema exposed them, so the
+    # whole public site rendered text-only.
+    image: str | None = None
 
     class Meta:
         model = Post
         fields = ["title", "urlname", "website_text", "detailed"]
+
+    @staticmethod
+    def resolve_image(obj) -> str | None:
+        first = next(iter(obj.image_set.all()), None)
+        return first.f.url if first and first.f else None
 
     @staticmethod
     def resolve_section_urlname(obj) -> str:

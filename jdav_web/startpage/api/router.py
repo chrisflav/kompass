@@ -373,12 +373,19 @@ def public_navigation(request):
 
 @router.get("/public/index", auth=None, response=IndexOut)
 def public_index(request):
-    """Landing-page content: recent news posts and reports (``views.index``)."""
+    """Landing-page content: recent news posts and reports (``views.index``).
+
+    Bounded: the landing page leads with one story, lists a few more and shows a
+    short strip of reports — the full archives live behind /aktuelles and
+    /berichte. It previously returned *every* post in both sections, so the page
+    grew without limit as the section published.
+    """
+    posts = Post.objects.prefetch_related("image_set")
     return {
-        "recent_posts": Post.objects.filter(section__urlname=settings.RECENT_SECTION).order_by(
-            "-date"
-        ),
-        "reports": Post.objects.filter(section__urlname=settings.REPORTS_SECTION).order_by("-date"),
+        "recent_posts": posts.filter(section__urlname=settings.RECENT_SECTION).order_by("-date")[
+            :5
+        ],
+        "reports": posts.filter(section__urlname=settings.REPORTS_SECTION).order_by("-date")[:4],
     }
 
 
