@@ -6,3 +6,4 @@ from .tasks import *
 from .templatetags import *
 from .views import *
 from .test_csv import *
+from .timetable import *
