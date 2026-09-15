@@ -34,6 +34,7 @@ class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
         "name",
         "to_members",
         "to_groups",
+        "external_email",
         "internal_only",
     )
     # formfield_overrides = {

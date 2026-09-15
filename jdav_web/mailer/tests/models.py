@@ -8,6 +8,7 @@ from mailer.mailutils import NOT_SENT
 from mailer.mailutils import PARTLY_SENT
 from mailer.mailutils import SENT
 from mailer.models import Attachment
+from mailer.models import EmailAddress
 from mailer.models import EmailAddressForm
 from mailer.models import Message
 from mailer.models import MessageForm
@@ -31,12 +32,44 @@ class EmailAddressTestCase(BasicMailerTestCase):
     def test_forwards(self):
         self.assertEqual(self.em.forwards, {"fritz@foo.com", "paul@foo.com"})
 
+    def test_external_email_overrides_domain_email(self):
+        em = EmailAddress.objects.create(name="external", external_email="contact@example.com")
+        self.assertEqual(em.email, "contact@example.com")
+        self.assertEqual(str(em), "contact@example.com")
+
+    def test_no_external_email_uses_domain(self):
+        self.assertEqual(self.em.email, f"foobar@{settings.DOMAIN}")
+
 
 class EmailAddressFormTestCase(BasicMailerTestCase):
     def test_clean(self):
         # instantiate form with only name field set
         form = EmailAddressForm(data={"name": "bar"})
         # validate the form - this should fail due to missing required recipients
+        self.assertFalse(form.is_valid())
+
+    def test_clean_external_email_valid(self):
+        form = EmailAddressForm(data={"name": "ext", "external_email": "contact@example.com"})
+        self.assertTrue(form.is_valid())
+
+    def test_clean_external_email_with_members_invalid(self):
+        form = EmailAddressForm(
+            data={
+                "name": "ext",
+                "external_email": "contact@example.com",
+                "to_members": [self.fritz.pk],
+            }
+        )
+        self.assertFalse(form.is_valid())
+
+    def test_clean_external_email_with_groups_invalid(self):
+        form = EmailAddressForm(
+            data={
+                "name": "ext",
+                "external_email": "contact@example.com",
+                "to_groups": [self.mygroup.pk],
+            }
+        )
         self.assertFalse(form.is_valid())
 
 

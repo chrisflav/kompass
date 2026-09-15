@@ -32,6 +32,15 @@ class EmailAddress(models.Model):
     """Represents an email address, that is forwarded to specific members"""
 
     name = models.CharField(_("name"), max_length=50, validators=[alphanumeric], unique=True)
+    external_email = models.EmailField(
+        _("external email address"),
+        blank=True,
+        help_text=_(
+            "Set this to an arbitrary external email address. "
+            "No forwarding happens for external email addresses; "
+            "forwarding fields (participants, groups) must be left empty."
+        ),
+    )
     to_members = models.ManyToManyField(
         "members.Member", verbose_name=_("Forward to participants"), blank=True
     )
@@ -58,6 +67,8 @@ class EmailAddress(models.Model):
 
     @property
     def email(self):
+        if self.external_email:
+            return self.external_email
         return "{}@{}".format(self.name, settings.DOMAIN)
 
     @property
@@ -83,12 +94,22 @@ class EmailAddressForm(forms.ModelForm):
 
     def clean(self):
         super().clean()
+        external_email = self.cleaned_data.get("external_email")
         group = self.cleaned_data.get("to_groups")
         members = self.cleaned_data.get("to_members")
-        if not group and not members:
-            raise ValidationError(
-                _("Either a group or at least one member is required as forward recipient.")
-            )
+        if external_email:
+            if group or members:
+                raise ValidationError(
+                    _(
+                        "No forwarding happens for external email addresses. "
+                        "Please leave the forwarding fields (participants, groups) empty."
+                    )
+                )
+        else:
+            if not group and not members:
+                raise ValidationError(
+                    _("Either a group or at least one member is required as forward recipient.")
+                )
 
 
 # Create your models here.
