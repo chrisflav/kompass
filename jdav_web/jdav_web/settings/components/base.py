@@ -112,9 +112,11 @@ WSGI_APPLICATION = "jdav_web.wsgi.application"
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
 STATIC_URL = "/static/"
+_DOCS_HTML_DIR = os.path.join(BASE_DIR, os.pardir, os.pardir, "docs", "build", "html")
 STATICFILES_DIRS = [
     os.path.join(CONFIG_DIR_PATH, "static"),
     os.path.join(BASE_DIR, "static"),
+    *([("docs", _DOCS_HTML_DIR)] if os.path.isdir(_DOCS_HTML_DIR) else []),
 ]
 # static root where all the static files are collected to
 # use python3 manage.py collectstatic to collect static files in the STATIC_ROOT
