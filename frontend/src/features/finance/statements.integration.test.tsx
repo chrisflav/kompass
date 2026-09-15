@@ -429,7 +429,11 @@ describe("submission flow — Belege", () => {
     const row = (await screen.findByText("Hütte")).closest(".beleg") as HTMLElement;
     expect(within(row).getByText("ausgelegt von Hannah Beckers")).toBeInTheDocument();
     expect(within(row).getByText("180,00 €")).toBeInTheDocument();
-    expect(within(row).getByText("Bild da")).toBeInTheDocument();
+    // A stored scan is openable, not merely announced.
+    expect(within(row).getByRole("link", { name: "Beleg ansehen" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/media/bill_images/huette.jpg"),
+    );
 
     await user.click(screen.getByRole("button", { name: "+ Beleg hinzufügen" }));
     await user.type(screen.getByLabelText("Wofür"), "Sprit");
@@ -609,6 +613,69 @@ describe("submission flow — Abschluss", () => {
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Einreichen" }),
     );
     expect(await screen.findByText("Es fehlen Belege.")).toBeInTheDocument();
+  });
+
+  it("adds its own breakdown up, receipts included", async () => {
+    flowReturns();
+    // No bill is covered yet at submission — the treasurer decides that later —
+    // so `statement.total` excludes them all. The claim must still count them.
+    detailReturns({
+      ...READY,
+      total: 0,
+      total_bills: 0,
+      total_bills_theoretic: 180,
+      total_allowance: 80,
+      allowance_per_yl: 40,
+      allowances_paid: 2,
+      total_subsidies: 60,
+      total_org_fee: 0,
+      paid_ljp_contributions: 0,
+    });
+    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
+
+    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
+    const shown = within(document.querySelector(".summary-card") as HTMLElement);
+    expect(shown.getByText("180,00 €")).toBeInTheDocument();
+    expect(shown.getByText("80,00 €")).toBeInTheDocument();
+    expect(shown.getByText("60,00 €")).toBeInTheDocument();
+    // 180 + 80 + 60 — not statement.total, which would read 0,00 €.
+    expect(shown.getByText("320,00 €")).toBeInTheDocument();
+  });
+
+  it("always shows the allowance, so it cannot be mistaken for the travel line", async () => {
+    flowReturns();
+    detailReturns({
+      ...READY,
+      total_allowance: 0,
+      allowances_paid: 0,
+      allowance_per_yl: 40,
+      total_subsidies: 60,
+    });
+    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
+
+    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
+    const card = document.querySelector(".summary-card") as HTMLElement;
+    // Zero rows used to be filtered out, which removed the allowance entirely
+    // and left the travel subsidy looking like it.
+    expect(within(card).getByText("Aufwandsentschädigung")).toBeInTheDocument();
+    expect(within(card).getByText("0 × 40,00 € pro Person")).toBeInTheDocument();
+    expect(within(card).getByText("Fahrt- und Übernachtungszuschuss")).toBeInTheDocument();
+  });
+
+  it("names the LJP amount, not only its recipient", async () => {
+    flowReturns();
+    detailReturns({
+      ...READY,
+      ljp_to: { id: 9, name: "Mila Nowak" },
+      paid_ljp_contributions: 210,
+    });
+    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
+
+    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
+    const card = document.querySelector(".summary-card") as HTMLElement;
+    expect(within(card).getByText("LJP-Beitrag")).toBeInTheDocument();
+    expect(within(card).getByText("an Mila Nowak")).toBeInTheDocument();
+    expect(within(card).getByText("210,00 €")).toBeInTheDocument();
   });
 
   it("blocks submitting and names the blocker before it is pressed", async () => {

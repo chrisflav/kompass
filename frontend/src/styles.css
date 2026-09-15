@@ -3193,3 +3193,23 @@ button.etappe-body:hover {
   border-radius: var(--radius);
   background: var(--panel);
 }
+
+/* How a payout figure is arrived at, printed under its label so two lines can
+   never be mistaken for one another (the allowance was being read as the
+   travel subsidy when the allowance row happened to be empty). */
+.payout-basis {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+/* A stored receipt is there to be opened, so it reads as a link rather than a
+   badge announcing its own existence. */
+.beleg-proof-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}

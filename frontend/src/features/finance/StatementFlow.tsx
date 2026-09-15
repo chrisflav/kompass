@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { mediaUrl } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import {
@@ -267,7 +268,7 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
           />
         )}
         {step === "submit" && statement && (
-          <AbschlussStep statement={statement} bills={bills} preflight={preflight} />
+          <AbschlussStep statement={statement} preflight={preflight} />
         )}
       </div>
 
@@ -625,7 +626,7 @@ function BelegeStep({
   const total = bills.reduce((s, b) => s + b.amount, 0);
 
   return (
-    <section className="flow-step">
+    <section className="flow-step flow-step-wide">
       <h2 className="flow-title">Belege</h2>
       <p className="flow-lead">
         Alles, was jemand ausgelegt hat. Fotografiere den Kassenzettel — ohne Bild kann die
@@ -661,8 +662,17 @@ function BelegeStep({
                 </span>
               </div>
               <div className="beleg-proof">
-                {b.has_proof ? (
-                  <Badge tone="success">Bild da</Badge>
+                {b.has_proof && b.proof_url ? (
+                  // The badge only ever announced the scan; opening it is the
+                  // point of having uploaded one.
+                  <a
+                    href={mediaUrl(b.proof_url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="beleg-proof-link"
+                  >
+                    Beleg ansehen
+                  </a>
                 ) : (
                   <Badge tone="warning">Bild fehlt</Badge>
                 )}
@@ -884,29 +894,88 @@ function ErstattungStep({
 }
 
 /** The computed payout, itemised the way the reimbursement rules build it up. */
-function PayoutPreview({ statement }: { statement: StatementOut }) {
-  const lines: [string, number][] = [
-    ["Belege", statement.total_bills_theoretic],
-    ["Aufwandsentschädigung", statement.total_allowance],
-    ["Fahrt und Übernachtung", statement.total_subsidies],
-    ["Orga-Pauschale", -statement.total_org_fee],
-    ["LJP-Beitrag", statement.paid_ljp_contributions],
+/** What this statement is claiming, assuming every receipt is covered.
+ *
+ * NOT `statement.total`: that counts only the bills the treasurer has already
+ * marked covered, which at submission time is none of them. Showing it to
+ * someone still filling the statement in prints receipts that the total then
+ * silently excludes.
+ */
+function claimedTotal(s: StatementOut): number {
+  return (
+    s.total_bills_theoretic +
+    s.total_allowance +
+    s.total_subsidies -
+    s.total_org_fee +
+    s.paid_ljp_contributions
+  );
+}
+
+interface PayoutLine {
+  label: string;
+  /** How the figure is arrived at, so two lines can never be mistaken for each other. */
+  basis?: string;
+  value: number;
+}
+
+function payoutLines(statement: StatementOut): PayoutLine[] {
+  const lines: PayoutLine[] = [
+    {
+      label: "Belege",
+      basis: `${statement.bills.length} ${statement.bills.length === 1 ? "Beleg" : "Belege"}`,
+      value: statement.total_bills_theoretic,
+    },
   ];
+  if (statement.excursion) {
+    // Both of these are shown even at zero. Filtering empty rows made the
+    // Aufwandsentschädigung disappear whenever nobody was selected yet, leaving
+    // the travel line looking like it.
+    lines.push({
+      label: "Aufwandsentschädigung",
+      basis: `${statement.allowances_paid} × ${euro(statement.allowance_per_yl)} pro Person`,
+      value: statement.total_allowance,
+    });
+    lines.push({
+      label: "Fahrt- und Übernachtungszuschuss",
+      basis: statement.subsidy_to ? `an ${statement.subsidy_to.name}` : "niemand ausgewählt",
+      value: statement.total_subsidies,
+    });
+    if (statement.total_org_fee) {
+      lines.push({ label: "Orga-Pauschale", value: -statement.total_org_fee });
+    }
+    // Shown as soon as a recipient is chosen, so the amount is visible here and
+    // not only after the statement has been handed in.
+    if (statement.ljp_to || statement.paid_ljp_contributions) {
+      lines.push({
+        label: "LJP-Beitrag",
+        basis: statement.ljp_to ? `an ${statement.ljp_to.name}` : undefined,
+        value: statement.paid_ljp_contributions,
+      });
+    }
+  }
+  return lines;
+}
+
+/** The computed payout, itemised the way the reimbursement rules build it up. */
+function PayoutPreview({ statement }: { statement: StatementOut }) {
+  const lines = payoutLines(statement);
   return (
     <div className="payout">
       <span className="payout-caption">Voraussichtliche Auszahlung</span>
       <dl>
-        {lines
-          .filter(([, v]) => v !== 0)
-          .map(([k, v]) => (
-            <div key={k}>
-              <dt>{k}</dt>
-              <dd>{euro(v)}</dd>
-            </div>
-          ))}
+        {lines.map((l) => (
+          <div key={l.label}>
+            <dt>
+              {l.label}
+              {l.basis && <span className="payout-basis">{l.basis}</span>}
+            </dt>
+            <dd>{euro(l.value)}</dd>
+          </div>
+        ))}
         <div className="payout-sum">
           <dt>Gesamt</dt>
-          <dd>{euro(statement.total)}</dd>
+          {/* The sum of the lines above, so the breakdown always adds up. */}
+          <dd>{euro(claimedTotal(statement))}</dd>
         </div>
       </dl>
       <p className="payout-note">
@@ -983,11 +1052,9 @@ function buildPreflight(
 
 function AbschlussStep({
   statement,
-  bills,
   preflight,
 }: {
   statement: StatementOut;
-  bills: BillBrief[];
   preflight: PreflightItem[];
 }) {
   const blockers = preflight.filter((c) => !c.ok);
@@ -1008,36 +1075,23 @@ function AbschlussStep({
         ))}
       </Preflight>
 
+      {/* The same breakdown as the reimbursement step, from the same figures —
+          two summaries of one statement must never disagree. */}
       <div className="summary-card">
         <div className="summary-head">
           <span>{statement.title}</span>
-          <strong>{euro(statement.total)}</strong>
+          <strong>{euro(claimedTotal(statement))}</strong>
         </div>
         <dl className="summary-lines">
-          <div>
-            <dt>Belege</dt>
-            <dd>
-              {bills.length} · {euro(bills.reduce((s, b) => s + b.amount, 0))}
-            </dd>
-          </div>
-          {statement.excursion && (
-            <>
-              <div>
-                <dt>Aufwandsentschädigung</dt>
-                <dd>
-                  {statement.allowances_paid} × {euro(statement.allowance_per_yl)}
-                </dd>
-              </div>
-              <div>
-                <dt>Zuschuss an</dt>
-                <dd>{statement.subsidy_to?.name ?? "—"}</dd>
-              </div>
-              <div>
-                <dt>LJP-Beitrag an</dt>
-                <dd>{statement.ljp_to?.name ?? "—"}</dd>
-              </div>
-            </>
-          )}
+          {payoutLines(statement).map((l) => (
+            <div key={l.label}>
+              <dt>
+                {l.label}
+                {l.basis && <span className="payout-basis">{l.basis}</span>}
+              </dt>
+              <dd>{euro(l.value)}</dd>
+            </div>
+          ))}
         </dl>
       </div>
     </section>
