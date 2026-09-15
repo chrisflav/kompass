@@ -22,6 +22,8 @@ LJP application recipient header
 allowed_email_domains_for_invite_as_user = ['alpenverein-town.de']
 send_from_association_email = true
 domain = 'jdav-town.de'
+# Name of the youth leader group. This group must exist and is created automatically during migration.
+# youth_leader_group = 'Jugendleiter'
 
 [finance]
 allowance_per_day = 22

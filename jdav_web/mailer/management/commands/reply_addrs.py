@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from mailer.models import Message
 from members.models import Member
@@ -36,7 +37,7 @@ class Command(BaseCommand):
 
         if not replies:
             # send mail to all jugendleiters
-            replies = Member.objects.filter(group__name="Jugendleiter", gets_newsletter=True)
+            replies = Member.objects.filter(group__name=settings.YOUTH_LEADER_GROUP, gets_newsletter=True)
         forwards = [lst.email for lst in replies]
 
         self.stdout.write(" ".join(forwards))
