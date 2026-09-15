@@ -3213,3 +3213,13 @@ button.etappe-body:hover {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* A schedule overlap is worth flagging but not worth blocking on — sessions can
+   legitimately run in parallel. */
+.schedule-warning {
+  display: block;
+  color: var(--warning);
+  border-left: 3px solid var(--warning);
+  padding-left: 0.6rem;
+  margin-bottom: 0.6rem;
+}

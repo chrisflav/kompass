@@ -615,6 +615,73 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
     });
   });
 
+  it("orders the schedule by time and warns about overlaps", async () => {
+    detailReturns({}, {
+      ...LJP,
+      interventions: [
+        // Deliberately out of order, and the second overlaps the first.
+        { id: 7, date_start: "2026-02-14T09:00:00Z", duration: 2, activity: "Materialkunde" },
+        { id: 9, date_start: "2026-02-14T14:00:00Z", duration: 1, activity: "Abschluss" },
+        { id: 8, date_start: "2026-02-14T10:00:00Z", duration: 1, activity: "Knoten" },
+      ],
+    });
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("tab", { name: "LJP-Antrag" }));
+    await screen.findByText("Materialkunde");
+
+    // Read in time order, not in the order the rows arrived.
+    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
+    const text = panel.textContent ?? "";
+    expect(text.indexOf("Materialkunde")).toBeLessThan(text.indexOf("Knoten"));
+    expect(text.indexOf("Knoten")).toBeLessThan(text.indexOf("Abschluss"));
+
+    // 09:00 + 2h runs past the 10:00 entry, which is worth flagging.
+    expect(screen.getByText(/Überschneidung im Zeitplan/)).toBeInTheDocument();
+  });
+
+  it("starts a new entry where the last one ended", async () => {
+    detailReturns({}, {
+      ...LJP,
+      interventions: [
+        { id: 7, date_start: "2026-02-14T09:00:00Z", duration: 2, activity: "Materialkunde" },
+      ],
+    });
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
+    await user.click(await screen.findByRole("button", { name: "+ Programmpunkt" }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    const begin = dialog.getByLabelText("Beginn") as HTMLInputElement;
+    // 09:00 + 2h, in the browser's own timezone.
+    const expected = new Date(Date.parse("2026-02-14T09:00:00Z") + 2 * 3600_000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    expect(begin.value).toBe(
+      `${expected.getFullYear()}-${pad(expected.getMonth() + 1)}-${pad(expected.getDate())}T${pad(expected.getHours())}:${pad(expected.getMinutes())}`,
+    );
+  });
+
+  it("rounds a duration the model could not store", async () => {
+    detailReturns({}, { ...LJP, interventions: [] });
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
+    await user.click(await screen.findByRole("button", { name: "+ Programmpunkt" }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    const duration = dialog.getByLabelText(/Dauer/) as HTMLInputElement;
+    await user.clear(duration);
+    // 80 minutes as hours: three decimals, which DecimalField(4, 2) refuses.
+    await user.type(duration, "1.333");
+    await user.tab();
+    expect(duration.value).toBe("1.33");
+
+    await user.clear(duration);
+    await user.type(duration, "250");
+    await user.tab();
+    expect(duration.value).toBe("99.99");
+  });
+
   it("adds, edits and removes a schedule entry", async () => {
     detailReturns({}, {
       ...LJP,
@@ -653,8 +720,12 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
     // …and add a new one.
     await user.click(screen.getByRole("button", { name: "+ Programmpunkt" }));
     const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
-    await user.type(dialog.getByLabelText("Beginn"), "2026-02-15T10:00");
+    // The start is prefilled with the end of the last entry, so it has to be
+    // cleared before a different time can be typed.
+    const begin = dialog.getByLabelText("Beginn") as HTMLInputElement;
+    expect(begin.value).not.toBe("");
+    await user.clear(begin);
+    await user.type(begin, "2026-02-15T10:00");
     await user.clear(dialog.getByLabelText(/Dauer/));
     await user.type(dialog.getByLabelText(/Dauer/), "1.5");
     await user.type(dialog.getByLabelText(/Aktion/), "Standplatzbau");
@@ -925,33 +996,13 @@ describe("activities — Finanzübersicht", () => {
     expect(dialog.getAllByText("Organisationspauschale")).toHaveLength(1);
   });
 
-  it("submits the statement after asking, and then freezes it", async () => {
-    overviewReturns();
-    let submitted = false;
-    server.use(
-      http.post(api("/api/finance/statements/1/submit"), () => {
-        submitted = true;
-        return HttpResponse.json({ id: 1 });
-      }),
-    );
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Einreichen" }),
-    );
-    // The confirmation opens on top of the overview, so take the newest dialog.
-    const confirmDialog = (await screen.findAllByRole("dialog")).slice(-1)[0];
-    await user.click(within(confirmDialog).getByRole("button", { name: "Einreichen" }));
 
-    await waitFor(() => expect(submitted).toBe(true));
-    expect(await screen.findByText("Abrechnung eingereicht.")).toBeInTheDocument();
-  });
-
-  it("offers no submit for an already submitted statement, and closes", async () => {
-    overviewReturns({ submitted: true });
+  it("never offers to submit: that belongs to the submission flow", async () => {
+    overviewReturns({ submitted: false });
     const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
 
+    // The estimate is read-only even while the statement is still a draft.
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.queryByRole("button", { name: "Einreichen" })).not.toBeInTheDocument();
 
@@ -960,22 +1011,6 @@ describe("activities — Finanzübersicht", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("reports a refused submission", async () => {
-    overviewReturns();
-    server.use(
-      http.post(api("/api/finance/statements/1/submit"), () =>
-        HttpResponse.json({ detail: "Es fehlen Belege." }, { status: 422 }),
-      ),
-    );
-    const { user } = renderRoute("/kompass/excursions/3");
-    await user.click(await screen.findByRole("button", { name: "Finanzübersicht" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Einreichen" }),
-    );
-    const confirmDialog = (await screen.findAllByRole("dialog")).slice(-1)[0];
-    await user.click(within(confirmDialog).getByRole("button", { name: "Einreichen" }));
-    expect(await screen.findByText("Es fehlen Belege.")).toBeInTheDocument();
-  });
 
   it("offers no finance overview without a statement", async () => {
     detailReturns();

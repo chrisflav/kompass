@@ -1055,7 +1055,6 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
       {showFinance && excursion.statement_id != null && (
         <FinanceOverviewModal
           statementId={excursion.statement_id}
-          excursionId={excursion.id}
           onClose={() => setShowFinance(false)}
         />
       )}
@@ -1090,49 +1089,24 @@ function OverviewTable({ head, rows }: { head: string[]; rows: (string | number)
 
 /**
  * The excursion finance overview (admin ``FreizeitAdmin.finance_overview``): an
- * estimate of the excursion's expenses vs. the association's contributions, with
- * the option to submit the statement (which then freezes it). Mirrors
- * ``admin/freizeit_finance_overview.html``.
+ * estimate of the excursion's expenses vs. the association's contributions.
+ * Mirrors ``admin/freizeit_finance_overview.html`` — read-only: the admin's
+ * submit button is gone, because handing a statement in belongs to the
+ * submission flow and nowhere else.
  */
 function FinanceOverviewModal({
   statementId,
-  excursionId,
   onClose,
 }: {
   statementId: number;
-  excursionId: number;
   onClose: () => void;
 }) {
-  const toast = useToast();
-  const confirm = useConfirmDialog();
   const query = useApiQuery(["finance", "statements", statementId, "overview"], () =>
     unwrap(
       client.GET("/api/finance/statements/{statement_id}/overview", {
         params: { path: { statement_id: statementId } },
       }),
     ),
-  );
-
-  const submitM = useApiMutation(
-    () =>
-      unwrap(
-        client.POST("/api/finance/statements/{statement_id}/submit", {
-          params: { path: { statement_id: statementId } },
-        }),
-      ),
-    {
-      invalidate: [
-        ["finance", "statements"],
-        ["finance", "statements", statementId],
-        ["finance", "statements", statementId, "overview"],
-        ["excursions", excursionId],
-      ],
-      onSuccess: () => {
-        toast.success("Abrechnung eingereicht.");
-        onClose();
-      },
-      onError: (e: Error) => toast.error(e.message),
-    },
   );
 
   const bool = (v: boolean) => (v ? "✓" : "✗");
@@ -1251,25 +1225,10 @@ function FinanceOverviewModal({
               ]}
             />
 
+            {/* No submit here. This is an estimate, and handing a statement in
+                is the ending of the submission flow — a second route to it was
+                exactly the duplication that flow replaced. */}
             <div className="row-actions">
-              {!o.submitted && (
-                <Button
-                  type="button"
-                  busy={submitM.isPending}
-                  onClick={async () => {
-                    if (
-                      await confirm({
-                        message:
-                          "Abrechnung wirklich einreichen? Danach sind keine Änderungen mehr möglich.",
-                        confirmLabel: "Einreichen",
-                      })
-                    )
-                      submitM.mutate(undefined);
-                  }}
-                >
-                  Einreichen
-                </Button>
-              )}
               <Button type="button" variant="ghost" onClick={onClose}>
                 Schließen
               </Button>
@@ -1300,6 +1259,44 @@ function formatDateTime(value: string | null | undefined): string {
  * excursion's Save. Interventions belong to the LJP proposal, so they can only be
  * added once the proposal exists — until then the section shows a hint.
  */
+/** Hours as the model can actually store them: 0–99.99, two decimals.
+ *
+ * `Intervention.duration` is DecimalField(max_digits=4, decimal_places=2), and
+ * nothing said so — an entry of 1.333 (80 minutes) was refused outright with
+ * "höchstens 2 Dezimalstellen" and no hint of an accepted format. Rounding on
+ * blur means whatever someone types becomes something the server takes.
+ */
+const MAX_DURATION_HOURS = 99.99;
+
+function normalizeHours(raw: string): string {
+  const value = Number(raw);
+  if (raw.trim() === "" || Number.isNaN(value)) return "";
+  const clamped = Math.min(Math.max(value, 0), MAX_DURATION_HOURS);
+  // Trailing zeros dropped: "1.50" reads worse than "1.5".
+  return String(Math.round(clamped * 100) / 100);
+}
+
+/** End of a schedule entry, as a timestamp; null when it is not yet usable. */
+function entryEnd(startLocal: string, hours: string): number | null {
+  const start = fromDatetimeLocal(startLocal);
+  if (!start) return null;
+  const ms = Date.parse(start);
+  if (Number.isNaN(ms)) return null;
+  return ms + (Number(hours) || 0) * 3600_000;
+}
+
+/** Entry starts, chronological, ignoring rows that have no usable time yet. */
+function sortedByStart<T>(rows: T[], startOf: (row: T) => string): T[] {
+  return [...rows].sort((a, b) => {
+    const x = Date.parse(fromDatetimeLocal(startOf(a)) ?? "");
+    const y = Date.parse(fromDatetimeLocal(startOf(b)) ?? "");
+    // Rows still being filled in keep their place at the end.
+    if (Number.isNaN(x)) return Number.isNaN(y) ? 0 : 1;
+    if (Number.isNaN(y)) return -1;
+    return x - y;
+  });
+}
+
 function InterventionsInline({
   proposalId,
   interventions,
@@ -1370,15 +1367,56 @@ function InterventionsInline({
   });
   const [adding, setAdding] = useState<InterventionData | null>(null);
 
+  // A schedule is read in time order, so show it that way rather than in the
+  // order the entries happened to be typed.
+  const ordered = useMemo(() => sortedByStart(rows, (r) => r.data.date_start), [rows]);
+
+  /** Where the next entry starts: after the last one ends. */
+  const nextStart = useMemo(() => {
+    const ends = ordered
+      .map((r) => entryEnd(r.data.date_start, r.data.duration))
+      .filter((e): e is number => e !== null);
+    if (ends.length === 0) return "";
+    return toDatetimeLocal(new Date(Math.max(...ends)).toISOString()) ?? "";
+  }, [ordered]);
+
+  // Two entries claiming the same minute is nearly always a mistake, but it is
+  // a warning rather than a block — a schedule may legitimately run in parallel.
+  const overlaps = useMemo(() => {
+    const out: string[] = [];
+    for (let i = 1; i < ordered.length; i++) {
+      const prev = ordered[i - 1];
+      const cur = ordered[i];
+      const prevEnd = entryEnd(prev.data.date_start, prev.data.duration);
+      const curStart = Date.parse(fromDatetimeLocal(cur.data.date_start) ?? "");
+      if (prevEnd === null || Number.isNaN(curStart)) continue;
+      if (curStart < prevEnd) {
+        out.push(
+          `${formatDateTime(fromDatetimeLocal(cur.data.date_start))} beginnt, bevor der vorige Punkt endet.`,
+        );
+      }
+    }
+    return out;
+  }, [ordered]);
+
   return (
     <>
+      {overlaps.length > 0 && (
+        <p className="field-hint schedule-warning" role="status">
+          Überschneidung im Zeitplan: {overlaps.join(" ")}
+        </p>
+      )}
       <InlineTable
         title="Zeitplan"
-        rows={rows}
+        rows={ordered}
         rowKey={(row) => row.key}
         editing={editing}
         onDelete={(row) => removeRow(row)}
-        onAdd={proposalId !== null ? () => setAdding({ ...emptyIntervention }) : undefined}
+        onAdd={
+          proposalId !== null
+            ? () => setAdding({ ...emptyIntervention, date_start: nextStart })
+            : undefined
+        }
         addLabel="Programmpunkt"
         empty={
           proposalId === null
@@ -1406,8 +1444,13 @@ function InterventionsInline({
                 <input
                   type="number"
                   step="0.25"
+                  min="0"
+                  max={MAX_DURATION_HOURS}
                   value={row.data.duration}
                   onChange={(e) => setRow(row, { ...row.data, duration: e.target.value })}
+                  onBlur={(e) =>
+                    setRow(row, { ...row.data, duration: normalizeHours(e.target.value) })
+                  }
                 />
               ) : (
                 row.data.duration
@@ -1437,12 +1480,15 @@ function InterventionsInline({
                 onChange={(e) => setAdding({ ...adding, date_start: e.target.value })}
               />
             </Field>
-            <Field label="Dauer (Stunden)">
+            <Field label="Dauer (Stunden)" hint="In Stunden, z. B. 1.5 für 90 Minuten. Höchstens 99,99.">
               <input
                 type="number"
                 step="0.25"
+                min="0"
+                max={MAX_DURATION_HOURS}
                 value={adding.duration}
                 onChange={(e) => setAdding({ ...adding, duration: e.target.value })}
+                onBlur={(e) => setAdding({ ...adding, duration: normalizeHours(e.target.value) })}
               />
             </Field>
             <Field label="Aktion / Methode">
