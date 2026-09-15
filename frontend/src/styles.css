@@ -2779,6 +2779,11 @@ button.etappe-body:hover {
 /* A portalled select panel positions itself in JS, so it must not inherit the
    in-flow anchoring (top/left/right) from `.ms-dropdown`. */
 .ms-dropdown.is-anchored {
+  /* Above the modal backdrop (50): the panel is portalled to <body> as a
+     sibling of any open dialog, so at the base z-index it rendered *behind* the
+     dialog and only showed where it spilled past its edges. Still below the
+     toast stack (100), which must stay on top of everything. */
+  z-index: 60;
   top: auto;
   left: auto;
   right: auto;
