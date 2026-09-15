@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
+import { KompassMark } from "../../../components/Contour";
 import { Button, Field, Select } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 
@@ -23,14 +24,26 @@ export function useFlowKey(): string {
  * Centered card shell for the standalone (chrome-less) self-service pages. It is
  * intentionally styled with the login card so these task pages look like the
  * rest of the standalone surfaces.
+ *
+ * These pages sit outside `PublicLayout` and so carry no site navigation — right
+ * for a secret link opened from an email, but a dead end for the waiting-list
+ * form, which is reachable from the public Gruppen menu. The brand doubles as
+ * the way back, so no flow can strand someone who arrived by navigating.
  */
 export function FlowShell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="login">
+      <Link to="/" className="flow-home" aria-label="Zur Website">
+        <KompassMark size={26} />
+        <span>JDAV Ludwigsburg</span>
+      </Link>
       <div className="card" style={{ width: "min(620px, 94vw)" }}>
         <h1>{title}</h1>
         {children}
       </div>
+      <Link to="/" className="flow-back">
+        ← Zurück zur Website
+      </Link>
     </div>
   );
 }

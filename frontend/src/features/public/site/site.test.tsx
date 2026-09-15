@@ -10,6 +10,7 @@ import { PublicImpressum } from "./Impressum";
 import { PublicIndex } from "./Index";
 import { PublicPost } from "./Post";
 import { PublicSection } from "./Section";
+import { FlowShell } from "../flows/shared";
 import { PublicAktuelles, PublicBerichte } from "./SectionPosts";
 import { excerpt, formatDate, Prose, PostTeaser } from "./shared";
 
@@ -187,6 +188,19 @@ describe("public index", () => {
     renderWithApp(<PublicIndex />, anon);
     expect(await screen.findByText("Keine aktuellen Beiträge.")).toBeInTheDocument();
     expect(screen.getByText("Keine Berichte.")).toBeInTheDocument();
+  });
+});
+
+describe("standalone flow pages", () => {
+  it("always offer a way back to the site", async () => {
+    // These render outside PublicLayout and so carry no navigation of their own.
+    // The waiting list is linked from the public Gruppen menu, so arriving there
+    // by navigating must not be a dead end.
+    renderWithApp(<FlowShell title="Auf die Warteliste">form</FlowShell>, anon);
+
+    const home = screen.getByRole("link", { name: "Zur Website" });
+    expect(home).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /Zurück zur Website/ })).toHaveAttribute("href", "/");
   });
 });
 

@@ -3223,3 +3223,25 @@ button.etappe-body:hover {
   padding-left: 0.6rem;
   margin-bottom: 0.6rem;
 }
+
+/* Standalone flow pages carry no site navigation. The brand and the closing
+   link are the way back, so arriving from the site's own menu is not a dead end. */
+.flow-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.1rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.flow-home:hover span {
+  color: var(--accent);
+}
+
+.flow-back {
+  margin-top: 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
