@@ -7,6 +7,7 @@ generated from.
 """
 
 from contrib.api.auth import OAuth2Bearer
+from contrib.api.perms import Forbidden
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
@@ -33,7 +34,14 @@ api = NinjaAPI(
 
 @api.exception_handler(PermissionDenied)
 def on_permission_denied(request, exc):
-    return api.create_response(request, {"detail": str(exc) or "Forbidden"}, status=403)
+    # ``displayable`` marks a refusal whose wording was written for the user.
+    # Everything else carries a permission codename, which the client replaces
+    # with its own generic sentence rather than printing internals.
+    return api.create_response(
+        request,
+        {"detail": str(exc) or "Forbidden", "displayable": isinstance(exc, Forbidden)},
+        status=403,
+    )
 
 
 @api.exception_handler(ValidationError)

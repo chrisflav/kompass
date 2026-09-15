@@ -8,6 +8,18 @@ API reuses the same predicates the admin enforces. See
 
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
+
+
+class Forbidden(PermissionDenied):
+    """A 403 whose message is written for the user and may be shown to them.
+
+    ``authorize`` raises a plain ``PermissionDenied`` carrying a permission
+    codename — an internal detail the client must not print. A refusal that
+    explains a rule ("a sent message can no longer be edited") is the opposite:
+    it is the only thing that makes the 403 actionable. The two are told apart
+    by type rather than by guessing at the string.
+    """
 
 
 def set_scalar_fields(instance, data, fields):
@@ -78,5 +90,5 @@ def get_member(request):
     """
     member = getattr(request.user, "member", None)
     if member is None:
-        raise PermissionDenied("No member is linked to this account.")
+        raise Forbidden(_("No member is linked to this account."))
     return member

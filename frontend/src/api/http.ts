@@ -99,10 +99,22 @@ export class ApiError extends Error {
   }
 
   static messageFor(status: number, detail: unknown): string {
-    // A 401/403 body carries internals (a permission codename, "Unauthorized"),
-    // so the status decides the wording, never the payload.
+    // A 401/403 body normally carries internals (a permission codename,
+    // "Unauthorized"), so the status decides the wording, not the payload.
     if (status === 401) return "Nicht angemeldet. Bitte melde dich erneut an.";
-    if (status === 403) return "Dazu fehlt dir die Berechtigung.";
+    if (status === 403) {
+      // …except where the API marks the refusal as written for the user. Those
+      // explain a rule rather than name a permission ("a sent message can no
+      // longer be edited"), and replacing them with a generic sentence left the
+      // actual reason invisible.
+      if (detail && typeof detail === "object" && "displayable" in detail) {
+        const body = detail as { displayable?: unknown; detail?: unknown };
+        if (body.displayable === true && typeof body.detail === "string" && body.detail.trim()) {
+          return body.detail;
+        }
+      }
+      return "Dazu fehlt dir die Berechtigung.";
+    }
 
     if (detail && typeof detail === "object" && "detail" in detail) {
       const d = (detail as { detail: unknown }).detail;

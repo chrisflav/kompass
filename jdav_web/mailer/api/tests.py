@@ -331,6 +331,11 @@ class MailerApiTestCase(TestCase):
             "/api/mailer/messages/{}/submit".format(message.pk), **self.auth(external_user)
         )
         self.assertEqual(r.status_code, 403)
+        # The reason is the only thing that makes this 403 actionable: it is a
+        # rule about the sender's address, not a missing permission, so being an
+        # admin does not help and the client must be able to print it.
+        self.assertTrue(r.json()["displayable"])
+        self.assertIn("internal email address", r.json()["detail"])
         self.assertFalse(mock_send.called)
         message.refresh_from_db()
         self.assertFalse(message.sent)
@@ -343,6 +348,9 @@ class MailerApiTestCase(TestCase):
             "/api/mailer/messages/{}/submit".format(message.pk), **self.auth(self.other_user)
         )
         self.assertEqual(r.status_code, 403)
+        # A permission refusal carries a codename, which the client must not
+        # print — the opposite case to the one above.
+        self.assertFalse(r.json()["displayable"])
         self.assertFalse(mock_send.called)
 
     # --- attachments -------------------------------------------------------

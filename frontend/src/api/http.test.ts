@@ -45,6 +45,25 @@ describe("ApiError.messageFor", () => {
     expect(message).toBe("Dazu fehlt dir die Berechtigung.");
   });
 
+  it("shows a 403 the API marked as written for the user", () => {
+    // Refusals that explain a rule are the only thing that makes the 403
+    // actionable; replacing them with the generic sentence hid the reason.
+    const message = ApiError.messageFor(403, {
+      detail: "A sent message can no longer be edited.",
+      displayable: true,
+    });
+    expect(message).toBe("A sent message can no longer be edited.");
+  });
+
+  it("still hides a 403 that only claims to be displayable", () => {
+    expect(ApiError.messageFor(403, { detail: "members.view_group", displayable: false })).toBe(
+      "Dazu fehlt dir die Berechtigung.",
+    );
+    expect(ApiError.messageFor(403, { detail: "x", displayable: "yes" })).toBe(
+      "Dazu fehlt dir die Berechtigung.",
+    );
+  });
+
   it("uses the status for 401 rather than the body", () => {
     const message = ApiError.messageFor(401, { detail: "Unauthorized" });
     expect(message).not.toContain("Unauthorized");

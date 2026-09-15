@@ -16,10 +16,10 @@ same ``change_obj_message`` predicate guards them.
 """
 
 from contrib.api.perms import authorize
+from contrib.api.perms import Forbidden
 from contrib.api.perms import get_authorized
 from contrib.api.perms import get_member
 from contrib.permissions import scope_queryset
-from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
@@ -142,7 +142,7 @@ def update_message(request, message_id: int, payload: MessageIn):
     """Update an unsent message, authorized per object."""
     message = get_authorized(request, Message, message_id, "mailer.change_obj_message")
     if message.sent:
-        raise PermissionDenied("A sent message can no longer be edited.")
+        raise Forbidden(_("A sent message can no longer be edited."))
     return _apply_message(message, payload)
 
 
@@ -165,8 +165,8 @@ def submit_message(request, message_id: int):
     message = get_authorized(request, Message, message_id, "mailer.change_obj_message")
     sender = get_member(request)
     if not sender.has_internal_email():
-        raise PermissionDenied(
-            "Your email address is not an internal email address and may not send messages."
+        raise Forbidden(
+            _("Your email address is not an internal email address and may not send messages.")
         )
     message.submit(sender)
     return message
@@ -191,7 +191,7 @@ def create_attachment(request, message_id: int, f: UploadedFile = File(...)):
     """
     message = get_authorized(request, Message, message_id, "mailer.change_obj_message")
     if message.sent:
-        raise PermissionDenied("A sent message can no longer be edited.")
+        raise Forbidden(_("A sent message can no longer be edited."))
     file_size_validator(10)(f)
     return Attachment.objects.create(msg=message, f=f)
 
