@@ -28,7 +28,7 @@
 <p><strong>{% trans "Contact email" %}:</strong> <a href="mailto:{{ group.contact_email.email }}">{{ group.contact_email.email }}</a></p>
 {% endif %}
 
-{% if group.has_registration_password %}
+{% if group.show_website_registration and group.has_registration_password %}
 <p><strong>{% trans "Registration" %}:</strong> <a href="{% url 'members:register' %}">Register here</a></p>
 {% endif %}
 

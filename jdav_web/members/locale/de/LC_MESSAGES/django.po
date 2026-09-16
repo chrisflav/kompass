@@ -745,6 +745,9 @@ msgstr "Zeiten auf der Webseite anzeigen"
 msgid "show contact email on website"
 msgstr "Kontaktadresse auf der Webseite anzeigen"
 
+msgid "show registration link on website"
+msgstr "Anmeldelink auf der Webseite anzeigen"
+
 msgid "group"
 msgstr "Gruppe"
 
