@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-30 10:32+0200\n"
+"POT-Creation-Date: 2026-09-17 23:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,22 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Age"
-msgstr "Alter"
-
-msgid "Not too old"
-msgstr "Nicht zu alt"
-
-msgid "Too old"
-msgstr "Zu alt"
-
 msgid "Filetype not supported."
 msgstr "Dieser Dateityp wird nicht unterstützt."
 
-
 msgid "File too large."
 msgstr "Die Datei ist zu groß."
-
 
 msgid "material"
 msgstr "Material"
@@ -67,9 +56,6 @@ msgstr "Bild"
 
 msgid "Quantity"
 msgstr "Anzahl"
-
-msgid "Thumbnail"
-msgstr "Bild"
 
 msgid "Owners"
 msgstr "Verantwortliche"
