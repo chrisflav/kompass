@@ -16,6 +16,7 @@ env:
   REGISTRY: ghcr.io
   APP_IMAGE_NAME: ${{ github.repository }}
   NGINX_IMAGE_NAME: ${{ github.repository }}-nginx
+  SPA_IMAGE_NAME: ${{ github.repository }}-spa
 
 jobs:
   deploy:
@@ -74,6 +75,7 @@ jobs:
             **Docker Images:**
             - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ steps.pr.outputs.pr_number }}`
             - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ steps.pr.outputs.pr_number }}`
+            - SPA: `${{ env.REGISTRY }}/${{ env.SPA_IMAGE_NAME }}:pr-${{ steps.pr.outputs.pr_number }}`
 
       - name: Remove awaiting-deployment label
         if: always()

@@ -49,8 +49,20 @@ disabled_apps = []
 deployed = true
 debug = false
 secret_key = 'secret key'
-allowed_hosts = ['jdav-town.de']
+# The second entry is the pilot domain serving the new frontend (the `spa`
+# service, published on port 3001). Point that domain's TLS proxy at it.
+allowed_hosts = ['jdav-town.de', 'neu.jdav-town.de']
 host = 'jdav-town.de'
+# The frontend proxies `/o/` onto its own domain, so Django serves the OAuth
+# login form there and has to accept the form posted back from it.
+csrf_trusted_origins = ['https://neu.jdav-town.de']
+# TLS is terminated in front of nginx; without this Django sees plain HTTP and
+# rejects the `https://` Origin above. Only enable it where that proxy is the
+# only way in.
+trust_forwarded_proto = true
+# Makes the secret-key links in outgoing mail point at the new frontend. Leave
+# empty while the Django site is still the one users are sent to.
+frontend_base_url = ''
 media_root = '/var/www/jdav_web/media'
 static_root = '/var/www/jdav_web/static'
 broker_url = 'redis://redis:6379/0'

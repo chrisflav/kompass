@@ -32,6 +32,19 @@ services:
         depends_on:
           - master
 
+    # The new frontend, on its own port so a second domain can be pointed at it
+    # while nginx above keeps serving the Django site unchanged.
+    spa:
+        image: ghcr.io/chrisflav/kompass-spa:latest
+        restart: on-failure
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/var/www/jdav_web/static/:ro
+        ports:
+          - "3001:80"
+        depends_on:
+          - master
+
     db:
         restart: on-failure
         image: mariadb:latest

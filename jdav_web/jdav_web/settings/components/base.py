@@ -43,6 +43,18 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 USE_X_FORWARDED_HOST = True
 
+# TLS is terminated by the reverse proxy in front of nginx, so Django sees a
+# plain HTTP request and would judge an `https://` Origin to be a mismatch.
+# Trusting the proxy's own header is what lets it tell the two apart — only
+# meaningful where the proxy is the sole way in, so it is opt-in.
+if get_var("django", "trust_forwarded_proto", default=False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Origins whose forms Django accepts POSTs from, as "https://host" entries. A
+# second frontend domain proxying `/o/` needs to be listed here: the OAuth login
+# form is served under that domain and posted back to it.
+CSRF_TRUSTED_ORIGINS = list(get_var("django", "csrf_trusted_origins", default=[]))
+
 # Application definition
 
 INSTALLED_APPS = [

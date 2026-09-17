@@ -38,6 +38,22 @@ services:
         networks:
           - main
 
+    # The new frontend, on its own port so a second domain can be pointed at it
+    # while nginx above keeps serving the Django site unchanged.
+    spa:
+        image: ghcr.io/chrisflav/kompass-spa:latest
+        restart: always
+        volumes:
+          - uwsgi_data:/tmp/uwsgi/
+          - web_static:/var/www/jdav_web/static/:ro
+          - ./media:/var/www/jdav_web/media/:ro
+        ports:
+          - "3001:80"
+        depends_on:
+          - master
+        networks:
+          - main
+
     cache:
         restart: always
         image: memcached:alpine
