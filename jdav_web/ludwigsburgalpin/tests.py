@@ -1,13 +1,11 @@
 from http import HTTPStatus
 
 from django.conf import settings
-from django.contrib.admin.sites import AdminSite
-from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .admin import TerminAdmin
+from .excel import generate_termin_overview
 from .models import EVENTART
 from .models import GRUPPE
 from .models import KATEGORIE
@@ -36,18 +34,13 @@ class BasicTerminTestCase(TestCase):
             )
 
 
-class TerminAdminTestCase(BasicTerminTestCase):
+class TerminTestCase(BasicTerminTestCase):
     def test_str(self):
         t = Termin.objects.all()[0]
         self.assertEqual(str(t), "{} {}".format(t.title, str(t.group)))
 
-    def test_make_overview(self):
-        factory = RequestFactory()
-        admin = TerminAdmin(Termin, AdminSite())
-        url = reverse("admin:ludwigsburgalpin_termin_changelist")
-        request = factory.get(url)
-
-        response = admin.make_overview(request, Termin.objects.all())
+    def test_generate_termin_overview(self):
+        response = generate_termin_overview(Termin.objects.all())
 
         self.assertEqual(
             response["Content-Type"],

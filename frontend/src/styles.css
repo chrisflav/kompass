@@ -1,0 +1,3247 @@
+:root {
+  /* --- Alpenvereinskarte palette ------------------------------------------
+     The identity is rooted in the DAV's own topographic maps and the compass
+     the product ("Kompass") is named after — not a generic SaaS green. Colours
+     are the materials of alpine cartography: cool map paper, rock-shadow ink,
+     glacial blue, a bistre contour hairline, and a magnetic-needle accent. */
+  --paper: #f4f5f2; /* cool map paper — app canvas */
+  --ink: #14232c; /* rock-shadow slate — text */
+  --fels: #17566a; /* glacial alpine blue — primary / links / active */
+  --fels-hover: #114353;
+  --gletscher: #e2edf0; /* glacier ice — weak / active fills */
+  --contour: #a8683c; /* bistre contour line — the cartographic signature */
+  --contour-weak: rgba(168, 104, 60, 0.13);
+  --nord: #c8452d; /* compass-needle red — the one sharp accent + danger */
+  --nord-weak: #f6e6e1;
+
+  --panel: #ffffff;
+  --panel-2: #f6f7f4;
+  --border: #e2e4dd;
+  --muted: #63707a;
+
+  /* Semantic aliases keep every existing rule working while adopting the new
+     palette. --accent maps to the alpine blue; --danger to the needle red. */
+  --bg: var(--paper);
+  --text: var(--ink);
+  --accent: var(--fels);
+  --accent-hover: var(--fels-hover);
+  --accent-weak: var(--gletscher);
+  --danger: var(--nord);
+  --danger-weak: var(--nord-weak);
+  --warning: #8a5a10; /* topographic amber */
+  --warning-weak: #f4ead4;
+  --info: #17566a;
+  --info-weak: #e2edf0;
+  /* Success stays a forest green so it never collides with the alpine-blue
+     primary or the needle-red danger. */
+  --success: #2f6f4f;
+  --success-weak: #e5efe8;
+
+  --radius: 9px;
+  --shadow: 0 1px 2px rgba(20, 35, 44, 0.05), 0 6px 18px rgba(20, 35, 44, 0.05);
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  font-family: var(--font-sans);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* A stray wide element must never make the whole page scroll sideways.
+     `clip` (not `hidden`) doesn't create a scroll container, so the sticky top
+     bar keeps working; nested scrollers like `.table-wrap` are unaffected. */
+  overflow-x: clip;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1,
+h2 {
+  letter-spacing: -0.012em;
+}
+
+h2 {
+  margin: 0 0 0.15rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+h3 {
+  margin: 0;
+}
+
+/* --- buttons ------------------------------------------------------------- */
+
+.btn {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #fff;
+  transition: background 0.12s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+.btn.danger {
+  background: var(--danger);
+}
+
+.btn.icon {
+  padding: 0.2rem 0.5rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* --- site shell (shared top bar + centered content) ---------------------- */
+
+.site {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.site-main {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.75rem 2rem 3rem;
+  flex: 1;
+}
+
+/* --- top bar ------------------------------------------------------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-inner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+  flex: none;
+}
+
+.compass-mark {
+  flex: none;
+  display: block;
+}
+
+/* Primary navigation: a ruled band under the brand row, in the spirit of the
+   legend strip along the edge of a map sheet. Recessed a shade off the paper so
+   it reads as part of the sheet rather than as a second toolbar. */
+.navrail {
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+}
+
+.topnav {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  /* Deduct the tabs' own inset so the first label lands on the same left grid
+     line as the compass mark and the page content below, not 14px right of it. */
+  padding: 0 calc(2rem - 0.9rem);
+  display: flex;
+  align-items: stretch;
+  /* Wrap rather than overflow: a seventh area, or a section-heavy public nav,
+     drops onto a second line instead of painting over the account cluster. */
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.nav-link,
+.nav-area-btn {
+  font: inherit;
+  font-size: 0.92rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 42px;
+  padding: 0 0.9rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Pointing at an area only colours its label. Leaving the ground alone keeps
+   the current tab the single filled element in the band, so "where I am" and
+   "what I am pointing at" never read the same. */
+.nav-link:hover,
+.nav-area-btn:hover {
+  color: var(--accent);
+}
+
+/* The area you are in is a tab lifted out of the band onto paper white, marked
+   by a contour tick on the band's lower edge — bistre, the one place the
+   cartographic hairline surfaces in the chrome. The label stays ink: the mark
+   carries the position, the way a map ticks your place on a scale. */
+.nav-link.active,
+.nav-area-btn.active {
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--contour);
+}
+
+.nav-caret {
+  font-size: 0.6rem;
+  color: var(--muted);
+}
+
+.nav-area {
+  position: relative;
+  display: flex;
+}
+
+.nav-dropdown {
+  position: absolute;
+  z-index: 50;
+  /* Hangs off the band's lower rule, so the open panel reads as pulled out of
+     the rail rather than floating near it. */
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.nav-dropdown.right {
+  left: auto;
+  right: 0;
+}
+
+.nav-drop-item {
+  display: block;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.nav-drop-item:hover {
+  background: var(--panel-2);
+}
+
+.nav-drop-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-drop-item.as-button {
+  font: inherit;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* Right cluster: public↔Kompass switch + user menu / login. */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex: none;
+  margin-left: auto;
+}
+
+.context-switch {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.ctx {
+  padding: 0.26rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ctx.active {
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+
+.topbar-login {
+  text-decoration: none;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-menu-btn {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.user-menu-btn:hover {
+  border-color: var(--fels);
+}
+
+.user-avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--gletscher);
+  color: var(--fels);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hamburger + drawer, shown only on narrow screens (see responsive block). */
+.hamburger {
+  display: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.topnav-drawer {
+  display: none;
+}
+
+/* --- page header --------------------------------------------------------- */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.page-actions,
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Dropdown menus inside the header command cluster open flush to the button's
+   right edge so a right-aligned "Dokumente ▾" doesn't overflow the viewport. */
+.page-actions .menu-dropdown {
+  left: auto;
+  right: 0;
+}
+
+/* --- list toolbar (search / filter) -------------------------------------- */
+
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.list-search {
+  width: auto;
+  min-width: 220px;
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+
+.list-filter {
+  width: auto;
+  min-width: 150px;
+}
+
+/* --- tables -------------------------------------------------------------- */
+
+.th-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.th-sort:hover {
+  color: var(--accent);
+}
+
+.th-sort.active {
+  color: var(--accent);
+}
+
+.sort-arrow {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  /* Datasheet figures line up column-to-column (member ids, amounts, dates). */
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 0.55rem 0.9rem;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr.clickable {
+  cursor: pointer;
+}
+
+.data-table tr.clickable:hover td {
+  background: var(--accent-weak);
+}
+
+/* --- tabs ----------------------------------------------------------------- */
+
+/* Tabs are section wayfinding, not commands: the map-margin "instrument" voice
+   (mono, uppercase, letter-spaced) sets them apart from sentence-case buttons
+   on three axes at once — type, shape (underline vs pill), and position. */
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.5rem 0;
+  margin-bottom: -1px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* A tab whose panel holds a validation error flags red with a trailing dot, so
+   the offending section is obvious even while another tab is open. */
+.tab.has-error {
+  color: var(--danger);
+}
+
+.tab.has-error::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  vertical-align: 0.1em;
+  background: var(--danger);
+}
+
+.tab.has-error.active {
+  border-bottom-color: var(--danger);
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+/* Inside tabs the first fieldset heading is redundant with the tab label. */
+.tab-panel > .fieldset-title:first-child {
+  margin-top: 0.25rem;
+}
+
+/* An inline table that IS a tab's content (either first, or right after the
+   section's `.fieldset-help` intro) repeats the tab label in its own heading —
+   drop that heading, and pin the "add" button to the right edge in its place
+   (the inline-head's default space-between would otherwise strand a lone button
+   on the left). */
+.tab-panel > .inline-section:first-child,
+.tab-panel > .fieldset-help:first-child + .inline-section {
+  margin-top: 0;
+}
+.tab-panel > .inline-section:first-child > .inline-head > .fieldset-title,
+.tab-panel > .fieldset-help:first-child + .inline-section > .inline-head > .fieldset-title {
+  display: none;
+}
+.tab-panel > .inline-section:first-child > .inline-head,
+.tab-panel > .fieldset-help:first-child + .inline-section > .inline-head {
+  justify-content: flex-end;
+}
+
+/* --- fieldset groups & inline sections ----------------------------------- */
+
+.fieldset-title {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+/* Recovered admin fieldset description, shown above a detail section. */
+.fieldset-help {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--contour);
+  background: var(--contour-weak);
+  border-radius: 0 6px 6px 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.inline-section {
+  margin-top: 1.5rem;
+}
+
+/* Inline heading row: title on the left, the modal "+ add" button on the right. */
+.inline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.inline-add {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+/* The per-row action (Entfernen) column always sits at the right edge. */
+.data-table th.inline-actions,
+.data-table td.inline-actions {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* --- detail list --------------------------------------------------------- */
+
+.detail {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  box-shadow: var(--shadow);
+  margin: 0;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail dt {
+  color: var(--muted);
+}
+
+.detail dd {
+  margin: 0;
+}
+
+/* --- badges -------------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.badge.success {
+  background: var(--success-weak);
+  color: var(--success);
+  border-color: transparent;
+}
+
+.badge.warning {
+  background: var(--warning-weak);
+  color: var(--warning);
+  border-color: transparent;
+}
+
+.badge.danger {
+  background: var(--danger-weak);
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.badge.info {
+  background: var(--info-weak);
+  color: var(--info);
+  border-color: transparent;
+}
+
+/* --- forms --------------------------------------------------------------- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 480px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* Per-input validation error (shown under the offending field). */
+.field-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.has-error input,
+.has-error select,
+.has-error textarea,
+.field.has-error input,
+.field.has-error select,
+.field.has-error textarea {
+  border-color: var(--danger);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel);
+  width: 100%;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-weak);
+  border-color: var(--accent);
+}
+
+/* Checkboxes/radios must not stretch full-width; keep them left-aligned. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  margin: 0;
+  align-self: flex-start;
+}
+
+/* A left-aligned checkbox row (label to the right of the box). */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+/* --- breadcrumbs --------------------------------------------------------- */
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.breadcrumbs a {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  color: var(--accent);
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.crumb-sep {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 1.05rem;
+}
+
+.crumb-current {
+  color: var(--text);
+}
+
+/* --- dropdown menu ------------------------------------------------------- */
+
+.menu {
+  position: relative;
+  display: inline-block;
+}
+
+.menu-dropdown {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.menu-dropdown .btn {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+/* --- searchable multi-select --------------------------------------------- */
+
+.multiselect {
+  position: relative;
+}
+
+.ms-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  min-height: 2.2rem;
+}
+
+.ms-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ms-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.ms-toggle {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.1rem 0.55rem;
+}
+
+.ms-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ms-dropdown {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.4rem;
+}
+
+.ms-search {
+  margin-bottom: 0.35rem;
+}
+
+.ms-options {
+  max-height: 13rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-opt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.ms-opt:hover {
+  background: var(--panel-2);
+}
+
+.ms-opt.selected {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ms-check {
+  color: var(--accent);
+}
+
+.ms-empty {
+  padding: 0.5rem;
+}
+
+/* --- searchable single-select (filters) ---------------------------------- */
+
+.searchselect {
+  position: relative;
+  display: inline-block;
+}
+
+.ss-trigger {
+  font: inherit;
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 150px;
+}
+
+.ss-trigger.active {
+  border-color: var(--accent);
+}
+
+.ss-label {
+  color: var(--muted);
+}
+
+.ss-value {
+  font-weight: 600;
+}
+
+.ss-trigger.active .ss-value {
+  color: var(--accent);
+}
+
+.ss-caret {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.searchselect .ms-dropdown {
+  min-width: 200px;
+}
+
+/* Form single-selects (Select) fill the field width like MultiSelect, so the
+   trigger and the dropdown option text render consistently between them (filter
+   SearchableSelects stay inline). */
+.ss-field {
+  display: block;
+}
+
+.ss-field .ss-trigger {
+  width: 100%;
+}
+
+/* The form select's value reads like a normal input value / the multiselect
+   options — not the bold, emphasised look the filter SearchableSelect uses. */
+.ss-field .ss-value {
+  font-weight: 400;
+  font-size: 0.92rem;
+}
+
+/* --- states -------------------------------------------------------------- */
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.state {
+  padding: 1.25rem 0;
+}
+
+/* --- dashboard cards ----------------------------------------------------- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.shortcut-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  transition: border-color 0.12s ease;
+}
+
+.shortcut-card:hover {
+  border-color: var(--accent);
+}
+
+.shortcut-title {
+  font-weight: 600;
+}
+
+/* --- login --------------------------------------------------------------- */
+
+.login {
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--paper);
+}
+
+/* Topographic contour backdrop — the signature moment. Sits behind the card,
+   masked to fade toward the centre so the form stays legible. */
+.hero-contour {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: var(--contour);
+}
+
+.login > .card {
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.login-brand h1 {
+  font-size: 1.9rem;
+}
+
+.login-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.75rem;
+  width: min(380px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: var(--shadow);
+}
+
+.card h1 {
+  margin: 0;
+}
+
+/* --- public site --------------------------------------------------------- */
+
+.public-footer {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid var(--border);
+}
+
+/* --- modal --------------------------------------------------------------- */
+
+/* The backdrop scrolls (not the dialog): with `margin: auto` the modal centres
+   when it fits and scrolls from the top when it doesn't — and because the modal
+   itself has no overflow clipping, an open dropdown inside it is never cut off
+   and the dialog simply grows to whatever its content needs. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 45, 0.4);
+  display: flex;
+  overflow-y: auto;
+  padding: 1.25rem;
+  z-index: 50;
+}
+
+.modal {
+  margin: auto;
+  background: var(--panel);
+  border-radius: 14px;
+  width: min(640px, 96vw);
+  box-shadow: 0 12px 40px rgba(20, 30, 45, 0.25);
+}
+
+.modal.sm {
+  width: min(440px, 96vw);
+}
+
+.modal.lg {
+  width: min(840px, 96vw);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-body {
+  padding: 1.25rem;
+}
+
+/* Forms inside a modal fill the dialog width (the default `.stack` cap is for
+   inline page forms, not modals). */
+.modal-body .stack {
+  max-width: none;
+}
+
+/* --- toasts -------------------------------------------------------------- */
+
+/* Status messages read as map-legend annotations, centered under the top bar
+   (in the reading path, near where the action fired) rather than tucked in a
+   corner: a themed tinted panel with a tone-coloured left rule and a mono
+   status tag — the same instrument voice as badges and table headers. */
+.toast-stack {
+  position: fixed;
+  top: 4.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  z-index: 100;
+  width: max-content;
+  max-width: min(92vw, 460px);
+  /* Let clicks fall through the container gaps; toasts re-enable pointers. */
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.7rem 0.95rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 22px rgba(20, 35, 44, 0.16);
+  font-size: 0.92rem;
+  animation: toast-in 0.22s ease;
+}
+
+.toast-tag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.toast-msg {
+  color: var(--text);
+}
+
+.toast.success {
+  background: var(--success-weak);
+  border-color: transparent;
+  border-left-color: var(--success);
+}
+
+.toast.success .toast-tag {
+  color: var(--success);
+}
+
+.toast.error {
+  background: var(--danger-weak);
+  border-color: transparent;
+  border-left-color: var(--danger);
+}
+
+.toast.error .toast-tag {
+  color: var(--danger);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+/* --- prose (rendered Markdown + KaTeX for website posts) ----------------- */
+
+.prose {
+  line-height: 1.65;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose > :last-child {
+  margin-bottom: 0;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  line-height: 1.25;
+  margin: 1.6em 0 0.5em;
+}
+
+.prose h1 {
+  font-size: 1.6rem;
+}
+
+.prose h2 {
+  font-size: 1.3rem;
+}
+
+.prose h3 {
+  font-size: 1.1rem;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose table {
+  margin: 0 0 0.9em;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+}
+
+.prose li {
+  margin: 0.2em 0;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+
+.prose blockquote {
+  margin-left: 0;
+  padding: 0.2em 1em;
+  border-left: 3px solid var(--contour);
+  color: var(--muted);
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--panel-2);
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+}
+
+.prose pre {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+}
+
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+/* Display math shouldn't force horizontal page scroll on small screens. */
+.prose .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2em 0;
+}
+
+/* --- post teasers (news / reports previews) ------------------------------ */
+
+.post-teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--text);
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+
+.post-teaser:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 4px rgba(20, 35, 44, 0.06), 0 10px 26px rgba(20, 35, 44, 0.08);
+  transform: translateY(-1px);
+}
+
+.post-teaser-title {
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.post-teaser-date {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.post-teaser-excerpt {
+  margin: 0.15rem 0 0.35rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.post-teaser-more {
+  margin-top: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Section "Alle …" link, with a trailing arrow that nudges on hover. */
+.section-more {
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.section-more:hover {
+  text-decoration: underline;
+}
+
+/* --- public hero (topographic signature) --------------------------------- */
+
+.public-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.75rem;
+  padding: 2.75rem 2rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(160deg, #fbfcfa 0%, var(--gletscher) 100%);
+}
+
+.public-hero .hero-contour {
+  color: var(--contour);
+}
+
+.public-hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 34rem;
+}
+
+.public-hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fels);
+}
+
+.public-hero h1 {
+  margin: 0.5rem 0 0;
+  font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+  line-height: 1.05;
+}
+
+.public-hero-lead {
+  margin: 0.6rem 0 0;
+  font-size: 1.05rem;
+  color: var(--muted);
+  max-width: 30rem;
+}
+
+/* Ludwigsburg's own coordinates, read out like a bearing on the map. */
+.public-hero-coords {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--contour);
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--contour-weak);
+}
+
+/* --- admin dashboard ("Basecamp") ---------------------------------------- */
+
+/* Shared mono eyebrow / coordinate-label voice. */
+.eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dash-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(150deg, #fbfcfa 0%, var(--gletscher) 130%);
+}
+
+.dash-hero .hero-contour {
+  color: var(--contour);
+  opacity: 0.7;
+}
+
+.dash-hero .compass-mark {
+  position: relative;
+  z-index: 1;
+}
+
+.dash-hero-text {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dash-hero-title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+/* The greeting name links to the current user's own profile. */
+.dash-hero-name {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--fels);
+  text-underline-offset: 3px;
+}
+
+.dash-hero-name:hover {
+  color: var(--fels);
+}
+
+.dash-hero-sub {
+  margin: 0.1rem 0 0;
+  color: var(--muted);
+}
+
+/* Right-hand cluster of the hero: the primary "send message" action + the
+   mono status readout. */
+.dash-hero-side {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex: none;
+}
+
+.dash-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dash-hero-meta {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--fels);
+  white-space: nowrap;
+}
+
+.dash-section {
+  margin-bottom: 2rem;
+}
+
+/* The dashboard shows real content, not a link grid: two balanced columns of
+   compact panels on wide screens, one column when it gets tight. */
+.dash-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 2rem;
+  align-items: start;
+}
+
+.dash-columns .dash-section {
+  margin-bottom: 0;
+}
+
+.dash-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dash-head .eyebrow {
+  margin-bottom: 0.5rem;
+}
+
+.dash-seeall {
+  font-size: 0.82rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dash-seeall:hover {
+  text-decoration: underline;
+}
+
+.dash-list {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.dash-state {
+  padding: 0.9rem 1rem;
+  font-size: 0.9rem;
+}
+
+.dash-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.85rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.dash-row:last-child {
+  border-bottom: none;
+}
+
+.dash-row:hover {
+  background: var(--panel-2);
+}
+
+.dash-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.dash-row-main {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-row-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-row-meta {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Grid items default to min-width:auto, which lets wide/long content blow the
+   track past the viewport. Pin them to 0 so panels always stay within their
+   column and long titles ellipsize instead of overflowing. */
+.dash-columns > * {
+  min-width: 0;
+}
+
+@media (max-width: 820px) {
+  .dash-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- keyboard focus (quality floor) -------------------------------------- */
+
+a:focus-visible,
+.btn:focus-visible,
+.nav-link:focus-visible,
+.nav-area-btn:focus-visible,
+.nav-drop-item:focus-visible,
+.user-menu-btn:focus-visible,
+.ctx:focus-visible,
+.hamburger:focus-visible,
+.drawer-item:focus-visible,
+.tab:focus-visible,
+.th-sort:focus-visible,
+.ss-trigger:focus-visible,
+.ms-toggle:focus-visible,
+.ms-opt:focus-visible {
+  outline: 2px solid var(--fels);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* --- mobile drawer (shown when the top bar collapses) -------------------- */
+
+.drawer-switch {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.drawer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.drawer-group:last-child {
+  border-bottom: none;
+}
+
+.drawer-label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--muted);
+  padding: 0.1rem 0.25rem 0.25rem;
+}
+
+.drawer-item {
+  font: inherit;
+  display: block;
+  text-align: left;
+  padding: 0.55rem 0.5rem;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.drawer-item:hover,
+.drawer-item.active {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+
+/* --- responsive ---------------------------------------------------------- */
+
+/* Collapse into the hamburger + drawer only once the rail itself runs out of
+   room. With the nav on its own full-width row that is far narrower than the
+   old 1080px, so a laptop keeps the whole navigation instead of hiding it. */
+@media (max-width: 860px) {
+  .navrail,
+  .context-switch,
+  .user-menu {
+    display: none;
+  }
+
+  .hamburger {
+    display: inline-flex;
+  }
+
+  .topnav-drawer {
+    display: block;
+    padding: 0.5rem 2rem 1rem;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+}
+
+@media (max-width: 720px) {
+  .public-hero {
+    padding: 2rem 1.35rem;
+  }
+
+  .topbar-inner {
+    padding: 0 1rem;
+    gap: 0.75rem;
+  }
+
+  .site-main {
+    padding: 1.25rem 1rem 2.5rem;
+  }
+
+  .topnav-drawer {
+    padding: 0.5rem 1rem 1rem;
+  }
+
+  /* Let the hero reflow instead of forcing horizontal overflow: the mono
+     status readout drops onto its own line below the greeting. */
+  .dash-hero {
+    flex-wrap: wrap;
+    padding: 1.25rem;
+    gap: 0.5rem 0.85rem;
+  }
+
+  .dash-hero-title {
+    font-size: 1.3rem;
+  }
+
+  /* Drop the action + status onto their own full-width line below the greeting;
+     wrap if the button and readout can't share the row on very narrow screens. */
+  .dash-hero-side {
+    order: 3;
+    flex-basis: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 0.85rem;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .detail-row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
+/* Numbered steps in a public self-service flow (download → sign → upload). */
+.flow-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: var(--muted);
+}
+.flow-steps strong {
+  color: var(--text);
+}
+
+/* Unadorned list used inside a detail cell (e.g. a permission group's rights). */
+.plain-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Bulk-selection column on a list table (the admin's action selector). */
+.data-table th.select-col,
+.data-table td.select-col {
+  width: 1%;
+  padding-right: 0;
+  white-space: nowrap;
+}
+
+/* Action bar shown above a list once rows are selected. */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--accent);
+  background: var(--accent-weak);
+  border-radius: var(--radius);
+}
+.bulk-bar .bulk-count {
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Statement flows — the submission route and the review pipeline.
+
+   Both are guided, multi-leg screens rather than field editors, so they get a
+   shared vocabulary: a rail of legs at the top, one panel of content, one
+   forward/back bar at the bottom. Restrained on purpose — the palette, the mono
+   instrument voice and the north-tick are the identity; no contour flourish in
+   the admin.
+   ========================================================================== */
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* --- the Etappen rail ----------------------------------------------------- */
+
+/* A leg carries the figure it settled, not a step number, so a mismatch between
+   two legs (expenses vs bookings) is visible without opening either. */
+.etappen ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.etappe {
+  background: var(--panel);
+  display: flex;
+}
+
+.etappe-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-top: 2px solid var(--border);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+button.etappe-body {
+  cursor: pointer;
+}
+
+button.etappe-body:hover {
+  background: var(--panel-2);
+}
+
+.etappe-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.etappe-body[aria-disabled="true"] {
+  opacity: 0.5;
+}
+
+/* The rule along the top doubles as the progress bar: bistre behind you, the
+   compass-needle red where you stand. */
+.etappe.is-done .etappe-body {
+  border-top-color: var(--contour);
+}
+
+.etappe.is-current .etappe-body {
+  border-top-color: var(--nord);
+  background: var(--panel-2);
+}
+
+.etappe-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.etappe.is-current .etappe-label {
+  color: var(--text);
+}
+
+.etappe-index {
+  color: var(--contour);
+}
+
+.etappe-readout {
+  font-size: 0.95rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.etappe.is-ahead .etappe-readout {
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .etappen ol {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+}
+
+/* --- panel + navigation --------------------------------------------------- */
+
+.flow-panel {
+  animation: flow-in 140ms ease-out;
+}
+
+@keyframes flow-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-panel {
+    animation: none;
+  }
+}
+
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  max-width: 46rem;
+}
+
+.flow-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.flow-lead {
+  margin: -0.6rem 0 0;
+  color: var(--muted);
+  max-width: 44rem;
+}
+
+.flow-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+
+.flow-nav-fwd {
+  display: flex;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.flow-block {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-left: 3px solid var(--warning);
+  padding-left: 0.75rem;
+}
+
+/* --- step 1: choosing the occasion ---------------------------------------- */
+
+.choice-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+.choice-card:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.choice-card:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.choice-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.choice-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.choice-title {
+  font-weight: 600;
+}
+
+.choice-hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Facts the payout is derived from — stated in the instrument voice so they
+   read as given, not as something to fill in. */
+.readout {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--contour);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 0.85rem 1rem;
+}
+
+.readout-caption,
+.payout-caption {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.readout dl {
+  margin: 0.6rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.6rem 1.2rem;
+}
+
+.readout dl div {
+  display: flex;
+  flex-direction: column;
+}
+
+.readout dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.readout dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- receipts ------------------------------------------------------------- */
+
+.beleg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.beleg {
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.beleg-empty {
+  background: var(--panel);
+  padding: 1.1rem 0.9rem;
+  color: var(--muted);
+}
+
+.beleg-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.beleg-title {
+  font-weight: 500;
+}
+
+.beleg-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.beleg-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.beleg-actions,
+.beleg-decide {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.beleg.is-editing {
+  display: block;
+  padding: 1rem 0.9rem;
+  background: var(--panel-2);
+}
+
+.beleg-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.beleg-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.beleg-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.beleg-total strong {
+  font-size: 1.15rem;
+}
+
+/* --- payout preview + summary --------------------------------------------- */
+
+.payout {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 1rem;
+}
+
+.payout dl,
+.summary-lines {
+  margin: 0.7rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.payout dl div,
+.summary-lines div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.payout dt,
+.summary-lines dt {
+  color: var(--muted);
+}
+
+.payout dd,
+.summary-lines dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.payout-sum {
+  border-top: 1px solid var(--border);
+  padding-top: 0.4rem;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.payout-sum dt {
+  color: var(--text) !important;
+}
+
+.payout-note {
+  margin: 0.8rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.summary-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 1rem;
+}
+
+.summary-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-head strong {
+  font-size: 1.25rem;
+}
+
+/* --- pre-flight checks ---------------------------------------------------- */
+
+/* Blockers are shown before the irreversible button, not returned by it. */
+.preflight {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preflight-item {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius);
+  border-left: 3px solid transparent;
+}
+
+.preflight-item.ok {
+  background: var(--success-weak);
+  border-left-color: var(--success);
+}
+
+.preflight-item.bad {
+  background: var(--danger-weak);
+  border-left-color: var(--danger);
+}
+
+.preflight-mark {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.preflight-item.ok .preflight-mark {
+  color: var(--success);
+}
+
+.preflight-item.bad .preflight-mark {
+  color: var(--danger);
+}
+
+/* --- review: decisions beside their evidence ------------------------------ */
+
+.review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.review-proof {
+  position: sticky;
+  top: 5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+@media (max-width: 980px) {
+  .review {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-proof {
+    position: static;
+  }
+}
+
+.beleg.is-decidable {
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.beleg-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+  background: none;
+  border: 0;
+  border-left: 3px solid transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.beleg-pick:hover {
+  background: var(--panel-2);
+}
+
+.beleg-pick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.beleg.is-selected .beleg-pick {
+  border-left-color: var(--nord);
+  background: var(--panel-2);
+}
+
+.beleg.is-covered .beleg-amount {
+  color: var(--success);
+}
+
+.beleg.is-decidable:not(.is-covered) .beleg-amount {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.beleg.is-decidable .beleg-decide {
+  padding: 0 0.9rem 0.7rem;
+}
+
+@media (min-width: 640px) {
+  .beleg.is-decidable .beleg-decide {
+    padding: 0 0.9rem;
+  }
+}
+
+.decide-tally {
+  display: flex;
+  gap: 2rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.decide-tally div {
+  display: flex;
+  flex-direction: column;
+}
+
+.tally-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.decide-tally strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+}
+
+.proof img,
+.proof object {
+  width: 100%;
+  max-height: 26rem;
+  height: auto;
+  object-fit: contain;
+  border-radius: calc(var(--radius) - 3px);
+  background: var(--panel-2);
+}
+
+.proof object {
+  height: 26rem;
+}
+
+.proof {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.proof figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.proof-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+/* --- review: bookings ----------------------------------------------------- */
+
+.stage-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-items: flex-start;
+  background: var(--panel);
+}
+
+.stage-empty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.stage-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stage-hint {
+  font-size: 0.85rem;
+  color: var(--warning);
+}
+
+.abgleich {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.9rem 1rem;
+}
+
+.abgleich.ok {
+  border-left-color: var(--success);
+}
+
+.abgleich.bad {
+  border-left-color: var(--danger);
+}
+
+.abgleich p {
+  margin: 0.4rem 0 0;
+}
+
+/* --- review: the payout --------------------------------------------------- */
+
+/* The irreversible step carries only what is about to happen. Everything that
+   could still change the outcome lives on the stages behind it. */
+.payout-final {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+/* One transfer per row: who, which account, how much, and the EPC-QR that
+   carries all of it into a banking app. */
+.payout-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.payout-row {
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+.payout-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.payout-row-name {
+  font-weight: 600;
+}
+
+/* Bank details get the instrument voice — they are read and typed, not prose. */
+.payout-row-iban {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.payout-row-ref {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.payout-row-ledger {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Fixed columns so the amounts line up down the list even when a row has no
+   QR to show — a column of figures is read by scanning it. */
+.payout-row-amount {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 7rem;
+  text-align: right;
+}
+
+.payout-row-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-align: center;
+  min-width: 9rem;
+}
+
+/* The code must stay pure black on white to scan reliably, whatever the
+   surrounding panel does. */
+.payout-row-qr svg {
+  background: #ffffff;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.payout-qr-caption {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .payout-row {
+    flex-wrap: wrap;
+  }
+
+  .payout-row-qr {
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  .payout-row-amount {
+    min-width: 0;
+  }
+}
+
+.payout-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 0.7rem;
+  border-top: 2px solid var(--contour);
+  font-variant-numeric: tabular-nums;
+}
+
+.payout-total strong {
+  font-size: 1.25rem;
+}
+
+/* The acknowledgement that stands between the list and the irreversible act. */
+.payout-gate {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--nord);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.payout-gate input {
+  margin-top: 0.15rem;
+}
+
+/* The bookings stage carries a full transaction table, so it is not held to the
+   reading measure the narrow form steps use. */
+.flow-step-wide {
+  max-width: none;
+}
+
+/* A lone button inside a flow step is an action, not a row: keep it to its own
+   width instead of letting the flex column stretch it across the measure. */
+.flow-step > .btn,
+.review-list > .btn {
+  align-self: flex-start;
+}
+
+/* A portalled select panel positions itself in JS, so it must not inherit the
+   in-flow anchoring (top/left/right) from `.ms-dropdown`. */
+.ms-dropdown.is-anchored {
+  /* Above the modal backdrop (50): the panel is portalled to <body> as a
+     sibling of any open dialog, so at the base z-index it rendered *behind* the
+     dialog and only showed where it spilled past its edges. Still below the
+     toast stack (100), which must stay on top of everything. */
+  z-index: 60;
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ms-dropdown.is-anchored .ms-options {
+  overflow-y: auto;
+}
+
+/* Busy buttons keep their label (so nothing reflows) and simply read as
+   inert while the request is in flight. */
+.btn.is-busy {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ==========================================================================
+   Public landing page.
+
+   News and reports are different kinds of content and are shaped differently:
+   the newest story leads, the rest of the news is a dated ledger, and the trip
+   reports close as a picture strip. Previously both were identical grids of
+   equal-weight cards, so nothing was foregrounded.
+   ========================================================================== */
+
+.start {
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
+}
+
+.start-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.start-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* --- the lead story ------------------------------------------------------- */
+
+.lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--panel);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.lead:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+/* The picture fills whatever height the text column sets (with a floor), rather
+   than dictating it from its own aspect ratio. */
+.lead-figure {
+  display: block;
+  position: relative;
+  min-height: 15rem;
+  background: var(--panel-2);
+}
+
+@media (max-width: 760px) {
+  .lead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lead-figure {
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+
+  .lead-figure img {
+    position: static;
+  }
+}
+
+.lead-figure img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lead-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.6rem 1.75rem;
+}
+
+.lead-date {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--contour);
+}
+
+.lead-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.lead-excerpt {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.lead-more {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+/* --- the news ledger ------------------------------------------------------ */
+
+/* Older news reads as the section's logbook: a mono date rail, hairline-ruled,
+   so it is unmistakably a different kind of thing from the lead above it. */
+.ledger {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+
+.ledger li + li {
+  border-top: 1px solid var(--border);
+}
+
+.ledger-row {
+  display: flex;
+  gap: 1.1rem;
+  align-items: baseline;
+  padding: 0.8rem 0.25rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.ledger-row:hover {
+  background: var(--panel-2);
+}
+
+.ledger-row:hover .ledger-title {
+  color: var(--accent);
+}
+
+.ledger-date {
+  flex: none;
+  width: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  line-height: 1.15;
+}
+
+.ledger-day {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.ledger-rest {
+  font-size: 0.66rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ledger-title {
+  font-weight: 500;
+}
+
+/* --- the join panel ------------------------------------------------------- */
+
+/* The page's one call to action, running the full column between the news and
+   the reports — as a sidebar card it read as an advert pinned beside the page
+   rather than part of it. A weak glacier fill and a contour rule tie it into the
+   page's own material; the compass-needle accent is spent only on the eyebrow. */
+.join {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 2.5rem;
+  padding: 1.75rem 2rem;
+  border-radius: var(--radius);
+  background: var(--accent-weak);
+  border-top: 2px solid var(--contour);
+}
+
+.join-text {
+  flex: 1 1 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.join-text p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  /* Wide enough that the copy and the actions read as one band rather than two
+     islands with a void between them, still short of an unreadable measure. */
+  max-width: 62ch;
+}
+
+.join-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--nord);
+}
+
+.join-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.15;
+}
+
+.join-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.join-actions .btn {
+  text-decoration: none;
+}
+
+/* --- the report strip ----------------------------------------------------- */
+
+/* A trip report's hook is the photo and the place, not a truncated paragraph —
+   so these carry no excerpt at all. */
+.report-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1.1rem;
+}
+
+.report-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.report-figure {
+  display: block;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.report-figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.report-card:hover .report-figure img {
+  transform: scale(1.03);
+}
+
+.report-card:hover .report-title {
+  color: var(--accent);
+}
+
+.report-title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.report-date {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-figure img {
+    transition: none;
+  }
+
+  .report-card:hover .report-figure img {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Feedback — the button in the site chrome, its dialog, and the inbox.
+   ========================================================================== */
+
+/* Deliberately quiet and deliberately always there: it rides in the top bar on
+   every page, and unlike the nav it survives the mobile collapse, because a
+   phone is where people most often hit something worth reporting. */
+.feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.feedback-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.feedback-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .feedback-btn-label {
+    display: none;
+  }
+}
+
+/* The opt-out for page context prints the exact values that would travel with
+   the note, so ticking it is an informed choice rather than a promise. */
+.feedback-context {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--contour);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.feedback-context input {
+  margin-top: 0.2rem;
+}
+
+.feedback-context-label {
+  display: block;
+  font-weight: 500;
+}
+
+.feedback-context-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.feedback-context-detail code,
+.feedback-context-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  word-break: break-all;
+  color: var(--text);
+}
+
+/* The note is the point of the detail page, so it gets room to be paragraphs
+   rather than being squeezed into a definition row. */
+.feedback-message {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+/* How a payout figure is arrived at, printed under its label so two lines can
+   never be mistaken for one another (the allowance was being read as the
+   travel subsidy when the allowance row happened to be empty). */
+.payout-basis {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+/* A stored receipt is there to be opened, so it reads as a link rather than a
+   badge announcing its own existence. */
+.beleg-proof-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* A schedule overlap is worth flagging but not worth blocking on — sessions can
+   legitimately run in parallel. */
+.schedule-warning {
+  display: block;
+  color: var(--warning);
+  border-left: 3px solid var(--warning);
+  padding-left: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+/* Standalone flow pages carry no site navigation. The brand and the closing
+   link are the way back, so arriving from the site's own menu is not a dead end. */
+.flow-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.1rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.flow-home:hover span {
+  color: var(--accent);
+}
+
+.flow-back {
+  margin-top: 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}

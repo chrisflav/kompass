@@ -40,6 +40,8 @@ else ifeq ($(DEV_CMD),translate)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py makemessages --locale de --no-location --no-obsolete && python3 manage.py compilemessages"
 else ifeq ($(DEV_CMD),createsuperuser)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py createsuperuser"
+else ifeq ($(DEV_CMD),manage)
+	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd jdav_web && python3 manage.py $(DEV_EXTRA_ARGS)"
 else ifeq ($(DEV_CMD),docs)
 	cd docker/development; USER_ID=$$(id -u) GROUP_ID=$$(id -g) USERNAME=$$(id -un) docker compose exec master bash -c "cd docs && make html"
 	@echo ""
@@ -64,6 +66,7 @@ else
 	@echo "  make dev up detach=true               - Start in background"
 	@echo "  make dev down                         - Stop development environment"
 	@echo "  make dev shell                        - Open shell in running container"
+	@echo "  make dev manage <command> [args]      - Run a manage.py command (e.g. migrate)"
 	@echo "  make dev translate                    - Generate and compile translation files"
 	@echo "  make dev createsuperuser              - Create a superuser account"
 	@echo "  make dev docs                         - Build Sphinx documentation"
@@ -119,5 +122,13 @@ ifneq (dev,$(firstword $(MAKECMDGOALS)))
 else
 .PHONY: docs
 docs:
+	@:
+endif
+
+# Treat 'manage' as a no-op standalone goal so 'make dev manage <command>' does
+# not error after the dev recipe (which does the actual work) has run.
+ifeq (dev,$(firstword $(MAKECMDGOALS)))
+.PHONY: manage
+manage:
 	@:
 endif

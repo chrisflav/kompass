@@ -15,9 +15,10 @@ from django.db.models import When
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from mailer.mailutils import app_link
+from mailer.mailutils import flow_link
 from mailer.mailutils import get_echo_link
 from mailer.mailutils import get_invite_as_user_key
-from mailer.mailutils import prepend_base_url
 from mailer.mailutils import send as send_mail
 from members.rules import may_change
 from members.rules import may_delete
@@ -365,10 +366,10 @@ class Member(Person):
             self.notify_jugendleiters_about_confirmed_mail()
 
     def get_upload_registration_form_link(self):
-        return prepend_base_url(
-            reverse("members:upload_registration_form")
-            + "?key="
-            + self.upload_registration_form_key
+        # reverse() keeps the language prefix this view carries inside
+        # i18n_patterns; without it the legacy link 302s to the prefixed URL.
+        return flow_link(
+            reverse("members:upload_registration_form"), self.upload_registration_form_key
         )
 
     def send_upload_registration_form_link(self):
@@ -390,9 +391,7 @@ class Member(Person):
         # notify jugendleiters of group of registration
         jls = [jl for group in self.group.all() for jl in group.leiters.all()]
         for jl in jls:
-            link = prepend_base_url(
-                reverse("admin:members_memberunconfirmedproxy_change", args=[str(self.id)])
-            )
+            link = app_link("/registrations/{}".format(self.id))
             send_mail(
                 _("New unconfirmed registration for group %(group)s") % {"group": group},
                 settings.NEW_UNCONFIRMED_REGISTRATION.format(
@@ -431,7 +430,11 @@ class Member(Person):
         elif name == "LJPProposal":
             return queryset
         elif name == "MemberTraining":
-            return queryset
+            # A training's rules_permissions are evaluated against the owning
+            # member (it is an admin inline), so a user may only see the
+            # trainings of members they may list. Without this the list leaked
+            # rows whose detail route correctly answers 403.
+            return self.filter_related_by_member_permissions(queryset, "member")
         elif name == "NewMemberOnList":
             return queryset
         elif name == "Statement":
@@ -499,6 +502,15 @@ class Member(Person):
                 output_field=models.BooleanField(),
             )
         )
+
+    def filter_related_by_member_permissions(self, queryset, member_field):
+        """Restrict ``queryset`` to rows whose ``member_field`` the user may list.
+
+        For models that hang off a ``Member`` and borrow its object permissions
+        (``MemberTraining``, and anything else added later with the same shape).
+        """
+        listable = self.filter_members_by_permissions(Member.objects.all())
+        return queryset.filter(**{"{}__in".format(member_field): listable})
 
     def annotate_view_permission(self, queryset, model):
         name = model._meta.object_name

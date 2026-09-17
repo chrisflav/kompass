@@ -104,11 +104,21 @@ class Contact(CommonModel):
         return None
 
     def send_mail(self, subject, content, cc=None):
+        # ``alternative_email`` is nullable, so an unset one used to be handed to
+        # the mailer as a literal ``None`` recipient — one guaranteed bounce per
+        # message. Only address the fields that actually hold an address.
+        recipients = [
+            address
+            for address in (getattr(self, email_fd) for email_fd, _, _ in self.email_fields)
+            if address
+        ]
+        if not recipients:
+            return
         send_mail(
             subject,
             content,
             settings.DEFAULT_SENDING_MAIL,
-            [getattr(self, email_fd) for email_fd, _, _ in self.email_fields],
+            recipients,
             cc=cc,
         )
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 23:49+0200\n"
+"POT-Creation-Date: 2026-09-17 23:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,148 +18,80 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Submit"
-msgstr "Einreichen"
+msgid "Statement is not yet confirmed."
+msgstr "Diese Abrechnung ist noch nicht bestätigt."
+
+msgid "Filetype not supported."
+msgstr "Dieser Dateityp wird nicht unterstützt."
 
 #, python-format
-msgid "%(name)s is already submitted."
-msgstr "%(name)s ist bereits eingereicht."
+msgid "Please keep filesize under %(mb)s MiB."
+msgstr "Bitte halte die Dateigröße unter %(mb)s MiB."
 
-#, python-format
-msgid ""
-"Successfully submited %(name)s. The finance department will notify the "
-"requestors as soon as possible."
-msgstr ""
-"Rechnung %(name)s erfolgreich eingereicht. Das Finanzreferat wird auf dich "
-"sobald wie möglich zukommen."
-
-msgid "Finance overview"
-msgstr "Kostenübersicht"
-
-msgid "Submit statement"
-msgstr "Rechnung einreichen"
-
-msgid "Overview"
-msgstr "Übersicht"
-
-#, python-format
-msgid "%(name)s is not yet submitted."
-msgstr "%(name)s ist noch nicht eingereicht."
-
-#, python-format
-msgid "An error occured while trying to confirm %(name)s. Please try again."
-msgstr ""
-"Beim Abwickeln von %(name)s ist ein Fehler aufgetreten. Bitte versuche es "
-"erneut."
-
-msgid "Successfully sent receipt to the office."
-msgstr "Abrechnungsbeleg an die Geschäftsstelle gesendet."
+msgid "Only youth leaders of this excursion may receive contributions."
+msgstr "Nur Jugendleiter*innen dieser Ausfahrt können Zuschüsse erhalten."
 
 #, python-format
 msgid ""
-"Successfully confirmed %(name)s. I hope you executed the associated "
-"transactions, I wont remind you again."
+"This excursion only has up to %(approved_count)s approved youth leaders, but "
+"you listed %(entered_count)s."
 msgstr ""
-"Erfolgreich %(name)s abgewickelt. Ich hoffe du hast die zugehörigen "
-"Überweisungen ausgeführt, ich werde dich nicht nochmal erinnern."
+"Für diese Ausfahrt sind nur bis zu %(approved_count)s Jugendleiter*innen "
+"genehmigt, du hast aber %(entered_count)s eingetragen."
 
-#, python-format
-msgid "You can download a <a href='%(link)s', target='_blank'>receipt</a>."
-msgstr ""
-"Hier kannst du den Abrechnungsbeleg <a href='%(link)s', "
-"target='_blank'>herunterladen</a>."
+msgid "This excursion already has a statement."
+msgstr "Diese Ausfahrt hat bereits eine Abrechnung."
 
-msgid "Statement confirmed"
-msgstr "Abrechnung abgewickelt"
+msgid "This statement is not tied to an excursion."
+msgstr "Diese Abrechnung gehört zu keiner Ausfahrt."
 
-msgid "Payment"
-msgstr "Bezahlung"
+msgid "Submitted statements can no longer be edited."
+msgstr "Eingereichte Abrechnungen können nicht mehr bearbeitet werden."
+
+msgid "Statement is already submitted."
+msgstr "Diese Abrechnung wurde bereits eingereicht."
 
 msgid ""
-"Transactions do not match the covered expenses. Please correct the mistakes "
-"listed below."
+"The configured recipients of the allowance don't match the regulations. "
+"Please correct this and try again."
 msgstr ""
-"Überweisungen stimmen nicht mit den übernommenen Kosten überein. Bitte "
-"korrigiere die unten aufgeführten Fehler."
-
-msgid "Some transactions have no ledger configured. Please fill in the gaps."
-msgstr ""
-"Manche Überweisungen haben kein Geldtopf eingestellt. Bitte trage das nach."
+"Die ausgewählten Empfänger*innen der Aufwandsentschädigung entsprechen nicht "
+"den Regularien. Bitte korrigiere das und versuche es erneut."
 
 msgid ""
-"The configured recipients for the allowance don't match the regulations. "
-"Please correct this on the excursion."
+"The excursion is configured to claim LJP contributions. In that case, a "
+"proof must be uploaded for every bill."
 msgstr ""
-"Die ausgewählten Empfänger*innen der Aufwandsentschädigungen entsprechen "
-"nicht den Regularien. Bitte korrigiere das in der Ausfahrt."
+"Für diese Ausfahrt sollen LJP-Zuschüsse beantragt werden. Dafür muss zu "
+"jedem Beleg ein Scan hochgeladen sein."
 
-msgid ""
-"The calculated total amount does not match the sum of all transactions. This "
-"is most likely a bug."
+msgid "Only submitted, unconfirmed statements can be processed."
 msgstr ""
-"Der berechnete Gesamtbetrag stimmt nicht mit der Summe aller Überweisungen "
-"überein. Das ist höchstwahrscheinlich ein Fehler in der Implementierung."
+"Nur eingereichte, noch nicht bestätigte Abrechnungen können bearbeitet "
+"werden."
 
-#, python-format
-msgid "Successfully rejected %(name)s. The requestor can reapply, when needed."
+msgid "Statement already has transactions."
+msgstr "Für diese Abrechnung wurden bereits Buchungen erzeugt."
+
+msgid "Could not generate transactions. Ensure every covered bill has a payer."
 msgstr ""
-"Die Rechnung %(name)s wurde abgelehnt. Die Person kann die Rechnung erneut "
-"einstellen, wenn es benötigt wird."
+"Die Buchungen konnten nicht erzeugt werden. Bitte trage bei jedem "
+"übernommenen Beleg ein, wer ihn bezahlt hat."
 
-#, python-format
-msgid ""
-"%(name)s already has transactions. Please delete them first, if you want to "
-"generate new ones"
+msgid "Statement is not ready to be confirmed."
+msgstr "Diese Abrechnung kann noch nicht bestätigt werden."
+
+msgid "Only submitted, unconfirmed statements can be rejected."
 msgstr ""
-"%(name)s hat bereits Überweisungen. Bitte lösche diese zunächst, bevor du "
-"neue generierst."
+"Nur eingereichte, noch nicht bestätigte Abrechnungen können abgelehnt werden."
 
-#, python-format
-msgid "Successfully generated transactions for %(name)s"
-msgstr "Automatisch Überweisungsträger für %(name)s generiert."
+msgid "Statement is not confirmed."
+msgstr "Diese Abrechnung ist nicht bestätigt."
 
-#, python-format
-msgid ""
-"Error while generating transactions for %(name)s. Do all bills have a payer "
-"and, if this statement is attached to an excursion, was a person selected "
-"that receives the subsidies?"
+msgid "Transactions can only be edited on submitted, unconfirmed statements."
 msgstr ""
-"Fehler beim Erzeugen der Überweisungsträger für %(name)s. Sind für alle "
-"Quittungen eine bezahlende Person eingestellt und, falls diese Abrechnung zu "
-"einer Ausfahrt gehört, wurde eine Person als Empfänger*in der Übernachtungs- "
-"und Fahrtkostenzuschüsse ausgewählt?"
-
-msgid "View submitted statement"
-msgstr "Eingereichte Abrechnung einsehen"
-
-msgid "Reduce transactions"
-msgstr "Überweisungen minimieren"
-
-#, python-format
-msgid "Successfully reduced transactions for %(name)s."
-msgstr "Überweisungsträger für %(name)s minimiert."
-
-msgid "Unconfirm"
-msgstr "Bestätigung zurücknehmen"
-
-#, python-format
-msgid "%(name)s is not yet confirmed."
-msgstr "%(name)s ist noch nicht bestätigt."
-
-#, python-format
-msgid "Successfully unconfirmed %(name)s. I hope you know what you are doing."
-msgstr ""
-"Erfolgreich die Bestätigung von %(name)s zurückgenommen. Ich hoffe du weißt "
-"was du machst."
-
-msgid "Unconfirm statement"
-msgstr "Bestätigung zurücknehmen"
-
-msgid "Download summary"
-msgstr "Beleg herunterladen"
-
-msgid "Length"
-msgstr "Länge"
+"Buchungen können nur bei eingereichten, noch nicht bestätigten Abrechnungen "
+"bearbeitet werden."
 
 msgid "Finance"
 msgstr "Finanzen"
@@ -269,6 +201,24 @@ msgstr "Ausfahrt %(excursion)s"
 msgid "Ready to confirm"
 msgstr "Bereit zur Abwicklung"
 
+msgid "At least one transaction has no ledger configured."
+msgstr "Mindestens eine Buchung hat noch kein Konto. Bitte trage das nach."
+
+msgid "The transactions do not match the calculated costs."
+msgstr "Die Buchungen stimmen nicht mit den berechneten Kosten überein."
+
+msgid "The members receiving the allowance don't match the regulations."
+msgstr ""
+"Die Empfänger*innen der Aufwandsentschädigung entsprechen nicht den "
+"Regularien."
+
+msgid "The total of all transactions differs from the calculated total payout."
+msgstr ""
+"Die Summe aller Buchungen weicht von der berechneten Auszahlungssumme ab."
+
+msgid "Everything is correct."
+msgstr "Alles in Ordnung."
+
 #, python-format
 msgid "Allowance for %(excu)s"
 msgstr "Aufwandsentschädigung für %(excu)s"
@@ -344,265 +294,3 @@ msgstr "Überweisung"
 
 msgid "Transactions"
 msgstr "Überweisungen"
-
-msgid "Paying statement"
-msgstr "Rechnung bezahlen"
-
-msgid ""
-"The statement is valid. Please execute the following transactions and then "
-"proceed by finalizing the confirmation."
-msgstr ""
-"Die Abrechnung ist gültig. Bitte führe die folgenden Überweisungen aus und "
-"fahre dann fort, indem du die Abwicklung bestätigst."
-
-msgid "IBAN"
-msgstr "IBAN"
-
-msgid "QR Code"
-msgstr "QR Code"
-
-msgid "Show"
-msgstr "Anzeigen"
-
-msgid "No QR code can be displayed."
-msgstr "Es kann kein QR-Code angezeigt werden."
-
-msgid "Showing"
-msgstr "Sichtbar"
-
-msgid "I did execute the listed transactions."
-msgstr "Ich habe die aufgeführten Überweisungen ausgeführt."
-
-msgid "Confirm only"
-msgstr "Nur bestätigen"
-
-msgid "Confirm and send receipt to office"
-msgstr "Bestätigen und Beleg an die Geschäftsstelle senden"
-
-msgid ""
-"This statement is still a draft. It needs to be submitted before it can be "
-"processed further."
-msgstr ""
-"Diese Abrechnung ist noch ein Entwurf. Reiche sie ein, damit sie weiter "
-"bearbeitet werden kann."
-
-msgid "Covered by association"
-msgstr "Vom Verein übernommen"
-
-#, python-format
-msgid "The total amount is %(total_bills)s €."
-msgstr "Der Gesamtbetrag beträgt %(total_bills)s €."
-
-msgid "Excursion"
-msgstr "Ausfahrt"
-
-#, python-format
-msgid "This excursion featured %(staff_count)s youth leader(s), each costing"
-msgstr ""
-"Diese Ausfahrt hatte %(staff_count)s genehmigte Jugendleiter*innen. Für "
-"jede*n besteht ein Anspruch auf folgende Zuschüsse und "
-"Aufwandsentschädigungen:"
-
-#, python-format
-msgid ""
-"%(nights)s nights for %(price_per_night)s€ per night making a total of "
-"%(nights_per_yl)s€."
-msgstr ""
-"%(nights)s Nächte zum Preis von %(price_per_night)s€ pro Nacht. Das ergibt "
-"eine Gesamtsumme von %(nights_per_yl)s€."
-
-#, python-format
-msgid ""
-"%(duration)s days for %(allowance_per_day)s€ per day making a total of "
-"%(allowance_per_yl)s€."
-msgstr ""
-"%(duration)s Tage für %(allowance_per_day)s€ pro Tag. Das ergibt eine "
-"Gesamtsumme von %(allowance_per_yl)s€."
-
-#, python-format
-msgid ""
-"%(kilometers_traveled)s km by %(means_of_transport)s (%(euro_per_km)s € / "
-"km) making a total of %(transportation_per_yl)s€."
-msgstr ""
-"%(kilometers_traveled)s km mit %(means_of_transport)s (%(euro_per_km)s€ / "
-"km). Das ergibt eine Gesamtsumme von %(transportation_per_yl)s€."
-
-#, python-format
-msgid ""
-"In total this is %(total_per_yl)s€ times %(staff_count)s, giving "
-"%(theoretical_total_staff)s€."
-msgstr ""
-"Insgesamt sind das Kosten von %(total_per_yl)s€ mal %(staff_count)s, "
-"insgesamt also maximal %(theoretical_total_staff)s€."
-
-msgid "Payment of subsidies and allowances"
-msgstr "Auszahlung von Sektionszuschüssen und Aufwandsentschädigungen"
-
-#, python-format
-msgid "The allowance of %(allowance_per_yl)s€ per person should be paid to:"
-msgstr ""
-"Die Aufwandsentschädigung von %(allowance_per_yl)s€ pro Person soll "
-"ausgezahlt werden an:"
-
-msgid "IBAN valid"
-msgstr "IBAN gültig"
-
-#, python-format
-msgid ""
-"Only %(allowances_paid)s of the %(real_staff_count)s youth leaders have "
-"requested the outpayment of their allowance."
-msgstr ""
-"Achtung: Nur für %(allowances_paid)s der %(real_staff_count)s "
-"Jugendleiter*innen wird die Aufwandsentschädigung abgerufen."
-
-msgid ""
-"No receivers of the allowance were provided. Allowance will not be used."
-msgstr ""
-"Keine Empfänger*innen für eine Aufwandsentschädigung angegeben. Es wird "
-"daher keine Aufwandsentschädigung ausbezahlt."
-
-#, python-format
-msgid ""
-"The subsidies for night and transportation costs of %(total_subsidies)s€ "
-"should be paid to:"
-msgstr ""
-"Die Zuschüsse für Übernachtungs- und Fahrtkosten von %(total_subsidies)s€ "
-"für alle Jugendleiter*innen sollen ausgezahlt werden an:"
-
-msgid ""
-"No receivers of the subsidies were provided. Subsidies will not be used."
-msgstr ""
-"Keine Empfänger*innen für Sektionszuschüsse angegeben. Es werden daher keine "
-"Sektionszuschüsse ausbezahlt."
-
-msgid "Org fee"
-msgstr "Organisationsbeitrag"
-
-#, python-format
-msgid ""
-"Since overaged people where part of the excursion, an organisational fee of "
-"%(org_fee)s€ per person per day has to be paid. This totals to "
-"%(total_org_fee_theoretical)s€. This organisational fee will be accounted "
-"against allowances and subsidies."
-msgstr ""
-"Da Personen über 27 an der Ausfahrt teilnehommen haben, wird ein "
-"Organisationsbeitrag von %(org_fee)s€ pro Person und Tag fällig. Der "
-"Gesamtbetrag von %(total_org_fee_theoretical)s€ wird mit Zuschüssen und "
-"Aufwandsentschädigungen verrechnet."
-
-msgid "LJP contributions"
-msgstr "LJP-Zuschüsse"
-
-#, python-format
-msgid ""
-" The youth leaders have documented interventions worth of "
-"%(total_seminar_days)s seminar\n"
-"days for %(ljp_participant_count)s eligible participants. Taking into "
-"account the maximum contribution quota\n"
-"of 90%% and possible taxes (%(ljp_tax)s%%), this results in a total of "
-"%(paid_ljp_contributions)s€.\n"
-"Once their proposal was approved, the ljp contributions of should be paid to:"
-msgstr ""
-"Jugendleiter*innen haben Lerneinheiten für insgesamt %(total_seminar_days)s "
-"Seminartage und für %(ljp_participant_count)s Teilnehmende mit Anspruch auf "
-"LJP-Zuschüsse dokumentiert. Unter Einbezug der maximalen Förderquote von "
-"90%% und möglichen Steuern (%(ljp_tax)s%%), ergibt sich ein auszuzahlender "
-"Betrag von %(paid_ljp_contributions)s€. Sobald der LJP-Antrag geprüft ist, "
-"können LJP-Zuschüsse ausbezahlt werden an:"
-
-msgid "Summary"
-msgstr "Zusammenfassung"
-
-msgid "Covered bills"
-msgstr "Übernommene Ausgaben"
-
-msgid "Allowance"
-msgstr "Aufwandsentschädigung"
-
-msgid "Contributions by the association"
-msgstr "Sektionszuschüsse"
-
-msgid "ljp contributions"
-msgstr "LJP-Zuschüsse"
-
-#, python-format
-msgid "This results in a total amount of %(total)s€"
-msgstr "Das resultiert in einem Gesamtbetrag von %(total)s€"
-
-msgid ""
-"Currently, no transactions are planned. You can auto generate them from the "
-"data, by clicking the following button."
-msgstr ""
-"Aktuell sind keine Überweisungen vorgesehen. Du kannst die erforderlichen "
-"durch Klicken auf den folgenden Knopf generieren."
-
-msgid "Generate transactions"
-msgstr "Erzeuge Überweisungsträger"
-
-msgid "Currently the following transactions are planned."
-msgstr "Aktuell sind die folgenden Überweisungen vorgesehen."
-
-msgid "These transactions match the calculated costs."
-msgstr "Diese Überweisungen stimmen mit den berechneten Kosten überein."
-
-msgid ""
-"The current transactions do not reflect all costs in this statement. Please "
-"fix the following issues:"
-msgstr ""
-"Die aktuell vorgesehenen Überweisungen stimmen nicht mit den berechneten "
-"Kosten überein. Bitte korrigiere die folgenden Fehler:"
-
-msgid "Currently receiving"
-msgstr "Erhält aktuell"
-
-msgid "Actual costs"
-msgstr "Tatsächliche Kosten"
-
-msgid "Difference"
-msgstr "Differenz"
-
-msgid "Accept"
-msgstr "Annehmen"
-
-msgid "Reject"
-msgstr "Ablehnen"
-
-msgid "Cancel"
-msgstr "Abbruch"
-
-msgid "Submit to the finance department"
-msgstr "Beim Finanzreferat einreichen"
-
-msgid ""
-"Please check if all expenses are documented correctly and if all payers have "
-"a valid account code."
-msgstr ""
-"Bitte überprüfe, ob alle Ausgaben korrekt erfasst sind und ob alle "
-"auslegenden Personen eine gültige IBAN haben."
-
-msgid ""
-"Do you want to submit the statement for further processing by the finance "
-"department? If you proceed, no further changes to the statement are possible."
-msgstr ""
-"Möchtest du die Abrechnung beim Finanzreferat einreichen? Wenn du "
-"fortschreitest, sind keine weiteren Änderungen an der Abrechnung möglich."
-
-msgid ""
-"You are entering risk zone! Do you really want to manually set this "
-"statement back to unconfirmed?"
-msgstr ""
-"Du bewegst dich in einer Risiko Zone! Möchtest du wirklich manuell die "
-"Bestätigung dieser Abrechnung zurücknehmen?"
-
-msgid ""
-"I am aware that this is not a standard procedure and this might cause data "
-"integrity issues."
-msgstr ""
-"Mir ist bewusst, dass das keine Standardprozedur ist und das dies die "
-"Integrität der Daten zerstören kann."
-
-msgid "Insufficient permissions."
-msgstr "Unzureichende Berechtigungen."
-
-msgid "Statement not found."
-msgstr "Abrechnung nicht gefunden."

@@ -2,12 +2,9 @@ import re
 from urllib.parse import quote
 
 from django.conf import settings
-from django.contrib import admin
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.views import redirect_to_login
 from django.http import HttpResponse
-from django.shortcuts import render
 from django.views.static import serve
-from startpage.models import Link
 
 
 def media_unprotected(request, path):
@@ -22,8 +19,13 @@ def media_unprotected(request, path):
     return response
 
 
-@staff_member_required
 def media_protected(request, path):
+    # Was ``@staff_member_required``, which defaults to redirecting at
+    # ``admin:login`` — that no longer reverses now the admin is unmounted, so
+    # the same staff check is spelled out against ``LOGIN_URL``.
+    user = request.user
+    if not (user.is_authenticated and user.is_active and user.is_staff):
+        return redirect_to_login(request.get_full_path(), settings.LOGIN_URL)
     return media_unprotected(request, path)
 
 
@@ -32,38 +34,3 @@ def media_access(request, path):
         return media_unprotected(request, path)
     else:
         return media_protected(request, path)
-
-
-_APP_DOCUMENTATION_URLS = {
-    "members": "user_manual/members.html",
-    "finance": "user_manual/finance.html",
-}
-
-
-def custom_admin_view(request):
-    """
-    this methods provides access to models in order to render a custom admin page index site.
-    """
-    app_list = admin.site.get_app_list(request)
-    context = {
-        "app_list": app_list,
-        "site_header": admin.site.site_header,
-        "site_title": admin.site.site_title,
-        "external_links": Link.objects.all(),
-        "documentation_url": "user_manual/getstarted.html",
-    }
-    return render(request, "admin/index.html", context)
-
-
-_original_app_index = admin.site.__class__.app_index
-
-
-def custom_app_index(request, app_label):
-    extra_context = {}
-    if app_label in _APP_DOCUMENTATION_URLS:
-        extra_context["documentation_url"] = _APP_DOCUMENTATION_URLS[app_label]
-    return _original_app_index(admin.site, request, app_label, extra_context)
-
-
-admin.site.index = custom_admin_view
-admin.site.app_index = custom_app_index

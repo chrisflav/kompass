@@ -17,6 +17,10 @@ ALLOWED_HOSTS = get_var("django", "allowed_hosts", default=["*"])
 HOST = get_var("django", "host", default="localhost:8000")
 PROTOCOL = get_var("django", "protocol", default="https")
 BASE_URL = get_var("django", "base_url", default=HOST)
+# Where the SPA is served, e.g. "https://kompass.example.org". When set, the
+# secret-key links in outgoing mail point at the SPA's own routes instead of the
+# pre-SPA Django views. Empty keeps the legacy behaviour.
+FRONTEND_BASE_URL = get_var("django", "frontend_base_url", default="")
 
 # Define media paths e.g. for image storage
 MEDIA_URL = "/media/"
@@ -51,17 +55,15 @@ INSTALLED_APPS = [
     "mailer.apps.MailerConfig",
     "finance.apps.FinanceConfig",
     "ludwigsburgalpin.apps.LudwigsburgalpinConfig",
+    "feedback.apps.FeedbackConfig",
     #'easy_select2',
     "markdownify.apps.MarkdownifyConfig",
     "markdownx",
     "djcelery_email",
-    "nested_admin",
     "django_celery_beat",
     "mozilla_django_oidc",
     "rules",
-    "jet",
     "oauth2_provider",
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

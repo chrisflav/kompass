@@ -52,18 +52,6 @@ class MaterialPart(models.Model):
     quantity_real.admin_order_field = "quantity"
     quantity_real.short_description = _("Quantity")
 
-    def admin_thumbnail(self):
-        if self.photo:
-            return format_html(
-                '<a href="{0}"><img src="{0}" height="60" style="image-orientation: from-image;"></a>'.format(
-                    self.photo.url
-                )
-            )
-        else:
-            return format_html("<i>kein Bild</i>")
-
-    admin_thumbnail.short_description = _("Thumbnail")
-
     def ownership_overview(self):
         summary = ""
         for owner in self.ownership_set.all():

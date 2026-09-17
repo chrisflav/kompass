@@ -43,7 +43,7 @@ If you need to rebuild the container (e.g. after changing the ``requirements.txt
 
     make dev createsuperuser
 
-This creates an admin user for the administration interface.
+This creates a superuser account for the Kompass frontend and the REST API.
 
 Alternative: Using docker compose directly
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

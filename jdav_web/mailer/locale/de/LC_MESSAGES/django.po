@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 09:35+0100\n"
+"POT-Creation-Date: 2026-09-17 23:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,32 +18,29 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Send message"
-msgstr "Nachricht verschicken"
+msgid "Can't verify this link. Try again!"
+msgstr "Ungültiger Link. Bitte nochmal versuchen!"
+
+msgid "Either a group or at least one member is required as forward recipient."
+msgstr ""
+"Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
+"Empfänger*in ausgewählt werden."
 
 msgid ""
-"Your account is not connected to a member. Please contact your system "
-"administrator."
+"Either a group, a memberlist or at least one member is required as recipient"
 msgstr ""
-"Dein Account ist nicht mit eine*r Teilnehmer*in verknüpft. Bitte kontaktiere "
-"deine*n Systemadministrator*in."
+"Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
+"ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
 
-#, python-format
+msgid "A sent message can no longer be edited."
+msgstr "Eine bereits versendete Nachricht kann nicht mehr bearbeitet werden."
+
 msgid ""
-"Your email address is not an internal email address. Please use an email "
-"address with one of the following domains: %(domains)s."
+"Your email address is not an internal email address and may not send "
+"messages."
 msgstr ""
-"Deine E-Mail Adresse ist keine DAV360 E-Mail Adresse. Bitte stelle sicher, "
-"dass deine E-Mail Adresse eine der folgenden Domains hat: %(domains)s."
-
-msgid "Failed to send message"
-msgstr "Fehler beim Senden der Email"
-
-msgid "Failed to send some messages"
-msgstr "Fehler beim Senden der Emails"
-
-msgid "Successfully sent message"
-msgstr "Email wurde erfolgreich verschickt"
+"Deine E-Mail Adresse ist keine interne E-Mail Adresse und darf keine "
+"Nachrichten versenden."
 
 msgid "mailer"
 msgstr "Verteiler"
@@ -91,11 +88,6 @@ msgstr "Email-Adresse"
 msgid "email addresses"
 msgstr "Email-Adressen"
 
-msgid "Either a group or at least one member is required as forward recipient."
-msgstr ""
-"Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
-"Empfänger*in ausgewählt werden."
-
 msgid "subject"
 msgstr "Betreff"
 
@@ -141,12 +133,6 @@ msgstr "Nachrichten"
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
 
-msgid ""
-"Either a group, a memberlist or at least one member is required as recipient"
-msgstr ""
-"Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
-"ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
-
 msgid "file"
 msgstr "Datei"
 
@@ -158,27 +144,6 @@ msgstr "Anhang"
 
 msgid "attachments"
 msgstr "Anhänge"
-
-msgid "Save and send mail"
-msgstr "Speichern und Email senden"
-
-msgid "Do you really want to send these mails?"
-msgstr "Möchtest du diese Emails wirklich verschicken?"
-
-msgid "already sent"
-msgstr "schon verschickt"
-
-msgid ""
-"Some messages have already been sent! Do you really want to resend them?"
-msgstr ""
-"Einige Emails wurden schon versendet! Möchtest du diese wirklich nochmal "
-"senden?"
-
-msgid "Send"
-msgstr "Senden"
-
-msgid "Cancel"
-msgstr "Abbruch"
 
 msgid "Unsubscribe"
 msgstr "Vom Newsletter abmelden"
@@ -233,9 +198,6 @@ msgstr "Hier kannst du dich vom Newsletter abmelden"
 
 msgid "Successfully unsubscribed from the newsletter for "
 msgstr "Newsletter erfolgreich abbestellt für "
-
-msgid "Can't verify this link. Try again!"
-msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"

@@ -16,33 +16,34 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
-from django.contrib import admin
-from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import include
 from django.urls import path
 from django.urls import re_path
-from django.utils.translation import gettext_lazy as _
-from django.views.generic.base import RedirectView
 from oauth2_provider import urls as oauth2_urls
 
+from .api import api
 from .views import media_access
-
-admin.site.index_title = _("Startpage")
-admin.site.site_header = "Kompass"
 
 urlpatterns = []
 
+# REST API and OAuth2 provider — mounted outside i18n_patterns and before the
+# startpage catch-all so they are not shadowed by a language prefix (a locale
+# redirect would turn the frontend's token POST into a GET) or the "^" include.
+urlpatterns += [
+    path("api/", api.urls),
+    path("o/", include(oauth2_urls)),
+]
+
 if settings.OIDC_ENABLED:
-    admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
     urlpatterns += i18n_patterns(
         re_path(r"^oidc/", include("mozilla_django_oidc.urls")),
     )
 
+# NOTE: ``/kompass`` is deliberately absent. It used to serve the Django admin;
+# the Kompass SPA now owns that path and is served in front of Django, so this
+# URLconf must not claim it.
 urlpatterns += i18n_patterns(
     re_path(r"^media/(?P<path>.*)", media_access, name="media"),
-    re_path(r"^kompass/?", admin.site.urls, name="kompass"),
-    re_path(r"^jet/", include("jet.urls", "jet")),  # Django JET URLS
-    re_path(r"^admin/?", RedirectView.as_view(url="/kompass")),
     re_path(r"^newsletter/", include("mailer.urls", namespace="mailer")),
     re_path(r"^members/", include("members.urls", namespace="members")),
     re_path(r"^login/", include("logindata.urls", namespace="logindata")),
@@ -50,8 +51,6 @@ urlpatterns += i18n_patterns(
         r"^LBAlpin/Programm(/)?(20)?[0-9]{0,2}",
         include("ludwigsburgalpin.urls", namespace="ludwigsburgalpin"),
     ),
-    re_path(r"^_nested_admin/", include("nested_admin.urls")),
-    path("o/", include(oauth2_urls)),
     re_path(r"^", include("startpage.urls", namespace="startpage")),
 )
 
