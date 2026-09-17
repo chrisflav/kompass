@@ -54,6 +54,8 @@ services:
         <<: *kompass
         entrypoint: /app/docker/production/entrypoint-celery-worker.sh
         volumes:
+          # the worker renders PDFs into the media directory and attaches them to mails
+          - ./media:/var/www/jdav_web/media/
           - ./config:/app/config:ro
         networks:
           - main

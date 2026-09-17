@@ -43,6 +43,9 @@ class Group(models.Model):
     show_website_contact_email = models.BooleanField(
         verbose_name=_("show contact email on website"), default=False
     )
+    show_website_registration = models.BooleanField(
+        verbose_name=_("show registration link on website"), default=False
+    )
 
     def __str__(self):
         """String representation"""

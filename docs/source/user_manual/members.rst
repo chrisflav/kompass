@@ -145,6 +145,11 @@ Nach erfolgreich eingegebenem Geburtsdatum, wird die Person auf ein Formular mit
 Dann prüfen, gegebenenfalls aktualisieren und schließlich speichern. Der Link ist
 immer 30 Tage lang gültig und kann in dieser Zeit auch beliebig oft benutzt werden.
 
+.. note::
+   Die DAV Mitgliedsnummer ist ein Pflichtfeld der Rückmeldung. Die Rückmeldung kann also nur
+   abgeschickt werden, wenn die DAV Mitgliedsnummer angegeben ist. Sie steht auf dem
+   DAV Mitgliedsausweis.
+
 Klingt alles noch abstrakt? Dann fordere dich doch mal selbst zur Rückmeldung auf und probiere es aus.
 
 .. _emergency-contacts:

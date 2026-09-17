@@ -14,8 +14,10 @@ from django.contrib.auth.models import User
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
+from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
@@ -70,6 +72,7 @@ from members.tests.utils import add_memberonlist_by_local
 from members.tests.utils import BasicMemberTestCase
 from members.tests.utils import cleanup_excursion
 from members.tests.utils import create_custom_user
+from members.tests.utils import ECHO_DATA
 from members.tests.utils import REGISTRATION_DATA
 from members.tests.utils import WAITER_DATA
 from members.views import render_register_failed
@@ -825,8 +828,39 @@ class FreizeitTestCase(BasicMemberTestCase):
 
     def test_send_crisis_intervention_list(self):
         self.ex2.crisis_intervention_list_sent = False
+        self.ex2.add_members(Member.objects.filter(pk=self.lara.pk))
+        mail.outbox = []
+
         self.ex2.send_crisis_intervention_list()
+
         self.assertTrue(self.ex2.crisis_intervention_list_sent)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, [settings.SEKTION_CRISIS_INTERVENTION_MAIL])
+        self.assertIn(self.fritz.email, message.cc)
+        self.assertEqual(len(message.attachments), 1)
+        filename, content, _mimetype = message.attachments[0]
+        self.assertTrue(filename.startswith(self.ex2.code))
+        # the attached list has to contain the excursion and its participants,
+        # an empty form is of no use in a crisis
+        text = PdfReader(BytesIO(content)).pages[0].extract_text()
+        self.assertIn(self.ex2.name, text)
+        self.assertIn(self.lara.name, text)
+
+    @override_settings(EMAIL_BACKEND="members.tests.utils.FailingEmailBackend")
+    def test_send_crisis_intervention_list_keeps_flag_on_failure(self):
+        """An undelivered list has to be retried, not silently marked as sent."""
+        self.ex2.date = timezone.now() + timezone.timedelta(hours=4)
+        self.ex2.crisis_intervention_list_sent = False
+        self.ex2.save()
+
+        with self.assertRaises(RuntimeError):
+            self.ex2.send_crisis_intervention_list()
+
+        self.assertFalse(self.ex2.crisis_intervention_list_sent)
+        self.ex2.refresh_from_db()
+        self.assertFalse(self.ex2.crisis_intervention_list_sent)
+        self.assertIn(self.ex2, Freizeit.to_send_crisis_intervention_list())
 
     def test_filter_queryset_by_permissions(self):
         qs = Freizeit.filter_queryset_by_permissions(self.fritz)
@@ -1673,7 +1707,7 @@ class EchoViewTestCase(BasicMemberTestCase):
         response = self.client.post(
             url,
             data=dict(
-                REGISTRATION_DATA,
+                ECHO_DATA,
                 key=self.key,
                 password=self.fritz.echo_password,
                 save="",
@@ -1692,7 +1726,7 @@ class EchoViewTestCase(BasicMemberTestCase):
         response = self.client.post(
             url,
             data=dict(
-                REGISTRATION_DATA,
+                ECHO_DATA,
                 **EMERGENCY_CONTACT_DATA,
                 key=self.key,
                 password=self.fritz.echo_password,
@@ -1701,6 +1735,34 @@ class EchoViewTestCase(BasicMemberTestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("Your data was successfully updated."))
+        self.fritz.refresh_from_db()
+        self.assertEqual(self.fritz.dav_badge_no, ECHO_DATA["dav_badge_no"])
+
+    def test_post_save_without_dav_badge_no(self):
+        # the DAV membership number is mandatory for echoing
+        data = dict(ECHO_DATA, **EMERGENCY_CONTACT_DATA)
+        data["dav_badge_no"] = ""
+        url = reverse("members:echo")
+        response = self.client.post(
+            url,
+            data=dict(
+                data,
+                key=self.key,
+                password=self.fritz.echo_password,
+                save="",
+            ),
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(
+            response,
+            _(
+                "Here is your current data. Please check if it is up to date and change accordingly."
+            ),
+        )
+        self.assertIn("dav_badge_no", response.context["form"].errors)
+        self.fritz.refresh_from_db()
+        self.assertFalse(self.fritz.echoed)
+        self.assertEqual(self.fritz.dav_badge_no, "")
 
     def test_post_save_without_registration_form(self):
         # Clear registration form to test member without registration_form case
@@ -1710,7 +1772,7 @@ class EchoViewTestCase(BasicMemberTestCase):
         response = self.client.post(
             url,
             data=dict(
-                REGISTRATION_DATA,
+                ECHO_DATA,
                 **EMERGENCY_CONTACT_DATA,
                 key=self.key,
                 password=self.fritz.echo_password,

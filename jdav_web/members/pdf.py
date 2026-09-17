@@ -209,6 +209,8 @@ def generate_crisis_intervention_list_pdf(
     tour_type,
     tour_approach,
     members,
+    filename_base=None,
+    save_only=False,
 ):
     """Generate a crisis intervention list PDF.
 
@@ -225,9 +227,13 @@ def generate_crisis_intervention_list_pdf(
         tour_type: Tour type identifier (empty string for ad-hoc lists)
         tour_approach: Tour approach identifier (empty string for ad-hoc lists)
         members: List of Member objects participating in the activity
+        filename_base: Base name of the generated file. Defaults to the activity
+            name, or its description if the name is too long for a file name.
+        save_only: Return the file name of the generated PDF instead of an
+            HttpResponse serving it.
 
     Returns:
-        HttpResponse with the generated PDF
+        HttpResponse with the generated PDF, or its file name if `save_only`
     """
     # Format groups string
     groups_str = ", ".join([g.name for g in groups]) if groups else ""
@@ -262,11 +268,13 @@ def generate_crisis_intervention_list_pdf(
         "settings": settings,
     }
 
-    # Use description for filename if name is long, otherwise use name
-    filename_base = description if len(name) > 30 else name
+    if filename_base is None:
+        # Use description for filename if name is long, otherwise use name
+        filename_base = description if len(name) > 30 else name
     return render_tex(
         f"{filename_base}_Krisenliste",
         "members/crisis_intervention_list.tex",
         context,
         date=start_date,
+        save_only=save_only,
     )

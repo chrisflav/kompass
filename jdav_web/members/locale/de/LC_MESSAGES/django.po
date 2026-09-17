@@ -816,6 +816,9 @@ msgstr "Zeiten auf der Webseite anzeigen"
 msgid "show contact email on website"
 msgstr "Kontaktadresse auf der Webseite anzeigen"
 
+msgid "show registration link on website"
+msgstr "Anmeldelink auf der Webseite anzeigen"
+
 msgid "group"
 msgstr "Gruppe"
 
@@ -2142,6 +2145,9 @@ msgstr "Nachname des*der Teilnehmenden"
 
 msgid "phone number of child or parent"
 msgstr "Telefonnummer des*der Teilnehmenden oder einer Kontaktperson"
+
+msgid "You can find this number on your DAV membership card."
+msgstr "Diese Nummer findest du auf deinem DAV Mitgliedsausweis."
 
 msgid ""
 "Are we allowed to take photos of you during activities? We use them for our "
