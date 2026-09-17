@@ -49,6 +49,9 @@ services:
         <<: *kompass
         entrypoint: /app/docker/production/entrypoint-celery-worker.sh
         volumes:
+          # pdflatex embeds the logo by absolute settings.static_root path, so the
+          # worker needs the collected static files to render a PDF at all
+          - web_static:/var/www/jdav_web/static/:ro
           - ./config:/app/config:ro
 
     celery_beat:
