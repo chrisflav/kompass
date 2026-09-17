@@ -1,16 +1,30 @@
 import { screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, http, HttpResponse, server } from "../test/server";
-import { renderRoute, renderWithApp } from "../test/utils";
+import {
+  captureNavigations,
+  renderRoute,
+  renderWithApp,
+  restoreNavigations,
+} from "../test/utils";
 import { Dashboard } from "./Dashboard";
-import { Login } from "./Login";
+import { AuthCallback, Login } from "./Login";
 
 describe("Login", () => {
-  it("asks for credentials and titles the tab", () => {
+  let assigned: string[];
+
+  beforeEach(() => {
+    assigned = captureNavigations();
+  });
+  afterEach(restoreNavigations);
+
+  it("offers a way in and titles the tab, asking for no password of its own", () => {
     renderWithApp(<Login />, { authenticated: false });
     expect(screen.getByRole("heading", { name: "Kompass" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Benutzername")).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Anmelden" })).toBeInTheDocument();
+    // Credentials belong on the provider's page, never on this one.
+    expect(screen.queryByLabelText("Passwort")).not.toBeInTheDocument();
     expect(document.title).toBe("Anmelden · Kompass");
   });
 
@@ -21,11 +35,58 @@ describe("Login", () => {
       </>,
       { route: "/login" },
     );
-    // <Navigate> renders nothing; the form is simply gone.
+    // <Navigate> renders nothing; the card is simply gone.
     expect(screen.queryByRole("heading", { name: "Kompass" })).not.toBeInTheDocument();
   });
 
-  it("signs in and lands on the dashboard", async () => {
+  it("hands off to the provider when asked to sign in", async () => {
+    const { user } = renderWithApp(<Login />, { authenticated: false });
+    await user.click(screen.getByRole("button", { name: "Anmelden" }));
+
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    const url = new URL(assigned[0]);
+    expect(url.pathname).toBe("/o/authorize/");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+  });
+
+  it("remembers the page the guard turned the user away from", async () => {
+    const { user } = renderRoute("/kompass/members", { authenticated: false });
+    await user.click(await screen.findByRole("button", { name: "Anmelden" }));
+
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    expect(sessionStorage.getItem("kompass_pkce_return")).toBe("/kompass/members");
+  });
+
+  it("stays put and says so when the challenge cannot be built", async () => {
+    // WebCrypto is unavailable outside a secure context, so a misconfigured
+    // deployment (plain HTTP) lands here rather than on a blank redirect.
+    vi.spyOn(crypto.subtle, "digest").mockRejectedValue(new Error("insecure context"));
+    const { user } = renderWithApp(<Login />, { authenticated: false });
+    await user.click(screen.getByRole("button", { name: "Anmelden" }));
+
+    expect(await screen.findByText(/Administration/)).toBeInTheDocument();
+    expect(assigned).toEqual([]);
+    expect(screen.getByRole("button", { name: "Anmelden" })).toBeEnabled();
+  });
+});
+
+describe("AuthCallback", () => {
+  let assigned: string[];
+
+  beforeEach(() => {
+    assigned = captureNavigations();
+  });
+  afterEach(restoreNavigations);
+
+  /** Puts the tab in the state `beginLogin` leaves behind. */
+  function startedFlow(returnTo = "/kompass") {
+    sessionStorage.setItem("kompass_pkce_verifier", "verifier-xyz");
+    sessionStorage.setItem("kompass_pkce_state", "state-abc");
+    sessionStorage.setItem("kompass_pkce_return", returnTo);
+  }
+
+  it("trades the code for a token and lands where the user was headed", async () => {
+    startedFlow("/kompass");
     server.use(
       http.post(api("/o/token/"), () => HttpResponse.json({ access_token: "neues-token" })),
       http.get(api("/api/members/groups"), () => HttpResponse.json([])),
@@ -33,32 +94,41 @@ describe("Login", () => {
       http.get(api("/api/finance/statements"), () => HttpResponse.json([])),
       http.get(api("/api/startpage/links"), () => HttpResponse.json([])),
     );
-    const { user } = renderRoute("/login", { authenticated: false });
-
-    await user.type(screen.getByLabelText("Benutzername"), "hannah");
-    await user.type(screen.getByLabelText("Passwort"), "geheim");
-    await user.click(screen.getByRole("button", { name: "Anmelden" }));
+    renderRoute("/callback?code=CODE&state=state-abc", { authenticated: false });
 
     expect(await screen.findByText(/Kompass · Verwaltung der JDAV Ludwigsburg/)).toBeInTheDocument();
     expect(localStorage.getItem("kompass_token")).toBe("neues-token");
   });
 
-  it("shows the rejection inline and stays on the form", async () => {
+  it("says so when the user turned the authorisation down", async () => {
+    renderWithApp(<AuthCallback />, {
+      route: "/callback?error=access_denied",
+      authenticated: false,
+    });
+    expect(await screen.findByText("Die Anmeldung wurde abgebrochen.")).toBeInTheDocument();
+    expect(localStorage.getItem("kompass_token")).toBeNull();
+  });
+
+  it("says so when the provider came back without a code", async () => {
+    renderWithApp(<AuthCallback />, { route: "/callback", authenticated: false });
+    expect(await screen.findByText(/unvollständig/)).toBeInTheDocument();
+  });
+
+  it("reports a refused exchange and offers the way back to the login", async () => {
+    startedFlow();
     server.use(
       http.post(api("/o/token/"), () =>
         HttpResponse.json({ error: "invalid_grant" }, { status: 400 }),
       ),
     );
-    const { user } = renderWithApp(<Login />, { authenticated: false });
+    const { user } = renderWithApp(<AuthCallback />, {
+      route: "/callback?code=CODE&state=state-abc",
+      authenticated: false,
+    });
 
-    await user.type(screen.getByLabelText("Benutzername"), "hannah");
-    await user.type(screen.getByLabelText("Passwort"), "falsch");
-    await user.click(screen.getByRole("button", { name: "Anmelden" }));
-
-    expect(
-      await screen.findByText("Benutzername oder Passwort ist falsch."),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Anmelden" })).toBeEnabled();
+    expect(await screen.findByText(/Administration/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zurück zur Anmeldung" }));
+    expect(assigned).toEqual(["/login"]);
   });
 });
 

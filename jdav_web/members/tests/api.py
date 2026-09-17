@@ -5,9 +5,14 @@ object/row-level permission model, mirroring the guarantees of
 ``members/tests/rules.py`` but through the HTTP API.
 """
 
+import base64
 import datetime
+import hashlib
+import secrets
 import uuid
+from urllib.parse import parse_qs
 from urllib.parse import urlencode
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import Permission
@@ -23,6 +28,9 @@ from oauth2_provider.models import get_application_model
 
 Application = get_application_model()
 AccessToken = get_access_token_model()
+
+CLIENT_ID = "kompass-frontend-dev"
+REDIRECT_URI = "https://kompass.example.org/callback"
 
 
 def make_member_user(username):
@@ -131,21 +139,49 @@ class MembersApiTestCase(TestCase):
         names = {g["name"] for g in r.json()}
         self.assertIn("Alpenfuechse", names)
 
-    # --- OAuth2 password-grant login (the frontend's flow) ----------------
+    # --- OAuth2 Authorization-Code + PKCE login (the SPA's flow) ----------
 
-    def test_password_grant_login_then_api_access(self):
-        call_command("ensure_frontend_oauth_app")
-        self.owner_user.set_password("secret123")
-        self.owner_user.save()
+    def _pkce_pair(self):
+        """A verifier and its S256 challenge, exactly as the SPA derives them."""
+        verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
+        digest = hashlib.sha256(verifier.encode("ascii")).digest()
+        challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+        return verifier, challenge
+
+    def _authorize(self, challenge, redirect_uri):
+        """Run the authorize leg as a logged-in user; returns the code."""
+        self.client.force_login(self.owner_user)
+        res = self.client.get(
+            "/o/authorize/",
+            {
+                "response_type": "code",
+                "client_id": CLIENT_ID,
+                "redirect_uri": redirect_uri,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "scope": "profile email",
+            },
+        )
+        # skip_authorization means the provider redirects straight back rather
+        # than rendering a consent form for our own first-party frontend.
+        self.assertEqual(res.status_code, 302, res.content)
+        self.client.logout()
+        return parse_qs(urlparse(res["Location"]).query)["code"][0]
+
+    def test_authorization_code_pkce_login_then_api_access(self):
+        call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
+        verifier, challenge = self._pkce_pair()
+        code = self._authorize(challenge, REDIRECT_URI)
 
         res = self.client.post(
             "/o/token/",
             data=urlencode(
                 {
-                    "grant_type": "password",
-                    "username": self.owner_user.username,
-                    "password": "secret123",
-                    "client_id": "kompass-frontend-dev",
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": REDIRECT_URI,
+                    "client_id": CLIENT_ID,
+                    "code_verifier": verifier,
                 }
             ),
             content_type="application/x-www-form-urlencoded",
@@ -156,6 +192,83 @@ class MembersApiTestCase(TestCase):
         r = self.client.get("/api/members/", HTTP_AUTHORIZATION="Bearer {}".format(token))
         self.assertEqual(r.status_code, 200)
         self.assertEqual({m["id"] for m in r.json()}, {self.owner.pk})
+
+    def test_authorization_code_without_verifier_is_refused(self):
+        # The whole point of PKCE: a stolen code is useless on its own.
+        call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
+        _verifier, challenge = self._pkce_pair()
+        code = self._authorize(challenge, REDIRECT_URI)
+
+        res = self.client.post(
+            "/o/token/",
+            data=urlencode(
+                {
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": REDIRECT_URI,
+                    "client_id": CLIENT_ID,
+                }
+            ),
+            content_type="application/x-www-form-urlencoded",
+        )
+        self.assertEqual(res.status_code, 400, res.content)
+
+    def test_authorization_code_with_wrong_verifier_is_refused(self):
+        call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
+        _verifier, challenge = self._pkce_pair()
+        code = self._authorize(challenge, REDIRECT_URI)
+        other_verifier, _ = self._pkce_pair()
+
+        res = self.client.post(
+            "/o/token/",
+            data=urlencode(
+                {
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": REDIRECT_URI,
+                    "client_id": CLIENT_ID,
+                    "code_verifier": other_verifier,
+                }
+            ),
+            content_type="application/x-www-form-urlencoded",
+        )
+        self.assertEqual(res.status_code, 400, res.content)
+
+    def test_password_grant_is_no_longer_accepted(self):
+        # The SPA no longer handles passwords, and neither should the provider.
+        call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
+        self.owner_user.set_password("secret123")
+        self.owner_user.save()
+
+        res = self.client.post(
+            "/o/token/",
+            data=urlencode(
+                {
+                    "grant_type": "password",
+                    "username": self.owner_user.username,
+                    "password": "secret123",
+                    "client_id": CLIENT_ID,
+                }
+            ),
+            content_type="application/x-www-form-urlencoded",
+        )
+        self.assertNotEqual(res.status_code, 200)
+
+    def test_ensure_frontend_oauth_app_adds_a_new_origin(self):
+        # A deployment re-runs the command to register another frontend origin.
+        call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
+        call_command(
+            "ensure_frontend_oauth_app",
+            "--redirect-uri",
+            REDIRECT_URI,
+            "--redirect-uri",
+            "https://neu.example.org/callback",
+        )
+        app = Application.objects.get(client_id=CLIENT_ID)
+        self.assertEqual(Application.objects.filter(client_id=CLIENT_ID).count(), 1)
+        self.assertIn("https://neu.example.org/callback", app.redirect_uris)
+        self.assertEqual(app.client_type, Application.CLIENT_PUBLIC)
+        self.assertEqual(app.authorization_grant_type, Application.GRANT_AUTHORIZATION_CODE)
 
     # --- member update (write) -------------------------------------------
 

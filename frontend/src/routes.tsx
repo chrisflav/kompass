@@ -3,7 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { AppLayout, ProtectedRoute, PublicLayout } from "./components/Layout";
 import { NotFound } from "./components/Placeholder";
 import { Dashboard } from "./pages/Dashboard";
-import { Login } from "./pages/Login";
+import { AuthCallback, Login } from "./pages/Login";
 import { activitiesRoutes } from "./features/activities/routes";
 import { adminRoutes } from "./features/admin/routes";
 import { cmsRoutes } from "./features/cms/routes";
@@ -22,6 +22,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/callback" element={<AuthCallback />} />
 
       {/* Authenticated administration app. */}
       <Route

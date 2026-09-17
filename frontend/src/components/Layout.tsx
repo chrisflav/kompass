@@ -1,13 +1,18 @@
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 
 import { useAuth } from "../auth";
 import { SiteHeader } from "./SiteHeader";
 
-/** Route guard: redirects to /login when there is no token. */
+/** Route guard: redirects to /login when there is no token, carrying the page
+ *  that was asked for so the login flow can return to it. */
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { token } = useAuth();
-  if (!token) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!token) {
+    const from = `${location.pathname}${location.search}`;
+    return <Navigate to="/login" state={{ from }} replace />;
+  }
   return <>{children}</>;
 }
 

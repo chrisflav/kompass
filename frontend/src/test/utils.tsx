@@ -47,6 +47,40 @@ export function currentSearch(): string {
   return currentLocation.search;
 }
 
+/* --- leaving the app -----------------------------------------------------
+ *
+ * The OAuth login hands off to the provider with `location.assign`, which jsdom
+ * cannot follow and will not let us spy on (`assign` is non-configurable). The
+ * whole `location` is swapped for a recording stand-in instead — the same trick
+ * `setup.ts` uses for jsdom's other immovables.
+ */
+const realLocation = window.location;
+
+/** Records where the app tried to send the browser. Call inside `beforeEach`;
+ *  the returned array fills as `location.assign` is called. */
+export function captureNavigations(): string[] {
+  const assigned: string[] = [];
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    writable: true,
+    value: {
+      ...realLocation,
+      origin: realLocation.origin,
+      assign: (url: string | URL) => assigned.push(String(url)),
+    },
+  });
+  return assigned;
+}
+
+/** Puts the real `location` back. Call inside `afterEach`. */
+export function restoreNavigations() {
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    writable: true,
+    value: realLocation,
+  });
+}
+
 /** The provider stack from `main.tsx`, minus the browser router. */
 function Providers({ children, route }: { children: ReactNode; route: string }) {
   return (
