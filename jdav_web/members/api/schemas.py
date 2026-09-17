@@ -232,6 +232,7 @@ class GroupOut(ModelSchema):
             "show_website_weekday",
             "show_website_time",
             "show_website_contact_email",
+            "show_website_registration",
         ]
 
     @staticmethod
@@ -693,6 +694,7 @@ class GroupUpdate(Schema):
     show_website_weekday: bool | None = None
     show_website_time: bool | None = None
     show_website_contact_email: bool | None = None
+    show_website_registration: bool | None = None
     contact_email_id: int | None = None
     leiter_ids: list[int] | None = None
 
@@ -731,6 +733,7 @@ GROUP_UPDATE_SCALAR_FIELDS = (
     "show_website_weekday",
     "show_website_time",
     "show_website_contact_email",
+    "show_website_registration",
 )
 
 

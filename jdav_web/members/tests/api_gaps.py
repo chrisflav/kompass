@@ -265,3 +265,21 @@ class ApiGapsTestCase(TestCase):
         self.group.refresh_from_db()
         self.assertEqual(self.group.description, "Bergsteiger")
         self.assertEqual(self.group.year_from, 2000)
+
+    def test_group_website_registration_flag_round_trips(self):
+        # Without the Django admin the API is the only way to set the flag that
+        # gates the registration link on the public group page.
+        editor = grant(self.admin_user, "view_group", "change_group")
+        r = self.client.patch(
+            "/api/members/groups/{}".format(self.group.pk),
+            data={"show_website_registration": True},
+            content_type="application/json",
+            **self.auth(editor),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.group.refresh_from_db()
+        self.assertTrue(self.group.show_website_registration)
+
+        r = self.client.get("/api/members/groups/{}".format(self.group.pk), **self.auth(editor))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(r.json()["show_website_registration"])

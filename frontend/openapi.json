@@ -10159,6 +10159,11 @@
             "default": false,
             "title": "Kontaktadresse auf der Webseite anzeigen",
             "type": "boolean"
+          },
+          "show_website_registration": {
+            "default": false,
+            "title": "Anmeldelink auf der Webseite anzeigen",
+            "type": "boolean"
           }
         },
         "required": [
@@ -10420,6 +10425,17 @@
               }
             ],
             "title": "Show Website Contact Email"
+          },
+          "show_website_registration": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Website Registration"
           },
           "contact_email_id": {
             "anyOf": [
@@ -18552,7 +18568,7 @@
         "type": "object"
       },
       "PublicGroupDetail": {
-        "description": "Public group detail mirroring ``startpage/gruppen/detail.html``.\n\nThe ``show_website_*`` flags let the SPA reproduce the template's conditional\ndisplay of age / weekday / time / contact-email exactly.",
+        "description": "Public group detail mirroring ``startpage/gruppen/detail.html``.\n\nThe ``show_website_*`` flags let the SPA reproduce the template's conditional\ndisplay of age / weekday / time / contact-email / registration link exactly.",
         "properties": {
           "id": {
             "title": "Id",
@@ -18631,6 +18647,11 @@
           "show_website_contact_email": {
             "default": false,
             "title": "Kontaktadresse auf der Webseite anzeigen",
+            "type": "boolean"
+          },
+          "show_website_registration": {
+            "default": false,
+            "title": "Anmeldelink auf der Webseite anzeigen",
             "type": "boolean"
           }
         },

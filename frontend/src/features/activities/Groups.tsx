@@ -246,6 +246,7 @@ function makeForm(group: GroupOut) {
     show_website_weekday: group.show_website_weekday,
     show_website_time: group.show_website_time,
     show_website_contact_email: group.show_website_contact_email,
+    show_website_registration: group.show_website_registration,
     contact_email_id:
       group.contact_email === null || group.contact_email === undefined
         ? ""
@@ -464,6 +465,12 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
       value: bool(group.show_website_time),
       edit: checkbox("show_website_time"),
     },
+    {
+      label: "Anmeldelink auf Webseite",
+      field: "show_website_registration",
+      value: bool(group.show_website_registration),
+      edit: checkbox("show_website_registration"),
+    },
   ];
 
   return (
@@ -486,6 +493,7 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
             show_website_weekday: form.show_website_weekday,
             show_website_time: form.show_website_time,
             show_website_contact_email: form.show_website_contact_email,
+            show_website_registration: form.show_website_registration,
             contact_email_id: form.contact_email_id === "" ? null : Number(form.contact_email_id),
             leiter_ids: form.leiter_ids,
           });

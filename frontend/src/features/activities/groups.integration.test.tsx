@@ -39,6 +39,7 @@ const GROUP: Record<string, unknown> = {
   show_website_contact_email: false,
   show_website_weekday: false,
   show_website_time: false,
+  show_website_registration: false,
   contact_email: null,
   contact_email_display: null,
   weekday: null,
@@ -823,6 +824,7 @@ describe("group detail — every field", () => {
       show_website_weekday: true,
       show_website_time: true,
       show_website_contact_email: true,
+      show_website_registration: true,
       // Taking the first option of an optional select means "clear it", and the
       // leaders MultiSelect toggles the one selected name back off.
       weekday: null,

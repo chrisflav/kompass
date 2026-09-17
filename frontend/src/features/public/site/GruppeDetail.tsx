@@ -68,9 +68,9 @@ export function PublicGruppeDetail() {
               <PublicPageHeader title={group.name} />
               <Prose text={group.description} />
               {items.length > 0 && <DetailList items={items} />}
-              {group.has_registration_password && (
-                <p className="muted">
-                  Für diese Gruppe ist eine Anmeldung mit Passwort möglich.
+              {group.show_website_registration && group.has_registration_password && (
+                <p>
+                  <Link to="/registrierung">Zur Anmeldung für diese Gruppe</Link>
                 </p>
               )}
               <LeaderGrid people={group.people} />

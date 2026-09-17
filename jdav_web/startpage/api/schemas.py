@@ -336,7 +336,7 @@ class PublicGroupDetail(ModelSchema):
     """Public group detail mirroring ``startpage/gruppen/detail.html``.
 
     The ``show_website_*`` flags let the SPA reproduce the template's conditional
-    display of age / weekday / time / contact-email exactly.
+    display of age / weekday / time / contact-email / registration link exactly.
     """
 
     id: int
@@ -357,6 +357,7 @@ class PublicGroupDetail(ModelSchema):
             "show_website_weekday",
             "show_website_time",
             "show_website_contact_email",
+            "show_website_registration",
         ]
 
     @staticmethod

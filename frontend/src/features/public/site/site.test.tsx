@@ -252,6 +252,7 @@ describe("Gruppen", () => {
           show_website_weekday: false,
           show_website_time: false,
           show_website_contact_email: false,
+          show_website_registration: false,
           weekday_display: null,
           time_slot: null,
           contact_email: null,
@@ -293,6 +294,7 @@ describe("Gruppe detail", () => {
     show_website_weekday: true,
     show_website_time: true,
     show_website_contact_email: true,
+    show_website_registration: true,
     weekday_display: "Montag",
     time_slot: "18:00–20:00",
     contact_email: "kletter@example.org",
@@ -324,7 +326,10 @@ describe("Gruppe detail", () => {
     expect(screen.getByText("Montag")).toBeInTheDocument();
     expect(screen.getByText("18:00–20:00")).toBeInTheDocument();
     expect(screen.getByText("kletter@example.org")).toBeInTheDocument();
-    expect(screen.getByText(/Anmeldung mit Passwort möglich/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Zur Anmeldung/ })).toHaveAttribute(
+      "href",
+      "/registrierung",
+    );
     expect(screen.getByRole("img", { name: "Hannah Beckers" })).toBeInTheDocument();
     // A leader without a photo is still listed, just without an image.
     expect(screen.getByText("Tobias Werner")).toBeInTheDocument();
@@ -337,6 +342,7 @@ describe("Gruppe detail", () => {
       show_website_weekday: false,
       show_website_time: false,
       show_website_contact_email: false,
+      show_website_registration: false,
       has_registration_password: false,
       people: [],
     });
@@ -349,8 +355,20 @@ describe("Gruppe detail", () => {
     await screen.findByRole("heading", { name: "Klettergruppe" });
     expect(screen.queryByText("Jahrgang 2010–2013")).not.toBeInTheDocument();
     expect(screen.queryByText("kletter@example.org")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Anmeldung mit Passwort/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Zur Anmeldung/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Jugendleiter:innen" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the registration link off a group that has a password but hides it", async () => {
+    groupReturns({ show_website_registration: false, has_registration_password: true });
+    renderWithApp(<PublicGruppeDetail />, {
+      ...anon,
+      route: "/gruppe/Klettergruppe",
+      path: "/gruppe/:name",
+    });
+
+    await screen.findByRole("heading", { name: "Klettergruppe" });
+    expect(screen.queryByRole("link", { name: /Zur Anmeldung/ })).not.toBeInTheDocument();
   });
 
   it("offers the way back to the group list", async () => {

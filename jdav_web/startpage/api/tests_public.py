@@ -189,6 +189,15 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual(body["name"], "Alpenfuechse")
         self.assertEqual({p["id"] for p in body["people"]}, {self.leiter.pk})
 
+    def test_public_group_detail_exposes_registration_flag(self):
+        # The SPA gates the registration link on this flag, the way
+        # ``startpage/gruppen/detail.html`` does.
+        self.visible_group.show_website_registration = True
+        self.visible_group.save()
+        r = self.client.get("/api/startpage/public/groups/{}".format(self.visible_group.name))
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["show_website_registration"])
+
     def test_public_group_detail_with_weekday(self):
         # Regression: a group with a weekday set previously returned 500 because
         # the gettext_lazy weekday label reached pydantic as a proxy, not a str.

@@ -3740,6 +3740,11 @@ export interface components {
              * @default false
              */
             show_website_contact_email: boolean;
+            /**
+             * Anmeldelink auf der Webseite anzeigen
+             * @default false
+             */
+            show_website_registration: boolean;
         };
         /**
          * GroupCreate
@@ -3805,6 +3810,8 @@ export interface components {
             show_website_time?: boolean | null;
             /** Show Website Contact Email */
             show_website_contact_email?: boolean | null;
+            /** Show Website Registration */
+            show_website_registration?: boolean | null;
             /** Contact Email Id */
             contact_email_id?: number | null;
             /** Leiter Ids */
@@ -6994,7 +7001,7 @@ export interface components {
          * @description Public group detail mirroring ``startpage/gruppen/detail.html``.
          *
          *     The ``show_website_*`` flags let the SPA reproduce the template's conditional
-         *     display of age / weekday / time / contact-email exactly.
+         *     display of age / weekday / time / contact-email / registration link exactly.
          */
         PublicGroupDetail: {
             /** Id */
@@ -7040,6 +7047,11 @@ export interface components {
              * @default false
              */
             show_website_contact_email: boolean;
+            /**
+             * Anmeldelink auf der Webseite anzeigen
+             * @default false
+             */
+            show_website_registration: boolean;
         };
         /**
          * PublicMemberBrief
