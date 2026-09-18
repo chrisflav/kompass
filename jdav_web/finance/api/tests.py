@@ -18,6 +18,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from finance.models import Bill
 from finance.models import Statement
 from finance.models import Transaction
@@ -580,3 +581,214 @@ class FinanceApiTestCase(TestCase):
     def test_transactions_require_view_permission(self):
         r = self.client.get("/api/finance/transactions", **self.auth(self.owner_user))
         self.assertEqual(r.status_code, 403)
+
+    # --- the remaining statement and bill paths ---------------------------
+
+    def test_create_statement_refuses_a_second_one_for_the_same_excursion(self):
+        # `Statement.excursion` is unique, so without the guard this surfaces as
+        # a raw IntegrityError rather than something the client can act on.
+        excursion = self.make_excursion("Hochtour", self.manager)
+        first = self.client.post(
+            "/api/finance/statements",
+            data={
+                "short_description": "Erste",
+                "explanation": "",
+                "night_cost": 0,
+                "excursion_id": excursion.pk,
+            },
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(first.status_code, 200, first.content)
+
+        second = self.client.post(
+            "/api/finance/statements",
+            data={
+                "short_description": "Zweite",
+                "explanation": "",
+                "night_cost": 0,
+                "excursion_id": excursion.pk,
+            },
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(second.status_code, 422, second.content)
+        self.assertEqual(Statement.objects.filter(excursion=excursion).count(), 1)
+
+    def test_update_a_submitted_statement_is_refused(self):
+        # The author is already stopped by the object rule; this is about the
+        # endpoint's own guard, which only someone still holding change
+        # permission on a submitted statement can reach.
+        statement = self.make_statement(self.manager)
+        statement.submit(self.manager)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(statement.pk),
+            data={"short_description": "Doch anders"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        statement.refresh_from_db()
+        self.assertEqual(statement.short_description, "A statement")
+
+    def test_update_refuses_more_allowance_recipients_than_approved(self):
+        # An excursion with no participants approves no youth leaders, so even a
+        # single recipient is one too many.
+        excursion = self.make_excursion("Tagestour", self.owner, self.other)
+        statement = self.make_statement(self.owner)
+        statement.excursion = excursion
+        statement.save()
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(statement.pk),
+            data={"allowance_to_ids": [self.owner.pk, self.other.pk]},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertEqual(list(statement.allowance_to.all()), [])
+
+    def test_submit_an_already_submitted_statement_is_refused(self):
+        statement = self.make_statement(self.manager)
+        statement.submit(self.manager)
+        r = self.client.post(
+            "/api/finance/statements/{}/submit".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_submit_refuses_an_excursion_with_invalid_allowance_recipients(self):
+        excursion = self.make_excursion("Tagestour", self.owner)
+        statement = self.make_statement(self.owner)
+        statement.excursion = excursion
+        statement.save()
+        statement.allowance_to.set([self.owner])
+        r = self.client.post(
+            "/api/finance/statements/{}/submit".format(statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        # The refusal is shown to the submitter, so it arrives translated.
+        self.assertIn(
+            str(
+                _(
+                    "The configured recipients of the allowance don't match the "
+                    "regulations. Please correct this and try again."
+                )
+            ).strip(),
+            " ".join(r.json()["detail"]),
+        )
+        statement.refresh_from_db()
+        self.assertFalse(statement.submitted)
+
+    def test_finance_overview_needs_an_excursion(self):
+        statement = self.make_statement(self.owner)
+        r = self.client.get(
+            "/api/finance/statements/{}/overview".format(statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 404, r.content)
+
+    def test_finance_overview_of_an_excursion_statement(self):
+        excursion = self.make_excursion("Hochtour", self.owner)
+        statement = self.make_statement(self.owner)
+        statement.excursion = excursion
+        statement.subsidy_to = self.owner
+        statement.save()
+        r = self.client.get(
+            "/api/finance/statements/{}/overview".format(statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertEqual(body["subsidy_to"]["name"], self.owner.name)
+        self.assertIsNone(body["ljp_to"])
+
+    def test_generate_transactions_refuses_a_draft(self):
+        statement = self.make_statement(self.manager)
+        r = self.client.post(
+            "/api/finance/statements/{}/generate-transactions".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_generate_transactions_refuses_to_run_twice(self):
+        statement = self.make_statement(self.manager)
+        # Only a covered bill produces a transaction, and without one the second
+        # call would find nothing to complain about.
+        Bill.objects.create(
+            statement=statement,
+            short_description="Hütte",
+            amount=10,
+            paid_by=self.manager,
+            costs_covered=True,
+        )
+        statement.submit(self.manager)
+        first = self.client.post(
+            "/api/finance/statements/{}/generate-transactions".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(first.status_code, 200, first.content)
+
+        second = self.client.post(
+            "/api/finance/statements/{}/generate-transactions".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(second.status_code, 422, second.content)
+
+    def test_upload_and_replace_a_bill_proof(self):
+        statement = self.make_statement(self.owner)
+        bill = Bill.objects.create(
+            statement=statement, short_description="Hütte", amount=10, paid_by=self.owner
+        )
+        pdf = SimpleUploadedFile("beleg.pdf", b"fakepdf", content_type="application/pdf")
+        r = self.client.post(
+            "/api/finance/bills/{}/proof".format(bill.pk),
+            data={"proof": pdf},
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        bill.refresh_from_db()
+        self.assertTrue(bill.proof)
+
+    def test_upload_a_bill_proof_rejects_wrong_content_type(self):
+        statement = self.make_statement(self.owner)
+        bill = Bill.objects.create(
+            statement=statement, short_description="Hütte", amount=10, paid_by=self.owner
+        )
+        bad = SimpleUploadedFile("beleg.txt", b"text", content_type="text/plain")
+        r = self.client.post(
+            "/api/finance/bills/{}/proof".format(bill.pk),
+            data={"proof": bad},
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        bill.refresh_from_db()
+        self.assertFalse(bill.proof)
+
+    def test_retrieve_and_delete_a_bill(self):
+        statement = self.make_statement(self.owner)
+        bill = Bill.objects.create(
+            statement=statement, short_description="Hütte", amount=10, paid_by=self.owner
+        )
+        fetched = self.client.get(
+            "/api/finance/bills/{}".format(bill.pk), **self.auth(self.owner_user)
+        )
+        self.assertEqual(fetched.status_code, 200, fetched.content)
+        self.assertEqual(fetched.json()["short_description"], "Hütte")
+
+        r = self.client.delete(
+            "/api/finance/bills/{}".format(bill.pk), **self.auth(self.owner_user)
+        )
+        self.assertEqual(r.status_code, 204, r.content)
+        self.assertFalse(Bill.objects.filter(pk=bill.pk).exists())
+
+    def test_delete_a_stranger_s_bill_forbidden(self):
+        statement = self.make_statement(self.other)
+        bill = Bill.objects.create(
+            statement=statement, short_description="Hütte", amount=10, paid_by=self.other
+        )
+        r = self.client.delete(
+            "/api/finance/bills/{}".format(bill.pk), **self.auth(self.owner_user)
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(Bill.objects.filter(pk=bill.pk).exists())

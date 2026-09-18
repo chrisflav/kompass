@@ -17,6 +17,7 @@ from django.utils import timezone
 from members.models import DIVERSE
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
+from members.models import Intervention
 from members.models import LJPProposal
 from members.models import Member
 from members.models import MemberNoteList
@@ -263,3 +264,163 @@ class ExcursionInlineApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 403)
         self.assertEqual(proposal.intervention_set.count(), 0)
+
+    # --- the rest of the LJP inline cycle ---------------------------------
+
+    def _proposal(self):
+        return LJPProposal.objects.create(
+            excursion=self.excursion,
+            title="Climbing course",
+            category=LJPProposal.LJP_EDUCATIONAL,
+            goal=LJPProposal.LJP_PARTICIPATION,
+        )
+
+    def _intervention(self, proposal):
+        return Intervention.objects.create(
+            ljp_proposal=proposal,
+            date_start=timezone.now(),
+            duration=2,
+            activity="Knotenkunde",
+        )
+
+    def test_retrieve_ljp_proposal(self):
+        proposal = self._proposal()
+        r = self.client.get(
+            "/api/members/excursions/{}/ljp-proposal".format(self.excursion.pk),
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["id"], proposal.pk)
+
+    def test_retrieve_ljp_proposal_404_when_there_is_none(self):
+        r = self.client.get(
+            "/api/members/excursions/{}/ljp-proposal".format(self.excursion.pk),
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 404, r.content)
+
+    def test_retrieve_ljp_proposal_forbidden(self):
+        self._proposal()
+        r = self.client.get(
+            "/api/members/excursions/{}/ljp-proposal".format(self.excursion.pk),
+            **self.auth(self.other_user),
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_update_ljp_proposal(self):
+        proposal = self._proposal()
+        r = self.client.patch(
+            "/api/members/ljp-proposals/{}".format(proposal.pk),
+            data={"title": "Kletterkurs", "goal_strategy": "Schrittweise"},
+            content_type="application/json",
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        proposal.refresh_from_db()
+        self.assertEqual(proposal.title, "Kletterkurs")
+        self.assertEqual(proposal.goal_strategy, "Schrittweise")
+
+    def test_update_ljp_proposal_rejects_an_invalid_combination(self):
+        # The same rule the create path enforces: Qualification only pairs with
+        # Staff training, and editing must not be a way around it.
+        proposal = self._proposal()
+        r = self.client.patch(
+            "/api/members/ljp-proposals/{}".format(proposal.pk),
+            data={"goal": LJPProposal.LJP_QUALIFICATION},
+            content_type="application/json",
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        proposal.refresh_from_db()
+        self.assertEqual(proposal.goal, LJPProposal.LJP_PARTICIPATION)
+
+    def test_update_ljp_proposal_forbidden(self):
+        proposal = self._proposal()
+        r = self.client.patch(
+            "/api/members/ljp-proposals/{}".format(proposal.pk),
+            data={"title": "Fremd"},
+            content_type="application/json",
+            **self.auth(self.other_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        proposal.refresh_from_db()
+        self.assertEqual(proposal.title, "Climbing course")
+
+    def test_delete_ljp_proposal(self):
+        proposal = self._proposal()
+        r = self.client.delete(
+            "/api/members/ljp-proposals/{}".format(proposal.pk), **self.auth(self.leader_user)
+        )
+        self.assertEqual(r.status_code, 204, r.content)
+        self.assertFalse(LJPProposal.objects.filter(pk=proposal.pk).exists())
+
+    def test_delete_ljp_proposal_forbidden(self):
+        proposal = self._proposal()
+        r = self.client.delete(
+            "/api/members/ljp-proposals/{}".format(proposal.pk), **self.auth(self.other_user)
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(LJPProposal.objects.filter(pk=proposal.pk).exists())
+
+    def test_list_and_update_interventions(self):
+        proposal = self._proposal()
+        intervention = self._intervention(proposal)
+        listed = self.client.get(
+            "/api/members/ljp-proposals/{}/interventions".format(proposal.pk),
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertIn(intervention.pk, {row["id"] for row in listed.json()})
+
+        r = self.client.patch(
+            "/api/members/interventions/{}".format(intervention.pk),
+            data={"activity": "Standplatzbau", "duration": 3},
+            content_type="application/json",
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        intervention.refresh_from_db()
+        self.assertEqual(intervention.activity, "Standplatzbau")
+
+    def test_delete_intervention(self):
+        proposal = self._proposal()
+        intervention = self._intervention(proposal)
+        r = self.client.delete(
+            "/api/members/interventions/{}".format(intervention.pk),
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 204, r.content)
+        self.assertFalse(Intervention.objects.filter(pk=intervention.pk).exists())
+
+    def test_intervention_routes_forbidden(self):
+        proposal = self._proposal()
+        intervention = self._intervention(proposal)
+        self.assertEqual(
+            self.client.patch(
+                "/api/members/interventions/{}".format(intervention.pk),
+                data={"activity": "Fremd"},
+                content_type="application/json",
+                **self.auth(self.other_user),
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.delete(
+                "/api/members/interventions/{}".format(intervention.pk),
+                **self.auth(self.other_user),
+            ).status_code,
+            403,
+        )
+        self.assertTrue(Intervention.objects.filter(pk=intervention.pk).exists())
+
+    def test_list_notelist_participants(self):
+        # A note list is not an excursion: it has no leader to inherit from, so
+        # the plain `view_membernotelist` permission is what opens it.
+        self.notelist.add_members(Member.objects.filter(pk=self.participant.pk))
+        reader = grant(self.leader_user, "view_membernotelist")
+        r = self.client.get(
+            "/api/members/note-lists/{}/participants".format(self.notelist.pk),
+            **self.auth(reader),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual({row["member"]["id"] for row in r.json()}, {self.participant.pk})
