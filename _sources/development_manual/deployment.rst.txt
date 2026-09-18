@@ -232,6 +232,12 @@ We assume that all instructions are executed as ``root`` or with ``sudo``.
    in the ``settings.toml`` accordingly with the created user name and password.
    The ``host = 'host'`` setting is correct in this case and points to the underlying host.
 
+   That covers sending. Receiving is handled by the ``lmtp`` service, which the mailserver
+   delivers incoming mail to over LMTP; it decides who each message goes to and forwards it.
+   The mailserver itself holds no forwarding rules. See
+   :ref:`development_manual/mail_routing` for what has to be configured on both sides and
+   how to verify it.
+
 
 Local configuration
 ===================

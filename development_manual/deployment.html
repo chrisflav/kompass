@@ -313,6 +313,11 @@ In the Kompass administrative interface create a new user account (i.e. login da
 a strong password and without staff access. Then update the <code class="docutils literal notranslate"><span class="pre">[mail]</span></code> section
 in the <code class="docutils literal notranslate"><span class="pre">settings.toml</span></code> accordingly with the created user name and password.
 The <code class="docutils literal notranslate"><span class="pre">host</span> <span class="pre">=</span> <span class="pre">'host'</span></code> setting is correct in this case and points to the underlying host.</p>
+<p>That covers sending. Receiving is handled by the <code class="docutils literal notranslate"><span class="pre">lmtp</span></code> service, which the mailserver
+delivers incoming mail to over LMTP; it decides who each message goes to and forwards it.
+The mailserver itself holds no forwarding rules. See
+<a class="reference internal" href="mail_routing.html#development-manual-mail-routing"><span class="std std-ref">Mail routing</span></a> for what has to be configured on both sides and
+how to verify it.</p>
 </li>
 </ol>
 </section>

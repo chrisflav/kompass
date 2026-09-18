@@ -177,7 +177,7 @@ round trip, but nothing breaks without it.</p>
 that token back, so it identifies exactly one target address rather than
 landing in a shared mailbox.</p>
 <p>Repeated permanent bounces suspend the address
-(<a href="#id1"><span class="problematic" id="id2">:setting:`MAIL_HARD_BOUNCE_LIMIT`</span></a>), which stops kompass from sending to a
+(<code class="docutils literal notranslate"><span class="pre">hard_bounce_limit</span></code>), which stops kompass from sending to a
 mailbox that no longer exists. Suspended addresses are listed in the admin under
 <em>Mail delivery states</em> and can be reactivated there.</p>
 </section>
@@ -207,13 +207,160 @@ back later, and the remaining targets still go out.</p>
 </span><span id="line-7"><span class="n">duplicate_window_days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span>
 </span></code></pre></div>
 </div>
-<p>The MTA needs two things: it must deliver mail for the domain to the router,
-and it must route <code class="docutils literal notranslate"><span class="pre">bounce+*</span></code> back to it. With postfix that is
-<code class="docutils literal notranslate"><span class="pre">virtual_transport</span> <span class="pre">=</span> <span class="pre">lmtp:inet:&lt;host&gt;:8024</span></code> and <code class="docutils literal notranslate"><span class="pre">recipient_delimiter</span> <span class="pre">=</span> <span class="pre">+</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">munge_display_suffix</span></code> is what recipients see: a message forwarded through
+<code class="docutils literal notranslate"><span class="pre">info@</span></code> arrives as <code class="docutils literal notranslate"><span class="pre">Max</span> <span class="pre">Mustermann</span> <span class="pre">via</span> <span class="pre">Kompass</span> <span class="pre">&lt;info@…&gt;</span></code>, so set it to
+something that names the association.</p>
 <p>The router only accepts recipients in <code class="docutils literal notranslate"><span class="pre">settings.DOMAIN</span></code>; anything else is
 refused with <code class="docutils literal notranslate"><span class="pre">550</span></code>, so the endpoint cannot be used as an open relay by
 something else that can reach it. Keep the MTA’s accepted domains in step with
 that setting.</p>
+</section>
+<section id="mail-server-setup">
+<h2>Mail server setup<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#mail-server-setup" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#mail-server-setup'">¶</a></h2>
+<section id="what-has-to-be-true">
+<h3>What has to be true<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#what-has-to-be-true" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#what-has-to-be-true'">¶</a></h3>
+<p>The MTA has exactly two jobs. It must accept mail for the domain and hand it
+to the router over LMTP, and it must hand the bounces back the same way. It
+holds no forwarding rules, no alias tables and no recipient lists.</p>
+<p>Bounces need no separate route. They are addressed to
+<code class="docutils literal notranslate"><span class="pre">bounce+&lt;token&gt;@&lt;domain&gt;</span></code>, which is the same domain as everything else, so
+whatever delivers ordinary mail to the router delivers those too. The router
+splits the <code class="docutils literal notranslate"><span class="pre">+&lt;token&gt;</span></code> itself and does not depend on the MTA’s
+<code class="docutils literal notranslate"><span class="pre">recipient_delimiter</span></code>; it only matters that the delimiter in
+<code class="docutils literal notranslate"><span class="pre">bounce_local_part</span></code> addresses is the <code class="docutils literal notranslate"><span class="pre">+</span></code> the router expects.</p>
+</section>
+<section id="reaching-the-router">
+<h3>Reaching the router<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#reaching-the-router" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#reaching-the-router'">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">lmtp</span></code> service listens on port 8024. How the MTA reaches it depends on
+where it runs.</p>
+<p>Running in the same compose project, the service name resolves directly and
+nothing else is needed. Running as its own compose project — which the
+<a class="reference external" href="https://git.jdav-hd.merten.dev/digitales/kompass-mailserver">Kompass-tailored mailserver</a> does — the router has to join that project’s
+network, so declare it as external and attach the service to both:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">services</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">    </span><span class="nt">lmtp</span><span class="p">:</span>
+</span><span id="line-3"><span class="w">        </span><span class="nt">&lt;&lt;</span><span class="p">:</span><span class="w"> </span><span class="nv">*kompass</span>
+</span><span id="line-4"><span class="w">        </span><span class="nt">entrypoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/app/docker/production/entrypoint-lmtp.sh</span>
+</span><span id="line-5"><span class="w">        </span><span class="nt">volumes</span><span class="p">:</span>
+</span><span id="line-6"><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./config:/app/config:ro</span>
+</span><span id="line-7"><span class="w">        </span><span class="nt">networks</span><span class="p">:</span>
+</span><span id="line-8"><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+</span><span id="line-9"><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mailserver</span>
+</span><span id="line-10"><span class="w">        </span><span class="nt">extra_hosts</span><span class="p">:</span>
+</span><span id="line-11"><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"host:10.26.42.1"</span>
+</span><span id="line-12">
+</span><span id="line-13"><span class="nt">networks</span><span class="p">:</span>
+</span><span id="line-14"><span class="w">  </span><span class="nt">mailserver</span><span class="p">:</span>
+</span><span id="line-15"><span class="w">    </span><span class="nt">external</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="line-16"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;mail server compose project&gt;_main</span>
+</span></code></pre></div>
+</div>
+<p>Compose gives the service its own name as a network alias on both networks, so
+the MTA addresses it as <code class="docutils literal notranslate"><span class="pre">lmtp</span></code>. Do not publish port 8024 on the host: the
+router forwards under a <code class="docutils literal notranslate"><span class="pre">From:</span></code> we sign, and anything that can reach the port
+can have mail sent under it. Restricting recipients to <code class="docutils literal notranslate"><span class="pre">settings.DOMAIN</span></code>
+limits the damage but is not an authentication mechanism.</p>
+</section>
+<section id="postfix">
+<h3>Postfix<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#postfix" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#postfix'">¶</a></h3>
+<p>Point final delivery for the virtual domain at the router:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="go">virtual_transport = lmtp:inet:lmtp:8024</span>
+</span></code></pre></div>
+</div>
+<p>That single setting replaces delivery to dovecot. Two more are worth having:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="go">lmtp_destination_recipient_limit = 1</span>
+</span><span id="line-2"><span class="go">recipient_delimiter = +</span>
+</span></code></pre></div>
+</div>
+<p>The first avoids a needless round trip, because the router takes one recipient
+per transaction and defers the rest with <code class="docutils literal notranslate"><span class="pre">452</span></code>. The second is conventional
+rather than required, for the reason given above.</p>
+<p><code class="docutils literal notranslate"><span class="pre">reject_unverified_recipient</span></code> keeps working and now probes the router, which
+answers authoritatively for every address, so the probe is accurate but
+redundant; it can be dropped from <code class="docutils literal notranslate"><span class="pre">smtpd_recipient_restrictions</span></code> along with
+<code class="docutils literal notranslate"><span class="pre">address_verify_map</span></code>.</p>
+<p>Nothing else in the MTA needs to know about kompass. In particular the sieve
+rules that used to query the database, and the scripts they called, are dead
+once <code class="docutils literal notranslate"><span class="pre">virtual_transport</span></code> points here and should be removed rather than left
+to rot next to a live config.</p>
+<p>Filtering still belongs in the MTA. The router forwards what it is given, and
+a message relayed to twenty external mailboxes under a <code class="docutils literal notranslate"><span class="pre">From:</span></code> we sign is
+exactly what a spam filter is for.</p>
+</section>
+<section id="verifying-it">
+<h3>Verifying it<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#verifying-it" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#verifying-it'">¶</a></h3>
+<p>Check that the router resolves addresses before sending anything through it.
+From a shell that can reach port 8024:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="kn">import</span><span class="w"> </span><span class="nn">smtplib</span>
+</span><span id="line-2">
+</span><span id="line-3"><span class="k">class</span><span class="w"> </span><span class="nc">LMTP</span><span class="p">(</span><span class="n">smtplib</span><span class="o">.</span><span class="n">SMTP</span><span class="p">):</span>
+</span><span id="line-4">    <span class="k">def</span><span class="w"> </span><span class="nf">lhlo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">""</span><span class="p">):</span>
+</span><span id="line-5">        <span class="bp">self</span><span class="o">.</span><span class="n">putcmd</span><span class="p">(</span><span class="s2">"lhlo"</span><span class="p">,</span> <span class="n">name</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_hostname</span><span class="p">)</span>
+</span><span id="line-6">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getreply</span><span class="p">()</span>
+</span><span id="line-7">
+</span><span id="line-8"><span class="n">s</span> <span class="o">=</span> <span class="n">LMTP</span><span class="p">(</span><span class="s2">"lmtp"</span><span class="p">,</span> <span class="mi">8024</span><span class="p">)</span>
+</span><span id="line-9"><span class="n">s</span><span class="o">.</span><span class="n">lhlo</span><span class="p">(</span><span class="s2">"probe"</span><span class="p">)</span>
+</span><span id="line-10"><span class="n">s</span><span class="o">.</span><span class="n">mail</span><span class="p">(</span><span class="s2">"probe@example.org"</span><span class="p">)</span>
+</span><span id="line-11"><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">rcpt</span><span class="p">(</span><span class="s2">"info@your-domain.example"</span><span class="p">))</span>       <span class="c1"># 250, a configured address</span>
+</span><span id="line-12"><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">rcpt</span><span class="p">(</span><span class="s2">"nobody@your-domain.example"</span><span class="p">))</span>     <span class="c1"># 550, unknown</span>
+</span><span id="line-13"><span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">rcpt</span><span class="p">(</span><span class="s2">"info@somewhere-else.example"</span><span class="p">))</span>    <span class="c1"># 550, wrong domain</span>
+</span></code></pre></div>
+</div>
+<p>A <code class="docutils literal notranslate"><span class="pre">RCPT</span></code> probe resolves the address without delivering anything, so it is
+safe against a list with real members behind it.</p>
+<p>Then send one real message and follow it. In the MTA log the inbound delivery
+should end at the router, and a second queue entry should leave with a bounce
+address as its envelope sender:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="go">to=&lt;info@your-domain.example&gt;, relay=lmtp[…]:8024, status=sent (250 2.0.0 Forwarded)</span>
+</span><span id="line-2"><span class="go">from=&lt;bounce+…@your-domain.example&gt;, size=…, nrcpt=1 (queue active)</span>
+</span></code></pre></div>
+</div>
+<p>Seeing the first line without the second means the router accepted the message
+and then dropped it, which it only does for a loop or a suppressed duplicate —
+both are logged by the <code class="docutils literal notranslate"><span class="pre">lmtp</span></code> service.</p>
+</section>
+<section id="what-the-replies-mean">
+<h3>What the replies mean<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#what-the-replies-mean" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#what-the-replies-mean'">¶</a></h3>
+<p>The status code the router returns is the whole operational interface, so it
+is worth knowing what each one is telling you.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%"/>
+<col style="width: 80.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Reply</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">250</span> <span class="pre">Forwarded</span></code></p></td>
+<td><p>Every copy was handed to the outgoing server.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">250</span> <span class="pre">Bounce</span> <span class="pre">recorded</span></code></p></td>
+<td><p>A delivery report was matched to its target address.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">451</span></code></p></td>
+<td><p>Something temporary: the database is unreachable, or the outgoing
+server would not take a copy. The MTA keeps the message and retries;
+copies that already went out are not repeated.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">452</span></code></p></td>
+<td><p>A second recipient in one transaction. The MTA delivers it separately.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">550</span></code></p></td>
+<td><p>The address does not exist, is not in our domain, or the sender is not
+allowed to write to it. Permanent, and the sender is told.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">554</span></code></p></td>
+<td><p>A loop was detected and the message was dropped deliberately.</p></td>
+</tr>
+</tbody>
+</table>
+<p>A message that keeps coming back with <code class="docutils literal notranslate"><span class="pre">451</span></code> is the one case worth watching:
+the MTA will retry it until its queue lifetime expires, so check the <code class="docutils literal notranslate"><span class="pre">lmtp</span></code>
+service log for the underlying error rather than waiting for the bounce.</p>
+</section>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
@@ -242,6 +389,14 @@ that setting.</p>
 <li><a :data-current="activeSection === '#bounces'" class="reference internal" href="#bounces">Bounces</a></li>
 <li><a :data-current="activeSection === '#retries-and-duplicates'" class="reference internal" href="#retries-and-duplicates">Retries and duplicates</a></li>
 <li><a :data-current="activeSection === '#configuration'" class="reference internal" href="#configuration">Configuration</a></li>
+<li><a :data-current="activeSection === '#mail-server-setup'" class="reference internal" href="#mail-server-setup">Mail server setup</a><ul>
+<li><a :data-current="activeSection === '#what-has-to-be-true'" class="reference internal" href="#what-has-to-be-true">What has to be true</a></li>
+<li><a :data-current="activeSection === '#reaching-the-router'" class="reference internal" href="#reaching-the-router">Reaching the router</a></li>
+<li><a :data-current="activeSection === '#postfix'" class="reference internal" href="#postfix">Postfix</a></li>
+<li><a :data-current="activeSection === '#verifying-it'" class="reference internal" href="#verifying-it">Verifying it</a></li>
+<li><a :data-current="activeSection === '#what-the-replies-mean'" class="reference internal" href="#what-the-replies-mean">What the replies mean</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </aside>
