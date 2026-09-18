@@ -261,3 +261,55 @@ class GroupInlineApiTestCase(TestCase):
             **self.auth(self.plain_user),
         )
         self.assertEqual(r.status_code, 403)
+
+    def test_update_registration_password(self):
+        password = RegistrationPassword.objects.create(group=self.group, password="alt")
+        other_group = Group.objects.create(name="Gemsen", year_from=2012, year_to=2016)
+        r = self.client.patch(
+            "/api/members/registration-passwords/{}".format(password.pk),
+            data={"password": "neu2026", "group_id": other_group.pk},
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        password.refresh_from_db()
+        self.assertEqual(password.password, "neu2026")
+        self.assertEqual(password.group, other_group)
+
+    def test_update_registration_password_forbidden(self):
+        password = RegistrationPassword.objects.create(group=self.group, password="alt")
+        r = self.client.patch(
+            "/api/members/registration-passwords/{}".format(password.pk),
+            data={"password": "fremd"},
+            content_type="application/json",
+            **self.auth(self.plain_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        password.refresh_from_db()
+        self.assertEqual(password.password, "alt")
+
+    def test_list_and_delete_permission_group(self):
+        permission_group = PermissionGroup.objects.create(group=self.group)
+        listed = self.client.get(
+            "/api/members/groups/{}/permission-groups".format(self.group.pk),
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertIn(permission_group.pk, {row["id"] for row in listed.json()})
+
+        r = self.client.delete(
+            "/api/members/permission-groups/{}".format(permission_group.pk),
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 204, r.content)
+        self.assertFalse(PermissionGroup.objects.filter(pk=permission_group.pk).exists())
+
+    def test_delete_permission_group_forbidden(self):
+        # These rows grant object permissions, so the gate matters here.
+        permission_group = PermissionGroup.objects.create(group=self.group)
+        r = self.client.delete(
+            "/api/members/permission-groups/{}".format(permission_group.pk),
+            **self.auth(self.plain_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(PermissionGroup.objects.filter(pk=permission_group.pk).exists())

@@ -12,8 +12,11 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.http import Http404
 from django.test import TestCase
 from django.utils import timezone
+from members.api.inlines_excursion import _authorize_participant_parent
+from members.api.inlines_excursion import _validate_ljp_combination
 from members.models import DIVERSE
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
@@ -199,6 +202,19 @@ class ExcursionInlineApiTestCase(TestCase):
         self.assertEqual(r.status_code, 201, r.content)
         proposal = LJPProposal.objects.get(excursion=self.excursion)
         self.assertEqual(proposal.title, "Climbing course")
+
+    def test_create_ljp_proposal_falls_back_to_model_defaults(self):
+        # Supplying neither leaves the model defaults in place — Qualification
+        # with Educational programme — which the combination rule rejects. The
+        # defaults are therefore not a usable pair, and that is worth knowing.
+        r = self.client.post(
+            "/api/members/excursions/{}/ljp-proposal".format(self.excursion.pk),
+            data={"title": "Unvollstaendig"},
+            content_type="application/json",
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertIn("__all__", r.json()["errors"])
 
     def test_create_ljp_proposal_forbidden(self):
         r = self.client.post(
@@ -424,3 +440,61 @@ class ExcursionInlineApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual({row["member"]["id"] for row in r.json()}, {self.participant.pk})
+
+    def test_an_orphaned_proposal_falls_back_to_the_global_permission(self):
+        # `excursion` is SET_NULL, so a proposal can outlive its excursion. With
+        # no excursion to inherit from, the global permission is what governs it.
+        proposal = self._proposal()
+        proposal.excursion = None
+        proposal.save()
+
+        refused = self.client.patch(
+            "/api/members/ljp-proposals/{}".format(proposal.pk),
+            data={"title": "Verwaist"},
+            content_type="application/json",
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(refused.status_code, 403, refused.content)
+
+        editor = grant(self.leader_user, "change_global_freizeit")
+        allowed = self.client.patch(
+            "/api/members/ljp-proposals/{}".format(proposal.pk),
+            data={"title": "Verwaist"},
+            content_type="application/json",
+            **self.auth(editor),
+        )
+        self.assertEqual(allowed.status_code, 200, allowed.content)
+        proposal.refresh_from_db()
+        self.assertEqual(proposal.title, "Verwaist")
+
+    def test_a_goal_that_is_not_qualification_needs_the_educational_category(self):
+        # The other arm of the same rule the create path already checks.
+        proposal = self._proposal()
+        r = self.client.patch(
+            "/api/members/ljp-proposals/{}".format(proposal.pk),
+            data={"category": LJPProposal.LJP_STAFF_TRAINING},
+            content_type="application/json",
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        proposal.refresh_from_db()
+        self.assertEqual(proposal.category, LJPProposal.LJP_EDUCATIONAL)
+
+
+class LjpValidationHelpersTest(TestCase):
+    """The two helpers whose defensive arms no route can reach.
+
+    ``goal`` and ``category`` both carry non-null model defaults, so a proposal
+    always has both by the time a route validates it; and only a ``Freizeit`` or
+    a ``MemberNoteList`` is ever passed as a participant list. Both helpers still
+    accept the other case, and these pin what they do with it.
+    """
+
+    def test_a_missing_goal_or_category_has_no_combination_to_check(self):
+        self.assertIsNone(_validate_ljp_combination(None, None))
+        self.assertIsNone(_validate_ljp_combination(LJPProposal.LJP_QUALIFICATION, None))
+        self.assertIsNone(_validate_ljp_combination(None, LJPProposal.LJP_EDUCATIONAL))
+
+    def test_an_unknown_participant_list_is_a_404(self):
+        with self.assertRaises(Http404):
+            _authorize_participant_parent(None, object(), write=False)

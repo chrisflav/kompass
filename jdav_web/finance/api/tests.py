@@ -15,6 +15,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
@@ -792,3 +793,158 @@ class FinanceApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 403)
         self.assertTrue(Bill.objects.filter(pk=bill.pk).exists())
+
+    # --- the last of the statement state machine --------------------------
+
+    def test_upload_a_bill_proof_rejects_an_oversized_file(self):
+        statement = self.make_statement(self.owner)
+        bill = Bill.objects.create(
+            statement=statement, short_description="Hütte", amount=10, paid_by=self.owner
+        )
+        oversized = SimpleUploadedFile(
+            "beleg.pdf", b"x" * (5 * 1024 * 1024 + 1), content_type="application/pdf"
+        )
+        r = self.client.post(
+            "/api/finance/bills/{}/proof".format(bill.pk),
+            data={"proof": oversized},
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        bill.refresh_from_db()
+        self.assertFalse(bill.proof)
+
+    def test_update_clears_a_recipient_with_an_explicit_null(self):
+        excursion = self.make_excursion("Hochtour", self.owner)
+        statement = self.make_statement(self.owner)
+        statement.excursion = excursion
+        statement.ljp_to = self.owner
+        statement.save()
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(statement.pk),
+            data={"ljp_to_id": None},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        statement.refresh_from_db()
+        self.assertIsNone(statement.ljp_to)
+
+    def test_update_sets_the_ljp_and_allowance_recipients(self):
+        excursion = self.make_excursion("Hochtour", self.owner)
+        statement = self.make_statement(self.owner)
+        statement.excursion = excursion
+        statement.save()
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(statement.pk),
+            data={"ljp_to_id": self.owner.pk, "allowance_to_ids": []},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        statement.refresh_from_db()
+        self.assertEqual(statement.ljp_to, self.owner)
+        self.assertEqual(list(statement.allowance_to.all()), [])
+
+    def test_submit_refuses_ljp_claims_when_a_bill_has_no_proof(self):
+        # Claiming LJP contributions means every bill has to be evidenced.
+        excursion = self.make_excursion("Hochtour", self.owner)
+        statement = self.make_statement(self.owner)
+        statement.excursion = excursion
+        statement.ljp_to = self.owner
+        statement.save()
+        Bill.objects.create(
+            statement=statement, short_description="Ohne Beleg", amount=10, paid_by=self.owner
+        )
+        r = self.client.post(
+            "/api/finance/statements/{}/submit".format(statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        statement.refresh_from_db()
+        self.assertFalse(statement.submitted)
+
+    def test_generate_transactions_needs_a_payer_on_every_covered_bill(self):
+        statement = self.make_statement(self.manager)
+        Bill.objects.create(
+            statement=statement, short_description="Hütte", amount=10, costs_covered=True
+        )
+        statement.submit(self.manager)
+        r = self.client.post(
+            "/api/finance/statements/{}/generate-transactions".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_reduce_transactions_refuses_a_draft(self):
+        statement = self.make_statement(self.manager)
+        r = self.client.post(
+            "/api/finance/statements/{}/reduce-transactions".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_confirm_refuses_a_statement_that_is_not_ready(self):
+        statement = self.make_statement(self.manager)
+        r = self.client.post(
+            "/api/finance/statements/{}/confirm".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_confirm_can_mail_the_summary_to_the_confirmer(self):
+        # A bare statement: `confirm` also requires `validity == VALID`, and a
+        # covered bill would add a transaction whose payer has no valid IBAN.
+        statement = self.make_statement(self.manager)
+        statement.submit(self.manager)
+        mail.outbox = []
+        r = self.client.post(
+            "/api/finance/statements/{}/confirm?send=true".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(mail.outbox)
+        self.assertIn(self.manager.email, mail.outbox[0].cc)
+
+    def test_reject_refuses_a_draft(self):
+        statement = self.make_statement(self.manager)
+        r = self.client.post(
+            "/api/finance/statements/{}/reject".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_unconfirm_refuses_a_statement_that_is_not_confirmed(self):
+        statement = self.make_statement(self.manager)
+        statement.submit(self.manager)
+        r = self.client.post(
+            "/api/finance/statements/{}/unconfirm".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_create_and_update_a_bill_s_payer(self):
+        statement = self.make_statement(self.owner)
+        created = self.client.post(
+            "/api/finance/bills",
+            data={
+                "statement_id": statement.pk,
+                "short_description": "Hütte",
+                "explanation": "",
+                "amount": "10.00",
+                "paid_by_id": str(self.owner.pk),
+            },
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(created.status_code, 200, created.content)
+        bill = Bill.objects.get(pk=created.json()["id"])
+        self.assertEqual(bill.paid_by, self.owner)
+
+        cleared = self.client.patch(
+            "/api/finance/bills/{}".format(bill.pk),
+            data={"paid_by_id": None},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(cleared.status_code, 200, cleared.content)
+        bill.refresh_from_db()
+        self.assertIsNone(bill.paid_by)

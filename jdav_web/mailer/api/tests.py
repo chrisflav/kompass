@@ -410,3 +410,36 @@ class MailerApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 422)
         self.assertFalse(Attachment.objects.filter(msg=message).exists())
+
+    def test_retrieve_email_address(self):
+        address = EmailAddress.objects.create(name="vorstand")
+        r = self.client.get(
+            "/api/mailer/email-addresses/{}".format(address.pk), **self.auth(self.admin_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["name"], "vorstand")
+
+    def test_retrieve_email_address_forbidden(self):
+        address = EmailAddress.objects.create(name="vorstand")
+        r = self.client.get(
+            "/api/mailer/email-addresses/{}".format(address.pk), **self.auth(self.other_user)
+        )
+        self.assertEqual(r.status_code, 403)
+
+    @mock.patch("mailer.models.send")
+    def test_attaching_to_a_sent_message_is_refused(self, mock_send):
+        # The attachment would never go out, so the refusal has to be readable
+        # rather than a generic permission error.
+        mock_send.return_value = SENT
+        message = self.make_message(self.owner)
+        message.sent = True
+        message.save()
+        r = self.client.post(
+            "/api/mailer/messages/{}/attachments".format(message.pk),
+            data={
+                "f": SimpleUploadedFile("anhang.pdf", b"fakepdf", content_type="application/pdf")
+            },
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403, r.content)
+        self.assertTrue(r.json()["displayable"])

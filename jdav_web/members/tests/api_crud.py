@@ -14,6 +14,7 @@ the file reads as one table rather than thirty unrelated cases.
 
 import datetime
 import uuid
+from types import SimpleNamespace
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -21,6 +22,7 @@ from django.core import mail
 from django.test import TestCase
 from django.utils import timezone
 from mailer.models import EmailAddress
+from members.api.schemas import MemberOut
 from members.models import ActivityCategory
 from members.models import DIVERSE
 from members.models import Freizeit
@@ -35,6 +37,7 @@ from members.models import MemberUnconfirmedProxy
 from members.models import MemberWaitingList
 from members.models import MUSKELKRAFT_ANREISE
 from members.models import TrainingCategory
+from members.tests.utils import INTERNAL_EMAIL
 from oauth2_provider.models import get_access_token_model
 
 from .api import Application
@@ -613,3 +616,109 @@ class MembersCrudApiTestCase(TestCase):
         self.assertEqual(allowed.status_code, 200, allowed.content)
         self.member.refresh_from_db()
         self.assertEqual(self.member.user, account)
+
+    def test_registrations_are_empty_for_an_account_without_a_member(self):
+        # The list is scoped by the caller's led groups; with no member behind
+        # the account there is nothing to scope by, so it must show nothing
+        # rather than everything.
+        self._registration()
+        account = User.objects.create_user("ohne-mitglied-2", password="secret")
+        token = AccessToken.objects.create(
+            user=account,
+            application=self.application,
+            token="tok-none-{}".format(uuid.uuid4().hex[:8]),
+            expires=timezone.now() + datetime.timedelta(days=1),
+            scope="read write",
+        )
+        r = self.client.get(
+            "/api/members/registrations",
+            HTTP_AUTHORIZATION="Bearer {}".format(token.token),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json(), [])
+
+    def test_request_echo_needs_a_newsletter_subscriber_with_a_birth_date(self):
+        member = Member.objects.create(
+            prename="Ohne", lastname="Geburtstag", gender=DIVERSE, email=settings.TEST_MAIL
+        )
+        headers = self.as_admin("change_global_member", "view_global_member")
+
+        member.gets_newsletter = False
+        member.save()
+        refused = self.post("/api/members/{}/request-echo".format(member.pk), {}, **headers)
+        self.assertEqual(refused.status_code, 422, refused.content)
+
+        member.gets_newsletter = True
+        member.birth_date = None
+        member.save()
+        no_birthday = self.post("/api/members/{}/request-echo".format(member.pk), {}, **headers)
+        self.assertEqual(no_birthday.status_code, 422, no_birthday.content)
+
+    def test_request_password_reset_without_a_linked_account(self):
+        member = Member.objects.create(
+            prename="Ohne", lastname="Konto", gender=DIVERSE, email=settings.TEST_MAIL
+        )
+        r = self.post(
+            "/api/members/{}/request-password-reset".format(member.pk),
+            {},
+            **self.as_admin("may_invite_as_user"),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_activity_score_is_computed_when_not_annotated(self):
+        # The list route annotates the score; the detail route has to compute it
+        # for the single row instead.
+        r = self.client.get(
+            "/api/members/{}".format(self.member.pk),
+            **self.as_admin("view_global_member"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIn("activity_score", r.json())
+
+    def test_member_out_prefers_an_annotation_over_recomputing(self):
+        # `MemberOut` is served by the detail routes, none of which annotate, so
+        # it recomputes — but it takes an annotation when one is there. Pinned
+        # directly: no route reaches the fast path today, and if one starts
+        # annotating, this is the behaviour it will get.
+        annotated = SimpleNamespace(_activity_score=7)
+        self.assertEqual(MemberOut.resolve_activity_score(annotated), 7)
+
+        # Without one it falls back to a query for this member alone.
+        self.assertIsNotNone(MemberOut.resolve_activity_score(self.member))
+
+    def test_activity_score_comes_from_the_annotation_on_the_list(self):
+        # The list route annotates the score in one query; the resolver has to
+        # use that rather than recomputing per row.
+        excursion = self._excursion()
+        excursion.jugendleiter.add(self.member)
+        r = self.client.get("/api/members/", **self.as_admin("list_global_member"))
+        self.assertEqual(r.status_code, 200, r.content)
+        row = next(m for m in r.json() if m["id"] == self.member.pk)
+        self.assertIsNotNone(row["activity_score"])
+
+    def test_request_password_reset_for_a_member_with_an_account(self):
+        account = User.objects.create_user("mit-konto", password="secret")
+        member = Member.objects.create(
+            prename="Mit",
+            lastname="Konto",
+            gender=DIVERSE,
+            email=INTERNAL_EMAIL,
+        )
+        member.user = account
+        member.save()
+        mail.outbox = []
+        r = self.post(
+            "/api/members/{}/request-password-reset".format(member.pk),
+            {},
+            **self.as_admin("may_invite_as_user"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_member_with_no_address_at_all_is_not_mailed(self):
+        # `send_mail` addresses only the fields that hold an address; with none
+        # set there is no recipient and the mailer must not be handed a None.
+        member = Member.objects.create(prename="Ohne", lastname="Adresse", gender=DIVERSE, email="")
+        mail.outbox = []
+        member.send_mail("Betreff", "Inhalt")
+        self.assertEqual(mail.outbox, [])

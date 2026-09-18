@@ -56,6 +56,9 @@ def confirm_unsubscribe(request, payload: UnsubscribeIn):
     reimplementing the unsubscribe logic here.
     """
     member = _member_for_unsubscribe_key(payload.key)
-    if not member.unsubscribe(payload.key):
+    if not member.unsubscribe(payload.key):  # pragma: no cover
+        # Belt and braces: `_member_for_unsubscribe_key` has already matched the
+        # key and checked its expiry, which is everything `unsubscribe` tests,
+        # so there is no input that reaches here. Kept so the two cannot drift.
         raise Http404(_("Can't verify this link. Try again!"))
     return member

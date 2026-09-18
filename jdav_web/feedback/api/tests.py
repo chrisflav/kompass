@@ -13,6 +13,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from feedback.models import Feedback
 from members.models import DIVERSE
 from members.models import Member
@@ -152,3 +153,13 @@ class FeedbackApiTestCase(TestCase):
         r = self.client.delete("/api/feedback/{}".format(feedback.pk), **self.auth(reader))
         self.assertEqual(r.status_code, 204, r.content)
         self.assertEqual(Feedback.objects.count(), 0)
+
+    def test_str_shows_the_first_line_of_the_message(self):
+        entry = Feedback.objects.create(message="  Erste Zeile\nZweite Zeile  ")
+        self.assertEqual(str(entry), "Erste Zeile")
+
+    def test_str_of_a_blank_message_says_so(self):
+        # `message` is validated on the way in, but a row can still be blank if
+        # it was written any other way — the inbox must not render an empty row.
+        entry = Feedback.objects.create(message="   ")
+        self.assertEqual(str(entry), str(_("(empty)")))

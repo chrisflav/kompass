@@ -24,6 +24,8 @@ from members.models import TrainingCategory
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
+from .api import grant
+
 Application = get_application_model()
 AccessToken = get_access_token_model()
 
@@ -426,3 +428,51 @@ class MemberInlineApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 403)
         self.assertTrue(PermissionMember.objects.filter(pk=permission.pk).exists())
+
+    def test_upload_member_image_rejects_an_oversized_file(self):
+        oversized = SimpleUploadedFile(
+            "portrait.png", b"x" * (5 * 1024 * 1024 + 1), content_type="image/png"
+        )
+        r = self.client.post(
+            "/api/members/{}/image".format(self.owner.pk),
+            data={"f": oversized},
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.owner.refresh_from_db()
+        self.assertFalse(self.owner.image)
+
+    def test_upload_training_certificate_rejects_an_oversized_file(self):
+        training = self._training()
+        oversized = SimpleUploadedFile(
+            "urkunde.pdf", b"x" * (5 * 1024 * 1024 + 1), content_type="application/pdf"
+        )
+        r = self.client.post(
+            "/api/members/trainings/{}/certificate".format(training.pk),
+            data={"f": oversized},
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        training.refresh_from_db()
+        self.assertFalse(training.certificate)
+
+    def test_list_a_registration_s_emergency_contacts(self):
+        # A registration is excluded from `Member.objects`, so its contacts are
+        # reached through the unconfirmed proxy rather than the member route.
+        registration = Member.all_objects.create(
+            prename="Neu",
+            lastname="Angemeldet",
+            gender=DIVERSE,
+            email=settings.TEST_MAIL,
+            confirmed=False,
+        )
+        EmergencyContact.objects.create(
+            member=registration, prename="Mama", lastname="Angemeldet", phone_number="+49 1"
+        )
+        manager = grant(self.owner_user, "may_manage_all_registrations")
+        r = self.client.get(
+            "/api/members/registrations/{}/emergency-contacts".format(registration.pk),
+            **self.auth(manager),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual({row["prename"] for row in r.json()}, {"Mama"})

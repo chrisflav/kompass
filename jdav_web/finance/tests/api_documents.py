@@ -140,10 +140,11 @@ class FinanceDocumentsApiTestCase(TestCase):
     def test_summary_authorized_returns_pdf(self):
         stmt = self.make_confirmed_statement()
         r = self.client.get(self.summary_url(stmt.pk), **self.auth(self.manager_user))
-        if not PDFLATEX_AVAILABLE:
+        if not PDFLATEX_AVAILABLE:  # pragma: no cover
             # Without pdflatex the generator cannot compile the document; the
             # permission gate and confirmed precondition are covered by the
-            # dedicated 403/422 tests above.
+            # dedicated 403/422 tests above. CI always has pdflatex, so this
+            # arm never runs there — hence the pragma.
             self.skipTest("pdflatex is not available in this environment")
         self.assertEqual(r.status_code, 200, getattr(r, "content", b"")[:500])
         self.assertEqual(r["Content-Type"], "application/pdf")

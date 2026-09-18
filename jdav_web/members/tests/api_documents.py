@@ -392,6 +392,16 @@ class MembersDocumentsApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r["Content-Type"], "application/pdf")
 
+    def test_ljp_proofs_without_a_statement_rejected(self):
+        # Past the LJP-proposal guard there is a second precondition: the proofs
+        # are the statement's bills, so without one there is nothing to collect.
+        excursion = self._seminar_excursion()
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/ljp-proofs".format(excursion.pk),
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
     @skipUnless(HAS_PDFLATEX, "pdflatex not available")
     def test_ljp_proofs_allowed(self):
         excursion = self._seminar_excursion()

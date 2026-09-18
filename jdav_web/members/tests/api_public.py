@@ -7,6 +7,8 @@ Each flow is covered on its happy path and its invalid-key path.
 """
 
 import datetime
+import shutil
+from unittest import skipUnless
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -27,6 +29,9 @@ def json_post(client, url, payload):
 
 
 CONTACTS = [{"prename": "Anna", "lastname": "Contact", "phone_number": "+49 1", "email": ""}]
+
+
+HAS_PDFLATEX = shutil.which("pdflatex") is not None
 
 
 class PublicEchoApiTestCase(TestCase):
@@ -109,6 +114,68 @@ class PublicEchoApiTestCase(TestCase):
         # No registration form yet, so the caller is pointed at the upload flow.
         self.assertTrue(r.json()["needs_registration_form_upload"])
         self.assertTrue(r.json()["upload_registration_form_key"])
+
+    def _submit_payload(self, **overrides):
+        payload = {
+            "password": self.password,
+            "prename": "Echo",
+            "lastname": "Test",
+            "gender": DIVERSE,
+            "street": "Mainstreet 1",
+            "plz": "71634",
+            "town": "Ludwigsburg",
+            "phone_number": "+49 700",
+            "photos_may_be_taken": True,
+            "emergency_contacts": CONTACTS,
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_submit_wrong_password(self):
+        r = json_post(
+            self.client,
+            "{}/echo/{}".format(BASE, self.member.echo_key),
+            self._submit_payload(password="falsch"),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.member.refresh_from_db()
+        # `echoed` defaults to True, so the tell is that nothing was written.
+        self.assertEqual(self.member.town, "")
+
+    def test_submit_expired_key(self):
+        self.member.echo_expire = timezone.now() - datetime.timedelta(days=1)
+        self.member.save()
+        r = json_post(
+            self.client,
+            "{}/echo/{}".format(BASE, self.member.echo_key),
+            self._submit_payload(),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.town, "")
+
+    def test_submit_without_emergency_contacts(self):
+        r = json_post(
+            self.client,
+            "{}/echo/{}".format(BASE, self.member.echo_key),
+            self._submit_payload(emergency_contacts=[]),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_submit_with_a_registration_form_already_on_file(self):
+        # The other arm of the success response: nothing left to upload, so the
+        # caller is not pointed at the upload flow.
+        self.member.registration_form = SimpleUploadedFile(
+            "anmeldung.pdf", b"fakepdf", content_type="application/pdf"
+        )
+        self.member.save()
+        r = json_post(
+            self.client,
+            "{}/echo/{}".format(BASE, self.member.echo_key),
+            self._submit_payload(),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(r.json()["needs_registration_form_upload"])
 
     def test_submit_invalid_key(self):
         r = json_post(
@@ -230,6 +297,49 @@ class PublicInvitedRegistrationApiTestCase(TestCase):
         # The waiter is consumed by the registration.
         self.assertFalse(MemberWaitingList.objects.filter(pk=self.waiter.pk).exists())
 
+    def test_submit_stores_an_alternative_email(self):
+        # Parents often register with a second address; it is optional, so the
+        # field is only written when it was actually supplied.
+        r = json_post(
+            self.client,
+            "{}/invited-registration/{}".format(BASE, self.invitation.key),
+            {
+                "prename": "Invited",
+                "lastname": "Waiter",
+                "gender": DIVERSE,
+                "email": settings.TEST_MAIL,
+                "alternative_email": settings.TEST_MAIL,
+                "street": "Mainstreet 1",
+                "plz": "71634",
+                "town": "Ludwigsburg",
+                "birth_date": "2010-05-05",
+                "emergency_contacts": CONTACTS,
+            },
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        member = Member.all_objects.get(prename="Invited", lastname="Waiter")
+        self.assertEqual(member.alternative_email, settings.TEST_MAIL)
+
+    def test_submit_with_an_unknown_key(self):
+        # A complete payload on purpose: the schema is validated before the
+        # handler runs, so an incomplete one would 422 and never reach the key.
+        r = json_post(
+            self.client,
+            "{}/invited-registration/nope".format(BASE),
+            {
+                "prename": "Invited",
+                "lastname": "Waiter",
+                "gender": DIVERSE,
+                "email": settings.TEST_MAIL,
+                "street": "Mainstreet 1",
+                "plz": "71634",
+                "town": "Ludwigsburg",
+                "birth_date": "2010-05-05",
+                "emergency_contacts": CONTACTS,
+            },
+        )
+        self.assertEqual(r.status_code, 404)
+
 
 class PublicUploadRegistrationFormApiTestCase(TestCase):
     def setUp(self):
@@ -248,6 +358,18 @@ class PublicUploadRegistrationFormApiTestCase(TestCase):
         self.assertEqual(r.json()["name"], "Upload")
         self.assertFalse(r.json()["has_registration_form"])
 
+    @skipUnless(HAS_PDFLATEX, "pdflatex not available")
+    def test_download_the_form_to_sign(self):
+        # Without this there is nothing for the member to sign and upload, so
+        # the download shares the upload's key rather than needing its own.
+        r = self.client.get("{}/registration-form/{}".format(BASE, "uploadkey123"))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r["Content-Type"], "application/pdf")
+
+    def test_download_the_form_with_an_unknown_key(self):
+        r = self.client.get("{}/registration-form/nope".format(BASE))
+        self.assertEqual(r.status_code, 404)
+
     def test_verify_invalid_key(self):
         r = self.client.get("{}/upload-registration-form/nope".format(BASE))
         self.assertEqual(r.status_code, 404)
@@ -263,6 +385,18 @@ class PublicUploadRegistrationFormApiTestCase(TestCase):
         self.assertTrue(self.member.registration_form)
         # validate_registration_form clears the upload key.
         self.assertEqual(self.member.upload_registration_form_key, "")
+
+    def test_submit_oversized_file(self):
+        oversized = SimpleUploadedFile(
+            "anmeldung.pdf", b"x" * (5 * 1024 * 1024 + 1), content_type="application/pdf"
+        )
+        r = self.client.post(
+            "{}/upload-registration-form/{}".format(BASE, "uploadkey123"),
+            data={"registration_form": oversized},
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.member.refresh_from_db()
+        self.assertFalse(self.member.registration_form)
 
     def test_submit_invalid_filetype(self):
         upload = SimpleUploadedFile("evil.exe", b"MZ", content_type="application/octet-stream")
@@ -323,6 +457,24 @@ class PublicConfirmWaitingApiTestCase(TestCase):
     def test_confirm_invalid_key(self):
         r = self.client.post("{}/confirm-waiting/nope".format(BASE))
         self.assertEqual(r.status_code, 404)
+
+    def test_confirm_an_already_confirmed_waiter(self):
+        # Both the applicant and a parent may click the same link; the second
+        # click has to read as "already done", not as an error. Reaching that
+        # arm needs the key spent *and* no reminder outstanding — which is
+        # exactly the state the first click leaves behind.
+        self.waiter.sent_reminders = 0
+        self.waiter.wait_confirmation_key_expire = timezone.now() - datetime.timedelta(days=1)
+        self.waiter.save()
+        r = self.client.post("{}/confirm-waiting/{}".format(BASE, "waitkey123"))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(r.json()["already_confirmed"])
+
+    def test_confirm_an_expired_link(self):
+        self.waiter.wait_confirmation_key_expire = timezone.now() - datetime.timedelta(days=1)
+        self.waiter.save()
+        r = self.client.post("{}/confirm-waiting/{}".format(BASE, "waitkey123"))
+        self.assertEqual(r.status_code, 422, r.content)
 
 
 class PublicLeaveWaitinglistApiTestCase(TestCase):
@@ -404,6 +556,17 @@ class PublicRejectInvitationApiTestCase(TestCase):
         r = json_post(self.client, "{}/reject-invitation/nope".format(BASE), {"action": "reject"})
         self.assertEqual(r.status_code, 404)
 
+    def test_submit_unknown_action(self):
+        r = json_post(
+            self.client,
+            "{}/reject-invitation/{}".format(BASE, "rejkey123"),
+            {"action": "vielleicht"},
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.invitation.refresh_from_db()
+        self.assertFalse(self.invitation.rejected)
+        self.assertTrue(MemberWaitingList.objects.filter(pk=self.waiter.pk).exists())
+
 
 class PublicConfirmInvitationApiTestCase(TestCase):
     def setUp(self):
@@ -423,6 +586,12 @@ class PublicConfirmInvitationApiTestCase(TestCase):
     def test_verify_invalid_key(self):
         r = self.client.get("{}/confirm-invitation/nope".format(BASE))
         self.assertEqual(r.status_code, 404)
+
+    def test_verify_a_rejected_invitation_is_no_longer_valid(self):
+        self.invitation.rejected = True
+        self.invitation.save()
+        r = self.client.get("{}/confirm-invitation/{}".format(BASE, "confkey123"))
+        self.assertEqual(r.status_code, 422, r.content)
 
     def test_submit_confirms(self):
         # Force it into a rejected state first to observe confirm() flipping it back.

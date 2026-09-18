@@ -2,6 +2,9 @@
 mail = "test@localhost"
 
 [django]
+# The pilot deployment sets this, and the test suite is where the branch
+# gets exercised. Harmless here: nothing sends X-Forwarded-Proto.
+trust_forwarded_proto = true
 deployed = true
 debug = true
 secret_key = '6_ew6l1r9_4(8=p8quv(e8b+z+k+*wm7&zxx%mcnnec99a!lpw'
