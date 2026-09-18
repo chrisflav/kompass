@@ -24,6 +24,7 @@ Inhalt
 """
 
 
+@override_settings(DOMAIN="club.example")
 class CheckRecipientTestCase(BasicMailerTestCase):
     def test_known_list_address_is_accepted(self):
         self.assertTrue(
@@ -57,6 +58,52 @@ class CheckRecipientTestCase(BasicMailerTestCase):
         reply = _check_recipient("foobar@club.example", "stranger@elsewhere.com")
         self.assertTrue(reply.startswith("550"))
 
+    def test_plus_detail_resolves_to_the_base_address(self):
+        """recipient_delimiter used to be handled by the MTA; it is ours now."""
+        reply = _check_recipient("foobar+github@club.example", "max@outside.example")
+        self.assertTrue(reply.startswith("250"), reply)
+
+    def test_plus_detail_on_a_personal_address(self):
+        user = User.objects.create(username="fritz.wulter")
+        self.fritz.user = user
+        self.fritz.save()
+        reply = _check_recipient("fritz.wulter+news@club.example", "x@y.example")
+        self.assertTrue(reply.startswith("250"), reply)
+
+    def test_foreign_domain_is_refused(self):
+        """This endpoint forwards under a From we sign, so it is not an open relay."""
+        reply = _check_recipient("foobar@somewhere-else.example", "max@outside.example")
+        self.assertTrue(reply.startswith("550"), reply)
+
+    def test_bare_local_part_is_still_accepted(self):
+        self.assertTrue(_check_recipient("foobar", "max@outside.example").startswith("250"))
+
+    def test_mixed_case_bounce_token_is_preserved(self):
+        """secrets.token_urlsafe is mixed case and the lookup is exact."""
+        attempt = DeliveryAttempt.objects.create(
+            token="AbCdEf123",
+            message_id="<m@x.example>",
+            address="foobar@club.example",
+            recipient="paul@foo.com",
+        )
+        report = b"""From: MAILER-DAEMON@club.example
+Subject: failed
+Content-Type: multipart/report; report-type=delivery-status; boundary="B"
+
+--B
+Content-Type: message/delivery-status
+
+Action: failed
+Status: 5.1.1
+
+--B--
+"""
+        with mock.patch("mailer.lmtp.close_old_connections"):
+            reply = _deliver("bounce+AbCdEf123@club.example", "", report)
+        self.assertTrue(reply.startswith("250"), reply)
+        attempt.refresh_from_db()
+        self.assertIsNotNone(attempt.bounced_at)
+
     def test_database_failure_defers_instead_of_losing_mail(self):
         """The old sieve silently kept the mail in an unread mailbox instead."""
         with mock.patch("mailer.lmtp._classify", side_effect=RuntimeError("db down")):
@@ -64,6 +111,7 @@ class CheckRecipientTestCase(BasicMailerTestCase):
         self.assertTrue(reply.startswith("451"))
 
 
+@override_settings(DOMAIN="club.example")
 class DeliverTestCase(BasicMailerTestCase):
     def deliver(self, raw=RAW, address="foobar@club.example", sender="max@outside.example"):
         with mock.patch("mailer.delivery.send_raw") as send_raw:
@@ -93,6 +141,26 @@ class DeliverTestCase(BasicMailerTestCase):
         reply, _send_raw = self.deliver(raw)
         self.assertTrue(reply.startswith("250"))
         self.assertEqual(DeliveryAttempt.objects.count(), 2)
+
+    def test_redelivery_without_message_id_does_not_duplicate(self):
+        """The key is derived from the content, so the same bytes replay safely."""
+        raw = RAW.replace(b"Message-ID: <msg-1@outside.example>\n", b"")
+        self.deliver(raw)
+        _reply, send_raw = self.deliver(raw)
+        self.assertEqual(send_raw.call_count, 0)
+        self.assertEqual(DeliveryAttempt.objects.count(), 2)
+
+    def test_different_content_without_message_id_is_a_new_message(self):
+        raw = RAW.replace(b"Message-ID: <msg-1@outside.example>\n", b"")
+        self.deliver(raw)
+        self.deliver(raw.replace(b"Inhalt", b"Anderer Inhalt"))
+        self.assertEqual(DeliveryAttempt.objects.count(), 4)
+
+    def test_overlong_message_id_is_truncated_to_fit(self):
+        raw = RAW.replace(b"<msg-1@outside.example>", b"<" + b"x" * 400 + b"@outside.example>")
+        reply, _send_raw = self.deliver(raw)
+        self.assertTrue(reply.startswith("250"), reply)
+        self.assertTrue(all(len(a.message_id) <= 255 for a in DeliveryAttempt.objects.all()))
 
     def test_unknown_recipient_at_data_time(self):
         reply, _send_raw = self.deliver(address="nobody@club.example")
@@ -168,6 +236,7 @@ class Envelope:
         self.original_content = content
 
 
+@override_settings(DOMAIN="club.example")
 class HandlerTestCase(BasicMailerTestCase):
     """The aiosmtpd entry points, exercised the way the server calls them."""
 
@@ -190,6 +259,16 @@ class HandlerTestCase(BasicMailerTestCase):
     def test_accepted_recipient_is_recorded_on_the_envelope(self):
         reply, envelope = self.rcpt("foobar@club.example")
         self.assertTrue(reply.startswith("250"))
+        self.assertEqual(envelope.rcpt_tos, ["foobar@club.example"])
+
+    def test_second_recipient_in_one_transaction_is_deferred(self):
+        """aiosmtpd sends one DATA reply, so one recipient per transaction."""
+        _reply, envelope = self.rcpt("foobar@club.example")
+        with mock.patch("mailer.lmtp.close_old_connections"):
+            reply = async_to_sync(self.handler.handle_RCPT)(
+                None, None, envelope, "christian@club.example", []
+            )
+        self.assertTrue(reply.startswith("452"), reply)
         self.assertEqual(envelope.rcpt_tos, ["foobar@club.example"])
 
     def test_rejected_recipient_is_not_recorded(self):

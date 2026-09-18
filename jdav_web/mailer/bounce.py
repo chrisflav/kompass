@@ -39,12 +39,19 @@ def handle(token, message):
     """Record a bounce for the copy identified by ``token``.
 
     Returns ``True`` if the token was known. An unknown token is not an error:
-    tokens are pruned eventually and backscatter is common.
+    backscatter to a made up bounce address is common, and a report can arrive
+    for an attempt from before this system was in place.
     """
     attempt = DeliveryAttempt.objects.filter(token=token).first()
     if attempt is None:
         logger.info("Bounce for unknown token %s, ignoring.", token)
         return False
+
+    if attempt.bounced_at is not None:
+        # The same report can arrive twice if a transaction is redelivered;
+        # counting it again would suspend an address early.
+        logger.info("Bounce for %s already recorded, ignoring repeat.", attempt.recipient)
+        return True
 
     permanent, status, detail = parse_status(message)
     attempt.bounced_at = timezone.now()

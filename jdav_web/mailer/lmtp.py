@@ -13,6 +13,7 @@ cheap and precise. Everything that can only be decided once the body is known
 happens in DATA.
 """
 
+import hashlib
 import logging
 
 from asgiref.sync import sync_to_async
@@ -31,15 +32,24 @@ BOUNCE = "bounce"
 
 def _classify(address):
     """Decide what an incoming recipient address is, and whether we take it."""
-    local_part, _ = routing.split_address(address)
+    # The bounce token is case sensitive, so the local part is split without
+    # folding and only the parts that get compared are lowercased.
+    local_part, domain = routing.split_address(address, casefold=False)
     base, detail = routing.strip_detail(local_part)
 
-    if base == settings.MAIL_BOUNCE_LOCAL_PART:
+    if domain and domain.lower() != settings.DOMAIN.lower():
+        # The MTA should only route our own domain here, but this endpoint is
+        # reachable from the compose network and forwards under a From we sign.
+        return None, "550 5.1.1 Relay access denied"
+
+    if base.lower() == settings.MAIL_BOUNCE_LOCAL_PART.lower():
         if not detail:
             return None, "550 5.1.1 Malformed bounce address"
         return (BOUNCE, detail), None
 
-    route = routing.resolve(local_part)
+    # Resolve the address without its +detail, the way the MTA's
+    # recipient_delimiter handling did before.
+    route = routing.resolve(base.lower())
     if route is None:
         return None, "550 5.1.1 No such address"
     return route, None
@@ -87,7 +97,7 @@ def _deliver(address, envelope_from, content):
         return error
 
     message = munging.parse(content)
-    message_id = str(message.get("Message-ID", "")).strip()
+    message_id = str(message.get("Message-ID", "")).strip()[:255]
 
     if isinstance(target, tuple):
         _, token = target
@@ -102,11 +112,11 @@ def _deliver(address, envelope_from, content):
         return "554 5.4.6 Routing loop detected"
 
     if not message_id:
-        # Without a Message-ID we cannot recognise a retry, so a deferral would
-        # duplicate every copy. Synthesising one keeps delivery idempotent.
-        message_id = "<generated-{}@{}>".format(
-            delivery.DeliveryAttempt.new_token(), settings.DOMAIN
-        )
+        # Without a Message-ID a retry cannot be recognised, so the key is
+        # derived from the message itself: a redelivery of the same bytes
+        # produces the same key and is skipped, a different message does not.
+        digest = hashlib.sha256(content).hexdigest()[:32]
+        message_id = "<sha256-{}@{}>".format(digest, settings.DOMAIN)
         logger.info("Incoming message to %s had no Message-ID.", target.address)
 
     deferred = delivery.forward(message, target, envelope_from, message_id)
@@ -119,6 +129,12 @@ class RouterHandler:
     """aiosmtpd handler translating LMTP delivery into kompass routing."""
 
     async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
+        if envelope.rcpt_tos:
+            # LMTP wants one reply per recipient after DATA and aiosmtpd sends
+            # exactly one, so a second recipient in the same transaction would
+            # desynchronise the protocol. Deferring it makes the MTA deliver it
+            # separately instead of depending on its recipient limit.
+            return "452 4.5.3 One recipient per transaction"
         mail_from = envelope.mail_from or ""
         reply = await sync_to_async(_with_connection)(lambda: _check_recipient(address, mail_from))
         if reply.startswith("250"):

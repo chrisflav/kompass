@@ -126,3 +126,24 @@ class ModelStrTestCase(BasicMailerTestCase):
             recipient="paul@foo.com",
         )
         self.assertEqual(str(attempt), "foobar@club.example -> paul@foo.com")
+
+
+class RepeatedBounceTestCase(BasicMailerTestCase):
+    def setUp(self):
+        super().setUp()
+        self.attempt = DeliveryAttempt.objects.create(
+            token="tok2",
+            message_id="<m2@outside.example>",
+            address="foobar@club.example",
+            recipient="paul@foo.com",
+        )
+
+    def test_the_same_report_is_only_counted_once(self):
+        """A redelivered transaction must not suspend an address early."""
+        handle("tok2", parse(dsn()))
+        handle("tok2", parse(dsn()))
+        self.assertEqual(MailDeliveryState.objects.get(email="paul@foo.com").hard_bounces, 1)
+
+    def test_repeat_is_still_reported_as_known(self):
+        handle("tok2", parse(dsn()))
+        self.assertTrue(handle("tok2", parse(dsn())))

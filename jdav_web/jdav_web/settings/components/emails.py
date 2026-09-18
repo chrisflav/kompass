@@ -39,6 +39,11 @@ MAIL_BOUNCE_LOCAL_PART = get_var("mail", "bounce_local_part", default="bounce")
 # Appended to the author's name in the rewritten From, as mailing lists do.
 MAIL_MUNGE_DISPLAY_SUFFIX = get_var("mail", "munge_display_suffix", default="via Kompass")
 
+# How long a delivered copy suppresses a repeat of the same Message-ID. Long
+# enough to cover an MTA's retries, short enough that a sender reusing an id
+# is not silenced forever.
+MAIL_DUPLICATE_WINDOW_DAYS = get_var("mail", "duplicate_window_days", default=7)
+
 # Permanent bounces tolerated before an address stops being delivered to.
 MAIL_HARD_BOUNCE_LIMIT = get_var("mail", "hard_bounce_limit", default=3)
 

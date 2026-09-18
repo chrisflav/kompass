@@ -45,6 +45,12 @@ breaks. A database that cannot be reached answers ``451`` and the MTA keeps the
 message and retries. An unknown address answers ``550`` and the sender is told.
 Neither case can silently swallow a message.
 
+LMTP expects one reply per accepted recipient after ``DATA`` and the server
+library sends exactly one, so the router accepts a single recipient per
+transaction and answers ``452`` to any further one. The MTA then delivers those
+separately. Setting ``lmtp_destination_recipient_limit = 1`` avoids the extra
+round trip, but nothing breaks without it.
+
 Bounces
 =======
 
@@ -66,7 +72,16 @@ The MTA queue is the only queue. When a copy cannot be delivered the router
 answers ``451`` and the MTA redelivers the whole message later, including the
 targets that already succeeded. Those are recognised by their
 :class:`~mailer.models.DeliveryAttempt` and skipped, so a deferral never
-duplicates mail.
+duplicates mail. A message that arrives without a ``Message-ID`` is keyed by a
+hash of its content instead, so that it too replays safely.
+
+That key is the sender's, and nothing stops one from reusing it, so the record
+only suppresses a repeat for ``duplicate_window_days``. Beyond that the message
+is delivered again rather than silently dropped forever.
+
+A relay that refuses a recipient outright with a ``5xx`` is not a deferral: the
+address is recorded as having hard bounced, exactly as if the report had come
+back later, and the remaining targets still go out.
 
 Configuration
 =============
@@ -79,7 +94,13 @@ Configuration
    bounce_local_part = "bounce"
    munge_display_suffix = "via Kompass"
    hard_bounce_limit = 3
+   duplicate_window_days = 7
 
 The MTA needs two things: it must deliver mail for the domain to the router,
 and it must route ``bounce+*`` back to it. With postfix that is
 ``virtual_transport = lmtp:inet:<host>:8024`` and ``recipient_delimiter = +``.
+
+The router only accepts recipients in ``settings.DOMAIN``; anything else is
+refused with ``550``, so the endpoint cannot be used as an open relay by
+something else that can reach it. Keep the MTA's accepted domains in step with
+that setting.

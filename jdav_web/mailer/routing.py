@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +37,17 @@ class Route:
         return "{}@{}".format(self.local_part, settings.DOMAIN)
 
 
-def split_address(address):
-    """Split ``local@domain`` into its local part and domain, lowercased.
+def split_address(address, casefold=True):
+    """Split ``local@domain`` into its local part and domain.
 
+    Lowercased by default, since addresses are matched case insensitively.
+    Callers that carry a case sensitive payload in the local part — the bounce
+    token does — pass ``casefold=False`` and fold only what they compare.
     The domain is optional so that callers may pass a bare local part.
     """
-    address = (address or "").strip().lower()
+    address = (address or "").strip()
+    if casefold:
+        address = address.lower()
     if "@" not in address:
         return address, ""
     local, _, domain = address.partition("@")
@@ -108,7 +114,13 @@ def sender_allowed(route, envelope_from):
 
     allowed_groups = email_address.allowed_senders.all()
     if allowed_groups:
-        senders = Member.objects.filter(email__iexact=envelope_from, group__in=allowed_groups)
+        # Both addresses count: a member writing from the alternative address
+        # they registered is still that member, and rejecting them here is
+        # permanent rather than a deferral.
+        senders = Member.objects.filter(
+            Q(email__iexact=envelope_from) | Q(alternative_email__iexact=envelope_from),
+            group__in=allowed_groups,
+        )
         if not senders.exists():
             return False, "sender is not a member of an allowed group"
 

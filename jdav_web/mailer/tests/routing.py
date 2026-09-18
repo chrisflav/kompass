@@ -22,6 +22,12 @@ class SplitAddressTestCase(BasicMailerTestCase):
     def test_empty(self):
         self.assertEqual(split_address(None), ("", ""))
 
+    def test_keeps_case_when_asked(self):
+        """The bounce token travels in the local part and is case sensitive."""
+        self.assertEqual(
+            split_address("Bounce+AbC@Example.ORG", casefold=False), ("Bounce+AbC", "Example.ORG")
+        )
+
     def test_strip_detail(self):
         self.assertEqual(strip_detail("bounce+abc123"), ("bounce", "abc123"))
         self.assertEqual(strip_detail("info"), ("info", ""))
@@ -121,3 +127,24 @@ class SenderAllowedTestCase(BasicMailerTestCase):
         self.paul.group.add(senders)
         allowed, _reason = sender_allowed(resolve("foobar"), "paul@foo.com")
         self.assertTrue(allowed)
+
+
+class AllowedSendersAddressTestCase(BasicMailerTestCase):
+    def test_alternative_email_counts_as_the_member(self):
+        """Rejecting here is permanent, so both registered addresses count."""
+        senders = Group.objects.create(name="Board")
+        self.em.allowed_senders.add(senders)
+        self.paul.group.add(senders)
+        self.paul.alternative_email = "paul.private@elsewhere.com"
+        self.paul.save()
+
+        allowed, _reason = sender_allowed(resolve("foobar"), "paul.private@elsewhere.com")
+        self.assertTrue(allowed)
+
+    def test_unrelated_address_is_still_refused(self):
+        senders = Group.objects.create(name="Board")
+        self.em.allowed_senders.add(senders)
+        self.paul.group.add(senders)
+
+        allowed, _reason = sender_allowed(resolve("foobar"), "stranger@elsewhere.com")
+        self.assertFalse(allowed)
