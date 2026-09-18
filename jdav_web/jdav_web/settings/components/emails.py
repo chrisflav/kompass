@@ -23,3 +23,25 @@ CELERY_EMAIL_TASK_CONFIG = {
 
 DEFAULT_SENDING_MAIL = get_var("mail", "default_sending_address", default="kompass@localhost")
 DEFAULT_SENDING_NAME = get_var("mail", "default_sending_name", default="Kompass")
+
+# Incoming mail routing
+#
+# Postfix delivers incoming mail here over LMTP instead of to dovecot, and
+# kompass resolves the recipients itself. See mailer/lmtp.py.
+
+LMTP_HOST = get_var("mail", "lmtp_host", default="0.0.0.0")
+LMTP_PORT = get_var("mail", "lmtp_port", default=8024)
+
+# Envelope senders of forwarded copies are <local_part>+<token>@DOMAIN, which
+# postfix splits on its recipient_delimiter and routes back to us.
+MAIL_BOUNCE_LOCAL_PART = get_var("mail", "bounce_local_part", default="bounce")
+
+# Appended to the author's name in the rewritten From, as mailing lists do.
+MAIL_MUNGE_DISPLAY_SUFFIX = get_var("mail", "munge_display_suffix", default="via Kompass")
+
+# Permanent bounces tolerated before an address stops being delivered to.
+MAIL_HARD_BOUNCE_LIMIT = get_var("mail", "hard_bounce_limit", default=3)
+
+# Guard against forwarding loops and oversized messages.
+MAIL_MAX_RECEIVED_HEADERS = get_var("mail", "max_received_headers", default=25)
+MAIL_MAX_MESSAGE_SIZE = get_var("mail", "max_message_size", default=52428800)

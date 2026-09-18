@@ -1,5 +1,6 @@
 import logging
 import os
+import secrets
 
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
@@ -8,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from utils import RestrictedFileField
@@ -290,3 +292,95 @@ class Attachment(CommonModel):
             "change_obj": is_creator | has_global_perm("mailer.change_global_message"),
             "delete_obj": is_creator | has_global_perm("mailer.delete_global_message"),
         }
+
+
+class MailDeliveryState(models.Model):
+    """Delivery health of one external address we forward to.
+
+    Keyed on the address rather than on a member: suppression is a property of
+    the mailbox, and two members may legitimately share one. Bounces are
+    reported asynchronously by the receiving side, so this is the only place
+    where we learn that an address has stopped working.
+    """
+
+    email = models.EmailField(_("email"), max_length=254, unique=True)
+    hard_bounces = models.PositiveIntegerField(_("hard bounces"), default=0)
+    soft_bounces = models.PositiveIntegerField(_("soft bounces"), default=0)
+    last_bounce_at = models.DateTimeField(_("last bounce"), null=True, blank=True)
+    last_bounce_status = models.CharField(_("last status"), max_length=32, blank=True)
+    last_bounce_detail = models.TextField(_("last bounce detail"), blank=True)
+    suspended = models.BooleanField(
+        _("suspended"),
+        default=False,
+        help_text=_("No mail is forwarded to this address until it is reactivated."),
+    )
+
+    def record_bounce(self, permanent, status="", detail=""):
+        """Note a bounce and suspend the address once it is clearly gone."""
+        if permanent:
+            self.hard_bounces += 1
+            if self.hard_bounces >= settings.MAIL_HARD_BOUNCE_LIMIT:
+                self.suspended = True
+        else:
+            self.soft_bounces += 1
+        self.last_bounce_at = timezone.now()
+        self.last_bounce_status = status[:32]
+        self.last_bounce_detail = detail[:2000]
+        self.save()
+
+    @classmethod
+    def suspended_addresses(cls, emails):
+        """Return the subset of ``emails`` that must not be delivered to."""
+        return set(
+            cls.objects.filter(email__in=list(emails), suspended=True).values_list(
+                "email", flat=True
+            )
+        )
+
+    def __str__(self):
+        return self.email
+
+    class Meta:
+        verbose_name = _("mail delivery state")
+        verbose_name_plural = _("mail delivery states")
+
+
+class DeliveryAttempt(models.Model):
+    """One forwarded copy of one incoming message to one target address.
+
+    The ``token`` is carried in the envelope sender of the copy, so a bounce
+    arriving later identifies exactly which address failed. The row doubles as
+    the idempotency record: postfix retries the whole message when we defer it,
+    and already delivered targets must not receive a second copy.
+    """
+
+    token = models.CharField(_("token"), max_length=32, unique=True)
+    message_id = models.CharField(_("message id"), max_length=255, db_index=True)
+    address = models.CharField(_("local address"), max_length=254)
+    recipient = models.EmailField(_("recipient"), max_length=254)
+    envelope_from = models.CharField(_("envelope sender"), max_length=254, blank=True)
+    subject = models.CharField(_("subject"), max_length=255, blank=True)
+    created_at = models.DateTimeField(_("created"), auto_now_add=True)
+    sent_at = models.DateTimeField(_("sent"), null=True, blank=True)
+    bounced_at = models.DateTimeField(_("bounced"), null=True, blank=True)
+    bounce_status = models.CharField(_("bounce status"), max_length=32, blank=True)
+
+    @staticmethod
+    def new_token():
+        return secrets.token_urlsafe(16)[:32]
+
+    def bounce_address(self):
+        """The envelope sender to use for this copy."""
+        return "{}+{}@{}".format(settings.MAIL_BOUNCE_LOCAL_PART, self.token, settings.DOMAIN)
+
+    def __str__(self):
+        return "{} -> {}".format(self.address, self.recipient)
+
+    class Meta:
+        verbose_name = _("delivery attempt")
+        verbose_name_plural = _("delivery attempts")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["message_id", "recipient"], name="unique_delivery_per_recipient"
+            )
+        ]

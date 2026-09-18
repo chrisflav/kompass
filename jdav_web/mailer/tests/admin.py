@@ -19,12 +19,16 @@ from members.models import Group
 from members.models import Member
 from members.tests.utils import create_custom_user
 
+from ..admin import DeliveryAttemptAdmin
+from ..admin import MailDeliveryStateAdmin
 from ..admin import MessageAdmin
 from ..admin import submit_message
 from ..mailutils import NOT_SENT
 from ..mailutils import PARTLY_SENT
 from ..mailutils import SENT
+from ..models import DeliveryAttempt
 from ..models import EmailAddress
+from ..models import MailDeliveryState
 from ..models import Message
 
 
@@ -348,3 +352,43 @@ class MessageAdminTestCase(AdminTestCase):
 
         # Should return form without modification
         self.assertIsNotNone(form_class)
+
+
+class MailDeliveryStateAdminTestCase(TestCase):
+    """The admin action that puts a repaired address back into service."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = MailDeliveryStateAdmin(MailDeliveryState, self.site)
+        self.factory = RequestFactory()
+        self.suspended = MailDeliveryState.objects.create(
+            email="gone@foo.com", suspended=True, hard_bounces=5, soft_bounces=2
+        )
+
+    def request(self):
+        request = self.factory.post("/")
+        SessionMiddleware(lambda r: None).process_request(request)
+        MessageMiddleware(lambda r: None).process_request(request)
+        request.session.save()
+        request._messages = FallbackStorage(request)
+        return request
+
+    def test_reactivate_clears_suspension_and_counters(self):
+        request = self.request()
+        self.admin.reactivate(request, MailDeliveryState.objects.all())
+
+        self.suspended.refresh_from_db()
+        self.assertFalse(self.suspended.suspended)
+        self.assertEqual(self.suspended.hard_bounces, 0)
+        self.assertEqual(self.suspended.soft_bounces, 0)
+
+    def test_reactivate_reports_how_many(self):
+        request = self.request()
+        self.admin.reactivate(request, MailDeliveryState.objects.all())
+        self.assertIn("1", str(list(get_messages(request))[0]))
+
+
+class DeliveryAttemptAdminTestCase(TestCase):
+    def test_attempts_are_a_read_only_audit_trail(self):
+        admin_view = DeliveryAttemptAdmin(DeliveryAttempt, AdminSite())
+        self.assertFalse(admin_view.has_add_permission(RequestFactory().get("/")))
