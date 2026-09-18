@@ -19,12 +19,16 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
+from finance.models import Bill
+from finance.models import Statement
 from members.models import DIVERSE
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import Group
+from members.models import LJPProposal
 from members.models import Member
 from members.models import MemberNoteList
 from members.models import NewMemberOnList
@@ -35,6 +39,13 @@ Application = get_application_model()
 AccessToken = get_access_token_model()
 
 HAS_PDFLATEX = shutil.which("pdflatex") is not None
+# Smallest thing pypdf will open; the SJR application merges the proof in.
+PDF_BYTES = (
+    b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+    b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+    b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]>>endobj\n"
+    b"trailer<</Root 1 0 R>>\n"
+)
 HAS_PANDOC = shutil.which("pandoc") is not None
 
 
@@ -331,3 +342,132 @@ class MembersDocumentsApiTestCase(TestCase):
             **self.auth(self.owner_user),
         )
         self.assertEqual(r.status_code, 403)
+
+    # --- the generators themselves ----------------------------------------
+    #
+    # The cases above stop at the permission and the "no LJP proposal" guards.
+    # These run the generators, which is where the template context is actually
+    # exercised — a missing field there is a 500 no guard would catch.
+
+    def _seminar_excursion(self, name="Seminar"):
+        """An excursion with the LJP proposal the seminar documents require."""
+        excursion = self.make_excursion(name)
+        excursion.date = timezone.now()
+        excursion.end = timezone.now() + datetime.timedelta(days=1)
+        excursion.save()
+        excursion.jugendleiter.add(self.viewer)
+        LJPProposal.objects.create(
+            excursion=excursion,
+            title="Kletterkurs",
+            category=LJPProposal.LJP_EDUCATIONAL,
+            goal=LJPProposal.LJP_PARTICIPATION,
+        )
+        return excursion
+
+    def test_seminar_vbk_allowed(self):
+        excursion = self._seminar_excursion()
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/seminar-vbk".format(excursion.pk),
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r["Content-Type"], "application/xlsx")
+
+    @skipUnless(shutil.which("pandoc") is not None, "pandoc not available")
+    def test_seminar_report_docx_allowed(self):
+        excursion = self._seminar_excursion()
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/seminar-report-docx".format(excursion.pk),
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
+    @skipUnless(HAS_PDFLATEX, "pdflatex not available")
+    def test_seminar_report_costs_allowed(self):
+        excursion = self._seminar_excursion()
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/seminar-report-costs".format(excursion.pk),
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r["Content-Type"], "application/pdf")
+
+    @skipUnless(HAS_PDFLATEX, "pdflatex not available")
+    def test_ljp_proofs_allowed(self):
+        excursion = self._seminar_excursion()
+        statement = Statement.objects.create(
+            short_description="Abrechnung", explanation="", night_cost=0, excursion=excursion
+        )
+        Bill.objects.create(
+            statement=statement,
+            short_description="Hütte",
+            amount=10,
+            proof=SimpleUploadedFile("beleg.pdf", PDF_BYTES, content_type="application/pdf"),
+        )
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/ljp-proofs".format(excursion.pk),
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r["Content-Type"], "application/pdf")
+
+    def test_sjr_application_allowed(self):
+        excursion = self._seminar_excursion()
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/sjr-application".format(excursion.pk),
+            data={"bill_id": None},
+            content_type="application/json",
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r["Content-Type"], "application/pdf")
+
+    def test_sjr_application_with_a_selected_invoice(self):
+        excursion = self._seminar_excursion()
+        statement = Statement.objects.create(
+            short_description="Abrechnung", explanation="", night_cost=0, excursion=excursion
+        )
+        bill = Bill.objects.create(
+            statement=statement,
+            short_description="Hütte",
+            amount=10,
+            proof=SimpleUploadedFile("beleg.pdf", PDF_BYTES, content_type="application/pdf"),
+        )
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/sjr-application".format(excursion.pk),
+            data={"bill_id": bill.pk},
+            content_type="application/json",
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_sjr_application_rejects_a_bill_from_another_excursion(self):
+        excursion = self._seminar_excursion()
+        other = Statement.objects.create(short_description="Fremd", explanation="", night_cost=0)
+        bill = Bill.objects.create(
+            statement=other,
+            short_description="Fremd",
+            amount=10,
+            proof=SimpleUploadedFile("beleg.pdf", PDF_BYTES, content_type="application/pdf"),
+        )
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/sjr-application".format(excursion.pk),
+            data={"bill_id": bill.pk},
+            content_type="application/json",
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_sjr_application_rejects_a_bill_without_a_proof(self):
+        excursion = self._seminar_excursion()
+        statement = Statement.objects.create(
+            short_description="Abrechnung", explanation="", night_cost=0, excursion=excursion
+        )
+        bill = Bill.objects.create(statement=statement, short_description="Ohne Beleg", amount=10)
+        r = self.client.post(
+            "/api/members/documents/excursions/{}/sjr-application".format(excursion.pk),
+            data={"bill_id": bill.pk},
+            content_type="application/json",
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)

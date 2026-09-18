@@ -11,6 +11,7 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -20,6 +21,7 @@ from django.utils import timezone
 from material.models import MaterialCategory
 from material.models import MaterialPart
 from material.models import Ownership
+from members.models import DIVERSE
 from members.models import MALE
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
@@ -316,3 +318,57 @@ class MaterialApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200)
         self.assertFalse(Ownership.objects.filter(pk=self.ownership.pk).exists())
+
+    def test_ownership_retrieve(self):
+        r = self.client.get(
+            "/api/material/ownerships/{}".format(self.ownership.pk),
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["count"], 3)
+
+    def test_ownership_update_moves_the_part_and_the_owner(self):
+        other_part = MaterialPart.objects.create(
+            name="Static Rope",
+            description="",
+            quantity=1,
+            buy_date=date.today(),
+            lifetime=Decimal("8"),
+        )
+        other_member = Member.objects.create(
+            prename="Jane", lastname="Roe", gender=DIVERSE, email=settings.TEST_MAIL
+        )
+        r = self.client.patch(
+            "/api/material/ownerships/{}".format(self.ownership.pk),
+            data={"material": other_part.pk, "owner": other_member.pk},
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.ownership.refresh_from_db()
+        self.assertEqual(self.ownership.material, other_part)
+        self.assertEqual(self.ownership.owner, other_member)
+
+    def test_part_photo_rejects_an_oversized_file(self):
+        oversized = SimpleUploadedFile(
+            "huge.png", b"x" * (10 * 1024 * 1024 + 1), content_type="image/png"
+        )
+        r = self.client.post(
+            "/api/material/parts/{}/photo".format(self.part.pk),
+            data={"photo": oversized},
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.part.refresh_from_db()
+        self.assertFalse(self.part.photo)
+
+    def test_update_part_replaces_its_categories(self):
+        other = MaterialCategory.objects.create(name="Harnesses")
+        r = self.client.patch(
+            "/api/material/parts/{}".format(self.part.pk),
+            data={"material_cat": [other.pk]},
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(list(self.part.material_cat.all()), [other])

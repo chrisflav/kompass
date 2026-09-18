@@ -16,9 +16,11 @@ import datetime
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core import mail
 from django.test import TestCase
 from django.utils import timezone
+from mailer.models import EmailAddress
 from members.models import ActivityCategory
 from members.models import DIVERSE
 from members.models import Freizeit
@@ -509,3 +511,105 @@ class MembersCrudApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(len(mail.outbox), 1)
+
+    # --- the relation half of each update ---------------------------------
+    #
+    # Scalars and relations take different paths through these endpoints, and
+    # the relation half was the untested one.
+
+    def test_update_excursion_replaces_its_relations(self):
+        excursion = self._excursion()
+        excursion.jugendleiter.add(self.member)
+        category = ActivityCategory.objects.create(
+            name="Klettern", ljp_category="Klettern", description="Halle"
+        )
+        r = self.patch(
+            "/api/members/excursions/{}".format(excursion.pk),
+            {
+                "group_ids": [self.group.pk],
+                "jugendleiter_ids": [self.member.pk, self.plain.pk],
+                "activity_ids": [category.pk],
+            },
+            **self.auth(self.user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(list(excursion.groups.all()), [self.group])
+        self.assertEqual(set(excursion.jugendleiter.all()), {self.member, self.plain})
+        self.assertEqual(list(excursion.activity.all()), [category])
+
+    def test_update_group_sets_its_contact_email(self):
+        address = EmailAddress.objects.create(name="jugend")
+        r = self.patch(
+            "/api/members/groups/{}".format(self.group.pk),
+            {"contact_email_id": address.pk},
+            **self.as_admin("change_group"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.contact_email, address)
+
+    def test_update_klettertreff_moves_it_and_replaces_its_leaders(self):
+        headers = self.as_admin("add_klettertreff", "change_klettertreff", "view_klettertreff")
+        other_group = Group.objects.create(name="Gemsen", year_from=2012, year_to=2016)
+        created = self.post(
+            "/api/members/klettertreff",
+            {"group_id": self.group.pk, "location": "Halle"},
+            **headers,
+        )
+        self.assertEqual(created.status_code, 201, created.content)
+        treff_id = created.json()["id"]
+
+        r = self.patch(
+            "/api/members/klettertreff/{}".format(treff_id),
+            {"group_id": other_group.pk, "jugendleiter_ids": [self.member.pk]},
+            **headers,
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        treff = Klettertreff.objects.get(pk=treff_id)
+        self.assertEqual(treff.group, other_group)
+        self.assertEqual(list(treff.jugendleiter.all()), [self.member])
+
+    def test_update_training_moves_it_and_replaces_its_activities(self):
+        category = self._category()
+        other_category = self._category()
+        activity = ActivityCategory.objects.create(
+            name="Theorieabend", ljp_category="Theorie", description="Raum"
+        )
+        training = MemberTraining.objects.create(
+            member=self.member, title="Kurs", category=category
+        )
+        r = self.patch(
+            "/api/members/trainings/{}".format(training.pk),
+            {
+                "member_id": self.member.pk,
+                "category_id": other_category.pk,
+                "activity_ids": [activity.pk],
+            },
+            **self.auth(self.user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        training.refresh_from_db()
+        self.assertEqual(training.category, other_category)
+        self.assertEqual(list(training.activity.all()), [activity])
+
+    def test_setting_a_members_login_account_needs_its_own_permission(self):
+        # Linking a Django account to a member is an escalation step, so it is
+        # gated separately from ordinary member edits.
+        # A free account: `Member.user` is one-to-one, so one already linked to
+        # another member would fail on uniqueness before reaching the gate.
+        account = User.objects.create_user("ohne-mitglied", password="secret")
+        refused = self.patch(
+            "/api/members/{}".format(self.member.pk),
+            {"user_id": account.pk},
+            **self.as_admin("change_global_member", "view_global_member"),
+        )
+        self.assertEqual(refused.status_code, 403, refused.content)
+
+        allowed = self.patch(
+            "/api/members/{}".format(self.member.pk),
+            {"user_id": account.pk},
+            **self.as_admin("may_set_auth_user"),
+        )
+        self.assertEqual(allowed.status_code, 200, allowed.content)
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.user, account)
