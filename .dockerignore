@@ -119,3 +119,10 @@ docker/test/db
 docker/development/media
 docker/production/media
 docker/test/media
+
+# The frontend build installs its own dependencies inside the image; shipping
+# the host's copies makes the build context ~500 MB and would overlay musl
+# binaries with the host's.
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/

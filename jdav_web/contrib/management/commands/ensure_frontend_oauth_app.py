@@ -42,7 +42,8 @@ class Command(BaseCommand):
             metavar="URL",
             help=(
                 "Allowed redirect URI, normally <frontend-origin>/callback. "
-                "Repeat for several; defaults to the local dev server."
+                "Repeat for several. Added to any already registered; the local "
+                "dev defaults are used only when creating the application."
             ),
         )
         parser.add_argument(
@@ -54,26 +55,32 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         Application = get_application_model()
         client_id = options["client_id"]
-        redirect_uris = options["redirect_uris"] or DEFAULT_REDIRECT_URIS
+        app = Application.objects.filter(client_id=client_id).first()
 
-        # Idempotent on purpose: a deployment re-runs this to add the redirect
-        # URI of a new frontend origin without disturbing existing tokens.
-        app, created = Application.objects.update_or_create(
-            client_id=client_id,
-            defaults={
-                "name": options["name"],
-                "client_type": Application.CLIENT_PUBLIC,
-                "authorization_grant_type": Application.GRANT_AUTHORIZATION_CODE,
-                "client_secret": "",
-                "redirect_uris": "\n".join(redirect_uris),
-                "skip_authorization": True,
-            },
-        )
+        # Redirect URIs are ADDED, never replaced: re-running this to register a
+        # second frontend origin must not silently unregister the first, and an
+        # argument-less run against an existing application must not swap
+        # production's URIs for the local development defaults.
+        existing = app.redirect_uris.split() if app else []
+        supplied = options["redirect_uris"] or ([] if app else DEFAULT_REDIRECT_URIS)
+        redirect_uris = existing + [uri for uri in supplied if uri not in existing]
+
+        if app is None:
+            app = Application(client_id=client_id)
+        app.name = options["name"]
+        app.client_type = Application.CLIENT_PUBLIC
+        app.authorization_grant_type = Application.GRANT_AUTHORIZATION_CODE
+        app.client_secret = ""
+        app.redirect_uris = "\n".join(redirect_uris)
+        app.skip_authorization = True
+        created = app.pk is None
+        app.save()
+
         verb = "Created" if created else "Updated"
         self.stdout.write(
             self.style.SUCCESS(
                 "{} public OAuth2 application '{}' for: {}".format(
-                    verb, app.client_id, ", ".join(redirect_uris)
+                    verb, app.client_id, ", ".join(redirect_uris) or "(no redirect URI)"
                 )
             )
         )

@@ -19,7 +19,6 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from members.models import DIVERSE
@@ -32,6 +31,9 @@ Application = get_application_model()
 AccessToken = get_access_token_model()
 
 CLIENT_ID = "kompass-frontend-dev"
+# The provider is mounted inside i18n_patterns, where every registered
+# client already expects it.
+OAUTH_BASE = "/de/o"
 REDIRECT_URI = "https://kompass.example.org/callback"
 
 
@@ -161,7 +163,7 @@ class MembersApiTestCase(TestCase):
         session["oidc_id_token_expiration"] = time.time() + 3600
         session.save()
         res = self.client.get(
-            "/o/authorize/",
+            OAUTH_BASE + "/authorize/",
             {
                 "response_type": "code",
                 "client_id": CLIENT_ID,
@@ -183,7 +185,7 @@ class MembersApiTestCase(TestCase):
         code = self._authorize(challenge, REDIRECT_URI)
 
         res = self.client.post(
-            "/o/token/",
+            OAUTH_BASE + "/token/",
             data=urlencode(
                 {
                     "grant_type": "authorization_code",
@@ -209,7 +211,7 @@ class MembersApiTestCase(TestCase):
         code = self._authorize(challenge, REDIRECT_URI)
 
         res = self.client.post(
-            "/o/token/",
+            OAUTH_BASE + "/token/",
             data=urlencode(
                 {
                     "grant_type": "authorization_code",
@@ -229,7 +231,7 @@ class MembersApiTestCase(TestCase):
         other_verifier, _ = self._pkce_pair()
 
         res = self.client.post(
-            "/o/token/",
+            OAUTH_BASE + "/token/",
             data=urlencode(
                 {
                     "grant_type": "authorization_code",
@@ -250,7 +252,7 @@ class MembersApiTestCase(TestCase):
         self.owner_user.save()
 
         res = self.client.post(
-            "/o/token/",
+            OAUTH_BASE + "/token/",
             data=urlencode(
                 {
                     "grant_type": "password",
@@ -267,7 +269,7 @@ class MembersApiTestCase(TestCase):
         call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
         _verifier, challenge = self._pkce_pair()
         res = self.client.get(
-            "/o/authorize/",
+            OAUTH_BASE + "/authorize/",
             {
                 "response_type": "code",
                 "client_id": CLIENT_ID,
@@ -280,34 +282,35 @@ class MembersApiTestCase(TestCase):
         self.assertEqual(res.status_code, 302)
         self.assertTrue(res["Location"].startswith(settings.LOGIN_URL), res["Location"])
 
-    @override_settings(LOGIN_URL="/accounts/login/")
-    def test_builtin_login_page_stands_on_its_own(self):
-        # Without OIDC this is the page `/o/authorize/` sends the user to. The
-        # frontend reaches it on its own domain, where `/kompass` is the SPA's
-        # route rather than Django's admin — so it cannot borrow the admin's
-        # login, and it must not sit behind a locale prefix that would redirect
-        # into the SPA's router.
-        page = self.client.get("/accounts/login/")
-        self.assertEqual(page.status_code, 200)
-        self.assertContains(page, 'name="username"')
-        self.assertContains(page, 'name="password"')
-        self.assertContains(page, "csrfmiddlewaretoken")
-
     def test_ensure_frontend_oauth_app_adds_a_new_origin(self):
-        # A deployment re-runs the command to register another frontend origin.
+        # A deployment re-runs the command to register another frontend origin;
+        # the one already registered has to survive it.
         call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
         call_command(
             "ensure_frontend_oauth_app",
-            "--redirect-uri",
-            REDIRECT_URI,
             "--redirect-uri",
             "https://neu.example.org/callback",
         )
         app = Application.objects.get(client_id=CLIENT_ID)
         self.assertEqual(Application.objects.filter(client_id=CLIENT_ID).count(), 1)
-        self.assertIn("https://neu.example.org/callback", app.redirect_uris)
+        self.assertIn(REDIRECT_URI, app.redirect_uris.split())
+        self.assertIn("https://neu.example.org/callback", app.redirect_uris.split())
         self.assertEqual(app.client_type, Application.CLIENT_PUBLIC)
         self.assertEqual(app.authorization_grant_type, Application.GRANT_AUTHORIZATION_CODE)
+
+    def test_ensure_frontend_oauth_app_run_bare_keeps_production_uris(self):
+        # The command name invites an argument-less run. That must not replace a
+        # configured production origin with the local development defaults.
+        call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
+        call_command("ensure_frontend_oauth_app")
+        app = Application.objects.get(client_id=CLIENT_ID)
+        self.assertEqual(app.redirect_uris.split(), [REDIRECT_URI])
+
+    def test_ensure_frontend_oauth_app_creates_with_dev_defaults(self):
+        Application.objects.filter(client_id=CLIENT_ID).delete()
+        call_command("ensure_frontend_oauth_app")
+        app = Application.objects.get(client_id=CLIENT_ID)
+        self.assertIn("http://localhost:5173/callback", app.redirect_uris.split())
 
     # --- member update (write) -------------------------------------------
 

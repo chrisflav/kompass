@@ -237,15 +237,31 @@ Trying the new frontend on a second domain
 ==========================================
 
 The new TypeScript frontend ships as its own image and its own service, ``spa``,
-which publishes port ``3001``. The Django site keeps port ``3000`` and its nginx
-configuration untouched, so this can be switched on without disturbing what
-users are working in today. Point a second domain at ``3001`` and both are live
-side by side: the old interface on the main domain, the new one on the second.
+which publishes port ``3001`` on localhost. The Django site keeps port ``3000``
+and its nginx configuration untouched, so this can be switched on without
+disturbing what users are working in today. Point a second domain's TLS proxy at
+``127.0.0.1:3001`` and both are live side by side: the old interface on the main
+domain, the new one on the second.
 
 The ``spa`` container serves the frontend's static files and proxies ``/api/``,
 ``/o/``, ``/accounts/`` and ``/media/`` through to Django, so everything runs on
 one origin. That is what keeps the setup simple — there is no CORS to configure
 and no cross-site cookie to get right.
+
+It proxies to ``spa_master``, a **second uwsgi** running the same application
+image, not to the one serving the existing site. That separation is the point:
+a single visitor on the pilot opens several API requests per page, and sharing
+the two workers the live site runs on would let them queue in front of real
+users until nginx starts answering with the downtime page.
+
+.. note::
+
+   The first deploy that includes this file also pulls
+   ``ghcr.io/…/kompass-spa``. A newly published GHCR package is private until
+   it is made visible and linked to the repository; until then
+   ``docker compose up -d`` fails on that pull and the app and nginx updates in
+   the same command do not land either. Make the package public before the
+   first deploy.
 
 1. **Register the frontend with the OAuth2 provider.** The frontend signs in
    with Authorization Code + PKCE, which needs an application whose redirect URI
@@ -267,14 +283,21 @@ and no cross-site cookie to get right.
       [django]
       allowed_hosts = ['jdav-town.de', 'neu.jdav-town.de']
       csrf_trusted_origins = ['https://neu.jdav-town.de']
-      trust_forwarded_proto = true
+      trust_forwarded_proto_hosts = ['neu.jdav-town.de']
 
    ``csrf_trusted_origins`` is needed because the sign-in form is served under a
-   domain Django would not otherwise recognise. ``trust_forwarded_proto`` makes
-   Django believe the ``X-Forwarded-Proto`` header from the reverse proxy;
-   without it Django sees plain HTTP behind the TLS termination and rejects the
-   ``https://`` origin of that same form. Only enable it where the proxy is the
-   only way in.
+   domain Django would not otherwise recognise.
+   ``trust_forwarded_proto_hosts`` makes Django believe the
+   ``X-Forwarded-Proto`` header from the reverse proxy; without it Django sees
+   plain HTTP behind the TLS termination and rejects the ``https://`` origin of
+   that same form.
+
+   List the new domain only. The setting is per host on purpose: Django's
+   ``SECURE_PROXY_SSL_HEADER`` would apply to every domain this one process
+   serves, and turning it on for the domain that has always run without it also
+   turns on stricter CSRF ``Referer`` checking there — which can start refusing
+   POSTs that used to be accepted. Only list hosts that cannot reach the
+   container except through the TLS proxy.
 
 3. **Point the second domain at port 3001**, the same way the main domain is
    pointed at ``3000`` — including a certificate for it.

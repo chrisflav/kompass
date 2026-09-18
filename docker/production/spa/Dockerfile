@@ -17,6 +17,9 @@ COPY frontend/ ./
 # every request the client makes is relative and no CORS is involved. A build
 # that points the SPA at a different backend can override this.
 ARG VITE_API_BASE=""
+# Baked in at build time, so a deployment wanting its own client id builds with
+# --build-arg rather than editing config. The published image carries the
+# default, which the deployment then registers by that name.
 ARG VITE_OAUTH_CLIENT_ID="kompass-frontend-dev"
 ENV VITE_API_BASE=$VITE_API_BASE
 ENV VITE_OAUTH_CLIENT_ID=$VITE_OAUTH_CLIENT_ID

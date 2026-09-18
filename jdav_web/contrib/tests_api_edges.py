@@ -14,12 +14,17 @@ from contrib.api.perms import Forbidden
 from contrib.api.perms import get_member
 from contrib.permissions import scope_queryset
 from django.contrib.auth.models import User
+from django.http import HttpResponse
+from django.test import override_settings
+from django.test import RequestFactory
 from django.test import TestCase
 from django.utils import timezone
 from members.models import DIVERSE
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
+
+from jdav_web.middleware import ForwardedProtoForHostsMiddleware
 
 Application = get_application_model()
 AccessToken = get_access_token_model()
@@ -96,3 +101,46 @@ class PingTest(TestCase):
         r = self.client.get("/api/ping")
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r.json()["status"], "ok")
+
+
+class ForwardedProtoForHostsTest(TestCase):
+    """The proxy-scheme trust must reach the named host and no other."""
+
+    def _scheme_for(self, host, hosts, header="https"):
+        with override_settings(
+            TRUST_FORWARDED_PROTO_HOSTS=hosts, ALLOWED_HOSTS=["neu.example.org", "alt.example.org"]
+        ):
+            seen = {}
+
+            def capture(request):
+                seen["secure"] = request.is_secure()
+                return HttpResponse()
+
+            middleware = ForwardedProtoForHostsMiddleware(capture)
+            request = RequestFactory().post("/accounts/login/", HTTP_HOST=host)
+            if header is not None:
+                request.META["HTTP_X_FORWARDED_PROTO"] = header
+            middleware(request)
+            return seen["secure"]
+
+    def test_a_named_host_behind_the_proxy_is_secure(self):
+        self.assertTrue(self._scheme_for("neu.example.org", ["neu.example.org"]))
+
+    def test_the_old_domain_is_left_exactly_as_it_was(self):
+        # The whole point: the domain that has always run without this keeps
+        # `is_secure()` False, so its CSRF Referer checking does not tighten.
+        self.assertFalse(self._scheme_for("alt.example.org", ["neu.example.org"]))
+
+    def test_an_empty_list_trusts_nobody(self):
+        self.assertFalse(self._scheme_for("neu.example.org", []))
+
+    def test_a_request_without_the_header_is_untouched(self):
+        self.assertFalse(self._scheme_for("neu.example.org", ["neu.example.org"], header=None))
+
+    def test_a_plain_http_forwarded_proto_is_not_upgraded(self):
+        self.assertFalse(self._scheme_for("neu.example.org", ["neu.example.org"], header="http"))
+
+    def test_a_host_outside_allowed_hosts_does_not_raise(self):
+        # `get_host()` raises DisallowedHost; the request is refused later
+        # anyway, so the middleware must not turn that into a 500 of its own.
+        self.assertFalse(self._scheme_for("evil.example.org", ["neu.example.org"]))

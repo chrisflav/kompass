@@ -170,6 +170,7 @@ jobs:
           labels: ${{ steps.meta-spa.outputs.labels }}
           cache-from: |
             type=gha,scope=spa-${{ github.ref_name }}
+            type=gha,scope=spa-master
             type=gha,scope=spa-main
             type=registry,ref=ghcr.io/${{ github.repository }}-spa:latest
           cache-to: type=gha,mode=max,scope=spa-${{ github.ref_name }}

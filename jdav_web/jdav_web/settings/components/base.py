@@ -45,10 +45,11 @@ USE_X_FORWARDED_HOST = True
 
 # TLS is terminated by the reverse proxy in front of nginx, so Django sees a
 # plain HTTP request and would judge an `https://` Origin to be a mismatch.
-# Trusting the proxy's own header is what lets it tell the two apart — only
-# meaningful where the proxy is the sole way in, so it is opt-in.
-if get_var("django", "trust_forwarded_proto", default=False):
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Trusting the proxy's own header tells the two apart — but `SECURE_PROXY_SSL_HEADER`
+# would do so for *every* domain this process serves, including ones that have
+# always run without it, which silently tightens their CSRF Referer checking.
+# So the trust is named per host and applied by middleware instead.
+TRUST_FORWARDED_PROTO_HOSTS = list(get_var("django", "trust_forwarded_proto_hosts", default=[]))
 
 # Origins whose forms Django accepts POSTs from, as "https://host" entries. A
 # second frontend domain proxying `/o/` needs to be listed here: the OAuth login
@@ -90,6 +91,8 @@ MIDDLEWARE = [
     "django.middleware.cache.UpdateCacheMiddleware",
     "jdav_web.middleware.ForceLangMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Before CsrfViewMiddleware, which is what reads the resulting scheme.
+    "jdav_web.middleware.ForwardedProtoForHostsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",

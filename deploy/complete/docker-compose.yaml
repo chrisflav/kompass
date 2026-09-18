@@ -32,18 +32,32 @@ services:
         depends_on:
           - master
 
+    # The pilot frontend's own application server. Separate from `master` so its
+    # worker pool cannot queue in front of the requests real users are making.
+    spa_master:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-spa-master.sh
+        volumes:
+          - uwsgi_spa_data:/tmp/uwsgi-spa/
+          - web_static:/var/www/jdav_web/static/
+          - ./config:/app/config:ro
+        depends_on:
+          - master
+
     # The new frontend, on its own port so a second domain can be pointed at it
-    # while nginx above keeps serving the Django site unchanged.
+    # while nginx above keeps serving the Django site unchanged. Bound to
+    # localhost: the TLS proxy is the only thing that should reach it, and the
+    # port otherwise offers the API in cleartext to anything on the network.
     spa:
         image: ghcr.io/chrisflav/kompass-spa:latest
         restart: on-failure
         volumes:
-          - uwsgi_data:/tmp/uwsgi/
+          - uwsgi_spa_data:/tmp/uwsgi-spa/
           - web_static:/var/www/jdav_web/static/:ro
         ports:
-          - "3001:80"
+          - "127.0.0.1:3001:80"
         depends_on:
-          - master
+          - spa_master
 
     db:
         restart: on-failure
@@ -72,4 +86,5 @@ services:
 
 volumes:
   uwsgi_data:
+  uwsgi_spa_data:
   web_static:

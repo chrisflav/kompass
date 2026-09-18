@@ -1390,6 +1390,7 @@ class GroupAdmin(admin.ModelAdmin):
         ("contact_email", "show_website_contact_email"),
         ("weekday", "show_website_weekday"),
         ("start_time", "end_time", "show_website_time"),
+        "show_website_registration",
     ]
     form = GroupAdminForm
     list_display = ("name", "year_from", "year_to")
@@ -1885,24 +1886,8 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
         permission=may_view_excursion.__func__,
     )
     def crisis_intervention_list(self, request, memberlist):
-        # Get all members on the list
-        members = [mol.member for mol in memberlist.membersonlist.all()]
-
-        # Generate PDF using shared function
-        return generate_crisis_intervention_list_pdf(
-            name=memberlist.name,
-            description=memberlist.description,
-            code=memberlist.code,
-            place=memberlist.place,
-            destination=memberlist.destination,
-            groups=memberlist.groups.all(),
-            staff=memberlist.jugendleiter.all(),
-            start_date=memberlist.date,
-            end_date=memberlist.end,
-            tour_type=memberlist.get_tour_type_display(),
-            tour_approach=memberlist.get_tour_approach_display(),
-            members=members,
-        )
+        # Generate PDF using the same method the automatic send uses
+        return memberlist.crisis_intervention_list_pdf()
 
     crisis_intervention_list.short_description = _("Generate crisis intervention list")
 
