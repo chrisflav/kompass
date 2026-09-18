@@ -49,9 +49,11 @@ def media_unprotected(request, path):
 
 
 def media_protected(request, path):
-    # Was ``@staff_member_required``, which defaults to redirecting at
-    # ``admin:login`` — that no longer reverses now the admin is unmounted, so
-    # the same staff check is spelled out against ``LOGIN_URL``.
+    # The same test ``@staff_member_required`` makes, but redirecting at
+    # ``LOGIN_URL`` rather than ``admin:login``. The admin's login lives under
+    # ``/kompass``, which the new frontend's router owns on its domain — a
+    # protected file requested there would otherwise bounce to a URL that
+    # renders that router instead of asking anyone to sign in.
     user = request.user
     if not (user.is_authenticated and user.is_active and user.is_staff):
         return redirect_to_login(request.get_full_path(), settings.LOGIN_URL)
