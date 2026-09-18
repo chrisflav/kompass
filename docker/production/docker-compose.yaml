@@ -55,6 +55,19 @@ services:
           - ./media:/var/www/jdav_web/media/
           - ./config:/app/config:ro
 
+    # Receives incoming mail from the MTA over LMTP and forwards it to the
+    # targets configured in kompass. The MTA reaches this on port 8024; when it
+    # runs in another compose project, attach that project's network here.
+    lmtp:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-lmtp.sh
+        volumes:
+          - ./config:/app/config:ro
+        ports:
+          - "127.0.0.1:8024:8024"
+        networks:
+          - main
+
     celery_beat:
         <<: *kompass
         entrypoint: /app/docker/production/entrypoint-celery-beat.sh

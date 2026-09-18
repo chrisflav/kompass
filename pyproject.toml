@@ -5,6 +5,7 @@ description = "Administration platform for local sections of the Young German Al
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiosmtpd",
     "auditlog3",
     "bcrypt",
     "celery",

@@ -13,6 +13,7 @@ This part of the documentation describes the development and maintenance of the 
    setup
    architecture
    authentication
+   mail_routing
    testing
    translations
    ci
