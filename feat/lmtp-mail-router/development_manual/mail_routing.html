@@ -163,6 +163,11 @@ so any MTA can talk to the router and swapping MTAs is a configuration change.</
 breaks. A database that cannot be reached answers <code class="docutils literal notranslate"><span class="pre">451</span></code> and the MTA keeps the
 message and retries. An unknown address answers <code class="docutils literal notranslate"><span class="pre">550</span></code> and the sender is told.
 Neither case can silently swallow a message.</p>
+<p>LMTP expects one reply per accepted recipient after <code class="docutils literal notranslate"><span class="pre">DATA</span></code> and the server
+library sends exactly one, so the router accepts a single recipient per
+transaction and answers <code class="docutils literal notranslate"><span class="pre">452</span></code> to any further one. The MTA then delivers those
+separately. Setting <code class="docutils literal notranslate"><span class="pre">lmtp_destination_recipient_limit</span> <span class="pre">=</span> <span class="pre">1</span></code> avoids the extra
+round trip, but nothing breaks without it.</p>
 </section>
 <section id="bounces">
 <h2>Bounces<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#bounces" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#bounces'">¶</a></h2>
@@ -182,7 +187,14 @@ mailbox that no longer exists. Suspended addresses are listed in the admin under
 answers <code class="docutils literal notranslate"><span class="pre">451</span></code> and the MTA redelivers the whole message later, including the
 targets that already succeeded. Those are recognised by their
 <code class="xref py py-class docutils literal notranslate"><span class="pre">DeliveryAttempt</span></code> and skipped, so a deferral never
-duplicates mail.</p>
+duplicates mail. A message that arrives without a <code class="docutils literal notranslate"><span class="pre">Message-ID</span></code> is keyed by a
+hash of its content instead, so that it too replays safely.</p>
+<p>That key is the sender’s, and nothing stops one from reusing it, so the record
+only suppresses a repeat for <code class="docutils literal notranslate"><span class="pre">duplicate_window_days</span></code>. Beyond that the message
+is delivered again rather than silently dropped forever.</p>
+<p>A relay that refuses a recipient outright with a <code class="docutils literal notranslate"><span class="pre">5xx</span></code> is not a deferral: the
+address is recorded as having hard bounced, exactly as if the report had come
+back later, and the remaining targets still go out.</p>
 </section>
 <section id="configuration">
 <h2>Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#configuration'">¶</a></h2>
@@ -192,11 +204,16 @@ duplicates mail.</p>
 </span><span id="line-4"><span class="n">bounce_local_part</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"bounce"</span>
 </span><span id="line-5"><span class="n">munge_display_suffix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"via Kompass"</span>
 </span><span id="line-6"><span class="n">hard_bounce_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+</span><span id="line-7"><span class="n">duplicate_window_days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span>
 </span></code></pre></div>
 </div>
 <p>The MTA needs two things: it must deliver mail for the domain to the router,
 and it must route <code class="docutils literal notranslate"><span class="pre">bounce+*</span></code> back to it. With postfix that is
 <code class="docutils literal notranslate"><span class="pre">virtual_transport</span> <span class="pre">=</span> <span class="pre">lmtp:inet:&lt;host&gt;:8024</span></code> and <code class="docutils literal notranslate"><span class="pre">recipient_delimiter</span> <span class="pre">=</span> <span class="pre">+</span></code>.</p>
+<p>The router only accepts recipients in <code class="docutils literal notranslate"><span class="pre">settings.DOMAIN</span></code>; anything else is
+refused with <code class="docutils literal notranslate"><span class="pre">550</span></code>, so the endpoint cannot be used as an open relay by
+something else that can reach it. Keep the MTA’s accepted domains in step with
+that setting.</p>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
