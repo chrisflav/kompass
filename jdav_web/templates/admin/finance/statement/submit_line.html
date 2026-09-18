@@ -1,0 +1,14 @@
+{% extends "admin/submit_line.html" %}
+{% load i18n %}
+
+{% block submit-row %}
+{% if not original or not original.submitted %}
+<p class="help">
+    {% blocktrans %}To submit the statement to the finance department, use "Save and submit". Submitted statements can no longer be edited. If you want to make further changes, use "Save" instead.{% endblocktrans %}
+</p>
+{% endif %}
+{% if not original or not original.submitted %}
+<input type="submit" value="{% trans 'Save and submit' %}" name="_saveandsubmit" class="default">
+{% endif %}
+{{block.super}}
+{% endblock %}

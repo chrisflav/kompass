@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import User
 from django.test import override_settings
@@ -72,7 +73,10 @@ class MediaProtectedTestCase(TestCase):
     def test_anonymous_is_redirected_to_login(self):
         response = media_protected(self._request(AnonymousUser()), "bills/proof.pdf")
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/oidc/authenticate/", response["Location"])
+        # Whichever login page is configured — the OIDC provider's, or Django's
+        # own form where OIDC is off. Naming one of them here pinned the test to
+        # a deployment choice it does not care about.
+        self.assertIn(settings.LOGIN_URL, response["Location"])
 
     def test_non_staff_is_redirected_to_login(self):
         user = User.objects.create_user("member", "member@example.com", "pw")

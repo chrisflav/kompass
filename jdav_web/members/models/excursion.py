@@ -15,9 +15,10 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Cast
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from mailer.mailutils import app_link
+from mailer.mailutils import prepend_base_url
 from mailer.mailutils import send as send_mail
 from mailer.mailutils import SENT
 from members.pdf import generate_crisis_intervention_list_pdf
@@ -175,7 +176,7 @@ class Freizeit(CommonModel):
         return "Fahrgemeinschaften"
 
     def get_absolute_url(self):
-        return app_link("/excursions/{}".format(self.id))
+        return reverse("admin:members_freizeit_change", args=[str(self.id)])
 
     @property
     def night_count(self):
@@ -650,7 +651,7 @@ class Freizeit(CommonModel):
             sending_time = sending_time.strftime("%d.%m.%y %H:%M")
         start_date = timezone.localtime(self.date).strftime("%d.%m.%Y")
         end_date = timezone.localtime(self.end).strftime("%d.%m.%Y")
-        excursion_link = self.get_absolute_url()
+        excursion_link = prepend_base_url(self.get_absolute_url())
         for yl in self.jugendleiter.all():
             yl.send_mail(
                 _("Participant list for %(excursion)s from %(start)s to %(end)s")

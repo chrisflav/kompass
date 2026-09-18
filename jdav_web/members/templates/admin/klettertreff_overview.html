@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% load static %}
+{% load overview_extras %}
+
+{% block content %}
+<table style="height=100%">
+    <tr>
+        <th>{% trans 'date' %}</th>
+        {% for klettertreff in klettertreffs %}
+        <td>{{ klettertreff.date }}</td>
+        {% endfor %}
+    </tr>
+    <tr>
+        <th>Ort</th>
+        {% for klettertreff in klettertreffs %}
+        <td>{{ klettertreff.location }}</td>
+        {% endfor %}
+    </tr>
+    <tr>
+        <th>Jugendleiter</th>
+    </tr>
+    {% for jugendleiter in jugendleiters %}
+    <tr>
+        <th>{{ jugendleiter.name }}
+        {% for klettertreff in klettertreffs %}
+        {% has_jugendleiter_wrapper klettertreff jugendleiter as color %}
+        <td style="background-color:{{ color }}"></td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    <tr>
+        <th>Teilnehmer</th>
+    </tr>
+    {% for member in members %}
+    <tr>
+        <th>{{ member.name }}
+        {% for klettertreff in klettertreffs %}
+            {% has_attendee_wrapper klettertreff member as color %}
+        <td style="background-color:{{ color }}"></td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

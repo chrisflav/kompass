@@ -1,0 +1,10 @@
+{% extends "admin/edit_inline/tabular.html" %}
+{% load i18n admin_urls static %}
+{% block extra_footer_content %}
+<tfoot><tr class="inline-summary">
+    <td colspan="99" style="text-align: right; font-weight: bold;">
+        {% trans "Number of persons:" %} {{ inline_admin_formset.formset.total_people }}, {% trans "thereof leaders:" %} {{ inline_admin_formset.formset.organizer_count }}
+    </td>
+</tr>
+</tfoot>
+{% endblock %}

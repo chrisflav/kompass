@@ -2,11 +2,14 @@ from datetime import timedelta
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from contrib.admin import CommonAdminMixin
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.test import RequestFactory
 from django.test import TestCase
 from django.utils.translation import gettext_lazy as _
 from rules.contrib.models import RulesModelBase
@@ -72,6 +75,115 @@ class GlobalPermissionRulesTestCase(TestCase):
         predicate = has_global_perm("auth.add_user")
         result = predicate(self.user, None)
         self.assertFalse(result)
+
+
+class CommonAdminMixinTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="testpass")
+
+    def _make_test_admin(self, documentation_url=None):
+        class TestModel:
+            _meta = Mock()
+            _meta.app_label = "test"
+
+        class TestAdmin(CommonAdminMixin, admin.ModelAdmin):
+            pass
+
+        if documentation_url is not None:
+            TestAdmin.documentation_url = documentation_url
+
+        return TestAdmin(TestModel, admin.site)
+
+    def test_formfield_for_dbfield_with_formfield_overrides(self):
+        """Test formfield_for_dbfield when db_field class is in formfield_overrides"""
+
+        # Create a test admin instance that inherits from Django's ModelAdmin
+        class TestAdmin(CommonAdminMixin, admin.ModelAdmin):
+            formfield_overrides = {models.ForeignKey: {"widget": Mock()}}
+
+        # Create a mock model to use with the admin
+        class TestModel:
+            _meta = Mock()
+            _meta.app_label = "test"
+
+        admin_instance = TestAdmin(TestModel, admin.site)
+
+        # Create a mock ForeignKey field to trigger the missing line 147
+        db_field = models.ForeignKey(User, on_delete=models.CASCADE)
+
+        # Create a test request
+        request = RequestFactory().get("/")
+        request.user = self.user
+
+        # Call the method to test formfield_overrides usage
+        result = admin_instance.formfield_for_dbfield(db_field, request, help_text="Test help text")
+
+        # Verify that the formfield_overrides were used
+        self.assertIsNotNone(result)
+
+    def test_changelist_view_injects_documentation_url(self):
+        admin_instance = self._make_test_admin(
+            documentation_url="/static/docs/user_manual/members.html"
+        )
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_changelist(self, request, extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "changelist_view", mock_changelist):
+            admin_instance.changelist_view(request)
+
+        self.assertEqual(captured["documentation_url"], "/static/docs/user_manual/members.html")
+
+    def test_changelist_view_no_documentation_url(self):
+        admin_instance = self._make_test_admin()
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_changelist(self, request, extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "changelist_view", mock_changelist):
+            admin_instance.changelist_view(request)
+
+        self.assertNotIn("documentation_url", captured)
+
+    def test_change_view_injects_documentation_url(self):
+        admin_instance = self._make_test_admin(
+            documentation_url="/static/docs/user_manual/finance.html"
+        )
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_change_view(self, request, object_id, form_url="", extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "change_view", mock_change_view):
+            admin_instance.change_view(request, "1")
+
+        self.assertEqual(captured["documentation_url"], "/static/docs/user_manual/finance.html")
+
+    def test_change_view_no_documentation_url(self):
+        admin_instance = self._make_test_admin()
+        request = RequestFactory().get("/")
+        request.user = self.user
+        captured = {}
+
+        def mock_change_view(self, request, object_id, form_url="", extra_context=None):
+            captured.update(extra_context or {})
+            return Mock()
+
+        with patch.object(admin.ModelAdmin, "change_view", mock_change_view):
+            admin_instance.change_view(request, "1")
+
+        self.assertNotIn("documentation_url", captured)
 
 
 class UtilsTestCase(TestCase):

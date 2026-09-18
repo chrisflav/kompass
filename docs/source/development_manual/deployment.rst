@@ -233,6 +233,58 @@ We assume that all instructions are executed as ``root`` or with ``sudo``.
    The ``host = 'host'`` setting is correct in this case and points to the underlying host.
 
 
+Trying the new frontend on a second domain
+==========================================
+
+The new TypeScript frontend ships as its own image and its own service, ``spa``,
+which publishes port ``3001``. The Django site keeps port ``3000`` and its nginx
+configuration untouched, so this can be switched on without disturbing what
+users are working in today. Point a second domain at ``3001`` and both are live
+side by side: the old interface on the main domain, the new one on the second.
+
+The ``spa`` container serves the frontend's static files and proxies ``/api/``,
+``/o/``, ``/accounts/`` and ``/media/`` through to Django, so everything runs on
+one origin. That is what keeps the setup simple — there is no CORS to configure
+and no cross-site cookie to get right.
+
+1. **Register the frontend with the OAuth2 provider.** The frontend signs in
+   with Authorization Code + PKCE, which needs an application whose redirect URI
+   matches the domain it is served from:
+
+   .. code-block::
+
+      docker compose exec master python jdav_web/manage.py ensure_frontend_oauth_app \
+          --redirect-uri https://neu.jdav-town.de/callback
+
+   The command is idempotent — run it again to add another domain. If the
+   frontend image was built with a different ``VITE_OAUTH_CLIENT_ID``, pass the
+   same value as ``--client-id``.
+
+2. **Let Django answer for the second domain.** In ``settings.toml``:
+
+   .. code-block::
+
+      [django]
+      allowed_hosts = ['jdav-town.de', 'neu.jdav-town.de']
+      csrf_trusted_origins = ['https://neu.jdav-town.de']
+      trust_forwarded_proto = true
+
+   ``csrf_trusted_origins`` is needed because the sign-in form is served under a
+   domain Django would not otherwise recognise. ``trust_forwarded_proto`` makes
+   Django believe the ``X-Forwarded-Proto`` header from the reverse proxy;
+   without it Django sees plain HTTP behind the TLS termination and rejects the
+   ``https://`` origin of that same form. Only enable it where the proxy is the
+   only way in.
+
+3. **Point the second domain at port 3001**, the same way the main domain is
+   pointed at ``3000`` — including a certificate for it.
+
+Two things stay deliberately unchanged while the pilot runs. Notification mails
+still link into the old interface, since that is where everyone is still
+working; ``frontend_base_url`` switches those links over when the time comes.
+And the old interface remains the one users are sent to, so nothing depends on
+the pilot being up.
+
 Local configuration
 ===================
 

@@ -1,9 +1,13 @@
 from datetime import date
 from datetime import datetime
 from decimal import Decimal
+from unittest.mock import Mock
 
+from django.test import RequestFactory
 from django.test import TestCase
 from django.utils import timezone
+from material.admin import MaterialAdmin
+from material.admin import NotTooOldFilter
 from material.models import MaterialCategory
 from material.models import MaterialPart
 from material.models import Ownership
@@ -81,6 +85,21 @@ class MaterialPartTestCase(TestCase):
             field = self.material_part._meta.get_field(field_name)
             self.assertTrue(hasattr(field, "verbose_name"))
             self.assertIsNotNone(field.verbose_name)
+
+    def test_admin_thumbnail_with_photo(self):
+        """Test admin_thumbnail when photo exists"""
+        mock_photo = Mock()
+        mock_photo.url = "/media/test.jpg"
+        self.material_part.photo = mock_photo
+        result = self.material_part.admin_thumbnail()
+        self.assertIn("/media/test.jpg", result)
+        self.assertIn("<img", result)
+
+    def test_admin_thumbnail_without_photo(self):
+        """Test admin_thumbnail when no photo exists"""
+        self.material_part.photo = None
+        result = self.material_part.admin_thumbnail()
+        self.assertIn("kein Bild", result)
 
     def test_ownership_overview(self):
         """Test ownership_overview method"""
@@ -162,3 +181,68 @@ class UtilityFunctionTestCase(TestCase):
         result = yearsago(1, from_date=leap_date)
         expected = timezone.make_aware(datetime(2019, 2, 28, 12, 0, 0))
         self.assertEqual(result, expected)
+
+
+class NotTooOldFilterTestCase(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.filter = NotTooOldFilter(None, {}, MaterialPart, MaterialAdmin)
+
+        # Create test data
+        self.member = Member.objects.create(
+            prename="Test",
+            lastname="User",
+            birth_date=date(1990, 1, 1),
+            email="test@example.com",
+            gender=MALE,
+        )
+
+        # Create old material (should be too old)
+        self.old_material = MaterialPart.objects.create(
+            name="Old Material",
+            description="Old material",
+            quantity=1,
+            buy_date=date(2000, 1, 1),  # Very old
+            lifetime=Decimal("5"),
+        )
+
+        # Create new material (should not be too old)
+        self.new_material = MaterialPart.objects.create(
+            name="New Material",
+            description="New material",
+            quantity=1,
+            buy_date=date.today(),  # Today
+            lifetime=Decimal("10"),
+        )
+
+    def test_not_too_old_filter_lookups(self):
+        """Test NotTooOldFilter lookups method"""
+        request = self.factory.get("/")
+        lookups = self.filter.lookups(request, None)
+        self.assertEqual(len(lookups), 2)
+        self.assertEqual(lookups[0][0], "too_old")
+        self.assertEqual(lookups[1][0], "not_too_old")
+
+    def test_not_too_old_filter_queryset_too_old(self):
+        """Test NotTooOldFilter queryset method with 'too_old' value"""
+        request = self.factory.get("/?age=too_old")
+        self.filter.used_parameters = {"age": "too_old"}
+
+        queryset = MaterialPart.objects.all()
+        filtered = self.filter.queryset(request, queryset)
+
+        # Should return materials that are not too old (i.e., new materials)
+        self.assertIn(self.new_material, filtered)
+        self.assertNotIn(self.old_material, filtered)
+
+    def test_not_too_old_filter_queryset_not_too_old(self):
+        """Test NotTooOldFilter queryset method with 'not_too_old' value"""
+        request = self.factory.get("/?age=not_too_old")
+        self.filter.used_parameters = {"age": "not_too_old"}
+
+        queryset = MaterialPart.objects.all()
+        filtered = self.filter.queryset(request, queryset)
+
+        # Should return materials that are too old
+        self.assertIn(self.old_material, filtered)
+        self.assertNotIn(self.new_material, filtered)

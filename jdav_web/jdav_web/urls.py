@@ -16,13 +16,22 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls.i18n import i18n_patterns
+from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LogoutView
 from django.urls import include
 from django.urls import path
 from django.urls import re_path
+from django.utils.translation import gettext_lazy as _
+from django.views.generic.base import RedirectView
 from oauth2_provider import urls as oauth2_urls
 
 from .api import api
 from .views import media_access
+
+admin.site.index_title = _("Startpage")
+admin.site.site_header = "Kompass"
 
 urlpatterns = []
 
@@ -32,18 +41,25 @@ urlpatterns = []
 urlpatterns += [
     path("api/", api.urls),
     path("o/", include(oauth2_urls)),
+    # The sign-in page `/o/authorize/` sends an anonymous visitor to. Mounted
+    # outside i18n_patterns on purpose: the frontend reaches it through its own
+    # domain, where a locale redirect would land on the SPA's router instead of
+    # coming back here.
+    path("accounts/login/", LoginView.as_view(), name="login"),
+    path("accounts/logout/", LogoutView.as_view(), name="logout"),
 ]
 
 if settings.OIDC_ENABLED:
+    admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
     urlpatterns += i18n_patterns(
         re_path(r"^oidc/", include("mozilla_django_oidc.urls")),
     )
 
-# NOTE: ``/kompass`` is deliberately absent. It used to serve the Django admin;
-# the Kompass SPA now owns that path and is served in front of Django, so this
-# URLconf must not claim it.
 urlpatterns += i18n_patterns(
     re_path(r"^media/(?P<path>.*)", media_access, name="media"),
+    re_path(r"^kompass/?", admin.site.urls, name="kompass"),
+    re_path(r"^jet/", include("jet.urls", "jet")),  # Django JET URLS
+    re_path(r"^admin/?", RedirectView.as_view(url="/kompass")),
     re_path(r"^newsletter/", include("mailer.urls", namespace="mailer")),
     re_path(r"^members/", include("members.urls", namespace="members")),
     re_path(r"^login/", include("logindata.urls", namespace="logindata")),
@@ -51,6 +67,7 @@ urlpatterns += i18n_patterns(
         r"^LBAlpin/Programm(/)?(20)?[0-9]{0,2}",
         include("ludwigsburgalpin.urls", namespace="ludwigsburgalpin"),
     ),
+    re_path(r"^_nested_admin/", include("nested_admin.urls")),
     re_path(r"^", include("startpage.urls", namespace="startpage")),
 )
 

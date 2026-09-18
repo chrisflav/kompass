@@ -4,11 +4,18 @@
 Authentication
 ==============
 
-By default, Kompass uses Django's builtin authentication backend. The Kompass
-frontend signs in against the OAuth2 provider mounted at ``/o/`` and calls the
-REST API with a bearer token. For integrating third-party services, Kompass can
-both authenticate against a third-party service or provide authentication for
-third-party services.
+By default, Kompass uses Django's builtin authentication backend for logging into
+the admin pages. For integrating third-party services, Kompass can both authenticate
+against a third-party service or provide authentication for third-party services.
+
+The new frontend signs in differently: it sends the browser to the OAuth2
+provider mounted at ``/o/`` using Authorization Code + PKCE, and then calls the
+REST API with the bearer token it gets back. The password is typed on a page
+Django serves — the frontend never sees it. Where OIDC is configured that page
+is the provider's; otherwise it is Django's own form at ``/accounts/login/``,
+which is mounted outside the language prefixes so it stays reachable on whatever
+domain the frontend is served from. See
+:ref:`development_manual/deployment` for registering the application.
 
 Using Kompass as an OAuth2 Provider
 -----------------------------------
@@ -81,10 +88,7 @@ Add the following section to your ``settings.toml`` file:
     # Group name in the ID token that grants superuser permissions
     group_superuser = 'kompass-admins'
 
-When OIDC is enabled, login redirects to the OIDC provider and lands on
-``LOGIN_REDIRECT_URL`` (``/kompass``, the frontend). Users are automatically created or
-updated based on the ID token claims. Staff and superuser permissions are granted
-based on group membership in the ``groups`` claim.
+When OIDC is enabled, the Django admin login redirects to the OIDC provider. Users are automatically created or updated based on the ID token claims. Staff and superuser permissions are granted based on group membership in the ``groups`` claim.
 
 OIDC Provider Setup
 ^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,10 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block form_top %}
+{% if show_draft_notice %}
+<p class="help">
+    {% trans "This statement is still a draft. It needs to be submitted before it can be processed further." %}
+</p>
+{% endif %}
+{% endblock %}

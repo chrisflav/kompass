@@ -1,0 +1,7 @@
+{% extends "admin/app_index.html" %}
+
+{% block content %}
+<div id="content-main">
+  {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+</div>
+{% endblock %}

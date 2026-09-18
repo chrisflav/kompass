@@ -9,6 +9,7 @@ import base64
 import datetime
 import hashlib
 import secrets
+import time
 import uuid
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
@@ -18,6 +19,7 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.management import call_command
+from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from members.models import DIVERSE
@@ -151,6 +153,13 @@ class MembersApiTestCase(TestCase):
     def _authorize(self, challenge, redirect_uri):
         """Run the authorize leg as a logged-in user; returns the code."""
         self.client.force_login(self.owner_user)
+        # Where OIDC is configured, `SessionRefresh` bounces any session whose
+        # id token has expired back to the provider — and a `force_login`
+        # session has no token at all. A real browser arrives here just after
+        # signing in, so give the session the freshness that login would leave.
+        session = self.client.session
+        session["oidc_id_token_expiration"] = time.time() + 3600
+        session.save()
         res = self.client.get(
             "/o/authorize/",
             {
@@ -253,6 +262,36 @@ class MembersApiTestCase(TestCase):
             content_type="application/x-www-form-urlencoded",
         )
         self.assertNotEqual(res.status_code, 200)
+
+    def test_anonymous_authorize_is_sent_to_the_configured_login(self):
+        call_command("ensure_frontend_oauth_app", "--redirect-uri", REDIRECT_URI)
+        _verifier, challenge = self._pkce_pair()
+        res = self.client.get(
+            "/o/authorize/",
+            {
+                "response_type": "code",
+                "client_id": CLIENT_ID,
+                "redirect_uri": REDIRECT_URI,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "scope": "profile email",
+            },
+        )
+        self.assertEqual(res.status_code, 302)
+        self.assertTrue(res["Location"].startswith(settings.LOGIN_URL), res["Location"])
+
+    @override_settings(LOGIN_URL="/accounts/login/")
+    def test_builtin_login_page_stands_on_its_own(self):
+        # Without OIDC this is the page `/o/authorize/` sends the user to. The
+        # frontend reaches it on its own domain, where `/kompass` is the SPA's
+        # route rather than Django's admin — so it cannot borrow the admin's
+        # login, and it must not sit behind a locale prefix that would redirect
+        # into the SPA's router.
+        page = self.client.get("/accounts/login/")
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'name="username"')
+        self.assertContains(page, 'name="password"')
+        self.assertContains(page, "csrfmiddlewaretoken")
 
     def test_ensure_frontend_oauth_app_adds_a_new_origin(self):
         # A deployment re-runs the command to register another frontend origin.

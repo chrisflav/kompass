@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 23:05+0200\n"
+"POT-Creation-Date: 2026-09-17 23:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,33 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Send message"
+msgstr "Nachricht verschicken"
+
+msgid ""
+"Your account is not connected to a member. Please contact your system "
+"administrator."
+msgstr ""
+"Dein Account ist nicht mit eine*r Teilnehmer*in verknüpft. Bitte kontaktiere "
+"deine*n Systemadministrator*in."
+
+#, python-format
+msgid ""
+"Your email address is not an internal email address. Please use an email "
+"address with one of the following domains: %(domains)s."
+msgstr ""
+"Deine E-Mail Adresse ist keine DAV360 E-Mail Adresse. Bitte stelle sicher, "
+"dass deine E-Mail Adresse eine der folgenden Domains hat: %(domains)s."
+
+msgid "Failed to send message"
+msgstr "Fehler beim Senden der Email"
+
+msgid "Failed to send some messages"
+msgstr "Fehler beim Senden der Emails"
+
+msgid "Successfully sent message"
+msgstr "Email wurde erfolgreich verschickt"
 
 msgid "Can't verify this link. Try again!"
 msgstr "Ungültiger Link. Bitte nochmal versuchen!"
@@ -144,6 +171,27 @@ msgstr "Anhang"
 
 msgid "attachments"
 msgstr "Anhänge"
+
+msgid "Save and send mail"
+msgstr "Speichern und Email senden"
+
+msgid "Do you really want to send these mails?"
+msgstr "Möchtest du diese Emails wirklich verschicken?"
+
+msgid "already sent"
+msgstr "schon verschickt"
+
+msgid ""
+"Some messages have already been sent! Do you really want to resend them?"
+msgstr ""
+"Einige Emails wurden schon versendet! Möchtest du diese wirklich nochmal "
+"senden?"
+
+msgid "Send"
+msgstr "Senden"
+
+msgid "Cancel"
+msgstr "Abbruch"
 
 msgid "Unsubscribe"
 msgstr "Vom Newsletter abmelden"

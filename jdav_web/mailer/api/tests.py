@@ -16,6 +16,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import SENT
 from mailer.models import Attachment
 from mailer.models import EmailAddress
@@ -335,7 +336,14 @@ class MailerApiTestCase(TestCase):
         # rule about the sender's address, not a missing permission, so being an
         # admin does not help and the client must be able to print it.
         self.assertTrue(r.json()["displayable"])
-        self.assertIn("internal email address", r.json()["detail"])
+        # Compared against the translated string, not an English fragment of it:
+        # the refusal is shown to the user, so it is German in a German session.
+        self.assertEqual(
+            r.json()["detail"],
+            str(
+                _("Your email address is not an internal email address and may not send messages.")
+            ),
+        )
         self.assertFalse(mock_send.called)
         message.refresh_from_db()
         self.assertFalse(message.sent)

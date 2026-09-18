@@ -140,25 +140,6 @@ def flow_link(legacy_path, key):
     return prepend_base_url("{path}?key={key}".format(path=legacy_path, key=key))
 
 
-#: Route prefix the authenticated Kompass SPA is served under. It is the path
-#: the Django admin used to occupy, so links staff already have keep working.
-APP_PATH_PREFIX = "/kompass"
-
-
-def app_link(path):
-    """An absolute link to a page inside the authenticated Kompass SPA.
-
-    ``path`` is the SPA route below the app prefix (``/excursions/12``). Notify
-    mails use this to point a Jugendleiter straight at the record; before the
-    SPA these were ``reverse("admin:…")`` links into the Django admin.
-    """
-    base = getattr(settings, "FRONTEND_BASE_URL", "").rstrip("/")
-    full_path = "{prefix}{path}".format(prefix=APP_PATH_PREFIX, path=path)
-    if base:
-        return "{base}{path}".format(base=base, path=full_path)
-    return prepend_base_url(full_path)
-
-
 def _without_language_prefix(path):
     """``/de/members/echo`` -> ``/members/echo``; other paths are unchanged."""
     for code, _name in settings.LANGUAGES:

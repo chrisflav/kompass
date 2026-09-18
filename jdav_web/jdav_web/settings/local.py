@@ -92,6 +92,12 @@ ROOT_SECTION = get_var("startpage", "root_section", default="about")
 RECENT_SECTION = get_var("startpage", "recent_section", default="recent")
 REPORTS_SECTION = get_var("startpage", "reports_section", default="reports")
 
+# sidebar
+
+# List of app labels whose sidebar sections should be hidden.
+# Example: disabled_apps = ["ludwigsburgalpin", "material"]
+SIDEBAR_DISABLED_APPS = get_var("sidebar", "disabled_apps", default=[])
+
 # testing
 
 TEST_MAIL = get_var("testing", "mail", default="test@localhost")
