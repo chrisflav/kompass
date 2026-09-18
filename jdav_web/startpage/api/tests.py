@@ -315,3 +315,202 @@ class StartpageApiTestCase(TestCase):
         mop = MemberOnPost.objects.get(pk=body["id"])
         self.assertEqual(mop.tag, "gipfel")
         self.assertEqual(list(mop.members.all()), [self.plain_member])
+
+    # --- the read, update and delete halves of each resource --------------
+    #
+    # The cases above create content and read one item back; these walk the
+    # rest of each resource's cycle, which is what the SPA's edit screens use.
+
+    def test_list_and_retrieve_faqs(self):
+        faq = FAQ.objects.create(question="Wann?", answer="Montags.")
+        listed = self.client.get("/api/startpage/faqs", **self.auth(self.editor_user))
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertIn(faq.pk, {row["id"] for row in listed.json()})
+
+    def test_update_faq(self):
+        faq = FAQ.objects.create(question="Wann?", answer="Montags.")
+        r = self.client.put(
+            "/api/startpage/faqs/{}".format(faq.pk),
+            data={"question": "Wann genau?", "answer": "Dienstags."},
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        faq.refresh_from_db()
+        self.assertEqual(faq.question, "Wann genau?")
+        self.assertEqual(faq.answer, "Dienstags.")
+
+    def test_delete_faq(self):
+        faq = FAQ.objects.create(question="Weg?", answer="Ja.")
+        r = self.client.delete(
+            "/api/startpage/faqs/{}".format(faq.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(FAQ.objects.filter(pk=faq.pk).exists())
+
+    def test_list_and_retrieve_links(self):
+        link = Link.objects.create(title="DAV", url="https://dav.de")
+        listed = self.client.get("/api/startpage/links", **self.auth(self.editor_user))
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertIn(link.pk, {row["id"] for row in listed.json()})
+
+        fetched = self.client.get(
+            "/api/startpage/links/{}".format(link.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(fetched.status_code, 200, fetched.content)
+        self.assertEqual(fetched.json()["url"], "https://dav.de")
+
+    def test_update_link(self):
+        link = Link.objects.create(title="DAV", url="https://dav.de")
+        r = self.client.put(
+            "/api/startpage/links/{}".format(link.pk),
+            data={
+                "title": "Alpenverein",
+                "description": "Sektion",
+                "url": "https://alpenverein.de",
+                "visible": False,
+            },
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        link.refresh_from_db()
+        self.assertEqual(link.title, "Alpenverein")
+        self.assertEqual(link.url, "https://alpenverein.de")
+        self.assertFalse(link.visible)
+
+    def test_delete_link(self):
+        link = Link.objects.create(title="Weg", url="https://weg.de")
+        r = self.client.delete(
+            "/api/startpage/links/{}".format(link.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(Link.objects.filter(pk=link.pk).exists())
+
+    def test_delete_post(self):
+        post = Post.objects.create(title="Weg", urlname="weg", section=self.section)
+        r = self.client.delete(
+            "/api/startpage/posts/{}".format(post.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(Post.objects.filter(pk=post.pk).exists())
+
+    def test_retrieve_post_and_section(self):
+        post = Post.objects.create(title="Tour", urlname="tour", section=self.section)
+        r = self.client.get(
+            "/api/startpage/posts/{}".format(post.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["title"], "Tour")
+
+        r = self.client.get(
+            "/api/startpage/sections/{}".format(self.section.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["urlname"], "aktuelles")
+
+    def _image(self):
+        post = Post.objects.create(title="Tour", urlname="tour", section=self.section)
+        return Image.objects.create(
+            post=post, f=SimpleUploadedFile("pic.jpg", b"fakeimage", content_type="image/jpeg")
+        )
+
+    def test_list_and_retrieve_images(self):
+        image = self._image()
+        listed = self.client.get("/api/startpage/images", **self.auth(self.editor_user))
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertIn(image.pk, {row["id"] for row in listed.json()})
+
+        fetched = self.client.get(
+            "/api/startpage/images/{}".format(image.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(fetched.status_code, 200, fetched.content)
+
+    def test_replace_image_file(self):
+        image = self._image()
+        before = image.f.name
+        replacement = SimpleUploadedFile("neu.jpg", b"anotherimage", content_type="image/jpeg")
+        r = self.client.post(
+            "/api/startpage/images/{}/file".format(image.pk),
+            data={"f": replacement},
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        image.refresh_from_db()
+        self.assertNotEqual(image.f.name, before)
+
+    def test_replace_image_file_accepts_any_content_type(self):
+        # Unlike a link icon, `Image.f` declares no `content_types`, only a size
+        # limit — so the route must not invent a restriction the model does not
+        # have. Pinned here because the two upload routes look alike.
+        image = self._image()
+        before = image.f.name
+        r = self.client.post(
+            "/api/startpage/images/{}/file".format(image.pk),
+            data={"f": SimpleUploadedFile("doc.pdf", b"fakepdf", content_type="application/pdf")},
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        image.refresh_from_db()
+        self.assertNotEqual(image.f.name, before)
+
+    def test_upload_over_the_size_limit_is_refused(self):
+        # The link icon's limit is 5 MiB; one byte past it has to be refused
+        # with the field's own message rather than saved.
+        link = Link.objects.create(title="DAV", url="https://dav.de")
+        oversized = SimpleUploadedFile(
+            "huge.png", b"x" * (5 * 1024 * 1024 + 1), content_type="image/png"
+        )
+        r = self.client.post(
+            "/api/startpage/links/{}/icon".format(link.pk),
+            data={"icon": oversized},
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertIn("MiB", str(r.json()["detail"]))
+        link.refresh_from_db()
+        self.assertFalse(link.icon)
+
+    def _member_on_post(self):
+        post = Post.objects.create(title="Tour", urlname="tour", section=self.section)
+        mop = MemberOnPost.objects.create(post=post, description="Gipfelfoto", tag="gipfel")
+        mop.members.set([self.plain_member])
+        return mop
+
+    def test_list_and_retrieve_member_on_posts(self):
+        mop = self._member_on_post()
+        listed = self.client.get("/api/startpage/member-on-posts", **self.auth(self.editor_user))
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertIn(mop.pk, {row["id"] for row in listed.json()})
+
+        fetched = self.client.get(
+            "/api/startpage/member-on-posts/{}".format(mop.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(fetched.status_code, 200, fetched.content)
+        self.assertEqual(fetched.json()["tag"], "gipfel")
+
+    def test_update_member_on_post_replaces_members(self):
+        mop = self._member_on_post()
+        r = self.client.put(
+            "/api/startpage/member-on-posts/{}".format(mop.pk),
+            data={
+                "post_id": mop.post_id,
+                "description": "Am Grat",
+                "tag": "grat",
+                "member_ids": [self.editor_member.pk],
+            },
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        mop.refresh_from_db()
+        self.assertEqual(mop.tag, "grat")
+        self.assertEqual(list(mop.members.all()), [self.editor_member])
+
+    def test_delete_member_on_post(self):
+        mop = self._member_on_post()
+        r = self.client.delete(
+            "/api/startpage/member-on-posts/{}".format(mop.pk), **self.auth(self.editor_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(MemberOnPost.objects.filter(pk=mop.pk).exists())
