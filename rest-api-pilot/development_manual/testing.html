@@ -31,7 +31,7 @@
 <link href="../search.html" rel="search" title="Suche"/>
 <link href="../genindex.html" rel="index" title="Stichwortverzeichnis"/>
 <link href="translations.html" rel="next" title="Translations"/>
-<link href="authentication.html" rel="prev" title="Authentication"/>
+<link href="mail_routing.html" rel="prev" title="Mail routing"/>
 </head>
 <body :class="{ 'overflow-hidden': showSidebar }" @scroll.window="showScrollTop = pageYOffset &gt; 100" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false, showScrollTop: false }">
 <div @click.self="showSidebar = false" class="fixed inset-0 z-50 overflow-hidden bg-background/80 backdrop-blur-sm md:hidden" x-cloak="" x-show="showSidebar"></div><div class="relative flex flex-col min-h-screen" id="page"><a class="absolute top-0 left-0 z-[100] block bg-background p-4 text-xl transition -translate-x-full opacity-0 focus:translate-x-0 focus:opacity-100" href="#content">
@@ -98,6 +98,7 @@
 <li class="toctree-l2"><a class="reference internal" href="setup.html">Development Setup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="authentication.html">Authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mail_routing.html">Mail routing</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="translations.html">Translations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ci.html">Continuous Integration</a></li>
@@ -191,11 +192,11 @@ a test fails or the coverage report detects an uncovered line, the job will fail
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="authentication.html">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="mail_routing.html">
 <svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="15 18 9 12 15 6"></polyline>
 </svg>
-        Authentication
+        Mail routing
       </a>
 </div>
 <div class="ml-auto">
