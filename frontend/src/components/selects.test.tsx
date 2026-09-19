@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -77,6 +77,51 @@ describe("MultiSelect", () => {
     await user.click(document.body);
     await waitFor(() => expect(document.querySelector(".ms-dropdown")).toBeNull());
   });
+  it("focuses the search box only once the panel is visible", async () => {
+    // The panel mounts `visibility: hidden` and is revealed after measuring.
+    // A real browser refuses focus on a hidden element — jsdom grants it, so
+    // without modelling that rule here this test would pass even unfixed.
+    // Swallow focus requests made while the panel is still hidden, exactly as
+    // a browser does, so asking at mount (React's `autoFocus`) is not enough.
+    const realFocus = HTMLInputElement.prototype.focus;
+    HTMLInputElement.prototype.focus = function (...args) {
+      const panel = this.closest(".ms-dropdown") as HTMLElement | null;
+      if (panel?.style.visibility === "hidden") return;
+      return realFocus.apply(this, args);
+    };
+    try {
+      const { user } = renderWithApp(<Harness />, { authenticated: false });
+      await user.click(screen.getByRole("button", { name: "+ Auswählen…" }));
+      expect(dropdown().getByPlaceholderText("Suchen…")).toHaveFocus();
+    } finally {
+      HTMLInputElement.prototype.focus = realFocus;
+    }
+  });
+
+  it("lets you type straight into the search box", async () => {
+    const { user } = renderWithApp(<Harness />, { authenticated: false });
+    await user.click(screen.getByRole("button", { name: "+ Auswählen…" }));
+
+    const search = dropdown().getByPlaceholderText("Suchen…");
+    expect(search).toHaveFocus();
+    // The point of the focus: typing filters without clicking the box first.
+    await user.keyboard("boulder");
+    expect(search).toHaveValue("boulder");
+    expect(dropdown().queryByRole("button", { name: "Jugendleiter" })).not.toBeInTheDocument();
+  });
+
+  it("does not pull focus back when the panel is re-placed", async () => {
+    const { user } = renderWithApp(<Harness />, { authenticated: false });
+    await user.click(screen.getByRole("button", { name: "+ Auswählen…" }));
+    const search = dropdown().getByPlaceholderText("Suchen…") as HTMLInputElement;
+    search.blur();
+
+    // A scroll or a resize re-places the panel. Focusing again there would
+    // yank the caret back out of wherever the user had moved it.
+    act(() => window.dispatchEvent(new Event("resize")));
+    await waitFor(() => expect(search).not.toHaveFocus());
+  });
+
 });
 
 describe("SearchableSelect (list filter)", () => {
@@ -127,6 +172,12 @@ describe("SearchableSelect (list filter)", () => {
     expect(dropdown().getByPlaceholderText("Suchen…")).toHaveValue("");
     expect(dropdown().getByRole("button", { name: /Jugendleiter/ })).toBeInTheDocument();
   });
+  it("focuses the search box as soon as the dropdown opens", async () => {
+    const { user } = renderWithApp(<Harness />, { authenticated: false });
+    await user.click(screen.getByRole("button", { name: /Gruppe:/ }));
+    expect(dropdown().getByPlaceholderText("Suchen…")).toHaveFocus();
+  });
+
 });
 
 describe("Select (form single-select)", () => {
@@ -177,6 +228,12 @@ describe("Select (form single-select)", () => {
     await user.type(dropdown().getByPlaceholderText("Suchen…"), "jugend");
     expect(dropdown().getAllByRole("button")).toHaveLength(1);
   });
+  it("focuses the search box as soon as the dropdown opens", async () => {
+    const { user } = renderWithApp(<Harness />, { authenticated: false });
+    await user.click(screen.getByRole("button", { name: /— keine —/ }));
+    expect(dropdown().getByPlaceholderText("Suchen…")).toHaveFocus();
+  });
+
 });
 
 describe("InlineTable", () => {

@@ -55,6 +55,7 @@ function AnchoredDropdown({
   children: ReactNode;
 }) {
   const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
+  const focused = useRef(false);
 
   useLayoutEffect(() => {
     const anchor = anchorRef.current;
@@ -83,6 +84,19 @@ function AnchoredDropdown({
       window.removeEventListener("resize", place);
     };
   }, [anchorRef, panelRef]);
+
+  // The panel mounts `visibility: hidden` and is only revealed once `place()`
+  // has measured it, but React applies `autoFocus` during that first commit —
+  // and a hidden element cannot take focus, so every search box came up
+  // unfocused. Focus it here instead, on the render that reveals the panel
+  // (`place()` sets the style through state, so the DOM is still hidden for
+  // the rest of the effect above). Once only, or re-placing on scroll would
+  // yank focus back mid-typing.
+  useLayoutEffect(() => {
+    if (focused.current || style.visibility === "hidden") return;
+    focused.current = true;
+    panelRef.current?.querySelector("input")?.focus();
+  }, [style, panelRef]);
 
   return createPortal(
     <div className="ms-dropdown is-anchored" ref={panelRef} style={style}>
