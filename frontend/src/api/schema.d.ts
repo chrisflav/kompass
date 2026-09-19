@@ -3693,55 +3693,55 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Beschreibung
+             * Description
              * @default
              */
             description: string | null;
             /**
-             * Auf der Webseite anzeigen
+             * Show On Website
              * @default false
              */
             show_website: boolean;
             /**
-             * Ab Jahrgang
+             * Lowest Year
              * @default 2010
              */
             year_from: number;
             /**
-             * Bis Jahrgang
+             * Highest Year
              * @default 2011
              */
             year_to: number;
-            /** Wochentag */
+            /** Week Day */
             weekday?: number | null;
-            /** Zeitpunkt */
+            /** Starting time */
             start_time?: string | null;
-            /** Endzeitpunkt */
+            /** Ending time */
             end_time?: string | null;
-            /** Kontakt-Email */
+            /** Contact email */
             contact_email?: number | null;
             /**
-             * Jahrgang auf der Webseite anzeigen
+             * Show Year Range On Website
              * @default false
              */
             show_website_year: boolean;
             /**
-             * Wochentag auf der Webseite anzeigen
+             * Show Weekday On Website
              * @default false
              */
             show_website_weekday: boolean;
             /**
-             * Zeiten auf der Webseite anzeigen
+             * Show Time On Website
              * @default false
              */
             show_website_time: boolean;
             /**
-             * Kontaktadresse auf der Webseite anzeigen
+             * Show Contact Email On Website
              * @default false
              */
             show_website_contact_email: boolean;
             /**
-             * Anmeldelink auf der Webseite anzeigen
+             * Show Registration Link On Website
              * @default false
              */
             show_website_registration: boolean;
@@ -3854,18 +3854,18 @@ export interface components {
              */
             participant_ids: number[];
             /**
-             * Aktivität
+             * Activity
              * @default
              */
             name: string;
             /**
-             * Stützpunkt / Ort
+             * Place
              * @default
              */
             place: string;
             /**
-             * Genehmigt
-             * @description Wähle Ja bei Genehmigung, Nein bei Ablehung und Unbekannt, falls noch keine Entscheidung getroffen wurde.
+             * Approved
+             * @description Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided.
              */
             approved?: boolean | null;
         };
@@ -3927,60 +3927,60 @@ export interface components {
             /** Activity */
             activity: components["schemas"]["ActivityCategoryBrief"][];
             /**
-             * Aktivität
+             * Activity
              * @default
              */
             name: string;
             /**
-             * Stützpunkt / Ort
+             * Place
              * @default
              */
             place: string;
             /**
-             * PLZ
-             * @description nur für einen LJP-Antrag relevant
+             * Postcode
+             * @description only relevant for a LJP application
              * @default
              */
             postcode: string | null;
             /**
-             * ggf. Ziel
-             * @description z.B. ein Gipfel
+             * Destination (optional)
+             * @description e.g. a peak
              * @default
              */
             destination: string | null;
             /**
-             * Beschreibung
+             * Description
              * @default
              */
             description: string | null;
             /** Tour Type */
             tour_type: number;
             /**
-             * Verkehrsmittel
+             * Means of transportation
              * @default 0
              */
             tour_approach: number;
             /**
-             * Fahrstrecke in Kilometer
-             * @description Gesamte Fahrtstrecke (Hin- und Rückfahrt). Die Angabe ist relevant für die Berechnung der Zuschüsse durch den Jugendetat.
+             * Kilometers traveled
+             * @description The total kilometers traveled (away and back) during this excursion. This is relevant for the section subsidies.
              * @default 0
              */
             kilometers_traveled: number;
             /** Difficulty */
             difficulty: number;
             /**
-             * Genehmigt
-             * @description Wähle Ja bei Genehmigung, Nein bei Ablehung und Unbekannt, falls noch keine Entscheidung getroffen wurde.
+             * Approved
+             * @description Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided.
              */
             approved?: boolean | null;
             /**
-             * Kommentare oder Auflagen zur Genehmigung
+             * Approval comments
              * @default
              */
             approval_comments: string | null;
             /**
-             * Anzahl zusätzlich genehmigter Jugendleiter*innen
-             * @description Die Anzahl der genehmigten Jugendleiter*innen pro Ausfahrt wird grundsätzlich durch die Anzahl der Teilnehmer*innen festgelegt. In besonderen Fällen, zum Beispiel bei einer fachlich herausfordernden Ausfahrt, können zusätzliche Jugendleiter*innen genehmigt werden.
+             * Number of additional approved youth leaders
+             * @description The number of approved youth leaders per excursion is determined by the number of participants. In special circumstances, e.g. in case of a technically demanding excursion, more youth leaders may be approved.
              * @default 0
              */
             approved_extra_youth_leader_count: number;
@@ -4000,16 +4000,16 @@ export interface components {
             groups: string[];
             /** Activity Score */
             activity_score?: number | null;
-            /** Vorname */
+            /** Prename */
             prename: string;
-            /** Nachname */
+            /** Last Name */
             lastname: string;
             /**
-             * Bestätigt
+             * Confirmed
              * @default true
              */
             confirmed: boolean;
-            /** Geburtsdatum */
+            /** Birth Date */
             birth_date?: string | null;
             /**
              * Email
@@ -4017,17 +4017,17 @@ export interface components {
              */
             email: string;
             /**
-             * Telefonnummer (mobil)
+             * Phone Number
              * @default
              */
             phone_number: string | null;
             /**
-             * Rückgemeldet
+             * Echoed
              * @default true
              */
             echoed: boolean;
             /**
-             * Kommentare
+             * Comments
              * @default
              */
             comments: string | null;
@@ -4171,9 +4171,9 @@ export interface components {
              * @default []
              */
             activities: components["schemas"]["ExcursionBrief"][];
-            /** Vorname */
+            /** Prename */
             prename: string;
-            /** Nachname */
+            /** Last Name */
             lastname: string;
             /**
              * Email
@@ -4182,147 +4182,147 @@ export interface components {
             email: string;
             /** Alternative Email */
             alternative_email?: string | null;
-            /** Geburtsdatum */
+            /** Birth Date */
             birth_date?: string | null;
             /** Gender */
             gender: number;
             /**
-             * Telefonnummer (mobil)
+             * Phone Number
              * @default
              */
             phone_number: string | null;
             /**
-             * Straße und Hausnummer
+             * Street And House Number
              * @default
              */
             street: string | null;
             /**
-             * PLZ
+             * Postcode
              * @default
              */
             plz: string | null;
             /**
-             * Stadt
+             * Town
              * @default
              */
             town: string | null;
             /**
-             * Adress-Zusatz
+             * Address extra
              * @default
              */
             address_extra: string | null;
             /**
-             * Land
+             * Country
              * @default
              */
             country: string | null;
             /**
-             * DAV Mitgliedsnummer
+             * DAV badge number
              * @default
              */
             dav_badge_no: string | null;
             /**
-             * Eintrittskarten Nummer
+             * Entrance Ticket Number
              * @default
              */
             ticket_no: string | null;
             /** IBAN */
             iban?: string | null;
-            /** Eintritt */
+            /** Joined on */
             join_date?: string | null;
-            /** Austritt */
+            /** Left on */
             leave_date?: string | null;
             /**
-             * Hat Jugendraumschlüssel
+             * Has key
              * @default false
              */
             has_key: boolean;
             /**
-             * Hat Freikarte für Kletterhalle
+             * Has a free ticket for the climbing gym
              * @default false
              */
             has_free_ticket_gym: boolean;
             /**
-             * Kann schwimmen
+             * Knows how to swim
              * @default false
              */
             swimming_badge: boolean;
             /**
-             * Kletterschein
+             * Climbing badge
              * @default
              */
             climbing_badge: string | null;
             /**
-             * Alpine Erfahrung
+             * Alpine experience
              * @default
              */
             alpine_experience: string | null;
             /**
-             * Allergieen
+             * Allergies
              * @default
              */
             allergies: string | null;
             /**
-             * Medikamente
+             * Medication
              * @default
              */
             medication: string | null;
             /**
-             * Tetanusimpfung
+             * Tetanus vaccination
              * @default
              */
             tetanus_vaccination: string | null;
-            /** Darf sich allein von der Gruppenstunde abmelden */
+            /** May cancel a group appointment independently */
             may_cancel_appointment_independently?: boolean | null;
-            /** Führungszeugnis vorgelegt am */
+            /** Good conduct certificate presented on */
             good_conduct_certificate_presented_date?: string | null;
             /**
-             * Erziehungsberechtigte
+             * Legal guardians
              * @default
              */
             legal_guardians: string | null;
             /**
-             * Kommentare
+             * Comments
              * @default
              */
             comments: string | null;
             /**
-             * Rückgemeldet
+             * Echoed
              * @default true
              */
             echoed: boolean;
             /**
-             * Fotoerlaubnis
+             * Photos may be taken
              * @default false
              */
             photos_may_be_taken: boolean;
             /**
-             * Erhält den Newsletter
+             * Receives Newsletter
              * @default true
              */
             gets_newsletter: boolean;
             /**
-             * Aktiv
+             * Active
              * @default true
              */
             active: boolean;
             /**
-             * Bestätigt
+             * Confirmed
              * @default true
              */
             confirmed: boolean;
             /**
-             * Emailadresse bestätigt
+             * Email confirmed
              * @default false
              */
             confirmed_mail: boolean;
             /**
-             * Alternative E-Mail Adresse bestätigt
+             * Alternative email confirmed
              * @default true
              */
             confirmed_alternative_mail: boolean;
             /**
-             * Erstellt
+             * Created
              * Format: date
              */
             created?: string;
@@ -4383,9 +4383,9 @@ export interface components {
              * @default false
              */
             registration_form_uploaded: boolean;
-            /** Vorname */
+            /** Prename */
             prename: string;
-            /** Nachname */
+            /** Last Name */
             lastname: string;
             /**
              * Email
@@ -4394,15 +4394,15 @@ export interface components {
             email: string;
             /** Alternative Email */
             alternative_email?: string | null;
-            /** Geburtsdatum */
+            /** Birth Date */
             birth_date?: string | null;
             /**
-             * Emailadresse bestätigt
+             * Email confirmed
              * @default false
              */
             confirmed_mail: boolean;
             /**
-             * Alternative E-Mail Adresse bestätigt
+             * Alternative email confirmed
              * @default true
              */
             confirmed_alternative_mail: boolean;
@@ -4537,13 +4537,13 @@ export interface components {
             activities: string[];
             /** Certificate */
             certificate?: string | null;
-            /** Titel */
+            /** Title */
             title: string;
-            /** Datum */
+            /** Date */
             date?: string | null;
-            /** Teilgenommmen */
+            /** Participated */
             participated?: boolean | null;
-            /** Bestanden */
+            /** Passed */
             passed?: boolean | null;
         };
         /** TrainingOut */
@@ -4564,15 +4564,15 @@ export interface components {
             activity_ids: number[];
             /** Certificate */
             certificate?: string | null;
-            /** Titel */
+            /** Title */
             title: string;
-            /** Datum */
+            /** Date */
             date?: string | null;
-            /** Kommentar */
+            /** Comments */
             comments?: string | null;
-            /** Teilgenommmen */
+            /** Participated */
             participated?: boolean | null;
-            /** Bestanden */
+            /** Passed */
             passed?: boolean | null;
         };
         /**
@@ -4641,17 +4641,17 @@ export interface components {
              */
             jugendleiter: string[];
             /**
-             * Datum
+             * Date
              * Format: date
              */
             date?: string;
             /**
-             * Ort
+             * Location
              * @default
              */
             location: string;
             /**
-             * Thema
+             * Topic
              * @default
              */
             topic: string;
@@ -4666,17 +4666,17 @@ export interface components {
             /** Attendees */
             attendees: components["schemas"]["MemberBrief"][];
             /**
-             * Datum
+             * Date
              * Format: date
              */
             date?: string;
             /**
-             * Ort
+             * Location
              * @default
              */
             location: string;
             /**
-             * Thema
+             * Topic
              * @default
              */
             topic: string;
@@ -4724,11 +4724,11 @@ export interface components {
             /** Id */
             id: number;
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string;
-            /** Datum */
+            /** Date */
             date?: string | null;
         };
         /** MemberNoteListOut */
@@ -4738,11 +4738,11 @@ export interface components {
             /** Members */
             members: components["schemas"]["MemberBrief"][];
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string;
-            /** Datum */
+            /** Date */
             date?: string | null;
         };
         /**
@@ -4779,31 +4779,31 @@ export interface components {
             latest_group_invitation: string;
             /** Waiting Confirmed */
             waiting_confirmed?: boolean | null;
-            /** Vorname */
+            /** Prename */
             prename: string;
-            /** Nachname */
+            /** Last Name */
             lastname: string;
             /**
              * Email
              * @default
              */
             email: string;
-            /** Geburtsdatum */
+            /** Birth Date */
             birth_date?: string | null;
             /** Gender */
             gender: number;
             /**
-             * Bewerbungsdatum
+             * Application Date
              * Format: date-time
              */
             application_date?: string;
             /**
-             * Emailadresse bestätigt
+             * Email confirmed
              * @default false
              */
             confirmed_mail: boolean;
             /**
-             * Verpasste Erinnerungen
+             * Missed reminders
              * @default 0
              */
             sent_reminders: number;
@@ -4819,7 +4819,7 @@ export interface components {
             /** Status */
             status: string;
             /**
-             * Einladungsdatum
+             * Invitation date
              * Format: date
              */
             date?: string;
@@ -4843,41 +4843,41 @@ export interface components {
              * @default []
              */
             invitations: components["schemas"]["InvitationBrief"][];
-            /** Vorname */
+            /** Prename */
             prename: string;
-            /** Nachname */
+            /** Last Name */
             lastname: string;
             /**
              * Email
              * @default
              */
             email: string;
-            /** Geburtsdatum */
+            /** Birth Date */
             birth_date?: string | null;
             /** Gender */
             gender: number;
             /**
-             * Möchtest du uns noch etwas mitteilen?
+             * Do you want to tell us something else?
              * @default
              */
             application_text: string | null;
             /**
-             * Bewerbungsdatum
+             * Application Date
              * Format: date-time
              */
             application_date?: string;
             /**
-             * Kommentare
+             * Comments
              * @default
              */
             comments: string | null;
             /**
-             * Emailadresse bestätigt
+             * Email confirmed
              * @default false
              */
             confirmed_mail: boolean;
             /**
-             * Verpasste Erinnerungen
+             * Missed reminders
              * @default 0
              */
             sent_reminders: number;
@@ -4923,11 +4923,11 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * LJP Spielart
-             * @description Die offizielle Spielart für LJP Anträge mit dieser Aktivität.
+             * LJP category
+             * @description The official category for LJP applications associated with this activity.
              */
             ljp_category: string;
-            /** Beschreibung */
+            /** Description */
             description: string;
         };
         /**
@@ -4949,7 +4949,7 @@ export interface components {
             id: number;
             /** Name */
             name: string;
-            /** Freigabe erforderlich */
+            /** Permission needed */
             permission_needed: boolean;
         };
         /**
@@ -5027,16 +5027,16 @@ export interface components {
             id: number;
             /** Member Id */
             member_id: number;
-            /** Vorname */
+            /** Prename */
             prename: string;
-            /** Nachname */
+            /** Last Name */
             lastname: string;
             /**
              * Email
              * @default
              */
             email: string | null;
-            /** Telefonnummer (mobil) */
+            /** Phone Number */
             phone_number: string;
         };
         /**
@@ -5295,7 +5295,7 @@ export interface components {
             /** Status */
             status: string;
             /**
-             * Einladungsdatum
+             * Invitation date
              * Format: date
              */
             date?: string;
@@ -5309,7 +5309,7 @@ export interface components {
             id: number;
             member: components["schemas"]["MemberBrief"];
             /**
-             * Kommentar
+             * Comment
              * @default
              */
             comments: string | null;
@@ -5342,13 +5342,13 @@ export interface components {
             /** Ljp Proposal Id */
             ljp_proposal_id: number;
             /**
-             * Zeitpunkt
+             * Starting time
              * Format: date-time
              */
             date_start: string;
-            /** Dauer in Stunden */
+            /** Duration in hours */
             duration: string;
-            /** Art der Aktion inkl. Methode */
+            /** Activity and method */
             activity: string;
         };
         /** LJPProposalOut */
@@ -5369,32 +5369,32 @@ export interface components {
              */
             interventions: components["schemas"]["LJPInterventionOut"][];
             /**
-             * Titel
-             * @description Offizieller Titel des Seminars, dieser weicht in der Regel vom informellen Titel ab. Verwende zum Beispiel Sportkletterkurs statt Kletterfreizeit.
+             * Title
+             * @description Official title of your seminar, this can differ from the informal title. Use e.g. sports climbing course instead of climbing weekend for fun.
              * @default
              */
             title: string | null;
             /**
-             * Kategorie
-             * @description Kurstyp. In der Regel Themenorientierte Bildungsmaßnahme.
+             * Category
+             * @description Type of seminar. Usually the correct choice is educational programme.
              * @default 2
              */
             category: number;
             /**
-             * Bildungsziel
-             * @description Offizielles Bildungsziel gemäß LJP Richtlinien.
+             * Learning goal
+             * @description Official learning goal according to LJP regulations.
              * @default 1
              */
             goal: number;
             /**
-             * Zielverfolgung- und Erreichung
-             * @description Wie wolltet ihr das Bildungsziel erreichen? Ist das Ziel so erreicht worden? Wenn nicht, warum nicht? Wenn ja, was hat geholfen, das Ziel zu erreichen?
+             * Strategy
+             * @description How do you want to reach the learning goal? Has the goal been reached? If not, why not? If yes, what helped you to reach the goal?
              * @default
              */
             goal_strategy: string | null;
             /**
-             * Begründung, falls Kursort nicht in Baden-Württemberg
-             * @description Falls die Ausfahrt außerhalb von Baden-Württemberg stattfindet, gib bitte eine Begründung an. Sonst lass dieses Feld frei.
+             * Explanation if excursion not in Baden-Württemberg
+             * @description If the excursion takes place outside of Baden-Württemberg, please explain. Otherwise, leave this empty.
              */
             not_bw_reason?: number | null;
         };
@@ -5498,16 +5498,16 @@ export interface components {
             total: number;
             /** Total Pretty */
             total_pretty: string;
-            /** Kurzbeschreibung */
+            /** Short description */
             short_description: string;
             /**
              * Status
              * @default 0
              */
             status: number;
-            /** Eingereicht am */
+            /** Submitted on */
             submitted_date?: string | null;
-            /** Bezahlt am */
+            /** Paid on */
             confirmed_date?: string | null;
         };
         /** BillBrief */
@@ -5527,9 +5527,9 @@ export interface components {
             proof_url?: string | null;
             /** Has Proof */
             has_proof: boolean;
-            /** Kurzbeschreibung */
+            /** Short description */
             short_description: string;
-            /** Erklärung */
+            /** Explanation */
             explanation?: string | null;
         };
         /** StatementOut */
@@ -5619,13 +5619,13 @@ export interface components {
             total_org_fee_theoretical: number;
             /** Paid Ljp Contributions */
             paid_ljp_contributions: number;
-            /** Kurzbeschreibung */
+            /** Short description */
             short_description: string;
-            /** Erklärung */
+            /** Explanation */
             explanation?: string | null;
             /**
-             * Preis pro Übernachtung
-             * @description Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die Berechnung von Zuschüssen aus dem Jugendetat. Maximaler Zuschuss pro Person und Nacht: 11 €
+             * Price per night
+             * @description Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is 11€.
              * @default 0
              */
             night_cost: string;
@@ -5634,9 +5634,9 @@ export interface components {
              * @default 0
              */
             status: number;
-            /** Eingereicht am */
+            /** Submitted on */
             submitted_date?: string | null;
-            /** Bezahlt am */
+            /** Paid on */
             confirmed_date?: string | null;
         };
         /**
@@ -5836,17 +5836,17 @@ export interface components {
             proof_url?: string | null;
             /** Has Proof */
             has_proof: boolean;
-            /** Kurzbeschreibung */
+            /** Short description */
             short_description: string;
-            /** Erklärung */
+            /** Explanation */
             explanation?: string | null;
             /**
-             * Übernommen
+             * Covered
              * @default false
              */
             costs_covered: boolean;
             /**
-             * Ausgezahlt
+             * Refunded
              * @default false
              */
             refunded: boolean;
@@ -5912,7 +5912,7 @@ export interface components {
             member: components["schemas"]["MemberBrief"];
             ledger?: components["schemas"]["LedgerBrief"] | null;
             confirmed_by?: components["schemas"]["MemberBrief"] | null;
-            /** Verwendungszweck */
+            /** Reference */
             reference: string;
         };
         /** TransactionOut */
@@ -5942,7 +5942,7 @@ export interface components {
              * @default false
              */
             iban_valid: boolean;
-            /** Verwendungszweck */
+            /** Reference */
             reference: string;
         };
         /**
@@ -5998,8 +5998,8 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.
+             * Restrict to internal email addresses
+             * @description Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.
              * @default false
              */
             internal_only: boolean;
@@ -6021,8 +6021,8 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.
+             * Restrict to internal email addresses
+             * @description Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.
              * @default false
              */
             internal_only: boolean;
@@ -6061,10 +6061,10 @@ export interface components {
             id: number;
             /** Recipients */
             recipients: string;
-            /** Betreff */
+            /** Subject */
             subject: string;
             /**
-             * Gesendet
+             * Sent
              * @default false
              */
             sent: boolean;
@@ -6098,12 +6098,12 @@ export interface components {
             reply_to_email_address: components["schemas"]["EmailAddressBrief"][];
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
-            /** Betreff */
+            /** Subject */
             subject: string;
-            /** Inhalt */
+            /** Content */
             content: string;
             /**
-             * Gesendet
+             * Sent
              * @default false
              */
             sent: boolean;
@@ -6189,21 +6189,21 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Beschreibung
+             * Description
              * @default
              */
             description: string;
             /**
-             * Anzahl
+             * Quantity
              * @default 0
              */
             quantity: number;
             /**
-             * Kaufdatum
+             * Purchase Date
              * Format: date
              */
             buy_date: string;
-            /** Lebenszeit (Jahre) */
+            /** Lifetime (Years) */
             lifetime: string;
         };
         /**
@@ -6242,21 +6242,21 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Beschreibung
+             * Description
              * @default
              */
             description: string;
             /**
-             * Anzahl
+             * Quantity
              * @default 0
              */
             quantity: number;
             /**
-             * Kaufdatum
+             * Purchase Date
              * Format: date
              */
             buy_date: string;
-            /** Lebenszeit (Jahre) */
+            /** Lifetime (Years) */
             lifetime: string;
         };
         /** MaterialPartIn */
@@ -6311,7 +6311,7 @@ export interface components {
             owner: components["schemas"]["MemberBrief"];
             material: components["schemas"]["MaterialPartRef"];
             /**
-             * Anzahl
+             * Count
              * @default 1
              */
             count: number;
@@ -6647,12 +6647,12 @@ export interface components {
             id: number;
             /** Absolute Urlname */
             absolute_urlname: string;
-            /** Titel */
+            /** Title */
             title: string;
             /** URL */
             urlname: string;
             /**
-             * In Navigation anzeigen
+             * Show in navigation
              * @default true
              */
             show_in_navigation: boolean;
@@ -6663,17 +6663,17 @@ export interface components {
             id: number;
             /** Absolute Urlname */
             absolute_urlname: string;
-            /** Titel */
+            /** Title */
             title: string;
             /** URL */
             urlname: string;
             /**
-             * Webseitentext
+             * Website Text
              * @default
              */
             website_text: string | null;
             /**
-             * In Navigation anzeigen
+             * Show in navigation
              * @default true
              */
             show_in_navigation: boolean;
@@ -6710,7 +6710,7 @@ export interface components {
             /** Absolute Urlname */
             absolute_urlname: string;
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string;
@@ -6720,7 +6720,7 @@ export interface components {
              */
             urlname: string;
             /**
-             * Detailliert
+             * Detailed
              * @default false
              */
             detailed: boolean;
@@ -6739,7 +6739,7 @@ export interface components {
             /** Groups */
             groups: components["schemas"]["GroupBrief"][];
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string;
@@ -6749,12 +6749,12 @@ export interface components {
              */
             urlname: string;
             /**
-             * Webseitentext
+             * Website Text
              * @default
              */
             website_text: string | null;
             /**
-             * Detailliert
+             * Detailed
              * @default false
              */
             detailed: boolean;
@@ -6795,16 +6795,16 @@ export interface components {
         FAQBrief: {
             /** Id */
             id: number;
-            /** Frage */
+            /** Question */
             question: string;
         };
         /** FAQOut */
         FAQOut: {
             /** Id */
             id: number;
-            /** Frage */
+            /** Question */
             question: string;
-            /** Antwort */
+            /** Answer */
             answer: string;
         };
         /** FAQIn */
@@ -6819,14 +6819,14 @@ export interface components {
             /** Id */
             id: number;
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string | null;
             /** Url */
             url: string;
             /**
-             * Sichtbar
+             * Visible
              * @default true
              */
             visible: boolean;
@@ -6838,19 +6838,19 @@ export interface components {
             /** Icon */
             icon?: string | null;
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string | null;
             /**
-             * Beschreibung
+             * Description
              * @default
              */
             description: string | null;
             /** Url */
             url: string;
             /**
-             * Sichtbar
+             * Visible
              * @default true
              */
             visible: boolean;
@@ -6907,7 +6907,7 @@ export interface components {
             /** Members */
             members: components["schemas"]["MemberBrief"][];
             /**
-             * Beschreibung
+             * Description
              * @default
              */
             description: string | null;
@@ -6989,7 +6989,7 @@ export interface components {
             /** Image */
             image?: string | null;
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string;
@@ -6999,12 +6999,12 @@ export interface components {
              */
             urlname: string;
             /**
-             * Webseitentext
+             * Website Text
              * @default
              */
             website_text: string | null;
             /**
-             * Detailliert
+             * Detailed
              * @default false
              */
             detailed: boolean;
@@ -7045,32 +7045,32 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Beschreibung
+             * Description
              * @default
              */
             description: string | null;
             /**
-             * Jahrgang auf der Webseite anzeigen
+             * Show Year Range On Website
              * @default false
              */
             show_website_year: boolean;
             /**
-             * Wochentag auf der Webseite anzeigen
+             * Show Weekday On Website
              * @default false
              */
             show_website_weekday: boolean;
             /**
-             * Zeiten auf der Webseite anzeigen
+             * Show Time On Website
              * @default false
              */
             show_website_time: boolean;
             /**
-             * Kontaktadresse auf der Webseite anzeigen
+             * Show Contact Email On Website
              * @default false
              */
             show_website_contact_email: boolean;
             /**
-             * Anmeldelink auf der Webseite anzeigen
+             * Show Registration Link On Website
              * @default false
              */
             show_website_registration: boolean;
@@ -7086,9 +7086,9 @@ export interface components {
             name: string;
             /** Image */
             image?: string | null;
-            /** Vorname */
+            /** Prename */
             prename: string;
-            /** Nachname */
+            /** Last Name */
             lastname: string;
         };
         /**
@@ -7126,7 +7126,7 @@ export interface components {
             /** People */
             people: components["schemas"]["PublicMemberBrief"][];
             /**
-             * Titel
+             * Title
              * @default
              */
             title: string;
@@ -7136,12 +7136,12 @@ export interface components {
              */
             urlname: string;
             /**
-             * Webseitentext
+             * Website Text
              * @default
              */
             website_text: string | null;
             /**
-             * Detailliert
+             * Detailed
              * @default false
              */
             detailed: boolean;
@@ -7161,9 +7161,9 @@ export interface components {
             submitted_by?: components["schemas"]["MemberBrief"] | null;
             /** Has Context */
             has_context: boolean;
-            /** Nachricht */
+            /** Message */
             message: string;
-            /** Seite */
+            /** Page */
             page_url?: string | null;
             /** Browser */
             user_agent?: string | null;
@@ -7204,9 +7204,9 @@ export interface components {
             submitted_by?: components["schemas"]["MemberBrief"] | null;
             /** Has Context */
             has_context: boolean;
-            /** Nachricht */
+            /** Message */
             message: string;
-            /** Seite */
+            /** Page */
             page_url?: string | null;
         };
         /**

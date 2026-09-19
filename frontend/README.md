@@ -49,24 +49,29 @@ is not mounted into the dev container):
 
 ```bash
 # from repo root: dump the schema to frontend/openapi.json
-cd jdav_web && ../.venv/bin/python manage.py compilemessages --locale de
-../.venv/bin/python manage.py export_openapi
+cd jdav_web && ../.venv/bin/python export_openapi.py
 # then regenerate the typed client
 cd ../frontend && npm run gen:api
 ```
 
-`compilemessages` first is not optional. Every field's `verbose_name` and
-`help_text` lands in the schema as a title or description, resolved once when
-django-ninja builds its schema classes. Compiled `.mo` files are gitignored and
-normally built at container start, so exporting from a fresh checkout without
-them quietly falls back to the msgids and rewrites hundreds of titles from
-German into English — a diff that looks like a real change and is not one.
-`export_openapi` pins the language to `LANGUAGE_CODE` and refuses to write
-anything when those catalogues are missing, so you get an error instead of a
-plausible file.
+The schema is exported in the source language, English, and the output is
+byte-identical whatever the exporter's environment looks like. That matters
+because every `verbose_name` and `help_text` lands in it as a title or
+description, and those are lazy translations: compiled `.mo` files are
+gitignored and built at container start, so an export that followed the
+ambient locale disagreed with itself between a fresh checkout and a running
+container — hundreds of strings flipping language, none of them a real change.
+English is also the right language for the artifact, which is a contract read
+by developers and fed to a type generator, not a page shown to a member.
 
-One source of churn is left: a couple of `help_text`s interpolate deployment
-settings (the mailer's allowed forwarding domains), so the exported schema
+It is a script rather than a `manage.py` command because a couple of
+`help_text`s interpolate with `%` at model-definition time, freezing their
+language as the models are imported. `manage.py` has already called
+`django.setup()` by the time a command runs, so only a script can deactivate
+translations early enough.
+
+One source of churn is left: those same interpolated `help_text`s embed
+deployment settings (the mailer's allowed forwarding domains), so the schema
 still reflects whichever configuration the exporter ran against.
 
 ## Scope

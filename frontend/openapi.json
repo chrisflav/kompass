@@ -10059,21 +10059,21 @@
               }
             ],
             "default": "",
-            "title": "Beschreibung"
+            "title": "Description"
           },
           "show_website": {
             "default": false,
-            "title": "Auf der Webseite anzeigen",
+            "title": "Show On Website",
             "type": "boolean"
           },
           "year_from": {
             "default": 2010,
-            "title": "Ab Jahrgang",
+            "title": "Lowest Year",
             "type": "integer"
           },
           "year_to": {
             "default": 2011,
-            "title": "Bis Jahrgang",
+            "title": "Highest Year",
             "type": "integer"
           },
           "weekday": {
@@ -10085,7 +10085,7 @@
                 "type": "null"
               }
             ],
-            "title": "Wochentag"
+            "title": "Week Day"
           },
           "start_time": {
             "anyOf": [
@@ -10097,7 +10097,7 @@
                 "type": "null"
               }
             ],
-            "title": "Zeitpunkt"
+            "title": "Starting time"
           },
           "end_time": {
             "anyOf": [
@@ -10109,7 +10109,7 @@
                 "type": "null"
               }
             ],
-            "title": "Endzeitpunkt"
+            "title": "Ending time"
           },
           "contact_email": {
             "anyOf": [
@@ -10120,31 +10120,31 @@
                 "type": "null"
               }
             ],
-            "title": "Kontakt-Email"
+            "title": "Contact email"
           },
           "show_website_year": {
             "default": false,
-            "title": "Jahrgang auf der Webseite anzeigen",
+            "title": "Show Year Range On Website",
             "type": "boolean"
           },
           "show_website_weekday": {
             "default": false,
-            "title": "Wochentag auf der Webseite anzeigen",
+            "title": "Show Weekday On Website",
             "type": "boolean"
           },
           "show_website_time": {
             "default": false,
-            "title": "Zeiten auf der Webseite anzeigen",
+            "title": "Show Time On Website",
             "type": "boolean"
           },
           "show_website_contact_email": {
             "default": false,
-            "title": "Kontaktadresse auf der Webseite anzeigen",
+            "title": "Show Contact Email On Website",
             "type": "boolean"
           },
           "show_website_registration": {
             "default": false,
-            "title": "Anmeldelink auf der Webseite anzeigen",
+            "title": "Show Registration Link On Website",
             "type": "boolean"
           }
         },
@@ -10501,13 +10501,13 @@
           "name": {
             "default": "",
             "maxLength": 50,
-            "title": "Aktivität",
+            "title": "Activity",
             "type": "string"
           },
           "place": {
             "default": "",
             "maxLength": 50,
-            "title": "Stützpunkt / Ort",
+            "title": "Place",
             "type": "string"
           },
           "approved": {
@@ -10519,8 +10519,8 @@
                 "type": "null"
               }
             ],
-            "description": "Wähle Ja bei Genehmigung, Nein bei Ablehung und Unbekannt, falls noch keine Entscheidung getroffen wurde.",
-            "title": "Genehmigt"
+            "description": "Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided.",
+            "title": "Approved"
           }
         },
         "required": [
@@ -10655,13 +10655,13 @@
           "name": {
             "default": "",
             "maxLength": 50,
-            "title": "Aktivität",
+            "title": "Activity",
             "type": "string"
           },
           "place": {
             "default": "",
             "maxLength": 50,
-            "title": "Stützpunkt / Ort",
+            "title": "Place",
             "type": "string"
           },
           "postcode": {
@@ -10675,8 +10675,8 @@
               }
             ],
             "default": "",
-            "description": "nur für einen LJP-Antrag relevant",
-            "title": "PLZ"
+            "description": "only relevant for a LJP application",
+            "title": "Postcode"
           },
           "destination": {
             "anyOf": [
@@ -10689,8 +10689,8 @@
               }
             ],
             "default": "",
-            "description": "z.B. ein Gipfel",
-            "title": "ggf. Ziel"
+            "description": "e.g. a peak",
+            "title": "Destination (optional)"
           },
           "description": {
             "anyOf": [
@@ -10702,7 +10702,7 @@
               }
             ],
             "default": "",
-            "title": "Beschreibung"
+            "title": "Description"
           },
           "tour_type": {
             "title": "Tour Type",
@@ -10710,13 +10710,13 @@
           },
           "tour_approach": {
             "default": 0,
-            "title": "Verkehrsmittel",
+            "title": "Means of transportation",
             "type": "integer"
           },
           "kilometers_traveled": {
             "default": 0,
-            "description": "Gesamte Fahrtstrecke (Hin- und Rückfahrt). Die Angabe ist relevant für die Berechnung der Zuschüsse durch den Jugendetat.",
-            "title": "Fahrstrecke in Kilometer",
+            "description": "The total kilometers traveled (away and back) during this excursion. This is relevant for the section subsidies.",
+            "title": "Kilometers traveled",
             "type": "integer"
           },
           "difficulty": {
@@ -10732,8 +10732,8 @@
                 "type": "null"
               }
             ],
-            "description": "Wähle Ja bei Genehmigung, Nein bei Ablehung und Unbekannt, falls noch keine Entscheidung getroffen wurde.",
-            "title": "Genehmigt"
+            "description": "Choose no in case of rejection or yes in case of approval. Leave empty, if not yet decided.",
+            "title": "Approved"
           },
           "approval_comments": {
             "anyOf": [
@@ -10745,12 +10745,12 @@
               }
             ],
             "default": "",
-            "title": "Kommentare oder Auflagen zur Genehmigung"
+            "title": "Approval comments"
           },
           "approved_extra_youth_leader_count": {
             "default": 0,
-            "description": "Die Anzahl der genehmigten Jugendleiter*innen pro Ausfahrt wird grundsätzlich durch die Anzahl der Teilnehmer*innen festgelegt. In besonderen Fällen, zum Beispiel bei einer fachlich herausfordernden Ausfahrt, können zusätzliche Jugendleiter*innen genehmigt werden.",
-            "title": "Anzahl zusätzlich genehmigter Jugendleiter*innen",
+            "description": "The number of approved youth leaders per excursion is determined by the number of participants. In special circumstances, e.g. in case of a technically demanding excursion, more youth leaders may be approved.",
+            "title": "Number of additional approved youth leaders",
             "type": "integer"
           }
         },
@@ -10818,17 +10818,17 @@
           },
           "prename": {
             "maxLength": 20,
-            "title": "Vorname",
+            "title": "Prename",
             "type": "string"
           },
           "lastname": {
             "maxLength": 20,
-            "title": "Nachname",
+            "title": "Last Name",
             "type": "string"
           },
           "confirmed": {
             "default": true,
-            "title": "Bestätigt",
+            "title": "Confirmed",
             "type": "boolean"
           },
           "birth_date": {
@@ -10841,7 +10841,7 @@
                 "type": "null"
               }
             ],
-            "title": "Geburtsdatum"
+            "title": "Birth Date"
           },
           "email": {
             "default": "",
@@ -10860,11 +10860,11 @@
               }
             ],
             "default": "",
-            "title": "Telefonnummer (mobil)"
+            "title": "Phone Number"
           },
           "echoed": {
             "default": true,
-            "title": "Rückgemeldet",
+            "title": "Echoed",
             "type": "boolean"
           },
           "comments": {
@@ -10877,7 +10877,7 @@
               }
             ],
             "default": "",
-            "title": "Kommentare"
+            "title": "Comments"
           }
         },
         "required": [
@@ -11363,12 +11363,12 @@
           },
           "prename": {
             "maxLength": 20,
-            "title": "Vorname",
+            "title": "Prename",
             "type": "string"
           },
           "lastname": {
             "maxLength": 20,
-            "title": "Nachname",
+            "title": "Last Name",
             "type": "string"
           },
           "email": {
@@ -11399,7 +11399,7 @@
                 "type": "null"
               }
             ],
-            "title": "Geburtsdatum"
+            "title": "Birth Date"
           },
           "gender": {
             "title": "Gender",
@@ -11416,7 +11416,7 @@
               }
             ],
             "default": "",
-            "title": "Telefonnummer (mobil)"
+            "title": "Phone Number"
           },
           "street": {
             "anyOf": [
@@ -11429,7 +11429,7 @@
               }
             ],
             "default": "",
-            "title": "Straße und Hausnummer"
+            "title": "Street And House Number"
           },
           "plz": {
             "anyOf": [
@@ -11442,7 +11442,7 @@
               }
             ],
             "default": "",
-            "title": "PLZ"
+            "title": "Postcode"
           },
           "town": {
             "anyOf": [
@@ -11455,7 +11455,7 @@
               }
             ],
             "default": "",
-            "title": "Stadt"
+            "title": "Town"
           },
           "address_extra": {
             "anyOf": [
@@ -11468,7 +11468,7 @@
               }
             ],
             "default": "",
-            "title": "Adress-Zusatz"
+            "title": "Address extra"
           },
           "country": {
             "anyOf": [
@@ -11481,7 +11481,7 @@
               }
             ],
             "default": "",
-            "title": "Land"
+            "title": "Country"
           },
           "dav_badge_no": {
             "anyOf": [
@@ -11494,7 +11494,7 @@
               }
             ],
             "default": "",
-            "title": "DAV Mitgliedsnummer"
+            "title": "DAV badge number"
           },
           "ticket_no": {
             "anyOf": [
@@ -11507,7 +11507,7 @@
               }
             ],
             "default": "",
-            "title": "Eintrittskarten Nummer"
+            "title": "Entrance Ticket Number"
           },
           "iban": {
             "anyOf": [
@@ -11531,7 +11531,7 @@
                 "type": "null"
               }
             ],
-            "title": "Eintritt"
+            "title": "Joined on"
           },
           "leave_date": {
             "anyOf": [
@@ -11543,21 +11543,21 @@
                 "type": "null"
               }
             ],
-            "title": "Austritt"
+            "title": "Left on"
           },
           "has_key": {
             "default": false,
-            "title": "Hat Jugendraumschlüssel",
+            "title": "Has key",
             "type": "boolean"
           },
           "has_free_ticket_gym": {
             "default": false,
-            "title": "Hat Freikarte für Kletterhalle",
+            "title": "Has a free ticket for the climbing gym",
             "type": "boolean"
           },
           "swimming_badge": {
             "default": false,
-            "title": "Kann schwimmen",
+            "title": "Knows how to swim",
             "type": "boolean"
           },
           "climbing_badge": {
@@ -11571,7 +11571,7 @@
               }
             ],
             "default": "",
-            "title": "Kletterschein"
+            "title": "Climbing badge"
           },
           "alpine_experience": {
             "anyOf": [
@@ -11583,7 +11583,7 @@
               }
             ],
             "default": "",
-            "title": "Alpine Erfahrung"
+            "title": "Alpine experience"
           },
           "allergies": {
             "anyOf": [
@@ -11595,7 +11595,7 @@
               }
             ],
             "default": "",
-            "title": "Allergieen"
+            "title": "Allergies"
           },
           "medication": {
             "anyOf": [
@@ -11607,7 +11607,7 @@
               }
             ],
             "default": "",
-            "title": "Medikamente"
+            "title": "Medication"
           },
           "tetanus_vaccination": {
             "anyOf": [
@@ -11620,7 +11620,7 @@
               }
             ],
             "default": "",
-            "title": "Tetanusimpfung"
+            "title": "Tetanus vaccination"
           },
           "may_cancel_appointment_independently": {
             "anyOf": [
@@ -11631,7 +11631,7 @@
                 "type": "null"
               }
             ],
-            "title": "Darf sich allein von der Gruppenstunde abmelden"
+            "title": "May cancel a group appointment independently"
           },
           "good_conduct_certificate_presented_date": {
             "anyOf": [
@@ -11643,7 +11643,7 @@
                 "type": "null"
               }
             ],
-            "title": "Führungszeugnis vorgelegt am"
+            "title": "Good conduct certificate presented on"
           },
           "legal_guardians": {
             "anyOf": [
@@ -11656,7 +11656,7 @@
               }
             ],
             "default": "",
-            "title": "Erziehungsberechtigte"
+            "title": "Legal guardians"
           },
           "comments": {
             "anyOf": [
@@ -11668,46 +11668,46 @@
               }
             ],
             "default": "",
-            "title": "Kommentare"
+            "title": "Comments"
           },
           "echoed": {
             "default": true,
-            "title": "Rückgemeldet",
+            "title": "Echoed",
             "type": "boolean"
           },
           "photos_may_be_taken": {
             "default": false,
-            "title": "Fotoerlaubnis",
+            "title": "Photos may be taken",
             "type": "boolean"
           },
           "gets_newsletter": {
             "default": true,
-            "title": "Erhält den Newsletter",
+            "title": "Receives Newsletter",
             "type": "boolean"
           },
           "active": {
             "default": true,
-            "title": "Aktiv",
+            "title": "Active",
             "type": "boolean"
           },
           "confirmed": {
             "default": true,
-            "title": "Bestätigt",
+            "title": "Confirmed",
             "type": "boolean"
           },
           "confirmed_mail": {
             "default": false,
-            "title": "Emailadresse bestätigt",
+            "title": "Email confirmed",
             "type": "boolean"
           },
           "confirmed_alternative_mail": {
             "default": true,
-            "title": "Alternative E-Mail Adresse bestätigt",
+            "title": "Alternative email confirmed",
             "type": "boolean"
           },
           "created": {
             "format": "date",
-            "title": "Erstellt",
+            "title": "Created",
             "type": "string"
           }
         },
@@ -11842,12 +11842,12 @@
           },
           "prename": {
             "maxLength": 20,
-            "title": "Vorname",
+            "title": "Prename",
             "type": "string"
           },
           "lastname": {
             "maxLength": 20,
-            "title": "Nachname",
+            "title": "Last Name",
             "type": "string"
           },
           "email": {
@@ -11878,16 +11878,16 @@
                 "type": "null"
               }
             ],
-            "title": "Geburtsdatum"
+            "title": "Birth Date"
           },
           "confirmed_mail": {
             "default": false,
-            "title": "Emailadresse bestätigt",
+            "title": "Email confirmed",
             "type": "boolean"
           },
           "confirmed_alternative_mail": {
             "default": true,
-            "title": "Alternative E-Mail Adresse bestätigt",
+            "title": "Alternative email confirmed",
             "type": "boolean"
           }
         },
@@ -12373,7 +12373,7 @@
           },
           "title": {
             "maxLength": 150,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "date": {
@@ -12386,7 +12386,7 @@
                 "type": "null"
               }
             ],
-            "title": "Datum"
+            "title": "Date"
           },
           "participated": {
             "anyOf": [
@@ -12397,7 +12397,7 @@
                 "type": "null"
               }
             ],
-            "title": "Teilgenommmen"
+            "title": "Participated"
           },
           "passed": {
             "anyOf": [
@@ -12408,7 +12408,7 @@
                 "type": "null"
               }
             ],
-            "title": "Bestanden"
+            "title": "Passed"
           }
         },
         "required": [
@@ -12467,7 +12467,7 @@
           },
           "title": {
             "maxLength": 150,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "date": {
@@ -12480,7 +12480,7 @@
                 "type": "null"
               }
             ],
-            "title": "Datum"
+            "title": "Date"
           },
           "comments": {
             "anyOf": [
@@ -12491,7 +12491,7 @@
                 "type": "null"
               }
             ],
-            "title": "Kommentar"
+            "title": "Comments"
           },
           "participated": {
             "anyOf": [
@@ -12502,7 +12502,7 @@
                 "type": "null"
               }
             ],
-            "title": "Teilgenommmen"
+            "title": "Participated"
           },
           "passed": {
             "anyOf": [
@@ -12513,7 +12513,7 @@
                 "type": "null"
               }
             ],
-            "title": "Bestanden"
+            "title": "Passed"
           }
         },
         "required": [
@@ -12722,19 +12722,19 @@
           },
           "date": {
             "format": "date",
-            "title": "Datum",
+            "title": "Date",
             "type": "string"
           },
           "location": {
             "default": "",
             "maxLength": 60,
-            "title": "Ort",
+            "title": "Location",
             "type": "string"
           },
           "topic": {
             "default": "",
             "maxLength": 60,
-            "title": "Thema",
+            "title": "Topic",
             "type": "string"
           }
         },
@@ -12770,19 +12770,19 @@
           },
           "date": {
             "format": "date",
-            "title": "Datum",
+            "title": "Date",
             "type": "string"
           },
           "location": {
             "default": "",
             "maxLength": 60,
-            "title": "Ort",
+            "title": "Location",
             "type": "string"
           },
           "topic": {
             "default": "",
             "maxLength": 60,
-            "title": "Thema",
+            "title": "Topic",
             "type": "string"
           }
         },
@@ -12926,7 +12926,7 @@
           "title": {
             "default": "",
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "date": {
@@ -12939,7 +12939,7 @@
                 "type": "null"
               }
             ],
-            "title": "Datum"
+            "title": "Date"
           }
         },
         "required": [
@@ -12964,7 +12964,7 @@
           "title": {
             "default": "",
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "date": {
@@ -12977,7 +12977,7 @@
                 "type": "null"
               }
             ],
-            "title": "Datum"
+            "title": "Date"
           }
         },
         "required": [
@@ -13085,12 +13085,12 @@
           },
           "prename": {
             "maxLength": 20,
-            "title": "Vorname",
+            "title": "Prename",
             "type": "string"
           },
           "lastname": {
             "maxLength": 20,
-            "title": "Nachname",
+            "title": "Last Name",
             "type": "string"
           },
           "email": {
@@ -13109,7 +13109,7 @@
                 "type": "null"
               }
             ],
-            "title": "Geburtsdatum"
+            "title": "Birth Date"
           },
           "gender": {
             "title": "Gender",
@@ -13117,17 +13117,17 @@
           },
           "application_date": {
             "format": "date-time",
-            "title": "Bewerbungsdatum",
+            "title": "Application Date",
             "type": "string"
           },
           "confirmed_mail": {
             "default": false,
-            "title": "Emailadresse bestätigt",
+            "title": "Email confirmed",
             "type": "boolean"
           },
           "sent_reminders": {
             "default": 0,
-            "title": "Verpasste Erinnerungen",
+            "title": "Missed reminders",
             "type": "integer"
           }
         },
@@ -13158,7 +13158,7 @@
           },
           "date": {
             "format": "date",
-            "title": "Einladungsdatum",
+            "title": "Invitation date",
             "type": "string"
           }
         },
@@ -13220,12 +13220,12 @@
           },
           "prename": {
             "maxLength": 20,
-            "title": "Vorname",
+            "title": "Prename",
             "type": "string"
           },
           "lastname": {
             "maxLength": 20,
-            "title": "Nachname",
+            "title": "Last Name",
             "type": "string"
           },
           "email": {
@@ -13244,7 +13244,7 @@
                 "type": "null"
               }
             ],
-            "title": "Geburtsdatum"
+            "title": "Birth Date"
           },
           "gender": {
             "title": "Gender",
@@ -13260,11 +13260,11 @@
               }
             ],
             "default": "",
-            "title": "Möchtest du uns noch etwas mitteilen?"
+            "title": "Do you want to tell us something else?"
           },
           "application_date": {
             "format": "date-time",
-            "title": "Bewerbungsdatum",
+            "title": "Application Date",
             "type": "string"
           },
           "comments": {
@@ -13277,16 +13277,16 @@
               }
             ],
             "default": "",
-            "title": "Kommentare"
+            "title": "Comments"
           },
           "confirmed_mail": {
             "default": false,
-            "title": "Emailadresse bestätigt",
+            "title": "Email confirmed",
             "type": "boolean"
           },
           "sent_reminders": {
             "default": 0,
-            "title": "Verpasste Erinnerungen",
+            "title": "Missed reminders",
             "type": "integer"
           }
         },
@@ -13428,13 +13428,13 @@
             "type": "string"
           },
           "ljp_category": {
-            "description": "Die offizielle Spielart für LJP Anträge mit dieser Aktivität.",
+            "description": "The official category for LJP applications associated with this activity.",
             "maxLength": 20,
-            "title": "LJP Spielart",
+            "title": "LJP category",
             "type": "string"
           },
           "description": {
-            "title": "Beschreibung",
+            "title": "Description",
             "type": "string"
           }
         },
@@ -13500,7 +13500,7 @@
             "type": "string"
           },
           "permission_needed": {
-            "title": "Freigabe erforderlich",
+            "title": "Permission needed",
             "type": "boolean"
           }
         },
@@ -13649,12 +13649,12 @@
           },
           "prename": {
             "maxLength": 20,
-            "title": "Vorname",
+            "title": "Prename",
             "type": "string"
           },
           "lastname": {
             "maxLength": 20,
-            "title": "Nachname",
+            "title": "Last Name",
             "type": "string"
           },
           "email": {
@@ -13672,7 +13672,7 @@
           },
           "phone_number": {
             "maxLength": 100,
-            "title": "Telefonnummer (mobil)",
+            "title": "Phone Number",
             "type": "string"
           }
         },
@@ -14373,7 +14373,7 @@
           },
           "date": {
             "format": "date",
-            "title": "Einladungsdatum",
+            "title": "Invitation date",
             "type": "string"
           }
         },
@@ -14405,7 +14405,7 @@
               }
             ],
             "default": "",
-            "title": "Kommentar"
+            "title": "Comment"
           }
         },
         "required": [
@@ -14464,16 +14464,16 @@
           },
           "date_start": {
             "format": "date-time",
-            "title": "Zeitpunkt",
+            "title": "Starting time",
             "type": "string"
           },
           "duration": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Dauer in Stunden",
+            "title": "Duration in hours",
             "type": "string"
           },
           "activity": {
-            "title": "Art der Aktion inkl. Methode",
+            "title": "Activity and method",
             "type": "string"
           }
         },
@@ -14542,19 +14542,19 @@
               }
             ],
             "default": "",
-            "description": "Offizieller Titel des Seminars, dieser weicht in der Regel vom informellen Titel ab. Verwende zum Beispiel Sportkletterkurs statt Kletterfreizeit.",
-            "title": "Titel"
+            "description": "Official title of your seminar, this can differ from the informal title. Use e.g. sports climbing course instead of climbing weekend for fun.",
+            "title": "Title"
           },
           "category": {
             "default": 2,
-            "description": "Kurstyp. In der Regel Themenorientierte Bildungsmaßnahme.",
-            "title": "Kategorie",
+            "description": "Type of seminar. Usually the correct choice is educational programme.",
+            "title": "Category",
             "type": "integer"
           },
           "goal": {
             "default": 1,
-            "description": "Offizielles Bildungsziel gemäß LJP Richtlinien.",
-            "title": "Bildungsziel",
+            "description": "Official learning goal according to LJP regulations.",
+            "title": "Learning goal",
             "type": "integer"
           },
           "goal_strategy": {
@@ -14567,8 +14567,8 @@
               }
             ],
             "default": "",
-            "description": "Wie wolltet ihr das Bildungsziel erreichen? Ist das Ziel so erreicht worden? Wenn nicht, warum nicht? Wenn ja, was hat geholfen, das Ziel zu erreichen?",
-            "title": "Zielverfolgung- und Erreichung"
+            "description": "How do you want to reach the learning goal? Has the goal been reached? If not, why not? If yes, what helped you to reach the goal?",
+            "title": "Strategy"
           },
           "not_bw_reason": {
             "anyOf": [
@@ -14579,8 +14579,8 @@
                 "type": "null"
               }
             ],
-            "description": "Falls die Ausfahrt außerhalb von Baden-Württemberg stattfindet, gib bitte eine Begründung an. Sonst lass dieses Feld frei.",
-            "title": "Begründung, falls Kursort nicht in Baden-Württemberg"
+            "description": "If the excursion takes place outside of Baden-Württemberg, please explain. Otherwise, leave this empty.",
+            "title": "Explanation if excursion not in Baden-Württemberg"
           }
         },
         "required": [
@@ -14868,7 +14868,7 @@
           },
           "short_description": {
             "maxLength": 30,
-            "title": "Kurzbeschreibung",
+            "title": "Short description",
             "type": "string"
           },
           "status": {
@@ -14886,7 +14886,7 @@
                 "type": "null"
               }
             ],
-            "title": "Eingereicht am"
+            "title": "Submitted on"
           },
           "confirmed_date": {
             "anyOf": [
@@ -14898,7 +14898,7 @@
                 "type": "null"
               }
             ],
-            "title": "Bezahlt am"
+            "title": "Paid on"
           }
         },
         "required": [
@@ -14963,7 +14963,7 @@
           },
           "short_description": {
             "maxLength": 30,
-            "title": "Kurzbeschreibung",
+            "title": "Short description",
             "type": "string"
           },
           "explanation": {
@@ -14975,7 +14975,7 @@
                 "type": "null"
               }
             ],
-            "title": "Erklärung"
+            "title": "Explanation"
           }
         },
         "required": [
@@ -15206,7 +15206,7 @@
           },
           "short_description": {
             "maxLength": 30,
-            "title": "Kurzbeschreibung",
+            "title": "Short description",
             "type": "string"
           },
           "explanation": {
@@ -15218,13 +15218,13 @@
                 "type": "null"
               }
             ],
-            "title": "Erklärung"
+            "title": "Explanation"
           },
           "night_cost": {
             "default": 0,
-            "description": "Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die Berechnung von Zuschüssen aus dem Jugendetat. Maximaler Zuschuss pro Person und Nacht: 11 €",
+            "description": "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is 11€.",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Preis pro Übernachtung",
+            "title": "Price per night",
             "type": "string"
           },
           "status": {
@@ -15242,7 +15242,7 @@
                 "type": "null"
               }
             ],
-            "title": "Eingereicht am"
+            "title": "Submitted on"
           },
           "confirmed_date": {
             "anyOf": [
@@ -15254,7 +15254,7 @@
                 "type": "null"
               }
             ],
-            "title": "Bezahlt am"
+            "title": "Paid on"
           }
         },
         "required": [
@@ -15773,7 +15773,7 @@
           },
           "short_description": {
             "maxLength": 30,
-            "title": "Kurzbeschreibung",
+            "title": "Short description",
             "type": "string"
           },
           "explanation": {
@@ -15785,16 +15785,16 @@
                 "type": "null"
               }
             ],
-            "title": "Erklärung"
+            "title": "Explanation"
           },
           "costs_covered": {
             "default": false,
-            "title": "Übernommen",
+            "title": "Covered",
             "type": "boolean"
           },
           "refunded": {
             "default": false,
-            "title": "Ausgezahlt",
+            "title": "Refunded",
             "type": "boolean"
           }
         },
@@ -16008,7 +16008,7 @@
             ]
           },
           "reference": {
-            "title": "Verwendungszweck",
+            "title": "Reference",
             "type": "string"
           }
         },
@@ -16091,7 +16091,7 @@
             "type": "boolean"
           },
           "reference": {
-            "title": "Verwendungszweck",
+            "title": "Reference",
             "type": "string"
           }
         },
@@ -16244,8 +16244,8 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.",
-            "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
+            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.",
+            "title": "Restrict to internal email addresses",
             "type": "boolean"
           }
         },
@@ -16302,8 +16302,8 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.",
-            "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
+            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.",
+            "title": "Restrict to internal email addresses",
             "type": "boolean"
           }
         },
@@ -16374,12 +16374,12 @@
           },
           "subject": {
             "maxLength": 50,
-            "title": "Betreff",
+            "title": "Subject",
             "type": "string"
           },
           "sent": {
             "default": false,
-            "title": "Gesendet",
+            "title": "Sent",
             "type": "boolean"
           }
         },
@@ -16492,16 +16492,16 @@
           },
           "subject": {
             "maxLength": 50,
-            "title": "Betreff",
+            "title": "Subject",
             "type": "string"
           },
           "content": {
-            "title": "Inhalt",
+            "title": "Content",
             "type": "string"
           },
           "sent": {
             "default": false,
-            "title": "Gesendet",
+            "title": "Sent",
             "type": "boolean"
           }
         },
@@ -16699,22 +16699,22 @@
           "description": {
             "default": "",
             "maxLength": 140,
-            "title": "Beschreibung",
+            "title": "Description",
             "type": "string"
           },
           "quantity": {
             "default": 0,
-            "title": "Anzahl",
+            "title": "Quantity",
             "type": "integer"
           },
           "buy_date": {
             "format": "date",
-            "title": "Kaufdatum",
+            "title": "Purchase Date",
             "type": "string"
           },
           "lifetime": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Lebenszeit (Jahre)",
+            "title": "Lifetime (Years)",
             "type": "string"
           }
         },
@@ -16806,22 +16806,22 @@
           "description": {
             "default": "",
             "maxLength": 140,
-            "title": "Beschreibung",
+            "title": "Description",
             "type": "string"
           },
           "quantity": {
             "default": 0,
-            "title": "Anzahl",
+            "title": "Quantity",
             "type": "integer"
           },
           "buy_date": {
             "format": "date",
-            "title": "Kaufdatum",
+            "title": "Purchase Date",
             "type": "string"
           },
           "lifetime": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Lebenszeit (Jahre)",
+            "title": "Lifetime (Years)",
             "type": "string"
           }
         },
@@ -16983,7 +16983,7 @@
           },
           "count": {
             "default": 1,
-            "title": "Anzahl",
+            "title": "Count",
             "type": "integer"
           }
         },
@@ -17754,7 +17754,7 @@
           },
           "title": {
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "urlname": {
@@ -17764,7 +17764,7 @@
           },
           "show_in_navigation": {
             "default": true,
-            "title": "In Navigation anzeigen",
+            "title": "Show in navigation",
             "type": "boolean"
           }
         },
@@ -17789,7 +17789,7 @@
           },
           "title": {
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "urlname": {
@@ -17807,11 +17807,11 @@
               }
             ],
             "default": "",
-            "title": "Webseitentext"
+            "title": "Website Text"
           },
           "show_in_navigation": {
             "default": true,
-            "title": "In Navigation anzeigen",
+            "title": "Show in navigation",
             "type": "boolean"
           }
         },
@@ -17910,7 +17910,7 @@
           "title": {
             "default": "",
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "urlname": {
@@ -17921,7 +17921,7 @@
           },
           "detailed": {
             "default": false,
-            "title": "Detailliert",
+            "title": "Detailed",
             "type": "boolean"
           }
         },
@@ -17978,7 +17978,7 @@
           "title": {
             "default": "",
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "urlname": {
@@ -17997,11 +17997,11 @@
               }
             ],
             "default": "",
-            "title": "Webseitentext"
+            "title": "Website Text"
           },
           "detailed": {
             "default": false,
-            "title": "Detailliert",
+            "title": "Detailed",
             "type": "boolean"
           }
         },
@@ -18079,7 +18079,7 @@
           },
           "question": {
             "maxLength": 255,
-            "title": "Frage",
+            "title": "Question",
             "type": "string"
           }
         },
@@ -18098,11 +18098,11 @@
           },
           "question": {
             "maxLength": 255,
-            "title": "Frage",
+            "title": "Question",
             "type": "string"
           },
           "answer": {
-            "title": "Antwort",
+            "title": "Answer",
             "type": "string"
           }
         },
@@ -18149,7 +18149,7 @@
               }
             ],
             "default": "",
-            "title": "Titel"
+            "title": "Title"
           },
           "url": {
             "maxLength": 250,
@@ -18158,7 +18158,7 @@
           },
           "visible": {
             "default": true,
-            "title": "Sichtbar",
+            "title": "Visible",
             "type": "boolean"
           }
         },
@@ -18197,7 +18197,7 @@
               }
             ],
             "default": "",
-            "title": "Titel"
+            "title": "Title"
           },
           "description": {
             "anyOf": [
@@ -18209,7 +18209,7 @@
               }
             ],
             "default": "",
-            "title": "Beschreibung"
+            "title": "Description"
           },
           "url": {
             "maxLength": 250,
@@ -18218,7 +18218,7 @@
           },
           "visible": {
             "default": true,
-            "title": "Sichtbar",
+            "title": "Visible",
             "type": "boolean"
           }
         },
@@ -18349,7 +18349,7 @@
               }
             ],
             "default": "",
-            "title": "Beschreibung"
+            "title": "Description"
           },
           "tag": {
             "anyOf": [
@@ -18532,7 +18532,7 @@
           "title": {
             "default": "",
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "urlname": {
@@ -18551,11 +18551,11 @@
               }
             ],
             "default": "",
-            "title": "Webseitentext"
+            "title": "Website Text"
           },
           "detailed": {
             "default": false,
-            "title": "Detailliert",
+            "title": "Detailed",
             "type": "boolean"
           }
         },
@@ -18646,31 +18646,31 @@
               }
             ],
             "default": "",
-            "title": "Beschreibung"
+            "title": "Description"
           },
           "show_website_year": {
             "default": false,
-            "title": "Jahrgang auf der Webseite anzeigen",
+            "title": "Show Year Range On Website",
             "type": "boolean"
           },
           "show_website_weekday": {
             "default": false,
-            "title": "Wochentag auf der Webseite anzeigen",
+            "title": "Show Weekday On Website",
             "type": "boolean"
           },
           "show_website_time": {
             "default": false,
-            "title": "Zeiten auf der Webseite anzeigen",
+            "title": "Show Time On Website",
             "type": "boolean"
           },
           "show_website_contact_email": {
             "default": false,
-            "title": "Kontaktadresse auf der Webseite anzeigen",
+            "title": "Show Contact Email On Website",
             "type": "boolean"
           },
           "show_website_registration": {
             "default": false,
-            "title": "Anmeldelink auf der Webseite anzeigen",
+            "title": "Show Registration Link On Website",
             "type": "boolean"
           }
         },
@@ -18711,12 +18711,12 @@
           },
           "prename": {
             "maxLength": 20,
-            "title": "Vorname",
+            "title": "Prename",
             "type": "string"
           },
           "lastname": {
             "maxLength": 20,
-            "title": "Nachname",
+            "title": "Last Name",
             "type": "string"
           }
         },
@@ -18807,7 +18807,7 @@
           "title": {
             "default": "",
             "maxLength": 50,
-            "title": "Titel",
+            "title": "Title",
             "type": "string"
           },
           "urlname": {
@@ -18826,11 +18826,11 @@
               }
             ],
             "default": "",
-            "title": "Webseitentext"
+            "title": "Website Text"
           },
           "detailed": {
             "default": false,
-            "title": "Detailliert",
+            "title": "Detailed",
             "type": "boolean"
           }
         },
@@ -18869,7 +18869,7 @@
             "type": "boolean"
           },
           "message": {
-            "title": "Nachricht",
+            "title": "Message",
             "type": "string"
           },
           "page_url": {
@@ -18882,7 +18882,7 @@
                 "type": "null"
               }
             ],
-            "title": "Seite"
+            "title": "Page"
           },
           "user_agent": {
             "anyOf": [
@@ -18957,7 +18957,7 @@
             "type": "boolean"
           },
           "message": {
-            "title": "Nachricht",
+            "title": "Message",
             "type": "string"
           },
           "page_url": {
@@ -18970,7 +18970,7 @@
                 "type": "null"
               }
             ],
-            "title": "Seite"
+            "title": "Page"
           }
         },
         "required": [

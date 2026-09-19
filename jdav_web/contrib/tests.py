@@ -5,19 +5,18 @@ from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import export_openapi
 from contrib.admin import CommonAdminMixin
-from contrib.management.commands.export_openapi import uncompiled_catalogues
 from contrib.models import CommonModel
+from contrib.openapi import render_schema
 from contrib.rules import has_global_perm
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.core.management import call_command
-from django.core.management.base import CommandError
 from django.db import models
-from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 from rules.contrib.models import RulesModelBase
 from rules.contrib.models import RulesModelMixin
@@ -273,35 +272,35 @@ class UtilsTestCase(TestCase):
 
 
 class ExportOpenapiTest(TestCase):
-    """The schema export must be reproducible, or refuse to write."""
+    """The schema export must not depend on the ambient language."""
 
-    def test_it_writes_the_schema_in_the_site_language(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            output = Path(tmp) / "openapi.json"
-            call_command("export_openapi", output=str(output))
-            schema = json.loads(output.read_text(encoding="utf-8"))
-
+    def test_the_document_is_rendered_in_the_source_language(self):
+        schema = json.loads(render_schema())
         self.assertIn("openapi", schema)
-        # Translated, not the msgid: exporting against uncompiled catalogues
-        # used to rewrite hundreds of titles into the source language.
-        title = schema["components"]["schemas"]["GroupOut"]["properties"]["description"]["title"]
-        self.assertEqual(title, "Beschreibung")
+        properties = schema["components"]["schemas"]["GroupOut"]["properties"]
+        self.assertEqual(properties["description"]["title"], "Description")
+        # A title django-ninja leaves lazy: it only becomes text in the
+        # encoder, so it used to come out translated even when the rest did
+        # not, giving a document in two languages at once.
+        intervention = schema["components"]["schemas"]["LJPInterventionOut"]["properties"]
+        self.assertEqual(intervention["date_start"]["title"], "Starting time")
 
-    def test_it_refuses_when_the_catalogues_are_not_compiled(self):
-        with patch(
-            "contrib.management.commands.export_openapi.uncompiled_catalogues",
-            return_value=[Path("/nowhere/de/LC_MESSAGES")],
-        ):
-            with self.assertRaises(CommandError) as raised:
-                call_command("export_openapi", output="/nowhere/openapi.json")
-        self.assertIn("compilemessages", str(raised.exception))
+    def test_it_renders_the_same_text_whatever_language_is_active(self):
+        with translation.override("de"):
+            under_german = render_schema()
+        with translation.override(None):
+            under_none = render_schema()
+        self.assertEqual(under_german, under_none)
 
-    def test_a_locale_directory_is_reported_until_its_mo_exists(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            messages = Path(tmp) / "de" / "LC_MESSAGES"
-            messages.mkdir(parents=True)
-            (messages / "django.po").write_text("", encoding="utf-8")
-            with override_settings(LOCALE_PATHS=[tmp]):
-                self.assertIn(messages, uncompiled_catalogues("de"))
-                (messages / "django.mo").write_text("", encoding="utf-8")
-                self.assertNotIn(messages, uncompiled_catalogues("de"))
+    def test_the_script_writes_the_document(self):
+        active = translation.get_language()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                output = Path(tmp) / "openapi.json"
+                with patch("builtins.print"):
+                    self.assertEqual(export_openapi.main(["--output", str(output)]), 0)
+                written = output.read_text(encoding="utf-8")
+        finally:
+            translation.activate(active)
+        self.assertIn("openapi", json.loads(written))
+        self.assertTrue(written.endswith("\n"))
