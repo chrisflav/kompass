@@ -3666,6 +3666,21 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * MemberRef
+         * @description Identity representation of a member named inside another object.
+         *
+         *     Deliberately not :class:`MemberBrief`, which carries birth date, email,
+         *     phone number and comments: a group listing has no business shipping those
+         *     about every youth leader. Callers that need the full record fetch the
+         *     member itself, where the object permissions apply.
+         */
+        MemberRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /** GroupOut */
         GroupOut: {
             /** Id */
@@ -3677,7 +3692,7 @@ export interface components {
             /** Age Info */
             age_info: string;
             /** Leiters */
-            leiters: components["schemas"]["GroupBrief"][];
+            leiters: components["schemas"]["MemberRef"][];
             /** Contact Email Display */
             contact_email_display?: string | null;
             /**

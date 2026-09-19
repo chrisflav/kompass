@@ -53,6 +53,19 @@ class GroupBrief(Schema):
     name: str
 
 
+class MemberRef(Schema):
+    """Identity representation of a member named inside another object.
+
+    Deliberately not :class:`MemberBrief`, which carries birth date, email,
+    phone number and comments: a group listing has no business shipping those
+    about every youth leader. Callers that need the full record fetch the
+    member itself, where the object permissions apply.
+    """
+
+    id: int
+    name: str
+
+
 class MemberBrief(ModelSchema):
     # Declared explicitly so the response contract types it as a required
     # non-null int (ModelSchema would otherwise mark the AutoField optional).
@@ -209,7 +222,7 @@ class GroupOut(ModelSchema):
     weekday_display: str
     time_info: str
     age_info: str
-    leiters: list[GroupBrief]
+    leiters: list[MemberRef]
     contact_email_display: str | None = None
     has_registration_password: bool = False
     # Prefill for the waiting-list invite dialog's editable text (the admin form's

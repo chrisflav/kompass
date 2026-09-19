@@ -10016,6 +10016,25 @@
         "title": "GroupBrief",
         "type": "object"
       },
+      "MemberRef": {
+        "description": "Identity representation of a member named inside another object.\n\nDeliberately not :class:`MemberBrief`, which carries birth date, email,\nphone number and comments: a group listing has no business shipping those\nabout every youth leader. Callers that need the full record fetch the\nmember itself, where the object permissions apply.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MemberRef",
+        "type": "object"
+      },
       "GroupOut": {
         "properties": {
           "id": {
@@ -10036,7 +10055,7 @@
           },
           "leiters": {
             "items": {
-              "$ref": "#/components/schemas/GroupBrief"
+              "$ref": "#/components/schemas/MemberRef"
             },
             "title": "Leiters",
             "type": "array"

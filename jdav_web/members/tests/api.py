@@ -157,6 +157,15 @@ class MembersApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json(), [])
 
+    def test_group_leiters_carry_only_an_id_and_a_name(self):
+        # The field is typed MemberRef, not MemberBrief: a group listing has no
+        # business shipping every youth leader's birth date, email and phone.
+        self.group.leiters.add(self.owner)
+        r = self.client.get("/api/members/groups", **self.auth(self.admin_user))
+        self.assertEqual(r.status_code, 200)
+        group = next(g for g in r.json() if g["id"] == self.group.pk)
+        self.assertEqual(group["leiters"], [{"id": self.owner.pk, "name": self.owner.name}])
+
     def test_groups_listed_with_permission(self):
         r = self.client.get("/api/members/groups", **self.auth(self.admin_user))
         self.assertEqual(r.status_code, 200)
