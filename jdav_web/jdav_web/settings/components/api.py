@@ -20,6 +20,13 @@ MIDDLEWARE.insert(
     "jdav_web.middleware.ApiNoCacheMiddleware",
 )
 
+# Pin /api/ to the site language. Must run after LocaleMiddleware, whose
+# choice (cookie, then Accept-Language) it deliberately overrides.
+MIDDLEWARE.insert(
+    MIDDLEWARE.index("django.middleware.locale.LocaleMiddleware") + 1,
+    "jdav_web.middleware.ApiLocaleMiddleware",
+)
+
 CORS_ALLOWED_ORIGINS = list(get_var("api", "cors_allowed_origins", default=[]))
 CORS_ALLOW_CREDENTIALS = get_var("api", "cors_allow_credentials", default=False)
 

@@ -13,17 +13,21 @@ from contrib.api.auth import user_for_token
 from contrib.api.perms import Forbidden
 from contrib.api.perms import get_member
 from contrib.permissions import scope_queryset
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from django.utils import timezone
+from django.utils import translation
 from members.models import DIVERSE
 from members.models import Member
+from members.models.ljp import LJPProposal
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
+from jdav_web.middleware import ApiLocaleMiddleware
 from jdav_web.middleware import ForwardedProtoForHostsMiddleware
 
 Application = get_application_model()
@@ -101,6 +105,57 @@ class PingTest(TestCase):
         r = self.client.get("/api/ping")
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r.json()["status"], "ok")
+
+
+class ApiLocaleTest(TestCase):
+    """The API answers in the site language, whatever the client asks for."""
+
+    def _language_during(self, path, active="en"):
+        seen = {}
+
+        def capture(request):
+            seen["lang"] = translation.get_language()
+            return HttpResponse()
+
+        translation.activate(active)
+        try:
+            ApiLocaleMiddleware(capture)(RequestFactory().get(path))
+        finally:
+            translation.deactivate()
+        return seen["lang"]
+
+    def test_an_api_request_is_answered_in_the_site_language(self):
+        self.assertEqual(self._language_during("/api/members/"), settings.LANGUAGE_CODE)
+
+    def test_a_request_outside_the_api_keeps_its_negotiated_language(self):
+        # Pages under i18n_patterns take their language from the URL prefix and
+        # must keep doing so; this middleware is only about the unprefixed API.
+        self.assertEqual(self._language_during("/de/kompass/"), "en")
+
+    def test_the_language_cookie_no_longer_decides_the_api_language(self):
+        # The regression. LocaleMiddleware reads `django_language` before
+        # `Accept-Language`, so ForceLangMiddleware's header rewrite lost to a
+        # browser holding the cookie, and the SPA — whose own labels are
+        # hardcoded German — showed English values beside them.
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+        response = self.client.get("/api/ping")
+        self.assertEqual(response.headers.get("Content-Language"), settings.LANGUAGE_CODE)
+
+    def test_a_choice_label_reads_german_during_an_api_request(self):
+        # What the user actually sees: the LJP tab's dropdown values.
+        proposal = LJPProposal(category=LJPProposal.LJP_EDUCATIONAL)
+        seen = {}
+
+        def capture(request):
+            seen["label"] = str(proposal.get_category_display())
+            return HttpResponse()
+
+        translation.activate("en")
+        try:
+            ApiLocaleMiddleware(capture)(RequestFactory().get("/api/members/excursions"))
+        finally:
+            translation.deactivate()
+        self.assertEqual(seen["label"], "Themenorientierte Bildungsmaßnahme")
 
 
 class ForwardedProtoForHostsTest(TestCase):

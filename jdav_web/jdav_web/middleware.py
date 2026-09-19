@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import DisallowedHost
+from django.utils import translation
 
 
 class ForceLangMiddleware:
@@ -8,6 +9,39 @@ class ForceLangMiddleware:
 
     def __call__(self, request):
         request.META["HTTP_ACCEPT_LANGUAGE"] = "de"
+        return self.get_response(request)
+
+
+class ApiLocaleMiddleware:
+    """Answer ``/api/`` in the site language, whatever the client asks for.
+
+    The API is mounted outside ``i18n_patterns``, so nothing in the URL pins a
+    language and ``LocaleMiddleware`` falls back to
+    ``get_language_from_request``: the ``django_language`` cookie first, the
+    ``Accept-Language`` header second. ``ForceLangMiddleware`` only rewrites
+    the header — the lower-priority of the two — so a browser holding
+    ``django_language=en`` (the public site's language switcher sets it, and it
+    is sent on same-origin API calls) got every translated string back in
+    English: choice labels, ``verbose_name``\ s, validation messages. The SPA's
+    own text is hardcoded German, so a page mixed German labels with English
+    values, and a field read English until you clicked edit — where the options
+    come from the frontend's own German constants.
+
+    The SPA ships no other language, so pin its API to ``LANGUAGE_CODE``. This
+    runs after ``LocaleMiddleware`` and overrides whatever it activated; pages
+    under ``i18n_patterns`` keep negotiating normally, since their language
+    comes from the URL prefix.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path.startswith("/api/"):
+            translation.activate(settings.LANGUAGE_CODE)
+            # Read back rather than reusing the setting: `activate` normalises
+            # it, and `LocaleMiddleware` sets Content-Language from this.
+            request.LANGUAGE_CODE = translation.get_language()
         return self.get_response(request)
 
 
