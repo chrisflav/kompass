@@ -15,8 +15,10 @@ from rules.contrib.admin import ObjectPermissionsModelAdmin
 from .mailutils import NOT_SENT
 from .mailutils import PARTLY_SENT
 from .models import Attachment
+from .models import DeliveryAttempt
 from .models import EmailAddress
 from .models import EmailAddressForm
+from .models import MailDeliveryState
 from .models import Message
 from .models import MessageForm
 
@@ -154,3 +156,37 @@ def submit_message(msg, request):
 
 admin.site.register(Message, MessageAdmin)
 admin.site.register(EmailAddress, EmailAddressAdmin)
+
+
+class MailDeliveryStateAdmin(admin.ModelAdmin):
+    """Which forwarding targets are failing, and why."""
+
+    list_display = ("email", "suspended", "hard_bounces", "soft_bounces", "last_bounce_at")
+    list_filter = ("suspended",)
+    search_fields = ("email",)
+    readonly_fields = ("last_bounce_at", "last_bounce_status", "last_bounce_detail")
+
+    @admin.action(description=_("Reactivate forwarding to the selected addresses"))
+    def reactivate(self, request, queryset):
+        updated = queryset.update(suspended=False, hard_bounces=0, soft_bounces=0)
+        messages.success(request, _("Reactivated %(count)d addresses.") % {"count": updated})
+
+    actions = ["reactivate"]
+
+
+class DeliveryAttemptAdmin(admin.ModelAdmin):
+    """Audit trail of forwarded copies, one row per target address."""
+
+    list_display = ("created_at", "address", "recipient", "subject", "sent_at", "bounced_at")
+    list_filter = ("address",)
+    search_fields = ("recipient", "subject", "message_id", "envelope_from")
+    readonly_fields = tuple(
+        field.name for field in DeliveryAttempt._meta.fields if field.name != "id"
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+
+admin.site.register(MailDeliveryState, MailDeliveryStateAdmin)
+admin.site.register(DeliveryAttempt, DeliveryAttemptAdmin)

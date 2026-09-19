@@ -3,6 +3,19 @@ revision = 3
 requires-python = ">=3.13"
 
 [[package]]
+name = "aiosmtpd"
+version = "1.4.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "atpublic" },
+    { name = "attrs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c4/ca/b2b7cc880403ef24be77383edaadfcf0098f5d7b9ddbf3e2c17ef0a6af0d/aiosmtpd-1.4.6.tar.gz", hash = "sha256:5a811826e1a5a06c25ebc3e6c4a704613eb9a1bcf6b78428fbe865f4f6c9a4b8", size = 152775, upload-time = "2024-05-18T11:37:50.029Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/39/d401756df60a8344848477d54fdf4ce0f50531f6149f3b8eaae9c06ae3dc/aiosmtpd-1.4.6-py3-none-any.whl", hash = "sha256:72c99179ba5aa9ae0abbda6994668239b64a5ce054471955fe75f581d2592475", size = 154263, upload-time = "2024-05-18T11:37:47.877Z" },
+]
+
+[[package]]
 name = "alabaster"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -39,6 +52,24 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/63/40/f03da1264ae8f7cfdbf9146542e5e7e8100a4c66ab48e791df9a03d3f6c0/asgiref-3.11.1.tar.gz", hash = "sha256:5f184dc43b7e763efe848065441eac62229c9f7b0475f41f80e207a114eda4ce", size = 38550, upload-time = "2026-02-03T13:30:14.33Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5c/0a/a72d10ed65068e115044937873362e6e32fab1b7dce0046aeb224682c989/asgiref-3.11.1-py3-none-any.whl", hash = "sha256:e8667a091e69529631969fd45dc268fa79b99c92c5fcdda727757e52146ec133", size = 24345, upload-time = "2026-02-03T13:30:13.039Z" },
+]
+
+[[package]]
+name = "atpublic"
+version = "7.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/05/e2e131a0debaf0f01b8a1b586f5f11713f6affc3e711b406f15f11eafc92/atpublic-7.0.0.tar.gz", hash = "sha256:466ef10d0c8bbd14fd02a5fbd5a8b6af6a846373d91106d3a07c16d72d96b63e", size = 17801, upload-time = "2025-11-29T05:56:45.45Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/c0/271f3e1e3502a8decb8ee5c680dbed2d8dc2cd504f5e20f7ed491d5f37e1/atpublic-7.0.0-py3-none-any.whl", hash = "sha256:6702bd9e7245eb4e8220a3e222afcef7f87412154732271ee7deee4433b72b4b", size = 6421, upload-time = "2025-11-29T05:56:44.604Z" },
+]
+
+[[package]]
+name = "attrs"
+version = "26.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32", size = 952055, upload-time = "2026-03-19T14:22:25.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309", size = 67548, upload-time = "2026-03-19T14:22:23.645Z" },
 ]
 
 [[package]]
@@ -733,6 +764,7 @@ name = "kompass"
 version = "2.0.1"
 source = { virtual = "." }
 dependencies = [
+    { name = "aiosmtpd" },
     { name = "auditlog3" },
     { name = "bcrypt" },
     { name = "celery" },
@@ -765,6 +797,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiosmtpd" },
     { name = "auditlog3" },
     { name = "bcrypt" },
     { name = "celery" },

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 23:50+0200\n"
+"POT-Creation-Date: 2026-09-19 02:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -44,6 +44,13 @@ msgstr "Fehler beim Senden der Emails"
 
 msgid "Successfully sent message"
 msgstr "Email wurde erfolgreich verschickt"
+
+msgid "Reactivate forwarding to the selected addresses"
+msgstr "Weiterleitung an die ausgewählten Adressen reaktivieren"
+
+#, python-format
+msgid "Reactivated %(count)d addresses."
+msgstr "%(count)d Adressen reaktiviert."
 
 msgid "Can't verify this link. Try again!"
 msgstr "Ungültiger Link. Bitte nochmal versuchen!"
@@ -171,6 +178,68 @@ msgstr "Anhang"
 
 msgid "attachments"
 msgstr "Anhänge"
+
+msgid "email"
+msgstr "E-Mail-Adresse"
+
+msgid "hard bounces"
+msgstr "Dauerhafte Zustellfehler"
+
+msgid "soft bounces"
+msgstr "Vorübergehende Zustellfehler"
+
+msgid "last bounce"
+msgstr "Letzter Zustellfehler"
+
+msgid "last status"
+msgstr "Letzter Status"
+
+msgid "last bounce detail"
+msgstr "Details zum letzten Zustellfehler"
+
+msgid "suspended"
+msgstr "Deaktiviert"
+
+msgid "No mail is forwarded to this address until it is reactivated."
+msgstr ""
+"An diese Adresse werden keine E-Mails weitergeleitet, bis sie wieder "
+"aktiviert wird."
+
+msgid "mail delivery state"
+msgstr "Zustellstatus"
+
+msgid "mail delivery states"
+msgstr "Zustellstatus"
+
+msgid "token"
+msgstr "Token"
+
+msgid "message id"
+msgstr "Message-ID"
+
+msgid "local address"
+msgstr "Lokale Adresse"
+
+msgid "recipient"
+msgstr "Empfänger:in"
+
+msgid "envelope sender"
+msgstr "Envelope-Absender:in"
+
+msgid "created"
+msgstr "Erstellt"
+
+msgid "bounced"
+msgstr "Zustellfehler"
+
+msgid "bounce status"
+msgstr "Status des Zustellfehlers"
+
+msgid "delivery attempt"
+msgstr "Zustellversuch"
+
+msgid "delivery attempts"
+msgstr "Zustellversuche"
 
 msgid "Save and send mail"
 msgstr "Speichern und Email senden"
