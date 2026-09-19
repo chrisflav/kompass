@@ -1,7 +1,7 @@
 {% load i18n %}<!DOCTYPE html>
-{# Login page for the OAuth2 authorization flow. Deliberately standalone: it is
+{% comment %}Login page for the OAuth2 authorization flow. Deliberately standalone: it is
    served under whichever domain the frontend runs on, so it must not depend on
-   the public site's chrome or context processors. #}
+   the public site's chrome or context processors.{% endcomment %}
 <html lang="{{ LANGUAGE_CODE|default:'de' }}">
 <head>
   <meta charset="utf-8">
