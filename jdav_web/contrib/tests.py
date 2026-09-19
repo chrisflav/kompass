@@ -275,15 +275,22 @@ class ExportOpenapiTest(TestCase):
     """The schema export must not depend on the ambient language."""
 
     def test_the_document_is_rendered_in_the_source_language(self):
-        schema = json.loads(render_schema())
+        document = render_schema()
+        schema = json.loads(document)
         self.assertIn("openapi", schema)
-        properties = schema["components"]["schemas"]["GroupOut"]["properties"]
-        self.assertEqual(properties["description"]["title"], "Description")
+
         # A title django-ninja leaves lazy: it only becomes text in the
         # encoder, so it used to come out translated even when the rest did
         # not, giving a document in two languages at once.
         intervention = schema["components"]["schemas"]["LJPInterventionOut"]["properties"]
         self.assertEqual(intervention["date_start"]["title"], "Starting time")
+        self.assertNotIn("Zeitpunkt", document)
+
+        # Casing is django-ninja's business — it title-cases a title it
+        # resolved itself and leaves a lazy one alone — so assert the language,
+        # which is ours, and not the capital D.
+        properties = schema["components"]["schemas"]["GroupOut"]["properties"]
+        self.assertEqual(properties["description"]["title"].lower(), "description")
 
     def test_it_renders_the_same_text_whatever_language_is_active(self):
         with translation.override("de"):
