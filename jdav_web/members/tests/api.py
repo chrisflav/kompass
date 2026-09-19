@@ -133,9 +133,29 @@ class MembersApiTestCase(TestCase):
 
     # --- groups -----------------------------------------------------------
 
-    def test_groups_forbidden_without_permission(self):
+    def test_groups_scoped_to_led_groups_without_permission(self):
+        """A leader without ``view_group`` still sees the groups they lead.
+
+        The dashboard builds "Meine Gruppen" from this list, so refusing it
+        outright rendered as "Du leitest aktuell keine Gruppe." — a false
+        statement rather than a permission error.
+        """
+        self.group.leiters.add(self.owner)
+        Group.objects.create(name="Steinboecke", year_from=2010, year_to=2015)
         r = self.client.get("/api/members/groups", **self.auth(self.owner_user))
-        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([g["name"] for g in r.json()], ["Alpenfuechse"])
+
+    def test_groups_empty_without_permission_and_without_led_groups(self):
+        r = self.client.get("/api/members/groups", **self.auth(self.owner_user))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), [])
+
+    def test_groups_empty_for_account_without_member(self):
+        bare = User.objects.create_user(username="bare", password="secret")
+        r = self.client.get("/api/members/groups", **self.auth(bare))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), [])
 
     def test_groups_listed_with_permission(self):
         r = self.client.get("/api/members/groups", **self.auth(self.admin_user))

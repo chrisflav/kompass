@@ -124,9 +124,22 @@ def _apply_member_update(request, member, payload):
 
 @router.get("/groups", response=list[GroupOut])
 def list_groups(request):
-    """Groups the user may view (plain Django ``members.view_group`` perm)."""
-    authorize(request, "members.view_group")
-    return Group.objects.all().order_by("name")
+    """Groups the user may view, scoped like ``list_registrations``.
+
+    Holders of ``members.view_group`` see every group. Everyone else sees the
+    groups they lead (``member.leited_groups``): a Jugendleiter needs their own
+    groups without holding the site-wide permission, since the dashboard's
+    "Meine Gruppen" panel and the group pickers are built from this list. A
+    plain 403 here surfaced as "Du leitest aktuell keine Gruppe." rather than as
+    an error. Callers without a linked member see nothing.
+    """
+    queryset = Group.objects.all().order_by("name")
+    if request.user.has_perm("members.view_group"):
+        return queryset
+    member = getattr(request.user, "member", None)
+    if member is None:
+        return Group.objects.none()
+    return queryset.filter(pk__in=member.leited_groups.values("pk"))
 
 
 @router.post("/groups", response={201: GroupOut})
