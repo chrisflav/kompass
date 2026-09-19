@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-07 09:35+0100\n"
+"POT-Creation-Date: 2026-08-30 10:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,6 +26,12 @@ msgstr "Nicht zu alt"
 
 msgid "Too old"
 msgstr "Zu alt"
+
+msgid "Filetype not supported."
+msgstr "Dieser Dateityp wird nicht unterstützt."
+
+msgid "File too large."
+msgstr "Die Datei ist zu groß."
 
 msgid "material"
 msgstr "Material"

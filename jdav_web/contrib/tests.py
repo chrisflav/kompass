@@ -1,9 +1,14 @@
+import json
+import tempfile
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import export_openapi
 from contrib.admin import CommonAdminMixin
 from contrib.models import CommonModel
+from contrib.openapi import render_schema
 from contrib.rules import has_global_perm
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -11,6 +16,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.test import RequestFactory
 from django.test import TestCase
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 from rules.contrib.models import RulesModelBase
 from rules.contrib.models import RulesModelMixin
@@ -263,3 +269,45 @@ class UtilsTestCase(TestCase):
         # Dates should be consecutive weeks
         self.assertEqual(result[1] - result[0], timedelta(days=7))
         self.assertEqual(result[2] - result[1], timedelta(days=7))
+
+
+class ExportOpenapiTest(TestCase):
+    """The schema export must not depend on the ambient language."""
+
+    def test_the_document_is_rendered_in_the_source_language(self):
+        document = render_schema()
+        schema = json.loads(document)
+        self.assertIn("openapi", schema)
+
+        # A title django-ninja leaves lazy: it only becomes text in the
+        # encoder, so it used to come out translated even when the rest did
+        # not, giving a document in two languages at once.
+        intervention = schema["components"]["schemas"]["LJPInterventionOut"]["properties"]
+        self.assertEqual(intervention["date_start"]["title"], "Starting time")
+        self.assertNotIn("Zeitpunkt", document)
+
+        # Casing is django-ninja's business — it title-cases a title it
+        # resolved itself and leaves a lazy one alone — so assert the language,
+        # which is ours, and not the capital D.
+        properties = schema["components"]["schemas"]["GroupOut"]["properties"]
+        self.assertEqual(properties["description"]["title"].lower(), "description")
+
+    def test_it_renders_the_same_text_whatever_language_is_active(self):
+        with translation.override("de"):
+            under_german = render_schema()
+        with translation.override(None):
+            under_none = render_schema()
+        self.assertEqual(under_german, under_none)
+
+    def test_the_script_writes_the_document(self):
+        active = translation.get_language()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                output = Path(tmp) / "openapi.json"
+                with patch("builtins.print"):
+                    self.assertEqual(export_openapi.main(["--output", str(output)]), 0)
+                written = output.read_text(encoding="utf-8")
+        finally:
+            translation.activate(active)
+        self.assertIn("openapi", json.loads(written))
+        self.assertTrue(written.endswith("\n"))

@@ -25,12 +25,29 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
 from oauth2_provider import urls as oauth2_urls
 
+from .api import api
+from .views import BuiltinLoginView
 from .views import media_access
 
 admin.site.index_title = _("Startpage")
 admin.site.site_header = "Kompass"
 
 urlpatterns = []
+
+# The REST API is mounted outside i18n_patterns and before the startpage
+# catch-all, so it is shadowed by neither a language prefix (a locale redirect
+# would turn a POST into a GET) nor the "^" include.
+urlpatterns += [
+    path("api/", api.urls),
+]
+
+# The sign-in page `/o/authorize/` sends an anonymous visitor to where there is
+# no identity provider; `BuiltinLoginView` answers 404 where there is one. Kept
+# outside i18n_patterns, because the frontend reaches it through its own domain,
+# where a locale redirect would land on that app's router instead of here.
+urlpatterns += [
+    path("accounts/login/", BuiltinLoginView.as_view(), name="login"),
+]
 
 if settings.OIDC_ENABLED:
     admin.site.login = staff_member_required(admin.site.login, login_url=settings.LOGIN_URL)
@@ -51,6 +68,11 @@ urlpatterns += i18n_patterns(
         include("ludwigsburgalpin.urls", namespace="ludwigsburgalpin"),
     ),
     re_path(r"^_nested_admin/", include("nested_admin.urls")),
+    # Stays inside i18n_patterns, where it has always been: every registered
+    # OAuth2 client is configured with the language-prefixed URL, and the OIDC
+    # issuer is derived from `reverse()`, so moving it would move the `iss`
+    # claim and the discovery document with it. The frontend reaches it on its
+    # own domain, whose nginx rewrites `/o/` onto the prefix for that host only.
     path("o/", include(oauth2_urls)),
     re_path(r"^", include("startpage.urls", namespace="startpage")),
 )

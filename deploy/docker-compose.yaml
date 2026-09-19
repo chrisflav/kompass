@@ -38,6 +38,43 @@ services:
         networks:
           - main
 
+    # The pilot frontend's own application server. Separate from `master` so its
+    # worker pool cannot queue in front of the requests real users are making.
+    spa_master:
+        <<: *kompass
+        entrypoint: /app/docker/production/entrypoint-spa-master.sh
+        volumes:
+          - uwsgi_spa_data:/tmp/uwsgi-spa/
+          # Read-only, like the celery worker: it renders PDFs that embed the
+          # logo by absolute static path, but never runs collectstatic itself.
+          - web_static:/var/www/jdav_web/static/:ro
+          - ./media:/var/www/jdav_web/media/
+          - ./config:/app/config:ro
+        depends_on:
+          - master
+        networks:
+          - main
+        extra_hosts:
+          - "host:10.26.42.1"
+
+    # The new frontend, on its own port so a second domain can be pointed at it
+    # while nginx above keeps serving the Django site unchanged. Bound to
+    # localhost: the TLS proxy is the only thing that should reach it, and the
+    # port otherwise offers the API in cleartext to anything on the network.
+    spa:
+        image: ghcr.io/chrisflav/kompass-spa:latest
+        restart: always
+        volumes:
+          - uwsgi_spa_data:/tmp/uwsgi-spa/
+          - web_static:/var/www/jdav_web/static/:ro
+          - ./media:/var/www/jdav_web/media/:ro
+        ports:
+          - "127.0.0.1:3001:80"
+        depends_on:
+          - spa_master
+        networks:
+          - main
+
     cache:
         restart: always
         image: memcached:alpine
@@ -90,6 +127,7 @@ services:
 
 volumes:
   uwsgi_data:
+  uwsgi_spa_data:
   web_static:
 
 networks:

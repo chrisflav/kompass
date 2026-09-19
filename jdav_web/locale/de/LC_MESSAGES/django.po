@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 22:26+0200\n"
+"POT-Creation-Date: 2026-09-18 23:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -29,6 +29,9 @@ msgstr "Unzureichende Berechtigungen"
 msgid "You are not allowed to view %(name)s."
 msgstr "Du hast nicht die notwendigen Berechtigungen um %(name)s zu sehen."
 
+msgid "No member is linked to this account."
+msgstr "Diesem Konto ist kein Mitglied zugeordnet."
+
 msgid "Please keep filesize under {} MiB. Current filesize: {:10.2f} MiB."
 msgstr "Maximale Dateigröße {} MiB. Aktuelle Dateigröße: {:10.2f} MiB."
 
@@ -38,6 +41,34 @@ msgstr "Dateityp nicht unterstützt."
 msgid "Please keep filesize under {}. Current filesize: {}"
 msgstr "Maximale Dateigröße {}. Aktuelle Dateigröße: {}."
 
+msgid "Please enter your feedback."
+msgstr "Bitte gib dein Feedback ein."
+
+#, python-format
+msgid "Feedback is limited to %(limit)s characters."
+msgstr "Feedback ist auf %(limit)s Zeichen begrenzt."
+
+msgid "(empty)"
+msgstr "(leer)"
+
+msgid "Feedback"
+msgstr "Feedback"
+
+msgid "Message"
+msgstr "Nachricht"
+
+msgid "Received on"
+msgstr "Eingegangen am"
+
+msgid "Submitted by"
+msgstr "Eingereicht von"
+
+msgid "Page"
+msgstr "Seite"
+
+msgid "Browser"
+msgstr "Browser"
+
 msgid "Startpage"
 msgstr "Startseite"
 
@@ -46,6 +77,18 @@ msgstr "Berechtigungen"
 
 msgid "Important dates"
 msgstr "Wichtigen Daten"
+
+msgid "You cannot delete your own account."
+msgstr "Du kannst dein eigenes Konto nicht löschen."
+
+msgid "Registration key is invalid or has expired."
+msgstr "Der Registrierungscode ist ungültig oder abgelaufen."
+
+msgid "You entered a wrong password."
+msgstr "Das eingegebene Passwort ist falsch."
+
+msgid "Registration failed."
+msgstr "Die Registrierung ist fehlgeschlagen."
 
 msgid "Authentication"
 msgstr "Authentifizierung"
@@ -141,9 +184,6 @@ msgid "You successfully set your login data. You can now proceed to"
 msgstr ""
 "Du hast deine Zugangsdaten erfolgreich festgelegt. Du kannst nun weiter zum"
 
-msgid "You entered a wrong password."
-msgstr "Das eingegebene Passwort ist falsch."
-
 msgid "Documentation"
 msgstr "Dokumentation"
 
@@ -211,7 +251,7 @@ msgid "current theme"
 msgstr "Aktuelles Thema"
 
 msgid "History"
-msgstr ""
+msgstr "Verlauf"
 
 msgid "View on site"
 msgstr "Auf der Website anzeigen"
@@ -312,3 +352,13 @@ msgstr "Zu Gruppe einladen"
 #, python-format
 msgid "Add another %(verbose_name)s"
 msgstr "%(verbose_name)s hinzufügen"
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "Please sign in to continue."
+msgstr "Bitte melde dich an, um fortzufahren."
+
+msgid "Your username and password did not match. Please try again."
+msgstr ""
+"Benutzername und Passwort passen nicht zusammen. Bitte versuche es erneut."

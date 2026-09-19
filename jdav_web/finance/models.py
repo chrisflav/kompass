@@ -368,6 +368,27 @@ class Statement(CommonModel):
     is_valid.boolean = True
     is_valid.short_description = _("Ready to confirm")
 
+    @property
+    def validity_display(self):
+        """Human-readable reason for the current :attr:`validity`.
+
+        Explains why a submitted statement is (not yet) ready to be confirmed,
+        mirroring the states described in the ``validity`` docstring.
+        """
+        return {
+            Statement.MISSING_LEDGER: _("At least one transaction has no ledger configured."),
+            Statement.NON_MATCHING_TRANSACTIONS: _(
+                "The transactions do not match the calculated costs."
+            ),
+            Statement.INVALID_ALLOWANCE_TO: _(
+                "The members receiving the allowance don't match the regulations."
+            ),
+            Statement.INVALID_TOTAL: _(
+                "The total of all transactions differs from the calculated total payout."
+            ),
+            Statement.VALID: _("Everything is correct."),
+        }[self.validity]
+
     def confirm(self, confirmer=None):
         if not self.submitted:
             return False

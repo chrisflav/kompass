@@ -19,6 +19,10 @@ RUN mkdir -p /var/www/jdav_web/media && chown -R app:app /var/www/jdav_web/media
 # in docker-compose.yaml, the permissions are inherited during the mount.
 RUN mkdir -p /tmp/uwsgi && chown -R app:app /tmp/uwsgi
 
+# The pilot frontend's uwsgi gets its own socket directory, so its worker pool
+# is separate from the one serving the existing site.
+RUN mkdir -p /tmp/uwsgi-spa && chown -R app:app /tmp/uwsgi-spa
+
 WORKDIR /app
 USER app
 
