@@ -49,12 +49,25 @@ is not mounted into the dev container):
 
 ```bash
 # from repo root: dump the schema to frontend/openapi.json
-cd jdav_web && ../.venv/bin/python manage.py shell -c "import json; \
-from django.core.serializers.json import DjangoJSONEncoder; from jdav_web.api import api; \
-open('../frontend/openapi.json','w').write(json.dumps(api.get_openapi_schema(), cls=DjangoJSONEncoder, ensure_ascii=False, indent=2))"
+cd jdav_web && ../.venv/bin/python manage.py compilemessages --locale de
+../.venv/bin/python manage.py export_openapi
 # then regenerate the typed client
 cd ../frontend && npm run gen:api
 ```
+
+`compilemessages` first is not optional. Every field's `verbose_name` and
+`help_text` lands in the schema as a title or description, resolved once when
+django-ninja builds its schema classes. Compiled `.mo` files are gitignored and
+normally built at container start, so exporting from a fresh checkout without
+them quietly falls back to the msgids and rewrites hundreds of titles from
+German into English — a diff that looks like a real change and is not one.
+`export_openapi` pins the language to `LANGUAGE_CODE` and refuses to write
+anything when those catalogues are missing, so you get an error instead of a
+plausible file.
+
+One source of churn is left: a couple of `help_text`s interpolate deployment
+settings (the mailer's allowed forwarding domains), so the exported schema
+still reflects whichever configuration the exporter ran against.
 
 ## Scope
 

@@ -43,7 +43,7 @@
             }
           }
         },
-        "description": "Groups the user may view (plain Django ``members.view_group`` perm).",
+        "description": "Groups the user may view, scoped like ``list_registrations``.\n\nHolders of ``members.view_group`` see every group. Everyone else sees the\ngroups they lead (``member.leited_groups``): a Jugendleiter needs their own\ngroups without holding the site-wide permission, since the dashboard's\n\"Meine Gruppen\" panel and the group pickers are built from this list. A\nplain 403 here surfaced as \"Du leitest aktuell keine Gruppe.\" rather than as\nan error. Callers without a linked member see nothing.",
         "tags": [
           "members"
         ],
@@ -9998,43 +9998,6 @@
   },
   "components": {
     "schemas": {
-      "GroupBrief": {
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "GroupBrief",
-        "type": "object"
-      },
-      "MemberRef": {
-        "description": "Identity representation of a member named inside another object.\n\nDeliberately not :class:`MemberBrief`, which carries birth date, email,\nphone number and comments: a group listing has no business shipping those\nabout every youth leader. Callers that need the full record fetch the\nmember itself, where the object permissions apply.",
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "MemberRef",
-        "type": "object"
-      },
       "GroupOut": {
         "properties": {
           "id": {
@@ -10194,6 +10157,25 @@
           "name"
         ],
         "title": "GroupOut",
+        "type": "object"
+      },
+      "MemberRef": {
+        "description": "Identity representation of a member named inside another object.\n\nDeliberately not :class:`MemberBrief`, which carries birth date, email,\nphone number and comments: a group listing has no business shipping those\nabout every youth leader. Callers that need the full record fetch the\nmember itself, where the object permissions apply.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MemberRef",
         "type": "object"
       },
       "GroupCreate": {
@@ -10547,6 +10529,24 @@
           "date"
         ],
         "title": "ExcursionBrief",
+        "type": "object"
+      },
+      "GroupBrief": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "GroupBrief",
         "type": "object"
       },
       "ActivityCategoryBrief": {
@@ -16244,7 +16244,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.",
+            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.",
             "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
             "type": "boolean"
           }
@@ -16302,7 +16302,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.",
+            "description": "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.",
             "title": "Weiterleitung nur von internen E-Mail Adressen erlaubt",
             "type": "boolean"
           }
@@ -18869,7 +18869,7 @@
             "type": "boolean"
           },
           "message": {
-            "title": "Message",
+            "title": "Nachricht",
             "type": "string"
           },
           "page_url": {
@@ -18882,7 +18882,7 @@
                 "type": "null"
               }
             ],
-            "title": "Page"
+            "title": "Seite"
           },
           "user_agent": {
             "anyOf": [
@@ -18957,7 +18957,7 @@
             "type": "boolean"
           },
           "message": {
-            "title": "Message",
+            "title": "Nachricht",
             "type": "string"
           },
           "page_url": {
@@ -18970,7 +18970,7 @@
                 "type": "null"
               }
             ],
-            "title": "Page"
+            "title": "Seite"
           }
         },
         "required": [

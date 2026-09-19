@@ -33,7 +33,14 @@ export interface paths {
         };
         /**
          * List Groups
-         * @description Groups the user may view (plain Django ``members.view_group`` perm).
+         * @description Groups the user may view, scoped like ``list_registrations``.
+         *
+         *     Holders of ``members.view_group`` see every group. Everyone else sees the
+         *     groups they lead (``member.leited_groups``): a Jugendleiter needs their own
+         *     groups without holding the site-wide permission, since the dashboard's
+         *     "Meine Gruppen" panel and the group pickers are built from this list. A
+         *     plain 403 here surfaced as "Du leitest aktuell keine Gruppe." rather than as
+         *     an error. Callers without a linked member see nothing.
          */
         get: operations["members_api_router_list_groups"];
         put?: never;
@@ -3659,28 +3666,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** GroupBrief */
-        GroupBrief: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-        };
-        /**
-         * MemberRef
-         * @description Identity representation of a member named inside another object.
-         *
-         *     Deliberately not :class:`MemberBrief`, which carries birth date, email,
-         *     phone number and comments: a group listing has no business shipping those
-         *     about every youth leader. Callers that need the full record fetch the
-         *     member itself, where the object permissions apply.
-         */
-        MemberRef: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-        };
         /** GroupOut */
         GroupOut: {
             /** Id */
@@ -3760,6 +3745,21 @@ export interface components {
              * @default false
              */
             show_website_registration: boolean;
+        };
+        /**
+         * MemberRef
+         * @description Identity representation of a member named inside another object.
+         *
+         *     Deliberately not :class:`MemberBrief`, which carries birth date, email,
+         *     phone number and comments: a group listing has no business shipping those
+         *     about every youth leader. Callers that need the full record fetch the
+         *     member itself, where the object permissions apply.
+         */
+        MemberRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /**
          * GroupCreate
@@ -3868,6 +3868,13 @@ export interface components {
              * @description Wähle Ja bei Genehmigung, Nein bei Ablehung und Unbekannt, falls noch keine Entscheidung getroffen wurde.
              */
             approved?: boolean | null;
+        };
+        /** GroupBrief */
+        GroupBrief: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /**
          * ActivityCategoryBrief
@@ -5992,7 +5999,7 @@ export interface components {
             name: string;
             /**
              * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.
+             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.
              * @default false
              */
             internal_only: boolean;
@@ -6015,7 +6022,7 @@ export interface components {
             name: string;
             /**
              * Weiterleitung nur von internen E-Mail Adressen erlaubt
-             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.
+             * @description Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: alpenverein-ludwigsburg.de, *.
              * @default false
              */
             internal_only: boolean;
@@ -7154,9 +7161,9 @@ export interface components {
             submitted_by?: components["schemas"]["MemberBrief"] | null;
             /** Has Context */
             has_context: boolean;
-            /** Message */
+            /** Nachricht */
             message: string;
-            /** Page */
+            /** Seite */
             page_url?: string | null;
             /** Browser */
             user_agent?: string | null;
@@ -7197,9 +7204,9 @@ export interface components {
             submitted_by?: components["schemas"]["MemberBrief"] | null;
             /** Has Context */
             has_context: boolean;
-            /** Message */
+            /** Nachricht */
             message: string;
-            /** Page */
+            /** Seite */
             page_url?: string | null;
         };
         /**

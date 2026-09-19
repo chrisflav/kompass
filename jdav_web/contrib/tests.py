@@ -1,14 +1,21 @@
+import json
+import tempfile
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
 
 from contrib.admin import CommonAdminMixin
+from contrib.management.commands.export_openapi import uncompiled_catalogues
 from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import models
+from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from django.utils.translation import gettext_lazy as _
@@ -263,3 +270,38 @@ class UtilsTestCase(TestCase):
         # Dates should be consecutive weeks
         self.assertEqual(result[1] - result[0], timedelta(days=7))
         self.assertEqual(result[2] - result[1], timedelta(days=7))
+
+
+class ExportOpenapiTest(TestCase):
+    """The schema export must be reproducible, or refuse to write."""
+
+    def test_it_writes_the_schema_in_the_site_language(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "openapi.json"
+            call_command("export_openapi", output=str(output))
+            schema = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertIn("openapi", schema)
+        # Translated, not the msgid: exporting against uncompiled catalogues
+        # used to rewrite hundreds of titles into the source language.
+        title = schema["components"]["schemas"]["GroupOut"]["properties"]["description"]["title"]
+        self.assertEqual(title, "Beschreibung")
+
+    def test_it_refuses_when_the_catalogues_are_not_compiled(self):
+        with patch(
+            "contrib.management.commands.export_openapi.uncompiled_catalogues",
+            return_value=[Path("/nowhere/de/LC_MESSAGES")],
+        ):
+            with self.assertRaises(CommandError) as raised:
+                call_command("export_openapi", output="/nowhere/openapi.json")
+        self.assertIn("compilemessages", str(raised.exception))
+
+    def test_a_locale_directory_is_reported_until_its_mo_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            messages = Path(tmp) / "de" / "LC_MESSAGES"
+            messages.mkdir(parents=True)
+            (messages / "django.po").write_text("", encoding="utf-8")
+            with override_settings(LOCALE_PATHS=[tmp]):
+                self.assertIn(messages, uncompiled_catalogues("de"))
+                (messages / "django.mo").write_text("", encoding="utf-8")
+                self.assertNotIn(messages, uncompiled_catalogues("de"))
