@@ -22,10 +22,10 @@ class ApiLocaleMiddleware:
     the header — the lower-priority of the two — so a browser holding
     ``django_language=en`` (the public site's language switcher sets it, and it
     is sent on same-origin API calls) got every translated string back in
-    English: choice labels, ``verbose_name``\ s, validation messages. The SPA's
-    own text is hardcoded German, so a page mixed German labels with English
-    values, and a field read English until you clicked edit — where the options
-    come from the frontend's own German constants.
+    English: choice labels, ``verbose_name`` strings, validation messages. The
+    SPA's own text is hardcoded German, so a page mixed German labels with
+    English values, and a field read English until you clicked edit — where
+    the options come from the frontend's own German constants.
 
     The SPA ships no other language, so pin its API to ``LANGUAGE_CODE``. This
     runs after ``LocaleMiddleware`` and overrides whatever it activated; pages
