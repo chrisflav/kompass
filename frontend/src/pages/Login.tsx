@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth";
@@ -53,28 +53,43 @@ export function AuthCallback() {
   useDocumentTitle("Anmeldung");
   const { token, completeLogin } = useAuth();
   const [params] = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
-  const [target, setTarget] = useState<string | null>(null);
-  const [started, setStarted] = useState(false);
-
   const code = params.get("code");
   const state = params.get("state");
   const denied = params.get("error");
 
-  if (!started) {
-    setStarted(true);
-    if (denied) {
-      setError("Die Anmeldung wurde abgebrochen.");
-    } else if (!code || !state) {
-      setError("Die Antwort der Anmeldung war unvollständig. Bitte versuche es erneut.");
-    } else {
-      completeLogin(code, state)
-        .then(setTarget)
-        .catch((err: unknown) =>
-          setError(err instanceof Error ? err.message : "Anmeldung fehlgeschlagen."),
-        );
+  // What the provider sent back can be judged without asking it anything, so
+  // judge it while rendering. An initializer, not an effect: the redirect below
+  // is reached on the first paint, and a holder of a stale token would be sent
+  // to the dashboard before an effect had run to say the login was refused.
+  const [error, setError] = useState<string | null>(() => {
+    if (denied) return "Die Anmeldung wurde abgebrochen.";
+    if (!code || !state) {
+      return "Die Antwort der Anmeldung war unvollständig. Bitte versuche es erneut.";
     }
-  }
+    return null;
+  });
+  const [target, setTarget] = useState<string | null>(null);
+
+  // The exchange is the opposite case: it spends the PKCE verifier held in
+  // sessionStorage and the authorization code at the provider, so it belongs in
+  // an effect and must run exactly once. The guard is a ref rather than state
+  // because StrictMode invokes the render function twice per pass and replays
+  // mount effects, and a second run would find the verifier already cleared and
+  // report the login as unassignable.
+  const exchanged = useRef(false);
+
+  useEffect(() => {
+    if (exchanged.current || !code || !state || denied) return;
+    exchanged.current = true;
+    completeLogin(code, state)
+      .then(setTarget)
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Anmeldung fehlgeschlagen."),
+      );
+    // Runs once for the callback the browser landed on; the ref, not the
+    // dependency list, is what keeps it to one attempt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (target) return <Navigate to={target} replace />;
   // A token without a target means the exchange finished on an earlier render.

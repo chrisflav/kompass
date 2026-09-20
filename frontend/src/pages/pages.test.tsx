@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, http, HttpResponse, server } from "../test/server";
@@ -112,6 +113,44 @@ describe("AuthCallback", () => {
   it("says so when the provider came back without a code", async () => {
     renderWithApp(<AuthCallback />, { route: "/callback", authenticated: false });
     expect(await screen.findByText(/unvollständig/)).toBeInTheDocument();
+  });
+
+  it("reports a StrictMode-rendered exchange as the success it was", async () => {
+    // The app really does run inside StrictMode (see main.tsx), which invokes
+    // the render function twice per pass. A guard held in render-phase state
+    // does not survive that, so the exchange ran from both invocations: the
+    // first spent the verifier and got a token, the second found sessionStorage
+    // already emptied and rejected straight away. The rejection landed first,
+    // so a login that had in fact succeeded was reported as unassignable.
+    startedFlow();
+    let exchanges = 0;
+    server.use(
+      http.post(api("/o/token/"), () => {
+        exchanges += 1;
+        return HttpResponse.json({ access_token: "einmaliges-token" });
+      }),
+    );
+    renderWithApp(
+      <StrictMode>
+        <AuthCallback />
+      </StrictMode>,
+      { route: "/callback?code=CODE&state=state-abc", authenticated: false },
+    );
+
+    await waitFor(() => expect(localStorage.getItem("kompass_token")).toBe("einmaliges-token"));
+    expect(screen.queryByText(/zugeordnet/)).not.toBeInTheDocument();
+    // The second invocation never reached the provider even before the fix, so
+    // this guards the code against being spent twice rather than reproducing
+    // the bug; the assertion above is the one that fails without the fix.
+    expect(exchanges).toBe(1);
+  });
+
+  it("reports a refusal even to a tab still holding a token", async () => {
+    // The redirect for an already-signed-in visitor is decided on the first
+    // paint. Judging the provider's answer one tick later, in an effect, sent
+    // anyone with a stale token to the dashboard and swallowed the refusal.
+    renderRoute("/callback?error=access_denied", { authenticated: true });
+    expect(await screen.findByText("Die Anmeldung wurde abgebrochen.")).toBeInTheDocument();
   });
 
   it("reports a refused exchange and offers the way back to the login", async () => {
