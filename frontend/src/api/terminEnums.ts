@@ -9,7 +9,7 @@ import type { components } from "./schema";
  * verbatim, keyed by field name.
  */
 
-/** One `{value, label}` option of a Termin choice field. */
+/** One option of a Termin choice field; `default` marks the model default. */
 export type TerminChoice = components["schemas"]["TerminEnumChoice"];
 
 /** The `/enums` payload: one option list per Termin choice field. */
