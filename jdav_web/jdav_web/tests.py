@@ -1,3 +1,6 @@
+import base64
+import hashlib
+from datetime import timedelta
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -5,9 +8,13 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
+from django.utils import timezone
+from oauth2_provider.models import get_application_model
+from oauth2_provider.models import get_grant_model
 from startpage.models import Link
 
 from jdav_web.settings import _load_toml
@@ -15,6 +22,9 @@ from jdav_web.views import custom_admin_view
 from jdav_web.views import custom_app_index
 from jdav_web.views import media_protected
 from jdav_web.views import media_unprotected
+
+Application = get_application_model()
+Grant = get_grant_model()
 
 
 class LoadTomlTestCase(TestCase):
@@ -178,3 +188,70 @@ class BuiltinLoginPageTestCase(TestCase):
         # A redirect to /de/accounts/login/ would land on the frontend's router
         # when this is reached through the frontend's own domain.
         self.assertEqual(self.client.get("/de/accounts/login/").status_code, 404)
+
+
+class BackChannelOAuthUrlsTestCase(TestCase):
+    """The POST-only OAuth2 endpoints answer without a language prefix.
+
+    ``/o/`` is mounted inside ``i18n_patterns``, so an unprefixed request is
+    answered with a redirect to ``/de/o/...``. The Fetch standard turns a POST
+    into a GET across a 302 and drops the body, so the SPA's code-for-token
+    exchange arrived as a bodiless GET — an unredeemable authorization code and
+    a login that could never finish.
+    """
+
+    def test_no_back_channel_endpoint_redirects_a_post(self):
+        for path in ("/o/token/", "/o/revoke_token/", "/o/introspect/"):
+            with self.subTest(path=path):
+                res = self.client.post(path, {"client_id": settings.FRONTEND_OAUTH_CLIENT_ID})
+                self.assertNotEqual(res.status_code, 302, res.get("Location", ""))
+
+    def test_the_spa_can_exchange_its_code_on_the_unprefixed_url(self):
+        # The id the provider matches on to require PKCE (see
+        # `OAUTH2_PROVIDER["PKCE_REQUIRED"]`), so this exercises the SPA's own
+        # flow rather than a laxer one. The redirect URI is passed explicitly:
+        # the command only falls back to its development defaults when it has
+        # no application to update.
+        client_id = settings.FRONTEND_OAUTH_CLIENT_ID
+        redirect_uri = "http://localhost:5173/callback"
+        call_command(
+            "ensure_frontend_oauth_app",
+            "--client-id",
+            client_id,
+            "--redirect-uri",
+            redirect_uri,
+        )
+
+        # The grant is created directly rather than driven through
+        # `/o/authorize/`: that view is unchanged here and needs a signed-in
+        # session, which where OIDC is configured `SessionRefresh` bounces to
+        # the identity provider. What this test is about is the POST.
+        verifier = "a" * 64
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
+        Grant.objects.create(
+            user=User.objects.create_user("spa-nutzer", password="ein-langes-pw-42"),
+            code="ein-einmaliger-code",
+            application=Application.objects.get(client_id=client_id),
+            expires=timezone.now() + timedelta(minutes=10),
+            redirect_uri=redirect_uri,
+            scope="profile email",
+            code_challenge=challenge,
+            code_challenge_method="S256",
+        )
+
+        exchanged = self.client.post(
+            "/o/token/",
+            {
+                "grant_type": "authorization_code",
+                "code": "ein-einmaliger-code",
+                "redirect_uri": redirect_uri,
+                "client_id": client_id,
+                "code_verifier": verifier,
+            },
+        )
+        self.assertEqual(exchanged.status_code, 200, exchanged.content)
+        self.assertIn("access_token", exchanged.json())

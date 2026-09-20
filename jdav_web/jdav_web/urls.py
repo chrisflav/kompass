@@ -24,6 +24,7 @@ from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import RedirectView
 from oauth2_provider import urls as oauth2_urls
+from oauth2_provider import views as oauth2_views
 
 from .api import api
 from .views import BuiltinLoginView
@@ -47,6 +48,28 @@ urlpatterns += [
 # where a locale redirect would land on that app's router instead of here.
 urlpatterns += [
     path("accounts/login/", BuiltinLoginView.as_view(), name="login"),
+]
+
+# The back-channel OAuth2 endpoints, reachable without a language prefix.
+#
+# `/o/` itself stays inside i18n_patterns (see below), so a request without a
+# prefix is answered with a redirect to `/de/o/...`. That is harmless for the
+# interactive GET views, but these three are POST-only: per the Fetch standard
+# a 302 turns a POST into a GET and drops the body, so the SPA's code-for-token
+# exchange arrived as a bodiless GET and came back 405. Production hides this
+# behind an nginx rewrite on the frontend domain; nothing rewrites in local
+# development, which left the SPA unable to finish a login at all.
+#
+# Registered without a name, so `reverse()` -- and with it the OIDC issuer and
+# the discovery document -- keeps resolving to the prefixed URLs below.
+#
+# `device-authorization`, `userinfo` and `logout` take a POST too and are left
+# out on purpose: nothing here uses the device flow, and the SPA deliberately
+# asks for no `openid` scope, so it never calls the other two.
+urlpatterns += [
+    path("o/token/", oauth2_views.TokenView.as_view()),
+    path("o/revoke_token/", oauth2_views.RevokeTokenView.as_view()),
+    path("o/introspect/", oauth2_views.IntrospectTokenView.as_view()),
 ]
 
 if settings.OIDC_ENABLED:
