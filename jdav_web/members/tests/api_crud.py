@@ -617,6 +617,64 @@ class MembersCrudApiTestCase(TestCase):
         self.member.refresh_from_db()
         self.assertEqual(self.member.user, account)
 
+    def test_clearing_a_members_login_account(self):
+        # The relation is nullable, so the picker's "no account" option sends an
+        # explicit null — which must unlink rather than be silently ignored.
+        r = self.patch(
+            "/api/members/{}".format(self.member.pk),
+            {"user_id": None},
+            **self.as_admin("may_set_auth_user"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIsNone(r.json()["user_id"])
+        self.member.refresh_from_db()
+        self.assertIsNone(self.member.user)
+
+    def test_login_account_options_need_the_field_permission(self):
+        # The options behind the member's "Nutzer" field are gated on the very
+        # permission that lets one change it, not on auth.view_user: the admin
+        # renders the select for exactly those users.
+        free = User.objects.create_user("ohne-mitglied-3", password="secret")
+        registration = self._registration()
+        taken_by_registration = User.objects.create_user("noch-unbestaetigt", password="secret")
+        registration.user = taken_by_registration
+        registration.save()
+        refused = self.client.get("/api/members/auth-users", **self.as_admin("view_global_member"))
+        self.assertEqual(refused.status_code, 403, refused.content)
+
+        allowed = self.client.get("/api/members/auth-users", **self.as_admin("may_set_auth_user"))
+        self.assertEqual(allowed.status_code, 200, allowed.content)
+        options = {o["username"]: o for o in allowed.json()}
+        self.assertEqual(
+            options[free.username], {"id": free.pk, "username": free.username, "taken": False}
+        )
+        # An account already taken still shows up (as in the admin) but only
+        # says so — an unconfirmed registration holds it just as firmly.
+        self.assertTrue(options[self.user.username]["taken"])
+        self.assertTrue(options[taken_by_registration.username]["taken"])
+
+    def test_login_account_options_name_no_member(self):
+        # may_set_auth_user says one may *write* the link; it says nothing about
+        # who a member is. Member.may_view is this app's whole permission model,
+        # so the picker must not route around it: a member the caller may
+        # neither list nor retrieve must not surface here by name either.
+        stranger_user, stranger = make_member_user("fremde-anmeldung")
+        stranger.prename = "Geheime"
+        stranger.lastname = "Person"
+        stranger.save()
+        headers = self.as_admin("may_set_auth_user")
+        refused = self.client.get("/api/members/{}".format(stranger.pk), **headers)
+        self.assertEqual(refused.status_code, 403, refused.content)
+
+        r = self.client.get("/api/members/auth-users", **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.content.decode()
+        self.assertNotIn("Geheime", body)
+        self.assertNotIn("Person", body)
+        # ...while the option still warns that the account is spoken for.
+        options = {o["username"]: o for o in r.json()}
+        self.assertTrue(options[stranger_user.username]["taken"])
+
     def test_registrations_are_empty_for_an_account_without_a_member(self):
         # The list is scoped by the caller's led groups; with no member behind
         # the account there is nothing to scope by, so it must show nothing

@@ -885,6 +885,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/auth-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Auth Users
+         * @description Login accounts offered by the member change view's ``Nutzer`` picker.
+         *
+         *     Gated on ``members.may_set_auth_user`` — the same permission
+         *     :func:`update_member` enforces for ``user_id`` — rather than on
+         *     ``auth.view_user``, which it does not imply: in the admin the select is
+         *     rendered for exactly the users who may change the field.
+         *
+         *     That permission covers *writing* the link and nothing else, so no member is
+         *     named here — an account already spoken for is reported as ``taken``, no more.
+         *     Naming its member would disclose an identity that ``Member.may_view``, and
+         *     with it both :func:`list_members` and :func:`retrieve_member`, refuses this
+         *     caller; the admin's select shows usernames only for the same reason. See
+         *     ``GET /api/logindata/users`` for the account administration surface proper,
+         *     which does carry ``member_name`` — behind ``auth.view_user``.
+         */
+        get: operations["members_api_router_list_auth_users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/{member_id}": {
         parameters: {
             query?: never;
@@ -4996,6 +5029,31 @@ export interface components {
             value: unknown;
             /** Label */
             label: string;
+        };
+        /**
+         * AuthUserBrief
+         * @description One login account, for the member change view's "Nutzer" picker.
+         *
+         *     The admin renders ``Member.user`` as a plain select over every ``User``, so
+         *     the list is unfiltered here too. ``taken`` flags an account that is already
+         *     linked — the relation is one-to-one, so picking such an account fails on
+         *     uniqueness, and saying so in the option beats letting the user find out from
+         *     a 422.
+         *
+         *     It is deliberately a flag rather than the member's name: naming them would
+         *     disclose identities ``Member.may_view`` refuses this caller. See
+         *     :func:`members.api.router.list_auth_users`.
+         */
+        AuthUserBrief: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /**
+             * Taken
+             * @default false
+             */
+            taken: boolean;
         };
         /**
          * SjrApplicationIn
@@ -9254,6 +9312,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["MemberEnumChoice"][];
                     };
+                };
+            };
+        };
+    };
+    members_api_router_list_auth_users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUserBrief"][];
                 };
             };
         };

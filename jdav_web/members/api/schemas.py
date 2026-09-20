@@ -109,6 +109,25 @@ class MemberBrief(ModelSchema):
         return getattr(obj, "_activity_score", None)
 
 
+class AuthUserBrief(Schema):
+    """One login account, for the member change view's "Nutzer" picker.
+
+    The admin renders ``Member.user`` as a plain select over every ``User``, so
+    the list is unfiltered here too. ``taken`` flags an account that is already
+    linked — the relation is one-to-one, so picking such an account fails on
+    uniqueness, and saying so in the option beats letting the user find out from
+    a 422.
+
+    It is deliberately a flag rather than the member's name: naming them would
+    disclose identities ``Member.may_view`` refuses this caller. See
+    :func:`members.api.router.list_auth_users`.
+    """
+
+    id: int
+    username: str
+    taken: bool = False
+
+
 class MemberOut(ModelSchema):
     id: int
     name: str

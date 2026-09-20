@@ -41,6 +41,7 @@ type MemberOut = components["schemas"]["MemberOut"];
 type MemberCreate = components["schemas"]["MemberCreate"];
 type MemberUpdate = components["schemas"]["MemberUpdate"];
 type GroupOut = components["schemas"]["GroupOut"];
+type AuthUserBrief = components["schemas"]["AuthUserBrief"];
 type EnumChoice = components["schemas"]["MemberEnumChoice"];
 type EmergencyContactOut = components["schemas"]["MemberEmergencyContactOut"];
 type EmergencyContactCreate = components["schemas"]["MemberEmergencyContactCreate"];
@@ -240,6 +241,8 @@ function makeMemberDraft(m: MemberOut) {
     birth_date: m.birth_date ?? "",
     gender: String(m.gender ?? ""),
     group_ids: m.groups.map((g) => g.id),
+    // "" = no linked login account (the field is nullable).
+    user_id: String(m.user_id ?? ""),
     join_date: m.join_date ?? "",
     leave_date: m.leave_date ?? "",
     comments: m.comments ?? "",
@@ -930,8 +933,18 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
   const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
     enabled: editing,
   });
+  // The "Nutzer" link is gated per field, exactly as in the admin; without the
+  // permission the row stays read-only and its options are never fetched (the
+  // endpoint would refuse them anyway).
+  const maySetAuthUser = can("members.may_set_auth_user");
+  const authUsersQuery = useApiQuery(
+    ["members", "auth-users"],
+    () => unwrap(client.GET("/api/members/auth-users")),
+    { enabled: editing && maySetAuthUser },
+  );
   const genderChoices = enumsQuery.data?.gender ?? [];
   const groups: GroupOut[] = groupsQuery.data ?? [];
+  const authUsers: AuthUserBrief[] = authUsersQuery.data ?? [];
 
   const mutation = useApiMutation<MemberOut, MemberUpdate>(
     (body: MemberUpdate) =>
@@ -990,6 +1003,25 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       selected={form.group_ids}
       onChange={(ids) => setField("group_ids", ids)}
       placeholder="Gruppe hinzufügen"
+    />
+  );
+
+  const userEdit = (
+    <Select
+      value={form.user_id}
+      onChange={(v) => setField("user_id", v)}
+      options={authUsers.map((u) => ({
+        value: u.id,
+        // An account linked to someone else cannot be linked again
+        // (one-to-one), so the option warns before the save 422s. Whose it is
+        // stays unsaid — the API does not tell us, on purpose. The member's own
+        // account is "taken" by this very member, so it is not marked.
+        label:
+          u.taken && u.id !== member.user_id ? `${u.username} (bereits verknüpft)` : u.username,
+      }))}
+      allowEmpty
+      emptyLabel="Kein Nutzerkonto"
+      placeholder="Nutzerkonto wählen …"
     />
   );
 
@@ -1091,7 +1123,12 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
     },
     { label: "Aktiv", value: boolBadge(member.active), edit: check("active"), field: "active" },
     { label: "Echo erhalten", value: boolBadge(member.echoed) },
-    { label: "Nutzer", value: member.user_display || "—" },
+    {
+      label: "Nutzer",
+      value: member.user_display || "—",
+      edit: maySetAuthUser ? userEdit : undefined,
+      field: "user",
+    },
     { label: "Newsletter", value: boolBadge(member.gets_newsletter) },
     { label: "Bestätigt", value: boolBadge(member.confirmed) },
   ];
@@ -1267,6 +1304,12 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
           has_key: form.has_key,
           has_free_ticket_gym: form.has_free_ticket_gym,
         };
+        // The login-account link is permission-gated server-side
+        // (may_set_auth_user), so it only travels when it actually changed —
+        // otherwise every save by a user without that permission would 403.
+        if (form.user_id !== String(member.user_id ?? "")) {
+          body.user_id = form.user_id === "" ? null : Number(form.user_id);
+        }
         try {
           await mutation.mutateAsync(body);
           await runFlushes();
