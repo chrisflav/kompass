@@ -237,6 +237,23 @@ class StartpageApiTestCase(TestCase):
         link_id = r.json()["id"]
         self.assertEqual(Link.objects.get(pk=link_id).url, "https://dav.de")
 
+    def test_link_list_carries_description_and_icon(self):
+        """The dashboard needs icon + description from the list endpoint."""
+        with_icon = Link.objects.create(
+            title="DAV", description="Alpenverein", url="https://dav.de"
+        )
+        with_icon.icon = SimpleUploadedFile("icon.png", b"fakeimage", content_type="image/png")
+        with_icon.save()
+        Link.objects.create(title="JDAV", description="", url="https://jdav.de")
+
+        r = self.client.get("/api/startpage/links", **self.auth(self.editor_user))
+        self.assertEqual(r.status_code, 200)
+        by_title = {row["title"]: row for row in r.json()}
+        self.assertEqual(by_title["DAV"]["description"], "Alpenverein")
+        self.assertEqual(by_title["DAV"]["icon"], with_icon.icon.url)
+        self.assertEqual(by_title["JDAV"]["description"], "")
+        self.assertIsNone(by_title["JDAV"]["icon"])
+
     def test_link_icon_upload_valid(self):
         link = Link.objects.create(title="DAV", url="https://dav.de")
         icon = SimpleUploadedFile("icon.png", b"fakeimage", content_type="image/png")

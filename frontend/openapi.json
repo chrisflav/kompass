@@ -18138,6 +18138,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
           "title": {
             "anyOf": [
               {
@@ -18150,6 +18161,18 @@
             ],
             "default": "",
             "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "",
+            "title": "Description"
           },
           "url": {
             "maxLength": 250,

@@ -1719,6 +1719,123 @@ input[type="radio"] {
   white-space: nowrap;
 }
 
+/* --- external links -------------------------------------------------------
+   The old admin start page showed these as a grid of icons with a title and a
+   short description underneath; the first SPA version kept the title only and
+   put the raw URL below it. This restores icon + title + description as a quiet
+   two-up tile grid that wears the same panel chrome as the sibling lists — the
+   tiles are separated by hairlines drawn by a 1px grid gap over the border
+   colour, so the panel reads as one sheet, not as a launcher of buttons. */
+.dash-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.dash-link {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.dash-link:hover {
+  background: var(--panel-2);
+}
+
+/* The icon plate: the uploaded icon, or — when a link carries none — its
+   initial set in mono, like the index label of a map sheet. */
+.dash-link-mark {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--gletscher);
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  color: var(--fels);
+}
+
+.dash-link-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.dash-link-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  /* Keeps long titles clear of the ↗ in the corner. */
+  padding-right: 1.1rem;
+}
+
+.dash-link-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two lines of description, then an ellipsis — enough to say what a link is
+   for without letting one tile set the height of the whole row. */
+.dash-link-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+/* The one mark that says this link leaves Kompass. */
+.dash-link-out {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.dash-link:hover .dash-link-out {
+  color: var(--fels);
+}
+
+/* An odd number of links would leave the last cell as a gap in the hairline
+   grid; this fills it with plain panel. */
+.dash-link-filler {
+  background: var(--panel);
+}
+
+@media (max-width: 520px) {
+  .dash-links {
+    grid-template-columns: 1fr;
+  }
+
+  /* One column needs no filler, and an empty one would add a stray hairline. */
+  .dash-link-filler {
+    display: none;
+  }
+}
+
 /* Grid items default to min-width:auto, which lets wide/long content blow the
    track past the viewport. Pin them to 0 so panels always stay within their
    column and long titles ellipsize instead of overflowing. */

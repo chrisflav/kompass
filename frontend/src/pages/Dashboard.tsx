@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 
+import { mediaUrl } from "../api/client";
 import { client, unwrap } from "../api/http";
 import { useApiQuery } from "../api/hooks";
 import { useMe } from "../api/me";
@@ -11,6 +12,7 @@ import type { components } from "../api/schema";
 type GroupOut = components["schemas"]["GroupOut"];
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
 type StatementBrief = components["schemas"]["StatementBrief"];
+type LinkBrief = components["schemas"]["LinkBrief"];
 
 const today = new Date().toLocaleDateString("de-DE", {
   day: "2-digit",
@@ -51,6 +53,40 @@ function ListPanel({
   if (loading) return <div className="dash-list dash-state muted">Lädt…</div>;
   if (children.length === 0) return <div className="dash-list dash-state muted">{empty}</div>;
   return <div className="dash-list">{children}</div>;
+}
+
+/**
+ * A readable stand-in for a link that carries no title. The panel deliberately
+ * never shows the URL, so an untitled link is labelled by its bare host rather
+ * than by the address it points at.
+ */
+function hostLabel(url: string): string {
+  const bare = url.replace(/^[a-z]+:\/\//i, "").replace(/^www\./i, "");
+  return bare.split("/")[0] || "Link";
+}
+
+/**
+ * One external link: its icon, its title and its short description — the three
+ * things the old admin start page showed and the first SPA version dropped.
+ * Links without an uploaded icon get their initial set in mono instead, like
+ * the index label of a map sheet, so the grid never breaks up.
+ */
+function LinkTile({ link }: { link: LinkBrief }) {
+  const label = link.title || hostLabel(link.url);
+  return (
+    <a href={link.url} target="_blank" rel="noreferrer" className="dash-link">
+      <span className="dash-link-mark" aria-hidden="true">
+        {link.icon ? <img src={mediaUrl(link.icon)} alt="" /> : label.charAt(0).toUpperCase()}
+      </span>
+      <span className="dash-link-text">
+        <span className="dash-link-title">{label}</span>
+        {link.description && <span className="dash-link-desc">{link.description}</span>}
+      </span>
+      <span className="dash-link-out" aria-hidden="true">
+        ↗
+      </span>
+    </a>
+  );
 }
 
 function Row({
@@ -186,24 +222,14 @@ export function Dashboard() {
         {visibleLinks.length > 0 && (
           <section className="dash-section">
             <SectionHead label="Nützliche Links" />
-            <div className="dash-list">
+            <div className="dash-links">
               {visibleLinks.map((l) => (
-                <a
-                  key={l.id}
-                  href={l.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="dash-row"
-                >
-                  <span className="dash-row-text">
-                    <span className="dash-row-main">{l.title || l.url}</span>
-                    <span className="dash-row-sub">{l.url}</span>
-                  </span>
-                  <span className="dash-row-meta" aria-hidden="true">
-                    ↗
-                  </span>
-                </a>
+                <LinkTile key={l.id} link={l} />
               ))}
+              {/* Keeps the hairline grid complete when the count is odd. */}
+              {visibleLinks.length % 2 === 1 && (
+                <span className="dash-link-filler" aria-hidden="true" />
+              )}
             </div>
           </section>
         )}

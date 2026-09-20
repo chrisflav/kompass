@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { API_BASE } from "../api/client";
 import { api, http, HttpResponse, server } from "../test/server";
 import {
   captureNavigations,
@@ -205,9 +206,30 @@ const STATEMENTS = [
 ];
 
 const LINKS = [
-  { id: 1, title: "JL-Wiki", url: "https://wiki.example.org", visible: true },
-  { id: 2, title: "", url: "https://intern.example.org", visible: true },
-  { id: 3, title: "Versteckt", url: "https://nope.example.org", visible: false },
+  {
+    id: 1,
+    title: "JL-Wiki",
+    description: "Protokolle, Vorlagen und Ausrüstungslisten",
+    url: "https://wiki.example.org",
+    icon: "/media/icons/wiki.png",
+    visible: true,
+  },
+  {
+    id: 2,
+    title: "",
+    description: "",
+    url: "https://intern.example.org",
+    icon: null,
+    visible: true,
+  },
+  {
+    id: 3,
+    title: "Versteckt",
+    description: "Nicht sichtbar",
+    url: "https://nope.example.org",
+    icon: null,
+    visible: false,
+  },
 ];
 
 function dashboardReturns({
@@ -302,16 +324,34 @@ describe("Dashboard", () => {
     expect(screen.getByText("240,50 €")).toBeInTheDocument();
   });
 
-  it("shows only visible links, titled by their URL when unnamed", async () => {
+  it("shows every visible link as icon, title and description, never its URL", async () => {
     dashboardReturns();
     renderWithApp(<Dashboard />, { route: "/kompass" });
 
-    expect(await screen.findByRole("link", { name: /JL-Wiki/ })).toHaveAttribute(
-      "href",
-      "https://wiki.example.org",
-    );
-    expect(screen.getAllByText("https://intern.example.org").length).toBeGreaterThan(0);
+    const wiki = await screen.findByRole("link", { name: /JL-Wiki/ });
+    expect(wiki).toHaveAttribute("href", "https://wiki.example.org");
+    // The uploaded icon is served by the backend, so it needs the API origin.
+    const icon = wiki.querySelector("img");
+    expect(icon).toHaveAttribute("src", `${API_BASE}/media/icons/wiki.png`);
+    expect(
+      screen.getByText("Protokolle, Vorlagen und Ausrüstungslisten"),
+    ).toBeInTheDocument();
+    // The address itself is never on the dashboard, only behind the link.
+    expect(screen.queryByText("https://wiki.example.org")).not.toBeInTheDocument();
     expect(screen.queryByText("Versteckt")).not.toBeInTheDocument();
+  });
+
+  it("labels a link without icon, title or description by host and initial", async () => {
+    dashboardReturns();
+    renderWithApp(<Dashboard />, { route: "/kompass" });
+
+    const bare = await screen.findByRole("link", { name: /intern\.example\.org/ });
+    expect(bare).toHaveAttribute("href", "https://intern.example.org");
+    // No uploaded icon: the plate carries the initial instead of an image.
+    expect(bare.querySelector("img")).toBeNull();
+    expect(bare.querySelector(".dash-link-mark")).toHaveTextContent("I");
+    // …and an empty description leaves no blank second line behind.
+    expect(bare.querySelector(".dash-link-desc")).toBeNull();
   });
 
   it("drops the links panel entirely when none are visible", async () => {

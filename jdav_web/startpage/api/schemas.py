@@ -153,11 +153,23 @@ class FAQIn(Schema):
 
 
 class LinkBrief(ModelSchema):
+    """List view of a link.
+
+    Carries the description and the icon URL as well, because the dashboard
+    renders the links as icon + title + short description (and never the bare
+    URL), the way the old admin start page did.
+    """
+
     id: int
+    icon: str | None = None
 
     class Meta:
         model = Link
-        fields = ["title", "url", "visible"]
+        fields = ["title", "description", "url", "visible"]
+
+    @staticmethod
+    def resolve_icon(obj) -> str | None:
+        return obj.icon.url if obj.icon else None
 
 
 class LinkOut(ModelSchema):
