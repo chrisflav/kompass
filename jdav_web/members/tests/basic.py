@@ -30,6 +30,7 @@ from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 from finance.models import Bill
 from finance.models import Statement
@@ -3506,6 +3507,23 @@ class StatementOnListFormTestCase(BasicMemberTestCase):
         }
         self.assertGreater(1, self.ex.approved_staff_count)
         self.assertRaises(ValidationError, form.clean)
+
+    @override_settings(MAX_NIGHT_COST=13)
+    def test_night_cost_help_text(self):
+        # the model's help_text is exported into the OpenAPI schema, so it has
+        # to read the same in every deployment - interpolating settings into it
+        # would resolve it while the model is imported, which is what this
+        # compares against the literal wording
+        field = Statement._meta.get_field("night_cost")
+        with translation.override(None):
+            self.assertEqual(
+                str(field.help_text),
+                "Price for the overnight stay of a youth leader. This is required for the "
+                "calculation of the subsidies for night costs.",
+            )
+        # only the form names the configured maximum
+        form = StatementOnListForm(parent_obj=self.ex, instance=self.st)
+        self.assertIn("13", form.fields["night_cost"].help_text)
 
 
 class KlettertreffAdminTestCase(AdminTestCase):

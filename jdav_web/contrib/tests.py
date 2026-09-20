@@ -1,6 +1,10 @@
+import difflib
 import json
+import subprocess
+import sys
 import tempfile
 from datetime import timedelta
+from itertools import islice
 from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -10,6 +14,7 @@ from contrib.admin import CommonAdminMixin
 from contrib.models import CommonModel
 from contrib.openapi import render_schema
 from contrib.rules import has_global_perm
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -298,6 +303,55 @@ class ExportOpenapiTest(TestCase):
         with translation.override(None):
             under_none = render_schema()
         self.assertEqual(under_german, under_none)
+
+    def test_the_committed_document_is_up_to_date(self):
+        """Re-exporting has to reproduce ``frontend/openapi.json`` byte for byte.
+
+        These settings name their own domains, so a ``help_text`` that
+        interpolates one fails here as loudly as a document nobody re-exported.
+
+        The script gets its own interpreter on purpose: that is the documented
+        recipe, and rendering inside the test process instead picks up the
+        casing of the titles django-ninja resolved when the API was first
+        imported, which happens before any test runs. The child reads
+        ``DJANGO_SETTINGS_MODULE`` from the environment, so it exports under
+        the deployment's settings rather than under a ``--settings`` flag.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "openapi.json"
+            script = Path(settings.BASE_DIR) / "export_openapi.py"
+            try:
+                subprocess.run(
+                    [sys.executable, str(script), "--output", str(output)],
+                    cwd=settings.BASE_DIR,
+                    capture_output=True,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as exc:  # pragma: no cover
+                self.fail(exc.stderr.decode())
+            exported = output.read_text(encoding="utf-8")
+        committed = Path(settings.BASE_DIR).parent / "frontend" / "openapi.json"
+        current = committed.read_text(encoding="utf-8")
+        # Half a megabyte is past the length at which the assertions diff for
+        # themselves, and the interesting failure is a line or two, so hand the
+        # first lines that moved to the message. Diffing two equal documents
+        # costs well under a tenth of a second.
+        moved = "".join(
+            islice(
+                difflib.unified_diff(
+                    current.splitlines(keepends=True),
+                    exported.splitlines(keepends=True),
+                    "committed",
+                    "exported",
+                ),
+                40,
+            )
+        )
+        self.assertEqual(
+            exported,
+            current,
+            "frontend/openapi.json is stale, re-export it with export_openapi.py\n" + moved,
+        )
 
     def test_the_script_writes_the_document(self):
         active = translation.get_language()

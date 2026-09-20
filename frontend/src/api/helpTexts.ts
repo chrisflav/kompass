@@ -3,8 +3,8 @@ import type { DetailRow } from "../components/ui";
 /**
  * Field help texts recovered from the Django admin (model `help_text`), keyed by
  * model slug then field name. Kept in the frontend as static copy rather than
- * fetched — if a model's help_text changes, update it here too. A couple embed
- * deployment values (night cost, allowed mail domain) captured at recovery time.
+ * fetched — if a model's help_text changes, update it here too. None of them
+ * may name a deployment's own values, the same copy is shown everywhere.
  */
 const FIELD_HELP: Record<string, Record<string, string>> = {
   member: {
@@ -42,12 +42,12 @@ const FIELD_HELP: Record<string, Record<string, string>> = {
     ljp_to:
       "Die Person, die die LJP-Zuschüsse für die Teilnehmenden erhalten soll. Nur auswählen, wenn ein LJP-Antrag abgegeben wird.",
     night_cost:
-      "Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die Berechnung von Zuschüssen aus dem Jugendetat. Maximaler Zuschuss pro Person und Nacht: 11 €",
+      "Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die Berechnung von Zuschüssen aus dem Jugendetat.",
     settings_snapshot: "Gültige Finanzregeln bei Einreichung bzw. Bestätigung",
   },
   emailaddress: {
     internal_only:
-      "Leite nur E-Mails weiter, die von einer der folgenden Domains verschickt wurden: flavigny.de.",
+      "Leite nur E-Mails weiter, die von einer der internen Domains verschickt wurden.",
     allowed_senders:
       "Leite nur E-Mails von Mitgliedern dieser Gruppen weiter. Lasse dieses Feld frei, um alle Absender*innen zu erlauben.",
   },

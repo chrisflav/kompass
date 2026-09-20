@@ -42,10 +42,11 @@ class EmailAddress(models.Model):
     )
     internal_only = models.BooleanField(
         verbose_name=_("Restrict to internal email addresses"),
+        # the help_text stays free of settings so that it is the same in every
+        # deployment, the admin form below names the configured domains
         help_text=_(
-            "Only allow forwarding to this e-mail address from one of the following domains: %(domains)s."
-        )
-        % {"domains": ", ".join(settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER)},
+            "Only allow forwarding to this e-mail address from one of the internal domains."
+        ),
         default=False,
     )
     allowed_senders = models.ManyToManyField(
@@ -82,6 +83,12 @@ class EmailAddressForm(forms.ModelForm):
     class Meta:
         model = EmailAddress
         exclude = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["internal_only"].help_text = _(
+            "Only allow forwarding to this e-mail address from one of the following domains: %(domains)s."
+        ) % {"domains": ", ".join(settings.ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER)}
 
     def clean(self):
         super().clean()

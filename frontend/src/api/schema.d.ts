@@ -5708,7 +5708,7 @@ export interface components {
             explanation?: string | null;
             /**
              * Price per night
-             * @description Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is 11€.
+             * @description Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs.
              * @default 0
              */
             night_cost: string;
@@ -6082,7 +6082,7 @@ export interface components {
             name: string;
             /**
              * Restrict to internal email addresses
-             * @description Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.
+             * @description Only allow forwarding to this e-mail address from one of the internal domains.
              * @default false
              */
             internal_only: boolean;
@@ -6105,7 +6105,7 @@ export interface components {
             name: string;
             /**
              * Restrict to internal email addresses
-             * @description Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.
+             * @description Only allow forwarding to this e-mail address from one of the internal domains.
              * @default false
              */
             internal_only: boolean;

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-20 20:16+0200\n"
+"POT-Creation-Date: 2026-09-20 23:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -389,6 +389,16 @@ msgstr "Art der Tour"
 
 msgid "Means of transportation"
 msgstr "Verkehrsmittel"
+
+#, python-format
+msgid ""
+"Price for the overnight stay of a youth leader. This is required for the "
+"calculation of the subsidies for night costs. The maximum subsidised value "
+"is %(max_cost)s€."
+msgstr ""
+"Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die "
+"Berechnung von Zuschüssen aus dem Jugendetat. Maximaler Zuschuss pro Person "
+"und Nacht: %(max_cost)s €"
 
 #, python-format
 msgid ""

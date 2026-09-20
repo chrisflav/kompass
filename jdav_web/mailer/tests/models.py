@@ -2,12 +2,15 @@ from unittest import mock
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.utils import timezone
+from django.utils import translation
 from django.utils.translation import gettext as _
 from mailer.mailutils import NOT_SENT
 from mailer.mailutils import PARTLY_SENT
 from mailer.mailutils import SENT
 from mailer.models import Attachment
+from mailer.models import EmailAddress
 from mailer.models import EmailAddressForm
 from mailer.models import Message
 from mailer.models import MessageForm
@@ -38,6 +41,22 @@ class EmailAddressFormTestCase(BasicMailerTestCase):
         form = EmailAddressForm(data={"name": "bar"})
         # validate the form - this should fail due to missing required recipients
         self.assertFalse(form.is_valid())
+
+    @override_settings(ALLOWED_EMAIL_DOMAINS_FOR_INVITE_AS_USER=["inside.org"])
+    def test_internal_only_help_text(self):
+        # the model's help_text is exported into the OpenAPI schema, so it has
+        # to read the same in every deployment - interpolating settings into it
+        # would resolve it while the model is imported, which is what this
+        # compares against the literal wording
+        field = EmailAddress._meta.get_field("internal_only")
+        with translation.override(None):
+            self.assertEqual(
+                str(field.help_text),
+                "Only allow forwarding to this e-mail address from one of the internal domains.",
+            )
+        # only the form names the configured domains
+        form = EmailAddressForm()
+        self.assertIn("inside.org", form.fields["internal_only"].help_text)
 
 
 class MessageFormTestCase(BasicMailerTestCase):

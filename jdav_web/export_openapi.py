@@ -6,13 +6,19 @@ Run it from ``jdav_web/``, then regenerate the typed client::
     python export_openapi.py
     cd ../frontend && npm run gen:api
 
-This is a script rather than a management command on purpose. ``manage.py``
-calls ``django.setup()`` before it hands over, and a couple of ``help_text``\\s
-interpolate with ``%`` at model-definition time — which resolves their lazy
-string as the models are imported, freezing whichever language was active
-during setup. No command can undo that afterwards. Deactivating translations
-first is the only point early enough, so the export is reproducible down to
-the byte whether or not the catalogues happen to be compiled.
+The export is reproducible down to the byte, from a checkout as much as from a
+running container. Two things buy that, and neither of them is this script:
+``render_schema`` imports the API under ``translation.override(None)``, which
+is what keeps the compiled catalogues out of the document (see
+``contrib.openapi``), and no model ``help_text`` interpolates a setting any
+more — the forms that want to name a domain or a maximum do so themselves.
+``contrib.tests.ExportOpenapiTest`` holds both ends down, including that the
+committed document is the current one.
+
+The script stays a script, and deactivates translations before
+``django.setup()``, as defence in depth: anything a model does resolve while
+it is imported is then resolved in the source language, which a management
+command could no longer influence.
 """
 
 import argparse
