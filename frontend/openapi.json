@@ -10016,6 +10016,37 @@
         ]
       }
     },
+    "/api/ludwigsburgalpin/public/enums": {
+      "get": {
+        "operationId": "ludwigsburgalpin_api_public_public_termin_enums",
+        "summary": "Public Termin Enums",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "$ref": "#/components/schemas/TerminEnumChoice"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "description": "Choice options for the submission form, mirroring the authenticated ``/enums``.\n\nThe legacy ``TerminForm`` rendered these selects server-side for anonymous\nvisitors, so the SPA needs the same lists without a bearer token; they are\nmodel metadata, not data about anyone.",
+        "tags": [
+          "ludwigsburgalpin",
+          "public"
+        ]
+      }
+    },
     "/api/ludwigsburgalpin/public/termine": {
       "post": {
         "operationId": "ludwigsburgalpin_api_public_submit_termin",
@@ -17137,7 +17168,7 @@
         "type": "object"
       },
       "TerminEnumChoice": {
-        "description": "A single ``{value, label}`` option for a Termin choice field.\n\nConsumed by ``GET /enums`` so the SPA can render labelled ``<select>``\ncontrols for the Termin choice fields (group/category/condition/technik/\nsaison/eventart/klassifizierung).",
+        "description": "A single option for a Termin choice field.\n\nConsumed by ``GET /enums`` so the SPA can render labelled ``<select>``\ncontrols for the Termin choice fields (group/category/condition/technik/\nsaison/eventart/klassifizierung). ``default`` marks the field's model\ndefault, which is what a blank create form preselects; a field without one\n(``group``) marks nothing and the form falls back to the first option.",
         "properties": {
           "value": {
             "title": "Value",
@@ -17146,11 +17177,16 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default"
           }
         },
         "required": [
           "value",
-          "label"
+          "label",
+          "default"
         ],
         "title": "TerminEnumChoice",
         "type": "object"

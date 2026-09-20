@@ -3,6 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { API_BASE } from "../api/client";
 import type { Site } from "../api/site";
+import type { TerminChoice, TerminEnums } from "../api/terminEnums";
 
 /** Absolute URL for an API path, so handlers match what the client actually calls. */
 export const api = (path: string) => `${API_BASE}${path}`;
@@ -57,10 +58,101 @@ export const DEFAULT_SITE: Site = {
   longitude: 9.1916,
 };
 
+/**
+ * The Termin choice lists `/enums` serves. The SPA no longer carries them, so
+ * this fixture stands in for `ludwigsburgalpin.models`; the second argument is
+ * the field's model default, which a blank create form preselects.
+ */
+const choices = (
+  options: [string, string][],
+  defaultValue: string | null = null,
+): TerminChoice[] =>
+  options.map(([value, label]) => ({ value, label, default: value === defaultValue }));
+
+export const TERMIN_ENUMS: TerminEnums = {
+  // `group` has no model default, so nothing in its list is marked.
+  group: choices([
+    ["ASG", "Alpinsportgruppe"],
+    ["OGB", "Ortsgruppe Bietigheim"],
+    ["OGV", "Ortsgruppe Vaihingen"],
+    ["JUG", "Jugend"],
+    ["FAM", "Familie"],
+    ["Ü30", "Ü30"],
+    ["MTB", "Mountainbike"],
+    ["RA", "RegioAktiv"],
+    ["SEK", "Sektion"],
+  ]),
+  category: choices(
+    [
+      ["WAN", "Wandern"],
+      ["BW", "Bergwandern"],
+      ["KST", "Klettersteig"],
+      ["KL", "Klettern"],
+      ["SKI", "Piste, Loipe"],
+      ["SCH", "Schneeschuhgehen"],
+      ["ST", "Skitour"],
+      ["STH", "Skihochtour"],
+      ["HT", "Hochtour"],
+      ["MTB", "Montainbike"],
+      ["AUS", "Ausbildung"],
+      ["SON", "Sonstiges z.B. Treffen"],
+    ],
+    "SON",
+  ),
+  condition: choices(
+    [
+      ["gering", "gering"],
+      ["mittel", "mittel"],
+      ["groß", "groß"],
+      ["sehr groß", "sehr groß"],
+    ],
+    "mittel",
+  ),
+  technik: choices(
+    [
+      ["leicht", "leicht"],
+      ["mittel", "mittel"],
+      ["schwer", "schwer"],
+      ["sehr schwer", "sehr schwer"],
+    ],
+    "mittel",
+  ),
+  saison: choices(
+    [
+      ["ganzjährig", "ganzjährig"],
+      ["Indoor", "Indoor"],
+      ["Sommer", "Sommer"],
+      ["Winter", "Winter"],
+    ],
+    "ganzjährig",
+  ),
+  eventart: choices(
+    [
+      ["Einzeltermin", "Einzeltermin"],
+      ["Mehrtagesevent", "Mehrtagesevent"],
+      ["Regelmäßiges Event/Training", "Regelmäßiges Event/Training"],
+      ["Tagesevent", "Tagesevent"],
+      ["Wochenendevent", "Wochenendevent"],
+    ],
+    "Einzeltermin",
+  ),
+  klassifizierung: choices(
+    [
+      ["Gemeinschaftstour", "Gemeinschaftstour"],
+      ["Ausbildung", "Ausbildung"],
+    ],
+    "Gemeinschaftstour",
+  ),
+};
+
 /** Handlers present in every test; individual tests override with `server.use`. */
 const baseHandlers = [
   http.get(api("/api/members/me"), () => HttpResponse.json(DEFAULT_ME)),
   http.get(api("/api/startpage/public/site"), () => HttpResponse.json(DEFAULT_SITE)),
+  // Every Termin form builds its selects from these, so they belong here
+  // rather than in each test that opens one.
+  http.get(api("/api/ludwigsburgalpin/enums"), () => HttpResponse.json(TERMIN_ENUMS)),
+  http.get(api("/api/ludwigsburgalpin/public/enums"), () => HttpResponse.json(TERMIN_ENUMS)),
 ];
 
 export const server = setupServer(...baseHandlers);

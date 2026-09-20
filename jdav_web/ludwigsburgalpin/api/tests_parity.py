@@ -105,12 +105,22 @@ class LudwigsburgalpinParityTestCase(TestCase):
                 "klassifizierung",
             },
         )
-        self.assertIn({"value": "ASG", "label": "Alpinsportgruppe"}, body["group"])
-        self.assertIn({"value": "BW", "label": "Bergwandern"}, body["category"])
         self.assertIn(
-            {"value": "Gemeinschaftstour", "label": "Gemeinschaftstour"},
+            {"value": "ASG", "label": "Alpinsportgruppe", "default": False}, body["group"]
+        )
+        self.assertIn({"value": "BW", "label": "Bergwandern", "default": False}, body["category"])
+        self.assertIn(
+            {"value": "Gemeinschaftstour", "label": "Gemeinschaftstour", "default": True},
             body["klassifizierung"],
         )
+
+    def test_enums_flag_the_model_default(self):
+        r = self.client.get(BASE + "/enums", **self.auth(self.viewer_user))
+        body = r.json()
+        # ``category`` defaults to SON on the model; ``group`` has no default at
+        # all, so nothing in its list is marked and the form picks the first.
+        self.assertEqual([c["value"] for c in body["category"] if c["default"]], ["SON"])
+        self.assertEqual([c["value"] for c in body["group"] if c["default"]], [])
 
     def test_enums_route_not_shadowed_by_termin_id(self):
         # ``/enums`` must resolve to the enum endpoint, not the /{termin_id}

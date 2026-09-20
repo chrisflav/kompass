@@ -15,15 +15,18 @@ from ninja import Schema
 
 
 class TerminEnumChoice(Schema):
-    """A single ``{value, label}`` option for a Termin choice field.
+    """A single option for a Termin choice field.
 
     Consumed by ``GET /enums`` so the SPA can render labelled ``<select>``
     controls for the Termin choice fields (group/category/condition/technik/
-    saison/eventart/klassifizierung).
+    saison/eventart/klassifizierung). ``default`` marks the field's model
+    default, which is what a blank create form preselects; a field without one
+    (``group``) marks nothing and the form falls back to the first option.
     """
 
     value: str
     label: str
+    default: bool
 
 
 class TerminBrief(ModelSchema):

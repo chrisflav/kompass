@@ -754,7 +754,8 @@ describe("submit an event proposal", () => {
     );
     const { user } = renderWithApp(<SubmitTerminFlow />, { authenticated: false });
 
-    await user.type(screen.getByLabelText("Titel"), "Klettersteig Allgäu");
+    // The selects are built from `/public/enums`, so the form arrives async.
+    await user.type(await screen.findByLabelText("Titel"), "Klettersteig Allgäu");
     await user.type(screen.getByLabelText("Untertitel"), "für Fortgeschrittene");
     await user.type(screen.getByLabelText("Von"), "2026-07-04");
     await user.type(screen.getByLabelText("Bis"), "2026-07-05");
@@ -791,8 +792,7 @@ describe("submit an event proposal", () => {
     );
     const { user } = renderWithApp(<SubmitTerminFlow />, { authenticated: false });
 
-    const trigger = screen
-      .getByText("Kategorie")
+    const trigger = (await screen.findByText("Kategorie"))
       .closest(".field")!
       .querySelector(".ss-trigger") as HTMLElement;
     await user.click(trigger);
@@ -816,7 +816,7 @@ describe("submit an event proposal", () => {
       ),
     );
     const { user } = renderWithApp(<SubmitTerminFlow />, { authenticated: false });
-    await user.click(screen.getByRole("button", { name: "Termin einreichen" }));
+    await user.click(await screen.findByRole("button", { name: "Termin einreichen" }));
 
     const error = await screen.findByRole("alert");
     expect(error).toHaveTextContent(/title/);
@@ -837,6 +837,7 @@ describe("public flows — every field", () => {
     );
     const { user } = renderWithApp(<SubmitTerminFlow />, { authenticated: false });
 
+    await screen.findByLabelText("Titel");
     const form = document.querySelector("form") as HTMLElement;
     await fillEveryField(user, form);
     await pickEverySelect(user, form);

@@ -3700,6 +3700,30 @@ export interface paths {
         patch: operations["logindata_api_admin_router_update_registration_password"];
         trace?: never;
     };
+    "/api/ludwigsburgalpin/public/enums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Termin Enums
+         * @description Choice options for the submission form, mirroring the authenticated ``/enums``.
+         *
+         *     The legacy ``TerminForm`` rendered these selects server-side for anonymous
+         *     visitors, so the SPA needs the same lists without a bearer token; they are
+         *     model metadata, not data about anyone.
+         */
+        get: operations["ludwigsburgalpin_api_public_public_termin_enums"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ludwigsburgalpin/public/termine": {
         parameters: {
             query?: never;
@@ -6422,17 +6446,21 @@ export interface components {
         };
         /**
          * TerminEnumChoice
-         * @description A single ``{value, label}`` option for a Termin choice field.
+         * @description A single option for a Termin choice field.
          *
          *     Consumed by ``GET /enums`` so the SPA can render labelled ``<select>``
          *     controls for the Termin choice fields (group/category/condition/technik/
-         *     saison/eventart/klassifizierung).
+         *     saison/eventart/klassifizierung). ``default`` marks the field's model
+         *     default, which is what a blank create form preselects; a field without one
+         *     (``group``) marks nothing and the form falls back to the first option.
          */
         TerminEnumChoice: {
             /** Value */
             value: string;
             /** Label */
             label: string;
+            /** Default */
+            default: boolean;
         };
         /** TerminBrief */
         TerminBrief: {
@@ -14159,6 +14187,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RegistrationPasswordOut"];
+                };
+            };
+        };
+    };
+    ludwigsburgalpin_api_public_public_termin_enums: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["TerminEnumChoice"][];
+                    };
                 };
             };
         };

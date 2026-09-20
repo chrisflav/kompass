@@ -1,64 +1,7 @@
 import { useState } from "react";
 
+import { defaultChoice, type TerminChoice, type TerminEnums } from "../../api/terminEnums";
 import { Button, Field, Select as UiSelect } from "../../components/ui";
-
-/* Choice values mirror ludwigsburgalpin.models. The backend runs full_clean and
- * rejects unknown choices with 422, so keeping these in sync avoids invalid
- * submissions while the toast still surfaces any server-side validation error. */
-export const GRUPPE: [string, string][] = [
-  ["ASG", "Alpinsportgruppe"],
-  ["OGB", "Ortsgruppe Bietigheim"],
-  ["OGV", "Ortsgruppe Vaihingen"],
-  ["JUG", "Jugend"],
-  ["FAM", "Familie"],
-  ["Ü30", "Ü30"],
-  ["MTB", "Mountainbike"],
-  ["RA", "RegioAktiv"],
-  ["SEK", "Sektion"],
-];
-export const KATEGORIE: [string, string][] = [
-  ["WAN", "Wandern"],
-  ["BW", "Bergwandern"],
-  ["KST", "Klettersteig"],
-  ["KL", "Klettern"],
-  ["SKI", "Piste, Loipe"],
-  ["SCH", "Schneeschuhgehen"],
-  ["ST", "Skitour"],
-  ["STH", "Skihochtour"],
-  ["HT", "Hochtour"],
-  ["MTB", "Montainbike"],
-  ["AUS", "Ausbildung"],
-  ["SON", "Sonstiges z.B. Treffen"],
-];
-export const KONDITION: [string, string][] = [
-  ["gering", "gering"],
-  ["mittel", "mittel"],
-  ["groß", "groß"],
-  ["sehr groß", "sehr groß"],
-];
-export const TECHNIK: [string, string][] = [
-  ["leicht", "leicht"],
-  ["mittel", "mittel"],
-  ["schwer", "schwer"],
-  ["sehr schwer", "sehr schwer"],
-];
-export const SAISON: [string, string][] = [
-  ["ganzjährig", "ganzjährig"],
-  ["Indoor", "Indoor"],
-  ["Sommer", "Sommer"],
-  ["Winter", "Winter"],
-];
-export const EVENTART: [string, string][] = [
-  ["Einzeltermin", "Einzeltermin"],
-  ["Mehrtagesevent", "Mehrtagesevent"],
-  ["Regelmäßiges Event/Training", "Regelmäßiges Event/Training"],
-  ["Tagesevent", "Tagesevent"],
-  ["Wochenendevent", "Wochenendevent"],
-];
-export const KLASSIFIZIERUNG: [string, string][] = [
-  ["Gemeinschaftstour", "Gemeinschaftstour"],
-  ["Ausbildung", "Ausbildung"],
-];
 
 /** All Termin fields as edit-friendly primitives (numbers kept as numbers). */
 export interface TerminFormValues {
@@ -85,29 +28,32 @@ export interface TerminFormValues {
   anforderung_dauer: number;
 }
 
-export const emptyTermin: TerminFormValues = {
-  title: "",
-  subtitle: "",
-  start_date: "",
-  end_date: "",
-  group: "ASG",
-  responsible: "",
-  phone: "",
-  email: "",
-  category: "SON",
-  condition: "mittel",
-  technik: "mittel",
-  saison: "ganzjährig",
-  eventart: "Einzeltermin",
-  klassifizierung: "Gemeinschaftstour",
-  equipment: "",
-  voraussetzungen: "",
-  description: "",
-  max_participants: 10,
-  anforderung_hoehe: 0,
-  anforderung_strecke: 0,
-  anforderung_dauer: 0,
-};
+/** A blank draft whose choice fields start on the defaults the API reports. */
+export function emptyTermin(enums: TerminEnums): TerminFormValues {
+  return {
+    title: "",
+    subtitle: "",
+    start_date: "",
+    end_date: "",
+    group: defaultChoice(enums, "group"),
+    responsible: "",
+    phone: "",
+    email: "",
+    category: defaultChoice(enums, "category"),
+    condition: defaultChoice(enums, "condition"),
+    technik: defaultChoice(enums, "technik"),
+    saison: defaultChoice(enums, "saison"),
+    eventart: defaultChoice(enums, "eventart"),
+    klassifizierung: defaultChoice(enums, "klassifizierung"),
+    equipment: "",
+    voraussetzungen: "",
+    description: "",
+    max_participants: 10,
+    anforderung_hoehe: 0,
+    anforderung_strecke: 0,
+    anforderung_dauer: 0,
+  };
+}
 
 export function Select({
   value,
@@ -115,20 +61,15 @@ export function Select({
   onChange,
 }: {
   value: string;
-  options: [string, string][];
+  options: TerminChoice[];
   onChange: (v: string) => void;
 }) {
-  return (
-    <UiSelect
-      value={value}
-      onChange={onChange}
-      options={options.map(([v, label]) => ({ value: v, label }))}
-    />
-  );
+  return <UiSelect value={value} onChange={onChange} options={options} />;
 }
 
 export function TerminForm({
   initial,
+  enums,
   submitLabel,
   busy,
   onSubmit,
@@ -136,6 +77,7 @@ export function TerminForm({
   errors = {},
 }: {
   initial: TerminFormValues;
+  enums: TerminEnums;
   submitLabel: string;
   busy: boolean;
   onSubmit: (values: TerminFormValues) => void;
@@ -184,7 +126,7 @@ export function TerminForm({
         {fieldError("end_date")}
       </Field>
       <Field label="Gruppe">
-        <Select value={form.group} options={GRUPPE} onChange={(v) => set("group", v)} />
+        <Select value={form.group} options={enums.group ?? []} onChange={(v) => set("group", v)} />
         {fieldError("group")}
       </Field>
       <Field label="Organisator:in">
@@ -209,29 +151,49 @@ export function TerminForm({
         {fieldError("email")}
       </Field>
       <Field label="Kategorie">
-        <Select value={form.category} options={KATEGORIE} onChange={(v) => set("category", v)} />
+        <Select
+          value={form.category}
+          options={enums.category ?? []}
+          onChange={(v) => set("category", v)}
+        />
         {fieldError("category")}
       </Field>
       <Field label="Kondition">
-        <Select value={form.condition} options={KONDITION} onChange={(v) => set("condition", v)} />
+        <Select
+          value={form.condition}
+          options={enums.condition ?? []}
+          onChange={(v) => set("condition", v)}
+        />
         {fieldError("condition")}
       </Field>
       <Field label="Technik">
-        <Select value={form.technik} options={TECHNIK} onChange={(v) => set("technik", v)} />
+        <Select
+          value={form.technik}
+          options={enums.technik ?? []}
+          onChange={(v) => set("technik", v)}
+        />
         {fieldError("technik")}
       </Field>
       <Field label="Saison">
-        <Select value={form.saison} options={SAISON} onChange={(v) => set("saison", v)} />
+        <Select
+          value={form.saison}
+          options={enums.saison ?? []}
+          onChange={(v) => set("saison", v)}
+        />
         {fieldError("saison")}
       </Field>
       <Field label="Eventart">
-        <Select value={form.eventart} options={EVENTART} onChange={(v) => set("eventart", v)} />
+        <Select
+          value={form.eventart}
+          options={enums.eventart ?? []}
+          onChange={(v) => set("eventart", v)}
+        />
         {fieldError("eventart")}
       </Field>
       <Field label="Klassifizierung">
         <Select
           value={form.klassifizierung}
-          options={KLASSIFIZIERUNG}
+          options={enums.klassifizierung ?? []}
           onChange={(v) => set("klassifizierung", v)}
         />
         {fieldError("klassifizierung")}

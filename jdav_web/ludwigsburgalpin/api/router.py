@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404
 from ludwigsburgalpin.models import Termin
 from ninja import Router
 
+from .choices import termin_choice_options
 from .schemas import TerminBrief
 from .schemas import TerminEnumChoice
 from .schemas import TerminIn
@@ -18,18 +19,6 @@ from .schemas import TerminOut
 from .schemas import TerminUpdate
 
 router = Router()
-
-# Termin choice fields whose ``{value, label}`` options are surfaced by
-# ``GET /enums`` so the SPA can render labelled selects for them.
-TERMIN_CHOICE_FIELDS = (
-    "group",
-    "category",
-    "condition",
-    "technik",
-    "saison",
-    "eventart",
-    "klassifizierung",
-)
 
 
 @router.get("/enums", response=dict[str, list[TerminEnumChoice]])
@@ -40,11 +29,7 @@ def termin_enums(request):
     converter cannot shadow this static path.
     """
     authorize(request, "ludwigsburgalpin.view_termin")
-    result = {}
-    for name in TERMIN_CHOICE_FIELDS:
-        field = Termin._meta.get_field(name)
-        result[name] = [{"value": value, "label": str(label)} for value, label in field.choices]
-    return result
+    return termin_choice_options()
 
 
 @router.get("/termine", response=list[TerminBrief])
