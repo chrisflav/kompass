@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-29 16:34+0200\n"
+"POT-Creation-Date: 2026-08-30 10:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -520,8 +520,8 @@ msgid ""
 "The configured recipients of the allowance don't match the regulations. "
 "Please correct this and try again."
 msgstr ""
-"Die ausgewählten Empfänger*innen der Aufwandsentschädigung stimmen nicht mit "
-"den Richtlinien überein. Bitte korrigiere das und versuche es erneut. "
+"Die ausgewählten Empfänger*innen der Aufwandsentschädigung entsprechen nicht "
+"den Regularien. Bitte korrigiere das und versuche es erneut."
 
 msgid ""
 "The excursion is configured to claim LJP contributions. In that case, for "
@@ -537,6 +537,67 @@ msgid ""
 msgstr ""
 "Abrechnung erfolgreich eingereicht. Die Finanzabteilung wird sich bei dir so "
 "schnell wie möglich melden."
+
+msgid "The selected invoice does not belong to this excursion."
+msgstr "Der ausgewählte Beleg gehört nicht zu dieser Ausfahrt."
+
+msgid "The selected invoice has no uploaded proof."
+msgstr "Zu dem ausgewählten Beleg wurde kein Scan hochgeladen."
+
+msgid "Unknown participant list."
+msgstr "Unbekannte Teilnehmendenliste."
+
+msgid "This excursion has no LJP proposal."
+msgstr "Diese Ausfahrt hat noch keinen Seminarbericht."
+
+msgid "Filetype not supported."
+msgstr "Dieser Dateityp wird nicht unterstützt."
+
+#, python-format
+msgid "Please keep filesize under %(mb)s MiB."
+msgstr "Bitte halte die Dateigröße unter %(mb)s MiB."
+
+msgid "At least one emergency contact is required."
+msgstr "Es muss mindestens ein Notfallkontakt angegeben werden."
+
+msgid "The echo key has expired."
+msgstr "Dieser Link ist abgelaufen. Bitte fordere einen neuen an."
+
+msgid "The entered password is wrong."
+msgstr "Das eingegebene Passwort ist falsch."
+
+msgid "The invitation has expired."
+msgstr "Diese Einladung ist abgelaufen."
+
+msgid "The waiting confirmation link is invalid or has expired."
+msgstr "Dieser Bestätigungslink ist ungültig oder abgelaufen."
+
+msgid "The invitation is no longer valid."
+msgstr "Diese Einladung ist nicht mehr gültig."
+
+msgid "Unknown action."
+msgstr "Unbekannte Aktion."
+
+msgid "Member does not receive the newsletter."
+msgstr "Diese Person erhält den Newsletter nicht."
+
+msgid "Member has no birth date set, which is mandatory for echo requests."
+msgstr ""
+"Diese Person hat kein Geburtsdatum. Für eine Rückmeldungsanforderung muss es "
+"gesetzt sein."
+
+msgid "Member has no internal email address or is already registered."
+msgstr ""
+"Diese Person hat keine interne E-Mail-Adresse oder ist bereits registriert."
+
+msgid "Member has no linked account or no internal email address."
+msgstr ""
+"Diese Person hat kein verknüpftes Benutzerkonto oder keine interne E-Mail-"
+"Adresse."
+
+msgid "Member has unconfirmed email addresses."
+msgstr ""
+"Bestätigung nicht möglich: Diese Person hat unbestätigte E-Mail-Adressen."
 
 msgid "member administration"
 msgstr "Teilnehmer*innenverwaltung"
@@ -2059,9 +2120,6 @@ msgstr "%(modelname)s nicht gefunden."
 
 msgid "This field is required."
 msgstr "Dieses Feld ist zwingend erforderlich."
-
-msgid "The entered password is wrong."
-msgstr "Das eingegebene Passwort ist falsch."
 
 msgid "invalid"
 msgstr "ungültig"

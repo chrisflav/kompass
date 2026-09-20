@@ -26,8 +26,14 @@ OIDC_GROUP_SUPERUSER = get_var("oidc", "group_superuser", default="superuser")
 LOGIN_REDIRECT_URL = "/kompass"
 LOGOUT_REDIRECT_URL = "/"
 
-# default login URL, is not used if OIDC is not enabled
-LOGIN_URL = "/oidc/authenticate/"
+# Where anything `@login_required` sends an anonymous visitor — including the
+# OAuth2 authorization endpoint the frontend starts its login at. With OIDC the
+# provider handles it; without, Django's own form at `/accounts/login/` does.
+# Not the admin's login page: that one lives under `/kompass`, which the
+# frontend's own router owns on its domain.
+LOGIN_URL = (
+    "/oidc/authenticate/" if get_var("oidc", "enabled", default=False) else "/accounts/login/"
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators

@@ -25,6 +25,7 @@ env:
   REGISTRY: ghcr.io
   APP_IMAGE_NAME: ${{ github.repository }}
   NGINX_IMAGE_NAME: ${{ github.repository }}-nginx
+  SPA_IMAGE_NAME: ${{ github.repository }}-spa
 
 jobs:
   build:
@@ -74,6 +75,17 @@ jobs:
             type=sha,prefix={{branch}}-,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Extract metadata for spa image
+        id: meta-spa
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.SPA_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Build application image
         uses: docker/build-push-action@v6
         with:
@@ -102,6 +114,7 @@ jobs:
             **Docker Images:**
             - App: `${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:pr-${{ inputs.pr_number }}`
             - Nginx: `${{ env.REGISTRY }}/${{ env.NGINX_IMAGE_NAME }}:pr-${{ inputs.pr_number }}`
+            - SPA: `${{ env.REGISTRY }}/${{ env.SPA_IMAGE_NAME }}:pr-${{ inputs.pr_number }}`
 
             Add the `awaiting-deployment` label to deploy this PR to a staging server.
 
@@ -146,6 +159,24 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
+      - name: Build and push spa image
+        uses: docker/build-push-action@v6
+        with:
+          # The SPA sources live outside docker/, so this builds from the root.
+          context: .
+          file: docker/production/spa/Dockerfile
+          push: true
+          tags: ${{ steps.meta-spa.outputs.tags }}
+          labels: ${{ steps.meta-spa.outputs.labels }}
+          cache-from: |
+            type=gha,scope=spa-${{ github.ref_name }}
+            type=gha,scope=spa-master
+            type=gha,scope=spa-main
+            type=registry,ref=ghcr.io/${{ github.repository }}-spa:latest
+          cache-to: type=gha,mode=max,scope=spa-${{ github.ref_name }}
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
       - name: Output image tags
         run: |
           echo "Application image tags:"
@@ -153,6 +184,9 @@ jobs:
           echo ""
           echo "Nginx image tags:"
           echo "${{ steps.meta-nginx.outputs.tags }}"
+          echo ""
+          echo "SPA image tags:"
+          echo "${{ steps.meta-spa.outputs.tags }}"
 
       - name: Check for awaiting-deployment label and trigger deploy
         if: inputs.is_pr

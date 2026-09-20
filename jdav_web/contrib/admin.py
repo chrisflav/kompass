@@ -5,6 +5,7 @@ from functools import update_wrapper
 from typing import Callable
 from typing import Union
 
+from contrib.permissions import scope_queryset
 from django.contrib import messages
 from django.contrib.auth import get_permission_codename
 from django.core.exceptions import PermissionDenied
@@ -253,22 +254,7 @@ class FilteredQuerysetAdminMixin:
         ordering = self.get_ordering(request)
         if ordering:
             qs = qs.order_by(*ordering)
-        queryset = qs
-        list_global_perm = "{}.list_global_{}".format(self.opts.app_label, self.opts.model_name)
-        if request.user.has_perm(list_global_perm):
-            view_global_perm = "{}.view_global_{}".format(self.opts.app_label, self.opts.model_name)
-            if request.user.has_perm(view_global_perm):
-                return queryset
-            if hasattr(request.user, "member"):
-                return request.user.member.annotate_view_permission(queryset, model=self.model)
-            return queryset.annotate(_viewable=models.Value(False))
-
-        if not hasattr(request.user, "member"):
-            return self.model.objects.none()
-
-        return request.user.member.filter_queryset_by_permissions(
-            queryset, annotate=True, model=self.model
-        )
+        return scope_queryset(request.user, qs, model=self.model)
 
 
 # class ObjectPermissionsInlineModelAdminMixin(rules.contrib.admin.ObjectPermissionsInlineModelAdminMixin):

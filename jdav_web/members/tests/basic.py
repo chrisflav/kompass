@@ -1354,6 +1354,8 @@ class MemberAdminTestCase(AdminTestCase):
         self.assertContains(response, self.peter.name)
         self.assertContains(response, _("Location"))
 
+    # The generator moved to members/pdf.py when the API started sharing it,
+    # so patching the admin's own name no longer intercepts anything.
     @mock.patch("members.pdf.render_tex")
     def test_crisis_intervention_list_form_with_youth_leaders_and_groups(self, mock_render_tex):
         """Test crisis intervention list form with youth leaders and groups."""

@@ -3,11 +3,37 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import admin
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import redirect_to_login
+from django.http import Http404
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.static import serve
 from startpage.models import Link
+
+
+class BuiltinLoginView(LoginView):
+    """Django's own login form, served only where no identity provider exists.
+
+    The OAuth2 authorization endpoint sends an anonymous visitor to
+    ``settings.LOGIN_URL``, and the admin's login is no use there: it lives
+    under ``/kompass``, which the new frontend's router owns on its domain, and
+    anything inside ``i18n_patterns`` is answered with a locale redirect into
+    that router. So this form stands in — but only where sign-in is not already
+    handled by a provider.
+
+    Where OIDC is configured this must not exist at all: ``ModelBackend`` is
+    always in ``AUTHENTICATION_BACKENDS``, so a reachable password form would be
+    a way around the provider's MFA and deprovisioning for anyone still holding
+    a local password. The check is here rather than in the urlconf so it is
+    decided per request, which is both testable in either mode and impossible to
+    leave behind by editing a route.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if settings.OIDC_ENABLED:
+            raise Http404("No local login form where an identity provider is configured.")
+        return super().dispatch(request, *args, **kwargs)
 
 
 def media_unprotected(request, path):
@@ -22,8 +48,15 @@ def media_unprotected(request, path):
     return response
 
 
-@staff_member_required
 def media_protected(request, path):
+    # The same test ``@staff_member_required`` makes, but redirecting at
+    # ``LOGIN_URL`` rather than ``admin:login``. The admin's login lives under
+    # ``/kompass``, which the new frontend's router owns on its domain — a
+    # protected file requested there would otherwise bounce to a URL that
+    # renders that router instead of asking anyone to sign in.
+    user = request.user
+    if not (user.is_authenticated and user.is_active and user.is_staff):
+        return redirect_to_login(request.get_full_path(), settings.LOGIN_URL)
     return media_unprotected(request, path)
 
 

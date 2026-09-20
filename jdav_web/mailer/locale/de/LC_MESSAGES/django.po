@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-18 22:37+0200\n"
+"POT-Creation-Date: 2026-09-19 02:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -51,6 +51,30 @@ msgstr "Weiterleitung an die ausgewählten Adressen reaktivieren"
 #, python-format
 msgid "Reactivated %(count)d addresses."
 msgstr "%(count)d Adressen reaktiviert."
+
+msgid "Can't verify this link. Try again!"
+msgstr "Ungültiger Link. Bitte nochmal versuchen!"
+
+msgid "Either a group or at least one member is required as forward recipient."
+msgstr ""
+"Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
+"Empfänger*in ausgewählt werden."
+
+msgid ""
+"Either a group, a memberlist or at least one member is required as recipient"
+msgstr ""
+"Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
+"ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
+
+msgid "A sent message can no longer be edited."
+msgstr "Eine bereits versendete Nachricht kann nicht mehr bearbeitet werden."
+
+msgid ""
+"Your email address is not an internal email address and may not send "
+"messages."
+msgstr ""
+"Deine E-Mail Adresse ist keine interne E-Mail Adresse und darf keine "
+"Nachrichten versenden."
 
 msgid "mailer"
 msgstr "Verteiler"
@@ -98,11 +122,6 @@ msgstr "Email-Adresse"
 msgid "email addresses"
 msgstr "Email-Adressen"
 
-msgid "Either a group or at least one member is required as forward recipient."
-msgstr ""
-"Es muss entweder eine Gruppe oder mindestens ein*e Teilnehmer*in als "
-"Empfänger*in ausgewählt werden."
-
 msgid "subject"
 msgstr "Betreff"
 
@@ -147,12 +166,6 @@ msgstr "Nachrichten"
 
 msgid "Can submit mails"
 msgstr "Kann Mails verschicken"
-
-msgid ""
-"Either a group, a memberlist or at least one member is required as recipient"
-msgstr ""
-"Es muss entweder eine Gruppe, eine Teilnehmer*innenliste oder mindestens "
-"ein*e Teilnehmer*in als Empfänger*in ausgewählt werden."
 
 msgid "file"
 msgstr "Datei"
@@ -302,9 +315,6 @@ msgstr "Hier kannst du dich vom Newsletter abmelden"
 
 msgid "Successfully unsubscribed from the newsletter for "
 msgstr "Newsletter erfolgreich abbestellt für "
-
-msgid "Can't verify this link. Try again!"
-msgstr "Ungültiger Link. Bitte nochmal versuchen!"
 
 msgid "Please fill in every field"
 msgstr "Bitte jedes Feld ausfüllen!"

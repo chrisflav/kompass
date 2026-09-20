@@ -8,6 +8,15 @@ By default, Kompass uses Django's builtin authentication backend for logging int
 the admin pages. For integrating third-party services, Kompass can both authenticate
 against a third-party service or provide authentication for third-party services.
 
+The new frontend signs in differently: it sends the browser to the OAuth2
+provider mounted at ``/o/`` using Authorization Code + PKCE, and then calls the
+REST API with the bearer token it gets back. The password is typed on a page
+Django serves — the frontend never sees it. Where OIDC is configured that page
+is the provider's; otherwise it is Django's own form at ``/accounts/login/``,
+which is mounted outside the language prefixes so it stays reachable on whatever
+domain the frontend is served from. See
+:ref:`development_manual/deployment` for registering the application.
+
 Using Kompass as an OAuth2 Provider
 -----------------------------------
 

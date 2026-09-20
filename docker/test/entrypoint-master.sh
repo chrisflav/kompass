@@ -46,9 +46,9 @@ VERBOSITY=${DJANGO_TEST_VERBOSITY:-2}
 set +o errexit
 
 if [[ "$DJANGO_TEST_KEEPDB" == 1 ]]; then
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v $VERBOSITY --noinput --keepdb 2>&1 | tee "$HTMLCOV_DIR/test_output.txt"
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin feedback test_data jdav_web -v $VERBOSITY --noinput --keepdb 2>&1 | tee "$HTMLCOV_DIR/test_output.txt"
 else
-    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin test_data jdav_web -v $VERBOSITY --noinput 2>&1 | tee "$HTMLCOV_DIR/test_output.txt"
+    coverage run manage.py test startpage finance members contrib logindata mailer material ludwigsburgalpin feedback test_data jdav_web -v $VERBOSITY --noinput 2>&1 | tee "$HTMLCOV_DIR/test_output.txt"
 fi
 TEST_EXIT_CODE=${PIPESTATUS[0]}
 
