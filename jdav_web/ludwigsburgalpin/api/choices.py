@@ -8,8 +8,8 @@ than each building the payload itself.
 
 from ludwigsburgalpin.models import Termin
 
-# Termin choice fields whose ``{value, label}`` options are surfaced by
-# ``GET /enums`` so the SPA can render labelled selects for them.
+# Termin choice fields whose ``{value, label, default}`` options are surfaced
+# by ``GET /enums`` so the SPA can render labelled selects for them.
 TERMIN_CHOICE_FIELDS = (
     "group",
     "category",
