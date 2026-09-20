@@ -3579,7 +3579,9 @@ class GroupAdminTestCase(AdminTestCase):
         response = c.post(url, data={"group_checklist": ""}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertEqual(response.headers["Content-Type"], "application/pdf")
+        # A header alone is no document: parse it, so a truncated file fails.
         self.assertTrue(response.content.startswith(b"%PDF"), response.content[:64])
+        self.assertGreaterEqual(len(PdfReader(BytesIO(response.content)).pages), 1)
 
     def test_group_checklist_without_public_groups(self):
         """Without a public group there is nothing to typeset — say so.

@@ -29,11 +29,16 @@ class TexRenderError(RuntimeError):
     ``pdflatex`` is not reliably loud about this. A document whose body renders
     to nothing — the group checklist on an installation where no group is
     flagged ``show_website``, for instance — ends in "No pages of output" and
-    still *exits 0*, writing a zero-byte ``.pdf``. Serving that file is worse
-    than failing: the browser saves a PDF it cannot open, and where an older
-    run of the same day left a real file at the same path the response is a
-    stale document that looks perfectly fine. So the render raises instead, and
-    the caller either refuses up front or the failure reaches the log.
+    still *exits 0*, leaving a zero-byte ``.pdf`` behind (it truncates an
+    existing one, so a real file from an earlier run of the same day does not
+    survive to be served in its place either). The browser saves a PDF it
+    cannot open, so the render raises instead and the caller either refuses up
+    front or the failure reaches the log.
+
+    Only what a run left behind is checked. Filenames carry the date rather
+    than anything unique, so two requests for the same document on the same day
+    still share one path and one can read it while the other rewrites it. That
+    race predates this check and is untouched by it.
     """
 
 
@@ -131,12 +136,15 @@ def render_tex(name, template_path, context, date=None, save_only=False):
     pdf_path = media_path(filename_pdf)
     if result.returncode != 0 or not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
         # The .log is gone by now (cleaned up above), so keep pdflatex's own
-        # output — its last lines carry the error or the "No pages of output".
+        # output. Only the tail of it: the ~90 lines before that are the .sty
+        # files it loaded, while the error and the "No pages of output" are at
+        # the very end.
         logger.error(
-            "pdflatex produced no PDF for %s (exit %s): %s",
+            "pdflatex produced no PDF for %s (exit %s):\n%s\n%s",
             template_path,
             result.returncode,
-            result.stdout,
+            "\n".join(result.stdout.splitlines()[-40:]),
+            result.stderr,
         )
         raise TexRenderError(f"pdflatex produced no PDF for {template_path}")
 
