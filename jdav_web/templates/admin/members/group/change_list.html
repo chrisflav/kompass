@@ -6,6 +6,7 @@
 <li>
     <form method="post" action="{% url 'admin:members_group_action' %}">
         {% csrf_token %}
+        <input type="submit" name="timetable" value="{% trans 'Timetable' %}">
         <input type="submit" name="group_overview" value="{% trans 'Generate group overview' %}">
         <input type="submit" name="group_checklist" value="{% trans 'Generate group checklist' %}">
     </form>

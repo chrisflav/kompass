@@ -1,0 +1,8 @@
+{% load i18n %}
+{% if svg_data %}
+<div id="stundenplan-svg" style="display: block; font-family: inherit; min-width: 100%;">
+{% include "members/_timetable_svg.html" %}
+</div>
+{% else %}
+<p>{% trans "No schedule information available." %}</p>
+{% endif %}
