@@ -133,6 +133,14 @@
 <p>By default, Kompass uses Django’s builtin authentication backend for logging into
 the admin pages. For integrating third-party services, Kompass can both authenticate
 against a third-party service or provide authentication for third-party services.</p>
+<p>The new frontend signs in differently: it sends the browser to the OAuth2
+provider mounted at <code class="docutils literal notranslate"><span class="pre">/o/</span></code> using Authorization Code + PKCE, and then calls the
+REST API with the bearer token it gets back. The password is typed on a page
+Django serves — the frontend never sees it. Where OIDC is configured that page
+is the provider’s; otherwise it is Django’s own form at <code class="docutils literal notranslate"><span class="pre">/accounts/login/</span></code>,
+which is mounted outside the language prefixes so it stays reachable on whatever
+domain the frontend is served from. See
+<a class="reference internal" href="deployment.html#development-manual-deployment"><span class="std std-ref">Production Deployment</span></a> for registering the application.</p>
 <section id="using-kompass-as-an-oauth2-provider">
 <h2>Using Kompass as an OAuth2 Provider<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#using-kompass-as-an-oauth2-provider" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#using-kompass-as-an-oauth2-provider'">¶</a></h2>
 <p>Kompass can act as an OAuth2/OIDC provider for other applications.</p>

@@ -321,6 +321,73 @@ how to verify it.</p>
 </li>
 </ol>
 </section>
+<section id="trying-the-new-frontend-on-a-second-domain">
+<h2>Trying the new frontend on a second domain<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#trying-the-new-frontend-on-a-second-domain" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#trying-the-new-frontend-on-a-second-domain'">¶</a></h2>
+<p>The new TypeScript frontend ships as its own image and its own service, <code class="docutils literal notranslate"><span class="pre">spa</span></code>,
+which publishes port <code class="docutils literal notranslate"><span class="pre">3001</span></code> on localhost. The Django site keeps port <code class="docutils literal notranslate"><span class="pre">3000</span></code>
+and its nginx configuration untouched, so this can be switched on without
+disturbing what users are working in today. Point a second domain’s TLS proxy at
+<code class="docutils literal notranslate"><span class="pre">127.0.0.1:3001</span></code> and both are live side by side: the old interface on the main
+domain, the new one on the second.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">spa</span></code> container serves the frontend’s static files and proxies <code class="docutils literal notranslate"><span class="pre">/api/</span></code>,
+<code class="docutils literal notranslate"><span class="pre">/o/</span></code>, <code class="docutils literal notranslate"><span class="pre">/accounts/</span></code> and <code class="docutils literal notranslate"><span class="pre">/media/</span></code> through to Django, so everything runs on
+one origin. That is what keeps the setup simple — there is no CORS to configure
+and no cross-site cookie to get right.</p>
+<p>It proxies to <code class="docutils literal notranslate"><span class="pre">spa_master</span></code>, a <strong>second uwsgi</strong> running the same application
+image, not to the one serving the existing site. That separation is the point:
+a single visitor on the pilot opens several API requests per page, and sharing
+the two workers the live site runs on would let them queue in front of real
+users until nginx starts answering with the downtime page.</p>
+<div class="admonition note">
+<p class="admonition-title">Bemerkung</p>
+<p>The first deploy that includes this file also pulls
+<code class="docutils literal notranslate"><span class="pre">ghcr.io/…/kompass-spa</span></code>. A newly published GHCR package is private until
+it is made visible and linked to the repository; until then
+<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span></code> fails on that pull and the app and nginx updates in
+the same command do not land either. Make the package public before the
+first deploy.</p>
+</div>
+<ol class="arabic">
+<li><p><strong>Register the frontend with the OAuth2 provider.</strong> The frontend signs in
+with Authorization Code + PKCE, which needs an application whose redirect URI
+matches the domain it is served from:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">docker</span> <span class="n">compose</span> <span class="n">exec</span> <span class="n">master</span> <span class="n">python</span> <span class="n">jdav_web</span><span class="o">/</span><span class="n">manage</span><span class="o">.</span><span class="n">py</span> <span class="n">ensure_frontend_oauth_app</span> \
+</span><span id="line-2">    <span class="o">--</span><span class="n">redirect</span><span class="o">-</span><span class="n">uri</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">neu</span><span class="o">.</span><span class="n">jdav</span><span class="o">-</span><span class="n">town</span><span class="o">.</span><span class="n">de</span><span class="o">/</span><span class="n">callback</span>
+</span></code></pre></div>
+</div>
+<p>The command is idempotent — run it again to add another domain. If the
+frontend image was built with a different <code class="docutils literal notranslate"><span class="pre">VITE_OAUTH_CLIENT_ID</span></code>, pass the
+same value as <code class="docutils literal notranslate"><span class="pre">--client-id</span></code>.</p>
+</li>
+<li><p><strong>Let Django answer for the second domain.</strong> In <code class="docutils literal notranslate"><span class="pre">settings.toml</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p">[</span><span class="n">django</span><span class="p">]</span>
+</span><span id="line-2"><span class="n">allowed_hosts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'jdav-town.de'</span><span class="p">,</span> <span class="s1">'neu.jdav-town.de'</span><span class="p">]</span>
+</span><span id="line-3"><span class="n">csrf_trusted_origins</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'https://neu.jdav-town.de'</span><span class="p">]</span>
+</span><span id="line-4"><span class="n">trust_forwarded_proto_hosts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'neu.jdav-town.de'</span><span class="p">]</span>
+</span></code></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">csrf_trusted_origins</span></code> is needed because the sign-in form is served under a
+domain Django would not otherwise recognise.
+<code class="docutils literal notranslate"><span class="pre">trust_forwarded_proto_hosts</span></code> makes Django believe the
+<code class="docutils literal notranslate"><span class="pre">X-Forwarded-Proto</span></code> header from the reverse proxy; without it Django sees
+plain HTTP behind the TLS termination and rejects the <code class="docutils literal notranslate"><span class="pre">https://</span></code> origin of
+that same form.</p>
+<p>List the new domain only. The setting is per host on purpose: Django’s
+<code class="docutils literal notranslate"><span class="pre">SECURE_PROXY_SSL_HEADER</span></code> would apply to every domain this one process
+serves, and turning it on for the domain that has always run without it also
+turns on stricter CSRF <code class="docutils literal notranslate"><span class="pre">Referer</span></code> checking there — which can start refusing
+POSTs that used to be accepted. Only list hosts that cannot reach the
+container except through the TLS proxy.</p>
+</li>
+<li><p><strong>Point the second domain at port 3001</strong>, the same way the main domain is
+pointed at <code class="docutils literal notranslate"><span class="pre">3000</span></code> — including a certificate for it.</p></li>
+</ol>
+<p>Two things stay deliberately unchanged while the pilot runs. Notification mails
+still link into the old interface, since that is where everyone is still
+working; <code class="docutils literal notranslate"><span class="pre">frontend_base_url</span></code> switches those links over when the time comes.
+And the old interface remains the one users are sent to, so nothing depends on
+the pilot being up.</p>
+</section>
 <section id="local-configuration">
 <h2>Local configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#local-configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#local-configuration'">¶</a></h2>
 <p>If you followed the steps outlined in <a class="reference internal" href="#user-manual-initial-installation"><span class="std std-ref">Initial installation</span></a>, you have a folder
@@ -386,6 +453,7 @@ of the <code class="docutils literal notranslate"><span class="pre">docker-compo
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] h-full overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
 <li><a :data-current="activeSection === '#initial-installation'" class="reference internal" href="#initial-installation">Initial installation</a></li>
+<li><a :data-current="activeSection === '#trying-the-new-frontend-on-a-second-domain'" class="reference internal" href="#trying-the-new-frontend-on-a-second-domain">Trying the new frontend on a second domain</a></li>
 <li><a :data-current="activeSection === '#local-configuration'" class="reference internal" href="#local-configuration">Local configuration</a></li>
 </ul>
 </div>
