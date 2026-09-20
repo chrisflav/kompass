@@ -1513,7 +1513,7 @@ input[type="radio"] {
   max-width: 30rem;
 }
 
-/* Ludwigsburg's own coordinates, read out like a bearing on the map. */
+/* The section's own coordinates, read out like a bearing on the map. */
 .public-hero-coords {
   display: inline-block;
   margin-top: 1.25rem;

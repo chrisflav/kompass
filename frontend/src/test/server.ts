@@ -2,6 +2,7 @@ import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 
 import { API_BASE } from "../api/client";
+import type { Site } from "../api/site";
 
 /** Absolute URL for an API path, so handlers match what the client actually calls. */
 export const api = (path: string) => `${API_BASE}${path}`;
@@ -35,9 +36,31 @@ export const DEFAULT_ME = {
   ],
 };
 
+/**
+ * The deployment every test runs against. The chrome asks for this on every
+ * page, so it belongs in the base handlers rather than in each test; a test
+ * that cares about a different section overrides it with {@link useSite}.
+ *
+ * Typed against the generated contract, so a field the API drops or renames
+ * breaks the fixture here rather than going unnoticed in the tests that use it.
+ */
+export const DEFAULT_SITE: Site = {
+  name: "Ludwigsburg",
+  display_name: "JDAV Ludwigsburg",
+  dav_section: "Schwaben",
+  street: "Musterweg 1",
+  town: "71634 Ludwigsburg",
+  telephone: "07141 123456",
+  contact_mail: "info@example.org",
+  responsible_mail: "verantwortlich@example.org",
+  latitude: 48.8974,
+  longitude: 9.1916,
+};
+
 /** Handlers present in every test; individual tests override with `server.use`. */
 const baseHandlers = [
   http.get(api("/api/members/me"), () => HttpResponse.json(DEFAULT_ME)),
+  http.get(api("/api/startpage/public/site"), () => HttpResponse.json(DEFAULT_SITE)),
 ];
 
 export const server = setupServer(...baseHandlers);
@@ -49,6 +72,15 @@ export function useMe(overrides: Partial<typeof DEFAULT_ME>) {
   server.use(
     http.get(api("/api/members/me"), () =>
       HttpResponse.json({ ...DEFAULT_ME, ...overrides }),
+    ),
+  );
+}
+
+/** Replace `/api/startpage/public/site` for one test (e.g. another section). */
+export function useSite(overrides: Partial<Site>) {
+  server.use(
+    http.get(api("/api/startpage/public/site"), () =>
+      HttpResponse.json({ ...DEFAULT_SITE, ...overrides }),
     ),
   );
 }

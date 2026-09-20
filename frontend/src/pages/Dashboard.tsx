@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { client, unwrap } from "../api/http";
 import { useApiQuery } from "../api/hooks";
 import { useMe } from "../api/me";
+import { useSite } from "../api/site";
 import { ContourField, KompassMark } from "../components/Contour";
 import { Badge, useDocumentTitle } from "../components/ui";
 import type { components } from "../api/schema";
@@ -78,6 +79,7 @@ function Row({
 export function Dashboard() {
   useDocumentTitle("Übersicht");
   const me = useMe();
+  const site = useSite();
   const memberId = me.data?.member_id ?? null;
   const firstName = me.data?.name?.split(" ")[0];
 
@@ -119,7 +121,7 @@ export function Dashboard() {
               "Willkommen zurück"
             )}
           </h2>
-          <p className="dash-hero-sub">Kompass · Verwaltung der JDAV Ludwigsburg</p>
+          <p className="dash-hero-sub">Kompass · Verwaltung der {site.display_name}</p>
         </div>
         <div className="dash-hero-side">
           <Link to="/kompass/mailer/messages?compose=1" className="btn dash-hero-cta">

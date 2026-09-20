@@ -389,6 +389,30 @@ class PublicGroupDetail(ModelSchema):
         return obj.leiters.all()
 
 
+class PublicSiteOut(Schema):
+    """Who is running this deployment: the section's identity and imprint data.
+
+    Read straight from ``settings.SEKTION*`` (the ``[section]`` table of
+    ``settings.toml``). The SPA is deployed per section, so every place that
+    names the section — the wordmark, the page titles, the imprint — reads it
+    from here instead of carrying one section's name in its source.
+    """
+
+    name: str
+    # ``JDAV <name>``, so the wordmark is spelled in exactly one place.
+    display_name: str
+    dav_section: str
+    street: str
+    town: str
+    telephone: str
+    contact_mail: str
+    responsible_mail: str
+    # Both null unless the deployment configured them; the hero drops its
+    # coordinate readout rather than inventing a location.
+    latitude: float | None = None
+    longitude: float | None = None
+
+
 class NavigationOut(Schema):
     """Shared navigation context injected on every public page (``render``)."""
 

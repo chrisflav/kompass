@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useApiQuery } from "../api/hooks";
 import { client, unwrap } from "../api/http";
 import { useMe } from "../api/me";
+import { useSite } from "../api/site";
 import { useAuth } from "../auth";
 import { KompassMark } from "./Contour";
 import { FeedbackButton } from "./FeedbackButton";
@@ -218,6 +219,7 @@ function UserMenu({ memberId, name }: { memberId: number | null; name: string })
 export function SiteHeader({ variant }: { variant: "public" | "app" }) {
   const { token } = useAuth();
   const me = useMe();
+  const site = useSite();
   const { pathname } = useLocation();
   const [drawer, setDrawer] = useState(false);
   const publicNav = usePublicNav(variant === "public");
@@ -235,7 +237,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
             dashboard in the app, on the public home on the website. */}
         <Link to={variant === "app" ? "/kompass" : "/"} className="brand topbar-brand">
           <KompassMark size={24} />
-          <span>JDAV Ludwigsburg</span>
+          <span>{site.display_name}</span>
         </Link>
 
         <div className="topbar-right">

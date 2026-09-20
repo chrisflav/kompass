@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 
+import { useSite } from "../api/site";
 import { useAuth } from "../auth";
 import { ContourField, KompassMark } from "../components/Contour";
 import { Button, useDocumentTitle } from "../components/ui";
@@ -8,6 +9,7 @@ import { Button, useDocumentTitle } from "../components/ui";
 export function Login() {
   useDocumentTitle("Anmelden");
   const { token, beginLogin } = useAuth();
+  const site = useSite();
   const location = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,7 +35,7 @@ export function Login() {
     <div className="login">
       <ContourField />
       <div className="card">
-        <span className="login-eyebrow">JDAV Ludwigsburg</span>
+        <span className="login-eyebrow">{site.display_name}</span>
         <div className="login-brand">
           <KompassMark size={34} />
           <h1>Kompass</h1>

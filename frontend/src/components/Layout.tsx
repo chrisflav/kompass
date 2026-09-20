@@ -1,6 +1,7 @@
 import { Outlet, Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 
+import { useSite } from "../api/site";
 import { useAuth } from "../auth";
 import { SiteHeader } from "./SiteHeader";
 
@@ -34,6 +35,7 @@ export function AppLayout() {
 
 /** Public-facing website — same shell as the Kompass workspace. */
 export function PublicLayout() {
+  const site = useSite();
   return (
     <div className="site">
       <SiteHeader variant="public" />
@@ -41,7 +43,7 @@ export function PublicLayout() {
         <Outlet />
       </main>
       <footer className="public-footer">
-        <span className="muted">JDAV Ludwigsburg · Kompass</span>
+        <span className="muted">{site.display_name} · Kompass</span>
       </footer>
     </div>
   );

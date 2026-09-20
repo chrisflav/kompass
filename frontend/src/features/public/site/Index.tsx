@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { mediaUrl } from "../../../api/client";
 import { client, unwrap } from "../../../api/http";
 import { useApiQuery } from "../../../api/hooks";
+import { formatCoordinates, useSite } from "../../../api/site";
 import { ContourField } from "../../../components/Contour";
 import { QueryBoundary, useDocumentTitle } from "../../../components/ui";
 import type { components } from "../../../api/schema";
@@ -41,7 +42,9 @@ function shortDate(iso?: string | null): { day: string; rest: string } {
  * deliberately shaped differently — one is timely, the other is an archive.
  */
 export function PublicIndex() {
-  useDocumentTitle("JDAV Ludwigsburg");
+  const site = useSite();
+  const coordinates = formatCoordinates(site);
+  useDocumentTitle(site.display_name);
   const query = useApiQuery(["public", "index"], () =>
     unwrap(client.GET("/api/startpage/public/index")),
   );
@@ -52,12 +55,12 @@ export function PublicIndex() {
         <ContourField />
         <div className="public-hero-inner">
           <span className="public-hero-eyebrow">Jugend des Deutschen Alpenvereins</span>
-          <h1>JDAV Ludwigsburg</h1>
+          <h1>{site.display_name}</h1>
           <p className="public-hero-lead">
             Klettern, Bergsteigen und gemeinsam draußen unterwegs — die Jugend des
-            Deutschen Alpenvereins in Ludwigsburg.
+            Deutschen Alpenvereins{site.name && ` in ${site.name}`}.
           </p>
-          <span className="public-hero-coords">48.8974° N · 9.1916° O</span>
+          {coordinates && <span className="public-hero-coords">{coordinates}</span>}
         </div>
       </header>
 
