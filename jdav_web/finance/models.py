@@ -121,10 +121,11 @@ class Statement(CommonModel):
         default=0,
         decimal_places=2,
         max_digits=5,
+        # the help_text stays free of settings so that it is the same in every
+        # deployment, the admin form names the configured maximum
         help_text=_(
-            "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is %(max_cost)s€."
-        )
-        % {"max_cost": settings.MAX_NIGHT_COST},
+            "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs."
+        ),
     )
 
     status = models.IntegerField(

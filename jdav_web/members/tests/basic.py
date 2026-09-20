@@ -3507,6 +3507,15 @@ class StatementOnListFormTestCase(BasicMemberTestCase):
         self.assertGreater(1, self.ex.approved_staff_count)
         self.assertRaises(ValidationError, form.clean)
 
+    @override_settings(MAX_NIGHT_COST=13)
+    def test_night_cost_help_text(self):
+        # the model's help_text is exported into the OpenAPI schema, so only the
+        # form may name the configured maximum
+        field = Statement._meta.get_field("night_cost")
+        self.assertNotIn("13", str(field.help_text))
+        form = StatementOnListForm(parent_obj=self.ex, instance=self.st)
+        self.assertIn("13", form.fields["night_cost"].help_text)
+
 
 class KlettertreffAdminTestCase(AdminTestCase):
     def setUp(self):

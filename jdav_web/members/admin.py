@@ -1519,6 +1519,11 @@ class StatementOnListForm(forms.ModelForm):
         self.fields["allowance_to"].queryset = excursion.jugendleiter.all()
         self.fields["subsidy_to"].queryset = excursion.jugendleiter.all()
         self.fields["ljp_to"].queryset = excursion.jugendleiter.all()
+        # the model's help_text is deployment independent, name the configured
+        # maximum here
+        self.fields["night_cost"].help_text = _(
+            "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is %(max_cost)s€."
+        ) % {"max_cost": settings.MAX_NIGHT_COST}
 
     class Meta:
         model = StatementOnExcursionProxy

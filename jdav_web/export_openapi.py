@@ -7,12 +7,15 @@ Run it from ``jdav_web/``, then regenerate the typed client::
     cd ../frontend && npm run gen:api
 
 This is a script rather than a management command on purpose. ``manage.py``
-calls ``django.setup()`` before it hands over, and a couple of ``help_text``\\s
-interpolate with ``%`` at model-definition time — which resolves their lazy
-string as the models are imported, freezing whichever language was active
-during setup. No command can undo that afterwards. Deactivating translations
-first is the only point early enough, so the export is reproducible down to
-the byte whether or not the catalogues happen to be compiled.
+calls ``django.setup()`` before it hands over, and whatever a model resolves
+while it is imported keeps whichever language was active during setup. No
+command can undo that afterwards. Deactivating translations first is the only
+point early enough, so the export is reproducible down to the byte whether or
+not the catalogues happen to be compiled.
+
+The deployment's settings stay out of the schema as well: no model
+``help_text`` interpolates them, the forms that want to name a domain or a
+maximum do so themselves. Exporting from any deployment writes the same bytes.
 """
 
 import argparse

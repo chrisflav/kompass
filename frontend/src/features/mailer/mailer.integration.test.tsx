@@ -222,7 +222,7 @@ describe("mailer — E-Mail-Adressen", () => {
     expect(screen.getByText("Klettergruppe")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    expect(screen.getByText(/Leite nur E-Mails weiter, die von einer der folgenden Domains/)).toBeInTheDocument();
+    expect(screen.getByText(/Leite nur E-Mails weiter, die von einer der internen Domains/)).toBeInTheDocument();
   });
 
   it("saves an edit and reports a rejected one", async () => {

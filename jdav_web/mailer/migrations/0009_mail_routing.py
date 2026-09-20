@@ -1,6 +1,7 @@
-# The help_text of EmailAddress.internal_only is rendered from settings, so
-# makemigrations proposes an AlterField for it in every environment. It has no
-# effect on the schema and is deliberately left out here.
+# The help_text of EmailAddress.internal_only was rendered from settings back
+# then, so makemigrations proposed an AlterField for it in every environment.
+# It had no effect on the schema and is deliberately left out here, 0010
+# records the settings independent value.
 
 from django.db import migrations
 from django.db import models

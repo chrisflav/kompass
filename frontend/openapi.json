@@ -15301,7 +15301,7 @@
           },
           "night_cost": {
             "default": 0,
-            "description": "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs. The maximum subsidised value is 11€.",
+            "description": "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs.",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Price per night",
             "type": "string"
@@ -16323,7 +16323,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.",
+            "description": "Only allow forwarding to this e-mail address from one of the internal domains.",
             "title": "Restrict to internal email addresses",
             "type": "boolean"
           }
@@ -16381,7 +16381,7 @@
           },
           "internal_only": {
             "default": false,
-            "description": "Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *.",
+            "description": "Only allow forwarding to this e-mail address from one of the internal domains.",
             "title": "Restrict to internal email addresses",
             "type": "boolean"
           }
