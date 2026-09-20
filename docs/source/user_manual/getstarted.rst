@@ -72,7 +72,7 @@ Wie geht es weiter?
 Nun hat Fritz den Bürokratiekram für heute erledigt. Du willst noch mehr wissen? Dann
 geh zurück zur :ref:`user_manual/index`.
 
-.. _Startseite: https://jdav-hd.de/kompass
-.. _Teilnehmer\*innenanzeige: https://jdav-hd.de/kompassmembers/member/
-.. _Nachricht verfassen: https://jdav-hd.de/kompassmailer/message/add/
-.. _Ausfahrten: https://jdav-hd.de/kompassmembers/freizeit/
+.. _Startseite: BASE_URL/kompass
+.. _Teilnehmer\*innenanzeige: BASE_URL/kompassmembers/member/
+.. _Nachricht verfassen: BASE_URL/kompassmailer/message/add/
+.. _Ausfahrten: BASE_URL/kompassmembers/freizeit/
