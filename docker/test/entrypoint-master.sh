@@ -32,11 +32,12 @@ done
 
 cd /app
 
-if ! [ -f /tmp/completed_initial_run ]; then
-    echo 'Initialising kompass master container'
-
-    python jdav_web/manage.py compilemessages --locale de
-fi
+# Unconditional: the source tree is bind-mounted, so a `.po` updated on the
+# host leaves the compiled `.mo` behind and gettext falls back to the English
+# msgid for every message added since the catalogue was last built.
+# A subshell so the rest of the script keeps its own working directory;
+# scoped to the project tree, which is where every catalogue lives.
+(cd jdav_web && python manage.py compilemessages --locale de -v 0)
 
 cd jdav_web
 
