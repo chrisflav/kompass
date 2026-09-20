@@ -26,6 +26,26 @@ const POST = {
 
 const anon = { authenticated: false } as const;
 
+/** A post body as authors really write them: Markdown, raw HTML left over from
+ *  the Django site, math — and, for the sake of the argument, an attack. */
+const RICH_BODY = [
+  "Ein **fetter** Absatz.",
+  "",
+  '<div class="hinweis" style="color: red">Ein <em>roher</em> Hinweis mit',
+  '<a href="https://example.org">Link</a>.</div>',
+  "",
+  '<img src="/media/berg.jpg" alt="Berg">',
+  "",
+  "Formel $E = mc^2$ im Text:",
+  "",
+  "$$",
+  "\\int_0^1 x \\, dx",
+  "$$",
+  "",
+  "<script>window.__pwned = 1;</script>",
+  '<img src="nix.png" onerror="window.__pwned = 2">',
+].join("\n");
+
 describe("shared helpers", () => {
   it("formats an ISO date in long German form", () => {
     expect(formatDate("2026-02-20")).toBe("20. Februar 2026");
@@ -69,6 +89,66 @@ describe("shared helpers", () => {
 
     const empty = renderWithApp(<Prose text={null} />, anon);
     expect(empty.container.querySelector(".prose")).toBeNull();
+  });
+
+  it("renders raw HTML in a post body as elements, not as visible tags", () => {
+    const { container } = renderWithApp(<Prose text={RICH_BODY} />, anon);
+
+    // Markdown still works alongside the HTML.
+    expect(container.querySelector("strong")).toHaveTextContent("fetter");
+
+    // The raw block is a real element, with the class and style it was given.
+    const box = container.querySelector("div.hinweis") as HTMLElement;
+    expect(box).not.toBeNull();
+    expect(box.style.color).toBe("red");
+    expect(box.querySelector("em")).toHaveTextContent("roher");
+    expect(box.querySelector("a")).toHaveAttribute("href", "https://example.org");
+    expect(screen.getByRole("img", { name: "Berg" })).toHaveAttribute("src", "/media/berg.jpg");
+
+    // And nothing of it is left as text.
+    expect(container.textContent).not.toContain("<div");
+    expect(container.textContent).not.toContain("<em>");
+  });
+
+  it("keeps rendering math through the sanitiser", () => {
+    const { container } = renderWithApp(<Prose text={RICH_BODY} />, anon);
+
+    // Both the inline and the display formula reach KaTeX...
+    expect(container.querySelectorAll(".katex")).toHaveLength(2);
+    expect(container.querySelector(".katex-display")).not.toBeNull();
+    // ...with the MathML half intact, which is what a sanitiser running last
+    // would have thrown away.
+    const annotations = [...container.querySelectorAll("math annotation")].map(
+      (a) => a.textContent,
+    );
+    expect(annotations).toEqual(["E = mc^2", "\\int_0^1 x \\, dx"]);
+    expect(container.textContent).not.toContain("$");
+  });
+
+  it("strips scripts and event handlers out of a post body", () => {
+    const { container } = renderWithApp(<Prose text={RICH_BODY} />, anon);
+
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("[onerror]")).toBeNull();
+    expect(container.innerHTML).not.toContain("__pwned");
+    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+  });
+
+  it("refuses a javascript: link", () => {
+    const { container } = renderWithApp(
+      <Prose text={'<a href="javascript:alert(1)">Klick</a>'} />,
+      anon,
+    );
+    expect(container.querySelector("a")).not.toHaveAttribute("href");
+  });
+
+  it("strips raw HTML out of a teaser instead of showing tag soup", () => {
+    expect(
+      excerpt('<div class="x"><p>Ein <b>guter</b> Bericht.</p><p>Mehr &amp; mehr.</p></div>'),
+    ).toBe("Ein guter Bericht. Mehr & mehr.");
+    // A script never contributes its source to a teaser.
+    expect(excerpt("Vorher<script>alert(1)</script>\nNachher")).toBe("Vorher Nachher");
+    expect(excerpt("<!-- Notiz an mich -->Text")).toBe("Text");
   });
 
   it("links a teaser to its post via section and post urlname", () => {
