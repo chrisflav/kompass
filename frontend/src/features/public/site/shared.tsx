@@ -30,16 +30,25 @@ const sanitizeSchema = {
     // on them — and the schema checks no protocol on `srcSet`, which would let a
     // post fetch from anywhere and so hand out its readers' addresses.
     ...(defaultSchema.tagNames ?? []).filter((tag) => tag !== "picture" && tag !== "source"),
-    // Allowed by bleach and used for spelling out abbreviations such as JDAV.
+    // Both are on bleach's list, and `<acronym>` — obsolete since HTML5 — is
+    // exactly what an author of the vintage this is rescuing reached for.
     "abbr",
+    "acronym",
   ],
   attributes: {
-    ...defaultSchema.attributes,
-    // A tag's own definition wins over the `*` one, so this has to be spelled
-    // out: the default schema pins a `<code>` class to `language-*`, which would
-    // eat remark-math's `math-inline`/`math-display` markers before KaTeX ever
-    // sees them — and the author's own classes with them.
-    code: ["className"],
+    // The GitHub schema pins `class` to a pattern on a handful of tags
+    // (`language-*` on `<code>`, `sr-only` on `<h2>`, the task-list classes on
+    // `<li>`/`<ul>`/`<ol>`, and so on). A tag's own definition wins over the `*`
+    // one and, for a list-valued property such as `className`, never falls back
+    // to it — so those patterns would quietly empty an author's class and leave
+    // a bare `class=""` behind, on `<a class="button">` above all. Drop every
+    // per-tag `class` rule and let the one below answer for all of them.
+    ...Object.fromEntries(
+      Object.entries(defaultSchema.attributes ?? {}).map(([tag, definitions]) => [
+        tag,
+        definitions.filter((it) => (typeof it === "string" ? it : it[0]) !== "className"),
+      ]),
+    ),
     // The two attributes bleach allowed and existing posts lay themselves out
     // with. Neither can execute anything.
     "*": [...(defaultSchema.attributes?.["*"] ?? []), "className", "style"],
@@ -117,7 +126,11 @@ export function excerpt(text: string | null | undefined, max = 320): string {
     .replace(/<!--[\s\S]*?-->/g, "") // comments
     // Every remaining tag: a name is required, so a bare `5 < 10` stays prose,
     // and quoted attribute values are consumed whole, so an `alt="a > b"` does
-    // not spill the rest of its tag into the teaser.
+    // not spill the rest of its tag into the teaser. It cannot backtrack
+    // catastrophically, though it is quadratic on input built to hurt it (a
+    // 96 kB run of `<a"` takes seconds; 960 kB of ordinary markup, 14 ms).
+    // Mismatched quoting fails open: `<img alt="offen>` is left standing in the
+    // teaser rather than swallowing the sentence behind it.
     .replace(/<\/?[a-zA-Z][^>"']*(?:(?:"[^"]*"|'[^']*')[^>"']*)*>/g, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // images
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links → label

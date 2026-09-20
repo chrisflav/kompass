@@ -39,6 +39,8 @@ const RICH_BODY = [
   '<p><abbr title="Jugend des Deutschen Alpenvereins">JDAV</abbr>',
   'im <code class="ruf">Kompass</code>.</p>',
   "",
+  '<a href="/anmelden" class="button">Jetzt anmelden</a>',
+  "",
   "Formel $E = mc^2$ im Text:",
   "",
   "$$",
@@ -110,10 +112,12 @@ describe("shared helpers", () => {
     expect(box.querySelector("a")).toHaveAttribute("href", "https://example.org");
     expect(screen.getByRole("img", { name: "Berg" })).toHaveAttribute("src", "/media/berg.jpg");
 
-    // Everything else bleach let through keeps working, including a class on a
-    // `<code>`, which the sanitiser's own defaults would have emptied.
+    // Everything else bleach let through keeps working — including the classes
+    // the sanitiser's own defaults would have emptied, on the tags they pin a
+    // pattern to. A styled `<a class="button">` is the one posts really use.
     expect(screen.getByTitle("Jugend des Deutschen Alpenvereins")).toHaveTextContent("JDAV");
     expect(container.querySelector("code.ruf")).toHaveTextContent("Kompass");
+    expect(container.querySelector("a.button")).toHaveAttribute("href", "/anmelden");
 
     // And nothing of it is left as text.
     expect(container.textContent).not.toContain("<div");
