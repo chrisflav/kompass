@@ -36,6 +36,9 @@ const RICH_BODY = [
   "",
   '<img src="/media/berg.jpg" alt="Berg">',
   "",
+  '<p><abbr title="Jugend des Deutschen Alpenvereins">JDAV</abbr>',
+  'im <code class="ruf">Kompass</code>.</p>',
+  "",
   "Formel $E = mc^2$ im Text:",
   "",
   "$$",
@@ -43,7 +46,9 @@ const RICH_BODY = [
   "$$",
   "",
   "<script>window.__pwned = 1;</script>",
-  '<img src="nix.png" onerror="window.__pwned = 2">',
+  "<style>body { display: none }</style>",
+  '<iframe src="https://fremde.example/seite"></iframe>',
+  '<picture><source srcset="https://fremde.example/zaehlpixel.png"></picture>',
 ].join("\n");
 
 describe("shared helpers", () => {
@@ -105,6 +110,11 @@ describe("shared helpers", () => {
     expect(box.querySelector("a")).toHaveAttribute("href", "https://example.org");
     expect(screen.getByRole("img", { name: "Berg" })).toHaveAttribute("src", "/media/berg.jpg");
 
+    // Everything else bleach let through keeps working, including a class on a
+    // `<code>`, which the sanitiser's own defaults would have emptied.
+    expect(screen.getByTitle("Jugend des Deutschen Alpenvereins")).toHaveTextContent("JDAV");
+    expect(container.querySelector("code.ruf")).toHaveTextContent("Kompass");
+
     // And nothing of it is left as text.
     expect(container.textContent).not.toContain("<div");
     expect(container.textContent).not.toContain("<em>");
@@ -125,13 +135,19 @@ describe("shared helpers", () => {
     expect(container.textContent).not.toContain("$");
   });
 
-  it("strips scripts and event handlers out of a post body", () => {
+  it("keeps what a post body must never contain out of the page", () => {
     const { container } = renderWithApp(<Prose text={RICH_BODY} />, anon);
 
     expect(container.querySelector("script")).toBeNull();
-    expect(container.querySelector("[onerror]")).toBeNull();
+    expect(container.querySelector("iframe")).toBeNull();
+    // `<picture>`/`<source>` go because their `srcset` is the one url the schema
+    // never checks, and a foreign one hands out the reader's address.
+    expect(container.querySelector("picture, source")).toBeNull();
+    expect(container.innerHTML).not.toContain("fremde.example");
+    // Removing the element is only half of it: neither the script's source nor
+    // the stylesheet's declarations may survive as prose.
     expect(container.innerHTML).not.toContain("__pwned");
-    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+    expect(container.textContent).not.toContain("display: none");
   });
 
   it("refuses a javascript: link", () => {
@@ -149,6 +165,12 @@ describe("shared helpers", () => {
     // A script never contributes its source to a teaser.
     expect(excerpt("Vorher<script>alert(1)</script>\nNachher")).toBe("Vorher Nachher");
     expect(excerpt("<!-- Notiz an mich -->Text")).toBe("Text");
+  });
+
+  it("keeps a lone angle bracket, which is prose and not a tag", () => {
+    expect(excerpt("Mit 5 < 10 Kindern unterwegs.")).toBe("Mit 5 < 10 Kindern unterwegs.");
+    // A `>` inside an attribute ends neither the tag nor the teaser.
+    expect(excerpt('Am Berg <img alt="a > b" src="x.png"> gewesen.')).toBe("Am Berg gewesen.");
   });
 
   it("links a teaser to its post via section and post urlname", () => {

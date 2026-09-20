@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema, type Options as SanitizeSchema } from "rehype-sanitize";
 
 import { useDocumentTitle } from "../../../components/ui";
 import type { components } from "../../../api/schema";
@@ -17,21 +17,34 @@ type PostBrief = components["schemas"]["PublicPostBrief"];
  *
  * Starts from hast-util-sanitize's GitHub schema — which already drops
  * ``<script>`` with its body, every event handler such as ``onerror``, and every
- * url on a protocol other than http/https/mailto — and re-adds the two
- * attributes the old Django site's bleach whitelist allowed and existing posts
- * rely on: ``class`` and ``style``. Neither can execute anything; they only let
- * an author keep the layout they wrote. The ``code`` entry names remark-math's
- * ``math-inline``/``math-display`` markers explicitly, so they keep reaching
- * KaTeX even if that blanket ``class`` allowance is ever narrowed again.
+ * url on a protocol other than http/https/mailto — and adjusts it to the content
+ * the old Django site's bleach whitelist has been letting through for years.
  */
 const sanitizeSchema = {
   ...defaultSchema,
+  // A `<style>` block is not rendered by the default schema but its CSS is kept
+  // as text, so it would show up as a mouthful of declarations mid-article.
+  strip: [...(defaultSchema.strip ?? []), "style"],
+  tagNames: [
+    // `<picture>`/`<source>` were never allowed by bleach, so no post can depend
+    // on them — and the schema checks no protocol on `srcSet`, which would let a
+    // post fetch from anywhere and so hand out its readers' addresses.
+    ...(defaultSchema.tagNames ?? []).filter((tag) => tag !== "picture" && tag !== "source"),
+    // Allowed by bleach and used for spelling out abbreviations such as JDAV.
+    "abbr",
+  ],
   attributes: {
     ...defaultSchema.attributes,
-    code: [["className", /^language-./, "math-display", "math-inline"]],
+    // A tag's own definition wins over the `*` one, so this has to be spelled
+    // out: the default schema pins a `<code>` class to `language-*`, which would
+    // eat remark-math's `math-inline`/`math-display` markers before KaTeX ever
+    // sees them — and the author's own classes with them.
+    code: ["className"],
+    // The two attributes bleach allowed and existing posts lay themselves out
+    // with. Neither can execute anything.
     "*": [...(defaultSchema.attributes?.["*"] ?? []), "className", "style"],
   },
-};
+} satisfies SanitizeSchema;
 
 /**
  * Render a model's ``website_text`` (authored as Markdown in the backend) as
@@ -102,11 +115,14 @@ export function excerpt(text: string | null | undefined, max = 320): string {
   const plain = text
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "") // scripts, bodies and all
     .replace(/<!--[\s\S]*?-->/g, "") // comments
-    .replace(/<[^>]*>/g, " ") // every remaining tag
+    // Every remaining tag: a name is required, so a bare `5 < 10` stays prose,
+    // and quoted attribute values are consumed whole, so an `alt="a > b"` does
+    // not spill the rest of its tag into the teaser.
+    .replace(/<\/?[a-zA-Z][^>"']*(?:(?:"[^"]*"|'[^']*')[^>"']*)*>/g, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // images
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links → label
     .replace(/[#>*_`~]/g, "") // heading/emphasis/code/quote markers
-    .replace(/&(?:nbsp|amp|lt|gt|quot|#39);/gi, (e) => ENTITIES[e.toLowerCase()] ?? e)
+    .replace(/&(?:nbsp|amp|lt|gt|quot|#39);/g, (entity) => ENTITIES[entity])
     .replace(/\s+/g, " ")
     .trim();
   if (plain.length <= max) return plain;
