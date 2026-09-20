@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 from datetime import timedelta
 from pathlib import Path
@@ -10,6 +12,7 @@ from contrib.admin import CommonAdminMixin
 from contrib.models import CommonModel
 from contrib.openapi import render_schema
 from contrib.rules import has_global_perm
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -298,6 +301,34 @@ class ExportOpenapiTest(TestCase):
         with translation.override(None):
             under_none = render_schema()
         self.assertEqual(under_german, under_none)
+
+    def test_the_committed_document_is_up_to_date(self):
+        """Re-exporting has to reproduce ``frontend/openapi.json`` byte for byte.
+
+        These settings name their own domains, so a ``help_text`` that
+        interpolates one fails here as loudly as a document nobody re-exported.
+
+        The script gets its own interpreter on purpose: that is the documented
+        recipe, and rendering inside the test process instead picks up the
+        casing of the titles django-ninja resolved when the API was first
+        imported, which happens before any test runs.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "openapi.json"
+            script = Path(settings.BASE_DIR) / "export_openapi.py"
+            subprocess.run(
+                [sys.executable, str(script), "--output", str(output)],
+                cwd=settings.BASE_DIR,
+                capture_output=True,
+                check=True,
+            )
+            exported = output.read_bytes()
+        committed = Path(settings.BASE_DIR).parent / "frontend" / "openapi.json"
+        self.assertEqual(
+            exported,
+            committed.read_bytes(),
+            "frontend/openapi.json is stale, re-export it with export_openapi.py",
+        )
 
     def test_the_script_writes_the_document(self):
         active = translation.get_language()

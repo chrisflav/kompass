@@ -124,7 +124,7 @@ class Statement(CommonModel):
         # the help_text stays free of settings so that it is the same in every
         # deployment, the admin form names the configured maximum
         help_text=_(
-            "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs."
+            "Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs."
         ),
     )
 

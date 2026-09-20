@@ -15301,7 +15301,7 @@
           },
           "night_cost": {
             "default": 0,
-            "description": "Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs.",
+            "description": "Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs.",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Price per night",
             "type": "string"

@@ -5708,7 +5708,7 @@ export interface components {
             explanation?: string | null;
             /**
              * Price per night
-             * @description Price for the overnight stay of a youth leader. this is required for the calculation of the subsidies for night costs.
+             * @description Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs.
              * @default 0
              */
             night_cost: string;
