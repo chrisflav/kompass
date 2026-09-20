@@ -13,6 +13,7 @@ from contrib.media import media_path
 from contrib.media import serve_media
 from django.conf import settings
 from django.template.loader import get_template
+from django.utils.translation import gettext_lazy as _
 from PIL import Image
 from pypdf import PageObject
 from pypdf import PdfReader
@@ -20,6 +21,35 @@ from pypdf import PdfWriter
 from utils import normalize_filename
 
 logger = logging.getLogger(__name__)
+
+
+class TexRenderError(RuntimeError):
+    """``pdflatex`` left no usable PDF behind for a rendered template.
+
+    ``pdflatex`` is not reliably loud about this. A document whose body renders
+    to nothing — the group checklist on an installation where no group is
+    flagged ``show_website``, for instance — ends in "No pages of output" and
+    still *exits 0*, leaving a zero-byte ``.pdf`` behind (it truncates an
+    existing one, so a real file from an earlier run of the same day does not
+    survive to be served in its place either). The browser saves a PDF it
+    cannot open, so the render raises instead and the caller either refuses up
+    front or the failure reaches the log.
+
+    Only what a run left behind is checked. Filenames carry the date rather
+    than anything unique, so two requests for the same document on the same day
+    still share one path and one can read it while the other rewrites it. That
+    race predates this check and is untouched by it.
+    """
+
+
+#: The one way the group checklist reaches that dead end in practice, and the
+#: refusal both callers (the admin action and the API route) show for it. Every
+#: page of the checklist is one group flagged ``show_website``, so on an
+#: installation where none is, there is nothing to typeset at all.
+NO_PUBLIC_GROUPS = _(
+    "No group is marked as shown on the website, so the checklist would be empty. "
+    "Mark the groups it should cover as shown on the website and try again."
+)
 
 
 def serve_pdf(filename_pdf):
@@ -102,6 +132,21 @@ def render_tex(name, template_path, context, date=None, save_only=False):
     # os.remove(filename_table)
 
     os.chdir(oldwd)
+
+    pdf_path = media_path(filename_pdf)
+    if result.returncode != 0 or not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
+        # The .log is gone by now (cleaned up above), so keep pdflatex's own
+        # output. Only the tail of it: the ~90 lines before that are the .sty
+        # files it loaded, while the error and the "No pages of output" are at
+        # the very end.
+        logger.error(
+            "pdflatex produced no PDF for %s (exit %s):\n%s\n%s",
+            template_path,
+            result.returncode,
+            "\n".join(result.stdout.splitlines()[-40:]),
+            result.stderr,
+        )
+        raise TexRenderError(f"pdflatex produced no PDF for {template_path}")
 
     if save_only:
         return filename_pdf

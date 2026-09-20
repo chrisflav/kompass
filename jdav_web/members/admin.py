@@ -37,6 +37,7 @@ from django.utils.translation import gettext_lazy as _
 from finance.models import BillOnExcursionProxy
 from finance.models import StatementOnExcursionProxy
 from mailer.models import Message
+from members.pdf import NO_PUBLIC_GROUPS
 from members.pdf import render_tex_with_attachments
 from schwifty import IBAN
 from utils import get_member
@@ -1438,12 +1439,21 @@ class GroupAdmin(admin.ModelAdmin):
                 reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
             )
 
+        groups = self.model.objects.filter(show_website=True)
+        if not groups.exists():
+            # Without them pdflatex has nothing to typeset and quietly writes a
+            # zero-byte PDF instead of failing (see ``members.pdf``).
+            messages.error(request, NO_PUBLIC_GROUPS)
+            return HttpResponseRedirect(
+                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            )
+
         ensure_media_dir()
         n_weeks = settings.GROUP_CHECKLIST_N_WEEKS
         n_members = settings.GROUP_CHECKLIST_N_MEMBERS
 
         context = {
-            "groups": self.model.objects.filter(show_website=True),
+            "groups": groups,
             "settings": settings,
             "week_range": range(n_weeks),
             "member_range": range(n_members),

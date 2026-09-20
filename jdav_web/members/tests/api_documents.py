@@ -13,6 +13,7 @@ Mirrors the OAuth2 bearer / ``grant`` fixtures of ``members/tests/api.py``.
 import datetime
 import shutil
 import uuid
+from io import BytesIO
 from unittest import skipUnless
 
 from django.conf import settings
@@ -34,6 +35,7 @@ from members.models import MemberNoteList
 from members.models import NewMemberOnList
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
+from pypdf import PdfReader
 
 Application = get_application_model()
 AccessToken = get_access_token_model()
@@ -150,13 +152,33 @@ class MembersDocumentsApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 403)
 
+    def test_group_checklist_refused_without_public_groups(self):
+        """No group flagged ``show_website`` means nothing to typeset.
+
+        pdflatex answers such a document with "No pages of output", exits 0 and
+        leaves a zero-byte PDF behind, which the route used to serve as a 200 —
+        the browser then saved a file it could not open.
+        """
+        r = self.client.post(
+            "/api/members/documents/groups/checklist", **self.auth(self.viewer_user)
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertTrue(r.json()["detail"])
+
     @skipUnless(HAS_PDFLATEX, "pdflatex not available")
     def test_group_checklist_allowed_with_permission(self):
+        self.group.show_website = True
+        self.group.save()
+        self.other.group.add(self.group)
         r = self.client.post(
             "/api/members/documents/groups/checklist", **self.auth(self.viewer_user)
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r["Content-Type"], "application/pdf")
+        # A status code says nothing about the file: check it really is a PDF
+        # and that it carries the page the group should have produced.
+        self.assertTrue(r.content.startswith(b"%PDF"), r.content[:64])
+        self.assertGreaterEqual(len(PdfReader(BytesIO(r.content)).pages), 1)
 
     # --- excursion crisis intervention list (pdflatex) --------------------
 

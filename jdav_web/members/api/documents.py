@@ -40,6 +40,7 @@ from members.models import MemberNoteList
 from members.models import WEEKDAYS
 from members.pdf import fill_pdf_form
 from members.pdf import generate_crisis_intervention_list_pdf
+from members.pdf import NO_PUBLIC_GROUPS
 from members.pdf import render_docx
 from members.pdf import render_tex
 from members.pdf import render_tex_with_attachments
@@ -122,11 +123,17 @@ def group_checklist(request):
     Gated on ``members.view_group``.
     """
     authorize(request, "members.view_group")
+    groups = Group.objects.filter(show_website=True)
+    if not groups.exists():
+        # Every page of the checklist is one public group, so without them
+        # pdflatex has nothing to typeset and quietly writes a zero-byte PDF
+        # (see ``TexRenderError``). Say why instead of handing that out.
+        raise ValidationError(NO_PUBLIC_GROUPS)
     ensure_media_dir()
     n_weeks = settings.GROUP_CHECKLIST_N_WEEKS
     n_members = settings.GROUP_CHECKLIST_N_MEMBERS
     context = {
-        "groups": Group.objects.filter(show_website=True),
+        "groups": groups,
         "settings": settings,
         "week_range": range(n_weeks),
         "member_range": range(n_members),
