@@ -92,6 +92,7 @@ from members.pdf import render_tex
 from members.pdf import scale_pdf_page_to_a4
 from members.pdf import scale_pdf_to_a4
 from members.pdf import serve_pdf
+from members.pdf import TexRenderError
 from members.tests.utils import add_memberonlist_by_age
 from members.tests.utils import add_memberonlist_by_local
 from members.tests.utils import BasicMemberTestCase
@@ -107,6 +108,7 @@ from PIL import Image
 from pypdf import PageObject
 from pypdf import PdfReader
 from pypdf import PdfWriter
+from utils import mondays_until_nth
 
 EMERGENCY_CONTACT_DATA = {
     "emergencycontact_set-TOTAL_FORMS": "1",
@@ -530,6 +532,26 @@ class PDFTestCase(TestCase):
     def test_crisis_intervention_list(self):
         context = dict(memberlist=self.ex, settings=settings)
         self._test_render_tex("members/crisis_intervention_list.tex", context)
+
+    def test_render_tex_without_pages(self):
+        """A run that typesets nothing must not pass for a rendered PDF.
+
+        The group checklist puts every group on a page of its own, so without
+        groups pdflatex reaches the end of an empty document: it reports "No
+        pages of output", exits 0 and leaves a zero-byte .pdf behind. Serving
+        that file hands the browser a PDF it cannot open.
+        """
+        context = dict(
+            groups=[],
+            settings=settings,
+            week_range=range(1),
+            member_range=range(1),
+            dates=mondays_until_nth(1),
+            weekdays=[entry[1] for entry in WEEKDAYS],
+            header_text="",
+        )
+        with self.assertRaises(TexRenderError):
+            render_tex("Leere Checkliste", "members/group_checklist.tex", context, save_only=True)
 
     def test_sjr_application(self):
         context = self.ex.sjr_application_fields()
@@ -3556,6 +3578,21 @@ class GroupAdminTestCase(AdminTestCase):
         c = self._login("superuser")
         response = c.post(url, data={"group_checklist": ""}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(response.headers["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"), response.content[:64])
+
+    def test_group_checklist_without_public_groups(self):
+        """Without a public group there is nothing to typeset — say so.
+
+        pdflatex would end in "No pages of output" and leave a zero-byte PDF,
+        which used to be served as a perfectly ordinary download.
+        """
+        Group.objects.update(show_website=False)
+        url = reverse("admin:members_group_action")
+        c = self._login("superuser")
+        response = c.post(url, data={"group_checklist": ""}, follow=True)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(response.redirect_chain[-1][0], reverse("admin:members_group_changelist"))
 
 
 class FilteredMemberFieldMixinTestCase(AdminTestCase):
