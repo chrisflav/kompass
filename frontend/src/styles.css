@@ -1723,18 +1723,27 @@ input[type="radio"] {
    The old admin start page showed these as a grid of icons with a title and a
    short description underneath; the first SPA version kept the title only and
    put the raw URL below it. This restores icon + title + description as a quiet
-   two-up tile grid that wears the same panel chrome as the sibling lists — the
-   tiles are separated by hairlines drawn by a 1px grid gap over the border
-   colour, so the panel reads as one sheet, not as a launcher of buttons. */
+   tile grid that wears the same panel chrome as the sibling lists, so the panel
+   reads as one sheet with a graticule, not as a launcher of buttons. */
 .dash-links {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--border);
+  overflow: hidden;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  overflow: hidden;
+}
+
+/* The tiles decide how many columns fit, so no column count is written down
+   here or in the markup: the panel is at its narrowest just above the 820px
+   breakpoint, where `.dash-columns` still has two columns, and a fixed two-up
+   grid would squeeze a title to about ten characters there. The grid is laid
+   out 1px wider and taller than the panel clipping it, so the hairline every
+   tile draws on its right and bottom edge lands outside the clip in the last
+   column and the last row instead of doubling the panel border. */
+.dash-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  margin: 0 -1px -1px 0;
 }
 
 .dash-link {
@@ -1744,6 +1753,8 @@ input[type="radio"] {
   gap: 0.7rem;
   min-width: 0;
   padding: 0.8rem 0.9rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
   text-decoration: none;
@@ -1817,23 +1828,6 @@ input[type="radio"] {
 
 .dash-link:hover .dash-link-out {
   color: var(--fels);
-}
-
-/* An odd number of links would leave the last cell as a gap in the hairline
-   grid; this fills it with plain panel. */
-.dash-link-filler {
-  background: var(--panel);
-}
-
-@media (max-width: 520px) {
-  .dash-links {
-    grid-template-columns: 1fr;
-  }
-
-  /* One column needs no filler, and an empty one would add a stray hairline. */
-  .dash-link-filler {
-    display: none;
-  }
 }
 
 /* Grid items default to min-width:auto, which lets wide/long content blow the

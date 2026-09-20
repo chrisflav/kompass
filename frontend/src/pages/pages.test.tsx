@@ -230,6 +230,14 @@ const LINKS = [
     icon: null,
     visible: false,
   },
+  {
+    id: 4,
+    title: "Bergwetter",
+    description: "Vorhersage für die Alpen",
+    url: "https://wetter.example.org/alpen",
+    icon: null,
+    visible: true,
+  },
 ];
 
 function dashboardReturns({
@@ -339,6 +347,22 @@ describe("Dashboard", () => {
     // The address itself is never on the dashboard, only behind the link.
     expect(screen.queryByText("https://wiki.example.org")).not.toBeInTheDocument();
     expect(screen.queryByText("Versteckt")).not.toBeInTheDocument();
+    // One tile per visible link, and nothing padding the grid out: the columns
+    // are chosen by the tiles themselves, so an "incomplete" row cannot occur.
+    expect(document.querySelectorAll(".dash-link")).toHaveLength(3);
+  });
+
+  it("still labels a link whose URL carries no host", async () => {
+    // URLField validation keeps this out of new rows, but a link stored before
+    // the API enforced it must not render as a blank tile with a blank plate.
+    dashboardReturns({
+      links: [{ id: 9, title: "", description: "", url: "https://", icon: null, visible: true }],
+    });
+    renderWithApp(<Dashboard />, { route: "/kompass" });
+
+    const bare = await screen.findByRole("link", { name: /Link/ });
+    expect(bare.querySelector(".dash-link-title")).toHaveTextContent("Link");
+    expect(bare.querySelector(".dash-link-mark")).toHaveTextContent("L");
   });
 
   it("labels a link without icon, title or description by host and initial", async () => {

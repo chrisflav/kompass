@@ -223,13 +223,11 @@ export function Dashboard() {
           <section className="dash-section">
             <SectionHead label="Nützliche Links" />
             <div className="dash-links">
-              {visibleLinks.map((l) => (
-                <LinkTile key={l.id} link={l} />
-              ))}
-              {/* Keeps the hairline grid complete when the count is odd. */}
-              {visibleLinks.length % 2 === 1 && (
-                <span className="dash-link-filler" aria-hidden="true" />
-              )}
+              <div className="dash-links-grid">
+                {visibleLinks.map((l) => (
+                  <LinkTile key={l.id} link={l} />
+                ))}
+              </div>
             </div>
           </section>
         )}
