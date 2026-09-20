@@ -1,8 +1,10 @@
+import difflib
 import json
 import subprocess
 import sys
 import tempfile
 from datetime import timedelta
+from itertools import islice
 from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -311,23 +313,44 @@ class ExportOpenapiTest(TestCase):
         The script gets its own interpreter on purpose: that is the documented
         recipe, and rendering inside the test process instead picks up the
         casing of the titles django-ninja resolved when the API was first
-        imported, which happens before any test runs.
+        imported, which happens before any test runs. The child reads
+        ``DJANGO_SETTINGS_MODULE`` from the environment, so it exports under
+        the deployment's settings rather than under a ``--settings`` flag.
         """
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "openapi.json"
             script = Path(settings.BASE_DIR) / "export_openapi.py"
-            subprocess.run(
-                [sys.executable, str(script), "--output", str(output)],
-                cwd=settings.BASE_DIR,
-                capture_output=True,
-                check=True,
-            )
-            exported = output.read_bytes()
+            try:
+                subprocess.run(
+                    [sys.executable, str(script), "--output", str(output)],
+                    cwd=settings.BASE_DIR,
+                    capture_output=True,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as exc:  # pragma: no cover
+                self.fail(exc.stderr.decode())
+            exported = output.read_text(encoding="utf-8")
         committed = Path(settings.BASE_DIR).parent / "frontend" / "openapi.json"
+        current = committed.read_text(encoding="utf-8")
+        # Half a megabyte is past the length at which the assertions diff for
+        # themselves, and the interesting failure is a line or two, so hand the
+        # first lines that moved to the message. Diffing two equal documents
+        # costs well under a tenth of a second.
+        moved = "".join(
+            islice(
+                difflib.unified_diff(
+                    current.splitlines(keepends=True),
+                    exported.splitlines(keepends=True),
+                    "committed",
+                    "exported",
+                ),
+                40,
+            )
+        )
         self.assertEqual(
             exported,
-            committed.read_bytes(),
-            "frontend/openapi.json is stale, re-export it with export_openapi.py",
+            current,
+            "frontend/openapi.json is stale, re-export it with export_openapi.py\n" + moved,
         )
 
     def test_the_script_writes_the_document(self):
