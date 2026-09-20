@@ -68,7 +68,7 @@ def export_generalized_csv(queryset, file_handle):
     writer.writeheader()
 
     for member in queryset:
-        groups = ",".join([g.name for g in member.group.all()])
+        groups = ",".join([g.name for g in member.group.order_by("name")])
         ecs = []
         for ec in member.emergencycontact_set.all():
             ecs.append(
