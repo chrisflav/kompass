@@ -969,15 +969,23 @@ def list_auth_users(request):
     :func:`update_member` enforces for ``user_id`` — rather than on
     ``auth.view_user``, which it does not imply: in the admin the select is
     rendered for exactly the users who may change the field.
+
+    That permission covers *writing* the link and nothing else, so no member is
+    named here — an account already spoken for is reported as ``taken``, no more.
+    Naming its member would disclose an identity that ``Member.may_view``, and
+    with it both :func:`list_members` and :func:`retrieve_member`, refuses this
+    caller; the admin's select shows usernames only for the same reason. See
+    ``GET /api/logindata/users`` for the account administration surface proper,
+    which does carry ``member_name`` — behind ``auth.view_user``.
     """
     authorize(request, "members.may_set_auth_user")
-    # ``all_objects``: an unconfirmed registration holds the account just as
-    # firmly as a confirmed member does, so leaving those out would label a
-    # taken account free.
-    linked = {m.user_id: m.name for m in Member.all_objects.exclude(user=None)}
+    # ``all_objects``: an unconfirmed registration holds an account just as
+    # firmly as a confirmed member does, so leaving those out would report a
+    # taken account free. Only the ids are read — names must not travel.
+    taken = set(Member.all_objects.exclude(user=None).values_list("user_id", flat=True))
     return [
-        {"id": user.pk, "username": user.username, "member_name": linked.get(user.pk)}
-        for user in User.objects.all().order_by("username")
+        {"id": user.pk, "username": user.username, "taken": user.pk in taken}
+        for user in User.objects.all().only("username").order_by("username")
     ]
 
 

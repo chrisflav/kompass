@@ -250,8 +250,10 @@ describe("member detail — actions and permissions", () => {
  * only when it actually changed (the backend refuses the field otherwise). */
 describe("member detail — Nutzer (login account)", () => {
   const ACCOUNTS = [
-    { id: 9, username: "anna.aermel", member_name: null },
-    { id: 10, username: "bernd.berg", member_name: "Bernd Berg" },
+    // 9 is this member's own account in the tests that start out linked.
+    { id: 9, username: "anna.aermel", taken: true },
+    { id: 10, username: "bernd.berg", taken: true },
+    { id: 11, username: "frei.konto", taken: false },
   ];
   const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
 
@@ -271,7 +273,7 @@ describe("member detail — Nutzer (login account)", () => {
     return seen;
   }
 
-  it("links an account with the permission, offering the taken ones by member", async () => {
+  it("links an account with the permission, warning about the taken ones", async () => {
     mayLinkAccounts();
     detailReturns();
     const seen = patchCaptures();
@@ -279,14 +281,17 @@ describe("member detail — Nutzer (login account)", () => {
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
     await user.click(await screen.findByRole("button", { name: /Nutzerkonto wählen/ }));
-    // An account already linked elsewhere is offered as in the admin, but says
-    // whose it is — linking it would fail on the one-to-one relation.
-    expect(dropdown().getByRole("button", { name: "bernd.berg — Bernd Berg" })).toBeInTheDocument();
-    await user.click(dropdown().getByRole("button", { name: "anna.aermel" }));
+    // An account linked elsewhere is offered as in the admin, but warns that
+    // linking it would fail on the one-to-one relation. It never says to whom:
+    // that name is one the API refuses this caller.
+    expect(
+      dropdown().getByRole("button", { name: "bernd.berg (bereits verknüpft)" }),
+    ).toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "frei.konto" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(seen.body).not.toBeNull());
-    expect(seen.body).toMatchObject({ user_id: 9 });
+    expect(seen.body).toMatchObject({ user_id: 11 });
   });
 
   it("clears the link through the empty option", async () => {
@@ -296,7 +301,9 @@ describe("member detail — Nutzer (login account)", () => {
     const { user } = renderRoute("/kompass/members/42");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
-    await user.click(await screen.findByRole("button", { name: /anna\.aermel/ }));
+    // The member's own account is "taken" by this very member, so it carries no
+    // warning — the trigger reads as the plain username.
+    await user.click(await screen.findByRole("button", { name: "anna.aermel ▾" }));
     await user.click(dropdown().getByRole("button", { name: "Kein Nutzerkonto" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 

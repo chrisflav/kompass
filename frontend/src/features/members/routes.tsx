@@ -1012,9 +1012,12 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       onChange={(v) => setField("user_id", v)}
       options={authUsers.map((u) => ({
         value: u.id,
-        // An account already linked elsewhere cannot be linked again
-        // (one-to-one), so the option says whose it is.
-        label: u.member_name ? `${u.username} — ${u.member_name}` : u.username,
+        // An account linked to someone else cannot be linked again
+        // (one-to-one), so the option warns before the save 422s. Whose it is
+        // stays unsaid — the API does not tell us, on purpose. The member's own
+        // account is "taken" by this very member, so it is not marked.
+        label:
+          u.taken && u.id !== member.user_id ? `${u.username} (bereits verknüpft)` : u.username,
       }))}
       allowEmpty
       emptyLabel="Kein Nutzerkonto"

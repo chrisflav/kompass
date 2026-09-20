@@ -646,13 +646,34 @@ class MembersCrudApiTestCase(TestCase):
         self.assertEqual(allowed.status_code, 200, allowed.content)
         options = {o["username"]: o for o in allowed.json()}
         self.assertEqual(
-            options[free.username], {"id": free.pk, "username": free.username, "member_name": None}
+            options[free.username], {"id": free.pk, "username": free.username, "taken": False}
         )
-        # An account already taken still shows up (as in the admin), naming the
-        # member it belongs to — an unconfirmed registration holds it just as
-        # firmly, so it must be named too.
-        self.assertEqual(options[self.user.username]["member_name"], self.member.name)
-        self.assertEqual(options[taken_by_registration.username]["member_name"], registration.name)
+        # An account already taken still shows up (as in the admin) but only
+        # says so — an unconfirmed registration holds it just as firmly.
+        self.assertTrue(options[self.user.username]["taken"])
+        self.assertTrue(options[taken_by_registration.username]["taken"])
+
+    def test_login_account_options_name_no_member(self):
+        # may_set_auth_user says one may *write* the link; it says nothing about
+        # who a member is. Member.may_view is this app's whole permission model,
+        # so the picker must not route around it: a member the caller may
+        # neither list nor retrieve must not surface here by name either.
+        stranger_user, stranger = make_member_user("fremde-anmeldung")
+        stranger.prename = "Geheime"
+        stranger.lastname = "Person"
+        stranger.save()
+        headers = self.as_admin("may_set_auth_user")
+        refused = self.client.get("/api/members/{}".format(stranger.pk), **headers)
+        self.assertEqual(refused.status_code, 403, refused.content)
+
+        r = self.client.get("/api/members/auth-users", **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.content.decode()
+        self.assertNotIn("Geheime", body)
+        self.assertNotIn("Person", body)
+        # ...while the option still warns that the account is spoken for.
+        options = {o["username"]: o for o in r.json()}
+        self.assertTrue(options[stranger_user.username]["taken"])
 
     def test_registrations_are_empty_for_an_account_without_a_member(self):
         # The list is scoped by the caller's led groups; with no member behind

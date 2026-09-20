@@ -900,6 +900,14 @@ export interface paths {
          *     :func:`update_member` enforces for ``user_id`` — rather than on
          *     ``auth.view_user``, which it does not imply: in the admin the select is
          *     rendered for exactly the users who may change the field.
+         *
+         *     That permission covers *writing* the link and nothing else, so no member is
+         *     named here — an account already spoken for is reported as ``taken``, no more.
+         *     Naming its member would disclose an identity that ``Member.may_view``, and
+         *     with it both :func:`list_members` and :func:`retrieve_member`, refuses this
+         *     caller; the admin's select shows usernames only for the same reason. See
+         *     ``GET /api/logindata/users`` for the account administration surface proper,
+         *     which does carry ``member_name`` — behind ``auth.view_user``.
          */
         get: operations["members_api_router_list_auth_users"];
         put?: never;
@@ -5002,18 +5010,25 @@ export interface components {
          * @description One login account, for the member change view's "Nutzer" picker.
          *
          *     The admin renders ``Member.user`` as a plain select over every ``User``, so
-         *     the list is unfiltered here too. ``member_name`` names the member an account
-         *     is already linked to — the relation is one-to-one, so picking such an
-         *     account fails on uniqueness, and saying so in the option beats letting the
-         *     user find out from a 422.
+         *     the list is unfiltered here too. ``taken`` flags an account that is already
+         *     linked — the relation is one-to-one, so picking such an account fails on
+         *     uniqueness, and saying so in the option beats letting the user find out from
+         *     a 422.
+         *
+         *     It is deliberately a flag rather than the member's name: naming them would
+         *     disclose identities ``Member.may_view`` refuses this caller. See
+         *     :func:`members.api.router.list_auth_users`.
          */
         AuthUserBrief: {
             /** Id */
             id: number;
             /** Username */
             username: string;
-            /** Member Name */
-            member_name?: string | null;
+            /**
+             * Taken
+             * @default false
+             */
+            taken: boolean;
         };
         /**
          * SjrApplicationIn

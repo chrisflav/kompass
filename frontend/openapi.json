@@ -2172,7 +2172,7 @@
             }
           }
         },
-        "description": "Login accounts offered by the member change view's ``Nutzer`` picker.\n\nGated on ``members.may_set_auth_user`` — the same permission\n:func:`update_member` enforces for ``user_id`` — rather than on\n``auth.view_user``, which it does not imply: in the admin the select is\nrendered for exactly the users who may change the field.",
+        "description": "Login accounts offered by the member change view's ``Nutzer`` picker.\n\nGated on ``members.may_set_auth_user`` — the same permission\n:func:`update_member` enforces for ``user_id`` — rather than on\n``auth.view_user``, which it does not imply: in the admin the select is\nrendered for exactly the users who may change the field.\n\nThat permission covers *writing* the link and nothing else, so no member is\nnamed here — an account already spoken for is reported as ``taken``, no more.\nNaming its member would disclose an identity that ``Member.may_view``, and\nwith it both :func:`list_members` and :func:`retrieve_member`, refuses this\ncaller; the admin's select shows usernames only for the same reason. See\n``GET /api/logindata/users`` for the account administration surface proper,\nwhich does carry ``member_name`` — behind ``auth.view_user``.",
         "tags": [
           "members"
         ],
@@ -13592,7 +13592,7 @@
         "type": "object"
       },
       "AuthUserBrief": {
-        "description": "One login account, for the member change view's \"Nutzer\" picker.\n\nThe admin renders ``Member.user`` as a plain select over every ``User``, so\nthe list is unfiltered here too. ``member_name`` names the member an account\nis already linked to — the relation is one-to-one, so picking such an\naccount fails on uniqueness, and saying so in the option beats letting the\nuser find out from a 422.",
+        "description": "One login account, for the member change view's \"Nutzer\" picker.\n\nThe admin renders ``Member.user`` as a plain select over every ``User``, so\nthe list is unfiltered here too. ``taken`` flags an account that is already\nlinked — the relation is one-to-one, so picking such an account fails on\nuniqueness, and saying so in the option beats letting the user find out from\na 422.\n\nIt is deliberately a flag rather than the member's name: naming them would\ndisclose identities ``Member.may_view`` refuses this caller. See\n:func:`members.api.router.list_auth_users`.",
         "properties": {
           "id": {
             "title": "Id",
@@ -13602,16 +13602,10 @@
             "title": "Username",
             "type": "string"
           },
-          "member_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Member Name"
+          "taken": {
+            "default": false,
+            "title": "Taken",
+            "type": "boolean"
           }
         },
         "required": [
