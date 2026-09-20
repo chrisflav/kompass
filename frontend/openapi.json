@@ -2151,6 +2151,38 @@
         ]
       }
     },
+    "/api/members/auth-users": {
+      "get": {
+        "operationId": "members_api_router_list_auth_users",
+        "summary": "List Auth Users",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuthUserBrief"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Login accounts offered by the member change view's ``Nutzer`` picker.\n\nGated on ``members.may_set_auth_user`` — the same permission\n:func:`update_member` enforces for ``user_id`` — rather than on\n``auth.view_user``, which it does not imply: in the admin the select is\nrendered for exactly the users who may change the field.",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/members/{member_id}": {
       "get": {
         "operationId": "members_api_router_retrieve_member",
@@ -13557,6 +13589,36 @@
           "label"
         ],
         "title": "MemberEnumChoice",
+        "type": "object"
+      },
+      "AuthUserBrief": {
+        "description": "One login account, for the member change view's \"Nutzer\" picker.\n\nThe admin renders ``Member.user`` as a plain select over every ``User``, so\nthe list is unfiltered here too. ``member_name`` names the member an account\nis already linked to — the relation is one-to-one, so picking such an\naccount fails on uniqueness, and saying so in the option beats letting the\nuser find out from a 422.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Name"
+          }
+        },
+        "required": [
+          "id",
+          "username"
+        ],
+        "title": "AuthUserBrief",
         "type": "object"
       },
       "SjrApplicationIn": {

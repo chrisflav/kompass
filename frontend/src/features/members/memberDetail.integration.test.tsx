@@ -1,7 +1,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { api, djangoValidation, http, HttpResponse, server, useMe } from "../../test/server";
+import {
+  api,
+  DEFAULT_ME,
+  djangoValidation,
+  http,
+  HttpResponse,
+  server,
+  useMe,
+} from "../../test/server";
 import { renderRoute } from "../../test/utils";
 
 const MEMBER = {
@@ -234,5 +242,81 @@ describe("member detail — actions and permissions", () => {
     await screen.findByText("anna@example.org");
 
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
+  });
+});
+
+/* The "Nutzer" row mirrors the admin's per-field permission: only a holder of
+ * members.may_set_auth_user gets the select, and the PATCH carries the link
+ * only when it actually changed (the backend refuses the field otherwise). */
+describe("member detail — Nutzer (login account)", () => {
+  const ACCOUNTS = [
+    { id: 9, username: "anna.aermel", member_name: null },
+    { id: 10, username: "bernd.berg", member_name: "Bernd Berg" },
+  ];
+  const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
+
+  function mayLinkAccounts() {
+    useMe({ permissions: [...DEFAULT_ME.permissions, "members.may_set_auth_user"] });
+    server.use(http.get(api("/api/members/auth-users"), () => HttpResponse.json(ACCOUNTS)));
+  }
+
+  function patchCaptures() {
+    const seen: { body: Record<string, unknown> | null } = { body: null };
+    server.use(
+      http.patch(api("/api/members/42"), async ({ request }) => {
+        seen.body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(MEMBER);
+      }),
+    );
+    return seen;
+  }
+
+  it("links an account with the permission, offering the taken ones by member", async () => {
+    mayLinkAccounts();
+    detailReturns();
+    const seen = patchCaptures();
+    const { user } = renderRoute("/kompass/members/42");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+
+    await user.click(await screen.findByRole("button", { name: /Nutzerkonto wählen/ }));
+    // An account already linked elsewhere is offered as in the admin, but says
+    // whose it is — linking it would fail on the one-to-one relation.
+    expect(dropdown().getByRole("button", { name: "bernd.berg — Bernd Berg" })).toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "anna.aermel" }));
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(seen.body).not.toBeNull());
+    expect(seen.body).toMatchObject({ user_id: 9 });
+  });
+
+  it("clears the link through the empty option", async () => {
+    mayLinkAccounts();
+    detailReturns({ user_id: 9, user_display: "anna.aermel" });
+    const seen = patchCaptures();
+    const { user } = renderRoute("/kompass/members/42");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+
+    await user.click(await screen.findByRole("button", { name: /anna\.aermel/ }));
+    await user.click(dropdown().getByRole("button", { name: "Kein Nutzerkonto" }));
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(seen.body).not.toBeNull());
+    expect(seen.body).toMatchObject({ user_id: null });
+  });
+
+  it("stays read-only without the permission and leaves the field out of the PATCH", async () => {
+    detailReturns({ user_id: 9, user_display: "anna.aermel" });
+    const seen = patchCaptures();
+    const { user } = renderRoute("/kompass/members/42");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+
+    // No control — and no request for the options either, which the API would
+    // refuse anyway (msw has no handler for it in this test).
+    expect(screen.queryByRole("button", { name: /Nutzerkonto wählen/ })).not.toBeInTheDocument();
+    expect(screen.getByText("anna.aermel")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(seen.body).not.toBeNull());
+    expect(seen.body).not.toHaveProperty("user_id");
   });
 });

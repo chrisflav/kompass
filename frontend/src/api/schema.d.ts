@@ -885,6 +885,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/auth-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Auth Users
+         * @description Login accounts offered by the member change view's ``Nutzer`` picker.
+         *
+         *     Gated on ``members.may_set_auth_user`` — the same permission
+         *     :func:`update_member` enforces for ``user_id`` — rather than on
+         *     ``auth.view_user``, which it does not imply: in the admin the select is
+         *     rendered for exactly the users who may change the field.
+         */
+        get: operations["members_api_router_list_auth_users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/{member_id}": {
         parameters: {
             query?: never;
@@ -4971,6 +4996,24 @@ export interface components {
             value: unknown;
             /** Label */
             label: string;
+        };
+        /**
+         * AuthUserBrief
+         * @description One login account, for the member change view's "Nutzer" picker.
+         *
+         *     The admin renders ``Member.user`` as a plain select over every ``User``, so
+         *     the list is unfiltered here too. ``member_name`` names the member an account
+         *     is already linked to — the relation is one-to-one, so picking such an
+         *     account fails on uniqueness, and saying so in the option beats letting the
+         *     user find out from a 422.
+         */
+        AuthUserBrief: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Member Name */
+            member_name?: string | null;
         };
         /**
          * SjrApplicationIn
@@ -9191,6 +9234,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["MemberEnumChoice"][];
                     };
+                };
+            };
+        };
+    };
+    members_api_router_list_auth_users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUserBrief"][];
                 };
             };
         };

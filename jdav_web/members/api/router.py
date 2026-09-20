@@ -5,6 +5,7 @@ from contrib.api.perms import get_authorized
 from contrib.api.perms import partial_clean
 from contrib.api.perms import set_scalar_fields
 from contrib.permissions import scope_queryset
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
@@ -23,6 +24,7 @@ from ninja import Router
 
 from .schemas import ActivityCategoryOut
 from .schemas import ActivityCategoryUpdate
+from .schemas import AuthUserBrief
 from .schemas import EXCURSION_APPROVAL_FIELDS
 from .schemas import EXCURSION_UPDATE_SCALAR_FIELDS
 from .schemas import ExcursionBrief
@@ -954,6 +956,29 @@ def member_enums(request):
         if choices:
             result[field.name] = [{"value": value, "label": str(label)} for value, label in choices]
     return result
+
+
+# --- login accounts (options for the member's "Nutzer" field) -------------
+
+
+@router.get("/auth-users", response=list[AuthUserBrief])
+def list_auth_users(request):
+    """Login accounts offered by the member change view's ``Nutzer`` picker.
+
+    Gated on ``members.may_set_auth_user`` — the same permission
+    :func:`update_member` enforces for ``user_id`` — rather than on
+    ``auth.view_user``, which it does not imply: in the admin the select is
+    rendered for exactly the users who may change the field.
+    """
+    authorize(request, "members.may_set_auth_user")
+    # ``all_objects``: an unconfirmed registration holds the account just as
+    # firmly as a confirmed member does, so leaving those out would label a
+    # taken account free.
+    linked = {m.user_id: m.name for m in Member.all_objects.exclude(user=None)}
+    return [
+        {"id": user.pk, "username": user.username, "member_name": linked.get(user.pk)}
+        for user in User.objects.all().order_by("username")
+    ]
 
 
 # --- member detail (single-segment {member_id}) ---------------------------

@@ -109,6 +109,21 @@ class MemberBrief(ModelSchema):
         return getattr(obj, "_activity_score", None)
 
 
+class AuthUserBrief(Schema):
+    """One login account, for the member change view's "Nutzer" picker.
+
+    The admin renders ``Member.user`` as a plain select over every ``User``, so
+    the list is unfiltered here too. ``member_name`` names the member an account
+    is already linked to — the relation is one-to-one, so picking such an
+    account fails on uniqueness, and saying so in the option beats letting the
+    user find out from a 422.
+    """
+
+    id: int
+    username: str
+    member_name: str | None = None
+
+
 class MemberOut(ModelSchema):
     id: int
     name: str
