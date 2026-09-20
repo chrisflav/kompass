@@ -6843,11 +6843,18 @@ export interface components {
         LinkBrief: {
             /** Id */
             id: number;
+            /** Icon */
+            icon?: string | null;
             /**
              * Title
              * @default
              */
             title: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string | null;
             /** Url */
             url: string;
             /**

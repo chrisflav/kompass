@@ -152,12 +152,22 @@ class FAQIn(Schema):
 # --- links ----------------------------------------------------------------
 
 
+# Carries the description and the icon URL as well as the title, because the
+# dashboard renders the links as icon + title + short description (and never the
+# bare URL), the way the old admin start page did. Kept as a comment rather than
+# a docstring: ninja lifts a schema docstring into the OpenAPI `description`,
+# which would show up in the generated client.
 class LinkBrief(ModelSchema):
     id: int
+    icon: str | None = None
 
     class Meta:
         model = Link
-        fields = ["title", "url", "visible"]
+        fields = ["title", "description", "url", "visible"]
+
+    @staticmethod
+    def resolve_icon(obj) -> str | None:
+        return obj.icon.url if obj.icon else None
 
 
 class LinkOut(ModelSchema):
