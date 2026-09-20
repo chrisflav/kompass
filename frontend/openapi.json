@@ -18454,16 +18454,8 @@
             "title": "Telephone",
             "type": "string"
           },
-          "telefax": {
-            "title": "Telefax",
-            "type": "string"
-          },
           "contact_mail": {
             "title": "Contact Mail",
-            "type": "string"
-          },
-          "board_mail": {
-            "title": "Board Mail",
             "type": "string"
           },
           "responsible_mail": {
@@ -18500,9 +18492,7 @@
           "street",
           "town",
           "telephone",
-          "telefax",
           "contact_mail",
-          "board_mail",
           "responsible_mail"
         ],
         "title": "PublicSiteOut",

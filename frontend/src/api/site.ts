@@ -20,9 +20,7 @@ const FALLBACK: Site = {
   street: "",
   town: "",
   telephone: "",
-  telefax: "",
   contact_mail: "",
-  board_mail: "",
   responsible_mail: "",
   latitude: null,
   longitude: null,
@@ -32,21 +30,31 @@ const FALLBACK: Site = {
  * The section this Kompass belongs to — its name, its postal details and,
  * optionally, its position.
  *
- * Deployment configuration, not content: it cannot change while the tab is
- * open, so it is fetched once and never refetched. Public (no token needed), so
- * the login screen and the public site can read it too.
- *
- * Returns the data directly rather than a query: every caller only ever wants
- * the current value, and {@link FALLBACK} stands in while the request is in
- * flight or if it fails — a header that renders is better than one that throws.
+ * Deployment configuration, not content: it cannot change while a tab is open,
+ * so it is fetched once and never refetched or garbage-collected. Public (no
+ * token needed), so the login screen and the public site can read it too.
  */
-export function useSite(): Site {
-  const query = useApiQuery(
+export function useSiteQuery() {
+  return useApiQuery(
     ["public", "site"],
     () => unwrap(client.GET("/api/startpage/public/site")),
-    { staleTime: Infinity, gcTime: Infinity, retry: false },
+    { staleTime: Infinity, gcTime: Infinity },
   );
-  return query.data ?? FALLBACK;
+}
+
+/**
+ * {@link useSiteQuery} reduced to a value, with {@link FALLBACK} standing in
+ * while the request is in flight or if it failed.
+ *
+ * For the chrome — the wordmark, the footer, the login eyebrow — where an
+ * incomplete name beats an error state in place of the top bar. A page whose
+ * *content* is this data (the imprint) must render the query itself through
+ * `QueryBoundary` instead: silently swapping in the fallback there would
+ * present an imprint stripped of everything § 5 TMG requires as if it were
+ * complete.
+ */
+export function useSite(): Site {
+  return useSiteQuery().data ?? FALLBACK;
 }
 
 /**

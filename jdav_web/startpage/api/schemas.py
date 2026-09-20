@@ -405,9 +405,7 @@ class PublicSiteOut(Schema):
     street: str
     town: str
     telephone: str
-    telefax: str
     contact_mail: str
-    board_mail: str
     responsible_mail: str
     # Both null unless the deployment configured them; the hero drops its
     # coordinate readout rather than inventing a location.

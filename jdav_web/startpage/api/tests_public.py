@@ -100,10 +100,11 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual(body["street"], settings.SEKTION_STREET)
         self.assertEqual(body["town"], settings.SEKTION_TOWN)
         self.assertEqual(body["telephone"], settings.SEKTION_TELEPHONE)
-        self.assertEqual(body["telefax"], settings.SEKTION_TELEFAX)
         self.assertEqual(body["contact_mail"], settings.SEKTION_CONTACT_MAIL)
-        self.assertEqual(body["board_mail"], settings.SEKTION_BOARD_MAIL)
         self.assertEqual(body["responsible_mail"], settings.RESPONSIBLE_MAIL)
+        # Nothing the imprint does not print: the endpoint is unauthenticated.
+        self.assertNotIn("telefax", body)
+        self.assertNotIn("board_mail", body)
 
     @override_settings(
         SEKTION="Musterstadt",

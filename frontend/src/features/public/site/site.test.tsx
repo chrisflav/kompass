@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { formatCoordinates } from "../../../api/site";
-import { api, http, HttpResponse, server, useSite } from "../../../test/server";
+import { api, DEFAULT_SITE, http, HttpResponse, server, useSite } from "../../../test/server";
 import { renderRoute, renderWithApp } from "../../../test/utils";
 import { PublicFaq } from "./Faq";
 import { PublicGruppeDetail } from "./GruppeDetail";
@@ -220,15 +220,12 @@ describe("section identity", () => {
   });
 
   it("reads a position out as a map bearing, in either hemisphere", () => {
-    const site = { latitude: 48.8974, longitude: 9.1916 } as Parameters<
-      typeof formatCoordinates
-    >[0];
-    expect(formatCoordinates(site)).toBe("48.8974° N · 9.1916° O");
-    expect(formatCoordinates({ ...site, latitude: -33.9, longitude: -18.42 })).toBe(
+    expect(formatCoordinates(DEFAULT_SITE)).toBe("48.8974° N · 9.1916° O");
+    expect(formatCoordinates({ ...DEFAULT_SITE, latitude: -33.9, longitude: -18.42 })).toBe(
       "33.9000° S · 18.4200° W",
     );
-    expect(formatCoordinates({ ...site, latitude: null })).toBe("");
-    expect(formatCoordinates({ ...site, longitude: undefined })).toBe("");
+    expect(formatCoordinates({ ...DEFAULT_SITE, latitude: null })).toBe("");
+    expect(formatCoordinates({ ...DEFAULT_SITE, longitude: undefined })).toBe("");
   });
 });
 
@@ -453,9 +450,11 @@ describe("Impressum", () => {
   it("renders the imprint from the deployment's section data", async () => {
     renderWithApp(<PublicImpressum />, anon);
     expect(screen.getByRole("heading", { name: "Impressum" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Angaben gemäß § 5 TMG" })).toBeInTheDocument();
     expect(document.title).toBe("Impressum · Kompass");
-    expect(await screen.findByText(/Sektion Schwaben, Ortsgruppe Ludwigsburg/)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Angaben gemäß § 5 TMG" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Sektion Schwaben, Ortsgruppe Ludwigsburg/)).toBeInTheDocument();
     expect(screen.getByText(/Musterweg 1/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "info@example.org" })).toHaveAttribute(
       "href",
@@ -469,6 +468,19 @@ describe("Impressum", () => {
     expect(await screen.findAllByText(/JDAV Ludwigsburg/)).not.toHaveLength(0);
     expect(screen.queryByText(/Ortsgruppe/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Telefon/)).not.toBeInTheDocument();
+  });
+
+  it("says the data is missing rather than printing a hollow § 5 TMG block", async () => {
+    // The chrome's fallback is fine for a wordmark, but here it would present an
+    // imprint stripped of every legally required field as though it were whole.
+    server.use(
+      http.get(api("/api/startpage/public/site"), () => HttpResponse.json({}, { status: 500 })),
+    );
+    renderWithApp(<PublicImpressum />, anon);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Serverfehler/);
+    expect(
+      screen.queryByRole("heading", { name: "Angaben gemäß § 5 TMG" }),
+    ).not.toBeInTheDocument();
   });
 });
 

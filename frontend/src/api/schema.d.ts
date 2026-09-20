@@ -6984,12 +6984,8 @@ export interface components {
             town: string;
             /** Telephone */
             telephone: string;
-            /** Telefax */
-            telefax: string;
             /** Contact Mail */
             contact_mail: string;
-            /** Board Mail */
-            board_mail: string;
             /** Responsible Mail */
             responsible_mail: string;
             /** Latitude */
