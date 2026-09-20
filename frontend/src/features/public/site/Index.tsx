@@ -4,7 +4,7 @@ import { mediaUrl } from "../../../api/client";
 import { client, unwrap } from "../../../api/http";
 import { useApiQuery } from "../../../api/hooks";
 import { formatCoordinates, useSite } from "../../../api/site";
-import { ContourField } from "../../../components/Contour";
+import { ContourField, contourSeed } from "../../../components/Contour";
 import { QueryBoundary, useDocumentTitle } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 import { excerpt, formatDate } from "./shared";
@@ -119,7 +119,7 @@ export function PublicIndex() {
                             {p.image ? (
                               <img src={mediaUrl(p.image)} alt="" loading="lazy" />
                             ) : (
-                              <ContourField />
+                              <PostContour post={p} />
                             )}
                           </span>
                           <span className="report-title">{p.title}</span>
@@ -138,15 +138,26 @@ export function PublicIndex() {
   );
 }
 
+/**
+ * What a post shows where its photograph would be, for the many posts that
+ * never got one: the hero's own topographic contour field, seeded from the
+ * post so each one is its own hillside and keeps it across reloads.
+ *
+ * It fills the figure box exactly, so a strip of reports has the same geometry
+ * whether or not anybody uploaded a picture — and being drawn rather than
+ * fetched, there is nothing to break.
+ */
+function PostContour({ post }: { post: PostBrief }) {
+  return <ContourField className="figure-contour" seed={contourSeed(post.urlname || post.id)} />;
+}
+
 /** The newest story, given the space that says it is the newest. */
 function LeadPost({ post }: { post: PostBrief }) {
   return (
     <Link to={postHref(post)} className="lead">
-      {post.image && (
-        <span className="lead-figure">
-          <img src={mediaUrl(post.image)} alt="" />
-        </span>
-      )}
+      <span className="lead-figure">
+        {post.image ? <img src={mediaUrl(post.image)} alt="" /> : <PostContour post={post} />}
+      </span>
       <span className="lead-body">
         {post.date && <time className="lead-date">{formatDate(post.date)}</time>}
         <span className="lead-title">{post.title}</span>

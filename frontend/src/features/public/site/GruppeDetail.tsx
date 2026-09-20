@@ -4,7 +4,7 @@ import { client, unwrap } from "../../../api/http";
 import { useApiQuery } from "../../../api/hooks";
 import { DetailList, QueryBoundary } from "../../../components/ui";
 import type { components } from "../../../api/schema";
-import { Prose, PublicPageHeader } from "./shared";
+import { PortraitGrid, Prose, PublicPageHeader } from "./shared";
 
 type PublicGroupDetail = components["schemas"]["PublicGroupDetail"];
 type PublicMemberBrief = components["schemas"]["PublicMemberBrief"];
@@ -14,20 +14,7 @@ function LeaderGrid({ people }: { people: PublicMemberBrief[] }) {
   return (
     <section style={{ marginTop: "1.5rem" }}>
       <h2>Jugendleiter:innen</h2>
-      <div className="card-grid">
-        {people.map((person) => (
-          <div key={person.id} className="shortcut-card" style={{ alignItems: "center" }}>
-            {person.image && (
-              <img
-                src={person.image}
-                alt={person.name}
-                style={{ maxWidth: "100%", borderRadius: "var(--radius)" }}
-              />
-            )}
-            <span className="shortcut-title">{person.name}</span>
-          </div>
-        ))}
-      </div>
+      <PortraitGrid people={people} />
     </section>
   );
 }

@@ -2945,6 +2945,21 @@ button.etappe-body:hover {
   font-size: 1.25rem;
 }
 
+/* A post with no photograph still gets a picture rather than a hole: the
+   hero's contour field, seeded per post, filling the figure box exactly so the
+   page's geometry never depends on who remembered to upload something. The
+   paper-to-ice wash underneath is the public hero's, which is what makes the
+   placeholder read as part of the site and not as a failure. */
+.figure-contour {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: var(--contour);
+  background: linear-gradient(160deg, #fbfcfa 0%, var(--gletscher) 100%);
+}
+
 /* --- the lead story ------------------------------------------------------- */
 
 .lead {
@@ -3213,6 +3228,51 @@ button.etappe-body:hover {
   .report-card:hover .report-figure img {
     transform: none;
   }
+}
+
+/* --- public portrait grids ------------------------------------------------
+   The people on a post and a group's Jugendleiter:innen. The portrait box is
+   fixed and square, so a photograph and a set of initials take exactly the
+   same room and a half-photographed grid keeps its rhythm. */
+.portrait-card {
+  align-items: center;
+  text-align: center;
+}
+
+.portrait {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+
+.portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The signed-in user's avatar treatment — mono initials on glacier ice — at
+   portrait size. In rem, so it grows with a reader's larger type. */
+.portrait-initials {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: var(--gletscher);
+  color: var(--fels);
+  font-family: var(--font-mono);
+  font-size: 1.9rem;
+  font-weight: 600;
+  /* The tracking is applied after the last letter too, so pay it back at the
+     front to keep the pair optically centred. */
+  letter-spacing: 0.09em;
+  text-indent: 0.09em;
 }
 
 /* ==========================================================================
