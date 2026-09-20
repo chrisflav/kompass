@@ -34,3 +34,16 @@ COPY --chown=app:app ./pyproject.toml ./uv.lock /app/
 RUN pip install uv && uv export -o requirements.txt && pip install -r requirements.txt
 
 COPY --chown=app:app . /app
+
+# Compile the German catalogues into the image rather than into one container's
+# filesystem. `.mo` files are gitignored and `.dockerignore`d, so the build
+# context carries only the `.po` sources, and five containers run from this
+# image with entrypoints of their own: `spa_master` serves the SPA's `/api`,
+# the celery worker renders PDFs and mail, `lmtp` receives it. None of them
+# compiles, so every translated string they produced fell back to its English
+# msgid.
+#
+# Scoped to the project tree: from `/app` the walk would also take in the
+# ~1600 third-party catalogues under `/app/.local`, and a single one of them
+# failing `msgfmt --check-format` would fail the build.
+RUN cd jdav_web && python manage.py compilemessages --locale de
