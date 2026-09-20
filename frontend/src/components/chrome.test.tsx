@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Route, Routes } from "react-router-dom";
 
-import { api, http, HttpResponse, server } from "../test/server";
+import { api, http, HttpResponse, server, useSite } from "../test/server";
 import { renderWithApp } from "../test/utils";
 import { ContourField, KompassMark } from "./Contour";
 import { AppLayout, ProtectedRoute, PublicLayout } from "./Layout";
@@ -128,7 +128,7 @@ describe("layouts", () => {
       { route: "/", authenticated: false },
     );
     expect(await screen.findByText("Startseite")).toBeInTheDocument();
-    expect(screen.getByText(/JDAV Ludwigsburg · Kompass/)).toBeInTheDocument();
+    expect(await screen.findByText(/JDAV Ludwigsburg · Kompass/)).toBeInTheDocument();
   });
 });
 
@@ -222,14 +222,27 @@ describe("SiteHeader — admin variant", () => {
     expect(screen.queryByRole("group", { name: "Bereich wechseln" })).not.toBeInTheDocument();
   });
 
-  it("points the brand at the dashboard in the app and at the site outside it", () => {
+  it("points the brand at the dashboard in the app and at the site outside it", async () => {
     const app = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
-    expect(screen.getByRole("link", { name: /JDAV Ludwigsburg/ })).toHaveAttribute("href", "/kompass");
+    expect(await screen.findByRole("link", { name: /JDAV Ludwigsburg/ })).toHaveAttribute(
+      "href",
+      "/kompass",
+    );
     app.unmount();
 
     navReturns();
     renderWithApp(<SiteHeader variant="public" />, { route: "/" });
-    expect(screen.getByRole("link", { name: /JDAV Ludwigsburg/ })).toHaveAttribute("href", "/");
+    expect(await screen.findByRole("link", { name: /JDAV Ludwigsburg/ })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
+  it("carries the deployment's own section in the wordmark", async () => {
+    // Nothing in the chrome names one section; whoever runs the deployment does.
+    useSite({ display_name: "JDAV Musterstadt" });
+    renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
+    expect(await screen.findByRole("link", { name: /JDAV Musterstadt/ })).toBeInTheDocument();
   });
 });
 

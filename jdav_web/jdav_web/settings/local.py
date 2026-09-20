@@ -3,6 +3,10 @@
 # contact data
 
 SEKTION = get_var("section", "name", default="Heyo")
+# The DAV section this local group belongs to ("Schwaben" reads as "Sektion
+# Schwaben, Ortsgruppe <name>" in the imprint). Empty where the group is the
+# section itself, in which case the imprint simply omits the line.
+SEKTION_DAV = get_var("section", "dav_section", default="")
 SEKTION_STREET = get_var("section", "street", default="Street")
 SEKTION_TOWN = get_var("section", "town", default="12345 Town")
 SEKTION_TELEPHONE = get_var("section", "telephone", default="0123456789")
@@ -15,6 +19,11 @@ SEKTION_CRISIS_INTERVENTION_MAIL = get_var(
 SEKTION_FINANCE_MAIL = get_var("section", "finance_mail", default=SEKTION_CONTACT_MAIL)
 SEKTION_IBAN = get_var("section", "iban", default="Foo 123")
 SEKTION_ACCOUNT_HOLDER = get_var("section", "account_holder", default="Foo")
+
+# Where the section sits, read out as a bearing in the website's hero. Both
+# have to be configured for the readout to appear at all.
+SEKTION_LATITUDE = get_var("section", "latitude", default=None)
+SEKTION_LONGITUDE = get_var("section", "longitude", default=None)
 
 RESPONSIBLE_MAIL = get_var("section", "responsible_mail", default="foo@example.org")
 DIGITAL_MAIL = get_var("section", "digital_mail", default="bar@example.org")

@@ -77,7 +77,7 @@ export function ContourField({
 /**
  * The Kompass brand mark — the section's own compass-needle-in-a-ring logo
  * (shared with the Django admin favicon, served from /kompass.svg). Decorative;
- * the adjacent "Kompass"/"JDAV Ludwigsburg" wordmark carries the accessible name.
+ * the adjacent "Kompass"/section wordmark carries the accessible name.
  */
 export function KompassMark({ size = 22 }: { size?: number }) {
   return (

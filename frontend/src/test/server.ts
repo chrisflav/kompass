@@ -35,9 +35,30 @@ export const DEFAULT_ME = {
   ],
 };
 
+/**
+ * The deployment every test runs against. The chrome asks for this on every
+ * page, so it belongs in the base handlers rather than in each test; a test
+ * that cares about a different section overrides it with {@link useSite}.
+ */
+export const DEFAULT_SITE = {
+  name: "Ludwigsburg",
+  display_name: "JDAV Ludwigsburg",
+  dav_section: "Schwaben",
+  street: "Musterweg 1",
+  town: "71634 Ludwigsburg",
+  telephone: "07141 123456",
+  telefax: "07141 123457",
+  contact_mail: "info@example.org",
+  board_mail: "vorstand@example.org",
+  responsible_mail: "verantwortlich@example.org",
+  latitude: 48.8974,
+  longitude: 9.1916,
+};
+
 /** Handlers present in every test; individual tests override with `server.use`. */
 const baseHandlers = [
   http.get(api("/api/members/me"), () => HttpResponse.json(DEFAULT_ME)),
+  http.get(api("/api/startpage/public/site"), () => HttpResponse.json(DEFAULT_SITE)),
 ];
 
 export const server = setupServer(...baseHandlers);
@@ -49,6 +70,15 @@ export function useMe(overrides: Partial<typeof DEFAULT_ME>) {
   server.use(
     http.get(api("/api/members/me"), () =>
       HttpResponse.json({ ...DEFAULT_ME, ...overrides }),
+    ),
+  );
+}
+
+/** Replace `/api/startpage/public/site` for one test (e.g. another section). */
+export function useSite(overrides: Partial<typeof DEFAULT_SITE>) {
+  server.use(
+    http.get(api("/api/startpage/public/site"), () =>
+      HttpResponse.json({ ...DEFAULT_SITE, ...overrides }),
     ),
   );
 }

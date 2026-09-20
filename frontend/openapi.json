@@ -8171,6 +8171,29 @@
         ]
       }
     },
+    "/api/startpage/public/site": {
+      "get": {
+        "operationId": "startpage_api_router_public_site",
+        "summary": "Public Site",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSiteOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Which section this deployment belongs to (``settings.SEKTION*``).\n\nThe public site and the Kompass chrome both carry the section's name, and\nthe imprint its postal details; none of that is section-independent, so it\nis served from the deployment's configuration rather than built into the\nfrontend.",
+        "tags": [
+          "startpage"
+        ]
+      }
+    },
     "/api/startpage/public/navigation": {
       "get": {
         "operationId": "startpage_api_router_public_navigation",
@@ -18402,6 +18425,87 @@
           "post_id"
         ],
         "title": "MemberOnPostIn",
+        "type": "object"
+      },
+      "PublicSiteOut": {
+        "description": "Who is running this deployment: the section's identity and imprint data.\n\nRead straight from ``settings.SEKTION*`` (the ``[section]`` table of\n``settings.toml``). The SPA is deployed per section, so every place that\nnames the section — the wordmark, the page titles, the imprint — reads it\nfrom here instead of carrying one section's name in its source.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "dav_section": {
+            "title": "Dav Section",
+            "type": "string"
+          },
+          "street": {
+            "title": "Street",
+            "type": "string"
+          },
+          "town": {
+            "title": "Town",
+            "type": "string"
+          },
+          "telephone": {
+            "title": "Telephone",
+            "type": "string"
+          },
+          "telefax": {
+            "title": "Telefax",
+            "type": "string"
+          },
+          "contact_mail": {
+            "title": "Contact Mail",
+            "type": "string"
+          },
+          "board_mail": {
+            "title": "Board Mail",
+            "type": "string"
+          },
+          "responsible_mail": {
+            "title": "Responsible Mail",
+            "type": "string"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "dav_section",
+          "street",
+          "town",
+          "telephone",
+          "telefax",
+          "contact_mail",
+          "board_mail",
+          "responsible_mail"
+        ],
+        "title": "PublicSiteOut",
         "type": "object"
       },
       "NavigationOut": {

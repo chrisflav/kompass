@@ -46,6 +46,7 @@ from .schemas import PostOut
 from .schemas import PublicGroupBrief
 from .schemas import PublicGroupDetail
 from .schemas import PublicPostDetail
+from .schemas import PublicSiteOut
 from .schemas import SectionBrief
 from .schemas import SectionIn
 from .schemas import SectionOut
@@ -359,6 +360,31 @@ def delete_member_on_post(request, mop_id: int):
 # in ``startpage/views.py`` so the single-page frontend can render the entire
 # public site from the API. Each returns exactly the data its corresponding
 # template needs — hidden groups and member contact data never leak here.
+
+
+@router.get("/public/site", auth=None, response=PublicSiteOut)
+def public_site(request):
+    """Which section this deployment belongs to (``settings.SEKTION*``).
+
+    The public site and the Kompass chrome both carry the section's name, and
+    the imprint its postal details; none of that is section-independent, so it
+    is served from the deployment's configuration rather than built into the
+    frontend.
+    """
+    return {
+        "name": settings.SEKTION,
+        "display_name": f"JDAV {settings.SEKTION}",
+        "dav_section": settings.SEKTION_DAV,
+        "street": settings.SEKTION_STREET,
+        "town": settings.SEKTION_TOWN,
+        "telephone": settings.SEKTION_TELEPHONE,
+        "telefax": settings.SEKTION_TELEFAX,
+        "contact_mail": settings.SEKTION_CONTACT_MAIL,
+        "board_mail": settings.SEKTION_BOARD_MAIL,
+        "responsible_mail": settings.RESPONSIBLE_MAIL,
+        "latitude": settings.SEKTION_LATITUDE,
+        "longitude": settings.SEKTION_LONGITUDE,
+    }
 
 
 @router.get("/public/navigation", auth=None, response=NavigationOut)

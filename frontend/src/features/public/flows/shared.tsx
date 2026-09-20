@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { useSite } from "../../../api/site";
 import { KompassMark } from "../../../components/Contour";
 import { Button, Field, Select } from "../../../components/ui";
 import type { components } from "../../../api/schema";
@@ -31,11 +32,12 @@ export function useFlowKey(): string {
  * the way back, so no flow can strand someone who arrived by navigating.
  */
 export function FlowShell({ title, children }: { title: string; children: ReactNode }) {
+  const site = useSite();
   return (
     <div className="login">
       <Link to="/" className="flow-home" aria-label="Zur Website">
         <KompassMark size={26} />
-        <span>JDAV Ludwigsburg</span>
+        <span>{site.display_name}</span>
       </Link>
       <div className="card" style={{ width: "min(620px, 94vw)" }}>
         <h1>{title}</h1>

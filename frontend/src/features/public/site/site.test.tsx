@@ -1,7 +1,8 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { api, http, HttpResponse, server } from "../../../test/server";
+import { formatCoordinates } from "../../../api/site";
+import { api, http, HttpResponse, server, useSite } from "../../../test/server";
 import { renderRoute, renderWithApp } from "../../../test/utils";
 import { PublicFaq } from "./Faq";
 import { PublicGruppeDetail } from "./GruppeDetail";
@@ -98,7 +99,7 @@ describe("public index", () => {
     );
     renderWithApp(<PublicIndex />, anon);
 
-    expect(screen.getByRole("heading", { name: "JDAV Ludwigsburg" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "JDAV Ludwigsburg" })).toBeInTheDocument();
     expect(await screen.findByText("Skifreizeit 2026")).toBeInTheDocument();
     expect(screen.getByText("Sommerfahrt")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alle Neuigkeiten →" })).toHaveAttribute(
@@ -188,6 +189,46 @@ describe("public index", () => {
     renderWithApp(<PublicIndex />, anon);
     expect(await screen.findByText("Keine aktuellen Beiträge.")).toBeInTheDocument();
     expect(screen.getByText("Keine Berichte.")).toBeInTheDocument();
+  });
+});
+
+describe("section identity", () => {
+  it("names whichever section the deployment belongs to", async () => {
+    // The point of the endpoint: nothing on the page is this section's own.
+    useSite({ name: "Musterstadt", display_name: "JDAV Musterstadt" });
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({ recent_posts: [], reports: [] }),
+      ),
+    );
+    renderWithApp(<PublicIndex />, anon);
+    expect(await screen.findByRole("heading", { name: "JDAV Musterstadt" })).toBeInTheDocument();
+    expect(screen.getByText(/Alpenvereins in Musterstadt\./)).toBeInTheDocument();
+    expect(document.title).toBe("JDAV Musterstadt · Kompass");
+  });
+
+  it("drops the hero's bearing where no position is configured", async () => {
+    useSite({ latitude: null, longitude: null });
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({ recent_posts: [], reports: [] }),
+      ),
+    );
+    const { container } = renderWithApp(<PublicIndex />, anon);
+    expect(await screen.findByText("Keine Berichte.")).toBeInTheDocument();
+    expect(container.querySelector(".public-hero-coords")).toBeNull();
+  });
+
+  it("reads a position out as a map bearing, in either hemisphere", () => {
+    const site = { latitude: 48.8974, longitude: 9.1916 } as Parameters<
+      typeof formatCoordinates
+    >[0];
+    expect(formatCoordinates(site)).toBe("48.8974° N · 9.1916° O");
+    expect(formatCoordinates({ ...site, latitude: -33.9, longitude: -18.42 })).toBe(
+      "33.9000° S · 18.4200° W",
+    );
+    expect(formatCoordinates({ ...site, latitude: null })).toBe("");
+    expect(formatCoordinates({ ...site, longitude: undefined })).toBe("");
   });
 });
 
@@ -409,11 +450,25 @@ describe("FAQ", () => {
 });
 
 describe("Impressum", () => {
-  it("renders the static imprint", () => {
+  it("renders the imprint from the deployment's section data", async () => {
     renderWithApp(<PublicImpressum />, anon);
     expect(screen.getByRole("heading", { name: "Impressum" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Angaben gemäß § 5 TMG" })).toBeInTheDocument();
     expect(document.title).toBe("Impressum · Kompass");
+    expect(await screen.findByText(/Sektion Schwaben, Ortsgruppe Ludwigsburg/)).toBeInTheDocument();
+    expect(screen.getByText(/Musterweg 1/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "info@example.org" })).toHaveAttribute(
+      "href",
+      "mailto:info@example.org",
+    );
+  });
+
+  it("omits the lines a section did not configure", async () => {
+    useSite({ dav_section: "", street: "", town: "", telephone: "", responsible_mail: "" });
+    renderWithApp(<PublicImpressum />, anon);
+    expect(await screen.findAllByText(/JDAV Ludwigsburg/)).not.toHaveLength(0);
+    expect(screen.queryByText(/Ortsgruppe/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Telefon/)).not.toBeInTheDocument();
   });
 });
 

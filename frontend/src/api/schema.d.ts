@@ -2874,6 +2874,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/startpage/public/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Site
+         * @description Which section this deployment belongs to (``settings.SEKTION*``).
+         *
+         *     The public site and the Kompass chrome both carry the section's name, and
+         *     the imprint its postal details; none of that is section-independent, so it
+         *     is served from the deployment's configuration rather than built into the
+         *     frontend.
+         */
+        get: operations["startpage_api_router_public_site"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/startpage/public/navigation": {
         parameters: {
             query?: never;
@@ -6936,6 +6961,41 @@ export interface components {
              * @default []
              */
             member_ids: number[];
+        };
+        /**
+         * PublicSiteOut
+         * @description Who is running this deployment: the section's identity and imprint data.
+         *
+         *     Read straight from ``settings.SEKTION*`` (the ``[section]`` table of
+         *     ``settings.toml``). The SPA is deployed per section, so every place that
+         *     names the section — the wordmark, the page titles, the imprint — reads it
+         *     from here instead of carrying one section's name in its source.
+         */
+        PublicSiteOut: {
+            /** Name */
+            name: string;
+            /** Display Name */
+            display_name: string;
+            /** Dav Section */
+            dav_section: string;
+            /** Street */
+            street: string;
+            /** Town */
+            town: string;
+            /** Telephone */
+            telephone: string;
+            /** Telefax */
+            telefax: string;
+            /** Contact Mail */
+            contact_mail: string;
+            /** Board Mail */
+            board_mail: string;
+            /** Responsible Mail */
+            responsible_mail: string;
+            /** Latitude */
+            latitude?: number | null;
+            /** Longitude */
+            longitude?: number | null;
         };
         /**
          * NavigationOut
@@ -12806,6 +12866,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    startpage_api_router_public_site: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicSiteOut"];
+                };
             };
         };
     };

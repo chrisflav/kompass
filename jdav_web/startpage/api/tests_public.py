@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from members.models import DIVERSE
@@ -87,6 +88,44 @@ class StartpagePublicReadApiTestCase(TestCase):
     def test_public_endpoint_needs_no_auth(self):
         r = self.client.get("/api/startpage/public/navigation")
         self.assertEqual(r.status_code, 200)
+
+    # --- site identity ----------------------------------------------------
+
+    def test_public_site_reports_the_configured_section(self):
+        r = self.client.get("/api/startpage/public/site")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["name"], settings.SEKTION)
+        self.assertEqual(body["display_name"], f"JDAV {settings.SEKTION}")
+        self.assertEqual(body["street"], settings.SEKTION_STREET)
+        self.assertEqual(body["town"], settings.SEKTION_TOWN)
+        self.assertEqual(body["telephone"], settings.SEKTION_TELEPHONE)
+        self.assertEqual(body["telefax"], settings.SEKTION_TELEFAX)
+        self.assertEqual(body["contact_mail"], settings.SEKTION_CONTACT_MAIL)
+        self.assertEqual(body["board_mail"], settings.SEKTION_BOARD_MAIL)
+        self.assertEqual(body["responsible_mail"], settings.RESPONSIBLE_MAIL)
+
+    @override_settings(
+        SEKTION="Musterstadt",
+        SEKTION_DAV="Schwaben",
+        SEKTION_LATITUDE=48.8974,
+        SEKTION_LONGITUDE=9.1916,
+    )
+    def test_public_site_follows_the_deployment_configuration(self):
+        """Nothing here is this section's: another deployment gets its own name."""
+        body = self.client.get("/api/startpage/public/site").json()
+        self.assertEqual(body["name"], "Musterstadt")
+        self.assertEqual(body["display_name"], "JDAV Musterstadt")
+        self.assertEqual(body["dav_section"], "Schwaben")
+        self.assertEqual(body["latitude"], 48.8974)
+        self.assertEqual(body["longitude"], 9.1916)
+
+    @override_settings(SEKTION_LATITUDE=None, SEKTION_LONGITUDE=None)
+    def test_public_site_omits_unconfigured_coordinates(self):
+        """A deployment that set no position gets no coordinate readout."""
+        body = self.client.get("/api/startpage/public/site").json()
+        self.assertIsNone(body["latitude"])
+        self.assertIsNone(body["longitude"])
 
     # --- navigation -------------------------------------------------------
 

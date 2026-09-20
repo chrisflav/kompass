@@ -1,5 +1,7 @@
 [section]
 name = "Town"
+# Optional: the DAV section a local group belongs to, for the imprint.
+dav_section = "Schwaben"
 street = "Street 12"
 town = "12345 Town"
 telephone = "123456789"
@@ -9,6 +11,9 @@ board_mail = "board@jdav-town.de"
 crisis_intervention_mail = "crisis@jdav-town.de"
 iban = "DE42 4242 4242 4242 4242 42"
 account_holder = "DAV Town"
+# Optional: the section's position, read out as a bearing in the site hero.
+latitude = 48.8974
+longitude = 9.1916
 responsible_mail = "responsible@jdav-town.de"
 digital_mail = "digital@jdav-town.de"
 admins = [['Admin', 'admin@jdav-town.de']]
