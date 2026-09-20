@@ -13,6 +13,12 @@ jobs:
   check-frontend:
     runs-on: ubuntu-latest
 
+    # This job runs fork-authored code (`npm ci`, the test suite, the build)
+    # and needs nothing but the checkout, so it never inherits a write token —
+    # whatever the repository default is set to.
+    permissions:
+      contents: read
+
     defaults:
       run:
         working-directory: frontend
