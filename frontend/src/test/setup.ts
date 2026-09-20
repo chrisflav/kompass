@@ -25,10 +25,17 @@ for (const name of ["FormData", "File", "Blob"] as const) {
   Object.defineProperty(window, name, { configurable: true, writable: true, value: impl });
 }
 
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
 import { server } from "./server";
+
+// testing-library budgets `findBy*`/`waitFor` from its own 1s default, which
+// the generous `testTimeout` in the vitest config does not raise. One scheduler
+// stall over a second on a loaded machine — a CI runner, say — is then enough
+// to fail a query that would have resolved, so give the async utilities a
+// budget that still sits well inside the test timeout.
+configure({ asyncUtilTimeout: 5000 });
 
 // A request no handler covers is a bug in the test, not something to silently
 // pass through to a real backend.
