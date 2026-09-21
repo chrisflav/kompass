@@ -24,10 +24,17 @@ TERMIN_CHOICE_FIELDS = (
 def _options(field):
     """The ``{value, label, default}`` options of one choice field."""
     default = field.get_default() if field.has_default() else None
-    return [
+    options = [
         {"value": value, "label": str(label), "default": value == default}
         for value, label in field.choices
     ]
+    # A default outside its own choices would mark nothing, and the SPA would
+    # then preselect the first option instead — a plausible-looking form rather
+    # than a visible failure. Say so here instead of shipping the wrong one.
+    assert default is None or any(o["default"] for o in options), (
+        f"{field.name} defaults to {default!r}, which is not one of its choices"
+    )
+    return options
 
 
 def termin_choice_options():

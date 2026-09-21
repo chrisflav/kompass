@@ -121,6 +121,10 @@ class LudwigsburgalpinParityTestCase(TestCase):
         # all, so nothing in its list is marked and the form picks the first.
         self.assertEqual([c["value"] for c in body["category"] if c["default"]], ["SON"])
         self.assertEqual([c["value"] for c in body["group"] if c["default"]], [])
+        # With nothing marked, the create form preselects ``GRUPPE[0]``, so the
+        # order of that list is load-bearing where it used to be a literal in
+        # the SPA. Reordering it changes what a new Termin defaults to.
+        self.assertEqual(body["group"][0]["value"], "ASG")
 
     def test_enums_route_not_shadowed_by_termin_id(self):
         # ``/enums`` must resolve to the enum endpoint, not the /{termin_id}

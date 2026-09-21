@@ -93,7 +93,7 @@ export const TERMIN_ENUMS: TerminEnums = {
       ["ST", "Skitour"],
       ["STH", "Skihochtour"],
       ["HT", "Hochtour"],
-      ["MTB", "Montainbike"],
+      ["MTB", "Mountainbike"],
       ["AUS", "Ausbildung"],
       ["SON", "Sonstiges z.B. Treffen"],
     ],

@@ -15,17 +15,30 @@ export type TerminChoice = components["schemas"]["TerminEnumChoice"];
 /** The `/enums` payload: one option list per Termin choice field. */
 export type TerminEnums = Record<string, TerminChoice[]>;
 
+/*
+ * `staleTime: Infinity` on both: the lists are immutable for a deployment, so
+ * there is nothing to refetch, and a refetch that failed would take the form
+ * down with it. `QueryBoundary` reads `error` before `data`, and React Query
+ * keeps `data` while setting `error` on a failed background refetch, so a
+ * stale-then-refocus cycle on flaky mobile data would swap a filled-in form
+ * for an error state and unmount everything the user had typed.
+ */
+
 /** Choice options for the authenticated Termin management forms. */
 export function useTerminEnums() {
-  return useApiQuery<TerminEnums>(["ludwigsburgalpin", "enums"], () =>
-    unwrap(client.GET("/api/ludwigsburgalpin/enums")),
+  return useApiQuery<TerminEnums>(
+    ["ludwigsburgalpin", "enums"],
+    () => unwrap(client.GET("/api/ludwigsburgalpin/enums")),
+    { staleTime: Infinity },
   );
 }
 
 /** The same lists without a bearer token, for the public submission flow. */
 export function usePublicTerminEnums() {
-  return useApiQuery<TerminEnums>(["ludwigsburgalpin", "public", "enums"], () =>
-    unwrap(client.GET("/api/ludwigsburgalpin/public/enums")),
+  return useApiQuery<TerminEnums>(
+    ["ludwigsburgalpin", "public", "enums"],
+    () => unwrap(client.GET("/api/ludwigsburgalpin/public/enums")),
+    { staleTime: Infinity },
   );
 }
 

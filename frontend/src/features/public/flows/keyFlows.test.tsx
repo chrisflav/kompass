@@ -807,6 +807,30 @@ describe("submit an event proposal", () => {
     expect(body).toMatchObject({ category: "KST" });
   });
 
+  it("keeps a half-filled form when the choice lists fail to refetch", async () => {
+    // The lists never change, so `usePublicTerminEnums` pins `staleTime` to
+    // Infinity. Without that a tab refocus refetches them, and because
+    // `QueryBoundary` reads `error` before `data`, one failed request on flaky
+    // mobile data would replace the form with an error state — throwing away
+    // everything a volunteer had typed into a twenty-field form.
+    const { user } = renderWithApp(<SubmitTerminFlow />, { authenticated: false });
+    await user.type(await screen.findByLabelText("Titel"), "Klettersteig Allgäu");
+
+    let refetched = false;
+    server.use(
+      http.get(api("/api/ludwigsburgalpin/public/enums"), () => {
+        refetched = true;
+        return HttpResponse.json({ detail: "kaputt" }, { status: 500 });
+      }),
+    );
+    window.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() => expect(screen.getByLabelText("Titel")).toHaveValue("Klettersteig Allgäu"));
+
+    expect(refetched).toBe(false);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Termin einreichen" })).toBeInTheDocument();
+  });
+
   it("reports a rejected proposal on the form", async () => {
     server.use(
       http.post(api("/api/ludwigsburgalpin/public/termine"), () =>
