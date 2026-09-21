@@ -4,7 +4,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { api, http, HttpResponse, server, useSite } from "../test/server";
 import { renderWithApp } from "../test/utils";
-import { ContourField, KompassMark } from "./Contour";
+import { ContourField, contourSeed, KompassMark } from "./Contour";
 import { AppLayout, ProtectedRoute, PublicLayout } from "./Layout";
 import { NotFound, Placeholder } from "./Placeholder";
 import { SiteHeader } from "./SiteHeader";
@@ -39,6 +39,44 @@ describe("Contour", () => {
     const { container } = renderWithApp(<ContourField />, { authenticated: false });
     expect(container.querySelector("svg")).toHaveClass("hero-contour");
     expect(container.querySelectorAll("path")).toHaveLength(11);
+  });
+
+  // The unseeded field is the backdrop of the login, the public hero, the
+  // sidebar brand and the dashboard hero. Nothing in those four screens would
+  // notice it quietly changing shape, so pin it: `seed` exists for the post
+  // placeholders and must leave the default slope exactly where it was.
+  it("keeps the unseeded slope the four heroes already draw", () => {
+    const { container } = renderWithApp(<ContourField />, { authenticated: false });
+    const paths = [...container.querySelectorAll("path")].map((p) => p.getAttribute("d"));
+    expect(paths[0]).toBe(
+      "M89.0 40.0L89.2 40.4L89.3 40.8L89.3 41.2L89.2 41.6L89.0 41.9L88.8 42.3L88.5 42.6" +
+        "L88.1 42.8L87.7 43.0L87.3 43.2L86.9 43.4L86.5 43.5L86.1 43.7L85.7 43.8L85.3 43.9" +
+        "L84.9 44.0L84.4 44.0L84.0 44.0L83.6 44.0L83.2 43.9L82.8 43.8L82.4 43.6L82.0 43.5" +
+        "L81.6 43.3L81.3 43.2L80.9 43.0L80.5 42.9L80.1 42.7L79.8 42.4L79.4 42.2L79.2 41.9" +
+        "L79.0 41.5L78.8 41.1L78.8 40.7L78.9 40.4L79.0 40.0L79.2 39.7L79.3 39.3L79.5 39.0" +
+        "L79.6 38.7L79.8 38.4L79.9 38.1L80.0 37.7L80.2 37.4L80.4 37.1L80.7 36.7L81.0 36.5" +
+        "L81.4 36.2L81.8 36.1L82.2 35.9L82.6 35.9L83.1 35.8L83.6 35.8L84.0 35.8L84.4 35.8" +
+        "L84.9 35.9L85.3 36.0L85.7 36.1L86.1 36.2L86.5 36.4L86.9 36.6L87.1 36.9L87.4 37.2" +
+        "L87.6 37.5L87.7 37.9L87.9 38.2L88.0 38.5L88.2 38.8L88.4 39.0L88.6 39.3L88.8 39.7" +
+        "L89.0 40.0Z",
+    );
+    // …and the ten rings around it, which a per-ring drift would stretch.
+    expect(paths.join("").length).toBe(8302);
+  });
+
+  it("draws a different hillside for a different seed, the same one twice", () => {
+    const render = (seed: number) =>
+      [
+        ...renderWithApp(<ContourField seed={seed} />, {
+          authenticated: false,
+        }).container.querySelectorAll("path"),
+      ].map((p) => p.getAttribute("d"));
+
+    const unseeded = render(0);
+    expect(render(contourSeed("arco"))).not.toEqual(unseeded);
+    expect(render(contourSeed("raetikon"))).not.toEqual(render(contourSeed("arco")));
+    // Same key, same hill — a reader who comes back tomorrow sees what they saw.
+    expect(render(contourSeed("arco"))).toEqual(render(contourSeed("arco")));
   });
 
   it("renders the brand mark as decoration, never as content", () => {

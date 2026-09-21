@@ -1,6 +1,7 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { mediaUrl } from "../../../api/client";
 import { formatCoordinates } from "../../../api/site";
 import { api, DEFAULT_SITE, http, HttpResponse, server, useSite } from "../../../test/server";
 import { renderRoute, renderWithApp } from "../../../test/utils";
@@ -13,7 +14,7 @@ import { PublicPost } from "./Post";
 import { PublicSection } from "./Section";
 import { FlowShell } from "../flows/shared";
 import { PublicAktuelles, PublicBerichte } from "./SectionPosts";
-import { excerpt, formatDate, Prose, PostTeaser } from "./shared";
+import { excerpt, formatDate, initials, Prose, PostTeaser } from "./shared";
 
 const POST = {
   id: 1,
@@ -191,6 +192,34 @@ describe("shared helpers", () => {
     renderWithApp(<PostTeaser post={{ ...POST, date: null }} />, anon);
     expect(screen.queryByText(/Februar/)).not.toBeInTheDocument();
   });
+
+  it("takes a person's initials from whichever name fields carry them", () => {
+    const person = (over: Record<string, unknown>) =>
+      ({ id: 1, name: "", prename: "", lastname: "", image: null, ...over }) as never;
+
+    expect(initials(person({ prename: "Hannah", lastname: "Beckers" }))).toBe("HB");
+    expect(initials(person({ prename: "Anna", lastname: "Ärmel" }))).toBe("AÄ");
+    // A payload carrying only the rendered name, which several public ones do.
+    expect(initials(person({ name: "Ludwig van Beethoven" }))).toBe("LB");
+    expect(initials(person({ name: "Cher" }))).toBe("C");
+    // No surname on file, but the rendered name has one: prefer the two letters
+    // rather than stopping at the one the member fields happen to give.
+    expect(initials(person({ prename: "Tobias", lastname: "", name: "Tobias Werner" }))).toBe("TW");
+    // Genuinely one-named, from either direction.
+    expect(initials(person({ prename: "Jo", lastname: "", name: "Jo" }))).toBe("J");
+  });
+
+  it("never renders a blank square for a name that is only whitespace", () => {
+    const person = (over: Record<string, unknown>) =>
+      ({ id: 1, name: "", prename: "", lastname: "", image: null, ...over }) as never;
+
+    // A space is truthy, and slicing one yields a space — so without trimming
+    // these all produced an initials box with nothing in it.
+    expect(initials(person({ prename: "   ", lastname: "  ", name: "  " }))).toBe("?");
+    expect(initials(person({ name: "" }))).toBe("?");
+    // Whitespace in the member fields still falls through to the rendered name.
+    expect(initials(person({ prename: " ", lastname: " ", name: "Änne Wirth" }))).toBe("ÄW");
+  });
 });
 
 describe("public index", () => {
@@ -284,6 +313,71 @@ describe("public index", () => {
     // A report's hook is the picture, so no truncated paragraph rides along.
     expect(container.querySelector(".report-card .lead-excerpt")).toBeNull();
     expect(card).toHaveTextContent("20. Februar 2026");
+  });
+
+  it("draws a contour hillside for a report that has no photograph", async () => {
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({
+          recent_posts: [],
+          reports: [
+            { ...POST, id: 5, title: "Arco", urlname: "arco", image: null },
+            { ...POST, id: 6, title: "Ratikon", urlname: "raetikon", image: null },
+            { ...POST, id: 7, title: "Ortler", urlname: "ortler", image: "/media/b.jpg" },
+          ],
+        }),
+      ),
+    );
+    const { container } = renderWithApp(<PublicIndex />, anon);
+
+    const arco = (await screen.findByText("Arco")).closest(".report-card") as HTMLElement;
+    // The figure box is still there and still filled — nothing to break, and
+    // no empty hole where the picture would be.
+    const figure = arco.querySelector(".report-figure") as HTMLElement;
+    expect(figure.querySelector("img")).toBeNull();
+    const drawn = figure.querySelector("svg.figure-contour") as SVGElement;
+    expect(drawn).not.toBeNull();
+    // Decorative: a screen reader must not meet it as a picture.
+    expect(drawn).toHaveAttribute("aria-hidden", "true");
+    expect(within(arco).queryByRole("img")).toBeNull();
+
+    // Seeded from the post, so two placeholders side by side are two different
+    // hillsides rather than the same tile twice.
+    const raetikonCard = screen.getByText("Ratikon").closest(".report-card") as HTMLElement;
+    const raetikon = raetikonCard.querySelector("svg.figure-contour") as SVGElement;
+    expect(raetikon.querySelector("path")?.getAttribute("d")).not.toBe(
+      drawn.querySelector("path")?.getAttribute("d"),
+    );
+
+    // A report that does have a photograph still shows it.
+    const ortler = screen.getByText("Ortler").closest(".report-card") as HTMLElement;
+    expect(ortler.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/media/b.jpg"),
+    );
+    expect(container.querySelectorAll("svg.figure-contour")).toHaveLength(2);
+  });
+
+  it("keeps the lead story's picture column when the story has no photograph", async () => {
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({
+          recent_posts: [{ ...POST, id: 1, title: "Sommerfahrt", urlname: "sommerfahrt" }],
+          reports: [],
+        }),
+      ),
+    );
+    renderWithApp(<PublicIndex />, anon);
+
+    const lead = (await screen.findByText("Sommerfahrt")).closest(".lead") as HTMLElement;
+    // The figure column survives, so the lead keeps the shape it has with a
+    // photograph instead of collapsing to half a card.
+    const figure = lead.querySelector(".lead-figure") as HTMLElement;
+    expect(figure).not.toBeNull();
+    expect(figure.querySelector("img")).toBeNull();
+    expect(figure.querySelector("svg.figure-contour")).toHaveAttribute("aria-hidden", "true");
+    // The story is still reachable by its title alone.
+    expect(lead).toHaveAttribute("href", "/beitrag/berichte/sommerfahrt");
   });
 
   it("says both sections are empty rather than showing bare headings", async () => {
@@ -449,6 +543,9 @@ describe("Gruppe detail", () => {
     ],
   };
 
+  /** What the bare path the API returns has to resolve to. */
+  const HANNAH_SRC = mediaUrl("/media/hannah.jpg");
+
   function groupReturns(overrides: Record<string, unknown> = {}) {
     server.use(
       http.get(api("/api/startpage/public/groups/Klettergruppe"), () =>
@@ -478,6 +575,64 @@ describe("Gruppe detail", () => {
     // A leader without a photo is still listed, just without an image.
     expect(screen.getByText("Tobias Werner")).toBeInTheDocument();
     expect(screen.getAllByRole("img")).toHaveLength(1);
+  });
+
+  it("stands a leader without a photo in the same square, with their initials", async () => {
+    groupReturns();
+    const { container } = renderWithApp(<PublicGruppeDetail />, {
+      ...anon,
+      route: "/gruppe/Klettergruppe",
+      path: "/gruppe/:name",
+    });
+
+    await screen.findByRole("heading", { name: "Jugendleiter:innen" });
+    const tobias = screen.getByText("Tobias Werner").closest(".portrait-card") as HTMLElement;
+    const box = tobias.querySelector(".portrait") as HTMLElement;
+    // Same box as a photographed leader, so the grid keeps its rhythm.
+    expect(box).not.toBeNull();
+    expect(box.querySelector("img")).toBeNull();
+    const initials = box.querySelector(".portrait-initials") as HTMLElement;
+    expect(initials).toHaveTextContent("TW");
+    // Decorative — the name below the portrait is what gets read out.
+    expect(initials).toHaveAttribute("aria-hidden", "true");
+    expect(within(tobias).queryByRole("img")).toBeNull();
+    expect(tobias).toHaveTextContent("Tobias Werner");
+
+    // The photographed leader keeps her picture, in the same box.
+    const hannah = screen.getByText("Hannah Beckers").closest(".portrait-card") as HTMLElement;
+    expect(hannah.querySelector(".portrait img")).toHaveAttribute("src", HANNAH_SRC);
+    expect(container.querySelectorAll(".portrait")).toHaveLength(2);
+  });
+
+  it("fetches a leader's photo from the API's origin, not the SPA's", async () => {
+    groupReturns();
+    renderWithApp(<PublicGruppeDetail />, {
+      ...anon,
+      route: "/gruppe/Klettergruppe",
+      path: "/gruppe/:name",
+    });
+
+    // The API hands back a bare `/media/...` path, which resolves against
+    // whatever origin the page is on — the SPA's, which does not serve it.
+    // Matching a substring would pass either way, so pin the whole absolute
+    // URL: drop the `mediaUrl()` call and this test says so.
+    expect(HANNAH_SRC).toMatch(/^https?:\/\//);
+    expect(await screen.findByRole("img", { name: "Hannah Beckers" })).toHaveAttribute(
+      "src",
+      HANNAH_SRC,
+    );
+  });
+
+  it("initialises a leader the payload names in one piece", async () => {
+    groupReturns({ people: [{ id: 9, name: "Änne", image: null }] });
+    renderWithApp(<PublicGruppeDetail />, {
+      ...anon,
+      route: "/gruppe/Klettergruppe",
+      path: "/gruppe/:name",
+    });
+
+    await screen.findByRole("heading", { name: "Jugendleiter:innen" });
+    expect(screen.getByText("Ä")).toBeInTheDocument();
   });
 
   it("publishes nothing the group kept private", async () => {
@@ -652,6 +807,24 @@ describe("post detail", () => {
     // A group without a tag gets a neutral heading rather than an empty one.
     expect(screen.getByRole("heading", { name: "Beteiligte" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Gruppenmitglieder" })).toBeInTheDocument();
+  });
+
+  it("gives everyone on a post a portrait, drawn where there is no photo", async () => {
+    postReturns();
+    const { container } = renderWithApp(<PublicPost />, route);
+
+    await screen.findByRole("heading", { name: "Jugendleitung" });
+    // Three people, three identically-sized portraits — one photographed.
+    expect(container.querySelectorAll(".portrait")).toHaveLength(3);
+    expect(screen.getAllByRole("img")).toHaveLength(1);
+    expect(screen.getByRole("img", { name: "Hannah Beckers" })).toBeInTheDocument();
+
+    const anna = screen.getByText("Anna Ärmel").closest(".portrait-card") as HTMLElement;
+    const initials = anna.querySelector(".portrait-initials") as HTMLElement;
+    expect(initials).toHaveTextContent("AÄ");
+    expect(initials).toHaveAttribute("aria-hidden", "true");
+    // The name is still the card's text, so nothing is lost to the placeholder.
+    expect(anna).toHaveTextContent("Anna Ärmel");
   });
 
   it("omits the date line and the member section when there are none", async () => {
