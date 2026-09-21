@@ -117,6 +117,12 @@ export class ApiError extends Error {
     }
 
     if (detail && typeof detail === "object" && "detail" in detail) {
+      // Whatever a 5xx body holds — a crash message, an error page some proxy put
+      // in front of us — it is developer-facing text like the 404's below, in any
+      // shape; the status decides the wording before the payload gets a say.
+      if (status >= 500) {
+        return "Serverfehler — die Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut.";
+      }
       const d = (detail as { detail: unknown }).detail;
       if (isNinjaValidationList(d)) {
         // Name the offending fields so the toast is useful even where the form

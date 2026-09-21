@@ -84,6 +84,20 @@ describe("ApiError.messageFor", () => {
     expect(message).not.toBe("Fehler 500.");
   });
 
+  it("keeps a 5xx generic whatever shape its body has", () => {
+    // Nothing answers a 5xx with JSON today, but a new exception handler or a
+    // proxy's error page would, and that text is developer-facing like the 404's
+    // — as a bare string or wrapped in a list, both have to stay out of the UI.
+    for (const body of [
+      { detail: "upstream connect error" },
+      { detail: ["upstream connect error"] },
+    ]) {
+      const message = ApiError.messageFor(503, body);
+      expect(message).not.toContain("upstream connect error");
+      expect(message).toMatch(/Serverfehler/);
+    }
+  });
+
   it("passes a plain string detail through for statuses that carry one", () => {
     expect(ApiError.messageFor(422, { detail: "Etwas ist schiefgelaufen." })).toBe(
       "Etwas ist schiefgelaufen.",
