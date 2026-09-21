@@ -105,12 +105,26 @@ class LudwigsburgalpinParityTestCase(TestCase):
                 "klassifizierung",
             },
         )
-        self.assertIn({"value": "ASG", "label": "Alpinsportgruppe"}, body["group"])
-        self.assertIn({"value": "BW", "label": "Bergwandern"}, body["category"])
         self.assertIn(
-            {"value": "Gemeinschaftstour", "label": "Gemeinschaftstour"},
+            {"value": "ASG", "label": "Alpinsportgruppe", "default": False}, body["group"]
+        )
+        self.assertIn({"value": "BW", "label": "Bergwandern", "default": False}, body["category"])
+        self.assertIn(
+            {"value": "Gemeinschaftstour", "label": "Gemeinschaftstour", "default": True},
             body["klassifizierung"],
         )
+
+    def test_enums_flag_the_model_default(self):
+        r = self.client.get(BASE + "/enums", **self.auth(self.viewer_user))
+        body = r.json()
+        # ``category`` defaults to SON on the model; ``group`` has no default at
+        # all, so nothing in its list is marked and the form picks the first.
+        self.assertEqual([c["value"] for c in body["category"] if c["default"]], ["SON"])
+        self.assertEqual([c["value"] for c in body["group"] if c["default"]], [])
+        # With nothing marked, the create form preselects ``GRUPPE[0]``, so the
+        # order of that list is load-bearing where it used to be a literal in
+        # the SPA. Reordering it changes what a new Termin defaults to.
+        self.assertEqual(body["group"][0]["value"], "ASG")
 
     def test_enums_route_not_shadowed_by_termin_id(self):
         # ``/enums`` must resolve to the enum endpoint, not the /{termin_id}

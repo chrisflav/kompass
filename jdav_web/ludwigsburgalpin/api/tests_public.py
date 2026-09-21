@@ -33,6 +33,7 @@ def grant(user, *codenames):
 
 class LudwigsburgalpinPublicApiTestCase(TestCase):
     SUBMIT = BASE + "/public/termine"
+    ENUMS = BASE + "/public/enums"
 
     def valid_payload(self, **overrides):
         payload = {
@@ -83,6 +84,56 @@ class LudwigsburgalpinPublicApiTestCase(TestCase):
         del payload["group"]
         r = self.client.post(self.SUBMIT, data=payload, content_type="application/json")
         self.assertEqual(r.status_code, 422)
+
+    def test_enums_served_without_auth(self):
+        # The submission form is public, so the choices its selects are built
+        # from have to be reachable without a bearer token.
+        r = self.client.get(self.ENUMS)
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertEqual(
+            set(body.keys()),
+            {
+                "group",
+                "category",
+                "condition",
+                "technik",
+                "saison",
+                "eventart",
+                "klassifizierung",
+            },
+        )
+        self.assertIn(
+            {"value": "ASG", "label": "Alpinsportgruppe", "default": False}, body["group"]
+        )
+        self.assertIn(
+            {"value": "SON", "label": "Sonstiges z.B. Treffen", "default": True},
+            body["category"],
+        )
+
+    def test_enums_match_the_authenticated_endpoint(self):
+        viewer = grant(
+            User.objects.create_user(username="lba-enum-viewer", password="secret"),
+            "view_termin",
+        )
+        application = Application.objects.create(
+            name="test-client-public-enums",
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_PASSWORD,
+            client_secret="test-secret",
+        )
+        token = AccessToken.objects.create(
+            user=viewer,
+            application=application,
+            token="tok-enums-{}".format(uuid.uuid4().hex[:8]),
+            expires=timezone.now() + datetime.timedelta(days=1),
+            scope="read write",
+        )
+        authenticated = self.client.get(
+            BASE + "/enums", HTTP_AUTHORIZATION="Bearer {}".format(token.token)
+        )
+        self.assertEqual(authenticated.status_code, 200, authenticated.content)
+        self.assertEqual(self.client.get(self.ENUMS).json(), authenticated.json())
 
 
 class LudwigsburgalpinHardeningApiTestCase(TestCase):

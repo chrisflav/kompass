@@ -21,19 +21,8 @@ import {
   useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
-import {
-  EVENTART,
-  GRUPPE,
-  KATEGORIE,
-  KLASSIFIZIERUNG,
-  KONDITION,
-  SAISON,
-  Select,
-  TECHNIK,
-  TerminForm,
-  emptyTermin,
-  type TerminFormValues,
-} from "./TerminForm";
+import { useTerminEnums, type TerminEnums } from "../../api/terminEnums";
+import { Select, TerminForm, emptyTermin, type TerminFormValues } from "./TerminForm";
 
 type TerminBrief = components["schemas"]["TerminBrief"];
 type TerminOut = components["schemas"]["TerminOut"];
@@ -49,6 +38,10 @@ function TermineList() {
   const query = useApiQuery(["termine"], () =>
     unwrap(client.GET("/api/ludwigsburgalpin/termine")),
   );
+  // The choice lists the create form's selects are built from. Fetched with the
+  // list so they are there by the time anyone opens the modal, which waits on
+  // them regardless rather than showing selects with nothing in them.
+  const enumsQuery = useTerminEnums();
   const rows = query.data ?? [];
 
   const create = useApiMutation(
@@ -135,20 +128,25 @@ function TermineList() {
             setCreating(false);
           }}
         >
-          <TerminForm
-            initial={emptyTermin}
-            submitLabel="Anlegen"
-            busy={create.isPending}
-            errors={fieldErrors}
-            onSubmit={(values) => {
-              setFieldErrors({});
-              create.mutate(values);
-            }}
-            onCancel={() => {
-              setFieldErrors({});
-              setCreating(false);
-            }}
-          />
+          <QueryBoundary query={enumsQuery}>
+            {(enums: TerminEnums) => (
+              <TerminForm
+                initial={emptyTermin(enums)}
+                enums={enums}
+                submitLabel="Anlegen"
+                busy={create.isPending}
+                errors={fieldErrors}
+                onSubmit={(values) => {
+                  setFieldErrors({});
+                  create.mutate(values);
+                }}
+                onCancel={() => {
+                  setFieldErrors({});
+                  setCreating(false);
+                }}
+              />
+            )}
+          </QueryBoundary>
         </Modal>
       )}
       <ListToolbar view={view} />
@@ -188,14 +186,26 @@ function TerminDetailPage() {
     ),
   );
 
+  // Edit mode turns half this page into selects, so the choice lists are part
+  // of the page's load rather than a second wait once "Bearbeiten" is pressed.
+  const enumsQuery = useTerminEnums();
+  const loaded =
+    query.data && enumsQuery.data ? { termin: query.data, enums: enumsQuery.data } : undefined;
+
   const crumbs: Crumb[] = [
     { label: "Termine", to: "/kompass/events" },
     { label: query.data?.title ?? "Termin" },
   ];
 
   return (
-    <QueryBoundary query={query}>
-      {(termin: TerminOut) => <TerminDetailBody termin={termin} crumbs={crumbs} />}
+    <QueryBoundary
+      query={{
+        data: loaded,
+        isLoading: query.isLoading || enumsQuery.isLoading,
+        error: query.error ?? enumsQuery.error,
+      }}
+    >
+      {({ termin, enums }) => <TerminDetailBody termin={termin} enums={enums} crumbs={crumbs} />}
     </QueryBoundary>
   );
 }
@@ -227,7 +237,15 @@ function draftFromTermin(termin: TerminOut): TerminFormValues {
   };
 }
 
-function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb[] }) {
+function TerminDetailBody({
+  termin,
+  enums,
+  crumbs,
+}: {
+  termin: TerminOut;
+  enums: TerminEnums;
+  crumbs: Crumb[];
+}) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<TerminFormValues>(() => draftFromTermin(termin));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -326,7 +344,9 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
       label: "Gruppe",
       field: "group",
       value: termin.group_display,
-      edit: <Select value={form.group} options={GRUPPE} onChange={(v) => set("group", v)} />,
+      edit: (
+        <Select value={form.group} options={enums.group ?? []} onChange={(v) => set("group", v)} />
+      ),
     },
     {
       label: "Organisator:in",
@@ -364,7 +384,11 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
       field: "category",
       value: termin.category_display,
       edit: (
-        <Select value={form.category} options={KATEGORIE} onChange={(v) => set("category", v)} />
+        <Select
+          value={form.category}
+          options={enums.category ?? []}
+          onChange={(v) => set("category", v)}
+        />
       ),
     },
   ];
@@ -375,27 +399,47 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
       field: "condition",
       value: termin.condition_display,
       edit: (
-        <Select value={form.condition} options={KONDITION} onChange={(v) => set("condition", v)} />
+        <Select
+          value={form.condition}
+          options={enums.condition ?? []}
+          onChange={(v) => set("condition", v)}
+        />
       ),
     },
     {
       label: "Technik",
       field: "technik",
       value: termin.technik_display,
-      edit: <Select value={form.technik} options={TECHNIK} onChange={(v) => set("technik", v)} />,
+      edit: (
+        <Select
+          value={form.technik}
+          options={enums.technik ?? []}
+          onChange={(v) => set("technik", v)}
+        />
+      ),
     },
     {
       label: "Saison",
       field: "saison",
       value: termin.saison_display,
-      edit: <Select value={form.saison} options={SAISON} onChange={(v) => set("saison", v)} />,
+      edit: (
+        <Select
+          value={form.saison}
+          options={enums.saison ?? []}
+          onChange={(v) => set("saison", v)}
+        />
+      ),
     },
     {
       label: "Eventart",
       field: "eventart",
       value: termin.eventart_display,
       edit: (
-        <Select value={form.eventart} options={EVENTART} onChange={(v) => set("eventart", v)} />
+        <Select
+          value={form.eventart}
+          options={enums.eventart ?? []}
+          onChange={(v) => set("eventart", v)}
+        />
       ),
     },
     {
@@ -405,7 +449,7 @@ function TerminDetailBody({ termin, crumbs }: { termin: TerminOut; crumbs: Crumb
       edit: (
         <Select
           value={form.klassifizierung}
-          options={KLASSIFIZIERUNG}
+          options={enums.klassifizierung ?? []}
           onChange={(v) => set("klassifizierung", v)}
         />
       ),
