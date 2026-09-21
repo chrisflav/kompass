@@ -1,6 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { mediaUrl } from "../../../api/client";
 import { formatCoordinates } from "../../../api/site";
 import { api, DEFAULT_SITE, http, HttpResponse, server, useSite } from "../../../test/server";
 import { renderRoute, renderWithApp } from "../../../test/utils";
@@ -13,7 +14,7 @@ import { PublicPost } from "./Post";
 import { PublicSection } from "./Section";
 import { FlowShell } from "../flows/shared";
 import { PublicAktuelles, PublicBerichte } from "./SectionPosts";
-import { excerpt, formatDate, Prose, PostTeaser } from "./shared";
+import { excerpt, formatDate, initials, Prose, PostTeaser } from "./shared";
 
 const POST = {
   id: 1,
@@ -190,6 +191,34 @@ describe("shared helpers", () => {
   it("omits the date line for a post without one", () => {
     renderWithApp(<PostTeaser post={{ ...POST, date: null }} />, anon);
     expect(screen.queryByText(/Februar/)).not.toBeInTheDocument();
+  });
+
+  it("takes a person's initials from whichever name fields carry them", () => {
+    const person = (over: Record<string, unknown>) =>
+      ({ id: 1, name: "", prename: "", lastname: "", image: null, ...over }) as never;
+
+    expect(initials(person({ prename: "Hannah", lastname: "Beckers" }))).toBe("HB");
+    expect(initials(person({ prename: "Anna", lastname: "Ärmel" }))).toBe("AÄ");
+    // A payload carrying only the rendered name, which several public ones do.
+    expect(initials(person({ name: "Ludwig van Beethoven" }))).toBe("LB");
+    expect(initials(person({ name: "Cher" }))).toBe("C");
+    // No surname on file, but the rendered name has one: prefer the two letters
+    // rather than stopping at the one the member fields happen to give.
+    expect(initials(person({ prename: "Tobias", lastname: "", name: "Tobias Werner" }))).toBe("TW");
+    // Genuinely one-named, from either direction.
+    expect(initials(person({ prename: "Jo", lastname: "", name: "Jo" }))).toBe("J");
+  });
+
+  it("never renders a blank square for a name that is only whitespace", () => {
+    const person = (over: Record<string, unknown>) =>
+      ({ id: 1, name: "", prename: "", lastname: "", image: null, ...over }) as never;
+
+    // A space is truthy, and slicing one yields a space — so without trimming
+    // these all produced an initials box with nothing in it.
+    expect(initials(person({ prename: "   ", lastname: "  ", name: "  " }))).toBe("?");
+    expect(initials(person({ name: "" }))).toBe("?");
+    // Whitespace in the member fields still falls through to the rendered name.
+    expect(initials(person({ prename: " ", lastname: " ", name: "Änne Wirth" }))).toBe("ÄW");
   });
 });
 
@@ -514,6 +543,9 @@ describe("Gruppe detail", () => {
     ],
   };
 
+  /** What the bare path the API returns has to resolve to. */
+  const HANNAH_SRC = mediaUrl("/media/hannah.jpg");
+
   function groupReturns(overrides: Record<string, unknown> = {}) {
     server.use(
       http.get(api("/api/startpage/public/groups/Klettergruppe"), () =>
@@ -566,14 +598,29 @@ describe("Gruppe detail", () => {
     expect(within(tobias).queryByRole("img")).toBeNull();
     expect(tobias).toHaveTextContent("Tobias Werner");
 
-    // The photographed leader keeps her picture, in the same box, and it is
-    // fetched from the API's origin rather than the SPA's.
+    // The photographed leader keeps her picture, in the same box.
     const hannah = screen.getByText("Hannah Beckers").closest(".portrait-card") as HTMLElement;
-    expect(hannah.querySelector(".portrait img")).toHaveAttribute(
-      "src",
-      expect.stringContaining("/media/hannah.jpg"),
-    );
+    expect(hannah.querySelector(".portrait img")).toHaveAttribute("src", HANNAH_SRC);
     expect(container.querySelectorAll(".portrait")).toHaveLength(2);
+  });
+
+  it("fetches a leader's photo from the API's origin, not the SPA's", async () => {
+    groupReturns();
+    renderWithApp(<PublicGruppeDetail />, {
+      ...anon,
+      route: "/gruppe/Klettergruppe",
+      path: "/gruppe/:name",
+    });
+
+    // The API hands back a bare `/media/...` path, which resolves against
+    // whatever origin the page is on — the SPA's, which does not serve it.
+    // Matching a substring would pass either way, so pin the whole absolute
+    // URL: drop the `mediaUrl()` call and this test says so.
+    expect(HANNAH_SRC).toMatch(/^https?:\/\//);
+    expect(await screen.findByRole("img", { name: "Hannah Beckers" })).toHaveAttribute(
+      "src",
+      HANNAH_SRC,
+    );
   });
 
   it("initialises a leader the payload names in one piece", async () => {

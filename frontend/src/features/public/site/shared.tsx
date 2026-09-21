@@ -146,16 +146,26 @@ export function excerpt(text: string | null | undefined, max = 320): string {
   return `${cut.slice(0, lastSpace > 0 ? lastSpace : max)}…`;
 }
 
+/** The first letters of a name: its first word and, where there is one, its
+ *  last. Words are trimmed first, so a field holding nothing but spaces counts
+ *  as absent rather than contributing a blank letter — and a field the payload
+ *  left out entirely counts as absent too, whatever the schema promises. */
+function lettersOf(words: (string | null | undefined)[]): string {
+  const real = words.map((word) => (word ?? "").trim()).filter(Boolean);
+  const first = real[0] ?? "";
+  const last = real.length > 1 ? real[real.length - 1] : "";
+  return `${first.slice(0, 1)}${last.slice(0, 1)}`.toUpperCase();
+}
+
 /** The one or two letters that stand in for a portrait nobody uploaded.
  *
- *  Prefers the member's own name fields and falls back to the rendered
- *  ``name``, which is all some payloads carry. */
+ *  Prefers the member's own name fields, but falls back to splitting the
+ *  rendered ``name`` whenever they yield less — a payload carrying only
+ *  ``name`` is one case, a member with no ``lastname`` on file another. */
 export function initials(person: MemberBrief): string {
-  const named = [person.prename, person.lastname].filter(Boolean) as string[];
-  const words = named.length > 0 ? named : person.name.split(/\s+/).filter(Boolean);
-  const first = words[0] ?? "";
-  const last = words.length > 1 ? words[words.length - 1] : "";
-  return `${first.slice(0, 1)}${last.slice(0, 1)}`.toUpperCase() || "?";
+  const named = lettersOf([person.prename, person.lastname]);
+  if (named.length === 2) return named;
+  return lettersOf((person.name ?? "").split(/\s+/)) || named || "?";
 }
 
 /**

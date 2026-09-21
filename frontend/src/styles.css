@@ -3254,6 +3254,10 @@ button.etappe-body:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Crop toward the top, not the middle. A headshot is a tall photograph with
+     the face in its upper third, so centring the crop on a square box slices
+     the head off at its widest point. */
+  object-position: 50% 25%;
   display: block;
 }
 
