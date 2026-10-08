@@ -2,5 +2,8 @@
   "validation": {
     "max_retries": 3,
     "retry_prompt": "Validation failed with the following output: {{validation_output}}\n\nFix the issues above."
+  },
+  "execution": {
+    "image": "ghcr.io/chrisflav/kompass-agent:latest"
   }
 }
