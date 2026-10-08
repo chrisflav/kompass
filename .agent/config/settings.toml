@@ -5,8 +5,7 @@
 # agent runs in a single container with no services beside it, which is why this exists.
 #
 # What differs from the compose config, and why:
-#   engine         SQLite in a file, so no server and no `mysql` extra (mysqlclient is a C
-#                  extension PyPI ships as source only, so it needs a compiler too).
+#   engine         SQLite in a file, so the suite needs no database server beside it.
 #   cache_backend  Django's local-memory cache, so no memcached.
 #   broker_url     left at its default and never reached: nothing in the suite dispatches a
 #                  Celery task, and django-celery-email only queues when mail is actually sent.

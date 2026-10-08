@@ -10,24 +10,23 @@
 #
 #   make                        `make uv translate`, and the rest of the Makefile an agent reads
 #                               as documentation for how this project is driven
-#   gettext                     `makemessages` (xgettext) and `compilemessages` (msgfmt). With
-#                               these present, validation checks catalogue freshness and builds
-#                               the `.mo` files through Django rather than the polib fallback in
-#                               .agent/compile-messages.py
+#   gettext                     `makemessages` (xgettext) and `compilemessages` (msgfmt), both
+#                               of which .agent/validation.sh runs unconditionally
 #   pandoc, texlive,            the document generators: `pdflatex` for every PDF the members and
 #   texlive-fonts-extra         finance apps produce, `pandoc` for the .docx seminar report. 20
 #                               tests in the suite shell out to these and error without them
-#   build-essential,            what the `mysql` and `server` extras compile against —
-#   default-libmysqlclient-dev, mysqlclient and uwsgi are source-only on PyPI. Not needed for the
-#   pkg-config                  tests, which use SQLite, but `uv sync --all-extras` is a
-#                               reasonable thing for an agent to want to run
+#   build-essential,            what `mysqlclient` and `uwsgi` compile against: both are
+#   default-libmysqlclient-dev, source-only on PyPI, so `uv sync` cannot install the project
+#   pkg-config                  without them. The project's own images get these from
+#                               python:3.13-trixie; a Node base has none of them
 #
 # The same set the project's own images install (docker/{test,production,development}/Dockerfile),
 # plus the compiler toolchain, so a check that passes here passes in CI for the same reasons.
 #
-# Pinned by digest-bearing sha rather than `:latest`: the tag this derives from decides which
-# agent CLI is inside, and a floating base would change that under us. To move it, pick a tag
-# the orchestra repository's `Agent image` workflow has published and bump the line below.
+# Pinned to a commit-sha tag rather than `:latest`: the base decides which agent CLI is inside,
+# and a floating one would change that under us. It is a tag rather than an `@sha256:` digest,
+# so it is mutable in principle — immutability would be a digest, at the cost of a line nobody
+# can read. To move it, pick a tag the orchestra repository's `Agent image` workflow published.
 FROM ghcr.io/chrisflav/orchestra-agent:e5d558539a39a62b63036c13341730f3c73d994b
 
 # apt needs root; the base image runs as the unprivileged `agent`, and so must this one — the

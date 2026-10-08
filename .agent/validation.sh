@@ -13,9 +13,10 @@
 # image a task runs in. Nothing here guards against their absence: an image that lacks them
 # cannot validate this project, and saying so by failing is better than skipping checks.
 #
-# `make test` is still the fuller check and still what CI runs: it exercises MySQL, memcached
-# and the real cache middleware. This is the subset that can run anywhere, which is worth more
-# than a check that cannot run at all.
+# The fuller check still exists and still runs: CI builds docker/production as `kompass:test`
+# and runs `make test-only` against MariaDB, memcached and Redis, which is also what `make test`
+# does locally. What runs here is the subset that needs no services — worth more than a check
+# that cannot run at all, and not a replacement for the one that can.
 
 set -euo pipefail
 

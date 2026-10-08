@@ -80,6 +80,11 @@ celerybeat-schedule
 
 # virtualenv
 venv/
+# uv's project environment, which `uv run` creates at the repository root. Without this,
+# .agent/validation.sh's own clean-tree check fails on its second invocation — and the
+# validation loop retries three times, so two of the three attempts are spent reporting a dirty
+# tree that the first attempt made.
+.venv/
 ENV/
 
 # Spyder project settings
