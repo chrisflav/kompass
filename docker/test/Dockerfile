@@ -22,6 +22,6 @@ ENV PATH="/app/.local/bin:$PATH"
 
 # install requirements
 COPY --chown=app:app ./pyproject.toml ./uv.lock /app/
-RUN pip install uv && uv export --all-extras --no-dev -o requirements.txt && pip install -r requirements.txt
+RUN pip install uv && uv export -o requirements.txt && pip install -r requirements.txt
 
 COPY --chown=app:app . /app

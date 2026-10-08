@@ -22,6 +22,7 @@ dependencies = [
     "django-oauth-toolkit",
     "django-split-settings",
     "mozilla-django-oidc",
+    "mysqlclient",
     "openpyxl",
     "pymemcache",
     "pypdf",
@@ -31,33 +32,9 @@ dependencies = [
     "sphinx",
     "sphinxawesome-theme",
     "tomli",
+    "uwsgi",
     "xlsxwriter",
 ]
-
-# Everything above installs from a wheel. These two do not: both are C extensions that PyPI
-# ships as source only, so installing them needs a compiler and, for mysqlclient, the MySQL
-# client headers. That is fine in the Docker images, which are built on python:3.13-trixie and
-# ask for both extras -- and it is the reason a plain `uv sync` could not work anywhere else,
-# including the container an agent runs in.
-#
-# Neither is needed to run the tests: those use SQLite and Django's own test server. Keeping
-# them out of the default dependency set is what makes `uv run manage.py test` possible without
-# Docker, a compiler, or a database server.
-# Tools the project is developed and validated with, rather than run with. `uv sync` installs
-# this group by default and `uv export --no-dev` leaves it out, which is why the Docker images
-# pass that flag: none of this belongs in a deployed image.
-[dependency-groups]
-dev = [
-    # Writes the `.mo` catalogues where gettext's `msgfmt` is not installed — see
-    # .agent/compile-messages.py.
-    "polib",
-]
-
-[project.optional-dependencies]
-# The MySQL/MariaDB driver, for every deployment that talks to one.
-mysql = ["mysqlclient"]
-# The application server, for an image that serves rather than tests.
-server = ["uwsgi"]
 
 [tool.ruff]
 line-length = 100

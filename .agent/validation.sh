@@ -8,6 +8,11 @@
 # get one. It failed at line 12 with `pre-commit: command not found`, three retries deep, on
 # every task.
 #
+# The tools this does need — gettext for the catalogues, pdflatex and pandoc for the documents
+# the tests generate — are in docker/agent/Dockerfile, which `.agent/config.json` names as the
+# image a task runs in. Nothing here guards against their absence: an image that lacks them
+# cannot validate this project, and saying so by failing is better than skipping checks.
+#
 # `make test` is still the fuller check and still what CI runs: it exercises MySQL, memcached
 # and the real cache middleware. This is the subset that can run anywhere, which is worth more
 # than a check that cannot run at all.
@@ -26,29 +31,18 @@ fi
 # a dependency of the project, so it is not in the lock file and not in the environment.
 uvx --python 3.13 pre-commit run --all-files
 
-# The catalogues Django reads at runtime. `*.mo` is not committed, so without this a test that
-# asserts a German string sees the English msgid instead -- a real failure in `contrib` today,
-# and nothing to do with the change under test. Django's own command where gettext is
-# installed, a pure-Python compiler where it is not.
-if command -v msgfmt > /dev/null 2>&1; then
-  (cd jdav_web && uv run --python 3.13 python manage.py compilemessages --locale de -v 0)
-else
-  uv run --python 3.13 python .agent/compile-messages.py
-fi
+# The catalogues Django reads at runtime. `*.mo` is gitignored and not committed, so without
+# this a test asserting a German string reads the English msgid instead -- a real failure in
+# `contrib`, and nothing to do with the change being validated. docker/test's entrypoint does
+# the same thing before its run, for the same reason.
+(cd jdav_web && uv run --python 3.13 python manage.py compilemessages --locale de -v 0)
 
-# Whether the `.po` sources themselves are up to date with the code. `makemessages` shells out
-# to gettext's `xgettext`, which a minimal image does not carry -- skipped rather than failed
-# there, because a missing tool is not a fault in the change being validated. CI has gettext
-# and does check this.
-if command -v xgettext > /dev/null 2>&1; then
-  (cd jdav_web && uv run --python 3.13 python manage.py makemessages --locale de --no-location --no-obsolete)
-  if ! [ -z "$(git diff --name-only)" ]; then
-    echo "'makemessages' reported that translation files are not up to date."
-    git diff
-    exit 1
-  fi
-else
-  echo "note: gettext is not installed, so the translation check was skipped."
+# Whether the `.po` sources are up to date with the code.
+(cd jdav_web && uv run --python 3.13 python manage.py makemessages --locale de --no-location --no-obsolete)
+if ! [ -z "$(git diff --name-only)" ]; then
+  echo "'makemessages' reported that translation files are not up to date."
+  git diff
+  exit 1
 fi
 
 # Tests, against SQLite and an in-process cache -- see .agent/config/settings.toml. The app list
