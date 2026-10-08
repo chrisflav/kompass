@@ -1,0 +1,54 @@
+# Settings for a test run with nothing but uv: no database server, no memcached, no Docker.
+#
+# `docker/test/config/settings.toml` is the other side of this — same purpose, but it names the
+# compose stack's hostnames (`db`, `cache`, `redis`), so it only works inside that stack. An
+# agent runs in a single container with no services beside it, which is why this exists.
+#
+# What differs from the compose config, and why:
+#   engine         SQLite in a file, so no server and no `mysql` extra (mysqlclient is a C
+#                  extension PyPI ships as source only, so it needs a compiler too).
+#   cache_backend  Django's local-memory cache, so no memcached.
+#   broker_url     left at its default and never reached: nothing in the suite dispatches a
+#                  Celery task, and django-celery-email only queues when mail is actually sent.
+#
+# Everything else is the compose config's testing values, kept the same so a failure here means
+# the same thing it would mean there.
+
+[testing]
+mail = "test@localhost"
+
+[django]
+trust_forwarded_proto_hosts = ['testserver']
+deployed = true
+debug = true
+secret_key = '6_ew6l1r9_4(8=p8quv(e8b+z+k+*wm7&zxx%mcnnec99a!lpw'
+allowed_hosts = ['*']
+protocol = 'http'
+base_url = 'localhost:8000'
+host = 'localhost'
+static_root = '/tmp/kompass-test-assets'
+cache_backend = 'django.core.cache.backends.locmem.LocMemCache'
+
+[mail]
+host = 'localhost'
+user = 'test'
+password = 'password'
+default_sending_address = 'test@localhost'
+
+[database]
+engine = 'django.db.backends.sqlite3'
+database = '/tmp/kompass-test.sqlite3'
+
+[startpage]
+recent_section = 'aktuelles'
+reports_section = 'berichte'
+
+[misc]
+allowed_email_domains_for_invite_as_user = ['test-organization.org']
+
+[oidc]
+enabled = true
+
+[logging]
+level = "CRITICAL"
+django_level = "CRITICAL"

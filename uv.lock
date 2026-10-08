@@ -781,7 +781,6 @@ dependencies = [
     { name = "django-oauth-toolkit" },
     { name = "django-split-settings" },
     { name = "mozilla-django-oidc" },
-    { name = "mysqlclient" },
     { name = "openpyxl" },
     { name = "pymemcache" },
     { name = "pypdf" },
@@ -791,8 +790,20 @@ dependencies = [
     { name = "sphinx" },
     { name = "sphinxawesome-theme" },
     { name = "tomli" },
-    { name = "uwsgi" },
     { name = "xlsxwriter" },
+]
+
+[package.optional-dependencies]
+mysql = [
+    { name = "mysqlclient" },
+]
+server = [
+    { name = "uwsgi" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "polib" },
 ]
 
 [package.metadata]
@@ -814,7 +825,7 @@ requires-dist = [
     { name = "django-oauth-toolkit" },
     { name = "django-split-settings" },
     { name = "mozilla-django-oidc" },
-    { name = "mysqlclient" },
+    { name = "mysqlclient", marker = "extra == 'mysql'" },
     { name = "openpyxl" },
     { name = "pymemcache" },
     { name = "pypdf" },
@@ -824,9 +835,13 @@ requires-dist = [
     { name = "sphinx" },
     { name = "sphinxawesome-theme" },
     { name = "tomli" },
-    { name = "uwsgi" },
+    { name = "uwsgi", marker = "extra == 'server'" },
     { name = "xlsxwriter" },
 ]
+provides-extras = ["mysql", "server"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "polib" }]
 
 [[package]]
 name = "markdown"
@@ -1001,6 +1016,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c9/e4/4b64a97d71b2a83158134abbb2f5bd3f8a2ea691361282f010998f339ec7/pillow-12.2.0-cp314-cp314t-win32.whl", hash = "sha256:6bb77b2dcb06b20f9f4b4a8454caa581cd4dd0643a08bacf821216a16d9c8354", size = 6482084, upload-time = "2026-04-01T14:45:47.568Z" },
     { url = "https://files.pythonhosted.org/packages/ba/13/306d275efd3a3453f72114b7431c877d10b1154014c1ebbedd067770d629/pillow-12.2.0-cp314-cp314t-win_amd64.whl", hash = "sha256:6562ace0d3fb5f20ed7290f1f929cae41b25ae29528f2af1722966a0a02e2aa1", size = 7225152, upload-time = "2026-04-01T14:45:50.032Z" },
     { url = "https://files.pythonhosted.org/packages/ff/6e/cf826fae916b8658848d7b9f38d88da6396895c676e8086fc0988073aaf8/pillow-12.2.0-cp314-cp314t-win_arm64.whl", hash = "sha256:aa88ccfe4e32d362816319ed727a004423aab09c5cea43c01a4b435643fa34eb", size = 2556579, upload-time = "2026-04-01T14:45:52.529Z" },
+]
+
+[[package]]
+name = "polib"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/9a/79b1067d27e38ddf84fe7da6ec516f1743f31f752c6122193e7bce38bdbf/polib-1.2.0.tar.gz", hash = "sha256:f3ef94aefed6e183e342a8a269ae1fc4742ba193186ad76f175938621dbfc26b", size = 161658, upload-time = "2023-02-23T17:53:56.873Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6b/99/45bb1f9926efe370c6dbe324741c749658e44cb060124f28dad201202274/polib-1.2.0-py2.py3-none-any.whl", hash = "sha256:1c77ee1b81feb31df9bca258cbc58db1bbb32d10214b173882452c73af06d62d", size = 20634, upload-time = "2023-02-23T17:53:59.919Z" },
 ]
 
 [[package]]
