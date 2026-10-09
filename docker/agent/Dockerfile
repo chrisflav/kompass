@@ -13,8 +13,18 @@
 #   gettext                     `makemessages` (xgettext) and `compilemessages` (msgfmt), both
 #                               of which .agent/validation.sh runs unconditionally
 #   pandoc, texlive,            the document generators: `pdflatex` for every PDF the members and
-#   texlive-fonts-extra         finance apps produce, `pandoc` for the .docx seminar report. 20
-#                               tests in the suite shell out to these and error without them
+#   texlive-fonts-extra,        finance apps produce, `pandoc` for the .docx seminar report. 22
+#   texlive-latex-extra         tests in the suite shell out to these and error without them.
+#
+#                               `texlive-latex-extra` is here and not in the project's own
+#                               images for a reason worth writing down: those are built on
+#                               python:3.13-trixie, where the `texlive` metapackage already
+#                               pulls it in. This one is built on a bookworm base, where it does
+#                               not — and the templates need `textpos.sty`, `ltablex.sty`,
+#                               `titlesec.sty` and `ragged2e.sty`, which live there. Without it
+#                               `pdflatex` stops at `! LaTeX Error: File 'textpos.sty' not
+#                               found.` and produces no PDF, which the tests see as
+#                               TexRenderError rather than as a missing package.
 #   build-essential,            what `mysqlclient` and `uwsgi` compile against: both are
 #   default-libmysqlclient-dev, source-only on PyPI, so `uv sync` cannot install the project
 #   pkg-config                  without them. The project's own images get these from
@@ -43,6 +53,7 @@ RUN apt-get update \
       pandoc \
       texlive \
       texlive-fonts-extra \
+      texlive-latex-extra \
       build-essential \
       default-libmysqlclient-dev \
       pkg-config \

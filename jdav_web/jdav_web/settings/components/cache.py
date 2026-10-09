@@ -11,7 +11,9 @@
 CACHES = {
     "default": {
         "BACKEND": get_var(
-            "django", "cache_backend", default="django.core.cache.backends.memcached.PyMemcacheCache"
+            "django",
+            "cache_backend",
+            default="django.core.cache.backends.memcached.PyMemcacheCache",
         ),
         "LOCATION": get_var("django", "memcached_url", default="cache:11211"),
         "OPTIONS": {
