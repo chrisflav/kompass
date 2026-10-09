@@ -135,7 +135,7 @@ export function Dashboard() {
     .slice(0, 3);
   const recentExcursions: ExcursionBrief[] = (excursions.data ?? []).slice(0, 3);
   const recentStatements: StatementBrief[] = (statements.data ?? []).slice(0, 3);
-  const visibleLinks = (links.data ?? []).filter((l) => l.visible);
+  const visibleLinks = links.data ?? [];
 
   return (
     <div className="dashboard">

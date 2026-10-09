@@ -2758,7 +2758,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Links */
+        /**
+         * List Links
+         * @description List links, visible-only unless ``include_hidden`` is set.
+         *
+         *     The dashboard only ever shows visible links, so it takes the default. The
+         *     CMS editor passes ``include_hidden=true`` since it manages hidden links
+         *     too (e.g. to find one and flip it back to visible).
+         */
         get: operations["startpage_api_router_list_links"];
         put?: never;
         /** Create Link */
@@ -12598,7 +12605,9 @@ export interface operations {
     };
     startpage_api_router_list_links: {
         parameters: {
-            query?: never;
+            query?: {
+                include_hidden?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;

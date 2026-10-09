@@ -7589,7 +7589,18 @@
       "get": {
         "operationId": "startpage_api_router_list_links",
         "summary": "List Links",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_hidden",
+            "schema": {
+              "default": false,
+              "title": "Include Hidden",
+              "type": "boolean"
+            },
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -7606,6 +7617,7 @@
             }
           }
         },
+        "description": "List links, visible-only unless ``include_hidden`` is set.\n\nThe dashboard only ever shows visible links, so it takes the default. The\nCMS editor passes ``include_hidden=true`` since it manages hidden links\ntoo (e.g. to find one and flip it back to visible).",
         "tags": [
           "startpage"
         ],

@@ -209,9 +209,16 @@ def delete_faq(request, faq_id: int):
 
 
 @router.get("/links", response=list[LinkBrief])
-def list_links(request):
+def list_links(request, include_hidden: bool = False):
+    """List links, visible-only unless ``include_hidden`` is set.
+
+    The dashboard only ever shows visible links, so it takes the default. The
+    CMS editor passes ``include_hidden=true`` since it manages hidden links
+    too (e.g. to find one and flip it back to visible).
+    """
     authorize(request, "startpage.view_link")
-    return Link.objects.all().order_by("title")
+    links = Link.objects.all() if include_hidden else Link.objects.filter(visible=True)
+    return links.order_by("title")
 
 
 @router.post("/links", response=LinkOut)
