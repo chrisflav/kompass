@@ -23,7 +23,8 @@ import {
 } from "../../components/ui";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
-import { ChoiceSelect, MultiSelect, WEEKDAY_OPTIONS, type Option } from "./_controls";
+import { ChoiceSelect, MultiSelect, type Option } from "./_controls";
+import { selectOptions, useActivityEnums, type ActivityEnums } from "../../api/activityEnums";
 import type { components } from "../../api/schema";
 
 type GroupOut = components["schemas"]["GroupOut"];
@@ -225,9 +226,22 @@ export function GroupDetailPage() {
     ),
   );
 
+  // Edit mode turns the weekday field into a select built from the enums
+  // endpoint, so it's part of the page's load rather than a second wait once
+  // "Bearbeiten" is pressed.
+  const enumsQuery = useActivityEnums();
+  const loaded =
+    query.data && enumsQuery.data ? { group: query.data, enums: enumsQuery.data } : undefined;
+
   return (
-    <QueryBoundary query={query}>
-      {(group: GroupOut) => <GroupDetailBody group={group} />}
+    <QueryBoundary
+      query={{
+        data: loaded,
+        isLoading: query.isLoading || enumsQuery.isLoading,
+        error: query.error ?? enumsQuery.error,
+      }}
+    >
+      {({ group, enums }) => <GroupDetailBody group={group} enums={enums} />}
     </QueryBoundary>
   );
 }
@@ -255,7 +269,7 @@ function makeForm(group: GroupOut) {
   };
 }
 
-function GroupDetailBody({ group }: { group: GroupOut }) {
+function GroupDetailBody({ group, enums }: { group: GroupOut; enums: ActivityEnums }) {
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
   const { can } = usePermissions();
@@ -429,7 +443,7 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
         <ChoiceSelect
           value={form.weekday}
           onChange={(v) => setForm({ ...form, weekday: v })}
-          options={WEEKDAY_OPTIONS}
+          options={selectOptions<number>(enums, "weekday")}
           allowEmpty
         />
       ),

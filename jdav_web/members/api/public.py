@@ -31,6 +31,7 @@ from ninja import File
 from ninja import Router
 from ninja.files import UploadedFile
 
+from .choices import gender_choice_options
 from .public_schemas import ConfirmInvitationOut
 from .public_schemas import ConfirmMailOut
 from .public_schemas import ConfirmWaitingOut
@@ -53,6 +54,7 @@ from .public_schemas import UploadFormSuccessOut
 from .public_schemas import UploadFormVerifyOut
 from .public_schemas import WaitingListRegisterIn
 from .public_schemas import WaitingListRegisterOut
+from .schemas import EnumChoice
 
 router = Router()
 
@@ -299,6 +301,20 @@ def upload_registration_form_submit(request, key: str, registration_form: Upload
     member.save()
     member.validate_registration_form()
     return {"name": member.prename}
+
+
+# --- choice enums -----------------------------------------------------------
+
+
+@router.get("/enums", auth=None, response=dict[str, list[EnumChoice]])
+def public_member_enums(request):
+    """Gender choices for the public forms, mirroring the authenticated ``/enums``.
+
+    The waiting-list, registration and echo forms are public, so the gender
+    select needs this without a bearer token; it is model metadata, not data
+    about anyone.
+    """
+    return gender_choice_options()
 
 
 # --- waiting list registration --------------------------------------------

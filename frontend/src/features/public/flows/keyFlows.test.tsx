@@ -579,8 +579,7 @@ describe("echo (data refresh)", () => {
     await user.click(await screen.findByRole("button", { name: "Weiter" }));
 
     await screen.findByDisplayValue("Frida");
-    const genderTrigger = screen
-      .getByText("Geschlecht")
+    const genderTrigger = (await screen.findByText("Geschlecht"))
       .closest(".field")!
       .querySelector(".ss-trigger") as HTMLElement;
     await user.click(genderTrigger);

@@ -2,18 +2,12 @@ import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useSite } from "../../../api/site";
+import { usePublicMemberEnums, type MemberEnums } from "../../../api/memberEnums";
 import { KompassMark } from "../../../components/Contour";
-import { Button, Field, Select } from "../../../components/ui";
+import { Button, Field, QueryBoundary, Select } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 
 type EmergencyContactIn = components["schemas"]["EmergencyContactIn"];
-
-/** Gender codes as defined on ``Member.gender_choices`` (0/1/2). */
-export const GENDER_OPTIONS: { value: number; label: string }[] = [
-  { value: 0, label: "Männlich" },
-  { value: 1, label: "Weiblich" },
-  { value: 2, label: "Divers" },
-];
 
 /** Read the ``key`` query-string parameter shared by every secret-link flow. */
 export function useFlowKey(): string {
@@ -65,6 +59,7 @@ export function FlowResult({
   );
 }
 
+/** Gender select, fetched from the public ``/api/members/public/enums`` endpoint rather than mirrored in TypeScript. */
 export function GenderSelect({
   value,
   onChange,
@@ -72,14 +67,19 @@ export function GenderSelect({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const query = usePublicMemberEnums();
   return (
-    <Field label="Geschlecht">
-      <Select
-        value={String(value)}
-        onChange={(v) => onChange(Number(v))}
-        options={GENDER_OPTIONS}
-      />
-    </Field>
+    <QueryBoundary query={query}>
+      {(enums: MemberEnums) => (
+        <Field label="Geschlecht">
+          <Select
+            value={String(value)}
+            onChange={(v) => onChange(Number(v))}
+            options={(enums.gender ?? []).map((o) => ({ value: Number(o.value), label: o.label }))}
+          />
+        </Field>
+      )}
+    </QueryBoundary>
   );
 }
 

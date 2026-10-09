@@ -8,9 +8,11 @@ Each flow is covered on its happy path and its invalid-key path.
 
 import datetime
 import shutil
+import uuid
 from unittest import skipUnless
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
@@ -20,6 +22,11 @@ from members.models import InvitationToGroup
 from members.models import Member
 from members.models import MemberWaitingList
 from members.models import RegistrationPassword
+from oauth2_provider.models import get_access_token_model
+from oauth2_provider.models import get_application_model
+
+Application = get_application_model()
+AccessToken = get_access_token_model()
 
 BASE = "/api/members/public"
 
@@ -629,3 +636,39 @@ class PublicConfirmMailApiTestCase(TestCase):
     def test_confirm_invalid_key(self):
         r = self.client.post("{}/confirm-mail/nope".format(BASE))
         self.assertEqual(r.status_code, 404)
+
+
+class PublicEnumsApiTestCase(TestCase):
+    ENUMS = BASE + "/enums"
+
+    def test_enums_served_without_auth(self):
+        # The waiting-list / registration / echo forms are public, so the
+        # gender select's choices have to be reachable without a bearer token.
+        r = self.client.get(self.ENUMS)
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertEqual(set(body.keys()), {"gender"})
+        self.assertIn({"value": 0, "label": "Männlich", "default": False}, body["gender"])
+
+    def test_enums_match_the_authenticated_endpoint(self):
+        application = Application.objects.create(
+            name="test-client-public-enums",
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_PASSWORD,
+            client_secret="test-secret",
+        )
+        user = User.objects.create_user(username="member-enum-viewer", password="secret")
+        token = AccessToken.objects.create(
+            user=user,
+            application=application,
+            token="tok-enums-{}".format(uuid.uuid4().hex[:8]),
+            expires=timezone.now() + datetime.timedelta(days=1),
+            scope="read write",
+        )
+        authenticated = self.client.get(
+            "/api/members/enums", HTTP_AUTHORIZATION="Bearer {}".format(token.token)
+        )
+        self.assertEqual(authenticated.status_code, 200, authenticated.content)
+        self.assertEqual(
+            self.client.get(self.ENUMS).json()["gender"], authenticated.json()["gender"]
+        )

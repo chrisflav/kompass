@@ -344,8 +344,48 @@ class MembersApiParityTestCase(TestCase):
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertIn("gender", body)
-        values = {opt["value"] for opt in body["gender"]}
-        self.assertEqual(values, {0, 1, 2})
+        self.assertEqual(
+            {opt["value"] for opt in body["gender"]},
+            {0, 1, 2},
+        )
+        # ``gender`` has no model default, so nothing in its list is marked.
+        self.assertTrue(all(opt["default"] is False for opt in body["gender"]))
+
+    def test_activity_enums_requires_authentication(self):
+        self.assertEqual(self.client.get("/api/members/activities/enums").status_code, 401)
+
+    def test_activity_enums_lists_all_fields(self):
+        # Any authenticated user may read this static metadata, like ``/enums``.
+        r = self.client.get("/api/members/activities/enums", **self.auth(self.owner_user))
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertEqual(
+            set(body.keys()),
+            {
+                "weekday",
+                "difficulty",
+                "tour_type",
+                "tour_approach",
+                "ljp_category",
+                "category",
+                "goal",
+                "not_bw_reason",
+            },
+        )
+        self.assertIn({"value": 0, "label": "Montag", "default": False}, body["weekday"])
+        self.assertIn(
+            {"value": "Klettern", "label": "Klettern", "default": False}, body["ljp_category"]
+        )
+
+    def test_activity_enums_flag_the_model_defaults(self):
+        r = self.client.get("/api/members/activities/enums", **self.auth(self.owner_user))
+        body = r.json()
+        # ``tour_approach`` defaults to Muskelkraft (0) on the model; ``weekday``
+        # has no default at all, so nothing in its list is marked.
+        self.assertEqual([c["value"] for c in body["tour_approach"] if c["default"]], [0])
+        self.assertEqual([c["value"] for c in body["weekday"] if c["default"]], [])
+        self.assertEqual([c["value"] for c in body["category"] if c["default"]], [2])
+        self.assertEqual([c["value"] for c in body["goal"] if c["default"]], [1])
 
     # --- expanded brief / detail payloads ---------------------------------
 

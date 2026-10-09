@@ -20,7 +20,12 @@ import {
   useToast,
   type DetailRow,
 } from "../../components/ui";
-import { LJP_CATEGORY_OPTIONS } from "./_controls";
+import {
+  defaultChoice,
+  selectOptions,
+  useActivityEnums,
+  type ActivityEnums,
+} from "../../api/activityEnums";
 import type { components } from "../../api/schema";
 
 type ActivityCategoryOut = components["schemas"]["ActivityCategoryOut"];
@@ -67,6 +72,11 @@ export function CategoriesPage() {
   const trainingQuery = useApiQuery(["training-categories"], () =>
     unwrap(client.GET("/api/members/training-categories")),
   );
+  // The choice list the activity-category create form's LJP select is built
+  // from. Fetched with the lists so it's there by the time anyone opens the
+  // modal, which waits on it regardless rather than showing a select with
+  // nothing in it.
+  const enumsQuery = useActivityEnums();
 
   const [creating, setCreating] = useState(false);
 
@@ -88,7 +98,13 @@ export function CategoriesPage() {
       />
 
       {creating && kind === "activity" && (
-        <NewActivityCategoryModal onClose={() => setCreating(false)} />
+        <Modal title="Neue Aktivitätskategorie" onClose={() => setCreating(false)}>
+          <QueryBoundary query={enumsQuery}>
+            {(enums: ActivityEnums) => (
+              <NewActivityCategoryForm enums={enums} onClose={() => setCreating(false)} />
+            )}
+          </QueryBoundary>
+        </Modal>
       )}
       {creating && kind === "training" && (
         <NewTrainingCategoryModal onClose={() => setCreating(false)} />
@@ -147,11 +163,17 @@ function ActivityCategoryTable({
   );
 }
 
-function NewActivityCategoryModal({ onClose }: { onClose: () => void }) {
+function NewActivityCategoryForm({
+  enums,
+  onClose,
+}: {
+  enums: ActivityEnums;
+  onClose: () => void;
+}) {
   const navigate = useNavigate();
   const toast = useToast();
   const [name, setName] = useState("");
-  const [ljp, setLjp] = useState(LJP_CATEGORY_OPTIONS[0].value);
+  const [ljp, setLjp] = useState(() => String(defaultChoice(enums, "ljp_category")));
   const [description, setDescription] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
@@ -173,41 +195,39 @@ function NewActivityCategoryModal({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <Modal title="Neue Aktivitätskategorie" onClose={onClose}>
-      <form
-        className="stack"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setFieldErrors({});
-          create.mutate({ name, ljp_category: ljp, description });
-        }}
-      >
-        <Field label="Name">
-          <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={20} />
-        </Field>
-        {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
-        <Field label="LJP-Kategorie">
-          <Select value={ljp} onChange={(v) => setLjp(v)} options={LJP_CATEGORY_OPTIONS} />
-        </Field>
-        {fieldErrors.ljp_category && (
-          <div className="field-error">{fieldErrors.ljp_category.join(" ")}</div>
-        )}
-        <Field label="Beschreibung">
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-        </Field>
-        {fieldErrors.description && (
-          <div className="field-error">{fieldErrors.description.join(" ")}</div>
-        )}
-        <div className="row-actions">
-          <Button type="submit" busy={create.isPending}>
-            Anlegen
-          </Button>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Abbrechen
-          </Button>
-        </div>
-      </form>
-    </Modal>
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setFieldErrors({});
+        create.mutate({ name, ljp_category: ljp, description });
+      }}
+    >
+      <Field label="Name">
+        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={20} />
+      </Field>
+      {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
+      <Field label="LJP-Kategorie">
+        <Select value={ljp} onChange={(v) => setLjp(v)} options={selectOptions<string>(enums, "ljp_category")} />
+      </Field>
+      {fieldErrors.ljp_category && (
+        <div className="field-error">{fieldErrors.ljp_category.join(" ")}</div>
+      )}
+      <Field label="Beschreibung">
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+      </Field>
+      {fieldErrors.description && (
+        <div className="field-error">{fieldErrors.description.join(" ")}</div>
+      )}
+      <div className="row-actions">
+        <Button type="submit" busy={create.isPending}>
+          Anlegen
+        </Button>
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -222,14 +242,32 @@ export function ActivityCategoryDetailPage() {
     ),
   );
 
+  // Edit mode turns the LJP category field into a select built from the
+  // enums endpoint, so it's part of the page's load rather than a second wait
+  // once "Bearbeiten" is pressed.
+  const enumsQuery = useActivityEnums();
+  const loaded = query.data && enumsQuery.data ? { cat: query.data, enums: enumsQuery.data } : undefined;
+
   return (
-    <QueryBoundary query={query}>
-      {(cat: ActivityCategoryOut) => <ActivityCategoryDetailBody cat={cat} />}
+    <QueryBoundary
+      query={{
+        data: loaded,
+        isLoading: query.isLoading || enumsQuery.isLoading,
+        error: query.error ?? enumsQuery.error,
+      }}
+    >
+      {({ cat, enums }) => <ActivityCategoryDetailBody cat={cat} enums={enums} />}
     </QueryBoundary>
   );
 }
 
-function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
+function ActivityCategoryDetailBody({
+  cat,
+  enums,
+}: {
+  cat: ActivityCategoryOut;
+  enums: ActivityEnums;
+}) {
   const toast = useToast();
   const navigate = useNavigate();
   // Attach recovered model help_text to each row by its backend field name.
@@ -304,7 +342,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
         <Select
           value={form.ljp_category}
           onChange={(v) => setForm({ ...form, ljp_category: v })}
-          options={LJP_CATEGORY_OPTIONS}
+          options={selectOptions<string>(enums, "ljp_category")}
         />
       ),
     },

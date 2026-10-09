@@ -563,7 +563,10 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
     expect(created).toMatchObject({
       title: "Sportklettern",
       category: 2,
-      goal: 2,
+      // `LJPProposal.goal` defaults to 1 (`Qualifizierung`) on the model; the
+      // enums endpoint reports that default now, instead of the SPA's old
+      // hardcoded (and wrong) "2".
+      goal: 1,
       not_bw_reason: null,
     });
   });

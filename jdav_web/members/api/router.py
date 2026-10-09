@@ -22,9 +22,12 @@ from members.models import MemberWaitingList
 from members.models import TrainingCategory
 from ninja import Router
 
+from .choices import activity_choice_options
+from .choices import member_choice_options
 from .schemas import ActivityCategoryOut
 from .schemas import ActivityCategoryUpdate
 from .schemas import AuthUserBrief
+from .schemas import EnumChoice
 from .schemas import EXCURSION_APPROVAL_FIELDS
 from .schemas import EXCURSION_UPDATE_SCALAR_FIELDS
 from .schemas import ExcursionBrief
@@ -43,7 +46,6 @@ from .schemas import MEMBER_ORGANIZATIONAL_FIELDS
 from .schemas import MEMBER_UPDATE_SCALAR_FIELDS
 from .schemas import MemberBrief
 from .schemas import MemberCreate
-from .schemas import MemberEnumChoice
 from .schemas import MemberNoteListBrief
 from .schemas import MemberNoteListCreate
 from .schemas import MemberNoteListOut
@@ -943,19 +945,26 @@ def delete_training_category(request, category_id: int):
 # --- choice enums ---------------------------------------------------------
 
 
-@router.get("/enums", response=dict[str, list[MemberEnumChoice]])
+@router.get("/enums", response=dict[str, list[EnumChoice]])
 def member_enums(request):
-    """The choice fields of the ``Member`` model as ``{field: [{value, label}]}``.
+    """The choice fields of the ``Member`` model as ``{field: [{value, label, default}]}``.
 
     Lets the SPA render labelled ``<select>``s for member choice fields (e.g.
     ``gender``). Any authenticated user may read this static metadata.
     """
-    result = {}
-    for field in Member._meta.get_fields():
-        choices = getattr(field, "choices", None)
-        if choices:
-            result[field.name] = [{"value": value, "label": str(label)} for value, label in choices]
-    return result
+    return member_choice_options()
+
+
+@router.get("/activities/enums", response=dict[str, list[EnumChoice]])
+def activity_enums(request):
+    """Choice fields of Group/Freizeit/ActivityCategory/LJPProposal.
+
+    Lets the SPA render labelled ``<select>``s (weekday, difficulty, tour
+    type/approach, LJP category/goal/reason) without mirroring
+    ``members.models`` in TypeScript. Any authenticated user may read this
+    static metadata, like ``/enums`` above.
+    """
+    return activity_choice_options()
 
 
 # --- login accounts (options for the member's "Nutzer" field) -------------

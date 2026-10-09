@@ -4,6 +4,8 @@ import { http, HttpResponse } from "msw";
 import { API_BASE } from "../api/client";
 import type { Site } from "../api/site";
 import type { TerminChoice, TerminEnums } from "../api/terminEnums";
+import type { ActivityEnums, EnumChoice } from "../api/activityEnums";
+import type { MemberEnums } from "../api/memberEnums";
 
 /** Absolute URL for an API path, so handlers match what the client actually calls. */
 export const api = (path: string) => `${API_BASE}${path}`;
@@ -145,6 +147,98 @@ export const TERMIN_ENUMS: TerminEnums = {
   ),
 };
 
+/**
+ * The Group/Freizeit/ActivityCategory/LJPProposal choice lists
+ * `/activities/enums` serves. The SPA no longer carries them, so this fixture
+ * stands in for `members.models`; the second argument is the field's model
+ * default, which a blank create form preselects.
+ */
+const activityChoices = <V extends string | number>(
+  options: [V, string][],
+  defaultValue: V | null = null,
+): EnumChoice[] =>
+  options.map(([value, label]) => ({ value, label, default: value === defaultValue }));
+
+export const ACTIVITY_ENUMS: ActivityEnums = {
+  // `weekday` has no model default, so nothing in its list is marked.
+  weekday: activityChoices([
+    [0, "Montag"],
+    [1, "Dienstag"],
+    [2, "Mittwoch"],
+    [3, "Donnerstag"],
+    [4, "Freitag"],
+    [5, "Samstag"],
+    [6, "Sonntag"],
+  ]),
+  // `difficulty` has no model default either.
+  difficulty: activityChoices([
+    [1, "leicht"],
+    [2, "mittel"],
+    [3, "schwer"],
+  ]),
+  // `tour_type` has no model default either.
+  tour_type: activityChoices([
+    [0, "Gemeinschaftstour"],
+    [1, "Führungstour"],
+    [2, "Ausbildung"],
+  ]),
+  tour_approach: activityChoices(
+    [
+      [0, "Muskelkraft"],
+      [1, "ÖPNV"],
+      [2, "Fahrgemeinschaften"],
+    ],
+    0,
+  ),
+  // `ljp_category` (ActivityCategory) has no model default either.
+  ljp_category: activityChoices([
+    ["Winter", "Winter"],
+    ["Skibergsteigen", "Skibergsteigen"],
+    ["Klettern", "Klettern"],
+    ["Bergsteigen", "Bergsteigen"],
+    ["Theorie", "Theorie"],
+    ["Sonstiges", "Sonstiges"],
+  ]),
+  category: activityChoices(
+    [
+      [2, "Themenorientierte Bildungsmaßnahme"],
+      [1, "Jugendleiter*innenweiterbildung"],
+    ],
+    2,
+  ),
+  goal: activityChoices(
+    [
+      [1, "Qualifizierung"],
+      [2, "Partizipation"],
+      [3, "Persönlichkeitsentwicklung"],
+      [4, "Umwelt"],
+    ],
+    1,
+  ),
+  // `not_bw_reason` is nullable with no real model default, so nothing in its
+  // list is marked.
+  not_bw_reason: activityChoices([
+    [1, "aufgrund der Lehrgangsinhalte"],
+    [2, "trägereigene Räumlichkeiten"],
+    [3, "Grenznähe"],
+    [4, "wirtschaftliche Sparsamkeit"],
+  ]),
+};
+
+/**
+ * The gender choices `/api/members/public/enums` serves. Mirrors
+ * `Member.gender_choices` (0/1/2) so `GenderSelect` renders without a mock in
+ * every test that opens one of the public flows.
+ */
+export const MEMBER_ENUMS: MemberEnums = {
+  // `gender` has no model default, so nothing in its list is marked.
+  gender: activityChoices([
+    [0, "Männlich"],
+    [1, "Weiblich"],
+    [2, "Divers"],
+  ]),
+};
+
 /** Handlers present in every test; individual tests override with `server.use`. */
 const baseHandlers = [
   http.get(api("/api/members/me"), () => HttpResponse.json(DEFAULT_ME)),
@@ -153,6 +247,13 @@ const baseHandlers = [
   // rather than in each test that opens one.
   http.get(api("/api/ludwigsburgalpin/enums"), () => HttpResponse.json(TERMIN_ENUMS)),
   http.get(api("/api/ludwigsburgalpin/public/enums"), () => HttpResponse.json(TERMIN_ENUMS)),
+  // Every activities form (Groups/Excursions/Categories) builds its choice
+  // selects from these, so they belong here rather than in each test that
+  // opens one.
+  http.get(api("/api/members/activities/enums"), () => HttpResponse.json(ACTIVITY_ENUMS)),
+  // Every public flow's `GenderSelect` builds its options from this, so it
+  // belongs here rather than in each test that renders one.
+  http.get(api("/api/members/public/enums"), () => HttpResponse.json(MEMBER_ENUMS)),
 ];
 
 export const server = setupServer(...baseHandlers);

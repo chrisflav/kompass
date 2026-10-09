@@ -28,7 +28,7 @@ type WaiterBrief = components["schemas"]["WaiterBrief"];
 type WaiterOut = components["schemas"]["WaiterOut"];
 type WaiterUpdate = components["schemas"]["WaiterUpdate"];
 type GroupOut = components["schemas"]["GroupOut"];
-type EnumChoice = components["schemas"]["MemberEnumChoice"];
+type EnumChoice = components["schemas"]["EnumChoice"];
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";

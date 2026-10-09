@@ -871,12 +871,37 @@ export interface paths {
         };
         /**
          * Member Enums
-         * @description The choice fields of the ``Member`` model as ``{field: [{value, label}]}``.
+         * @description The choice fields of the ``Member`` model as ``{field: [{value, label, default}]}``.
          *
          *     Lets the SPA render labelled ``<select>``s for member choice fields (e.g.
          *     ``gender``). Any authenticated user may read this static metadata.
          */
         get: operations["members_api_router_member_enums"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/members/activities/enums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Activity Enums
+         * @description Choice fields of Group/Freizeit/ActivityCategory/LJPProposal.
+         *
+         *     Lets the SPA render labelled ``<select>``s (weekday, difficulty, tour
+         *     type/approach, LJP category/goal/reason) without mirroring
+         *     ``members.models`` in TypeScript. Any authenticated user may read this
+         *     static metadata, like ``/enums`` above.
+         */
+        get: operations["members_api_router_activity_enums"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3346,6 +3371,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/public/enums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Member Enums
+         * @description Gender choices for the public forms, mirroring the authenticated ``/enums``.
+         *
+         *     The waiting-list, registration and echo forms are public, so the gender
+         *     select needs this without a bearer token; it is model metadata, not data
+         *     about anyone.
+         */
+        get: operations["members_api_public_public_member_enums"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/public/waiting-list": {
         parameters: {
             query?: never;
@@ -5045,14 +5094,24 @@ export interface components {
             permission_needed?: boolean | null;
         };
         /**
-         * MemberEnumChoice
-         * @description A single ``{value, label}`` option of a member choice field.
+         * EnumChoice
+         * @description A single option of a members-app choice field (Member/Group/Freizeit/
+         *     ActivityCategory/LJPProposal).
+         *
+         *     Consumed by ``GET /enums``, ``GET /activities/enums`` and ``GET
+         *     /public/enums`` so the SPA can render labelled ``<select>`` controls
+         *     instead of mirroring ``members.models`` choice lists in TypeScript.
+         *     ``default`` marks the field's model default, which is what a blank create
+         *     form preselects; a field without one marks nothing and the form falls
+         *     back to the first option.
          */
-        MemberEnumChoice: {
+        EnumChoice: {
             /** Value */
             value: unknown;
             /** Label */
             label: string;
+            /** Default */
+            default: boolean;
         };
         /**
          * AuthUserBrief
@@ -9338,7 +9397,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: components["schemas"]["MemberEnumChoice"][];
+                        [key: string]: components["schemas"]["EnumChoice"][];
+                    };
+                };
+            };
+        };
+    };
+    members_api_router_activity_enums: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["EnumChoice"][];
                     };
                 };
             };
@@ -13532,6 +13613,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    members_api_public_public_member_enums: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["EnumChoice"][];
+                    };
+                };
             };
         };
     };

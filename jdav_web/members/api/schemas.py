@@ -1044,11 +1044,21 @@ class TrainingCategoryUpdate(Schema):
     permission_needed: bool | None = None
 
 
-class MemberEnumChoice(Schema):
-    """A single ``{value, label}`` option of a member choice field."""
+class EnumChoice(Schema):
+    """A single option of a members-app choice field (Member/Group/Freizeit/
+    ActivityCategory/LJPProposal).
+
+    Consumed by ``GET /enums``, ``GET /activities/enums`` and ``GET
+    /public/enums`` so the SPA can render labelled ``<select>`` controls
+    instead of mirroring ``members.models`` choice lists in TypeScript.
+    ``default`` marks the field's model default, which is what a blank create
+    form preselects; a field without one marks nothing and the form falls
+    back to the first option.
+    """
 
     value: Any
     label: str
+    default: bool
 
 
 # Rebuild MemberOut now that ExcursionBrief (used as a forward reference in

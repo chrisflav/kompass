@@ -2129,7 +2129,7 @@
                 "schema": {
                   "additionalProperties": {
                     "items": {
-                      "$ref": "#/components/schemas/MemberEnumChoice"
+                      "$ref": "#/components/schemas/EnumChoice"
                     },
                     "type": "array"
                   },
@@ -2140,7 +2140,42 @@
             }
           }
         },
-        "description": "The choice fields of the ``Member`` model as ``{field: [{value, label}]}``.\n\nLets the SPA render labelled ``<select>``s for member choice fields (e.g.\n``gender``). Any authenticated user may read this static metadata.",
+        "description": "The choice fields of the ``Member`` model as ``{field: [{value, label, default}]}``.\n\nLets the SPA render labelled ``<select>``s for member choice fields (e.g.\n``gender``). Any authenticated user may read this static metadata.",
+        "tags": [
+          "members"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/members/activities/enums": {
+      "get": {
+        "operationId": "members_api_router_activity_enums",
+        "summary": "Activity Enums",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "$ref": "#/components/schemas/EnumChoice"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "description": "Choice fields of Group/Freizeit/ActivityCategory/LJPProposal.\n\nLets the SPA render labelled ``<select>``s (weekday, difficulty, tour\ntype/approach, LJP category/goal/reason) without mirroring\n``members.models`` in TypeScript. Any authenticated user may read this\nstatic metadata, like ``/enums`` above.",
         "tags": [
           "members"
         ],
@@ -9005,6 +9040,36 @@
         ]
       }
     },
+    "/api/members/public/enums": {
+      "get": {
+        "operationId": "members_api_public_public_member_enums",
+        "summary": "Public Member Enums",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "$ref": "#/components/schemas/EnumChoice"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "description": "Gender choices for the public forms, mirroring the authenticated ``/enums``.\n\nThe waiting-list, registration and echo forms are public, so the gender\nselect needs this without a bearer token; it is model metadata, not data\nabout anyone.",
+        "tags": [
+          "members-public"
+        ]
+      }
+    },
     "/api/members/public/waiting-list": {
       "post": {
         "operationId": "members_api_public_register_waiting_list",
@@ -13627,8 +13692,8 @@
         "title": "TrainingCategoryUpdate",
         "type": "object"
       },
-      "MemberEnumChoice": {
-        "description": "A single ``{value, label}`` option of a member choice field.",
+      "EnumChoice": {
+        "description": "A single option of a members-app choice field (Member/Group/Freizeit/\nActivityCategory/LJPProposal).\n\nConsumed by ``GET /enums``, ``GET /activities/enums`` and ``GET\n/public/enums`` so the SPA can render labelled ``<select>`` controls\ninstead of mirroring ``members.models`` choice lists in TypeScript.\n``default`` marks the field's model default, which is what a blank create\nform preselects; a field without one marks nothing and the form falls\nback to the first option.",
         "properties": {
           "value": {
             "title": "Value"
@@ -13636,13 +13701,18 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default"
           }
         },
         "required": [
           "value",
-          "label"
+          "label",
+          "default"
         ],
-        "title": "MemberEnumChoice",
+        "title": "EnumChoice",
         "type": "object"
       },
       "AuthUserBrief": {

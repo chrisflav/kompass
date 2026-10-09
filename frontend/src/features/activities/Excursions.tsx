@@ -28,18 +28,18 @@ import {
 } from "../../components/ui";
 import {
   ChoiceSelect,
-  DIFFICULTY_OPTIONS,
-  LJP_GOAL_OPTIONS,
-  LJP_NOT_BW_REASON_OPTIONS,
-  LJP_PROPOSAL_CATEGORY_OPTIONS,
   MultiSelect,
   ParticipantsInline,
-  TOUR_APPROACH_OPTIONS,
-  TOUR_TYPE_OPTIONS,
   fromDatetimeLocal,
   toDatetimeLocal,
   type Option,
 } from "./_controls";
+import {
+  defaultChoice,
+  selectOptions,
+  useActivityEnums,
+  type ActivityEnums,
+} from "../../api/activityEnums";
 import type { components } from "../../api/schema";
 
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
@@ -78,6 +78,10 @@ export function ExcursionsList() {
   const rows = query.data ?? [];
   // Members back the participant filter's labels (the Brief carries only ids).
   const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  // The choice lists the create form's selects are built from. Fetched with the
+  // list so they are there by the time anyone opens the modal, which waits on
+  // them regardless rather than showing selects with nothing in them.
+  const enumsQuery = useActivityEnums();
 
   // Group filter options = the distinct groups actually present in the list.
   const groupOptions = useMemo(() => {
@@ -157,7 +161,11 @@ export function ExcursionsList() {
       />
       {creating && (
         <Modal title="Neue Ausfahrt" onClose={() => setCreating(false)} size="lg">
-          <ExcursionCreateForm onDone={() => setCreating(false)} />
+          <QueryBoundary query={enumsQuery}>
+            {(enums: ActivityEnums) => (
+              <ExcursionCreateForm enums={enums} onDone={() => setCreating(false)} />
+            )}
+          </QueryBoundary>
         </Modal>
       )}
       <ListToolbar view={view} />
@@ -185,7 +193,13 @@ export function ExcursionsList() {
 
 /* --- create -------------------------------------------------------------- */
 
-function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
+function ExcursionCreateForm({
+  enums,
+  onDone,
+}: {
+  enums: ActivityEnums;
+  onDone: () => void;
+}) {
   const toast = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -193,8 +207,8 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
     place: "",
     date: "",
     end: "",
-    difficulty: "1",
-    tour_type: "0",
+    difficulty: String(defaultChoice(enums, "difficulty")),
+    tour_type: String(defaultChoice(enums, "tour_type")),
     group_ids: [] as number[],
     jugendleiter_ids: [] as number[],
   });
@@ -274,14 +288,14 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
         <ChoiceSelect
           value={form.difficulty}
           onChange={(v) => setForm({ ...form, difficulty: v })}
-          options={DIFFICULTY_OPTIONS}
+          options={selectOptions<number>(enums, "difficulty")}
         />
       </Field>
       <Field label="Tourtyp">
         <ChoiceSelect
           value={form.tour_type}
           onChange={(v) => setForm({ ...form, tour_type: v })}
-          options={TOUR_TYPE_OPTIONS}
+          options={selectOptions<number>(enums, "tour_type")}
         />
       </Field>
       <Field label="Gruppen">
@@ -324,14 +338,29 @@ export function ExcursionDetailPage() {
     ),
   );
 
+  // Edit mode turns several fields into selects built from the enums endpoint,
+  // so the choice lists are part of the page's load rather than a second wait
+  // once "Bearbeiten" is pressed.
+  const enumsQuery = useActivityEnums();
+  const loaded =
+    query.data && enumsQuery.data
+      ? { excursion: query.data, enums: enumsQuery.data }
+      : undefined;
+
   return (
-    <QueryBoundary query={query}>
-      {(excursion: ExcursionOut) => <ExcursionDetailBody excursion={excursion} />}
+    <QueryBoundary
+      query={{
+        data: loaded,
+        isLoading: query.isLoading || enumsQuery.isLoading,
+        error: query.error ?? enumsQuery.error,
+      }}
+    >
+      {({ excursion, enums }) => <ExcursionDetailBody excursion={excursion} enums={enums} />}
     </QueryBoundary>
   );
 }
 
-function makeForm(e: ExcursionOut) {
+function makeForm(e: ExcursionOut, enums: ActivityEnums) {
   return {
     name: e.name ?? "",
     place: e.place ?? "",
@@ -351,16 +380,26 @@ function makeForm(e: ExcursionOut) {
     approval_comments: e.approval_comments ?? "",
     approved_extra_youth_leader_count: String(e.approved_extra_youth_leader_count),
     // LJP-Antrag (seminar report) — a 1:1 extension of the excursion, edited as
-    // a normal fieldset. Seeded async from the LJP endpoint (see the effect).
+    // a normal fieldset. Seeded async from the LJP endpoint (see the effect);
+    // these are the placeholders until it resolves.
     ljp_title: "",
-    ljp_category: "2",
-    ljp_goal: "2",
+    ljp_category: String(defaultChoice(enums, "category")),
+    ljp_goal: String(defaultChoice(enums, "goal")),
     ljp_goal_strategy: "",
+    // `not_bw_reason` is nullable with no real model default (`default=None`),
+    // so nothing in its options is marked default either — stay unset rather
+    // than falling back to `defaultChoice`'s first option.
     ljp_not_bw_reason: "",
   };
 }
 
-function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
+function ExcursionDetailBody({
+  excursion,
+  enums,
+}: {
+  excursion: ExcursionOut;
+  enums: ActivityEnums;
+}) {
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
   const { can } = usePermissions();
@@ -397,7 +436,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
     return note ? <p className="fieldset-help">{note}</p> : null;
   };
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(() => makeForm(excursion));
+  const [form, setForm] = useState(() => makeForm(excursion, enums));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [showFinance, setShowFinance] = useState(false);
   const { getRegistrar, runFlushes } = useFlushRegistry();
@@ -458,8 +497,8 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
     setForm((f) => ({
       ...f,
       ljp_title: target?.title ?? "",
-      ljp_category: target ? String(target.category) : "2",
-      ljp_goal: target ? String(target.goal) : "2",
+      ljp_category: target ? String(target.category) : String(defaultChoice(enums, "category")),
+      ljp_goal: target ? String(target.goal) : String(defaultChoice(enums, "goal")),
       ljp_goal_strategy: target?.goal_strategy ?? "",
       ljp_not_bw_reason:
         target?.not_bw_reason === null || target?.not_bw_reason === undefined
@@ -496,7 +535,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
   );
 
   function startEditing() {
-    setForm(makeForm(excursion));
+    setForm(makeForm(excursion, enums));
     seedLjp(ljp);
     setFieldErrors({});
     setEditing(true);
@@ -624,7 +663,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         <ChoiceSelect
           value={form.difficulty}
           onChange={(v) => setForm({ ...form, difficulty: v })}
-          options={DIFFICULTY_OPTIONS}
+          options={selectOptions<number>(enums, "difficulty")}
         />
       ),
     },
@@ -636,7 +675,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         <ChoiceSelect
           value={form.tour_type}
           onChange={(v) => setForm({ ...form, tour_type: v })}
-          options={TOUR_TYPE_OPTIONS}
+          options={selectOptions<number>(enums, "tour_type")}
         />
       ),
     },
@@ -648,7 +687,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         <ChoiceSelect
           value={form.tour_approach}
           onChange={(v) => setForm({ ...form, tour_approach: v })}
-          options={TOUR_APPROACH_OPTIONS}
+          options={selectOptions<number>(enums, "tour_approach")}
         />
       ),
     },
@@ -730,7 +769,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         <ChoiceSelect
           value={form.ljp_category}
           onChange={(v) => setForm({ ...form, ljp_category: v })}
-          options={LJP_PROPOSAL_CATEGORY_OPTIONS}
+          options={selectOptions<number>(enums, "category")}
         />
       ),
     },
@@ -742,7 +781,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         <ChoiceSelect
           value={form.ljp_goal}
           onChange={(v) => setForm({ ...form, ljp_goal: v })}
-          options={LJP_GOAL_OPTIONS}
+          options={selectOptions<number>(enums, "goal")}
         />
       ),
     },
@@ -765,7 +804,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         <ChoiceSelect
           value={form.ljp_not_bw_reason}
           onChange={(v) => setForm({ ...form, ljp_not_bw_reason: v })}
-          options={LJP_NOT_BW_REASON_OPTIONS}
+          options={selectOptions<number>(enums, "not_bw_reason")}
           allowEmpty
         />
       ),

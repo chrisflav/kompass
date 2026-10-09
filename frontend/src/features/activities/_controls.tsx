@@ -12,82 +12,18 @@ import type { components } from "../../api/schema";
 export { MultiSelect };
 
 /**
- * Shared edit controls for the activities feature. The members `/enums` endpoint
- * only exposes the choice fields of the `Member` model, so the choice fields on
- * Group / Freizeit / ActivityCategory (weekday, difficulty, tour type, transport,
- * LJP category) are declared here as static option lists mirroring the admin
- * choices. FK/M2M options are fetched from the related list endpoints at the call
- * site and passed to {@link MultiSelect}.
+ * Shared edit controls for the activities feature. The choice fields on
+ * Group / Freizeit / ActivityCategory / LJPProposal (weekday, difficulty, tour
+ * type/approach, LJP category/goal/reason) are fetched from the activities
+ * `/enums` endpoint (`useActivityEnums`) rather than mirrored here. FK/M2M
+ * options are fetched from the related list endpoints at the call site and
+ * passed to {@link MultiSelect}.
  */
 
 export interface Option {
   value: number;
   label: string;
 }
-
-/** LJPProposal.category choices (IntegerField choices=LJP_CATEGORIES). */
-export const LJP_PROPOSAL_CATEGORY_OPTIONS: Option[] = [
-  { value: 2, label: "Themenorientierte Bildungsmaßnahme" },
-  { value: 1, label: "Jugendleiter*innenweiterbildung" },
-];
-
-/** LJPProposal.goal choices (IntegerField choices=LJP_GOALS). */
-export const LJP_GOAL_OPTIONS: Option[] = [
-  { value: 1, label: "Qualifizierung" },
-  { value: 2, label: "Partizipation" },
-  { value: 3, label: "Persönlichkeitsentwicklung" },
-  { value: 4, label: "Umwelt" },
-];
-
-/** LJPProposal.not_bw_reason choices (IntegerField choices=NOT_BW_REASONS). */
-export const LJP_NOT_BW_REASON_OPTIONS: Option[] = [
-  { value: 1, label: "aufgrund der Lehrgangsinhalte" },
-  { value: 2, label: "trägereigene Räumlichkeiten" },
-  { value: 3, label: "Grenznähe" },
-  { value: 4, label: "wirtschaftliche Sparsamkeit" },
-];
-
-/** Weekday choices (Group.weekday, IntegerField choices=WEEKDAYS). */
-export const WEEKDAY_OPTIONS: Option[] = [
-  { value: 0, label: "Montag" },
-  { value: 1, label: "Dienstag" },
-  { value: 2, label: "Mittwoch" },
-  { value: 3, label: "Donnerstag" },
-  { value: 4, label: "Freitag" },
-  { value: 5, label: "Samstag" },
-  { value: 6, label: "Sonntag" },
-];
-
-/** Freizeit.difficulty choices. */
-export const DIFFICULTY_OPTIONS: Option[] = [
-  { value: 1, label: "leicht" },
-  { value: 2, label: "mittel" },
-  { value: 3, label: "schwer" },
-];
-
-/** Freizeit.tour_type choices. */
-export const TOUR_TYPE_OPTIONS: Option[] = [
-  { value: 0, label: "Gemeinschaftstour" },
-  { value: 1, label: "Führungstour" },
-  { value: 2, label: "Ausbildung" },
-];
-
-/** Freizeit.tour_approach ("Verkehrsmittel") choices. */
-export const TOUR_APPROACH_OPTIONS: Option[] = [
-  { value: 0, label: "Muskelkraft" },
-  { value: 1, label: "ÖPNV" },
-  { value: 2, label: "Fahrgemeinschaften" },
-];
-
-/** ActivityCategory.ljp_category choices (CharField choices=LJP_CATEGORIES). */
-export const LJP_CATEGORY_OPTIONS: { value: string; label: string }[] = [
-  { value: "Winter", label: "Winter" },
-  { value: "Skibergsteigen", label: "Skibergsteigen" },
-  { value: "Klettern", label: "Klettern" },
-  { value: "Bergsteigen", label: "Bergsteigen" },
-  { value: "Theorie", label: "Theorie" },
-  { value: "Sonstiges", label: "Sonstiges" },
-];
 
 /** Single-select over integer choices ("" = unset); styled searchable dropdown. */
 export function ChoiceSelect({
