@@ -6,11 +6,15 @@ The OpenAPI schema is served at ``/api/openapi.json`` and interactive docs at
 generated from.
 """
 
+import json
+
 from contrib.api.auth import OAuth2Bearer
 from contrib.api.perms import Forbidden
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
+from django.utils import translation
 from ninja import NinjaAPI
 from ninja.throttling import AnonRateThrottle
 from ninja.throttling import AuthRateThrottle
@@ -125,4 +129,34 @@ def _register_routers():
     )
 
 
-_register_routers()
+# Router modules define ModelSchema classes, and django-ninja resolves each
+# field's verbose_name into a title right there, at class-definition time —
+# some immediately into a plain string, through a path that forces whatever
+# language happens to be active (see ``contrib.openapi`` for the mechanics).
+# Importing under the source language once, here, is what the served
+# /api/openapi.json needs to match the exported, committed one: both are then
+# built from schema classes whose titles were frozen the same way, rather than
+# the live ones carrying whatever LANGUAGE_CODE (German) was active at the
+# first import of this module.
+with translation.override(None):
+    _register_routers()
+
+# Some titles aren't frozen by the import above: django-ninja leaves a
+# verbose_name lazy whenever it is already capitalized (see
+# ``ninja.orm.fields.title_if_lower``), and a lazy proxy only becomes text
+# when something finally stringifies it — here, that would otherwise be
+# ``Response``'s JSON encoder, under whichever language the request that
+# triggered it happened to be in. Building the document and forcing those
+# survivors to plain strings in the same ``override(None)`` block, the way
+# ``contrib.openapi.render_schema`` does for the exported copy, is what keeps
+# a German request from serving a German title here too.
+_get_openapi_schema = NinjaAPI.get_openapi_schema
+
+
+def _get_openapi_schema_in_source_language(self, *args, **kwargs):
+    with translation.override(None):
+        schema = _get_openapi_schema(self, *args, **kwargs)
+        return json.loads(json.dumps(schema, cls=DjangoJSONEncoder))
+
+
+api.get_openapi_schema = _get_openapi_schema_in_source_language.__get__(api, NinjaAPI)

@@ -353,6 +353,33 @@ class ExportOpenapiTest(TestCase):
             "frontend/openapi.json is stale, re-export it with export_openapi.py\n" + moved,
         )
 
+    def test_the_served_schema_matches_the_committed_contract_under_german(self):
+        """``/api/openapi.json`` must not drift just because a request is German.
+
+        ``PublicPostBrief.detailed`` is the representative case: its
+        ``verbose_name`` is the lowercase ``"detailed"``, which django-ninja
+        title-cases eagerly into ``"Detailed"`` wherever the schema classes
+        are first imported. Unguarded, that import happens once at process
+        startup under the deployment's German ``LANGUAGE_CODE``, baking in
+        ``"Detailliert"`` for good; other titles stay lazy translation
+        proxies instead, resolving to whatever language a later request
+        happens to be in. Both must come out in the source language, like the
+        committed export, however the live server got there.
+        """
+        committed = json.loads(
+            (Path(settings.BASE_DIR).parent / "frontend" / "openapi.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        with translation.override("de"):
+            response = self.client.get("/api/openapi.json")
+        served = response.json()
+        self.assertEqual(served, committed)
+        self.assertEqual(
+            served["components"]["schemas"]["PublicPostBrief"]["properties"]["detailed"]["title"],
+            "Detailed",
+        )
+
     def test_the_script_writes_the_document(self):
         active = translation.get_language()
         try:
