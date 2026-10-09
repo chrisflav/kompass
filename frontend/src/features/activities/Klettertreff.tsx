@@ -36,6 +36,25 @@ function formatDate(value: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("de-DE");
 }
 
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// The API sends bare "YYYY-MM-DD" dates. `new Date("YYYY-MM-DD")` parses that
+// as UTC midnight, which is the wrong calendar day once compared against a
+// local clock west of UTC. Build the local midnight instead so the buckets
+// below compare the same calendar day the user sees.
+function parseLocalDate(value: string): Date {
+  const match = DATE_ONLY.exec(value);
+  if (!match) return new Date(value);
+  const [, year, month, day] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
+// Day index that only depends on the local Y/M/D, not on time-of-day or DST,
+// so subtracting two of these gives an exact count of calendar days apart.
+function dayNumber(date: Date): number {
+  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
+}
+
 /**
  * Standard Django date drill-down buckets, evaluated client-side. Exported for
  * its own unit test: an unknown bucket cannot come from the list filter, whose
@@ -44,14 +63,12 @@ function formatDate(value: string | null | undefined): string {
 export function dateBucket(value: string | null | undefined, bucket: string): boolean {
   if (bucket === "none") return !value;
   if (!value) return false;
-  const d = new Date(value);
+  const d = parseLocalDate(value);
   if (Number.isNaN(d.getTime())) return false;
   const now = new Date();
-  if (bucket === "today") return d.toDateString() === now.toDateString();
-  if (bucket === "7days") {
-    const diff = (now.getTime() - d.getTime()) / 86_400_000;
-    return diff >= 0 && diff <= 7;
-  }
+  const daysAgo = dayNumber(now) - dayNumber(d);
+  if (bucket === "today") return daysAgo === 0;
+  if (bucket === "7days") return daysAgo >= 0 && daysAgo <= 7;
   if (bucket === "month")
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   if (bucket === "year") return d.getFullYear() === now.getFullYear();

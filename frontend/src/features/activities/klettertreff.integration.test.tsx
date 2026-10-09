@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, djangoValidation, http, HttpResponse, server, useMe } from "../../test/server";
 import {
@@ -446,6 +446,49 @@ describe("dateBucket", () => {
 
   it("keeps every row for a bucket it does not know", () => {
     expect(dateBucket(iso(0), "quatsch")).toBe(true);
+  });
+
+  // The API sends bare "YYYY-MM-DD" dates. These pin the system clock to just
+  // after local midnight, so the old `new Date("YYYY-MM-DD")` (UTC midnight)
+  // and the local "now" it was compared against would land on different
+  // calendar days (taxis #507). Built from local date parts, not a fixed
+  // string, so the assertions hold under any machine TZ — run this file with
+  // TZ=Europe/Berlin and TZ=America/New_York to see both sides of the bug.
+  describe("just after local midnight", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const dateOnly = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate(),
+      ).padStart(2, "0")}`;
+
+    it("still counts today's date as 'today' and within the last 7 days", () => {
+      const now = new Date();
+      now.setHours(0, 10, 0, 0);
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const today = dateOnly(now);
+      expect(dateBucket(today, "today")).toBe(true);
+      expect(dateBucket(today, "7days")).toBe(true);
+    });
+
+    it("compares calendar days, not elapsed hours, at the 7-day edge", () => {
+      const now = new Date();
+      now.setHours(23, 50, 0, 0);
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const eightDaysAgo = new Date(now);
+      eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
+
+      expect(dateBucket(dateOnly(sevenDaysAgo), "7days")).toBe(true);
+      expect(dateBucket(dateOnly(eightDaysAgo), "7days")).toBe(false);
+    });
   });
 });
 
