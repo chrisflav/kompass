@@ -17,7 +17,7 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@tanstack/react-query": "^5.101.2",
-    "katex": "^0.17.0",
+    "katex": "^0.19.0",
     "openapi-fetch": "^0.13.5",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
@@ -44,5 +44,8 @@
     "typescript": "^5.6.3",
     "vite": "^6.0.7",
     "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "katex": "^0.19.0"
   }
 }
