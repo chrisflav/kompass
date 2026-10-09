@@ -1742,7 +1742,7 @@ input[type="radio"] {
    column and the last row instead of doubling the panel border. */
 .dash-links-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
   margin: 0 -1px -1px 0;
 }
 
@@ -2996,10 +2996,6 @@ button.etappe-body:hover {
   .lead-figure {
     min-height: 0;
     aspect-ratio: 16 / 9;
-  }
-
-  .lead-figure img {
-    position: static;
   }
 }
 
