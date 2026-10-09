@@ -110,6 +110,7 @@ from pypdf import PageObject
 from pypdf import PdfReader
 from pypdf import PdfWriter
 from utils import mondays_until_nth
+from utils import normalize_filename
 
 EMERGENCY_CONTACT_DATA = {
     "emergencycontact_set-TOTAL_FORMS": "1",
@@ -631,6 +632,29 @@ class PDFTestCase(TestCase):
         response = merge_pdfs("Merged PDF", [fp1, fp2], save_only=False)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["Content-Type"], "application/pdf")
+
+    def test_render_tex_same_day_distinct_paths(self):
+        """Two renders of the same document on the same day must not collide.
+
+        Both calls use the same name, template and (implicit) date, so a
+        filename built from only those would be identical for both: one
+        request could then serve the other's half-written file.
+        """
+        context = dict(memberlist=self.ex, settings=settings, mode="basic")
+        fp1 = render_tex("Foo Bar", "members/seminar_report.tex", context, save_only=True)
+        fp2 = render_tex("Foo Bar", "members/seminar_report.tex", context, save_only=True)
+
+        self.assertNotEqual(fp1, fp2)
+        self._assert_file_exists(fp1)
+        self._assert_file_exists(fp2)
+
+    def test_normalize_filename_same_day_distinct(self):
+        """normalize_filename itself must not collide for the same name/date."""
+        date = timezone.now()
+        name1 = normalize_filename("Foo Bar", date=date)
+        name2 = normalize_filename("Foo Bar", date=date)
+
+        self.assertNotEqual(name1, name2)
 
 
 class AdminTestCase(TestCase):

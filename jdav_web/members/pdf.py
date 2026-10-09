@@ -29,16 +29,13 @@ class TexRenderError(RuntimeError):
     ``pdflatex`` is not reliably loud about this. A document whose body renders
     to nothing — the group checklist on an installation where no group is
     flagged ``show_website``, for instance — ends in "No pages of output" and
-    still *exits 0*, leaving a zero-byte ``.pdf`` behind (it truncates an
-    existing one, so a real file from an earlier run of the same day does not
-    survive to be served in its place either). The browser saves a PDF it
-    cannot open, so the render raises instead and the caller either refuses up
-    front or the failure reaches the log.
+    still *exits 0*, leaving a zero-byte ``.pdf`` behind. The browser saves a
+    PDF it cannot open, so the render raises instead and the caller either
+    refuses up front or the failure reaches the log.
 
-    Only what a run left behind is checked. Filenames carry the date rather
-    than anything unique, so two requests for the same document on the same day
-    still share one path and one can read it while the other rewrites it. That
-    race predates this check and is untouched by it.
+    Only what this run left behind is checked. Each render gets its own
+    unique filename (``normalize_filename`` in ``utils.py``), so this is
+    never left looking at a concurrent request's file instead of its own.
     """
 
 
