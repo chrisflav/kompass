@@ -8,6 +8,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema, type Options as SanitizeSchema } from "rehype-sanitize";
 
 import { mediaUrl } from "../../../api/client";
+import { ContourField, contourSeed } from "../../../components/Contour";
 import { useDocumentTitle } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 
@@ -206,13 +207,25 @@ export function PortraitGrid({ people }: { people: MemberBrief[] }) {
 }
 
 /** A clickable post preview card (news / reports listings) linking to the post
- *  detail via its section + post urlname. */
+ *  detail via its section + post urlname.
+ *
+ *  Carries the same figure box as the lead story and report strip on the
+ *  index page: the photo, or — where none was uploaded — the hero's own
+ *  contour field, seeded from the post so the box keeps its geometry and its
+ *  hillside is stable across reloads either way. */
 export function PostTeaser({ post }: { post: PostBrief }) {
   return (
     <Link
       to={`/beitrag/${encodeURIComponent(post.section_urlname)}/${encodeURIComponent(post.urlname)}`}
       className="post-teaser"
     >
+      <span className="post-teaser-figure">
+        {post.image ? (
+          <img src={mediaUrl(post.image)} alt="" loading="lazy" />
+        ) : (
+          <ContourField className="figure-contour" seed={contourSeed(post.urlname || post.id)} />
+        )}
+      </span>
       <span className="post-teaser-title">{post.title}</span>
       {post.date && <time className="post-teaser-date">{formatDate(post.date)}</time>}
       <p className="post-teaser-excerpt">{excerpt(post.website_text)}</p>

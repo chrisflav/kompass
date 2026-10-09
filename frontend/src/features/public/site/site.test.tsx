@@ -193,6 +193,31 @@ describe("shared helpers", () => {
     expect(screen.queryByText(/Februar/)).not.toBeInTheDocument();
   });
 
+  it("shows a post's own photograph in its teaser's figure box", () => {
+    const { container } = renderWithApp(
+      <PostTeaser post={{ ...POST, image: "/media/a.jpg" }} />,
+      anon,
+    );
+    const figure = container.querySelector(".post-teaser-figure") as HTMLElement;
+    expect(figure.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/media/a.jpg"),
+    );
+    expect(figure.querySelector("svg.figure-contour")).toBeNull();
+  });
+
+  it("draws a contour hillside in the teaser's figure box for a post with no photograph", () => {
+    const { container } = renderWithApp(<PostTeaser post={{ ...POST, image: null }} />, anon);
+    const figure = container.querySelector(".post-teaser-figure") as HTMLElement;
+    // The figure box is still there and still filled — same geometry either way.
+    expect(figure).not.toBeNull();
+    expect(figure.querySelector("img")).toBeNull();
+    const drawn = figure.querySelector("svg.figure-contour") as SVGElement;
+    expect(drawn).not.toBeNull();
+    expect(drawn).toHaveAttribute("aria-hidden", "true");
+    expect(within(container).queryByRole("img")).toBeNull();
+  });
+
   it("takes a person's initials from whichever name fields carry them", () => {
     const person = (over: Record<string, unknown>) =>
       ({ id: 1, name: "", prename: "", lastname: "", image: null, ...over }) as never;

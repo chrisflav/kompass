@@ -1434,6 +1434,26 @@ input[type="radio"] {
   transform: translateY(-1px);
 }
 
+/* Same box the report strip uses: a fixed 4:3 frame that holds a photo or,
+   failing that, the seeded contour field — so a grid of teasers keeps its
+   rhythm whether or not every post got a picture. */
+.post-teaser-figure {
+  display: block;
+  aspect-ratio: 4 / 3;
+  margin: -1.1rem -1.2rem 0.35rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+  background: var(--panel-2);
+  position: relative;
+}
+
+.post-teaser-figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .post-teaser-title {
   font-size: 1.12rem;
   font-weight: 600;
