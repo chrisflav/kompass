@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,6 +8,7 @@ import {
   multipartFilenames,
   ninjaValidation,
   server,
+  TERMIN_ENUMS,
 } from "../../../test/server";
 import { fillEveryField, pickEverySelect, renderWithApp } from "../../../test/utils";
 import { ConfirmInvitationFlow } from "./ConfirmInvitation";
@@ -741,6 +742,28 @@ describe("upload the registration form", () => {
     renderFlow(<UploadFormFlow />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Nicht gefunden.");
   });
+
+  it("refuses to submit without a file, even past the disabled button", async () => {
+    verifyReturns();
+    renderFlow(<UploadFormFlow />);
+    const form = (await screen.findByRole("button", { name: "Hochladen" })).closest(
+      "form",
+    ) as HTMLElement;
+    fireEvent.submit(form);
+    expect(await screen.findByText("Bitte wähle eine Datei aus.")).toBeInTheDocument();
+  });
+
+  it("disables upload again once a chosen file is cleared", async () => {
+    verifyReturns();
+    const { user } = renderFlow(<UploadFormFlow />);
+    const input = await screen.findByLabelText("Datei");
+
+    await user.upload(input, new File(["%PDF"], "Anmeldebogen.pdf", { type: "application/pdf" }));
+    expect(screen.getByRole("button", { name: "Hochladen" })).toBeEnabled();
+
+    fireEvent.change(input, { target: { files: [] } });
+    expect(screen.getByRole("button", { name: "Hochladen" })).toBeDisabled();
+  });
 });
 
 describe("submit an event proposal", () => {
@@ -845,6 +868,41 @@ describe("submit an event proposal", () => {
     const error = await screen.findByRole("alert");
     expect(error).toHaveTextContent(/title/);
     expect(error).not.toHaveTextContent("[object Object]");
+  });
+
+  it("renders every choice with an empty list rather than crashing when a field is missing from /enums", async () => {
+    // The real endpoint serves every field, but nothing guarantees a deployment
+    // keeps them all in `ludwigsburgalpin.models` forever — each `Select` falls
+    // back to an empty option list rather than reading `undefined.find(...)`.
+    server.use(
+      http.get(api("/api/ludwigsburgalpin/public/enums"), () =>
+        HttpResponse.json({
+          ...TERMIN_ENUMS,
+          group: undefined,
+          category: undefined,
+          condition: undefined,
+          technik: undefined,
+          saison: undefined,
+          eventart: undefined,
+          klassifizierung: undefined,
+        }),
+      ),
+    );
+    const { user } = renderWithApp(<SubmitTerminFlow />, { authenticated: false });
+
+    await user.type(await screen.findByLabelText("Titel"), "Klettersteig Allgäu");
+    for (const label of [
+      "Gruppe",
+      "Kategorie",
+      "Kondition",
+      "Technik",
+      "Saison",
+      "Eventart",
+      "Klassifizierung",
+    ]) {
+      const trigger = screen.getByText(label).closest(".field")!.querySelector(".ss-trigger");
+      expect(trigger).toHaveTextContent("Auswählen…");
+    }
   });
 });
 

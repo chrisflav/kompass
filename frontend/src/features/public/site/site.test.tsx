@@ -220,6 +220,17 @@ describe("shared helpers", () => {
     // Whitespace in the member fields still falls through to the rendered name.
     expect(initials(person({ prename: " ", lastname: " ", name: "Änne Wirth" }))).toBe("ÄW");
   });
+
+  it("falls back to the one-letter member initial when the rendered name is blank", () => {
+    // `named` has only one letter (not the early-return two), and the `name`
+    // field contributes nothing — covers the middle `|| named ||` fallback,
+    // distinct from the all-blank case above that lands on "?".
+    expect(initials({ id: 1, prename: "Jo", lastname: "", name: "", image: null } as never)).toBe(
+      "J",
+    );
+    // A payload that omits `name` entirely rather than sending "".
+    expect(initials({ id: 2, prename: "Jo", lastname: "", image: null } as never)).toBe("J");
+  });
 });
 
 describe("public index", () => {
@@ -389,6 +400,43 @@ describe("public index", () => {
     renderWithApp(<PublicIndex />, anon);
     expect(await screen.findByText("Keine aktuellen Beiträge.")).toBeInTheDocument();
     expect(screen.getByText("Keine Berichte.")).toBeInTheDocument();
+  });
+
+  it("keeps ledger rows readable when a post's date is missing or malformed", async () => {
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({
+          recent_posts: [
+            { ...POST, id: 1, title: "Lead", urlname: "lead" },
+            { ...POST, id: 2, title: "Ohne Datum", urlname: "ohne-datum", date: null },
+            { ...POST, id: 3, title: "Komisches Datum", urlname: "komisch", date: "nicht-so" },
+          ],
+          reports: [],
+        }),
+      ),
+    );
+    const { container } = renderWithApp(<PublicIndex />, anon);
+
+    await screen.findByText("Lead");
+    const rows = container.querySelectorAll(".ledger-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Ohne Datum");
+    expect(rows[1]).toHaveTextContent("Komisches Datum");
+  });
+
+  it("keys a report's placeholder hillside by id when it carries no urlname", async () => {
+    server.use(
+      http.get(api("/api/startpage/public/index"), () =>
+        HttpResponse.json({
+          recent_posts: [],
+          reports: [{ ...POST, id: 9, title: "Ohne Namen", urlname: "", image: null }],
+        }),
+      ),
+    );
+    const { container } = renderWithApp(<PublicIndex />, anon);
+
+    await screen.findByText("Ohne Namen");
+    expect(container.querySelector("svg.figure-contour")).not.toBeNull();
   });
 });
 
@@ -760,6 +808,16 @@ describe("custom section page", () => {
     expect(await screen.findByRole("heading", { name: "Ausbildung" })).toBeInTheDocument();
     expect(screen.getByText("Jugendleiter")).toBeInTheDocument();
   });
+
+  it("asks for an empty section name rather than crashing when the route carries none", async () => {
+    server.use(
+      http.get(/\/api\/startpage\/public\/sections\/[^/]*$/, () =>
+        HttpResponse.json({ title: "Ohne Namen", website_text: null }),
+      ),
+    );
+    renderWithApp(<PublicSection />, { ...anon, route: "/bereich", path: "/bereich" });
+    expect(await screen.findByRole("heading", { name: "Ohne Namen" })).toBeInTheDocument();
+  });
 });
 
 describe("post detail", () => {
@@ -834,5 +892,15 @@ describe("post detail", () => {
     await screen.findByRole("heading", { name: "Skifreizeit 2026" });
     expect(screen.queryByText(/Februar/)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Gruppenmitglieder" })).not.toBeInTheDocument();
+  });
+
+  it("asks for empty section and post names rather than crashing when the route carries neither", async () => {
+    server.use(
+      http.get(/\/api\/startpage\/public\/sections\/[^/]*\/posts\/[^/]*$/, () =>
+        HttpResponse.json({ ...DETAIL, title: "Ohne Parameter" }),
+      ),
+    );
+    renderWithApp(<PublicPost />, { ...route, route: "/beitrag", path: "/beitrag" });
+    expect(await screen.findByRole("heading", { name: "Ohne Parameter" })).toBeInTheDocument();
   });
 });
