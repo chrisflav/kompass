@@ -19,6 +19,8 @@ import {
 } from "../../test/utils";
 
 const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
+const dropdownOption = (name: string) =>
+  waitFor(() => dropdown().getByRole("button", { name }));
 
 const CATEGORIES = [
   { id: 1, name: "Seile" },
@@ -122,7 +124,6 @@ describe("material — Kategorien", () => {
       ),
       http.get(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
       http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
     const { user } = renderRoute("/kompass/material/categories/1");
@@ -226,24 +227,20 @@ const PART_BRIEF = {
   id: 4,
   name: "Halbseil 60m",
   description: "Rot",
-  quantity: 2,
-  quantity_real: "2 / 2",
   buy_date: "2024-03-01",
   lifetime: "10.0",
   not_too_old: true,
-  owners: [{ owner_name: "Mila Nowak", count: 2 }],
+  owner: { id: 11, name: "Mila Nowak" } as { id: number; name: string } | null,
 };
 
 const PART = {
   id: 4,
   name: "Halbseil 60m",
   description: "Rot",
-  quantity: 2,
-  quantity_real: "2 / 2",
   buy_date: "2024-03-01",
   lifetime: "10.0",
   not_too_old: true,
-  owners: [{ owner_name: "Mila Nowak", count: 2 }],
+  owner: { id: 11, name: "Mila Nowak" },
   categories: [{ id: 1, name: "Seile" }],
   photo: null,
 };
@@ -253,6 +250,7 @@ describe("material — Material", () => {
     server.use(
       http.get(api("/api/material/parts"), () => HttpResponse.json(rows)),
       http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
+      http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
   }
 
@@ -260,7 +258,6 @@ describe("material — Material", () => {
     server.use(
       http.get(api("/api/material/parts/4"), () => HttpResponse.json({ ...PART, ...overrides })),
       http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () =>
         HttpResponse.json([
           { id: 7, name: "Hannah Beckers" },
@@ -301,7 +298,7 @@ describe("material — Material", () => {
         id: 5,
         name: "Altes Seil",
         not_too_old: false,
-        owners: [{ owner_name: "Tobias Werner", count: 1 }],
+        owner: { id: 9, name: "Tobias Werner" },
       },
     ]);
     const { user } = renderRoute("/kompass/material");
@@ -316,12 +313,20 @@ describe("material — Material", () => {
     await user.click(screen.getByRole("button", { name: /Besitzer:/ }));
     await user.click(dropdown().getByRole("button", { name: "Tobias Werner" }));
     await waitFor(() => expect(screen.queryByText("Halbseil 60m")).not.toBeInTheDocument());
+    expect(screen.getByText("Altes Seil")).toBeInTheDocument();
+  });
+
+  it("shows an em dash for a part nobody holds", async () => {
+    listReturns([{ ...PART_BRIEF, owner: null }]);
+    renderRoute("/kompass/material");
+    await screen.findByText("Halbseil 60m");
+    expect(screen.getByRole("table").textContent).toContain("—");
   });
 
   it("sorts by every column in both directions", async () => {
     listReturns([
       PART_BRIEF,
-      { ...PART_BRIEF, id: 5, name: "Klettergurt", description: "", owners: [] },
+      { ...PART_BRIEF, id: 5, name: "Klettergurt", description: "", owner: null },
     ]);
     const { user } = renderRoute("/kompass/material");
     await screen.findByText("Halbseil 60m");
@@ -350,8 +355,7 @@ describe("material — Material", () => {
         return HttpResponse.json(PART);
       }),
       http.get(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
-      http.get(api("/api/members/"), () => HttpResponse.json([])),
+      http.get(api("/api/members/"), () => HttpResponse.json([{ id: 11, name: "Mila Nowak" }])),
     );
     const { user } = renderRoute("/kompass/material");
     await user.click(await screen.findByRole("button", { name: "Neues Material" }));
@@ -359,8 +363,8 @@ describe("material — Material", () => {
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText("Name"), "Halbseil 60m");
     await user.type(dialog.getByLabelText("Beschreibung"), "Rot");
-    await user.clear(dialog.getByLabelText("Anzahl"));
-    await user.type(dialog.getByLabelText("Anzahl"), "2");
+    await user.click(dialog.getByRole("button", { name: /Besitzer/ }));
+    await user.click(await dropdownOption("Mila Nowak"));
     await user.type(dialog.getByLabelText("Kaufdatum"), "2024-03-01");
     await user.clear(dialog.getByLabelText(/Lebenszeit/));
     await user.type(dialog.getByLabelText(/Lebenszeit/), "10");
@@ -376,25 +380,27 @@ describe("material — Material", () => {
     expect(fields).toMatchObject({
       name: "Halbseil 60m",
       description: "Rot",
-      quantity: "2",
       buy_date: "2024-03-01",
       lifetime: "10",
       material_cat: "1",
+      owner: "11",
     });
     expect(await screen.findByText("Material angelegt.")).toBeInTheDocument();
   });
 
-  it("creates a part without a photo", async () => {
+  it("creates a part without a photo and without an owner", async () => {
     useMe({ permissions: ["material.add_materialpart"] });
     listReturns();
     let files: string[] = ["unset"];
+    let fields: Record<string, string> = {};
     server.use(
       http.post(api("/api/material/parts"), async ({ request }) => {
+        const clone = request.clone();
         files = await multipartFilenames(request);
+        fields = await multipartFields(clone);
         return HttpResponse.json(PART);
       }),
       http.get(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
       http.get(api("/api/members/"), () => HttpResponse.json([])),
     );
     const { user } = renderRoute("/kompass/material");
@@ -407,6 +413,7 @@ describe("material — Material", () => {
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
 
     await waitFor(() => expect(files).toEqual([]));
+    expect(fields).not.toHaveProperty("owner");
   });
 
   it("shows server field errors on the create form and closes on Abbrechen", async () => {
@@ -417,7 +424,7 @@ describe("material — Material", () => {
         djangoValidation({
           name: ["Der Name fehlt."],
           description: ["Zu lang."],
-          quantity: ["Muss positiv sein."],
+          owner: ["Unbekannt."],
           buy_date: ["Ungültiges Datum."],
           lifetime: ["Ungültig."],
           material_cat: ["Unbekannte Kategorie."],
@@ -435,7 +442,7 @@ describe("material — Material", () => {
 
     expect(await screen.findAllByText("Der Name fehlt.")).not.toHaveLength(0);
     expect(screen.getByText("Zu lang.")).toBeInTheDocument();
-    expect(screen.getByText("Muss positiv sein.")).toBeInTheDocument();
+    expect(screen.getByText("Unbekannt.")).toBeInTheDocument();
     expect(screen.getByText("Ungültiges Datum.")).toBeInTheDocument();
     expect(screen.getByText("Ungültig.")).toBeInTheDocument();
     expect(screen.getByText("Unbekannte Kategorie.")).toBeInTheDocument();
@@ -444,11 +451,12 @@ describe("material — Material", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("shows the part with its categories and condition", async () => {
+  it("shows the part with its owner, categories and condition", async () => {
     detailReturns();
     renderRoute("/kompass/material/4");
     // The name appears in the breadcrumb and in the Name row.
     expect(await screen.findAllByText("Halbseil 60m")).toHaveLength(2);
+    expect(screen.getByText("Mila Nowak")).toBeInTheDocument();
     expect(screen.getByText("Seile")).toBeInTheDocument();
     expect(screen.getByText("In Ordnung")).toBeInTheDocument();
     expect(screen.getByText("Kein Foto hinterlegt.")).toBeInTheDocument();
@@ -490,7 +498,8 @@ describe("material — Material", () => {
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toMatchObject({ name: "Halbseil 70m", material_cat: [1, 2] });
+    // The owner is left alone, and sent as it was.
+    expect(patched).toMatchObject({ name: "Halbseil 70m", material_cat: [1, 2], owner: 11 });
     expect(patched).not.toHaveProperty("photo");
     expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
   });
@@ -554,105 +563,42 @@ describe("material — Material", () => {
     expect(await screen.findByText("Die Datei ist zu groß.")).toBeInTheDocument();
   });
 
-  it("stages a new responsible person and creates it on save", async () => {
-    detailReturns();
-    let created: Record<string, unknown> | null = null;
-    server.use(
-      http.patch(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.post(api("/api/material/ownerships"), async ({ request }) => {
-        created = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 30 });
-      }),
-    );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-
-    expect(await screen.findByText("Keine Verantwortlichen eingetragen.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "+ Verantwortliche:r" }));
-
-    const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
-    await user.click(dialog.getByRole("button", { name: "Besitzer" }));
-    await user.click(dropdown().getByRole("button", { name: "Tobias Werner" }));
-    await user.clear(dialog.getByLabelText("Anzahl"));
-    await user.type(dialog.getByLabelText("Anzahl"), "3");
-    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
-
-    expect(created).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-
-    await waitFor(() => expect(created).not.toBeNull());
-    expect(created).toEqual({ material: 4, owner: 9, count: 3 });
-  });
-
-  it("edits and removes an existing responsible person on save", async () => {
+  it("hands the part to another owner on save", async () => {
     detailReturns();
     let patched: Record<string, unknown> | null = null;
-    let deleted = false;
     server.use(
-      http.get(api("/api/material/ownerships"), () =>
-        HttpResponse.json([
-          { id: 30, material: { id: 4 }, owner: { id: 11, name: "Mila Nowak" }, count: 2 },
-          { id: 31, material: { id: 99 }, owner: { id: 9, name: "Fremd" }, count: 1 },
-        ]),
-      ),
-      http.patch(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.patch(api("/api/material/ownerships/30"), async ({ request }) => {
+      http.patch(api("/api/material/parts/4"), async ({ request }) => {
         patched = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 30 });
-      }),
-      http.delete(api("/api/material/ownerships/30"), () => {
-        deleted = true;
-        return new HttpResponse(null, { status: 204 });
+        return HttpResponse.json(PART);
       }),
     );
     const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-
-    // Only this part's ownership is listed.
-    expect(await screen.findByText("Mila Nowak")).toBeInTheDocument();
-    expect(screen.queryByText("Fremd")).not.toBeInTheDocument();
-
-    // The part's own "Anzahl" field also holds 2; take the inline table's.
-    const count = within(screen.getByRole("table")).getByDisplayValue("2");
-    await user.clear(count);
-    await user.type(count, "5");
+    await user.click(screen.getByRole("button", { name: /Besitzer/ }));
+    await user.click(await dropdownOption("Tobias Werner"));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(patched).toEqual({ count: 5 }));
 
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-    await user.click(await screen.findByRole("button", { name: "Entfernen" }));
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(deleted).toBe(true));
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toMatchObject({ owner: 9 });
   });
 
-  it("reports a failed inline flush without losing the drafts", async () => {
+  it("clears the owner on save", async () => {
     detailReturns();
+    let patched: Record<string, unknown> | null = null;
     server.use(
-      http.patch(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.post(api("/api/material/ownerships"), () =>
-        djangoValidation({ count: ["Mehr als vorhanden."] }),
-      ),
+      http.patch(api("/api/material/parts/4"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(PART);
+      }),
     );
     const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-    await user.click(await screen.findByRole("button", { name: "+ Verantwortliche:r" }));
-
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "Besitzer" }));
-    await user.click(dropdown().getByRole("button", { name: "Hannah Beckers" }));
-    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+    await user.click(screen.getByRole("button", { name: /Besitzer/ }));
+    await user.click(await dropdownOption("Kein Besitzer"));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
-    expect(
-      await screen.findByText(/Ein verknüpfter Eintrag konnte nicht gespeichert werden/),
-    ).toBeInTheDocument();
-    // Still in edit mode with the staged row intact.
-    expect(screen.getByRole("button", { name: "Speichern" })).toBeInTheDocument();
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toMatchObject({ owner: null });
   });
 
   it("deletes a part once confirmed", async () => {
@@ -704,6 +650,7 @@ function partListReturns(rows: unknown[] = [PART_BRIEF]) {
   server.use(
     http.get(api("/api/material/parts"), () => HttpResponse.json(rows)),
     http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
+    http.get(api("/api/members/"), () => HttpResponse.json([])),
   );
 }
 
@@ -711,7 +658,6 @@ function partDetailReturns(overrides: Record<string, unknown> = {}) {
   server.use(
     http.get(api("/api/material/parts/4"), () => HttpResponse.json({ ...PART, ...overrides })),
     http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-    http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
     http.get(api("/api/members/"), () =>
       HttpResponse.json([
         { id: 7, name: "Hannah Beckers" },
@@ -745,33 +691,6 @@ describe("material — remaining paths", () => {
     const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
-  });
-
-  it("closes the responsible-person dialog with ×", async () => {
-    partDetailReturns();
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-    await user.click(await screen.findByRole("button", { name: "+ Verantwortliche:r" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
-    );
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  });
-
-  it("shows an em dash for a responsible person with no name", async () => {
-    partDetailReturns();
-    server.use(
-      http.get(api("/api/material/ownerships"), () =>
-        HttpResponse.json([
-          { id: 30, material: { id: 4 }, owner: { id: 11, name: "" }, count: 1 },
-        ]),
-      ),
-    );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("tab", { name: "Verantwortliche" }));
-    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
-    await waitFor(() => expect(panel.textContent).toContain("—"));
   });
 
   it("opens a category from its row and closes the create modal with ×", async () => {
@@ -808,7 +727,7 @@ describe("material — every field", () => {
     const { user } = renderRoute("/kompass/material/4");
     await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
 
-    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
+    const panel = document.querySelector("form") as HTMLElement;
     await fillEveryField(user, panel);
     await pickEverySelect(user, panel);
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -817,9 +736,10 @@ describe("material — every field", () => {
     expect(patched).toMatchObject({
       name: "Text",
       description: "Text",
-      quantity: 3,
       buy_date: "2026-03-04",
       lifetime: "3",
+      // The first owner option is "Kein Besitzer".
+      owner: null,
     });
   });
 
@@ -828,7 +748,7 @@ describe("material — every field", () => {
       description: "",
       buy_date: null,
       categories: [],
-      owners: [],
+      owner: null,
       photo: null,
     });
     renderRoute("/kompass/material/4");
@@ -858,7 +778,6 @@ describe("material — every field", () => {
     expect(fields).toMatchObject({
       name: "Text",
       description: "Text",
-      quantity: "3",
       buy_date: "2026-03-04",
       lifetime: "3",
     });

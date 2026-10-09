@@ -70,10 +70,6 @@ MATERIAL_PERMS = [
     ("material", "change_materialcategory"),
     ("material", "add_materialcategory"),
     ("material", "delete_materialcategory"),
-    ("material", "view_ownership"),
-    ("material", "change_ownership"),
-    ("material", "add_ownership"),
-    ("material", "delete_ownership"),
 ]
 
 

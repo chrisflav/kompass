@@ -24,33 +24,31 @@ class MaterialCategory(models.Model):
         verbose_name_plural = _("Material categories")
 
 
-# Create your models here.
 class MaterialPart(models.Model):
     """
-    Represents one part of material, which is owned (and stored) by different
-    members of the association (Ownership)
+    Represents one physical piece of material. A piece is owned (and stored) by
+    at most one member of the association.
     """
 
     name = models.CharField(_("name"), max_length=30)
     description = models.CharField(_("description"), default="", max_length=140)
-    quantity = models.IntegerField(_("quantity"), default=0)
     buy_date = models.DateField(_("purchase date"), editable=True)
     lifetime = models.DecimalField(_("lifetime (years)"), decimal_places=0, max_digits=3)
     photo = models.ImageField(_("photo"), upload_to="images", blank=True)
     material_cat = models.ManyToManyField(
         MaterialCategory, default=None, verbose_name=_("Material category")
     )
+    owner = models.ForeignKey(
+        "members.Member",
+        verbose_name=_("owner"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
 
     def __str__(self):
         """String representation"""
         return self.name
-
-    def quantity_real(self):
-        real = sum([o.count for o in Ownership.objects.filter(material__id=self.pk)])
-        return str(real) + "/" + str(self.quantity)
-
-    quantity_real.admin_order_field = "quantity"
-    quantity_real.short_description = _("Quantity")
 
     def admin_thumbnail(self):
         if self.photo:
@@ -64,14 +62,6 @@ class MaterialPart(models.Model):
 
     admin_thumbnail.short_description = _("Thumbnail")
 
-    def ownership_overview(self):
-        summary = ""
-        for owner in self.ownership_set.all():
-            summary += "<p>{}: {}</p>".format(str(owner.owner), owner.count)
-        return format_html(summary)
-
-    ownership_overview.short_description = _("Owners")
-
     def not_too_old(self):
         """Returns wether the part should be replaced cause of age"""
         buy_time = timezone.make_aware(datetime.combine(self.buy_date, datetime.min.time()))
@@ -84,22 +74,6 @@ class MaterialPart(models.Model):
     class Meta:
         verbose_name = _("material part")
         verbose_name_plural = _("material parts")
-
-
-class Ownership(models.Model):
-    """Represents the connection between a MaterialPart and a Member"""
-
-    material = models.ForeignKey(MaterialPart, on_delete=models.CASCADE)
-    owner = models.ForeignKey("members.Member", verbose_name=_("owner"), on_delete=models.CASCADE)
-    count = models.IntegerField(_("count"), default=1)
-
-    def __str__(self):
-        """String representation"""
-        return str(self.owner)
-
-    class Meta:
-        verbose_name = _("ownership")
-        verbose_name_plural = _("ownerships")
 
 
 def yearsago(years, from_date=None):

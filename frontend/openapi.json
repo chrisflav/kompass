@@ -6412,11 +6412,6 @@
                     "title": "Description",
                     "type": "string"
                   },
-                  "quantity": {
-                    "default": 0,
-                    "title": "Quantity",
-                    "type": "integer"
-                  },
                   "buy_date": {
                     "format": "date",
                     "title": "Buy Date",
@@ -6441,6 +6436,17 @@
                     },
                     "title": "Material Cat",
                     "type": "array"
+                  },
+                  "owner": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Owner"
                   },
                   "photo": {
                     "format": "binary",
@@ -6627,182 +6633,6 @@
           },
           "required": true
         },
-        "security": [
-          {
-            "OAuth2Bearer": []
-          }
-        ]
-      }
-    },
-    "/api/material/ownerships": {
-      "get": {
-        "operationId": "material_api_router_list_ownerships",
-        "summary": "List Ownerships",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/OwnershipOut"
-                  },
-                  "title": "Response",
-                  "type": "array"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "material"
-        ],
-        "security": [
-          {
-            "OAuth2Bearer": []
-          }
-        ]
-      },
-      "post": {
-        "operationId": "material_api_router_create_ownership",
-        "summary": "Create Ownership",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OwnershipOut"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "material"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "security": [
-          {
-            "OAuth2Bearer": []
-          }
-        ]
-      }
-    },
-    "/api/material/ownerships/{ownership_id}": {
-      "get": {
-        "operationId": "material_api_router_retrieve_ownership",
-        "summary": "Retrieve Ownership",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "ownership_id",
-            "schema": {
-              "title": "Ownership Id",
-              "type": "integer"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OwnershipOut"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "material"
-        ],
-        "security": [
-          {
-            "OAuth2Bearer": []
-          }
-        ]
-      },
-      "patch": {
-        "operationId": "material_api_router_update_ownership",
-        "summary": "Update Ownership",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "ownership_id",
-            "schema": {
-              "title": "Ownership Id",
-              "type": "integer"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OwnershipOut"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "material"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OwnershipUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "security": [
-          {
-            "OAuth2Bearer": []
-          }
-        ]
-      },
-      "delete": {
-        "operationId": "material_api_router_delete_ownership",
-        "summary": "Delete Ownership",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "ownership_id",
-            "schema": {
-              "title": "Ownership Id",
-              "type": "integer"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "tags": [
-          "material"
-        ],
         "security": [
           {
             "OAuth2Bearer": []
@@ -16786,20 +16616,19 @@
             ],
             "title": "Photo"
           },
-          "quantity_real": {
-            "title": "Quantity Real",
-            "type": "string"
-          },
           "not_too_old": {
             "title": "Not Too Old",
             "type": "boolean"
           },
-          "owners": {
-            "items": {
-              "$ref": "#/components/schemas/PartOwnerBrief"
-            },
-            "title": "Owners",
-            "type": "array"
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "maxLength": 30,
@@ -16811,11 +16640,6 @@
             "maxLength": 140,
             "title": "Description",
             "type": "string"
-          },
-          "quantity": {
-            "default": 0,
-            "title": "Quantity",
-            "type": "integer"
           },
           "buy_date": {
             "format": "date",
@@ -16830,43 +16654,12 @@
         },
         "required": [
           "id",
-          "quantity_real",
           "not_too_old",
-          "owners",
           "name",
           "buy_date",
           "lifetime"
         ],
         "title": "MaterialPartBrief",
-        "type": "object"
-      },
-      "PartOwnerBrief": {
-        "description": "One ownership row as shown on a part (reproduces ``ownership_overview``).\n\nResolved from an ``Ownership`` instance. ``owner_id`` is exposed for editing\n(the SPA can PATCH/create via the ``/ownerships`` endpoints), ``owner_name``\nfor display. Named distinctly from ``OwnershipOut`` so ninja does not collide\nOpenAPI component keys.",
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "owner_id": {
-            "title": "Owner Id",
-            "type": "integer"
-          },
-          "owner_name": {
-            "title": "Owner Name",
-            "type": "string"
-          },
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "owner_id",
-          "owner_name",
-          "count"
-        ],
-        "title": "PartOwnerBrief",
         "type": "object"
       },
       "MaterialPartOut": {
@@ -16886,10 +16679,6 @@
             ],
             "title": "Photo"
           },
-          "quantity_real": {
-            "title": "Quantity Real",
-            "type": "string"
-          },
           "not_too_old": {
             "title": "Not Too Old",
             "type": "boolean"
@@ -16901,12 +16690,15 @@
             "title": "Categories",
             "type": "array"
           },
-          "owners": {
-            "items": {
-              "$ref": "#/components/schemas/PartOwnerBrief"
-            },
-            "title": "Owners",
-            "type": "array"
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "maxLength": 30,
@@ -16918,11 +16710,6 @@
             "maxLength": 140,
             "title": "Description",
             "type": "string"
-          },
-          "quantity": {
-            "default": 0,
-            "title": "Quantity",
-            "type": "integer"
           },
           "buy_date": {
             "format": "date",
@@ -16937,10 +16724,8 @@
         },
         "required": [
           "id",
-          "quantity_real",
           "not_too_old",
           "categories",
-          "owners",
           "name",
           "buy_date",
           "lifetime"
@@ -16958,11 +16743,6 @@
             "default": "",
             "title": "Description",
             "type": "string"
-          },
-          "quantity": {
-            "default": 0,
-            "title": "Quantity",
-            "type": "integer"
           },
           "buy_date": {
             "format": "date",
@@ -16988,6 +16768,17 @@
             },
             "title": "Material Cat",
             "type": "array"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
           }
         },
         "required": [
@@ -17022,17 +16813,6 @@
               }
             ],
             "title": "Description"
-          },
-          "quantity": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Quantity"
           },
           "buy_date": {
             "anyOf": [
@@ -17074,72 +16854,6 @@
               }
             ],
             "title": "Material Cat"
-          }
-        },
-        "title": "MaterialPartUpdate",
-        "type": "object"
-      },
-      "OwnershipOut": {
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "owner": {
-            "$ref": "#/components/schemas/MemberBrief"
-          },
-          "material": {
-            "$ref": "#/components/schemas/MaterialPartRef"
-          },
-          "count": {
-            "default": 1,
-            "title": "Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "owner",
-          "material"
-        ],
-        "title": "OwnershipOut",
-        "type": "object"
-      },
-      "OwnershipIn": {
-        "properties": {
-          "material": {
-            "title": "Material",
-            "type": "integer"
-          },
-          "owner": {
-            "title": "Owner",
-            "type": "integer"
-          },
-          "count": {
-            "default": 1,
-            "title": "Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "material",
-          "owner"
-        ],
-        "title": "OwnershipIn",
-        "type": "object"
-      },
-      "OwnershipUpdate": {
-        "properties": {
-          "material": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Material"
           },
           "owner": {
             "anyOf": [
@@ -17151,20 +16865,9 @@
               }
             ],
             "title": "Owner"
-          },
-          "count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Count"
           }
         },
-        "title": "OwnershipUpdate",
+        "title": "MaterialPartUpdate",
         "type": "object"
       },
       "TerminEnumChoice": {

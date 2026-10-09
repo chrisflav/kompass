@@ -4,27 +4,12 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import MaterialCategory
 from .models import MaterialPart
-from .models import Ownership
 
 # from easy_select2 import apply_select2
 
 
 class MaterialCategoryAdmin(admin.ModelAdmin):
     fields = ["name"]
-
-
-# Register your models here.
-class OwnershipInline(admin.TabularInline):
-    """
-    This shows the ownership selection directly in the MaterialPart edit
-    view
-    """
-
-    model = Ownership
-    extra = 0
-    # formfield_overrides = {
-    #    models.ForeignKey: {'widget': apply_select2(forms.Select)}
-    # }
 
 
 class NotTooOldFilter(SimpleListFilter):
@@ -50,16 +35,15 @@ class MaterialAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "description",
-        "quantity_real",
-        "ownership_overview",
+        "owner",
         "buy_date",
         "lifetime",
         "not_too_old",
         "admin_thumbnail",
     )
     search_fields = ("name", "description")
-    inlines = [OwnershipInline]
-    list_filter = (NotTooOldFilter, "material_cat", "ownership__owner")
+    autocomplete_fields = ["owner"]
+    list_filter = (NotTooOldFilter, "material_cat", "owner")
     # formfield_overrides = {
     #    models.ManyToManyField: {'widget': forms.CheckboxSelectMultiple}
     # }

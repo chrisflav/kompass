@@ -5,8 +5,7 @@
 		"fields": {
 			"name": "Seil 40m grün",
 			"buy_date": "2016-01-01",
-			"lifetime": "3",
-			"quantity": "3"
+			"lifetime": "3"
 		}
 	},
 	{
@@ -15,8 +14,7 @@
 		"fields": {
 			"name": "Seil 40m blau",
 			"buy_date": "2012-01-01",
-			"lifetime": "3",
-			"quantity": "10"
+			"lifetime": "3"
 		}
 	},
 	{
@@ -25,8 +23,7 @@
 		"fields": {
 			"name": "Seil 60m gelb",
 			"buy_date": "2013-01-01",
-			"lifetime": "3",
-			"quantity": "5"
+			"lifetime": "3"
 		}
 	},
 	{
@@ -35,8 +32,7 @@
 		"fields": {
 			"name": "Seil 60m blau",
 			"buy_date": "2016-01-01",
-			"lifetime": "3",
-			"quantity": "2"
+			"lifetime": "3"
 		}
 	}
 ]

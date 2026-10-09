@@ -6,8 +6,6 @@ import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
-import { InlineTable } from "../../components/inline";
-import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
 import {
   Badge,
   Button,
@@ -20,7 +18,6 @@ import {
   PageHeader,
   QueryBoundary,
   Select,
-  Tabs,
   type DetailRow,
   useConfirmDialog,
   useToast,
@@ -29,13 +26,34 @@ import type { components } from "../../api/schema";
 
 type MaterialPartBrief = components["schemas"]["MaterialPartBrief"];
 type MaterialPartOut = components["schemas"]["MaterialPartOut"];
-type PartOwnerBrief = components["schemas"]["PartOwnerBrief"];
-type OwnershipIn = components["schemas"]["OwnershipIn"];
 
-/** Joined "Besitzer: Anzahl" rendering of the ownership overview. */
-function ownersText(owners: PartOwnerBrief[]): string {
-  if (!owners.length) return "—";
-  return owners.map((o) => `${o.owner_name}: ${o.count}`).join(", ");
+/** Owner options for a part: every member, plus "no owner". */
+function useOwnerOptions(enabled: boolean) {
+  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
+    enabled,
+  });
+  return (members.data ?? []).map((m) => ({ value: m.id, label: m.name }));
+}
+
+function OwnerSelect({
+  value,
+  onChange,
+  options,
+}: {
+  value: number | null;
+  onChange: (owner: number | null) => void;
+  options: { value: number; label: string }[];
+}) {
+  return (
+    <Select
+      value={value === null ? "" : String(value)}
+      onChange={(v) => onChange(v === "" ? null : Number(v))}
+      options={options}
+      placeholder="Kein Besitzer"
+      allowEmpty
+      emptyLabel="Kein Besitzer"
+    />
+  );
 }
 
 /* --- list ---------------------------------------------------------------- */
@@ -49,11 +67,13 @@ export function PartsList() {
   );
   const rows = query.data ?? [];
 
-  // Owner filter options built from the ownership overview already on each row.
+  // Owner filter options built from the owners already on the rows.
   const ownerOptions = useMemo(() => {
-    const names = new Set<string>();
-    rows.forEach((p) => p.owners.forEach((o) => names.add(o.owner_name)));
-    return [...names].sort().map((n) => ({ value: n, label: n }));
+    const owners = new Map<number, string>();
+    rows.forEach((p) => p.owner && owners.set(p.owner.id, p.owner.name));
+    return [...owners]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => ({ value: String(id), label: name }));
   }, [rows]);
 
   const config: ListViewConfig<MaterialPartBrief> = useMemo(
@@ -72,12 +92,12 @@ export function PartsList() {
           ],
           match: (p, v) => (v === "ok") === Boolean(p.not_too_old),
         },
-        // Admin list_filter = ownership__owner. Matched client-side over owners[].
+        // Admin list_filter = owner.
         {
           key: "owner",
           label: "Besitzer",
           options: ownerOptions,
-          match: (p, v) => p.owners.some((o) => o.owner_name === v),
+          match: (p, v) => String(p.owner?.id) === v,
         },
         // BACKEND-GAP: admin also has a material_cat (category) filter, but
         // MaterialPartBrief does not expose categories, so a category filter
@@ -86,8 +106,7 @@ export function PartsList() {
       sort: {
         name: (p) => p.name,
         description: (p) => p.description,
-        // admin_order_field: quantity_real column orders by quantity.
-        quantity: (p) => p.quantity,
+        owner: (p) => p.owner?.name ?? "",
         buy_date: (p) => p.buy_date,
         lifetime: (p) => Number(p.lifetime),
       },
@@ -133,8 +152,7 @@ export function PartsList() {
             columns={[
               { header: "Name", cell: (p) => p.name, sortKey: "name" },
               { header: "Beschreibung", cell: (p) => p.description || "—", sortKey: "description" },
-              { header: "Anzahl", cell: (p) => p.quantity_real, sortKey: "quantity" },
-              { header: "Besitzer", cell: (p) => ownersText(p.owners) },
+              { header: "Besitzer", cell: (p) => p.owner?.name ?? "—", sortKey: "owner" },
               { header: "Kaufdatum", cell: (p) => formatDate(p.buy_date), sortKey: "buy_date" },
               { header: "Lebenszeit", cell: (p) => p.lifetime, sortKey: "lifetime" },
               {
@@ -188,7 +206,7 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
     unwrap(client.GET("/api/material/categories")),
   );
 
-  const { getRegistrar, runFlushes } = useFlushRegistry();
+  const ownerOptions = useOwnerOptions(editing);
   const [saving, setSaving] = useState(false);
 
   const mutation = useApiMutation(
@@ -201,10 +219,10 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
           body: {
             name: body.name,
             description: body.description,
-            quantity: body.quantity,
             buy_date: body.buy_date,
             lifetime: body.lifetime,
             material_cat: body.material_cat,
+            owner: body.owner,
           },
         }),
       ),
@@ -267,19 +285,6 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
       ),
     },
     {
-      label: "Anzahl",
-      field: "quantity",
-      value: part.quantity,
-      edit: (
-        <input
-          type="number"
-          value={form.quantity}
-          onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-        />
-      ),
-    },
-    { label: "Anzahl (zugeordnet / gesamt)", value: part.quantity_real },
-    {
       label: "Kaufdatum",
       field: "buy_date",
       value: formatDate(part.buy_date),
@@ -314,7 +319,15 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
     },
     {
       label: "Besitzer",
-      value: ownersText(part.owners),
+      field: "owner",
+      value: part.owner?.name ?? "—",
+      edit: (
+        <OwnerSelect
+          value={form.owner}
+          onChange={(owner) => setForm({ ...form, owner })}
+          options={ownerOptions}
+        />
+      ),
     },
     {
       label: "Kategorien",
@@ -350,7 +363,6 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
           setSaving(true);
           try {
             await mutation.mutateAsync(form);
-            await runFlushes();
             toast.success("Gespeichert.");
             setEditing(false);
           } catch (err) {
@@ -405,20 +417,7 @@ function PartDetailBody({ part }: { part: MaterialPartOut }) {
             )
           }
         />
-        <Tabs
-          tabs={[
-            {
-              id: "details",
-              label: "Details",
-              content: <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />,
-            },
-            {
-              id: "verantwortliche",
-              label: "Verantwortliche",
-              content: <PartOwnerships part={part} editing={editing} registerFlush={getRegistrar("ownerships")} />,
-            },
-          ]}
-        />
+        <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
       </form>
       <PartPhoto part={part} />
     </>
@@ -485,159 +484,14 @@ function PartPhoto({ part }: { part: MaterialPartOut }) {
   );
 }
 
-/* --- ownerships (admin OwnershipInline: owner + count) ------------------- */
-
-type OwnershipData = { owner_id: number | null; owner_name: string; count: number };
-
-function PartOwnerships({
-  part,
-  editing,
-  registerFlush,
-}: {
-  part: MaterialPartOut;
-  editing: boolean;
-  registerFlush: (fn: () => Promise<void>) => void;
-}) {
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
-    enabled: editing,
-  });
-  const memberOptions = members.data ?? [];
-
-  // The ownerships endpoint returns every row; keep only this part's.
-  const ownershipsQuery = useApiQuery(["material", "ownerships"], () =>
-    unwrap(client.GET("/api/material/ownerships")),
-  );
-  const serverRows = (ownershipsQuery.data ?? [])
-    .filter((o) => o.material.id === part.id)
-    .map((o) => ({
-      id: o.id,
-      data: { owner_id: o.owner.id, owner_name: o.owner.name, count: o.count } as OwnershipData,
-    }));
-
-  const invalidate = [
-    ["material", "ownerships"],
-    ["material", "parts"],
-    ["material", "parts", part.id],
-  ];
-  const addM = useApiMutation(
-    (body: OwnershipIn) => unwrap(client.POST("/api/material/ownerships", { body })),
-    { invalidate },
-  );
-  const updateM = useApiMutation(
-    ({ id, count }: { id: number; count: number }) =>
-      unwrap(
-        client.PATCH("/api/material/ownerships/{ownership_id}", {
-          params: { path: { ownership_id: id } },
-          body: { count },
-        }),
-      ),
-    { invalidate },
-  );
-  const removeM = useApiMutation(
-    (id: number) =>
-      unwrap(
-        client.DELETE("/api/material/ownerships/{ownership_id}", {
-          params: { path: { ownership_id: id } },
-        }),
-      ),
-    { invalidate },
-  );
-
-  const { rows, setRow, removeRow, addRow } = useInlineDraft<OwnershipData>({
-    serverRows,
-    editing,
-    create: (d) => addM.mutateAsync({ material: part.id, owner: d.owner_id ?? 0, count: d.count }),
-    update: (id, d) => updateM.mutateAsync({ id, count: d.count }),
-    remove: (id) => removeM.mutateAsync(id),
-    registerFlush,
-  });
-  const [adding, setAdding] = useState<OwnershipData | null>(null);
-
-  return (
-    <>
-      <InlineTable
-        title="Verantwortliche"
-        rows={rows}
-        rowKey={(row) => row.key}
-        editing={editing}
-        empty="Keine Verantwortlichen eingetragen."
-        onDelete={(row) => removeRow(row)}
-        onAdd={() => setAdding({ owner_id: null, owner_name: "", count: 1 })}
-        addLabel="Verantwortliche:r"
-        columns={[
-          { header: "Besitzer", cell: (row) => row.data.owner_name || "—" },
-          {
-            header: "Anzahl",
-            cell: (row) =>
-              editing ? (
-                <input
-                  type="number"
-                  min={1}
-                  value={row.data.count}
-                  onChange={(e) => setRow(row, { ...row.data, count: Number(e.target.value) })}
-                  style={{ width: "5rem" }}
-                />
-              ) : (
-                row.data.count
-              ),
-          },
-        ]}
-      />
-      {adding && (
-        <Modal title="Verantwortliche:n hinzufügen" onClose={() => setAdding(null)} size="sm">
-          <div className="stack">
-            <Field label="Besitzer">
-              <Select
-                value={adding.owner_id === null ? "" : String(adding.owner_id)}
-                onChange={(v) =>
-                  setAdding({
-                    ...adding,
-                    owner_id: v === "" ? null : Number(v),
-                    owner_name: memberOptions.find((m) => String(m.id) === v)?.name ?? "",
-                  })
-                }
-                options={memberOptions.map((m) => ({ value: m.id, label: m.name }))}
-                placeholder="Teilnehmende wählen…"
-              />
-            </Field>
-            <Field label="Anzahl">
-              <input
-                type="number"
-                min={1}
-                value={adding.count}
-                onChange={(e) => setAdding({ ...adding, count: Number(e.target.value) })}
-              />
-            </Field>
-            <div className="row-actions">
-              <Button
-                type="button"
-                disabled={adding.owner_id === null}
-                onClick={() => {
-                  addRow(adding);
-                  setAdding(null);
-                }}
-              >
-                Hinzufügen
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
-                Abbrechen
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </>
-  );
-}
-
 function partToForm(part: MaterialPartOut) {
   return {
     name: part.name,
     description: part.description,
-    quantity: part.quantity,
     buy_date: part.buy_date,
     lifetime: part.lifetime,
     material_cat: part.categories.map((c) => c.id),
+    owner: part.owner?.id ?? null,
   };
 }
 
@@ -654,10 +508,10 @@ function PartCreateForm({
   const [form, setForm] = useState({
     name: "",
     description: "",
-    quantity: 0,
     buy_date: "",
     lifetime: "",
     material_cat: [] as number[],
+    owner: null as number | null,
   });
   const [photo, setPhoto] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -665,6 +519,7 @@ function PartCreateForm({
   const categories = useApiQuery(["material", "categories"], () =>
     unwrap(client.GET("/api/material/categories")),
   );
+  const ownerOptions = useOwnerOptions(true);
 
   const mutation = useApiMutation(
     () =>
@@ -675,22 +530,22 @@ function PartCreateForm({
           body: {
             name: form.name,
             description: form.description,
-            quantity: form.quantity,
             buy_date: form.buy_date,
             lifetime: form.lifetime,
             material_cat: form.material_cat,
+            owner: form.owner,
             ...(photo ? { photo: photo as unknown as string } : {}),
           },
           bodySerializer(body: Record<string, unknown>) {
             const fd = new FormData();
             fd.append("name", String(body.name));
             fd.append("description", String(body.description ?? ""));
-            fd.append("quantity", String(body.quantity ?? 0));
             fd.append("buy_date", String(body.buy_date));
             fd.append("lifetime", String(body.lifetime));
             for (const c of (body.material_cat as number[]) ?? []) {
               fd.append("material_cat", String(c));
             }
+            if (body.owner != null) fd.append("owner", String(body.owner));
             if (body.photo) fd.append("photo", body.photo as File);
             return fd;
           },
@@ -738,16 +593,6 @@ function PartCreateForm({
           <div className="field-error">{fieldErrors.description.join(" ")}</div>
         )}
       </Field>
-      <Field label="Anzahl">
-        <input
-          type="number"
-          value={form.quantity}
-          onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-        />
-        {fieldErrors.quantity && (
-          <div className="field-error">{fieldErrors.quantity.join(" ")}</div>
-        )}
-      </Field>
       <Field label="Kaufdatum">
         <input
           type="date"
@@ -781,6 +626,14 @@ function PartCreateForm({
         {fieldErrors.material_cat && (
           <div className="field-error">{fieldErrors.material_cat.join(" ")}</div>
         )}
+      </Field>
+      <Field label="Besitzer">
+        <OwnerSelect
+          value={form.owner}
+          onChange={(owner) => setForm({ ...form, owner })}
+          options={ownerOptions}
+        />
+        {fieldErrors.owner && <div className="field-error">{fieldErrors.owner.join(" ")}</div>}
       </Field>
       <Field label="Foto (optional)">
         <input

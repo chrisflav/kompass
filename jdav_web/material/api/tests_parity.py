@@ -1,6 +1,6 @@
 """Tests for the admin-parity additions to the material REST API.
 
-Covers the expanded ``MaterialPartBrief``/``MaterialPartOut`` (owners overview
+Covers the expanded ``MaterialPartBrief``/``MaterialPartOut`` (owner
 and the description/buy_date/lifetime/photo list columns), the multipart photo
 update route, and the ``full_clean`` driven 422 on ``PATCH /parts/{id}``.
 """
@@ -19,7 +19,6 @@ from django.test import TestCase
 from django.utils import timezone
 from material.models import MaterialCategory
 from material.models import MaterialPart
-from material.models import Ownership
 from members.models import MALE
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
@@ -56,7 +55,6 @@ class MaterialPartParityTestCase(TestCase):
         self.part = MaterialPart.objects.create(
             name="Dynamic Rope",
             description="60m rope",
-            quantity=5,
             buy_date=date(2023, 1, 2),
             lifetime=Decimal("8"),
         )
@@ -68,7 +66,8 @@ class MaterialPartParityTestCase(TestCase):
             email="john@example.com",
             gender=MALE,
         )
-        self.ownership = Ownership.objects.create(material=self.part, owner=self.member, count=3)
+        self.part.owner = self.member
+        self.part.save()
 
         self.viewer_user = grant(make_user("viewer"), "view_materialpart")
         self.editor_user = grant(make_user("editor"), "view_materialpart", "change_materialpart")
@@ -85,7 +84,7 @@ class MaterialPartParityTestCase(TestCase):
 
     # --- list / brief parity ---------------------------------------------
 
-    def test_part_brief_exposes_new_columns_and_owners(self):
+    def test_part_brief_exposes_new_columns_and_owner(self):
         r = self.client.get(BASE + "/parts", **self.auth(self.viewer_user))
         self.assertEqual(r.status_code, 200)
         row = next(p for p in r.json() if p["id"] == self.part.pk)
@@ -93,20 +92,14 @@ class MaterialPartParityTestCase(TestCase):
         self.assertEqual(row["buy_date"], "2023-01-02")
         self.assertIn(row["lifetime"], ("8", 8))
         self.assertIsNone(row["photo"])
-        owner = row["owners"][0]
-        self.assertEqual(owner["id"], self.ownership.pk)
-        self.assertEqual(owner["owner_id"], self.member.pk)
-        self.assertEqual(owner["owner_name"], str(self.member))
-        self.assertEqual(owner["count"], 3)
+        self.assertEqual(row["owner"], {"id": self.member.pk, "name": self.member.name})
 
     # --- detail / out parity ---------------------------------------------
 
-    def test_part_detail_exposes_owners(self):
+    def test_part_detail_exposes_owner(self):
         r = self.client.get(BASE + "/parts/{}".format(self.part.pk), **self.auth(self.viewer_user))
         self.assertEqual(r.status_code, 200)
-        owners = r.json()["owners"]
-        self.assertEqual(owners[0]["owner_id"], self.member.pk)
-        self.assertEqual(owners[0]["count"], 3)
+        self.assertEqual(r.json()["owner"]["id"], self.member.pk)
 
     # --- photo update -----------------------------------------------------
 

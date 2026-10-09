@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-30 10:32+0200\n"
+"POT-Creation-Date: 2026-10-09 08:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -51,9 +51,6 @@ msgstr "Name"
 msgid "description"
 msgstr "Beschreibung"
 
-msgid "quantity"
-msgstr "Anzahl"
-
 msgid "purchase date"
 msgstr "Kaufdatum"
 
@@ -63,14 +60,11 @@ msgstr "Lebenszeit (Jahre)"
 msgid "photo"
 msgstr "Bild"
 
-msgid "Quantity"
-msgstr "Anzahl"
+msgid "owner"
+msgstr "Besitzer"
 
 msgid "Thumbnail"
 msgstr "Bild"
-
-msgid "Owners"
-msgstr "Verantwortliche"
 
 msgid "Not too old?"
 msgstr "Nicht zu alt?"
@@ -80,15 +74,3 @@ msgstr "Materialteil"
 
 msgid "material parts"
 msgstr "Materialteile"
-
-msgid "owner"
-msgstr "Besitzer"
-
-msgid "count"
-msgstr "Anzahl"
-
-msgid "ownership"
-msgstr "Besitzer"
-
-msgid "ownerships"
-msgstr "Verantwortliche"

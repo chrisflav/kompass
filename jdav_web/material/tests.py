@@ -3,14 +3,15 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
+from django.contrib.auth.models import User
 from django.test import RequestFactory
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 from material.admin import MaterialAdmin
 from material.admin import NotTooOldFilter
 from material.models import MaterialCategory
 from material.models import MaterialPart
-from material.models import Ownership
 from material.models import yearsago
 from members.models import FEMALE
 from members.models import MALE
@@ -38,7 +39,6 @@ class MaterialPartTestCase(TestCase):
         self.material_part = MaterialPart.objects.create(
             name="Dynamic Rope 10mm",
             description="60m dynamic climbing rope",
-            quantity=5,
             buy_date=date(2020, 1, 15),
             lifetime=Decimal("8"),
         )
@@ -56,29 +56,17 @@ class MaterialPartTestCase(TestCase):
         """Test string representation of MaterialPart"""
         self.assertEqual(str(self.material_part), "Dynamic Rope 10mm")
 
-    def test_quantity_real_no_ownership(self):
-        """Test quantity_real when no ownership exists"""
-        result = self.material_part.quantity_real()
-        self.assertEqual(result, "0/5")
-
-    def test_quantity_real_with_ownership(self):
-        """Test quantity_real with ownership records"""
-        Ownership.objects.create(material=self.material_part, owner=self.member, count=3)
-        Ownership.objects.create(material=self.material_part, owner=self.member, count=1)
-        result = self.material_part.quantity_real()
-        self.assertEqual(result, "4/5")
-
     def test_verbose_names(self):
         """Test field verbose names"""
         # Just test that verbose names exist, since they might be translated
         field_names = [
             "name",
             "description",
-            "quantity",
             "buy_date",
             "lifetime",
             "photo",
             "material_cat",
+            "owner",
         ]
 
         for field_name in field_names:
@@ -101,13 +89,6 @@ class MaterialPartTestCase(TestCase):
         result = self.material_part.admin_thumbnail()
         self.assertIn("kein Bild", result)
 
-    def test_ownership_overview(self):
-        """Test ownership_overview method"""
-        Ownership.objects.create(material=self.material_part, owner=self.member, count=2)
-        result = self.material_part.ownership_overview()
-        self.assertIn(str(self.member), result)
-        self.assertIn("2", result)
-
     def test_not_too_old(self):
         """Test not_too_old method"""
         # Set a buy_date that makes the material old
@@ -118,13 +99,11 @@ class MaterialPartTestCase(TestCase):
         self.assertFalse(result)
 
 
-class OwnershipTestCase(TestCase):
+class OwnerTestCase(TestCase):
     def setUp(self):
-        self.category = MaterialCategory.objects.create(name="Hardware")
         self.material_part = MaterialPart.objects.create(
-            name="Carabiner Set",
-            description="Lightweight aluminum carabiners",
-            quantity=10,
+            name="Carabiner",
+            description="Lightweight aluminum carabiner",
             buy_date=date(2021, 6, 1),
             lifetime=Decimal("10"),
         )
@@ -137,26 +116,43 @@ class OwnershipTestCase(TestCase):
             gender=FEMALE,
         )
 
-        self.ownership = Ownership.objects.create(
-            material=self.material_part, owner=self.member, count=6
-        )
+    def test_owner_is_optional(self):
+        """A piece does not need an owner"""
+        self.assertIsNone(self.material_part.owner)
 
-    def test_ownership_creation(self):
-        """Test ownership record creation"""
-        self.assertEqual(self.ownership.material, self.material_part)
-        self.assertEqual(self.ownership.owner, self.member)
-        self.assertEqual(self.ownership.count, 6)
+    def test_owner(self):
+        """A piece has at most one owner"""
+        self.material_part.owner = self.member
+        self.material_part.save()
+        self.material_part.refresh_from_db()
+        self.assertEqual(self.material_part.owner, self.member)
+        self.assertEqual(list(self.member.materialpart_set.all()), [self.material_part])
 
-    def test_material_part_relationship(self):
-        """Test relationship between MaterialPart and Ownership"""
-        ownerships = Ownership.objects.filter(material=self.material_part)
-        self.assertEqual(ownerships.count(), 1)
-        self.assertEqual(ownerships.first(), self.ownership)
+    def test_deleting_the_owner_keeps_the_piece(self):
+        """Deleting the owning member leaves the piece without an owner"""
+        self.material_part.owner = self.member
+        self.material_part.save()
+        self.member.delete()
+        self.material_part.refresh_from_db()
+        self.assertIsNone(self.material_part.owner)
 
-    def test_str(self):
-        """Test string representation of Ownership"""
-        result = str(self.ownership)
-        self.assertEqual(result, str(self.member))
+    def test_admin_shows_and_filters_by_owner(self):
+        """The admin lists the owner, filters by it and edits it"""
+        self.material_part.owner = self.member
+        self.material_part.save()
+        User.objects.create_superuser(username="superuser", password="secret")
+        self.client.login(username="superuser", password="secret")
+
+        url = reverse("admin:material_materialpart_changelist")
+        response = self.client.get(url, {"owner__id__exact": self.member.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Carabiner")
+        self.assertContains(response, str(self.member))
+
+        url = reverse("admin:material_materialpart_change", args=[self.material_part.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="owner"')
 
 
 class UtilityFunctionTestCase(TestCase):
@@ -201,7 +197,6 @@ class NotTooOldFilterTestCase(TestCase):
         self.old_material = MaterialPart.objects.create(
             name="Old Material",
             description="Old material",
-            quantity=1,
             buy_date=date(2000, 1, 1),  # Very old
             lifetime=Decimal("5"),
         )
@@ -210,7 +205,6 @@ class NotTooOldFilterTestCase(TestCase):
         self.new_material = MaterialPart.objects.create(
             name="New Material",
             description="New material",
-            quantity=1,
             buy_date=date.today(),  # Today
             lifetime=Decimal("10"),
         )

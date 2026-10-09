@@ -20,7 +20,6 @@ from django.test import TestCase
 from django.utils import timezone
 from material.models import MaterialCategory
 from material.models import MaterialPart
-from material.models import Ownership
 from members.models import DIVERSE
 from members.models import MALE
 from members.models import Member
@@ -61,7 +60,6 @@ class MaterialApiTestCase(TestCase):
         self.part = MaterialPart.objects.create(
             name="Dynamic Rope",
             description="60m rope",
-            quantity=5,
             buy_date=date.today(),
             lifetime=Decimal("8"),
         )
@@ -73,14 +71,14 @@ class MaterialApiTestCase(TestCase):
             email="john@example.com",
             gender=MALE,
         )
-        self.ownership = Ownership.objects.create(material=self.part, owner=self.member, count=3)
+        self.part.owner = self.member
+        self.part.save()
 
         self.noperm_user = make_user("noperm")
         self.viewer_user = grant(
             make_user("viewer"),
             "view_materialcategory",
             "view_materialpart",
-            "view_ownership",
         )
         self.editor_user = grant(
             make_user("editor"),
@@ -92,10 +90,6 @@ class MaterialApiTestCase(TestCase):
             "add_materialpart",
             "change_materialpart",
             "delete_materialpart",
-            "view_ownership",
-            "add_ownership",
-            "change_ownership",
-            "delete_ownership",
         )
 
     def auth(self, user):
@@ -182,7 +176,7 @@ class MaterialApiTestCase(TestCase):
         r = self.client.get(BASE + "/parts", **self.auth(self.viewer_user))
         self.assertEqual(r.status_code, 200)
         row = next(p for p in r.json() if p["id"] == self.part.pk)
-        self.assertEqual(row["quantity_real"], "3/5")
+        self.assertEqual(row["owner"], {"id": self.member.pk, "name": self.member.name})
         self.assertTrue(row["not_too_old"])
 
     def test_part_retrieve_detail(self):
@@ -198,7 +192,6 @@ class MaterialApiTestCase(TestCase):
             BASE + "/parts",
             data={
                 "name": "Helmet",
-                "quantity": 2,
                 "buy_date": "2023-01-01",
                 "lifetime": "5",
             },
@@ -213,7 +206,6 @@ class MaterialApiTestCase(TestCase):
             data={
                 "name": "Helmet",
                 "description": "climbing helmet",
-                "quantity": 2,
                 "buy_date": "2023-01-01",
                 "lifetime": "5",
                 "material_cat": [self.category.pk],
@@ -231,14 +223,38 @@ class MaterialApiTestCase(TestCase):
             BASE + "/parts",
             data={
                 "name": "Sling",
-                "quantity": 4,
                 "buy_date": "2023-01-01",
                 "lifetime": "3",
             },
             **self.auth(self.editor_user),
         )
         self.assertEqual(r.status_code, 200, r.content)
-        self.assertTrue(MaterialPart.objects.filter(name="Sling").exists())
+        self.assertIsNone(r.json()["owner"])
+        self.assertIsNone(MaterialPart.objects.get(name="Sling").owner)
+
+    def test_part_create_with_owner(self):
+        r = self.client.post(
+            BASE + "/parts",
+            data={
+                "name": "Harness",
+                "buy_date": "2023-01-01",
+                "lifetime": "10",
+                "owner": self.member.pk,
+            },
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["owner"]["id"], self.member.pk)
+        self.assertEqual(MaterialPart.objects.get(name="Harness").owner, self.member)
+
+    def test_part_create_rejects_unknown_owner(self):
+        r = self.client.post(
+            BASE + "/parts",
+            data={"name": "Harness", "buy_date": "2023-01-01", "lifetime": "10", "owner": 0},
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 404)
+        self.assertFalse(MaterialPart.objects.filter(name="Harness").exists())
 
     def test_part_create_rejects_bad_photo_type(self):
         bad = SimpleUploadedFile("p.txt", b"nope", content_type="text/plain")
@@ -246,7 +262,6 @@ class MaterialApiTestCase(TestCase):
             BASE + "/parts",
             data={
                 "name": "Bad",
-                "quantity": 1,
                 "buy_date": "2023-01-01",
                 "lifetime": "1",
                 "photo": bad,
@@ -259,14 +274,15 @@ class MaterialApiTestCase(TestCase):
     def test_part_update(self):
         r = self.client.patch(
             BASE + "/parts/{}".format(self.part.pk),
-            data={"quantity": 9, "description": "updated"},
+            data={"description": "updated"},
             content_type="application/json",
             **self.auth(self.editor_user),
         )
         self.assertEqual(r.status_code, 200)
         self.part.refresh_from_db()
-        self.assertEqual(self.part.quantity, 9)
         self.assertEqual(self.part.description, "updated")
+        # The owner is not part of the payload, so it is left alone.
+        self.assertEqual(self.part.owner, self.member)
 
     def test_part_delete(self):
         r = self.client.delete(
@@ -275,79 +291,60 @@ class MaterialApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertFalse(MaterialPart.objects.filter(pk=self.part.pk).exists())
 
-    # --- ownerships -------------------------------------------------------
+    # --- owner ----------------------------------------------------------
 
-    def test_ownership_list_forbidden_without_permission(self):
-        r = self.client.get(BASE + "/ownerships", **self.auth(self.noperm_user))
-        self.assertEqual(r.status_code, 403)
-
-    def test_ownership_list_exposes_count_and_owner(self):
-        r = self.client.get(BASE + "/ownerships", **self.auth(self.viewer_user))
-        self.assertEqual(r.status_code, 200)
-        row = next(o for o in r.json() if o["id"] == self.ownership.pk)
-        self.assertEqual(row["count"], 3)
-        self.assertEqual(row["owner"]["id"], self.member.pk)
-        self.assertEqual(row["material"]["id"], self.part.pk)
-
-    def test_ownership_create(self):
-        r = self.client.post(
-            BASE + "/ownerships",
-            data={"material": self.part.pk, "owner": self.member.pk, "count": 7},
-            content_type="application/json",
-            **self.auth(self.editor_user),
-        )
-        self.assertEqual(r.status_code, 200)
-        self.assertTrue(
-            Ownership.objects.filter(material=self.part, owner=self.member, count=7).exists()
-        )
-
-    def test_ownership_update_count(self):
-        r = self.client.patch(
-            BASE + "/ownerships/{}".format(self.ownership.pk),
-            data={"count": 12},
-            content_type="application/json",
-            **self.auth(self.editor_user),
-        )
-        self.assertEqual(r.status_code, 200)
-        self.ownership.refresh_from_db()
-        self.assertEqual(self.ownership.count, 12)
-
-    def test_ownership_delete(self):
-        r = self.client.delete(
-            BASE + "/ownerships/{}".format(self.ownership.pk), **self.auth(self.editor_user)
-        )
-        self.assertEqual(r.status_code, 200)
-        self.assertFalse(Ownership.objects.filter(pk=self.ownership.pk).exists())
-
-    def test_ownership_retrieve(self):
-        r = self.client.get(
-            "/api/material/ownerships/{}".format(self.ownership.pk),
-            **self.auth(self.viewer_user),
-        )
-        self.assertEqual(r.status_code, 200, r.content)
-        self.assertEqual(r.json()["count"], 3)
-
-    def test_ownership_update_moves_the_part_and_the_owner(self):
-        other_part = MaterialPart.objects.create(
-            name="Static Rope",
-            description="",
-            quantity=1,
-            buy_date=date.today(),
-            lifetime=Decimal("8"),
-        )
+    def test_part_update_hands_the_part_to_another_owner(self):
         other_member = Member.objects.create(
             prename="Jane", lastname="Roe", gender=DIVERSE, email=settings.TEST_MAIL
         )
         r = self.client.patch(
-            "/api/material/ownerships/{}".format(self.ownership.pk),
-            data={"material": other_part.pk, "owner": other_member.pk},
+            BASE + "/parts/{}".format(self.part.pk),
+            data={"owner": other_member.pk},
             content_type="application/json",
             **self.auth(self.editor_user),
         )
         self.assertEqual(r.status_code, 200, r.content)
-        self.ownership.refresh_from_db()
-        self.assertEqual(self.ownership.material, other_part)
-        self.assertEqual(self.ownership.owner, other_member)
+        self.assertEqual(r.json()["owner"], {"id": other_member.pk, "name": other_member.name})
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.owner, other_member)
+
+    def test_part_update_clears_the_owner(self):
+        r = self.client.patch(
+            BASE + "/parts/{}".format(self.part.pk),
+            data={"owner": None},
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIsNone(r.json()["owner"])
+        self.part.refresh_from_db()
+        self.assertIsNone(self.part.owner)
+
+    def test_part_update_rejects_unknown_owner(self):
+        r = self.client.patch(
+            BASE + "/parts/{}".format(self.part.pk),
+            data={"owner": 0},
+            content_type="application/json",
+            **self.auth(self.editor_user),
+        )
+        self.assertEqual(r.status_code, 404)
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.owner, self.member)
+
+    def test_part_update_owner_forbidden_for_viewer(self):
+        r = self.client.patch(
+            BASE + "/parts/{}".format(self.part.pk),
+            data={"owner": None},
+            content_type="application/json",
+            **self.auth(self.viewer_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.owner, self.member)
+
+    def test_ownership_endpoints_are_gone(self):
+        r = self.client.get(BASE + "/ownerships", **self.auth(self.editor_user))
+        self.assertEqual(r.status_code, 404)
 
     def test_part_photo_rejects_an_oversized_file(self):
         oversized = SimpleUploadedFile(

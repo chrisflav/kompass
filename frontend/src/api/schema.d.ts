@@ -2499,43 +2499,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/material/ownerships": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Ownerships */
-        get: operations["material_api_router_list_ownerships"];
-        put?: never;
-        /** Create Ownership */
-        post: operations["material_api_router_create_ownership"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/material/ownerships/{ownership_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Retrieve Ownership */
-        get: operations["material_api_router_retrieve_ownership"];
-        put?: never;
-        post?: never;
-        /** Delete Ownership */
-        delete: operations["material_api_router_delete_ownership"];
-        options?: never;
-        head?: never;
-        /** Update Ownership */
-        patch: operations["material_api_router_update_ownership"];
-        trace?: never;
-    };
     "/api/ludwigsburgalpin/enums": {
         parameters: {
             query?: never;
@@ -6287,12 +6250,9 @@ export interface components {
             id: number;
             /** Photo */
             photo?: string | null;
-            /** Quantity Real */
-            quantity_real: string;
             /** Not Too Old */
             not_too_old: boolean;
-            /** Owners */
-            owners: components["schemas"]["PartOwnerBrief"][];
+            owner?: components["schemas"]["MemberRef"] | null;
             /** Name */
             name: string;
             /**
@@ -6300,11 +6260,6 @@ export interface components {
              * @default
              */
             description: string;
-            /**
-             * Quantity
-             * @default 0
-             */
-            quantity: number;
             /**
              * Purchase Date
              * Format: date
@@ -6313,39 +6268,17 @@ export interface components {
             /** Lifetime (Years) */
             lifetime: string;
         };
-        /**
-         * PartOwnerBrief
-         * @description One ownership row as shown on a part (reproduces ``ownership_overview``).
-         *
-         *     Resolved from an ``Ownership`` instance. ``owner_id`` is exposed for editing
-         *     (the SPA can PATCH/create via the ``/ownerships`` endpoints), ``owner_name``
-         *     for display. Named distinctly from ``OwnershipOut`` so ninja does not collide
-         *     OpenAPI component keys.
-         */
-        PartOwnerBrief: {
-            /** Id */
-            id: number;
-            /** Owner Id */
-            owner_id: number;
-            /** Owner Name */
-            owner_name: string;
-            /** Count */
-            count: number;
-        };
         /** MaterialPartOut */
         MaterialPartOut: {
             /** Id */
             id: number;
             /** Photo */
             photo?: string | null;
-            /** Quantity Real */
-            quantity_real: string;
             /** Not Too Old */
             not_too_old: boolean;
             /** Categories */
             categories: components["schemas"]["MaterialCategoryBrief"][];
-            /** Owners */
-            owners: components["schemas"]["PartOwnerBrief"][];
+            owner?: components["schemas"]["MemberRef"] | null;
             /** Name */
             name: string;
             /**
@@ -6353,11 +6286,6 @@ export interface components {
              * @default
              */
             description: string;
-            /**
-             * Quantity
-             * @default 0
-             */
-            quantity: number;
             /**
              * Purchase Date
              * Format: date
@@ -6376,11 +6304,6 @@ export interface components {
              */
             description: string;
             /**
-             * Quantity
-             * @default 0
-             */
-            quantity: number;
-            /**
              * Buy Date
              * Format: date
              */
@@ -6392,6 +6315,8 @@ export interface components {
              * @default []
              */
             material_cat: number[];
+            /** Owner */
+            owner?: number | null;
         };
         /**
          * MaterialPartUpdate
@@ -6402,47 +6327,14 @@ export interface components {
             name?: string | null;
             /** Description */
             description?: string | null;
-            /** Quantity */
-            quantity?: number | null;
             /** Buy Date */
             buy_date?: string | null;
             /** Lifetime */
             lifetime?: number | string | null;
             /** Material Cat */
             material_cat?: number[] | null;
-        };
-        /** OwnershipOut */
-        OwnershipOut: {
-            /** Id */
-            id: number;
-            owner: components["schemas"]["MemberBrief"];
-            material: components["schemas"]["MaterialPartRef"];
-            /**
-             * Count
-             * @default 1
-             */
-            count: number;
-        };
-        /** OwnershipIn */
-        OwnershipIn: {
-            /** Material */
-            material: number;
-            /** Owner */
-            owner: number;
-            /**
-             * Count
-             * @default 1
-             */
-            count: number;
-        };
-        /** OwnershipUpdate */
-        OwnershipUpdate: {
-            /** Material */
-            material?: number | null;
             /** Owner */
             owner?: number | null;
-            /** Count */
-            count?: number | null;
         };
         /**
          * TerminEnumChoice
@@ -11856,11 +11748,6 @@ export interface operations {
                      */
                     description?: string;
                     /**
-                     * Quantity
-                     * @default 0
-                     */
-                    quantity?: number;
-                    /**
                      * Buy Date
                      * Format: date
                      */
@@ -11872,6 +11759,8 @@ export interface operations {
                      * @default []
                      */
                     material_cat?: number[];
+                    /** Owner */
+                    owner?: number | null;
                     /**
                      * Photo
                      * Format: binary
@@ -11988,118 +11877,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MaterialPartOut"];
-                };
-            };
-        };
-    };
-    material_api_router_list_ownerships: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnershipOut"][];
-                };
-            };
-        };
-    };
-    material_api_router_create_ownership: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OwnershipIn"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnershipOut"];
-                };
-            };
-        };
-    };
-    material_api_router_retrieve_ownership: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ownership_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnershipOut"];
-                };
-            };
-        };
-    };
-    material_api_router_delete_ownership: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ownership_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    material_api_router_update_ownership: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ownership_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OwnershipUpdate"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnershipOut"];
                 };
             };
         };
