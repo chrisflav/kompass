@@ -149,7 +149,12 @@ export function excerpt(text: string | null | undefined, max = 320): string {
 /** The first letters of a name: its first word and, where there is one, its
  *  last. Words are trimmed first, so a field holding nothing but spaces counts
  *  as absent rather than contributing a blank letter — and a field the payload
- *  left out entirely counts as absent too, whatever the schema promises. */
+ *  left out entirely counts as absent too. ``PublicMemberBrief`` declares
+ *  ``prename``/``lastname`` required and the resolver backing it always sends
+ *  them (see the schema-contract tests in `tests_public.py`, taxis #506) — but
+ *  this component is deliberately tolerant of a payload that names someone in
+ *  one piece (``name`` only), which the tests two call sites down exercise on
+ *  purpose, so the coercion stays. */
 function lettersOf(words: (string | null | undefined)[]): string {
   const real = words.map((word) => (word ?? "").trim()).filter(Boolean);
   const first = real[0] ?? "";
