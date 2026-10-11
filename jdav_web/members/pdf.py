@@ -1,5 +1,4 @@
 import contextlib
-import glob
 import logging
 import os
 import subprocess
@@ -124,11 +123,11 @@ def render_tex(name, template_path, context, date=None, save_only=False):
     logger.debug(f"pdflatex stderr: {result.stderr}")
     time.sleep(1)
 
-    # do some cleanup; a render running alongside sweeps the same files, so one
-    # may be gone by the time it is removed here
-    for f in glob.glob(media_path("*.log")) + glob.glob(media_path("*.aux")):
+    # do some cleanup: only this run's own auxiliary files, since other renders
+    # may be compiling in the same directory at the same time
+    for ext in (".log", ".aux"):
         with contextlib.suppress(FileNotFoundError):
-            os.remove(f)
+            os.remove(media_path(filename + ext))
     # os.remove(filename_tex)
     # os.remove(filename_table)
 
