@@ -22,6 +22,8 @@ from members.models import Group
 from members.models import Member
 from members.models import MemberTraining
 from members.models import NewMemberOnList
+from members.models import PermissionGroup
+from members.models import PermissionMember
 from members.models import RegistrationPassword
 from members.models import TrainingCategory
 from oauth2_provider.models import get_access_token_model
@@ -34,8 +36,8 @@ Application = get_application_model()
 AccessToken = get_access_token_model()
 
 
-class QueryCountTestCase(TestCase):
-    """Shared fixtures: an authenticated client and a query counter."""
+class QueryCountMixin:
+    """Shared fixtures for a ``TestCase``: an authenticated client and a query counter."""
 
     def setUp(self):
         self.application = Application.objects.create(
@@ -90,16 +92,28 @@ class QueryCountTestCase(TestCase):
             gender=DIVERSE,
         )
 
-    def make_excursion(self, participants=(), leaders=(), groups=(), activities=()):
+    def make_group(self):
+        self.counter += 1
+        return Group.objects.create(name="Gruppe {}".format(self.counter))
+
+    def make_activity(self):
+        self.counter += 1
+        return ActivityCategory.objects.create(
+            name="Akt {}".format(self.counter), ljp_category="Klettern", description=""
+        )
+
+    def make_excursion(
+        self, participants=(), leaders=(), groups=(), activities=(), difficulty=2, days_ago=30
+    ):
         self.counter += 1
         excursion = Freizeit.objects.create(
             name="Tour {}".format(self.counter),
             place="Alpen",
             tour_type=GEMEINSCHAFTS_TOUR,
             kilometers_traveled=10,
-            difficulty=2,
-            date=timezone.now() - datetime.timedelta(days=30),
-            end=timezone.now() - datetime.timedelta(days=28),
+            difficulty=difficulty,
+            date=timezone.now() - datetime.timedelta(days=days_ago),
+            end=timezone.now() - datetime.timedelta(days=days_ago - 2),
         )
         content_type = ContentType.objects.get_for_model(Freizeit)
         for member in participants:
@@ -112,7 +126,7 @@ class QueryCountTestCase(TestCase):
         return excursion
 
 
-class MembersApiQueryCountTestCase(QueryCountTestCase):
+class MembersApiQueryCountTestCase(QueryCountMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.admin_user, self.admin = make_member_user("admin")
@@ -126,10 +140,6 @@ class MembersApiQueryCountTestCase(QueryCountTestCase):
             "view_global_freizeit",
             "view_group",
         )
-
-    def make_group(self):
-        self.counter += 1
-        return Group.objects.create(name="Gruppe {}".format(self.counter))
 
     def test_list_members(self):
         def make_rows(n):
@@ -145,26 +155,34 @@ class MembersApiQueryCountTestCase(QueryCountTestCase):
         member = self.make_member()
         member.group.set([self.make_group()])
         leader = self.make_member("leader")
+        alone, first, second, future, unused = (self.make_activity() for _ in range(5))
+        self.make_excursion(participants=[member], activities=[alone])
+        # Both activities of one excursion score its difficulty.
+        self.make_excursion(participants=[member], activities=[first, second], difficulty=3)
+        # A coming excursion is an activity but scores nothing yet.
+        self.make_excursion(participants=[member], activities=[future], days_ago=-10)
+        expected = {c.name: 0 for c in ActivityCategory.objects.all()}
+        expected.update({alone.name: 6, first.name: 9, second.name: 9})
 
         def make_rows(n):
             for _ in range(n):
-                category = ActivityCategory.objects.create(
-                    name="Akt {}".format(self.counter), ljp_category="Klettern", description=""
-                )
+                activity = self.make_activity()
                 self.make_excursion(
                     participants=[member, self.make_member()],
                     leaders=[leader],
                     groups=[self.make_group()],
-                    activities=[category],
+                    activities=[activity],
                 )
+                expected[activity.name] = 6
 
         body = self.assertConstantQueries(
             "/api/members/{}".format(member.pk), self.admin_user, make_rows
         )
-        self.assertEqual(len(body["activities"]), 9)
-        # Nine past excursions of difficulty 2, one activity each: 3 * 2 apiece.
-        self.assertEqual(sum(body["skills"].values()), 9 * 6)
-        excursion = body["activities"][0]
+        self.assertEqual(body["skills"], expected)
+        self.assertIn(unused.name, body["skills"])
+        self.assertEqual(body["skills"][future.name], 0)
+        self.assertEqual(len(body["activities"]), 3 + 9)
+        excursion = next(e for e in body["activities"] if e["groups"])
         self.assertEqual(len(excursion["groups"]), 1)
         self.assertEqual(len(excursion["participant_ids"]), 3)
 
@@ -175,9 +193,7 @@ class MembersApiQueryCountTestCase(QueryCountTestCase):
                 category = TrainingCategory.objects.create(
                     name="Kat {}".format(self.counter), permission_needed=False
                 )
-                activity = ActivityCategory.objects.create(
-                    name="Akt {}".format(self.counter), ljp_category="Klettern", description=""
-                )
+                activity = self.make_activity()
                 training = MemberTraining.objects.create(
                     member=self.make_member(), title="Kurs", category=category
                 )
@@ -232,3 +248,51 @@ class MembersApiQueryCountTestCase(QueryCountTestCase):
         body = self.assertConstantQueries("/api/members/excursions", self.admin_user, make_rows)
         self.assertEqual(len(body), 9)
         self.assertTrue(all(len(e["participant_ids"]) == 2 for e in body))
+
+
+class ScopedMembersApiQueryCountTestCase(QueryCountMixin, TestCase):
+    """The member-scoped lists of a youth leader without global permissions.
+
+    The leader's own group may list and view the members of the youth groups,
+    and the leader may list a few members individually. Each row adds such a
+    group; the number of queries must not depend on how many there are.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.leader_user, self.leader = make_member_user("leader")
+        leaders_group = self.make_group()
+        self.leader.group.set([leaders_group])
+        self.group_permissions = PermissionGroup.objects.create(group=leaders_group)
+        self.own_permissions = PermissionMember.objects.create(member=self.leader)
+        self.listable = {self.leader.pk}
+        # Never listable: in a group nobody granted the leader.
+        stranger = self.make_member("stranger")
+        stranger.group.set([self.make_group()])
+
+    def make_rows(self, n):
+        for _ in range(n):
+            group = self.make_group()
+            self.group_permissions.list_groups.add(group)
+            self.group_permissions.view_groups.add(group)
+            members = [self.make_member(), self.make_member()]
+            for member in members:
+                member.group.set([group])
+                category = TrainingCategory.objects.create(
+                    name="Kat {}".format(self.counter), permission_needed=False
+                )
+                MemberTraining.objects.create(member=member, title="Kurs", category=category)
+            listed = self.make_member("listed")
+            self.own_permissions.list_members.add(listed)
+            self.listable |= {m.pk for m in members} | {listed.pk}
+
+    def test_list_members(self):
+        body = self.assertConstantQueries("/api/members/", self.leader_user, self.make_rows)
+        self.assertEqual({m["id"] for m in body}, self.listable)
+
+    def test_list_trainings(self):
+        body = self.assertConstantQueries(
+            "/api/members/trainings", self.leader_user, self.make_rows
+        )
+        self.assertEqual(len(body), 2 * 9)
+        self.assertTrue({t["member_id"] for t in body} <= self.listable)

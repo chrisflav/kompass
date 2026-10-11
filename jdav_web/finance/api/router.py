@@ -161,6 +161,7 @@ def list_statements(request):
             "created_by__group",
             "excursion__jugendleiter",
             "excursion__membersonlist__member",
+            "excursion__ljpproposal__intervention_set",
         )
         .order_by("-submitted_date")
     )

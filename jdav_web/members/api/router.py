@@ -53,6 +53,7 @@ from .schemas import MemberTrainingCreate
 from .schemas import MemberTrainingUpdate
 from .schemas import MemberUpdate
 from .schemas import MeOut
+from .schemas import prefetch_excursion_leaders
 from .schemas import RegistrationBrief
 from .schemas import TrainingBrief
 from .schemas import TrainingCategoryOut
@@ -218,7 +219,7 @@ def list_excursions(request):
     qs = (
         Freizeit.objects.all()
         .order_by("-date")
-        .prefetch_related("groups", "jugendleiter", "membersonlist")
+        .prefetch_related("groups", prefetch_excursion_leaders(), "membersonlist")
     )
     return scope_queryset(request.user, qs, model=Freizeit)
 

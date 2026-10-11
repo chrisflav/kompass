@@ -11,6 +11,7 @@ from datetime import datetime
 from datetime import time
 from typing import Any
 
+from django.db.models import Prefetch
 from members.models import ActivityCategory
 from members.models import annotate_activity_score
 from members.models import Freizeit
@@ -234,7 +235,9 @@ class MemberOut(ModelSchema):
     @staticmethod
     def resolve_activities(obj):
         # Load what ExcursionBrief resolves for every excursion in bulk.
-        return obj.get_activities().prefetch_related("groups", "jugendleiter", "membersonlist")
+        return obj.get_activities().prefetch_related(
+            "groups", prefetch_excursion_leaders(), "membersonlist"
+        )
 
 
 class GroupOut(ModelSchema):
@@ -297,6 +300,14 @@ class GroupOut(ModelSchema):
     @staticmethod
     def resolve_leiters(obj):
         return obj.leiters.all()
+
+
+def prefetch_excursion_leaders():
+    """Prefetch an excursion's youth leaders for :class:`ExcursionBrief`.
+
+    The brief reads only their ids, so the full member rows are not loaded.
+    """
+    return Prefetch("jugendleiter", queryset=Member.objects.only("pk"))
 
 
 class ExcursionBrief(ModelSchema):
