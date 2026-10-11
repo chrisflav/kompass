@@ -44,3 +44,34 @@ force-single-line = true
 case-sensitive = false
 order-by-type = false
 detect-same-package = false
+
+# `mypy --strict`, over the finance rules API and the engine only.
+#
+# The rules API is the contract a section's rules are written and type-checked
+# against, which is worth nothing if the module it describes is not itself
+# checked: a `Decimal + bool`, a destination that is an `int` rather than a
+# `Member`, a rule that forgets `excursion` may be `None` — those are supposed
+# to be CI failures with a file and a line, in this repository as much as in a
+# section's own. The rest of Kompass is not checked and this does not start
+# checking it; `files` names what is in scope and nothing else, so running
+# `mypy` from the repository root is the whole obligation.
+#
+# Django, the models and the rest of the app are skipped rather than stubbed:
+# `follow_imports = "skip"` makes them `Any`, which is exactly how the engine's
+# context construction already treats a model instance. Nothing here imposes a
+# type obligation on a module outside `files`.
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "jdav_web"
+files = [
+    "jdav_web/finance/rules_api.py",
+    "jdav_web/finance/engine",
+    "jdav_web/finance/rulesets",
+    "jdav_web/kompass",
+]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["django.*", "members.*", "finance.models", "contrib.*", "utils"]
+ignore_missing_imports = true
+follow_imports = "skip"
