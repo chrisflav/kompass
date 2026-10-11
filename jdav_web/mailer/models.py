@@ -157,9 +157,12 @@ class Message(CommonModel):
             recipients.append(self.to_freizeit.name)
         if self.to_notelist is not None:
             recipients.append(self.to_notelist.title)
-        if 3 > self.to_members.count() > 0:
-            recipients.extend([m.name for m in self.to_members.all()])
-        elif self.to_members.count() > 2:
+        # evaluate the members once, so that a prefetched ``to_members`` is
+        # reused instead of counting them twice in the database
+        members = list(self.to_members.all())
+        if 3 > len(members) > 0:
+            recipients.extend([m.name for m in members])
+        elif len(members) > 2:
             recipients.append(gettext("Some other members"))
         return ", ".join(recipients)
 

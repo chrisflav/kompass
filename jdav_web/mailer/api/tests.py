@@ -14,7 +14,9 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import SENT
@@ -22,8 +24,12 @@ from mailer.models import Attachment
 from mailer.models import EmailAddress
 from mailer.models import Message
 from members.models import DIVERSE
+from members.models import Freizeit
+from members.models import GEMEINSCHAFTS_TOUR
 from members.models import Group
 from members.models import Member
+from members.models import MemberNoteList
+from members.models import MUSKELKRAFT_ANREISE
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
@@ -204,6 +210,79 @@ class MailerApiTestCase(TestCase):
         r = self.client.get("/api/mailer/messages", **self.auth(self.admin_user))
         self.assertEqual(r.status_code, 200)
         self.assertEqual({m["id"] for m in r.json()}, {a.pk, b.pk})
+
+    def make_recipient_messages(self, count):
+        """Messages touching every relation ``get_recipients`` reads.
+
+        Every message names a group, an excursion and a note list, and they
+        alternate between few members (listed by name) and many members
+        (summarised), so both branches of the recipient summary are serialized.
+        """
+        freizeit = Freizeit.objects.create(
+            name="Hüttentour",
+            kilometers_traveled=120,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        notelist = MemberNoteList.objects.create(title="Kletterliste")
+        for i in range(count):
+            message = Message.objects.create(
+                subject="Hello {}".format(i),
+                content="Body",
+                created_by=self.admin,
+                to_freizeit=freizeit,
+                to_notelist=notelist,
+            )
+            message.to_groups.add(self.group)
+            if i % 2:
+                message.to_members.add(self.owner, self.other, self.admin)
+            else:
+                message.to_members.add(self.owner)
+
+    def list_messages_counting_queries(self, headers):
+        with CaptureQueriesContext(connection) as queries:
+            r = self.client.get("/api/mailer/messages", **headers)
+        self.assertEqual(r.status_code, 200)
+        return r.json(), len(queries)
+
+    def test_message_list_queries_do_not_grow_with_messages(self):
+        headers = self.auth(self.admin_user)
+        self.make_recipient_messages(2)
+        few, few_queries = self.list_messages_counting_queries(headers)
+        self.make_recipient_messages(4)
+        many, many_queries = self.list_messages_counting_queries(headers)
+
+        self.assertEqual(len(few), 2)
+        self.assertEqual(len(many), 6)
+        self.assertEqual(many_queries, few_queries)
+
+    def test_message_list_recipients_unchanged(self):
+        self.make_recipient_messages(2)
+        r = self.client.get("/api/mailer/messages", **self.auth(self.admin_user))
+        self.assertEqual(r.status_code, 200)
+        rows = r.json()
+        # each row matches the helper evaluated without any prefetching
+        for row in rows:
+            message = Message.objects.get(pk=row["id"])
+            self.assertEqual(
+                row,
+                {
+                    "id": message.pk,
+                    "subject": message.subject,
+                    "sent": message.sent,
+                    "recipients": message.get_recipients(),
+                },
+            )
+        recipients = {row["subject"]: row["recipients"] for row in rows}
+        self.assertEqual(
+            recipients["Hello 0"],
+            "Alpenfuechse, Hüttentour, Kletterliste, Owner Test",
+        )
+        self.assertEqual(
+            recipients["Hello 1"],
+            "Alpenfuechse, Hüttentour, Kletterliste, {}".format(_("Some other members")),
+        )
 
     # --- message retrieval -------------------------------------------------
 

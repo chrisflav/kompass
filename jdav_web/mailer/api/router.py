@@ -104,7 +104,14 @@ def delete_email_address(request, address_id: int):
 @router.get("/messages", response=list[MessageBrief])
 def list_messages(request):
     """Messages the user may list, creator-scoped by the shared permission filter."""
-    return scope_queryset(request.user, Message.objects.all().order_by("-id"), model=Message)
+    # the relations read by ``Message.get_recipients`` are loaded up front, so the
+    # number of queries does not grow with the number of messages
+    queryset = (
+        Message.objects.select_related("to_freizeit", "to_notelist")
+        .prefetch_related("to_groups", "to_members")
+        .order_by("-id")
+    )
+    return scope_queryset(request.user, queryset, model=Message)
 
 
 @router.get("/messages/{message_id}", response=MessageOut)
