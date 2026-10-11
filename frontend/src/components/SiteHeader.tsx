@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useApiQuery } from "../api/hooks";
 import { client, unwrap } from "../api/http";
 import { useMe } from "../api/me";
 import { useSite } from "../api/site";
 import { useAuth } from "../auth";
+import { useThemeChoice, type ThemeChoice } from "../theme";
 import { KompassMark } from "./Contour";
 import { FeedbackButton } from "./FeedbackButton";
 
@@ -214,6 +215,115 @@ function UserMenu({ memberId, name }: { memberId: number | null; name: string })
   );
 }
 
+const THEME_OPTIONS: { value: ThemeChoice; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Hell" },
+  { value: "dark", label: "Dunkel" },
+];
+
+/** The theme's glyph: a sun, a crescent, or for "System" a disc half in each. */
+function ThemeIcon({ choice }: { choice: ThemeChoice }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {choice === "light" && (
+        <>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+          <path d="M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </>
+      )}
+      {choice === "dark" && <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />}
+      {choice === "system" && (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/**
+ * Light, dark, or whatever the system asks for. Open to everyone, signed in or
+ * not, and like the feedback button it survives the mobile collapse — it is a
+ * property of the screen in front of you, not of the account. On a phone too
+ * narrow for one more button it moves into the drawer instead.
+ */
+function ThemeSwitch() {
+  const [choice] = useThemeChoice();
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const ref = useOutsideClose(() => {
+    // Closing from inside the panel (Escape) hands focus back to the button
+    // rather than dropping it on the page.
+    if (ref.current?.contains(document.activeElement)) buttonRef.current?.focus();
+    setOpen(false);
+  });
+  const current = THEME_OPTIONS.find((o) => o.value === choice)!;
+
+  // Opening moves focus onto the selected option, so the arrow keys pick
+  // straight away.
+  useEffect(() => {
+    if (open) ref.current?.querySelector<HTMLInputElement>("input:checked")?.focus();
+  }, [open, ref]);
+
+  return (
+    <div className="theme-switch" ref={ref}>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="theme-btn"
+        aria-label={`Darstellung: ${current.label}`}
+        title={`Darstellung: ${current.label}`}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <ThemeIcon choice={choice} />
+      </button>
+      {open && (
+        <div className="nav-dropdown right theme-menu">
+          <ThemeOptions />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The three choices as a radio group: one per switch, so each gets its own name. */
+function ThemeOptions() {
+  const [choice, setChoice] = useThemeChoice();
+  const name = useId();
+  return (
+    <fieldset className="theme-options">
+      <legend>Darstellung</legend>
+      {THEME_OPTIONS.map((o) => (
+        <label key={o.value} className="theme-option">
+          <input
+            type="radio"
+            name={name}
+            value={o.value}
+            checked={choice === o.value}
+            onChange={() => setChoice(o.value)}
+          />
+          <ThemeIcon choice={o.value} />
+          {o.label}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
 /* --- header --------------------------------------------------------------- */
 
 export function SiteHeader({ variant }: { variant: "public" | "app" }) {
@@ -244,6 +354,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
           {/* Outside the auth branch: feedback is for everyone, signed in or
               not, and stays reachable when the rest collapses on mobile. */}
           <FeedbackButton />
+          <ThemeSwitch />
           {token ? (
             <>
               {/* The public ↔ Kompass seam, present in both worlds. */}
@@ -327,6 +438,9 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
               </div>
             ),
           )}
+          <div className="drawer-group drawer-theme">
+            <ThemeOptions />
+          </div>
           {token ? (
             <div className="drawer-group">
               {memberId !== null && (
