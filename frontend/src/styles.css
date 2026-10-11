@@ -37,14 +37,71 @@
   --success: #2f6f4f;
   --success-weak: #e5efe8;
 
+  /* Text and glyphs set on a filled accent or danger button. */
+  --on-accent: #fff;
+  /* The lit corner of a hero's paper-to-glacier wash. */
+  --paper-lit: #fbfcfa;
+  /* The pale chip an uploaded icon sits on (see .dash-link-mark). */
+  --icon-ground: var(--gletscher);
+
   --radius: 9px;
   --shadow: 0 1px 2px rgba(20, 35, 44, 0.05), 0 6px 18px rgba(20, 35, 44, 0.05);
+  /* Deeper lifts: a hovered card, a toast, a dialog over its dimmed page. */
+  --shadow-lift: 0 2px 4px rgba(20, 35, 44, 0.06), 0 10px 26px rgba(20, 35, 44, 0.08);
+  --shadow-float: 0 6px 22px rgba(20, 35, 44, 0.16);
+  --shadow-modal: 0 12px 40px rgba(20, 30, 45, 0.25);
+  --backdrop: rgba(20, 30, 45, 0.4);
 
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   font-family: var(--font-sans);
   color-scheme: light;
+}
+
+/* --- the same map, read at night --------------------------------------------
+   Not an inversion: the sheet turns to a dark slate, the ink to a pale
+   paper-grey, and every material keeps its hue — glacial blue, bistre contour,
+   needle red — lifted in lightness until it reads on the dark ground (all text
+   pairs clear WCAG AA). src/theme.ts settles "System" into one of the two, so
+   this is the only place dark is spelled out. */
+:root[data-theme="dark"] {
+  --paper: #0f181d; /* night slate — app canvas */
+  --ink: #e4e9e5; /* pale paper-grey — text */
+  --fels: #74b6ca;
+  --fels-hover: #93c8d8; /* hover lifts toward the light, as hover darkens by day */
+  --gletscher: #1a3440;
+  --contour: #c98d60;
+  --contour-weak: rgba(201, 141, 96, 0.16);
+  --nord: #ef7a64;
+  --nord-weak: #3b221e;
+
+  --panel: #16222a;
+  --panel-2: #121c23;
+  --border: #2b3a43;
+  --muted: #9ba8ae;
+
+  --warning: #dcaa55;
+  --warning-weak: #332a14;
+  --info: #74b6ca;
+  --info-weak: #1a3440;
+  --success: #72c497;
+  --success-weak: #16301f;
+
+  /* The accents are light now, so what sits on them is the dark slate. */
+  --on-accent: #0f181d;
+  --paper-lit: #18252d;
+  /* Uploaded icons are made for a light page; they keep a light ground. */
+  --icon-ground: #e4e9e5;
+
+  /* Shadows still fall darker than the sheet; on slate they need more weight. */
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.22);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.3), 0 10px 26px rgba(0, 0, 0, 0.32);
+  --shadow-float: 0 6px 22px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --backdrop: rgba(4, 8, 11, 0.62);
+
+  color-scheme: dark;
 }
 
 * {
@@ -92,7 +149,7 @@ h3 {
   padding: 0.45rem 0.85rem;
   border: 1px solid transparent;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   transition: background 0.12s ease;
 }
 
@@ -1170,7 +1227,7 @@ input[type="radio"] {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20, 30, 45, 0.4);
+  background: var(--backdrop);
   display: flex;
   overflow-y: auto;
   padding: 1.25rem;
@@ -1182,7 +1239,7 @@ input[type="radio"] {
   background: var(--panel);
   border-radius: 14px;
   width: min(640px, 96vw);
-  box-shadow: 0 12px 40px rgba(20, 30, 45, 0.25);
+  box-shadow: var(--shadow-modal);
 }
 
 .modal.sm {
@@ -1245,7 +1302,7 @@ input[type="radio"] {
   border: 1px solid var(--border);
   border-left: 3px solid var(--muted);
   border-radius: var(--radius);
-  box-shadow: 0 6px 22px rgba(20, 35, 44, 0.16);
+  box-shadow: var(--shadow-float);
   font-size: 0.92rem;
   animation: toast-in 0.22s ease;
 }
@@ -1430,7 +1487,7 @@ input[type="radio"] {
 
 .post-teaser:hover {
   border-color: var(--accent);
-  box-shadow: 0 2px 4px rgba(20, 35, 44, 0.06), 0 10px 26px rgba(20, 35, 44, 0.08);
+  box-shadow: var(--shadow-lift);
   transform: translateY(-1px);
 }
 
@@ -1479,7 +1536,7 @@ input[type="radio"] {
   padding: 2.75rem 2rem 2.5rem;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: linear-gradient(160deg, #fbfcfa 0%, var(--gletscher) 100%);
+  background: linear-gradient(160deg, var(--paper-lit) 0%, var(--gletscher) 100%);
 }
 
 .public-hero .hero-contour {
@@ -1547,7 +1604,7 @@ input[type="radio"] {
   margin-bottom: 2rem;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: linear-gradient(150deg, #fbfcfa 0%, var(--gletscher) 130%);
+  background: linear-gradient(150deg, var(--paper-lit) 0%, var(--gletscher) 130%);
 }
 
 .dash-hero .hero-contour {
@@ -1786,6 +1843,12 @@ input[type="radio"] {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* An uploaded icon is drawn for a light page — often a black favicon on a
+   transparent ground — so it always sits on a pale chip, whatever the theme. */
+.dash-link-mark:has(img) {
+  background: var(--icon-ground);
 }
 
 .dash-link-text {
@@ -2957,7 +3020,7 @@ button.etappe-body:hover {
   height: 100%;
   pointer-events: none;
   color: var(--contour);
-  background: linear-gradient(160deg, #fbfcfa 0%, var(--gletscher) 100%);
+  background: linear-gradient(160deg, var(--paper-lit) 0%, var(--gletscher) 100%);
 }
 
 /* --- the lead story ------------------------------------------------------- */
@@ -3419,4 +3482,127 @@ button.etappe-body:hover {
   margin-top: 1.1rem;
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+/* ==========================================================================
+   Theme — the switch in the site chrome, and the pictures that need telling
+   the sheet has gone dark.
+   ========================================================================== */
+
+/* Sits beside the feedback button and dresses like it: quiet, always there. */
+.theme-switch {
+  position: relative;
+}
+
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.theme-btn svg {
+  display: block;
+}
+
+.theme-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.theme-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-menu {
+  min-width: 170px;
+}
+
+.theme-options {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+/* Set like the drawer labels: the panel names its subject in the mono legend. */
+.theme-options legend {
+  padding: 0.25rem 0.6rem 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--muted);
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.theme-option:hover {
+  background: var(--panel-2);
+}
+
+.theme-option:has(input:checked) {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.theme-option input {
+  align-self: center;
+  accent-color: var(--accent);
+}
+
+/* One ring, on the radio itself: the forms' faint glacier focus outline would
+   all but vanish on the dark panel. */
+.theme-option input:focus-visible {
+  outline: 2px solid var(--fels);
+  outline-offset: 2px;
+}
+
+/* In the drawer the legend lines up with the drawer's own group labels. */
+.drawer-theme .theme-options legend {
+  padding: 0.1rem 0.25rem 0.25rem;
+}
+
+/* The narrowest phones have no room for one more button beside the brand; the
+   choice is in the drawer there, with the rest of the navigation. */
+@media (max-width: 480px) {
+  .theme-switch {
+    display: none;
+  }
+}
+
+/* The link admin's icon preview, on the same pale chip as the dashboard tile. */
+.link-icon-preview {
+  align-self: flex-start;
+  max-width: 100%;
+  max-height: 3rem;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--icon-ground);
+}
+
+/* The activity climbers are a black pictogram on a transparent ground; at
+   night they are drawn in the ink instead of vanishing into the slate. */
+.activity-climber {
+  vertical-align: middle;
+}
+
+:root[data-theme="dark"] .activity-climber {
+  filter: invert(0.92);
 }

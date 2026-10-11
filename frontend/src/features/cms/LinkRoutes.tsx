@@ -241,7 +241,7 @@ function LinkIconEdit({ link }: { link: LinkOut }) {
   return (
     <div className="stack">
       {link.icon && (
-        <img src={link.icon} alt="Icon" style={{ maxHeight: "3rem", maxWidth: "100%" }} />
+        <img src={link.icon} alt="Icon" className="link-icon-preview" />
       )}
       <input
         type="file"
@@ -355,7 +355,7 @@ function LinkDetailBody({ link, crumbs }: { link: LinkOut; crumbs: Crumb[] }) {
     {
       label: "Icon",
       value: link.icon ? (
-        <img src={link.icon} alt="Icon" style={{ maxHeight: "3rem", maxWidth: "100%" }} />
+        <img src={link.icon} alt="Icon" className="link-icon-preview" />
       ) : (
         "—"
       ),

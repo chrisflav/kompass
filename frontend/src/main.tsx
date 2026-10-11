@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./auth";
 import { ConfirmProvider, ToastProvider } from "./components/ui";
 import { AppRoutes } from "./routes";
+import { watchTheme } from "./theme";
 // Self-hosted IBM Plex (GDPR-safe: no external font requests). Sans carries the
 // body/display voice; Mono is the "instrument" utility face for labels, ids and
 // tabular figures.
@@ -33,6 +34,10 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// index.html has already put the theme on the page; from here on it follows the
+// OS (while the viewer leaves it on "System") and choices made in other tabs.
+watchTheme();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
