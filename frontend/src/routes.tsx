@@ -1,22 +1,19 @@
+import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 
-import { AppLayout, ProtectedRoute, PublicLayout } from "./components/Layout";
+import { PublicLayout } from "./components/Layout";
 import { NotFound } from "./components/Placeholder";
-import { Dashboard } from "./pages/Dashboard";
+import { Spinner } from "./components/ui";
 import { AuthCallback, Login } from "./pages/Login";
-import { activitiesRoutes } from "./features/activities/routes";
-import { adminRoutes } from "./features/admin/routes";
-import { cmsRoutes } from "./features/cms/routes";
-import { eventsRoutes } from "./features/events/routes";
-import { financeRoutes } from "./features/finance/routes";
-import { mailerRoutes } from "./features/mailer/routes";
-import { materialRoutes } from "./features/material/routes";
-import { membersRoutes } from "./features/members/routes";
 import {
   legacyRedirectRoutes,
   publicFlowRoutes,
   publicSiteRoutes,
 } from "./features/public/routes";
+
+// The workspace is most of the code and none of the public site's, so it is
+// fetched only once someone opens it.
+const KompassRoutes = lazy(() => import("./kompassRoutes"));
 
 export function AppRoutes() {
   return (
@@ -26,23 +23,13 @@ export function AppRoutes() {
 
       {/* Authenticated administration app. */}
       <Route
-        path="/kompass"
+        path="/kompass/*"
         element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
+          <Suspense fallback={<Spinner />}>
+            <KompassRoutes />
+          </Suspense>
         }
-      >
-        <Route index element={<Dashboard />} />
-        {membersRoutes}
-        {activitiesRoutes}
-        {financeRoutes}
-        {mailerRoutes}
-        {materialRoutes}
-        {eventsRoutes}
-        {cmsRoutes}
-        {adminRoutes}
-      </Route>
+      />
 
       {/* Redirects from the old Django URLs to the new SPA flows. */}
       {legacyRedirectRoutes}
