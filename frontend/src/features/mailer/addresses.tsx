@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
-import { useEmailAddresses, useGroups, useMembers } from "../../api/queries";
+import { queryKeys, useEmailAddresses, useGroups, useMembers } from "../../api/queries";
 import { useRowHints } from "../../api/helpTexts";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -22,7 +22,7 @@ import {
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
-import { MultiSelect, type Option } from "./selects";
+import { MultiSelect, type Option, withSelected } from "./selects";
 
 type EmailAddressBrief = components["schemas"]["EmailAddressBrief"];
 type EmailAddressOut = components["schemas"]["EmailAddressOut"];
@@ -160,6 +160,7 @@ function EmailAddressDetailBody({
         ["mailer", "email-addresses"],
         ["mailer", "email-addresses", address.id],
       ],
+      markStale: [queryKeys.groups()],
       onSuccess: () => {
         toast.success("Gespeichert.");
         setEditing(false);
@@ -180,6 +181,8 @@ function EmailAddressDetailBody({
       ),
     {
       invalidate: [["mailer", "email-addresses"]],
+      // Groups show their contact address by name.
+      markStale: [queryKeys.groups()],
       onSuccess: () => {
         toast.success("Adresse gelöscht.");
         navigate("/kompass/mailer/addresses");
@@ -194,8 +197,16 @@ function EmailAddressDetailBody({
     setEditing(true);
   }
 
-  const memberOptions: Option[] = (members.data ?? []).map((m) => ({ value: m.id, label: m.name }));
-  const groupOptions: Option[] = (groups.data ?? []).map((g) => ({ value: g.id, label: g.name }));
+  // Seeded from the address's own targets while the lists are still loading.
+  const asOption = (r: { id: number; name: string }) => ({ value: r.id, label: r.name });
+  const memberOptions: Option[] = withSelected(
+    (members.data ?? []).map(asOption),
+    address.to_members.map(asOption),
+  );
+  const groupOptions: Option[] = withSelected(
+    (groups.data ?? []).map(asOption),
+    [...address.to_groups, ...address.allowed_senders].map(asOption),
+  );
 
   const rows: DetailRow[] = [
     {

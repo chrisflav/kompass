@@ -488,6 +488,29 @@ describe("mailer — Nachrichten", () => {
     }
   });
 
+  it("names the current recipients in edit mode before the lists arrive", async () => {
+    detailReturns({ to_members: [{ id: 9, name: "Tobias Werner" }] });
+    // Hold the picker lists back: the badges must not fall back to bare ids.
+    const held = new Promise<void>(() => {});
+    server.use(
+      http.get(api("/api/members/"), async () => {
+        await held;
+        return HttpResponse.json(MEMBERS);
+      }),
+      http.get(api("/api/members/groups"), async () => {
+        await held;
+        return HttpResponse.json(GROUPS);
+      }),
+    );
+    const { user } = renderRoute("/kompass/mailer/messages/4");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+
+    const badges = [...document.querySelectorAll(".ms-badge")].map((b) => b.textContent);
+    expect(badges).toEqual(expect.arrayContaining(["Klettergruppe×", "Tobias Werner×"]));
+    expect(badges).not.toContain("5×");
+    expect(badges).not.toContain("9×");
+  });
+
   it("refuses to save a message without subject and content", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();

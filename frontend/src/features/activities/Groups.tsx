@@ -268,7 +268,8 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
         }),
       ),
     {
-      invalidate: [["groups"], queryKeys.members(), queryKeys.excursions()],
+      invalidate: [["groups"]],
+      markStale: [queryKeys.members(), queryKeys.excursions()],
       onSuccess: () => {
         toast.success("Gruppe gelöscht.");
         navigate("/kompass/groups");
@@ -308,8 +309,11 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
         }),
       ),
     // Group names also show in the members list (column + filter) and the
-    // excursions list (filter), so a rename refreshes those too.
-    { invalidate: [["groups"], ["groups", group.id], queryKeys.members(), queryKeys.excursions()] },
+    // excursions list (filter), so a rename marks those stale too.
+    {
+      invalidate: [["groups"], ["groups", group.id]],
+      markStale: [queryKeys.members(), queryKeys.excursions()],
+    },
   );
 
   function startEditing() {
@@ -759,6 +763,8 @@ function PermissionGroupsInline({
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
   const invalidate = [["groups", groupId, "permission-groups"]];
+  // A changed grant changes which members (and their excursions) people see.
+  const markStale = [queryKeys.members(), queryKeys.excursions()];
   const listQuery = useApiQuery(["groups", groupId, "permission-groups"], () =>
     unwrap(
       client.GET("/api/members/groups/{group_id}/permission-groups", {
@@ -799,7 +805,7 @@ function PermissionGroupsInline({
           body,
         }),
       ),
-    { invalidate },
+    { invalidate, markStale },
   );
   const removeM = useApiMutation(
     (id: number) =>
@@ -808,7 +814,7 @@ function PermissionGroupsInline({
           params: { path: { permission_group_id: id } },
         }),
       ),
-    { invalidate },
+    { invalidate, markStale },
   );
   const patchM = useApiMutation(
     (vars: { id: number; body: PermissionGroupUpdate }) =>
@@ -818,7 +824,7 @@ function PermissionGroupsInline({
           body: vars.body,
         }),
       ),
-    { invalidate },
+    { invalidate, markStale },
   );
 
   const serverRows = (listQuery.data ?? []).map((r) => ({

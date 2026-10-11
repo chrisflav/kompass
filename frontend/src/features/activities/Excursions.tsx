@@ -127,6 +127,7 @@ export function ExcursionsList() {
           label: "Teilnehmer*in",
           options: memberOptions,
           onOpen: () => setParticipantFilterUsed(true),
+          loading: membersQuery.isLoading,
           match: (e, v) => e.participant_ids.includes(Number(v)),
         },
       ],
@@ -139,7 +140,7 @@ export function ExcursionsList() {
       },
       defaultSort: { key: "date", dir: "desc" },
     }),
-    [groupOptions, memberOptions],
+    [groupOptions, memberOptions, membersQuery.isLoading],
   );
 
   const view = useListView(rows, config);
@@ -237,6 +238,7 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
     },
     {
       invalidate: [["excursions"]],
+      markStale: [queryKeys.members()],
       onSuccess: (created: ExcursionOut) => {
         toast.success("Ausfahrt angelegt.");
         onDone();
@@ -382,6 +384,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
       ),
     {
       invalidate: [["excursions"]],
+      markStale: [queryKeys.members()],
       onSuccess: () => {
         toast.success("Ausfahrt gelöscht.");
         navigate("/kompass/excursions");
@@ -439,7 +442,11 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
           body,
         }),
       ),
-    { invalidate: [["excursions"], ["excursions", excursion.id], queryKeys.members()] },
+    // Jugendleiter and participants feed the members list's activity score.
+    {
+      invalidate: [["excursions"], ["excursions", excursion.id]],
+      markStale: [queryKeys.members()],
+    },
   );
 
   // --- LJP-Antrag (seminar report): a 1:1 excursion extension, edited as a
@@ -1027,8 +1034,6 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
                   invalidate={[
                     ["excursions", excursion.id, "participants"],
                     ["excursions", excursion.id],
-                    queryKeys.excursions(),
-                    queryKeys.members(),
                   ]}
                   registerFlush={getRegistrar("participants")}
                 />

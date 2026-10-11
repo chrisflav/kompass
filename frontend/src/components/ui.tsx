@@ -768,6 +768,7 @@ export function SearchableSelect({
   label,
   allLabel = "alle",
   onOpen,
+  loading = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -777,6 +778,8 @@ export function SearchableSelect({
   allLabel?: string;
   /** Called each time the dropdown opens. */
   onOpen?: () => void;
+  /** Options still loading: says so below the "all" entry. */
+  loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -829,6 +832,11 @@ export function SearchableSelect({
               <span>{allLabel}</span>
               {value === "" && <span className="ms-check">✓</span>}
             </button>
+            {loading && (
+              <div className="muted small ms-empty" role="status">
+                Lädt …
+              </div>
+            )}
             {filtered.map((o) => (
               <button
                 type="button"

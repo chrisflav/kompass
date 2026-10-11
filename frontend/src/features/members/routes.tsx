@@ -478,6 +478,7 @@ function MemberBulkActions({ members, onDone }: { members: MemberBrief[]; onDone
     },
     {
       invalidate: [["members"], ["registrations"]],
+      markStale: [queryKeys.groups()],
       onSuccess: (r: { ok: number; failures: string[]; success: (n: number) => string }) => {
         if (r.ok) toast.success(r.success(r.ok));
         // Report the failures too — a partial run must not look like a success.
@@ -876,11 +877,17 @@ function MemberDetailPage() {
  *  the member has loaded and the inlines mount. Renders nothing; the inlines
  *  read the same cache entries. */
 function MemberInlinesPrefetch({ memberId }: { memberId: number }) {
-  useApiQuery(queryKeys.memberEmergencyContacts(memberId), () => fetchEmergencyContacts(memberId));
-  useApiQuery(queryKeys.memberDocuments(memberId), () => fetchMemberDocuments(memberId));
-  useApiQuery(queryKeys.memberTrainings(memberId), () => fetchMemberTrainings(memberId));
-  useApiQuery(queryKeys.memberPermissions(memberId), () => fetchPermissionMembers(memberId));
-  useTrainingCategories();
+  // A malformed id in the URL leaves the page to report the missing member.
+  const opts = { enabled: Number.isFinite(memberId) };
+  useApiQuery(
+    queryKeys.memberEmergencyContacts(memberId),
+    () => fetchEmergencyContacts(memberId),
+    opts,
+  );
+  useApiQuery(queryKeys.memberDocuments(memberId), () => fetchMemberDocuments(memberId), opts);
+  useApiQuery(queryKeys.memberTrainings(memberId), () => fetchMemberTrainings(memberId), opts);
+  useApiQuery(queryKeys.memberPermissions(memberId), () => fetchPermissionMembers(memberId), opts);
+  useTrainingCategories(opts);
   return null;
 }
 
@@ -945,6 +952,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       ),
     {
       invalidate: [["members"]],
+      markStale: [queryKeys.groups()],
       onSuccess: () => {
         toast.success("Mitglied gelöscht.");
         navigate("/kompass/members");
@@ -993,7 +1001,8 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
           body,
         }),
       ),
-    { invalidate: [["members"], ["members", member.id], queryKeys.groups()] },
+    // A renamed Jugendleiter shows in the groups list too.
+    { invalidate: [["members"], ["members", member.id]], markStale: [queryKeys.groups()] },
   );
 
   // Inline editors (Notfallkontakte / Dokumente / Ausbildungen / Berechtigungen)
@@ -2170,7 +2179,7 @@ function PermissionMembersInline({
           body,
         }),
       ),
-    { invalidate: [listKey] },
+    { invalidate: [listKey], markStale: [queryKeys.members(), queryKeys.excursions()] },
   );
   const updateM = useApiMutation<MemberPermissionOut, { id: number; body: MemberPermissionIn }>(
     ({ id, body }) =>
@@ -2180,7 +2189,7 @@ function PermissionMembersInline({
           body,
         }),
       ),
-    { invalidate: [listKey] },
+    { invalidate: [listKey], markStale: [queryKeys.members(), queryKeys.excursions()] },
   );
   const delM = useApiMutation<unknown, number>(
     (id) =>
@@ -2189,7 +2198,7 @@ function PermissionMembersInline({
           params: { path: { permission_id: id } },
         }),
       ),
-    { invalidate: [listKey] },
+    { invalidate: [listKey], markStale: [queryKeys.members(), queryKeys.excursions()] },
   );
 
   const serverRows = (query.data ?? []).map((r) => ({

@@ -29,6 +29,7 @@ function MembersReader({ label }: { label: string }) {
 function Harness() {
   const [later, setLater] = useState(false);
   const save = useApiMutation(async () => null, { invalidate: [queryKeys.members()] });
+  const touch = useApiMutation(async () => null, { markStale: [queryKeys.members()] });
   return (
     <>
       <MembersReader label="erste" />
@@ -39,6 +40,9 @@ function Harness() {
       </button>
       <button type="button" onClick={() => save.mutate(undefined)}>
         speichern
+      </button>
+      <button type="button" onClick={() => touch.mutate(undefined)}>
+        nebenbei
       </button>
     </>
   );
@@ -69,6 +73,19 @@ describe("shared reference lists", () => {
     await screen.findByText("erste: 1");
 
     await user.click(screen.getByRole("button", { name: "speichern" }));
+    await waitFor(() => expect(calls.count).toBe(2));
+  });
+
+  it("only marks a list stale for `markStale`, refetching it for the next reader", async () => {
+    const calls = counting("/api/members/", [{ id: 1, name: "Anna" }]);
+    const { user } = renderWithApp(<Harness />);
+    await screen.findByText("erste: 1");
+
+    await user.click(screen.getByRole("button", { name: "nebenbei" }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(calls.count).toBe(1);
+
+    await user.click(screen.getByRole("button", { name: "weiter" }));
     await waitFor(() => expect(calls.count).toBe(2));
   });
 });
