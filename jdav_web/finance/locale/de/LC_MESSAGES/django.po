@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-20 23:09+0200\n"
+"POT-Creation-Date: 2026-10-11 22:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -338,6 +338,21 @@ msgstr "Abrechnungen"
 msgid "Excursion %(excursion)s"
 msgstr "Ausfahrt %(excursion)s"
 
+#, python-format
+msgid "Allowance for %(excu)s"
+msgstr "Aufwandsentschädigung für %(excu)s"
+
+#, python-format
+msgid "Night and travel costs for %(excu)s"
+msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
+
+msgid "reduced by org fee"
+msgstr "reduziert um Org-Beitrag"
+
+#, python-format
+msgid "LJP-Contribution %(excu)s"
+msgstr "LJP-Zuschuss %(excu)s"
+
 msgid "Ready to confirm"
 msgstr "Bereit zur Abwicklung"
 
@@ -358,21 +373,6 @@ msgstr ""
 
 msgid "Everything is correct."
 msgstr "Alles in Ordnung."
-
-#, python-format
-msgid "Allowance for %(excu)s"
-msgstr "Aufwandsentschädigung für %(excu)s"
-
-#, python-format
-msgid "Night and travel costs for %(excu)s"
-msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
-
-msgid "reduced by org fee"
-msgstr "reduziert um Org-Beitrag"
-
-#, python-format
-msgid "LJP-Contribution %(excu)s"
-msgstr "LJP-Zuschuss %(excu)s"
 
 msgid "Total"
 msgstr "Gesamtbetrag"
