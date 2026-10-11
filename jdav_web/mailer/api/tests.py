@@ -14,7 +14,9 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import SENT
@@ -22,8 +24,12 @@ from mailer.models import Attachment
 from mailer.models import EmailAddress
 from mailer.models import Message
 from members.models import DIVERSE
+from members.models import Freizeit
+from members.models import GEMEINSCHAFTS_TOUR
 from members.models import Group
 from members.models import Member
+from members.models import MemberNoteList
+from members.models import MUSKELKRAFT_ANREISE
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
@@ -204,6 +210,117 @@ class MailerApiTestCase(TestCase):
         r = self.client.get("/api/mailer/messages", **self.auth(self.admin_user))
         self.assertEqual(r.status_code, 200)
         self.assertEqual({m["id"] for m in r.json()}, {a.pk, b.pk})
+
+    def make_recipient_messages(self, count, creator):
+        """Messages touching every relation ``get_recipients`` reads.
+
+        Every message names a group, an excursion and a note list, and they
+        alternate between few members (listed by name) and many members
+        (summarised), so both branches of the recipient summary are serialized.
+        """
+        freizeit = Freizeit.objects.create(
+            name="Hüttentour",
+            kilometers_traveled=120,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        notelist = MemberNoteList.objects.create(title="Kletterliste")
+        for i in range(count):
+            message = Message.objects.create(
+                subject="Hello {}".format(i),
+                content="Body",
+                created_by=creator,
+                to_freizeit=freizeit,
+                to_notelist=notelist,
+            )
+            message.to_groups.add(self.group)
+            if i % 2:
+                message.to_members.add(self.owner, self.other, self.admin)
+            else:
+                message.to_members.add(self.owner)
+
+    def list_messages_counting_queries(self, headers):
+        with CaptureQueriesContext(connection) as queries:
+            r = self.client.get("/api/mailer/messages", **headers)
+        self.assertEqual(r.status_code, 200)
+        return r.json(), len(queries)
+
+    def assert_list_queries_do_not_grow(self, user, creator):
+        headers = self.auth(user)
+        self.make_recipient_messages(2, creator)
+        few, few_queries = self.list_messages_counting_queries(headers)
+        self.make_recipient_messages(4, creator)
+        many, many_queries = self.list_messages_counting_queries(headers)
+
+        self.assertEqual(len(few), 2)
+        self.assertEqual(len(many), 6)
+        self.assertEqual(many_queries, few_queries)
+
+    def test_message_list_queries_do_not_grow_with_messages(self):
+        # global permissions: every message is listed
+        self.assert_list_queries_do_not_grow(self.admin_user, self.admin)
+
+    def test_creator_message_list_queries_do_not_grow_with_messages(self):
+        # no global permissions: the list is scoped to the creator
+        self.assert_list_queries_do_not_grow(self.owner_user, self.owner)
+
+    def test_message_list_recipients(self):
+        freizeit = Freizeit.objects.create(
+            name="Hüttentour",
+            kilometers_traveled=120,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        notelist = MemberNoteList.objects.create(title="Kletterliste")
+        unconfirmed = Member.objects.create(
+            prename="Unconfirmed",
+            lastname="Test",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=DIVERSE,
+            confirmed=False,
+        )
+        members_by_subject = {
+            "none": [],
+            "two": [self.owner, self.other],
+            # unconfirmed members are not recipients, so this still lists names
+            "two and unconfirmed": [self.owner, self.other, unconfirmed],
+            "three": [self.owner, self.other, self.admin],
+        }
+        for subject, members in members_by_subject.items():
+            message = Message.objects.create(
+                subject=subject,
+                content="Body",
+                created_by=self.admin,
+                to_freizeit=freizeit,
+                to_notelist=notelist,
+            )
+            message.to_groups.add(self.group)
+            message.to_members.add(*members)
+        bare = Message.objects.create(subject="bare", content="Body", created_by=self.admin)
+        bare.to_members.add(self.owner)
+
+        r = self.client.get("/api/mailer/messages", **self.auth(self.admin_user))
+        self.assertEqual(r.status_code, 200)
+        rows = r.json()
+        self.assertEqual(
+            [row["subject"] for row in rows],
+            ["bare", "three", "two and unconfirmed", "two", "none"],
+        )
+        for row in rows:
+            self.assertEqual(set(row), {"id", "subject", "sent", "recipients"})
+            self.assertFalse(row["sent"])
+        recipients = {row["subject"]: row["recipients"].split(", ") for row in rows}
+        shared = ["Alpenfuechse", "Hüttentour", "Kletterliste"]
+        self.assertEqual(recipients["none"], shared)
+        self.assertCountEqual(recipients["two"], shared + ["Owner Test", "Other Test"])
+        self.assertCountEqual(
+            recipients["two and unconfirmed"], shared + ["Owner Test", "Other Test"]
+        )
+        self.assertEqual(recipients["three"], shared + [str(_("Some other members"))])
+        self.assertEqual(recipients["bare"], ["Owner Test"])
 
     # --- message retrieval -------------------------------------------------
 
