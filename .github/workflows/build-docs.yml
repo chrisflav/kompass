@@ -8,6 +8,10 @@ on:
 jobs:
   docs:
     runs-on: ubuntu-latest
+    env:
+      # Match the Docker images; uv would otherwise pick the newest CPython,
+      # for which dependencies like Pillow may not ship wheels yet.
+      UV_PYTHON: "3.13"
     permissions:
       contents: write
       pull-requests: write
