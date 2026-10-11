@@ -229,7 +229,7 @@ function LinkIconEdit({ link }: { link: LinkOut }) {
       return res.json();
     },
     {
-      invalidate: [["startpage", "links"], ["startpage", "links", link.id]],
+      invalidate: [["links"], ["links", link.id]],
       onSuccess: () => {
         toast.success("Icon hochgeladen.");
         setFile(null);
@@ -241,7 +241,7 @@ function LinkIconEdit({ link }: { link: LinkOut }) {
   return (
     <div className="stack">
       {link.icon && (
-        <img src={link.icon} alt="Icon" style={{ maxHeight: "3rem", maxWidth: "100%" }} />
+        <img src={link.icon} alt="Icon" className="link-icon-preview" />
       )}
       <input
         type="file"
@@ -355,7 +355,7 @@ function LinkDetailBody({ link, crumbs }: { link: LinkOut; crumbs: Crumb[] }) {
     {
       label: "Icon",
       value: link.icon ? (
-        <img src={link.icon} alt="Icon" style={{ maxHeight: "3rem", maxWidth: "100%" }} />
+        <img src={link.icon} alt="Icon" className="link-icon-preview" />
       ) : (
         "—"
       ),

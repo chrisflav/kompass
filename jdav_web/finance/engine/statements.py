@@ -115,15 +115,30 @@ def statement_params(statement: Any) -> dict[str, Decimal]:
 
 
 def statement_context(
-    statement: Any, ruleset: Ruleset, *, inputs: Mapping[str, object] | None = None
+    statement: Any,
+    ruleset: Ruleset,
+    *,
+    inputs: Mapping[str, object] | None = None,
+    actors: bool = False,
 ) -> RuleContext:
-    """The context for ``statement`` under ``ruleset``."""
+    """The context for ``statement`` under ``ruleset``.
+
+    ``actors`` decides whether the people who may *act* on the statement are
+    resolved into it: the holders of the permissions the ruleset declared, and
+    who holds which role today. Those are two queries, they are only ever read
+    by :meth:`~kompass.rules.Ruleset.approval`, and the statement list resolves
+    a context per row — so they are fetched for the approval step and left out
+    of the arithmetic, where no rule may depend on them anyway. A rule that
+    reads them from ``transfers`` gets the undeclared-permission error, which
+    is the right answer: routing a payment by who may sign it belongs in
+    ``approval``.
+    """
     return build_context(
         statement,
-        permissions=ruleset.permissions,
+        permissions=ruleset.permissions if actors else (),
         inputs=inputs,
         params=statement_params(statement),
-        roles=RoleAssignment.roles_at(),
+        roles=RoleAssignment.roles_at() if actors else {},
     )
 
 
@@ -229,7 +244,7 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
 
 def _materialise_constraints(statement: Any, result: Result, *, version: str, frozen: Any) -> None:
     ruleset = ruleset_for(statement)
-    context = statement_context(statement, ruleset)
+    context = statement_context(statement, ruleset, actors=True)
     constraints, _forbids = ruleset.approval(context, list(result.transfers))
     statement.approval_constraint_set.all().delete()
     ApprovalConstraint.objects.bulk_create(
@@ -291,8 +306,13 @@ def freeze(statement: Any) -> tuple[Obligation, ...]:
 
 
 def rows_exist(statement: Any) -> bool:
-    """Whether the statement has a materialised record to read."""
-    return statement.pk is not None and statement.obligation_set.exists()
+    """Whether the statement has a materialised record to read.
+
+    ``len(.all())`` rather than ``.exists()``, so that a list view which
+    prefetched the rows answers this from the prefetch instead of a query per
+    statement — and :func:`result_from_rows` then reads the same cached list.
+    """
+    return statement.pk is not None and len(statement.obligation_set.all()) > 0
 
 
 def verify(statements: Any, *, sample: int = 10) -> list[str]:

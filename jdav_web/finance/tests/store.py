@@ -158,8 +158,11 @@ class RoleAssignmentTestCase(TestCase):
         member = a_member()
         RoleAssignment.objects.create(role="kassenwart", member=member)
         statement = Statement.objects.create(short_description="Rollen", night_cost=0)
-        context = statement_context(statement, active_ruleset())
+        # Who may act is resolved for the approval step, not for the
+        # arithmetic — see `statement_context`.
+        context = statement_context(statement, active_ruleset(), actors=True)
         self.assertEqual(context.roles["kassenwart"], (RuleMember(MemberId(member.pk)),))
+        self.assertEqual(statement_context(statement, active_ruleset()).roles, {})
 
 
 class ObligationModelTestCase(TestCase):

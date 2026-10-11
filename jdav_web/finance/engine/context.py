@@ -153,10 +153,13 @@ def _ljp(excursion: Any) -> LJP | None:
     )
 
 
-def _participants(excursion: Any) -> tuple[Participant, ...]:
-    leader_ids = set(excursion.jugendleiter.values_list("pk", flat=True))
+def _participants(excursion: Any, leader_ids: set[int]) -> tuple[Participant, ...]:
     on_list: dict[int, Any] = {}
-    for entry in excursion.membersonlist.distinct():
+    # ``.all()`` on both relations, never ``.values_list`` or ``.distinct()``:
+    # those build a new queryset and so bypass a prefetch, and the statement
+    # list prefetches exactly these for its totals. A member listed twice is
+    # deduplicated here rather than by the database.
+    for entry in excursion.membersonlist.all():
         on_list.setdefault(entry.member.pk, entry.member)
     start = excursion.date
     return tuple(
@@ -171,18 +174,18 @@ def _participants(excursion: Any) -> tuple[Participant, ...]:
 
 
 def _excursion(excursion: Any) -> Excursion:
+    leader_ids = sorted(leader.pk for leader in excursion.jugendleiter.all())
     return Excursion(
         duration=decimal(excursion.duration),
         nights=excursion.night_count,
         kilometers=excursion.kilometers_traveled,
         approach=_APPROACHES.get(excursion.tour_approach, "car"),
-        leaders=tuple(
-            Member(MemberId(pk))
-            for pk in excursion.jugendleiter.order_by("pk").values_list("pk", flat=True)
-        ),
-        staff_count=excursion.staff_count,
+        leaders=tuple(Member(MemberId(pk)) for pk in leader_ids),
+        # Not ``excursion.staff_count``, which counts in the database: the
+        # leaders are already in hand.
+        staff_count=len(leader_ids),
         approved_staff_count=excursion.approved_staff_count,
-        participants=_participants(excursion),
+        participants=_participants(excursion, set(leader_ids)),
         ljp=_ljp(excursion),
     )
 
@@ -199,7 +202,7 @@ def statement_inputs(statement: Any) -> dict[str, object]:
         "night_cost": decimal(statement.night_cost),
         "allowance_to": tuple(
             Member(MemberId(pk))
-            for pk in statement.allowance_to.order_by("pk").values_list("pk", flat=True)
+            for pk in sorted(member.pk for member in statement.allowance_to.all())
         ),
         "subsidy_to": member_of(statement.subsidy_to_id),
         "ljp_to": member_of(statement.ljp_to_id),

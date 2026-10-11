@@ -569,6 +569,33 @@ class PDFTestCase(TestCase):
         self.assertIsInstance(fp, str)
         self.assertTrue(fp.endswith(".docx"))
 
+    def test_render_leaves_process_cwd_alone(self):
+        """Rendering must not change the process's working directory.
+
+        uwsgi runs several request threads per process and the working directory
+        is shared by all of them, so the renderers run pdflatex and pandoc in the
+        media directory without changing into it, from wherever the process is.
+        """
+        context = dict(memberlist=self.ex, settings=settings, mode="basic")
+        oldwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as elsewhere:
+            os.chdir(elsewhere)
+            try:
+                fp = render_tex("Foo Bar", "members/seminar_report.tex", context, save_only=True)
+                self.assertEqual(os.getcwd(), elsewhere)
+                self._assert_file_exists(fp)
+                # only this run's own auxiliary files are cleaned up
+                stem = fp.removesuffix(".pdf")
+                self.assertFalse(os.path.exists(media_path(stem + ".log")))
+                self.assertFalse(os.path.exists(media_path(stem + ".aux")))
+
+                fp = render_docx("Foo Bar", "members/seminar_report.tex", context, save_only=True)
+                self.assertEqual(os.getcwd(), elsewhere)
+                self._assert_file_exists(fp)
+                self.assertEqual(os.listdir(elsewhere), [])
+            finally:
+                os.chdir(oldwd)
+
     def test_pdf_add_attachments_with_image(self):
         """Test pdf_add_attachments with non-PDF image files"""
         # Create a simple test image

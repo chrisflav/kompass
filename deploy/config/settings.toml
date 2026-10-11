@@ -88,6 +88,11 @@ port = 3306
 database = 'kompass'
 user = 'kompass'
 password = 'kompass-db-user-password'
+# Seconds a database connection is kept open and reused across requests
+# (0 opens a new one per request). One connection per uwsgi thread / celery process.
+conn_max_age = 60
+# Check a reused connection before each request and reconnect if it went stale.
+conn_health_checks = true
 
 # OpenID Connect (OIDC) authentication settings
 [oidc]

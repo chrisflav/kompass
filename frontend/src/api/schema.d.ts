@@ -280,6 +280,9 @@ export interface paths {
         /**
          * List Trainings
          * @description Trainings the user may list, scoped by the shared permission filter.
+         *
+         *     ``?member=<id>`` narrows the list to one member's trainings (the member
+         *     detail page), on top of — never instead of — the permission scope.
          */
         get: operations["members_api_router_list_trainings"];
         put?: never;
@@ -8483,7 +8486,9 @@ export interface operations {
     };
     members_api_router_list_trainings: {
         parameters: {
-            query?: never;
+            query?: {
+                member?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;

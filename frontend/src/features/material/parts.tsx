@@ -5,6 +5,7 @@ import { API_BASE } from "../../api/client";
 import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useMembers } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
@@ -498,9 +499,7 @@ function PartOwnerships({
   editing: boolean;
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
-    enabled: editing,
-  });
+  const members = useMembers({ enabled: editing });
   const memberOptions = members.data ?? [];
 
   // The ownerships endpoint returns every row; keep only this part's.

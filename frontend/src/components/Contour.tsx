@@ -90,7 +90,10 @@ export function ContourField({
           stroke="currentColor"
           strokeWidth={1}
           vectorEffect="non-scaling-stroke"
-          opacity={0.5 - i * 0.028}
+          // The stroke's own opacity, not the element's: element opacity makes
+          // each ring a composited layer, and Chromium then drew the dark hero
+          // gradient behind them in visible rectangular blocks.
+          strokeOpacity={0.5 - i * 0.028}
         />
       ))}
     </svg>

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { queryKeys } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Button,
@@ -209,6 +210,8 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
       ),
     {
       invalidate: [["auth", "permission-groups"], ["auth", "permission-groups", group.id]],
+      // Global permissions decide which members and excursions are listed.
+      markStale: [queryKeys.members(), queryKeys.excursions()],
       onSuccess: () => {
         toast.success("Gespeichert.");
         setEditing(false);
@@ -229,6 +232,7 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
       ),
     {
       invalidate: [["auth", "permission-groups"]],
+      markStale: [queryKeys.members(), queryKeys.excursions()],
       onSuccess: () => {
         toast.success("Rechtegruppe gelöscht.");
         navigate("/kompass/permission-groups");

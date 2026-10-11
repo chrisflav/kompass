@@ -178,7 +178,7 @@ class RuleSetAdmin(ExtraButtonsMixin, admin.ModelAdmin):
                 messages.error(request, _("There is no statement %(id)s.") % {"id": statement_id})
             else:
                 result = evaluate_statement(statement, ruleset=loaded)
-                context = statement_context(statement, loaded)
+                context = statement_context(statement, loaded, actors=True)
                 declarations = tuple(loaded.inputs(context))
                 constraints = loaded.approval(context, list(result.transfers))[0]
         return render(

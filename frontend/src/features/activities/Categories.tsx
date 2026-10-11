@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useTrainingCategories } from "../../api/queries";
 import { useRowHints } from "../../api/helpTexts";
 import {
   Badge,
@@ -64,9 +65,7 @@ export function CategoriesPage() {
   const activityQuery = useApiQuery(["activity-categories"], () =>
     unwrap(client.GET("/api/members/activity-categories")),
   );
-  const trainingQuery = useApiQuery(["training-categories"], () =>
-    unwrap(client.GET("/api/members/training-categories")),
-  );
+  const trainingQuery = useTrainingCategories();
 
   const [creating, setCreating] = useState(false);
 

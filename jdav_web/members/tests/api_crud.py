@@ -275,6 +275,33 @@ class MembersCrudApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertIn("Eigenes", {t["title"] for t in r.json()})
 
+    def test_list_trainings_filtered_by_member(self):
+        category = self._category()
+        MemberTraining.objects.create(member=self.member, title="Eigenes", category=category)
+        MemberTraining.objects.create(member=self.plain, title="Fremdes", category=category)
+        headers = self.as_admin("list_global_membertraining", "view_global_membertraining")
+        unfiltered = self.client.get("/api/members/trainings", **headers)
+        self.assertEqual({t["title"] for t in unfiltered.json()}, {"Eigenes", "Fremdes"})
+        r = self.client.get("/api/members/trainings", {"member": self.plain.pk}, **headers)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual([t["title"] for t in r.json()], ["Fremdes"])
+        self.assertEqual({t["member_id"] for t in r.json()}, {self.plain.pk})
+
+    def test_list_trainings_member_filter_keeps_permission_scope(self):
+        category = self._category()
+        MemberTraining.objects.create(member=self.member, title="Eigenes", category=category)
+        MemberTraining.objects.create(member=self.plain, title="Fremdes", category=category)
+        # Without the global list permission the filter narrows, never widens.
+        own = self.client.get(
+            "/api/members/trainings", {"member": self.member.pk}, **self.auth(self.user)
+        )
+        self.assertEqual([t["title"] for t in own.json()], ["Eigenes"])
+        other = self.client.get(
+            "/api/members/trainings", {"member": self.plain.pk}, **self.auth(self.user)
+        )
+        self.assertEqual(other.status_code, 200, other.content)
+        self.assertEqual(other.json(), [])
+
     def test_delete_training(self):
         training = MemberTraining.objects.create(
             member=self.member, title="Weg", category=self._category()

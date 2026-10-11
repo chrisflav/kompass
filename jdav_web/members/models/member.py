@@ -295,13 +295,15 @@ class Member(Person):
     get_group.short_description = _("Group")
 
     def get_skills(self):
-        # get skills by summing up all the activities taken part in
+        # get skills by summing up all the activities taken part in, fetching
+        # every (activity, difficulty) pair of past excursions in one query
+        points = {}
+        past = Freizeit.objects.filter(membersonlist__member=self, date__lt=timezone.now())
+        for kind_id, difficulty in past.values_list("activity", "difficulty"):
+            points[kind_id] = points.get(kind_id, 0) + difficulty * 3
         skills = {}
         for kind in ActivityCategory.objects.all():
-            lists = Freizeit.objects.filter(activity=kind, membersonlist__member=self)
-            skills[kind.name] = sum(
-                [lst.difficulty * 3 for lst in lists if lst.date < timezone.now()]
-            )
+            skills[kind.name] = points.get(kind.pk, 0)
         return skills
 
     def get_activities(self):
@@ -462,44 +464,40 @@ class Member(Person):
         else:
             raise ValueError(name)
 
+    def member_acl_q(self, action):
+        """A ``Q`` on ``Member`` matching the members ``self`` may ``action``.
+
+        ``action`` is ``"list"`` or ``"view"``. The same members
+        :meth:`may_list` / :meth:`may_view` accept: ``self``, the members and
+        the members of groups named in ``self.permissions``, and those named in
+        the permissions of a group ``self`` belongs to. Each source is a
+        subquery, so filtering costs one query whatever the number of groups.
+        """
+        able = "{}able_by".format(action)
+        by_group = "group_members_{}able_by".format(action)
+        sources = [
+            # self.permissions.<action>_members
+            {"{}__member".format(able): self},
+            # members of self.permissions.<action>_groups
+            {"group__{}__member".format(able): self},
+            # <own group>.permissions.<action>_members
+            {"{}__group__member".format(by_group): self},
+            # members of <own group>.permissions.<action>_groups
+            {"group__{}__group__member".format(by_group): self},
+        ]
+        q = Q(pk=self.pk)
+        for lookup in sources:
+            q |= Q(pk__in=Member.objects.filter(**lookup).values("pk"))
+        return q
+
     def filter_members_by_permissions(self, queryset, annotate=False):
-        # mems = Member.objects.all().prefetch_related('group')
-
-        # list_pks = [ m.pk for m in mems if self.may_list(m) ]
-        # view_pks = [ m.pk for m in mems if self.may_view(m) ]
-
-        ## every member may list themself
-        pks = [self.pk]
-        view_pks = [self.pk]
-
-        if hasattr(self, "permissions"):
-            pks += [m.pk for m in self.permissions.list_members.all()]
-            view_pks += [m.pk for m in self.permissions.view_members.all()]
-
-            for group in self.permissions.list_groups.all():
-                pks += [m.pk for m in group.member_set.all()]
-
-            for group in self.permissions.view_groups.all():
-                view_pks += [m.pk for m in group.member_set.all()]
-
-        for group in self.group.all():
-            if hasattr(group, "permissions"):
-                pks += [m.pk for m in group.permissions.list_members.all()]
-                view_pks += [m.pk for m in group.permissions.view_members.all()]
-
-                for gr in group.permissions.list_groups.all():
-                    pks += [m.pk for m in gr.member_set.all()]
-
-                for gr in group.permissions.view_groups.all():
-                    view_pks += [m.pk for m in gr.member_set.all()]
-
-        filtered = queryset.filter(pk__in=pks)
+        filtered = queryset.filter(self.member_acl_q("list"))
         if not annotate:
             return filtered
 
         return filtered.annotate(
             _viewable=Case(
-                When(pk__in=view_pks, then=Value(True)),
+                When(self.member_acl_q("view"), then=Value(True)),
                 default=Value(False),
                 output_field=models.BooleanField(),
             )
@@ -518,24 +516,9 @@ class Member(Person):
         name = model._meta.object_name
         if name != "Member":
             return queryset
-        view_pks = [self.pk]
-
-        if hasattr(self, "permissions"):
-            view_pks += [m.pk for m in self.permissions.view_members.all()]
-
-            for group in self.permissions.view_groups.all():
-                view_pks += [m.pk for m in group.member_set.all()]
-
-        for group in self.group.all():
-            if hasattr(group, "permissions"):
-                view_pks += [m.pk for m in group.permissions.view_members.all()]
-
-                for gr in group.permissions.view_groups.all():
-                    view_pks += [m.pk for m in gr.member_set.all()]
-
         return queryset.annotate(
             _viewable=Case(
-                When(pk__in=view_pks, then=Value(True)),
+                When(self.member_acl_q("view"), then=Value(True)),
                 default=Value(False),
                 output_field=models.BooleanField(),
             )

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useMembers, useTrainingCategories } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -183,10 +184,8 @@ function TrainingCreateForm({ onDone }: { onDone: () => void }) {
   const [date, setDate] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const categoriesQuery = useApiQuery(["training-categories"], () =>
-    unwrap(client.GET("/api/members/training-categories")),
-  );
+  const membersQuery = useMembers();
+  const categoriesQuery = useTrainingCategories();
   const memberOptions = useMemo(
     () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
     [membersQuery.data],
@@ -317,7 +316,7 @@ function TrainingDetailBody({ training, crumbs }: { training: TrainingOut; crumb
         }),
       ),
     {
-      invalidate: [["members", "trainings"]],
+      invalidate: [["trainings"]],
       onSuccess: () => {
         toast.success("Ausbildung gelöscht.");
         navigate("/kompass/trainings");
@@ -331,11 +330,7 @@ function TrainingDetailBody({ training, crumbs }: { training: TrainingOut; crumb
   const [form, setForm] = useState(() => makeDraft(training));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const categoriesQuery = useApiQuery(
-    ["training-categories"],
-    () => unwrap(client.GET("/api/members/training-categories")),
-    { enabled: editing },
-  );
+  const categoriesQuery = useTrainingCategories({ enabled: editing });
   const activitiesQuery = useApiQuery(
     ["activity-categories"],
     () => unwrap(client.GET("/api/members/activity-categories")),

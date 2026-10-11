@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { QRCodeSVG } from "qrcode.react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { mediaUrl } from "../../api/client";
+import { ChunkBoundary } from "../../components/ChunkBoundary";
 import { client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useMembers } from "../../api/queries";
 import {
   Badge,
   Button,
@@ -13,6 +14,7 @@ import {
   PageHeader,
   QueryBoundary,
   Select,
+  Spinner,
   useConfirmDialog,
   useToast,
   euro,
@@ -27,6 +29,9 @@ type TransactionOut = components["schemas"]["TransactionOut"];
 type StageId = "expenses" | "bookings" | "payout";
 
 const STATEMENTS = "/kompass/finance/statements";
+
+// Only the payout stage draws QR codes, so the encoder is fetched when it does.
+const QRCodeSVG = lazy(() => import("qrcode.react").then((m) => ({ default: m.QRCodeSVG })));
 
 /**
  * The treasurer-facing review pipeline.
@@ -498,10 +503,10 @@ function BuchungenStage({
   invalidate: unknown[][];
 }) {
   const toast = useToast();
-  const ledgers = useApiQuery(["finance", "ledgers"], () =>
+  const ledgers = useApiQuery(["ledgers"], () =>
     unwrap(client.GET("/api/finance/ledgers/")),
   );
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const members = useMembers();
   const ledgerOptions = ledgers.data ?? [];
 
   const [editId, setEditId] = useState<number | null>(null);
@@ -799,7 +804,11 @@ function AuszahlenStage({
             <div className="payout-row-qr">
               {t.code ? (
                 <>
-                  <QRCodeSVG value={t.code} size={116} level="M" marginSize={1} />
+                  <ChunkBoundary>
+                    <Suspense fallback={<Spinner />}>
+                      <QRCodeSVG value={t.code} size={116} level="M" marginSize={1} />
+                    </Suspense>
+                  </ChunkBoundary>
                   <span className="payout-qr-caption">Scannen zum Überweisen</span>
                 </>
               ) : (

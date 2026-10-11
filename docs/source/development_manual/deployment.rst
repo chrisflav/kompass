@@ -206,6 +206,15 @@ We assume that all instructions are executed as ``root`` or with ``sudo``.
    as above, there should be no need to change anything in the ``[database]`` section.
 
    .. note::
+      ``conn_max_age`` (default ``60``) is how many seconds a database connection is kept
+      open and reused across requests; ``0`` opens a new one for every request.
+      ``conn_health_checks`` (default ``true``) makes Django check a reused connection before
+      a request uses it and reconnect if the server dropped it. Django holds one connection
+      per thread: each uwsgi worker thread and each celery worker process keeps one open,
+      about two dozen in a default deployment, far below MariaDB's default
+      ``max_connections`` of 151. With ``0``, idle threads hold no connection at all.
+
+   .. note::
       We recommend to initialize a ``git`` repository in the ``config`` folder to version control any changes
       to the local configuration.
 

@@ -53,6 +53,7 @@ from .schemas import MemberTrainingCreate
 from .schemas import MemberTrainingUpdate
 from .schemas import MemberUpdate
 from .schemas import MeOut
+from .schemas import prefetch_excursion_leaders
 from .schemas import RegistrationBrief
 from .schemas import TrainingBrief
 from .schemas import TrainingCategoryOut
@@ -124,6 +125,13 @@ def _apply_member_update(request, member, payload):
 # --- groups ---------------------------------------------------------------
 
 
+def _groups():
+    """Groups with the relations ``GroupOut`` resolves loaded in bulk."""
+    return Group.objects.select_related("contact_email").prefetch_related(
+        "leiters", "registrationpassword_set"
+    )
+
+
 @router.get("/groups", response=list[GroupOut])
 def list_groups(request):
     """Groups the user may view, scoped like ``list_registrations``.
@@ -135,7 +143,7 @@ def list_groups(request):
     plain 403 here surfaced as "Du leitest aktuell keine Gruppe." rather than as
     an error. Callers without a linked member see nothing.
     """
-    queryset = Group.objects.all().order_by("name")
+    queryset = _groups().order_by("name")
     if request.user.has_perm("members.view_group"):
         return queryset
     member = getattr(request.user, "member", None)
@@ -168,7 +176,7 @@ def retrieve_group(request, group_id: int):
     Django ``view_group`` permission checked globally.
     """
     authorize(request, "members.view_group")
-    return get_object_or_404(Group, pk=group_id)
+    return get_object_or_404(_groups(), pk=group_id)
 
 
 @router.patch("/groups/{group_id}", response=GroupOut)
@@ -211,7 +219,7 @@ def list_excursions(request):
     qs = (
         Freizeit.objects.all()
         .order_by("-date")
-        .prefetch_related("groups", "jugendleiter", "membersonlist")
+        .prefetch_related("groups", prefetch_excursion_leaders(), "membersonlist")
     )
     return scope_queryset(request.user, qs, model=Freizeit)
 
@@ -290,7 +298,8 @@ def list_members(request):
     queryset is annotated with ``_activity_score`` so the brief can expose the
     admin's activity column value.
     """
-    queryset = annotate_activity_score(Member.objects.all()).order_by("lastname")
+    queryset = Member.objects.prefetch_related("group").order_by("lastname")
+    queryset = annotate_activity_score(queryset)
     return scope_queryset(request.user, queryset, model=Member)
 
 
@@ -411,11 +420,20 @@ def retrieve_me(request):
 
 
 @router.get("/trainings", response=list[TrainingBrief])
-def list_trainings(request):
-    """Trainings the user may list, scoped by the shared permission filter."""
-    return scope_queryset(
-        request.user, MemberTraining.objects.all().order_by("-date"), model=MemberTraining
+def list_trainings(request, member: int | None = None):
+    """Trainings the user may list, scoped by the shared permission filter.
+
+    ``?member=<id>`` narrows the list to one member's trainings (the member
+    detail page), on top of — never instead of — the permission scope.
+    """
+    queryset = (
+        MemberTraining.objects.select_related("member", "category")
+        .prefetch_related("activity")
+        .order_by("-date")
     )
+    if member is not None:
+        queryset = queryset.filter(member_id=member)
+    return scope_queryset(request.user, queryset, model=MemberTraining)
 
 
 @router.post("/trainings", response={201: TrainingOut})

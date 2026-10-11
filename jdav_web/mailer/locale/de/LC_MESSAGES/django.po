@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-20 21:59+0200\n"
+"POT-Creation-Date: 2026-10-11 23:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -75,6 +75,9 @@ msgid ""
 msgstr ""
 "Deine E-Mail Adresse ist keine interne E-Mail Adresse und darf keine "
 "Nachrichten versenden."
+
+msgid "Some other members"
+msgstr "Andere Teilnehmer*innen"
 
 msgid "mailer"
 msgstr "Verteiler"
@@ -158,9 +161,6 @@ msgstr "Gesendet"
 
 msgid "Created by"
 msgstr "Erstellt von"
-
-msgid "Some other members"
-msgstr "Andere Teilnehmer*innen"
 
 msgid "recipients"
 msgstr "Empfänger"

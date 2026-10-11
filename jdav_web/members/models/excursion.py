@@ -1,5 +1,6 @@
 import math
 from datetime import datetime
+from datetime import UTC
 
 from contrib.media import media_path
 from contrib.models import CommonModel
@@ -9,12 +10,7 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Case
 from django.db.models import Q
-from django.db.models import Sum
-from django.db.models import Value
-from django.db.models import When
-from django.db.models.functions import Cast
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -210,38 +206,32 @@ class Freizeit(CommonModel):
     @property
     def total_seminar_days(self):
         """calculate seminar days based on intervention hours in every day"""
-        # TODO: add tests for this
-        if hasattr(self, "ljpproposal"):
-            hours_per_day = self.seminar_time_per_day
-            # Calculate the total number of seminar days
-            # Each day is counted as 1 if total_duration is >= 5 hours, as 0.5 if total_duration is >= 2.5
-            # otherwise 0
-            sum_days = sum([h["sum_days"] for h in hours_per_day])
-
-            return sum_days
-        else:
-            return 0
+        return sum([h["sum_days"] for h in self.seminar_time_per_day])
 
     @property
     def seminar_time_per_day(self):
-        if hasattr(self, "ljpproposal"):
-            return (
-                self.ljpproposal.intervention_set.annotate(
-                    day=Cast("date_start", output_field=models.DateField())
-                )  # Force it to date
-                .values("day")  # Group by day
-                .annotate(total_duration=Sum("duration"))  # Sum durations for each day
-                .annotate(
-                    sum_days=Case(
-                        When(total_duration__gte=5.0, then=Value(1.0)),
-                        When(total_duration__gte=2.5, then=Value(0.5)),
-                        default=Value(0.0),
-                    )
-                )
-                .order_by("day")  # Sort results by date
-            )
-        else:
+        """The intervention hours per day, and the seminar days each day counts as.
+
+        A day counts as 1 seminar day with at least 5 hours of interventions, as
+        0.5 with at least 2.5 hours, otherwise as 0. Computed from
+        ``intervention_set.all()``, so a prefetched list (the statement list
+        prefetches it for the LJP contributions) costs no query.
+        """
+        if not hasattr(self, "ljpproposal"):
             return []
+        hours = {}
+        for intervention in self.ljpproposal.intervention_set.all():
+            # the calendar day of the stored UTC time, as the database cast had it
+            day = intervention.date_start.astimezone(UTC).date()
+            hours[day] = hours.get(day, 0) + intervention.duration
+        return [
+            {
+                "day": day,
+                "total_duration": total,
+                "sum_days": 1.0 if total >= 5 else 0.5 if total >= 2.5 else 0.0,
+            }
+            for day, total in sorted(hours.items())
+        ]
 
     @property
     def ljp_duration(self):
@@ -252,10 +242,14 @@ class Freizeit(CommonModel):
     def staff_count(self):
         return self.jugendleiter.count()
 
+    # The helpers below read both relations with ``.all()``, which reuses a
+    # prefetched list (the statement list prefetches them for its totals).
+    # ``.distinct()`` never deduplicated anything here: the rows have distinct
+    # pks even when a member is on the list twice; the ``set()`` does that.
     @property
     def staff_on_memberlist(self):
-        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        ps = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         return ps.intersection(jls)
 
     @property
@@ -268,8 +262,8 @@ class Freizeit(CommonModel):
 
     @property
     def participants(self):
-        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        ps = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         return list(ps - jls)
 
     @property
@@ -305,9 +299,9 @@ class Freizeit(CommonModel):
         This is the theoretic value, ignoring the cutoff at 5 participants.
         """
         # participants (possibly including youth leaders)
-        ps = {x.member for x in self.membersonlist.distinct()}
+        ps = {x.member for x in self.membersonlist.all()}
         # youth leaders
-        jls = set(self.jugendleiter.distinct())
+        jls = set(self.jugendleiter.all())
         # non-youth leader participants
         ps_only = ps - jls
         # participants of the correct age (age does not matter for excursions with goal qualification)
@@ -336,9 +330,9 @@ class Freizeit(CommonModel):
         than 5, this is zero, otherwise it is `theoretic_ljp_participant_count`.
         """
         # participants (possibly including youth leaders)
-        ps = {x.member for x in self.membersonlist.distinct()}
+        ps = {x.member for x in self.membersonlist.all()}
         # youth leaders
-        jls = set(self.jugendleiter.distinct())
+        jls = set(self.jugendleiter.all())
         if len(ps.union(jls)) < 5:
             return 0
         return self.theoretic_ljp_participant_count
@@ -430,8 +424,8 @@ class Freizeit(CommonModel):
         return (people, sks)
 
     def sjr_application_numbers(self):
-        members = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        members = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         participants = members - jls
         b27_local = len(
             [m for m in participants if m.age_at(self.date) <= 27 and settings.SEKTION in m.town]
@@ -460,8 +454,8 @@ class Freizeit(CommonModel):
         }
 
     def sjr_application_fields(self):
-        members = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        members = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         numbers = self.sjr_application_numbers()
         title = self.ljpproposal.title if hasattr(self, "ljpproposal") else self.name
         base = {
