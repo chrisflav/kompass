@@ -15218,6 +15218,14 @@
             "title": "Bills",
             "type": "array"
           },
+          "transfers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TransferOut"
+            },
+            "title": "Transfers",
+            "type": "array"
+          },
           "total": {
             "title": "Total",
             "type": "number"
@@ -15431,6 +15439,77 @@
           "difference"
         ],
         "title": "TransactionIssueOut",
+        "type": "object"
+      },
+      "TransferOut": {
+        "description": "One movement of money the section's rules resolved.\n\nThe payout list, as the rules see it rather than as the statement's\ncolumns happen to be shaped: who owes whom how much, under which rule, and\nin which category. The last transfer of a statement is the engine's\nbalancing one — what the participants' contributions have to cover — so the\nlist adds up to zero by construction.\n\n``reference`` is the text the generated bank transaction carries.",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/TransferPartyOut"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/TransferPartyOut"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
+          "reference": {
+            "default": "",
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "destination",
+          "amount",
+          "category",
+          "rule_id"
+        ],
+        "title": "TransferOut",
+        "type": "object"
+      },
+      "TransferPartyOut": {
+        "description": "One end of a transfer: a member, the section, or the participants.\n\n``member`` is filled only for ``kind == \"member\"``; the other two parties\nare the section's own money and the participants' contributions, which\nhave no bank account of their own in Kompass.",
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "TransferPartyOut",
         "type": "object"
       },
       "StatementCreate": {

@@ -24,9 +24,13 @@ from schwifty import IBAN
 from utils import cvt_to_decimal
 from utils import RestrictedFileField
 
+from .engine import evaluate_statement
+from .engine import parameters as engine_parameters
 from .rules import is_creator
 from .rules import leads_excursion
 from .rules import not_submitted
+from .rules_api import Member as RuleMember
+from .rules_api import SECTION
 
 # Create your models here.
 
@@ -194,10 +198,17 @@ class Statement(CommonModel):
     def __str__(self):
         return str(self.title)
 
-    def _get_setting(self, key: str):
-        if self.submitted and self.settings_snapshot and key in self.settings_snapshot:
-            return float(self.settings_snapshot[key])
-        return float(getattr(settings, key, 0))
+    def _get_setting(self, key: str) -> Decimal:
+        """The section's number for ``key``, as it applies to this statement.
+
+        A submitted statement reads its own snapshot, a draft the live
+        settings. The value is a ``Decimal``: the snapshot holds JSON numbers
+        and the settings may hold either, and every amount column in this app
+        is a ``DecimalField``, so the conversion happens once, here, through
+        the text form — ``Decimal(str(0.15))`` is ``Decimal("0.15")`` and not
+        the binary expansion ``Decimal(0.15)`` would give.
+        """
+        return engine_parameters(self)[key]
 
     def _capture_settings_snapshot(self, force=False):
         if self.settings_snapshot and not force:
@@ -240,42 +251,99 @@ class Statement(CommonModel):
         self.save()
 
     @property
+    def rule_result(self):
+        """This statement resolved against the section's rules.
+
+        The single seam between the finance app and the rules engine: who is
+        owed what, what is wrong with the statement, and what still has to be
+        asked (:class:`finance.engine.Result`). Every money figure below is
+        read off it rather than recomputed here.
+
+        It is resolved on each access on purpose. A draft follows its own
+        fields — change the subsidy recipient and the next read says so — and
+        caching that correctly means fingerprinting the recipients, the bills
+        and the excursion, which costs the queries it would save. Step 2 of the
+        refactor materialises the transfers as rows, which removes the question.
+        """
+        return evaluate_statement(self)
+
+    @property
+    def transfers(self):
+        """The transfers this statement resolves to, balancing one last."""
+        return self.rule_result.transfers
+
+    def _transfer_members(self, result):
+        """The members a result touches, by id, in one query."""
+        return Member.objects.in_bulk([party.id for party in result.members()])
+
+    def _transfer_reference(self, transfer):
+        """The payment reference a transfer is booked under.
+
+        The wording is the association's, not the ruleset's: a transfer carries
+        a category and a short label, and the context the rules see holds no
+        names, so the excursion's name is interpolated here. A category this
+        app has no wording for falls back to the ruleset's own label, which is
+        what a section with its own categories gets.
+        """
+        if transfer.category == "bill":
+            return "{}: {}".format(str(self), transfer.label)
+        excursion = self.excursion
+        if excursion is not None:
+            if transfer.category == "allowance":
+                return _("Allowance for %(excu)s") % {"excu": excursion.name}
+            if transfer.category == "subsidy":
+                return _("Night and travel costs for %(excu)s") % {"excu": excursion.name}
+            if transfer.category == "org_fee":
+                return _("reduced by org fee")
+            if transfer.category == "ljp":
+                return _("LJP-Contribution %(excu)s") % {"excu": excursion.name}
+        return transfer.label or transfer.category
+
+    def transfer_payload(self):
+        """The transfers with their parties resolved to members, for the API."""
+        result = self.rule_result
+        members = self._transfer_members(result)
+
+        def party(value):
+            if isinstance(value, RuleMember):
+                return {"kind": "member", "member": members.get(value.id)}
+            return {"kind": "section" if value == SECTION else "participants", "member": None}
+
+        return [
+            {
+                "source": party(transfer.source),
+                "destination": party(transfer.destination),
+                "amount": transfer.amount,
+                "category": transfer.category,
+                "rule_id": transfer.rule_id,
+                "label": str(transfer.label),
+                "explanation": str(transfer.explanation),
+                "reference": str(self._transfer_reference(transfer)),
+            }
+            for transfer in result.transfers
+        ]
+
+    @property
     def transaction_issues(self):
         """
         Returns a list of critical problems with the currently configured transactions. This is done
-        by calculating a list of required paiments. From this list, we deduce the total amount
-        every member should receive (this amount can be negative, due to org fees).
-        Finally, the amounts are compared to the total amounts paid out by currently setup transactions.
+        by resolving the statement against the section's rules. From the resulting transfers, we
+        deduce the total amount every member should receive (this amount can be negative, due to
+        org fees). Finally, the amounts are compared to the total amounts paid out by currently
+        setup transactions.
 
-        The list of required paiments is generated from:
-        - All covered bills that have a configured payer.
-          (Note: This means that `transaction_issues` might return an empty list, but the calculated
-          total still differs from the transaction total.)
-        - If the statement is associated with an excursion: allowances, subsidies, LJP paiment and org fee.
+        Only transfers that touch a member can be an issue: a covered bill with no payer is money
+        the statement owes somebody it cannot name, which is reported as a rule error instead.
+        (Note: This means that `transaction_issues` might return an empty list, but the calculated
+        total still differs from the transaction total.)
         """
-        needed_paiments = [
-            (b.paid_by, b.amount) for b in self.bill_set.all() if b.costs_covered and b.paid_by
-        ]
-
-        if self.excursion is not None:
-            needed_paiments.extend([(yl, self.allowance_per_yl) for yl in self.allowance_to.all()])
-        if self.subsidy_to:
-            needed_paiments.append((self.subsidy_to, self.total_subsidies))
-
-        # only include org fee if either allowance or subsidy is claimed (part of the property)
-        if self.total_org_fee:
-            needed_paiments.append((self.org_fee_payant, -self.total_org_fee))
-
-        if self.ljp_to:
-            needed_paiments.append((self.ljp_to, self.paid_ljp_contributions))
-
-        needed_paiments = sorted(needed_paiments, key=lambda p: p[0].pk)
-        target = dict(
-            map(
-                lambda p: (p[0], sum([x[1] for x in p[1]])),
-                groupby(needed_paiments, lambda p: p[0]),
-            )
-        )
+        result = self.rule_result
+        members = self._transfer_members(result)
+        target = {
+            members[party.id]: result.amount_for(party)
+            for party in sorted(result.members(), key=lambda party: party.id)
+            if party.id in members
+        }
 
         transactions = sorted(self.transaction_set.all(), key=lambda trans: trans.member.pk)
         current = dict(
@@ -410,68 +478,31 @@ class Statement(CommonModel):
         return True
 
     def generate_transactions(self):
-        # bills
-        for bill in self.bill_set.all():
-            if not bill.costs_covered:
-                continue
-            if not bill.paid_by:
-                return False
-            ref = "{}: {}".format(str(self), bill.short_description)
-            Transaction(
-                statement=self,
-                member=bill.paid_by,
-                amount=bill.amount,
-                confirmed=False,
-                reference=ref,
-            ).save()
+        """Book one transaction per member a transfer touches.
 
-        # excursion specific
-        if self.excursion is None:
-            return True
-
-        # allowance
-        for yl in self.allowance_to.all():
-            ref = _("Allowance for %(excu)s") % {"excu": self.excursion.name}
-            Transaction(
-                statement=self,
-                member=yl,
-                amount=self.allowance_per_yl,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
-        # subsidies (i.e. night and transportation costs)
-        if self.subsidy_to:
-            ref = _("Night and travel costs for %(excu)s") % {"excu": self.excursion.name}
-            Transaction(
-                statement=self,
-                member=self.subsidy_to,
-                amount=self.total_subsidies,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
-        if self.total_org_fee:
-            # if no subsidy receiver is given but org fees have to be paid. Just pick one of allowance receivers
-            ref = _("reduced by org fee")
-            Transaction(
-                statement=self,
-                member=self.org_fee_payant,
-                amount=-self.total_org_fee,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
-        if self.ljp_to:
-            ref = _("LJP-Contribution %(excu)s") % {"excu": self.excursion.name}
-            Transaction(
-                statement=self,
-                member=self.ljp_to,
-                amount=self.paid_ljp_contributions,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
+        Returns ``False`` without writing anything when the rules reported a
+        problem — a covered bill with no payer is the one Heidelberg reports —
+        so a statement that cannot be paid out leaves no half-generated rows
+        behind. Money owed to a member is a transfer *to* them and money
+        charged against their reimbursement a transfer *from* them, which is
+        where the negative amount of an org-fee row comes from.
+        """
+        result = self.rule_result
+        if result.errors:
+            return False
+        members = self._transfer_members(result)
+        for transfer in result.transfers:
+            reference = self._transfer_reference(transfer)
+            for party, sign in ((transfer.destination, 1), (transfer.source, -1)):
+                if not isinstance(party, RuleMember):
+                    continue
+                Transaction(
+                    statement=self,
+                    member=members[party.id],
+                    amount=sign * transfer.amount,
+                    confirmed=False,
+                    reference=reference,
+                ).save()
         return True
 
     def reduce_transactions(self):
@@ -555,7 +586,8 @@ class Statement(CommonModel):
         if self.excursion is None:
             return 0
 
-        return cvt_to_decimal(self.excursion.duration * self._get_setting("ALLOWANCE_PER_DAY"))
+        duration = cvt_to_decimal(self.excursion.duration)
+        return cvt_to_decimal(duration * self._get_setting("ALLOWANCE_PER_DAY"))
 
     @property
     def allowances_paid(self):
@@ -563,7 +595,8 @@ class Statement(CommonModel):
 
     @property
     def total_allowance(self):
-        return self.allowance_per_yl * self.allowances_paid
+        """What the youth leaders actually receive as an allowance."""
+        return self.rule_result.total_of("allowance")
 
     @property
     def total_transportation(self):
@@ -571,7 +604,7 @@ class Statement(CommonModel):
 
     @property
     def real_night_cost(self):
-        return min(self.night_cost, Decimal(self._get_setting("MAX_NIGHT_COST")))
+        return min(cvt_to_decimal(self.night_cost), self._get_setting("MAX_NIGHT_COST"))
 
     @property
     def nights_per_yl(self):
@@ -602,29 +635,22 @@ class Statement(CommonModel):
             return 0
         return cvt_to_decimal(
             self._get_setting("EXCURSION_ORG_FEE")
-            * self.excursion.duration
+            * cvt_to_decimal(self.excursion.duration)
             * self.excursion.old_participant_count
         )
 
     @property
     def total_org_fee(self):
-        """only calculate org fee if subsidies or allowances are claimed."""
-        if not self.subsidy_to and self.allowances_paid == 0:
-            return cvt_to_decimal(0)
-
-        # if the excursion is for qualification, we don't charge org fees for older participants.
-        if hasattr(self.excursion, "ljpproposal"):
-            proposal = getattr(self.excursion, "ljpproposal")
-            if proposal.goal == proposal.LJP_QUALIFICATION:
-                return cvt_to_decimal(0)
-
-        return self.total_org_fee_theoretical
+        """The organisation fee actually charged against this statement."""
+        return self.rule_result.total_of("org_fee")
 
     @property
     def org_fee_payant(self):
-        if self.total_org_fee == 0:
-            return None
-        return self.subsidy_to if self.subsidy_to else self.allowance_to.all()[0]
+        """Whose reimbursement the organisation fee is charged against."""
+        for transfer in self.rule_result.of_category("org_fee"):
+            if isinstance(transfer.source, RuleMember):
+                return Member.objects.filter(pk=transfer.source.id).first()
+        return None
 
     @property
     def total_subsidies(self):
@@ -632,10 +658,7 @@ class Statement(CommonModel):
         The total amount of subsidies excluding the allowance, i.e. the transportation
         and night costs per youth leader multiplied with the real number of youth leaders.
         """
-        if self.subsidy_to:
-            return (self.transportation_per_yl + self.nights_per_yl) * self.real_staff_count
-        else:
-            return cvt_to_decimal(0)
+        return self.rule_result.total_of("subsidy")
 
     @property
     def subsidies_paid(self):
@@ -677,31 +700,19 @@ class Statement(CommonModel):
 
     @property
     def paid_ljp_contributions(self):
-        if hasattr(self.excursion, "ljpproposal") and self.ljp_to:
-            if self.excursion.theoretic_ljp_participant_count < 5:
-                return 0
-
-            return cvt_to_decimal(
-                min(
-                    # if total costs are more than the max amount of the LJP contribution, we pay the max amount, reduced by taxes
-                    (1 - self._get_setting("LJP_TAX"))
-                    * self._get_setting("LJP_CONTRIBUTION_PER_DAY")
-                    * self.excursion.ljp_participant_count
-                    * self.excursion.ljp_duration,
-                    # if the total costs are less than the max amount, we pay up to 90% of the total costs, reduced by taxes
-                    (1 - self._get_setting("LJP_TAX"))
-                    * 0.9
-                    * (float(self.total_bills_not_covered) + float(self.total_staff)),
-                    # we never pay more than the maximum costs of the trip
-                    float(self.total_bills_not_covered),
-                )
-            )
-        else:
-            return 0
+        """The Landesjugendplan contribution this statement passes on."""
+        return self.rule_result.total_of("ljp")
 
     @property
     def total(self):
-        return self.total_bills + self.total_staff_paid + self.paid_ljp_contributions
+        """What this statement costs the section, net.
+
+        Read off the transfers as the money that leaves the section minus the
+        money that comes back to it — which is the same figure the engine's
+        balancing transfer resolves, and the same one the participants'
+        contributions have to cover.
+        """
+        return self.rule_result.net_out(SECTION)
 
     @property
     def total_theoretic(self):

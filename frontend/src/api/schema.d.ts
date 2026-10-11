@@ -5678,6 +5678,11 @@ export interface components {
              * @default []
              */
             bills: components["schemas"]["BillBrief"][];
+            /**
+             * Transfers
+             * @default []
+             */
+            transfers: components["schemas"]["TransferOut"][];
             /** Total */
             total: number;
             /** Total Bills */
@@ -5763,6 +5768,56 @@ export interface components {
             target: number;
             /** Difference */
             difference: number;
+        };
+        /**
+         * TransferOut
+         * @description One movement of money the section's rules resolved.
+         *
+         *     The payout list, as the rules see it rather than as the statement's
+         *     columns happen to be shaped: who owes whom how much, under which rule, and
+         *     in which category. The last transfer of a statement is the engine's
+         *     balancing one — what the participants' contributions have to cover — so the
+         *     list adds up to zero by construction.
+         *
+         *     ``reference`` is the text the generated bank transaction carries.
+         */
+        TransferOut: {
+            source: components["schemas"]["TransferPartyOut"];
+            destination: components["schemas"]["TransferPartyOut"];
+            /** Amount */
+            amount: number;
+            /** Category */
+            category: string;
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+            /**
+             * Reference
+             * @default
+             */
+            reference: string;
+        };
+        /**
+         * TransferPartyOut
+         * @description One end of a transfer: a member, the section, or the participants.
+         *
+         *     ``member`` is filled only for ``kind == "member"``; the other two parties
+         *     are the section's own money and the participants' contributions, which
+         *     have no bank account of their own in Kompass.
+         */
+        TransferPartyOut: {
+            /** Kind */
+            kind: string;
+            member?: components["schemas"]["MemberBrief"] | null;
         };
         /** StatementCreate */
         StatementCreate: {

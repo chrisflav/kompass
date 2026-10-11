@@ -42,6 +42,40 @@ class TransactionIssueOut(Schema):
     difference: float
 
 
+class TransferPartyOut(Schema):
+    """One end of a transfer: a member, the section, or the participants.
+
+    ``member`` is filled only for ``kind == "member"``; the other two parties
+    are the section's own money and the participants' contributions, which
+    have no bank account of their own in Kompass.
+    """
+
+    kind: str
+    member: MemberBrief | None = None
+
+
+class TransferOut(Schema):
+    """One movement of money the section's rules resolved.
+
+    The payout list, as the rules see it rather than as the statement's
+    columns happen to be shaped: who owes whom how much, under which rule, and
+    in which category. The last transfer of a statement is the engine's
+    balancing one — what the participants' contributions have to cover — so the
+    list adds up to zero by construction.
+
+    ``reference`` is the text the generated bank transaction carries.
+    """
+
+    source: TransferPartyOut
+    destination: TransferPartyOut
+    amount: float
+    category: str
+    rule_id: str
+    label: str = ""
+    explanation: str = ""
+    reference: str = ""
+
+
 class BillBrief(ModelSchema):
     id: int
     amount: float
@@ -141,6 +175,10 @@ class StatementOut(ModelSchema):
     ljp_to: MemberBrief | None = None
     allowance_to: list[MemberBrief] = []
     bills: list[BillBrief] = []
+    # The payout, as the rules resolved it. Every money figure below is a
+    # summary of these, so a client that wants the breakdown reads them
+    # instead of re-deriving it from the named totals.
+    transfers: list[TransferOut] = []
     # Computed money figures (mirroring ``template_context`` / the properties).
     total: float
     total_bills: float
@@ -201,6 +239,10 @@ class StatementOut(ModelSchema):
     @staticmethod
     def resolve_bills(obj):
         return obj.bill_set.all()
+
+    @staticmethod
+    def resolve_transfers(obj):
+        return obj.transfer_payload()
 
 
 class TransactionBrief(ModelSchema):
