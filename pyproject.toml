@@ -72,6 +72,15 @@ files = [
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["django.*", "members.*", "finance.models", "contrib.*", "utils"]
+module = [
+    "django.*",
+    "django_celery_beat.*",
+    "celery.*",
+    "members.*",
+    "finance.models",
+    "finance.store",
+    "contrib.*",
+    "utils",
+]
 ignore_missing_imports = true
 follow_imports = "skip"

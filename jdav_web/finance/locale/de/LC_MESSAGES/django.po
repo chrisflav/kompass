@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 22:09+0200\n"
+"POT-Creation-Date: 2026-10-11 23:17+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -160,6 +160,35 @@ msgstr "Beleg herunterladen"
 
 msgid "Length"
 msgstr "Länge"
+
+msgid "Obligation"
+msgstr "Verbindlichkeit"
+
+msgid "Resolved payout"
+msgstr "Aufgelöste Auszahlung"
+
+msgid "Statements"
+msgstr "Abrechnungen"
+
+#, python-format
+msgid "There is no ruleset at %(path)s."
+msgstr "Unter %(path)s liegt kein Regelwerk."
+
+#, python-format
+msgid "%(name)s was stored as a draft and is not active."
+msgstr "%(name)s wurde als Entwurf gespeichert und ist nicht aktiv."
+
+#, fuzzy, python-format
+#| msgid "%(name)s is not yet submitted."
+msgid "%(name)s is now active."
+msgstr "%(name)s ist noch nicht eingereicht."
+
+msgid "Dry run"
+msgstr "Probelauf"
+
+#, python-format
+msgid "There is no statement %(id)s."
+msgstr "Es gibt keine Abrechnung %(id)s."
 
 msgid "Statement is not yet confirmed."
 msgstr "Diese Abrechnung ist noch nicht bestätigt."
@@ -313,6 +342,20 @@ msgstr "Einstellungszwischenstand"
 msgid "Financial settings captured at time of submission/confirmation."
 msgstr "Gültige Finanzregeln bei Einreichung bzw. Bestätigung"
 
+msgid "Ruleset version"
+msgstr "Regelwerk-Version"
+
+msgid "Ruleset hash"
+msgstr "Regelwerk-Hash"
+
+#, fuzzy
+#| msgid "Settings snapshot"
+msgid "Ruleset snapshot"
+msgstr "Einstellungszwischenstand"
+
+msgid "The rules and numbers this statement was created under."
+msgstr "Die Regeln und Beträge, unter denen diese Abrechnung angelegt wurde."
+
 msgid "Submitted on"
 msgstr "Eingereicht am"
 
@@ -330,9 +373,6 @@ msgstr "Autorisiert von"
 
 msgid "Statement"
 msgstr "Abrechnung"
-
-msgid "Statements"
-msgstr "Abrechnungen"
 
 #, python-format
 msgid "Excursion %(excursion)s"
@@ -435,6 +475,197 @@ msgstr "Überweisung"
 msgid "Transactions"
 msgstr "Überweisungen"
 
+msgid "Member"
+msgstr "Mitglied"
+
+msgid "Section"
+msgstr "Sektion"
+
+msgid "Participants"
+msgstr "Teilnehmende"
+
+msgid "Draft (not activated)"
+msgstr "Entwurf (nicht aktiviert)"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Retired"
+msgstr "Abgelöst"
+
+msgid "Hash"
+msgstr "Hash"
+
+msgid "Manifest"
+msgstr "Manifest"
+
+msgid "One SHA-256 per file of the ruleset, keyed by relative path."
+msgstr "Ein SHA-256 pro Datei des Regelwerks, nach relativem Pfad."
+
+msgid "Sources"
+msgstr "Quelltexte"
+
+msgid "The ruleset's whole source closure, keyed by relative path."
+msgstr "Der gesamte Quelltext des Regelwerks, nach relativem Pfad."
+
+msgid "Revision"
+msgstr "Revision"
+
+msgid "The commit the sources were read from, where there is one."
+msgstr ""
+"Der Commit, aus dem die Quelltexte gelesen wurden, sofern es einen gibt."
+
+msgid "Engine version"
+msgstr "Engine-Version"
+
+msgid "The Kompass and interpreter version the sources were imported into."
+msgstr ""
+"Die Kompass- und Interpreter-Version, in die die Quelltexte importiert "
+"wurden."
+
+msgid "Context version"
+msgstr "Kontext-Version"
+
+msgid "Parameters"
+msgstr "Parameter"
+
+msgid "The section's numbers, as exact decimal strings."
+msgstr "Die Beträge der Sektion, als exakte Dezimalzahlen in Textform."
+
+#, fuzzy
+#| msgid "Status"
+msgid "State"
+msgstr "Status"
+
+msgid "Problems"
+msgstr "Probleme"
+
+msgid "Why this version was not activated, where it was not."
+msgstr "Warum diese Version nicht aktiviert wurde, sofern sie es nicht wurde."
+
+msgid "Valid from"
+msgstr "Gültig ab"
+
+msgid "Valid to"
+msgstr "Gültig bis"
+
+#, fuzzy
+#| msgid "Submitted on"
+msgid "Imported on"
+msgstr "Eingereicht am"
+
+#, fuzzy
+#| msgid "Associated excursion"
+msgid "Activated on"
+msgstr "Zugehörige Ausfahrt"
+
+msgid "Cases passed on"
+msgstr "Testfälle bestanden am"
+
+msgid "Supersedes"
+msgstr "Löst ab"
+
+msgid "Ruleset versions"
+msgstr "Regelwerk-Versionen"
+
+msgid "Role"
+msgstr "Rolle"
+
+msgid "The name the section's rules read this role under, e.g. 'kassenwart'."
+msgstr ""
+"Der Name, unter dem die Regeln der Sektion diese Rolle lesen, z.B. "
+"„kassenwart“."
+
+msgid "Comment"
+msgstr "Kommentar"
+
+msgid "Role assignment"
+msgstr "Rollenzuordnung"
+
+msgid "Role assignments"
+msgstr "Rollenzuordnungen"
+
+msgid "Position"
+msgstr "Position"
+
+msgid "The order the rules produced this transfer in."
+msgstr "Die Reihenfolge, in der die Regeln diese Zahlung erzeugt haben."
+
+msgid "Owed by"
+msgstr "Geschuldet von"
+
+msgid "Owed by (member)"
+msgstr "Geschuldet von (Mitglied)"
+
+msgid "Owed by (name)"
+msgstr "Geschuldet von (Name)"
+
+msgid "Owed to"
+msgstr "Geschuldet an"
+
+msgid "Owed to (member)"
+msgstr "Geschuldet an (Mitglied)"
+
+msgid "Owed to (name)"
+msgstr "Geschuldet an (Name)"
+
+msgid "Amount in cents"
+msgstr "Betrag in Cent"
+
+msgid "Category"
+msgstr "Kategorie"
+
+msgid "Label"
+msgstr "Bezeichnung"
+
+msgid "Rule"
+msgstr "Regel"
+
+msgid "Rule version"
+msgstr "Regel-Version"
+
+msgid "The hash of the ruleset version that produced this row."
+msgstr "Der Hash der Regelwerk-Version, die diese Zeile erzeugt hat."
+
+#, fuzzy
+#| msgid "Completed"
+msgid "Computed on"
+msgstr "Abgewickelt"
+
+msgid "Frozen on"
+msgstr "Festgeschrieben am"
+
+msgid "Set when the statement was handed in; a frozen row is never recomputed."
+msgstr ""
+"Wird beim Einreichen gesetzt; eine festgeschriebene Zeile wird nie neu "
+"berechnet."
+
+msgid "Obligations"
+msgstr "Verbindlichkeiten"
+
+#, fuzzy
+#| msgid "Short description"
+msgid "Description"
+msgstr "Kurzbeschreibung"
+
+msgid "Applicable"
+msgstr "Zutreffend"
+
+msgid "Signatures required"
+msgstr "Benötigte Unterschriften"
+
+msgid "Eligible members"
+msgstr "Berechtigte Mitglieder"
+
+msgid "Who the rules named, re-checked against the permission system."
+msgstr "Wen die Regeln benannt haben, erneut gegen die Berechtigungen geprüft."
+
+msgid "Approval constraint"
+msgstr "Freigabe-Anforderung"
+
+msgid "Approval constraints"
+msgstr "Freigabe-Anforderungen"
+
 msgid "Paying statement"
 msgstr "Rechnung bezahlen"
 
@@ -468,6 +699,53 @@ msgstr "Nur bestätigen"
 
 msgid "Confirm and send receipt to office"
 msgstr "Bestätigen und Beleg an die Geschäftsstelle senden"
+
+msgid "Import from configuration"
+msgstr "Aus der Konfiguration importieren"
+
+#, python-format
+msgid ""
+"The section's rules are read from %(path)s. Importing an unchanged package "
+"changes nothing: it hashes to the version that is already stored."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "This excursion already has a statement."
+msgid "What %(version)s would make of a statement"
+msgstr "Diese Ausfahrt hat bereits eine Abrechnung."
+
+msgid ""
+"Nothing is written: the statement keeps its own version and its own payout. "
+"This is how a rule change is tried against a real trip before anybody "
+"activates it."
+msgstr ""
+
+msgid "Transfers"
+msgstr "Zahlungen"
+
+msgid "Questions it would ask"
+msgstr "Welche Angaben es erfragen würde"
+
+msgid "optional"
+msgstr "optional"
+
+msgid "Checks"
+msgstr "Prüfungen"
+
+msgid "Signatures"
+msgstr "Unterschriften"
+
+#, python-format
+msgid "%(counter)s signature"
+msgid_plural "%(counter)s signatures"
+msgstr[0] "%(counter)s Unterschrift"
+msgstr[1] "%(counter)s Unterschriften"
+
+msgid "not applicable"
+msgstr "nicht zutreffend"
+
+msgid "Back"
+msgstr "Zurück"
 
 msgid ""
 "This statement is still a draft. It needs to be submitted before it can be "
