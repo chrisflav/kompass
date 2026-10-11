@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { queryKeys } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -238,6 +239,8 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
       ),
     {
       invalidate: [["auth", "users"], ["auth", "users", user.id]],
+      // Permissions and Rechtegruppen decide which members and excursions are listed.
+      markStale: [queryKeys.members(), queryKeys.excursions()],
       onSuccess: () => {
         toast.success("Gespeichert.");
         setEditing(false);

@@ -767,6 +767,8 @@ export function SearchableSelect({
   options,
   label,
   allLabel = "alle",
+  onOpen,
+  loading = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -774,6 +776,10 @@ export function SearchableSelect({
   /** Prefix shown on the trigger, e.g. "Gruppe". */
   label: string;
   allLabel?: string;
+  /** Called each time the dropdown opens. */
+  onOpen?: () => void;
+  /** Options still loading: says so below the "all" entry. */
+  loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -798,7 +804,10 @@ export function SearchableSelect({
       <button
         type="button"
         className={value ? "ss-trigger active" : "ss-trigger"}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          if (!open) onOpen?.();
+          setOpen(!open);
+        }}
       >
         <span className="ss-label">{label}:</span>{" "}
         <span className="ss-value">{current ? current.label : allLabel}</span>
@@ -823,6 +832,11 @@ export function SearchableSelect({
               <span>{allLabel}</span>
               {value === "" && <span className="ms-check">✓</span>}
             </button>
+            {loading && (
+              <div className="muted small ms-empty" role="status">
+                Lädt …
+              </div>
+            )}
             {filtered.map((o) => (
               <button
                 type="button"

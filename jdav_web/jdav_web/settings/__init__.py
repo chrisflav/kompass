@@ -52,6 +52,17 @@ def get_text(*keys, default=""):
     return get_var(*keys, default=default, dictionary=texts)
 
 
+def as_bool(value):
+    """
+    Read a config value as a boolean. A TOML boolean is taken as it is, while a
+    string such as `"false"` (which `bool()` would call true) only counts as
+    true when it spells it: `"true"`, `"yes"`, `"on"` or `"1"`.
+    """
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "yes", "on", "1")
+    return bool(value)
+
+
 base_settings = [
     "local.py",
     "components/authentication.py",

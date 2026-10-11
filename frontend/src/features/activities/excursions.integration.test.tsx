@@ -156,7 +156,8 @@ describe("activities — Ausfahrten list", () => {
 
     const pick = async (filter: RegExp, option: string) => {
       await user.click(screen.getByRole("button", { name: filter }));
-      await user.click(dropdown().getByRole("button", { name: option }));
+      // `find`: the participant options only load once that filter opens.
+      await user.click(await dropdown().findByRole("button", { name: option }));
     };
 
     await pick(/Genehmigt:/, "Abgelehnt");
@@ -173,6 +174,60 @@ describe("activities — Ausfahrten list", () => {
     await user.click(screen.getByRole("button", { name: "Filter zurücksetzen" }));
     await pick(/Teilnehmer\*in:/, "Mila Nowak");
     await waitFor(() => expect(screen.getByText("1 / 3")).toBeInTheDocument());
+  });
+
+  it("loads the members only once the participant filter opens", async () => {
+    listReturns();
+    let memberRequests = 0;
+    server.use(
+      http.get(api("/api/members/"), () => {
+        memberRequests += 1;
+        return HttpResponse.json(MEMBERS);
+      }),
+    );
+    const { user } = renderRoute("/kompass/excursions");
+    await screen.findByText("Skifreizeit");
+    await user.click(screen.getByRole("button", { name: /Gruppe:/ }));
+    expect(memberRequests).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: /Teilnehmer\*in:/ }));
+    expect(await dropdown().findByRole("button", { name: "Mila Nowak" })).toBeInTheDocument();
+    expect(memberRequests).toBe(1);
+  });
+
+  it("says the participant options are loading until they arrive", async () => {
+    listReturns();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get(api("/api/members/"), async () => {
+        await held;
+        return HttpResponse.json(MEMBERS);
+      }),
+    );
+    const { user } = renderRoute("/kompass/excursions");
+    await screen.findByText("Skifreizeit");
+    await user.click(screen.getByRole("button", { name: /Teilnehmer\*in:/ }));
+    expect(await dropdown().findByText("Lädt …")).toBeInTheDocument();
+
+    release();
+    expect(await dropdown().findByRole("button", { name: "Mila Nowak" })).toBeInTheDocument();
+    expect(dropdown().queryByText("Lädt …")).not.toBeInTheDocument();
+  });
+
+  it("loads the members at once when a participant filter is restored", async () => {
+    listReturns();
+    sessionStorage.setItem(
+      "listview:" + window.location.pathname,
+      JSON.stringify({ search: "", filterValues: { participant: "43" }, sort: null }),
+    );
+    try {
+      renderRoute("/kompass/excursions");
+      // The trigger names the restored member without the dropdown being opened.
+      expect(await screen.findByText("Mila Nowak")).toBeInTheDocument();
+    } finally {
+      sessionStorage.clear();
+    }
   });
 
   it("sorts by every column in both directions", async () => {
@@ -392,6 +447,37 @@ describe("activities — Ausfahrt detail", () => {
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(created).toMatchObject({ member_id: 43 }));
+  });
+
+  it("does not reload the member list it just used for the picker on save", async () => {
+    detailReturns();
+    let memberRequests = 0;
+    server.use(
+      http.get(api("/api/members/"), () => {
+        memberRequests += 1;
+        return HttpResponse.json(MEMBERS);
+      }),
+      http.patch(api("/api/members/excursions/3"), () => HttpResponse.json(EXCURSION)),
+      http.post(api("/api/members/excursions/3/participants"), () =>
+        HttpResponse.json({ id: 40 }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
+    await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "Teilnehmende" }));
+    await user.click(await dropdown().findByRole("button", { name: "Mila Nowak" }));
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+    expect(memberRequests).toBe(1);
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
+    // The save marks the list stale for the next page instead of refetching it
+    // (once per mutation) while the edit-mode picker still observes it.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(memberRequests).toBe(1);
   });
 
   it("saves an inline edit with ids and numbers", async () => {

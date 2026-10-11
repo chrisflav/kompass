@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { queryKeys, useEmailAddresses, useGroups, useMembers } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -41,7 +42,7 @@ export function GroupsList() {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
-  const query = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const query = useGroups();
   const rows = query.data ?? [];
 
   const config: ListViewConfig<GroupOut> = useMemo(
@@ -268,6 +269,7 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
       ),
     {
       invalidate: [["groups"]],
+      markStale: [queryKeys.members(), queryKeys.excursions()],
       onSuccess: () => {
         toast.success("Gruppe gelöscht.");
         navigate("/kompass/groups");
@@ -284,14 +286,8 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
   // Options for the editable relations. `leiters` is Jugendleiter-restricted in
   // the admin form; the API has no filtered member endpoint, so we offer every
   // visible member here. BACKEND-GAP: no Jugendleiter-only member endpoint.
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
-    enabled: editing,
-  });
-  const emailsQuery = useApiQuery(
-    ["mailer", "email-addresses"],
-    () => unwrap(client.GET("/api/mailer/email-addresses")),
-    { enabled: editing },
-  );
+  const membersQuery = useMembers({ enabled: editing });
+  const emailsQuery = useEmailAddresses({ enabled: editing });
   const memberOptions: Option[] = useMemo(
     () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
     [membersQuery.data],
@@ -312,7 +308,12 @@ function GroupDetailBody({ group }: { group: GroupOut }) {
           body,
         }),
       ),
-    { invalidate: [["groups"], ["groups", group.id]] },
+    // Group names also show in the members list (column + filter) and the
+    // excursions list (filter), so a rename marks those stale too.
+    {
+      invalidate: [["groups"], ["groups", group.id]],
+      markStale: [queryKeys.members(), queryKeys.excursions()],
+    },
   );
 
   function startEditing() {
@@ -762,6 +763,8 @@ function PermissionGroupsInline({
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
   const invalidate = [["groups", groupId, "permission-groups"]];
+  // A changed grant changes which members (and their excursions) people see.
+  const markStale = [queryKeys.members(), queryKeys.excursions()];
   const listQuery = useApiQuery(["groups", groupId, "permission-groups"], () =>
     unwrap(
       client.GET("/api/members/groups/{group_id}/permission-groups", {
@@ -769,10 +772,14 @@ function PermissionGroupsInline({
       }),
     ),
   );
-  // Members/groups are needed both for the editable selects and to resolve the
-  // read-only summary names; fetched under the shared cache keys.
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  // Members/groups back the editable selects and resolve the read-only summary
+  // names, so they are only fetched while editing or when a stored row actually
+  // names a member (resp. a group) — an empty inline needs neither list.
+  const stored = listQuery.data ?? [];
+  const namesMembers = stored.some((r) => PERM_MEMBER_FIELDS.some((f) => r[f.field]?.length));
+  const namesGroups = stored.some((r) => PERM_GROUP_FIELDS.some((f) => r[f.field]?.length));
+  const membersQuery = useMembers({ enabled: editing || namesMembers });
+  const groupsQuery = useGroups({ enabled: editing || namesGroups });
   const memberOptions: Option[] = useMemo(
     () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
     [membersQuery.data],
@@ -798,7 +805,7 @@ function PermissionGroupsInline({
           body,
         }),
       ),
-    { invalidate },
+    { invalidate, markStale },
   );
   const removeM = useApiMutation(
     (id: number) =>
@@ -807,7 +814,7 @@ function PermissionGroupsInline({
           params: { path: { permission_group_id: id } },
         }),
       ),
-    { invalidate },
+    { invalidate, markStale },
   );
   const patchM = useApiMutation(
     (vars: { id: number; body: PermissionGroupUpdate }) =>
@@ -817,7 +824,7 @@ function PermissionGroupsInline({
           body: vars.body,
         }),
       ),
-    { invalidate },
+    { invalidate, markStale },
   );
 
   const serverRows = (listQuery.data ?? []).map((r) => ({

@@ -5,6 +5,7 @@ import { API_BASE } from "../../api/client";
 import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useEmailAddresses, useExcursions, useGroups, useMembers } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
@@ -25,7 +26,7 @@ import {
   useToast,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
-import { MultiSelect, SingleSelect, type Option } from "./selects";
+import { MultiSelect, SingleSelect, type Option, withSelected } from "./selects";
 
 type MessageBrief = components["schemas"]["MessageBrief"];
 type MessageOut = components["schemas"]["MessageOut"];
@@ -146,16 +147,10 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<MessageFormState>(() => emptyMessage());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const groups = useApiQuery(["members", "groups"], () =>
-    unwrap(client.GET("/api/members/groups")),
-  );
-  const excursions = useApiQuery(["members", "excursions"], () =>
-    unwrap(client.GET("/api/members/excursions")),
-  );
-  const addresses = useApiQuery(["mailer", "email-addresses"], () =>
-    unwrap(client.GET("/api/mailer/email-addresses")),
-  );
+  const members = useMembers();
+  const groups = useGroups();
+  const excursions = useExcursions();
+  const addresses = useEmailAddresses();
 
   const create = useApiMutation(
     (body: MessageIn) => unwrap(client.POST("/api/mailer/messages", { body })),
@@ -363,16 +358,12 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
   const toast = useToast();
   const confirm = useConfirmDialog();
 
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const groups = useApiQuery(["members", "groups"], () =>
-    unwrap(client.GET("/api/members/groups")),
-  );
-  const excursions = useApiQuery(["members", "excursions"], () =>
-    unwrap(client.GET("/api/members/excursions")),
-  );
-  const addresses = useApiQuery(["mailer", "email-addresses"], () =>
-    unwrap(client.GET("/api/mailer/email-addresses")),
-  );
+  // The read-only view renders the names the message itself carries; the full
+  // lists only back the edit pickers, so they load once editing starts.
+  const members = useMembers({ enabled: editing });
+  const groups = useGroups({ enabled: editing });
+  const excursions = useExcursions({ enabled: editing });
+  const addresses = useEmailAddresses({ enabled: editing });
 
   const { getRegistrar, runFlushes } = useFlushRegistry();
   const [saving, setSaving] = useState(false);
@@ -416,16 +407,29 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
     setEditing(true);
   }
 
-  const memberOptions: Option[] = (members.data ?? []).map((m) => ({ value: m.id, label: m.name }));
-  const groupOptions: Option[] = (groups.data ?? []).map((g) => ({ value: g.id, label: g.name }));
-  const excursionOptions: Option[] = (excursions.data ?? []).map((e) => ({
+  // Seeded from the message's own recipients while the lists are still loading.
+  const asOption = (r: { id: number; name: string }) => ({ value: r.id, label: r.name });
+  const memberOptions: Option[] = withSelected(
+    (members.data ?? []).map(asOption),
+    [...message.to_members, ...message.reply_to].map(asOption),
+  );
+  const groupOptions: Option[] = withSelected(
+    (groups.data ?? []).map(asOption),
+    message.to_groups.map(asOption),
+  );
+  const excursionLabel = (e: { id: number; code: string; name: string }) => ({
     value: e.id,
     label: `${e.code} · ${e.name}`,
-  }));
-  const addressOptions: Option[] = (addresses.data ?? []).map((a) => ({
-    value: a.id,
-    label: a.email,
-  }));
+  });
+  const excursionOptions: Option[] = withSelected(
+    (excursions.data ?? []).map(excursionLabel),
+    message.to_freizeit ? [excursionLabel(message.to_freizeit)] : [],
+  );
+  const addressLabel = (a: { id: number; email: string }) => ({ value: a.id, label: a.email });
+  const addressOptions: Option[] = withSelected(
+    (addresses.data ?? []).map(addressLabel),
+    message.reply_to_email_address.map(addressLabel),
+  );
 
   const rows: DetailRow[] = [
     {

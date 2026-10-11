@@ -18,6 +18,7 @@ from oauth2_provider.models import get_grant_model
 from startpage.models import Link
 
 from jdav_web.settings import _load_toml
+from jdav_web.settings import as_bool
 from jdav_web.views import custom_admin_view
 from jdav_web.views import custom_app_index
 from jdav_web.views import media_protected
@@ -30,6 +31,18 @@ Grant = get_grant_model()
 class LoadTomlTestCase(TestCase):
     def test_returns_empty_dict_for_missing_file(self):
         self.assertEqual(_load_toml("/nonexistent/path/settings.toml"), {})
+
+
+class AsBoolTestCase(TestCase):
+    def test_booleans_are_kept(self):
+        self.assertIs(as_bool(True), True)
+        self.assertIs(as_bool(False), False)
+
+    def test_strings_are_parsed(self):
+        for value in ("true", "True", " yes ", "on", "1"):
+            self.assertIs(as_bool(value), True, value)
+        for value in ("false", "False", "no", "off", "0", ""):
+            self.assertIs(as_bool(value), False, value)
 
 
 class ViewsTestCase(TestCase):

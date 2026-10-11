@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { mediaUrl } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useExcursions, useMembers } from "../../api/queries";
 import {
   Badge,
   Button,
@@ -112,11 +113,9 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
   const goto = (next: StepId) => setParams({ stage: next }, { replace: false });
 
   const excursionId = draft.excursion_id ? Number(draft.excursion_id) : null;
-  const excursions = useApiQuery(["members", "excursions"], () =>
-    unwrap(client.GET("/api/members/excursions")),
-  );
+  const excursions = useExcursions();
   const excursionQ = useApiQuery(
-    ["members", "excursions", excursionId],
+    ["excursions", excursionId],
     () =>
       unwrap(
         client.GET("/api/members/excursions/{excursion_id}", {
@@ -547,7 +546,7 @@ function BelegeStep({
   const [adding, setAdding] = useState<BillDraft | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const members = useMembers();
   // The people who actually went are the plausible payers; everyone else stays
   // reachable but sorted behind them.
   const memberOptions = useMemo(() => {

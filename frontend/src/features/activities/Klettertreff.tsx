@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useGroups, useMembers } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Button,
@@ -167,7 +168,7 @@ function KlettertreffCreateForm({ onDone }: { onDone: () => void }) {
   const [topic, setTopic] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const groupsQuery = useGroups();
   const groupOptions = useMemo(
     () => (groupsQuery.data ?? []).map((g) => ({ value: g.id, label: g.name })),
     [groupsQuery.data],
@@ -297,12 +298,8 @@ function KlettertreffDetailBody({ kt }: { kt: KlettertreffOut }) {
   const [form, setForm] = useState(() => makeForm(kt));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
-    enabled: editing,
-  });
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
-    enabled: editing,
-  });
+  const groupsQuery = useGroups({ enabled: editing });
+  const membersQuery = useMembers({ enabled: editing });
   const groupOptions = useMemo(
     () => (groupsQuery.data ?? []).map((g) => ({ value: g.id, label: g.name })),
     [groupsQuery.data],
@@ -509,9 +506,7 @@ function KlettertreffAttendeesInline({
       }),
     ),
   );
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
-    enabled: editing,
-  });
+  const membersQuery = useMembers({ enabled: editing });
   const memberOptions: Option[] = useMemo(
     () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
     [membersQuery.data],

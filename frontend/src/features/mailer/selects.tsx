@@ -10,6 +10,16 @@ export interface Option {
   label: string;
 }
 
+/**
+ * The fetched options plus the record's own current selections, so a picker
+ * opened before (or without) the full list names what is already selected
+ * instead of showing bare ids. Fetched entries win; the order is kept.
+ */
+export function withSelected(fetched: Option[], own: Option[]): Option[] {
+  const known = new Set(fetched.map((o) => o.value));
+  return [...fetched, ...own.filter((o) => !known.has(o.value))];
+}
+
 /** Native single-select for an optional foreign key (empty option = `null`). */
 export function SingleSelect({
   options,

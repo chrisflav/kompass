@@ -9,14 +9,21 @@ from django.contrib.messages import get_messages
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.db import connection
 from django.http import HttpResponseRedirect
 from django.test import RequestFactory
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from members.models import DIVERSE
+from members.models import Freizeit
+from members.models import GEMEINSCHAFTS_TOUR
 from members.models import Group
 from members.models import Member
+from members.models import MemberNoteList
+from members.models import MUSKELKRAFT_ANREISE
 from members.tests.utils import create_custom_user
 
 from ..admin import DeliveryAttemptAdmin
@@ -352,6 +359,63 @@ class MessageAdminTestCase(AdminTestCase):
 
         # Should return form without modification
         self.assertIsNotNone(form_class)
+
+
+class MessageChangeListTestCase(TestCase):
+    """The recipients column of the message list."""
+
+    def setUp(self):
+        User.objects.create_superuser(username="superuser", password="secret")
+        self.group = Group.objects.create(name="Alpenfuechse")
+        self.freizeit = Freizeit.objects.create(
+            name="Hüttentour",
+            kilometers_traveled=120,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        self.notelist = MemberNoteList.objects.create(title="Kletterliste")
+        self.members = [
+            Member.objects.create(
+                prename="Member{}".format(i),
+                lastname="Test",
+                birth_date=timezone.now().date(),
+                email=settings.TEST_MAIL,
+                gender=DIVERSE,
+            )
+            for i in range(3)
+        ]
+
+    def make_messages(self, count):
+        for i in range(count):
+            message = Message.objects.create(
+                subject="Hello {}".format(i),
+                content="Body",
+                to_freizeit=self.freizeit,
+                to_notelist=self.notelist,
+            )
+            message.to_groups.add(self.group)
+            message.to_members.add(*(self.members if i % 2 else self.members[:1]))
+
+    def get_changelist(self):
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(reverse("admin:mailer_message_changelist"))
+        self.assertEqual(response.status_code, HTTPStatus.OK, response.get("Location"))
+        return response, len(queries)
+
+    def test_queries_do_not_grow_with_messages(self):
+        self.assertTrue(self.client.login(username="superuser", password="secret"))
+        self.make_messages(2)
+        _response, few_queries = self.get_changelist()
+        self.make_messages(4)
+        response, many_queries = self.get_changelist()
+
+        self.assertEqual(many_queries, few_queries)
+        self.assertContains(response, "Alpenfuechse, Hüttentour, Kletterliste, Member0 Test")
+        self.assertContains(
+            response,
+            "Alpenfuechse, Hüttentour, Kletterliste, {}".format(_("Some other members")),
+        )
 
 
 class MailDeliveryStateAdminTestCase(TestCase):

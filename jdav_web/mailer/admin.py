@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin import helpers
+from django.contrib.admin.views.main import ChangeList
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 from members.admin import FilteredMemberFieldMixin
@@ -46,6 +47,13 @@ class EmailAddressAdmin(FilteredMemberFieldMixin, admin.ModelAdmin):
     form = EmailAddressForm
 
 
+class MessageChangeList(ChangeList):
+    def get_results(self, request):
+        super().get_results(request)
+        # the recipients column would otherwise query every row on its own
+        Message.prefetch_recipients(self.result_list)
+
+
 class MessageAdmin(
     FilteredMemberFieldMixin,
     CommonAdminMixin,
@@ -59,6 +67,7 @@ class MessageAdmin(
         "get_recipients",
         "sent",
     )
+    list_select_related = ("to_freizeit", "to_notelist")
     search_fields = ("subject",)
     list_filter = ("sent",)
     change_form_template = "mailer/change_form.html"
@@ -72,6 +81,9 @@ class MessageAdmin(
     actions = ["send_message"]
     form = MessageForm
     filter_horizontal = ("to_members", "reply_to")
+
+    def get_changelist(self, request, **kwargs):
+        return MessageChangeList
 
     def save_model(self, request, obj, form, change):
         if not change and hasattr(request.user, "member"):

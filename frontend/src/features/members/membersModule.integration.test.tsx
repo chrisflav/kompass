@@ -927,8 +927,11 @@ describe("member detail — uploads and actions", () => {
     let patched: Record<string, unknown> | null = null;
     let deleted = false;
     server.use(
-      http.get(api("/api/members/trainings"), () =>
-        HttpResponse.json([
+      // Filters by `?member` like the backend: without it the page would get
+      // (and show) another member's training too.
+      http.get(api("/api/members/trainings"), ({ request }) => {
+        const member = new URL(request.url).searchParams.get("member");
+        const rows = [
           {
             id: 5,
             member_id: 42,
@@ -941,8 +944,11 @@ describe("member detail — uploads and actions", () => {
             certificate: null,
           },
           { id: 6, member_id: 99, title: "Fremd", category_name: "x", category_id: 1 },
-        ]),
-      ),
+        ];
+        return HttpResponse.json(
+          member === null ? rows : rows.filter((r) => String(r.member_id) === member),
+        );
+      }),
       http.patch(api("/api/members/42"), () => HttpResponse.json(MEMBER)),
       http.patch(api("/api/members/trainings/5"), async ({ request }) => {
         patched = (await request.json()) as Record<string, unknown>;
