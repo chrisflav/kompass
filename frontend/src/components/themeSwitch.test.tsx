@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { api, http, HttpResponse, server } from "../test/server";
@@ -19,6 +19,7 @@ function navReturns() {
 afterEach(() => {
   act(() => setThemeChoice("system"));
   delete root.dataset.theme;
+  root.style.colorScheme = "";
 });
 
 describe("theme switch", () => {
@@ -86,7 +87,11 @@ describe("theme switch", () => {
     const { user } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
     const trigger = screen.getByRole("button", { name: "Darstellung: System" });
     await user.click(trigger);
-    await user.click(document.body);
+    await waitFor(() => expect(screen.getByRole("radio", { name: "System" })).toHaveFocus());
+
+    // A bare mousedown, without user-event's own focus handling afterwards:
+    // that would blur whatever the switch had focused and hide the mistake.
+    fireEvent.mouseDown(document.body);
     await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "false"));
     expect(trigger).not.toHaveFocus();
   });

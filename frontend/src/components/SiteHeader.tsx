@@ -264,12 +264,7 @@ function ThemeSwitch() {
   const [choice] = useThemeChoice();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const ref = useOutsideClose(() => {
-    // Closing from inside the panel (Escape) hands focus back to the button
-    // rather than dropping it on the page.
-    if (ref.current?.contains(document.activeElement)) buttonRef.current?.focus();
-    setOpen(false);
-  });
+  const ref = useOutsideClose(() => setOpen(false));
   const current = THEME_OPTIONS.find((o) => o.value === choice)!;
 
   // Opening moves focus onto the selected option, so the arrow keys pick
@@ -279,7 +274,15 @@ function ThemeSwitch() {
   }, [open, ref]);
 
   return (
-    <div className="theme-switch" ref={ref}>
+    <div
+      className="theme-switch"
+      ref={ref}
+      // Escape from inside the panel hands focus back to the button rather than
+      // dropping it on the page; a click elsewhere leaves focus where it lands.
+      onKeyDown={(e) => {
+        if (e.key === "Escape") buttonRef.current?.focus();
+      }}
+    >
       <button
         ref={buttonRef}
         type="button"

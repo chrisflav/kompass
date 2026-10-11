@@ -41,6 +41,8 @@
   --on-accent: #fff;
   /* The lit corner of a hero's paper-to-glacier wash. */
   --paper-lit: #fbfcfa;
+  /* The pale chip an uploaded icon sits on (see .dash-link-mark). */
+  --icon-ground: var(--gletscher);
 
   --radius: 9px;
   --shadow: 0 1px 2px rgba(20, 35, 44, 0.05), 0 6px 18px rgba(20, 35, 44, 0.05);
@@ -89,6 +91,8 @@
   /* The accents are light now, so what sits on them is the dark slate. */
   --on-accent: #0f181d;
   --paper-lit: #18252d;
+  /* Uploaded icons are made for a light page; they keep a light ground. */
+  --icon-ground: #e4e9e5;
 
   /* Shadows still fall darker than the sheet; on slate they need more weight. */
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.22);
@@ -1841,6 +1845,12 @@ input[type="radio"] {
   object-fit: contain;
 }
 
+/* An uploaded icon is drawn for a light page — often a black favicon on a
+   transparent ground — so it always sits on a pale chip, whatever the theme. */
+.dash-link-mark:has(img) {
+  background: var(--icon-ground);
+}
+
 .dash-link-text {
   display: flex;
   flex-direction: column;
@@ -3552,14 +3562,16 @@ button.etappe-body:hover {
   font-weight: 600;
 }
 
-.theme-option:has(input:focus-visible) {
-  outline: 2px solid var(--fels);
-  outline-offset: -2px;
-}
-
 .theme-option input {
   align-self: center;
   accent-color: var(--accent);
+}
+
+/* One ring, on the radio itself: the forms' faint glacier focus outline would
+   all but vanish on the dark panel. */
+.theme-option input:focus-visible {
+  outline: 2px solid var(--fels);
+  outline-offset: 2px;
 }
 
 /* In the drawer the legend lines up with the drawer's own group labels. */
@@ -3573,6 +3585,16 @@ button.etappe-body:hover {
   .theme-switch {
     display: none;
   }
+}
+
+/* The link admin's icon preview, on the same pale chip as the dashboard tile. */
+.link-icon-preview {
+  align-self: flex-start;
+  max-width: 100%;
+  max-height: 3rem;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--icon-ground);
 }
 
 /* The activity climbers are a black pictogram on a transparent ground; at
