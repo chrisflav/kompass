@@ -27,6 +27,7 @@ class FeedbackBrief(ModelSchema):
     created: datetime.datetime
     submitted_by: MemberBrief | None = None
     has_context: bool
+    resolved_at: datetime.datetime | None = None
 
     class Meta:
         model = Feedback
@@ -40,6 +41,8 @@ class FeedbackOut(ModelSchema):
     created: datetime.datetime
     submitted_by: MemberBrief | None = None
     has_context: bool
+    resolved_at: datetime.datetime | None = None
+    resolved_by: MemberBrief | None = None
 
     class Meta:
         model = Feedback

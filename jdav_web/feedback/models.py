@@ -24,6 +24,16 @@ class Feedback(models.Model):
     # shows them the exact values beforehand, so nothing is collected silently.
     page_url = models.CharField(verbose_name=_("Page"), max_length=500, blank=True)
     user_agent = models.CharField(verbose_name=_("Browser"), max_length=300, blank=True)
+    # Set once someone has dealt with the note; cleared again on reopening.
+    resolved_at = models.DateTimeField(verbose_name=_("Resolved on"), null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        Member,
+        verbose_name=_("Resolved by"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="resolved_feedback",
+    )
 
     def __str__(self):
         excerpt = self.message.strip().splitlines()[0] if self.message.strip() else ""
@@ -32,6 +42,10 @@ class Feedback(models.Model):
     @property
     def has_context(self):
         return bool(self.page_url or self.user_agent)
+
+    @property
+    def is_resolved(self):
+        return self.resolved_at is not None
 
     class Meta:
         verbose_name = _("Feedback")

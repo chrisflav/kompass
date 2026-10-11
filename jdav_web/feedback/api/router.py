@@ -6,13 +6,14 @@ Submissions are attributed when the caller presents a valid bearer token (see
 ``contrib.api.auth.optional_bearer``).
 
 Reading feedback is staff work, gated on the standard ``feedback.view_feedback``
-permission.
+permission; marking it resolved needs ``feedback.change_feedback``.
 """
 
 from contrib.api.auth import optional_bearer
 from contrib.api.perms import authorize
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from feedback.models import Feedback
 from ninja import Router
@@ -70,6 +71,30 @@ def retrieve_feedback(request, feedback_id: int):
     """One piece of feedback."""
     authorize(request, "feedback.view_feedback")
     return get_object_or_404(Feedback, pk=feedback_id)
+
+
+@router.post("/{feedback_id}/resolve", response=FeedbackOut)
+def resolve_feedback(request, feedback_id: int):
+    """Mark a piece of feedback as dealt with, recording who did it."""
+    authorize(request, "feedback.change_feedback")
+    feedback = get_object_or_404(Feedback, pk=feedback_id)
+    # Resolving twice keeps the original record of who closed it and when.
+    if not feedback.is_resolved:
+        feedback.resolved_at = timezone.now()
+        feedback.resolved_by = getattr(request.user, "member", None)
+        feedback.save(update_fields=["resolved_at", "resolved_by"])
+    return feedback
+
+
+@router.post("/{feedback_id}/reopen", response=FeedbackOut)
+def reopen_feedback(request, feedback_id: int):
+    """Put resolved feedback back into the open inbox."""
+    authorize(request, "feedback.change_feedback")
+    feedback = get_object_or_404(Feedback, pk=feedback_id)
+    feedback.resolved_at = None
+    feedback.resolved_by = None
+    feedback.save(update_fields=["resolved_at", "resolved_by"])
+    return feedback
 
 
 @router.delete("/{feedback_id}", response={204: None})

@@ -59,11 +59,21 @@ export function FeedbackList() {
           ],
           match: (f, v) => (v === "named" ? f.submitted_by !== null : f.submitted_by === null),
         },
+        {
+          key: "status",
+          label: "Status",
+          options: [
+            { value: "open", label: "Offen" },
+            { value: "resolved", label: "Erledigt" },
+          ],
+          match: (f, v) => (v === "resolved" ? Boolean(f.resolved_at) : !f.resolved_at),
+        },
       ],
       sort: {
         created: (f) => f.created,
         submitted_by: (f) => f.submitted_by?.name ?? "",
         message: (f) => f.message,
+        status: (f) => Boolean(f.resolved_at),
       },
       defaultSort: { key: "created", dir: "desc" },
     }),
@@ -109,12 +119,21 @@ export function FeedbackList() {
                     <span className="muted">—</span>
                   ),
               },
+              {
+                header: "Status",
+                cell: (f) => <StatusBadge resolved={Boolean(f.resolved_at)} />,
+                sortKey: "status",
+              },
             ]}
           />
         )}
       </QueryBoundary>
     </div>
   );
+}
+
+function StatusBadge({ resolved }: { resolved: boolean }) {
+  return resolved ? <Badge tone="success">erledigt</Badge> : <Badge tone="warning">offen</Badge>;
 }
 
 export function FeedbackDetailPage() {
@@ -137,6 +156,26 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
   const toast = useToast();
   const confirm = useConfirmDialog();
   const { can } = usePermissions();
+  const resolved = Boolean(feedback.resolved_at);
+
+  const toggleResolved = useApiMutation(
+    () =>
+      unwrap(
+        resolved
+          ? client.POST("/api/feedback/{feedback_id}/reopen", {
+              params: { path: { feedback_id: feedback.id } },
+            })
+          : client.POST("/api/feedback/{feedback_id}/resolve", {
+              params: { path: { feedback_id: feedback.id } },
+            }),
+      ),
+    {
+      invalidate: [["feedback"]],
+      onSuccess: () =>
+        toast.success(resolved ? "Feedback wieder geöffnet." : "Feedback als erledigt markiert."),
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
 
   const remove = useApiMutation(
     () =>
@@ -167,6 +206,15 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
             <Button variant="ghost" onClick={() => navigate(FEEDBACK)}>
               Zurück
             </Button>
+            {can("feedback.change_feedback") && (
+              <Button
+                variant={resolved ? "ghost" : "primary"}
+                busy={toggleResolved.isPending}
+                onClick={() => toggleResolved.mutate(undefined)}
+              >
+                {resolved ? "Wieder öffnen" : "Als erledigt markieren"}
+              </Button>
+            )}
             {can("feedback.delete_feedback") && (
               <Button
                 variant="danger"
@@ -200,6 +248,17 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
               feedback.submitted_by.name
             ) : (
               <span className="muted">ohne Konto gesendet</span>
+            ),
+          ],
+          [
+            "Status",
+            resolved ? (
+              <>
+                <StatusBadge resolved /> {formatReceived(feedback.resolved_at!)}
+                {feedback.resolved_by && ` von ${feedback.resolved_by.name}`}
+              </>
+            ) : (
+              <StatusBadge resolved={false} />
             ),
           ],
           [
