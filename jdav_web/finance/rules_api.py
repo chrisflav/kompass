@@ -1,0 +1,721 @@
+"""``kompass.rules`` — the API a section's finance rules are written against.
+
+A *ruleset* is an ordinary Python package. It subclasses :class:`Ruleset`, it
+imports nothing from Kompass but this module, and it answers four questions
+about one statement:
+
+``inputs``
+    Which extra data does a person have to supply? Every answer the rules read
+    is declared here, which is what lets the form be derived from the rules
+    instead of hand-written beside them.
+``transfers``
+    Who owes whom how much? The answer is a list of :class:`Transfer`\\ s plus a
+    list of error messages. Nothing is persisted while there are errors.
+``checks``
+    What must hold before the statement may be handed in?
+``approval``
+    Who has to sign it off?
+
+A minimal ruleset::
+
+    from decimal import Decimal
+
+    from kompass.rules import Input, Ruleset, RuleContext, SECTION, PARTICIPANTS, Transfer
+
+    class FlatRate(Ruleset):
+        name = "flat-rate"
+        context_version = 1
+        balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+        def inputs(self, ctx: RuleContext) -> list[Input]:
+            return [Input("leader", "Zuschuss an", "member",
+                          options=ctx.excursion.leaders if ctx.excursion else ())]
+
+        def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
+            leader = ctx.inputs.member("leader")
+            if leader is None:
+                return [], []
+            return [Transfer(SECTION, leader, ctx.params.FLAT_RATE, "subsidy",
+                             rule_id="flat_rate")], []
+
+Three properties of this API are worth knowing before writing a rule.
+
+**Everything is a frozen value.** The context holds no model instances, no
+relations to follow, no names, no bank details, no other statements and no
+balances. What a rule cannot reach it cannot accidentally depend on, and what
+it cannot depend on cannot change the answer for a statement that was settled
+years ago.
+
+**Money is :class:`~decimal.Decimal`, in whole cents.** Every amount a rule
+returns must have at most two decimal places; the engine rejects anything
+finer rather than rounding it silently, because a rounding rule belongs to the
+section, not to the engine. :func:`split` and :func:`pct` are the two
+roundings most rules need.
+
+**A rule must not be able to tell when it runs.** There is no clock in the
+context and no way to query the database — the engine blocks that during
+evaluation — so evaluating an old statement again gives the old answer. The
+one deliberate exception is :attr:`Participant.age`, which the engine resolves
+when it builds the context (see its documentation).
+
+The engine, not the ruleset, appends the transfer that makes the set add up:
+see :attr:`Ruleset.balance`.
+"""
+
+from abc import ABC
+from abc import abstractmethod
+from collections.abc import Callable
+from collections.abc import Mapping
+from dataclasses import dataclass
+from dataclasses import field
+from decimal import Decimal
+from decimal import ROUND_FLOOR
+from typing import Final
+from typing import Literal
+from typing import NewType
+
+#: The version of the context shape this module describes.
+#:
+#: A ruleset declares the version it was written against in
+#: :attr:`Ruleset.context_version`, and Kompass refuses to load a ruleset
+#: written for a newer one. Changes are additive: a field is added, never
+#: renamed or removed, so a ruleset written against version 1 keeps working.
+CONTEXT_VERSION: Final = 1
+
+#: One cent — the resolution of every amount in a transfer.
+CENT: Final = Decimal("0.01")
+
+MemberId = NewType("MemberId", int)
+"""A member's primary key.
+
+The only identity a rule ever sees. Names, addresses and bank details are
+resolved by the engine after evaluation, so that a ruleset cannot leak them.
+"""
+
+InputType = Literal["money", "int", "bool", "text", "choice", "member", "member_set"]
+"""The widget vocabulary an :class:`Input` is rendered with.
+
+This is presentation, not rule structure: ``money`` and ``int`` are both
+numbers, and the difference is the field the person is shown.
+"""
+
+
+class RuleError(Exception):
+    """Raised when a ruleset asks the engine for something it may not have.
+
+    Rule authors do not raise this. Problems with a *statement* are reported by
+    returning a message from :meth:`Ruleset.transfers`; this exception is for
+    problems with the *ruleset* — an input it never declared, a permission it
+    never asked for — which are programming errors and should fail a case in
+    the section's own CI.
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class Member:
+    """A person, by id.
+
+    Members compare and hash by id, so a rule may use them in sets and as
+    dictionary keys (``{t.destination for t in transfers}``).
+    """
+
+    id: MemberId
+
+
+@dataclass(frozen=True, slots=True)
+class Section:
+    """The section itself: the party whose money is being spent.
+
+    There is one instance, :data:`SECTION`.
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class Participants:
+    """The excursion's participants, as one party.
+
+    There is one instance, :data:`PARTICIPANTS`. It is the usual counterparty
+    for :attr:`Ruleset.balance`: whatever the section pays out net is what the
+    participants' contributions have to cover. It is a lump sum — no individual
+    participant's bank details are in scope.
+    """
+
+
+#: The section (see :class:`Section`).
+SECTION: Final = Section()
+#: The participants as one party (see :class:`Participants`).
+PARTICIPANTS: Final = Participants()
+
+Party = Member | Section | Participants
+"""Anything that can be one end of a :class:`Transfer`."""
+
+
+@dataclass(frozen=True, slots=True)
+class Bill:
+    """One receipt handed in with the statement.
+
+    A bill is a *fact*, not a transfer: it says that money was spent, not that
+    anybody is owed it. Whether the section reimburses it is
+    :attr:`covered`, which the finance officer decides — and a bill that is not
+    covered is still in the context, because it may well count towards a
+    subsidy that is computed from the trip's total cost.
+    """
+
+    #: The bill's primary key, for error messages that name a row.
+    id: int
+    #: What the receipt says, cent-exact.
+    amount: Decimal
+    #: Whether the section reimburses this bill.
+    covered: bool
+    #: Who paid, if anybody was named. ``None`` is a common, reportable state.
+    payer: Member | None
+    #: Whether a scan of the receipt is attached.
+    has_proof: bool
+    #: The short description its author gave it.
+    description: str
+
+
+@dataclass(frozen=True, slots=True)
+class Participant:
+    """Somebody on the excursion's member list.
+
+    Youth leaders who are also on the list appear here with
+    :attr:`is_leader` set, so a rule that counts "participants" has to say
+    whether it means the leaders too.
+    """
+
+    member: Member
+    #: Age today, or ``None`` when the birth date is unknown.
+    #:
+    #: This is the one value in the context that depends on when the engine
+    #: ran, and it exists because the rules it was ported from use it. A rule
+    #: that must stay reproducible should prefer :attr:`age_at_start`.
+    age: int | None
+    #: Age on the excursion's first day, or ``None`` when the birth date is
+    #: unknown. Reproducible, and usually what a regulation means.
+    age_at_start: int | None
+    #: Whether this person is also a youth leader of the excursion.
+    is_leader: bool
+
+
+LJPGoal = Literal["qualification", "participation", "development", "environment"]
+"""The learning goal of a Landesjugendplan proposal."""
+
+
+@dataclass(frozen=True, slots=True)
+class LJP:
+    """The excursion's Landesjugendplan proposal, if it has one.
+
+    The counts are the ones the state's regulations define, computed by the
+    engine: a participant is counted when they are at least 6 and under 27 on
+    the first day, up to a fifth of the participants may fall outside that
+    band, and youth leaders always count.
+    """
+
+    #: The declared learning goal, or ``None`` when none was picked yet.
+    goal: LJPGoal | None
+    #: The participant count under the regulations, ``0`` below the cutoff.
+    participant_count: int
+    #: The same count without the cutoff — what the cutoff is applied to.
+    theoretic_participant_count: int
+    #: The number of days that count as seminar days, at most the trip's
+    #: duration.
+    duration: Decimal
+
+
+TourApproach = Literal["muscle", "public", "car"]
+"""How the group travelled: on muscle power, by public transport, or by car."""
+
+
+@dataclass(frozen=True, slots=True)
+class Excursion:
+    """The trip a statement settles, when there is one.
+
+    A statement without an excursion (a purchase, a repair) has
+    ``ctx.excursion is None``, and every rule has to say what it does then.
+    """
+
+    #: Days, in half-day steps: a long single day is ``1.0``, a short one
+    #: ``0.5``.
+    duration: Decimal
+    #: Nights away.
+    nights: int
+    #: Kilometres travelled there and back.
+    kilometers: int
+    #: How the group travelled.
+    approach: TourApproach
+    #: The excursion's youth leaders — the people who may be named as
+    #: recipients. Re-validated by the engine, so a rule cannot widen it.
+    leaders: tuple[Member, ...]
+    #: How many youth leaders led the trip.
+    staff_count: int
+    #: How many of them the section's regulations refinance.
+    approved_staff_count: int
+    #: Everybody on the member list, leaders included (see
+    #: :class:`Participant`).
+    participants: tuple[Participant, ...]
+    #: The Landesjugendplan proposal, or ``None`` when the trip has none.
+    ljp: LJP | None
+
+
+@dataclass(frozen=True, slots=True)
+class StatementInfo:
+    """The statement being evaluated, stripped to what a rule may know."""
+
+    #: The statement's primary key, or ``None`` before it is first saved.
+    id: int | None
+    #: Who created it.
+    creator: Member | None
+    #: Who handed it in, once somebody has.
+    submitter: Member | None
+
+
+class Inputs:
+    """The answers to :meth:`Ruleset.inputs`, by key.
+
+    Reading a key the ruleset did not declare raises :class:`RuleError` rather
+    than returning ``None``: a typo in a rule is a bug the section's own cases
+    should catch, not a silent zero in somebody's reimbursement. A key that was
+    declared but never answered reads as that type's empty value — ``0.00`` for
+    money, ``None`` for a member, ``()`` for a member set.
+
+    The accessors are typed, so ``mypy`` checks the arithmetic a rule does with
+    an answer::
+
+        nights = ctx.excursion.nights * ctx.inputs.money("night_cost")
+
+    ``ctx.inputs.night_cost`` reads the same answer untyped, for a quick look.
+    A key that happens to be named like one of the accessors — ``money``,
+    ``member``, ``members``, ``number``, ``flag``, ``text``, ``raw``,
+    ``declared`` — is readable through those and through :meth:`raw`, but not
+    as an attribute, where the method wins.
+    """
+
+    __slots__ = ("_values",)
+
+    def __init__(self, values: Mapping[str, object]) -> None:
+        self._values = dict(values)
+
+    def __repr__(self) -> str:
+        return f"Inputs({self._values!r})"
+
+    def declared(self) -> tuple[str, ...]:
+        """The keys that are readable, in declaration order."""
+        return tuple(self._values)
+
+    def raw(self, key: str) -> object:
+        """The answer to ``key``, untyped.
+
+        Prefer :meth:`money`, :meth:`member`, :meth:`members`, :meth:`number`,
+        :meth:`flag` or :meth:`text`, which say what they expect.
+        """
+        try:
+            return self._values[key]
+        except KeyError:
+            raise RuleError(
+                f"undeclared input {key!r}; this ruleset declares "
+                f"{', '.join(self._values) or 'nothing'}"
+            ) from None
+
+    def __getattr__(self, key: str) -> object:
+        if key.startswith("_"):
+            raise AttributeError(key)
+        return self.raw(key)
+
+    def _typed(self, key: str, expected: type | tuple[type, ...], what: str) -> object:
+        value = self.raw(key)
+        if not isinstance(value, expected):
+            raise RuleError(f"input {key!r} is not {what}, but {type(value).__name__}")
+        return value
+
+    def money(self, key: str) -> Decimal:
+        """A money answer, as a :class:`~decimal.Decimal`."""
+        value = self._typed(key, Decimal, "a money value")
+        assert isinstance(value, Decimal)
+        return value
+
+    def number(self, key: str) -> int:
+        """A whole-number answer."""
+        value = self._typed(key, int, "a whole number")
+        assert isinstance(value, int)
+        return value
+
+    def flag(self, key: str) -> bool:
+        """A yes/no answer."""
+        value = self._typed(key, bool, "a yes/no value")
+        assert isinstance(value, bool)
+        return value
+
+    def text(self, key: str) -> str:
+        """A free-text answer."""
+        value = self._typed(key, str, "a text value")
+        assert isinstance(value, str)
+        return value
+
+    def member(self, key: str) -> Member | None:
+        """A single person, or ``None`` when nobody was picked."""
+        value = self.raw(key)
+        if value is None or isinstance(value, Member):
+            return value
+        raise RuleError(f"input {key!r} is not a member, but {type(value).__name__}")
+
+    def members(self, key: str) -> tuple[Member, ...]:
+        """A set of people, possibly empty, in the order they were picked."""
+        value = self.raw(key)
+        if isinstance(value, tuple) and all(isinstance(item, Member) for item in value):
+            return value
+        raise RuleError(f"input {key!r} is not a set of members")
+
+
+class Params:
+    """The section's numbers, as :class:`~decimal.Decimal`\\ s.
+
+    A ruleset's parameters are data, versioned with it, so that changing the
+    allowance per day is a parameter change and not a rule change. Reading one
+    that does not exist raises :class:`RuleError`.
+    """
+
+    __slots__ = ("_values",)
+
+    def __init__(self, values: Mapping[str, Decimal]) -> None:
+        self._values = dict(values)
+
+    def __repr__(self) -> str:
+        return f"Params({self._values!r})"
+
+    def __getattr__(self, key: str) -> Decimal:
+        if key.startswith("_"):
+            raise AttributeError(key)
+        try:
+            return self._values[key]
+        except KeyError:
+            raise RuleError(
+                f"unknown parameter {key!r}; this ruleset has "
+                f"{', '.join(sorted(self._values)) or 'none'}"
+            ) from None
+
+    def get(self, key: str, default: Decimal) -> Decimal:
+        """The parameter ``key``, or ``default`` when it is not set."""
+        return self._values.get(key, default)
+
+    def as_dict(self) -> dict[str, Decimal]:
+        """A copy of every parameter."""
+        return dict(self._values)
+
+
+@dataclass(frozen=True, slots=True)
+class RuleContext:
+    """Everything a rule may know about one statement.
+
+    Built by the engine, never by a ruleset. Each field is documented on the
+    type it holds.
+    """
+
+    #: The context shape this instance was built to; compare with
+    #: :data:`CONTEXT_VERSION`.
+    version: int
+    #: The section's numbers (see :class:`Params`).
+    params: Params
+    #: The answers to :meth:`Ruleset.inputs` (see :class:`Inputs`).
+    inputs: Inputs
+    #: Every receipt handed in, covered or not, in the order they were added.
+    bills: tuple[Bill, ...]
+    #: The trip, or ``None`` for a statement that settles something else.
+    excursion: Excursion | None
+    #: The statement itself (see :class:`StatementInfo`).
+    statement: StatementInfo
+    #: Who holds which section role. Empty until role assignments exist.
+    roles: Mapping[str, tuple[Member, ...]] = field(default_factory=dict)
+    #: Who holds which permission, for the codenames the ruleset declared in
+    #: :attr:`Ruleset.permissions`. Read it through
+    #: :meth:`permission_holders`.
+    permissions: Mapping[str, tuple[Member, ...]] = field(default_factory=dict)
+
+    def permission_holders(self, codename: str) -> tuple[Member, ...]:
+        """Everybody who holds ``codename``, as of this evaluation.
+
+        The codename has to be listed in :attr:`Ruleset.permissions`; the
+        engine resolves those before evaluation, because a rule cannot query
+        the database itself. Reading an undeclared one raises
+        :class:`RuleError`.
+        """
+        try:
+            return self.permissions[codename]
+        except KeyError:
+            raise RuleError(
+                f"undeclared permission {codename!r}; list it in the ruleset's "
+                "`permissions` so the engine resolves it"
+            ) from None
+
+
+@dataclass(frozen=True, slots=True)
+class Transfer:
+    """Money owed by one party to another, because of one rule.
+
+    A transfer is the whole output of a ruleset. Expressing a payout as a
+    movement between two parties rather than as a number on a member makes the
+    books add up by construction: there is no such thing as money that appears
+    from nowhere, and the engine's balancing transfer (see
+    :attr:`Ruleset.balance`) closes whatever is left.
+
+    Signs do not appear here. A deduction — an organisation fee charged against
+    somebody's reimbursement — is a transfer *to* the section, not a negative
+    transfer from it.
+    """
+
+    #: Who owes the money.
+    source: Party
+    #: Who receives it.
+    destination: Party
+    #: How much, with at most two decimal places. The engine rejects anything
+    #: finer: how to round is the section's decision, and :func:`split` and
+    #: :func:`pct` are there to make it.
+    amount: Decimal
+    #: What kind of money this is — ``"allowance"``, ``"ljp"``, whatever the
+    #: ruleset wants to group and label by. Free text to the engine.
+    category: str
+    #: Which rule produced it, for provenance: the stamp that answers "which
+    #: statements paid a subsidy under which version of the rule".
+    rule_id: str
+    #: A short label for a person reading the payout, e.g. the bill's own
+    #: description.
+    label: str = ""
+    #: Room for the arithmetic, if it is worth showing: "4 Tage × 22 €".
+    explanation: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class Input:
+    """One question the statement's form has to ask.
+
+    Declaring the question beside the rule that reads the answer is what keeps
+    the two from drifting apart: the form is generated from these, and a rule
+    that reads an undeclared key fails loudly (see :class:`Inputs`).
+    """
+
+    #: The key the answer is read back under.
+    key: str
+    #: What the person is asked, in the section's language.
+    label: str
+    #: Which widget to render (see :data:`InputType`).
+    type: InputType
+    #: Whether the statement may be handed in without an answer.
+    required: bool = True
+    #: A sentence of help under the field.
+    help: str = ""
+    #: For ``member`` and ``member_set``: who may be picked. The engine
+    #: re-validates a submitted answer against this, so an answer can never
+    #: name somebody the rule did not offer.
+    options: tuple[Member, ...] = ()
+    #: For ``member_set`` and ``int``: the largest acceptable count or value.
+    max: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Check:
+    """A precondition for handing the statement in.
+
+    Both states are worth showing, so a check carries its message whether or
+    not it holds: "Für den LJP-Beitrag braucht jeder Beleg ein Bild" is the
+    rule either way, and whether it is satisfied is :attr:`ok`.
+    """
+
+    #: Whether the precondition holds.
+    ok: bool
+    #: What has to be true, phrased for the person who has to fix it.
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class Constraint:
+    """A signature the statement needs before the money moves.
+
+    Constraints are an unordered set: no priorities, no workflow. Each one asks
+    for :attr:`required` signatures out of :attr:`eligible`, one signature
+    counts against every constraint it satisfies, and
+    :attr:`applicable` and *satisfied* are separate states — a constraint that
+    does not apply is shown as such rather than hidden.
+    """
+
+    #: A short name, shown in the approval list.
+    name: str
+    #: Why this signature is needed, in the section's words.
+    description: str
+    #: Whether it applies to this statement at all.
+    applicable: bool
+    #: How many signatures from :attr:`eligible` are needed.
+    required: int
+    #: Who may sign. Re-checked against the real permission system, so naming
+    #: somebody here cannot grant them a right they do not have.
+    eligible: tuple[Member, ...]
+
+
+@dataclass(frozen=True)
+class Forbid:
+    """Somebody who may not sign, whatever permits them.
+
+    Forbids are subtracted from every constraint's eligible set before quorum
+    is counted, and they win unconditionally: this is how a conflict of
+    interest is expressed ("nobody who receives money from this statement").
+    """
+
+    #: A short name, shown when a signature is refused.
+    name: str
+    #: Whether this forbid catches a given candidate.
+    applies_to: Callable[[Member], bool]
+
+
+class Ruleset(ABC):
+    """What a section's finance rules have to implement.
+
+    Subclass it in the section's ruleset package and export one instance as
+    ``ruleset``::
+
+        ruleset = HeidelbergRules()
+
+    Everything the engine fixes is here; everything else — how many rules there
+    are, what the categories mean, who a recipient is, whether an amount is per
+    person or per statement — is the author's Python.
+    """
+
+    #: A short name for this ruleset, used in logs and in the admin.
+    name: str = "unnamed"
+    #: The :data:`CONTEXT_VERSION` this ruleset was written against. Kompass
+    #: refuses to load a ruleset written against a newer context.
+    context_version: int = CONTEXT_VERSION
+    #: Permission codenames the rules read with
+    #: :meth:`RuleContext.permission_holders`. The engine resolves these before
+    #: evaluation, because the rules cannot query the database themselves.
+    permissions: tuple[str, ...] = ()
+    #: ``(source, destination, category)`` of the one transfer the *engine*
+    #: appends, with the amount it resolves itself: the amount that brings
+    #: ``destination``'s net position to zero. Declaring the parties and
+    #: letting the engine do the arithmetic is what makes "the statement adds
+    #: up" unfalsifiable rather than asserted. When the resolved amount comes
+    #: out negative the engine runs the transfer the other way round, so the
+    #: direction declared here is the one that is usual for the section.
+    balance: tuple[Party, Party, str] = (PARTICIPANTS, SECTION, "balance")
+
+    @abstractmethod
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        """Declare every answer the rules read, in the order to ask for them."""
+
+    @abstractmethod
+    def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
+        """Resolve the statement into transfers, plus anything wrong with it.
+
+        Return ``(transfers, errors)``. An error is a sentence for the person
+        who has to fix the statement — a covered bill with nobody to pay back —
+        and while there is one, nothing is persisted and no money moves. Do not
+        raise for a problem with the statement; raising is for a broken
+        *ruleset*, and the engine turns it into an error with a traceback.
+        """
+
+    def checks(self, ctx: RuleContext) -> list[Check]:
+        """Preconditions for handing the statement in. Default: none."""
+        return []
+
+    def relevant_inputs(self, ctx: RuleContext) -> list[Input]:
+        """The questions still worth asking, given the answers so far.
+
+        The default re-runs :meth:`inputs` against the answers known so far,
+        which is enough for a ruleset whose ``inputs`` branches on them — drop
+        the question about the price per night once "no subsidy" has been
+        answered, and it stops being asked.
+        """
+        return self.inputs(ctx)
+
+    def approval(
+        self, ctx: RuleContext, transfers: list[Transfer]
+    ) -> tuple[list[Constraint], list[Forbid]]:
+        """Who has to sign this statement off, and who may not.
+
+        Routing runs on the *transfers*, after expansion, so a rule can say
+        "nobody who receives money from this statement" (see :class:`Forbid`)
+        or "over 1.000 € it takes the board" without re-deriving either from
+        the raw statement. Default: nobody, which the engine reads as "the
+        capability check alone decides".
+        """
+        return [], []
+
+
+def quantize(amount: Decimal) -> Decimal:
+    """``amount`` floored to whole cents.
+
+    The rounding :func:`split` and :func:`pct` are built on: towards minus
+    infinity, never away from zero, so repeatedly splitting an amount can
+    never create money.
+    """
+    return amount.quantize(CENT, rounding=ROUND_FLOOR)
+
+
+def split(amount: Decimal, n: int) -> list[Decimal]:
+    """``amount`` divided ``n`` ways, to the cent, adding back up exactly.
+
+    Each share is floored to the cent and the leftover cents are handed out one
+    each from the top, in declaration order, so 99 cents five ways is 20, 20,
+    20, 20, 19 — every time, which is what makes a statement reproducible.
+    Raises :class:`ValueError` for ``n <= 0``.
+    """
+    if n <= 0:
+        raise ValueError(f"cannot split into {n} shares")
+    total = int(quantize(amount).scaleb(2).to_integral_value())
+    base, remainder = divmod(total, n)
+    return [Decimal(base + (1 if index < remainder else 0)).scaleb(-2) for index in range(n)]
+
+
+def pct(amount: Decimal, basis_points: int) -> Decimal:
+    """``basis_points`` ten-thousandths of ``amount``, floored to the cent.
+
+    Basis points rather than a percentage because they are exact integers:
+    ``pct(x, 9000)`` is 90 % of ``x``, ``pct(x, 1990)`` is 19,9 %.
+    """
+    return quantize(amount * Decimal(basis_points) / Decimal(10000))
+
+
+def first_of(*parties: Party | None) -> Party | None:
+    """The first party that is not ``None``, or ``None``.
+
+    The fallback chain a rule needs when a deduction has to be charged to
+    somebody and there is more than one candidate: ``first_of(subsidy_to,
+    *allowance_to)``.
+    """
+    for party in parties:
+        if party is not None:
+            return party
+    return None
+
+
+__all__ = [
+    "CENT",
+    "CONTEXT_VERSION",
+    "Bill",
+    "Check",
+    "Constraint",
+    "Excursion",
+    "Forbid",
+    "Input",
+    "InputType",
+    "Inputs",
+    "LJP",
+    "LJPGoal",
+    "Member",
+    "MemberId",
+    "PARTICIPANTS",
+    "Params",
+    "Participant",
+    "Participants",
+    "Party",
+    "RuleContext",
+    "RuleError",
+    "Ruleset",
+    "SECTION",
+    "Section",
+    "StatementInfo",
+    "TourApproach",
+    "Transfer",
+    "first_of",
+    "pct",
+    "quantize",
+    "split",
+]
