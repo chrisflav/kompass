@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import { AuthProvider } from "./auth";
+import { handlePreloadError } from "./components/ChunkBoundary";
 import { ConfirmProvider, ToastProvider } from "./components/ui";
 import { AppRoutes } from "./routes";
 import { watchTheme } from "./theme";
@@ -17,9 +18,11 @@ import "@fontsource/ibm-plex-sans/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
-// KaTeX math styling for Markdown posts (fonts bundled by Vite, no CDN).
-import "katex/dist/katex.min.css";
 import "./styles.css";
+
+// A tab left open across a deploy asks for chunks that no longer exist: reload
+// once to pick up the new build instead of failing the page.
+window.addEventListener("vite:preloadError", (event) => handlePreloadError(event));
 
 const queryClient = new QueryClient({
   defaultOptions: {

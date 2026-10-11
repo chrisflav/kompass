@@ -1203,7 +1203,8 @@ describe("review pipeline", () => {
     // The IBAN is grouped in fours, the way a bank prints it.
     expect(within(row).getByText("DE02 1203 0000 0000 2020 51")).toBeInTheDocument();
     // The EPC payload is rendered as a QR, not shown as text.
-    expect(row.querySelector("svg")).not.toBeNull();
+    // The encoder is loaded lazily, so the code arrives a moment after the row.
+    await waitFor(() => expect(row.querySelector("svg")).not.toBeNull());
     expect(within(row).getByText("Scannen zum Überweisen")).toBeInTheDocument();
   });
 

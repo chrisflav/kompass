@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { mediaUrl } from "../../../api/client";
@@ -27,6 +27,13 @@ const POST = {
 };
 
 const anon = { authenticated: false } as const;
+
+/** Render ``Prose`` and wait for its lazily loaded renderer to arrive. */
+async function renderProse(text: string) {
+  const result = renderWithApp(<Prose text={text} />, anon);
+  await waitFor(() => expect(result.container.querySelector(".prose")).not.toBeNull());
+  return result;
+}
 
 /** A post body as authors really write them: Markdown, raw HTML left over from
  *  the Django site, math — and, for the sake of the argument, an attack. */
@@ -92,16 +99,16 @@ describe("shared helpers", () => {
     expect(excerpt("a".repeat(50), 10)).toBe(`${"a".repeat(10)}…`);
   });
 
-  it("renders Markdown as rich text and nothing at all when empty", () => {
-    const { container } = renderWithApp(<Prose text="Ein **fetter** Absatz." />, anon);
+  it("renders Markdown as rich text and nothing at all when empty", async () => {
+    const { container } = await renderProse("Ein **fetter** Absatz.");
     expect(container.querySelector("strong")).toHaveTextContent("fetter");
 
     const empty = renderWithApp(<Prose text={null} />, anon);
     expect(empty.container.querySelector(".prose")).toBeNull();
   });
 
-  it("renders raw HTML in a post body as elements, not as visible tags", () => {
-    const { container } = renderWithApp(<Prose text={RICH_BODY} />, anon);
+  it("renders raw HTML in a post body as elements, not as visible tags", async () => {
+    const { container } = await renderProse(RICH_BODY);
 
     // Markdown still works alongside the HTML.
     expect(container.querySelector("strong")).toHaveTextContent("fetter");
@@ -126,8 +133,8 @@ describe("shared helpers", () => {
     expect(container.textContent).not.toContain("<em>");
   });
 
-  it("keeps rendering math through the sanitiser", () => {
-    const { container } = renderWithApp(<Prose text={RICH_BODY} />, anon);
+  it("keeps rendering math through the sanitiser", async () => {
+    const { container } = await renderProse(RICH_BODY);
 
     // Both the inline and the display formula reach KaTeX...
     expect(container.querySelectorAll(".katex")).toHaveLength(2);
@@ -141,8 +148,8 @@ describe("shared helpers", () => {
     expect(container.textContent).not.toContain("$");
   });
 
-  it("keeps what a post body must never contain out of the page", () => {
-    const { container } = renderWithApp(<Prose text={RICH_BODY} />, anon);
+  it("keeps what a post body must never contain out of the page", async () => {
+    const { container } = await renderProse(RICH_BODY);
 
     expect(container.querySelector("script")).toBeNull();
     expect(container.querySelector("iframe")).toBeNull();
@@ -156,11 +163,8 @@ describe("shared helpers", () => {
     expect(container.textContent).not.toContain("display: none");
   });
 
-  it("refuses a javascript: link", () => {
-    const { container } = renderWithApp(
-      <Prose text={'<a href="javascript:alert(1)">Klick</a>'} />,
-      anon,
-    );
+  it("refuses a javascript: link", async () => {
+    const { container } = await renderProse('<a href="javascript:alert(1)">Klick</a>');
     expect(container.querySelector("a")).not.toHaveAttribute("href");
   });
 
@@ -456,7 +460,7 @@ describe("section listings", () => {
 
     expect(await screen.findByRole("heading", { name: "Neues aus der Jugend" })).toBeInTheDocument();
     // The intro is rendered as Markdown, so the emphasis is its own element.
-    expect(screen.getByText("hier", { selector: "em" })).toBeInTheDocument();
+    expect(await screen.findByText("hier", { selector: "em" })).toBeInTheDocument();
     expect(screen.getByText("Skifreizeit 2026")).toBeInTheDocument();
     expect(document.title).toBe("Neues aus der Jugend · Kompass");
   });
@@ -695,7 +699,7 @@ describe("FAQ", () => {
     );
     renderWithApp(<PublicFaq />, anon);
     expect(await screen.findByRole("heading", { name: "Was kostet das?" })).toBeInTheDocument();
-    expect(screen.getByText("frei")).toBeInTheDocument();
+    expect(await screen.findByText("frei")).toBeInTheDocument();
   });
 
   it("says so when nothing is answered yet", async () => {
@@ -758,7 +762,7 @@ describe("custom section page", () => {
       path: "/bereich/:section",
     });
     expect(await screen.findByRole("heading", { name: "Ausbildung" })).toBeInTheDocument();
-    expect(screen.getByText("Jugendleiter")).toBeInTheDocument();
+    expect(await screen.findByText("Jugendleiter")).toBeInTheDocument();
   });
 });
 
@@ -801,7 +805,7 @@ describe("post detail", () => {
 
     expect(await screen.findByRole("heading", { name: "Skifreizeit 2026" })).toBeInTheDocument();
     expect(screen.getByText("20. Februar 2026")).toBeInTheDocument();
-    expect(screen.getByText("oben")).toBeInTheDocument();
+    expect(await screen.findByText("oben")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Jugendleitung" })).toBeInTheDocument();
     expect(screen.getByText("Hat die Fahrt geleitet.")).toBeInTheDocument();
     // A group without a tag gets a neutral heading rather than an empty one.
