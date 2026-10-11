@@ -8654,6 +8654,82 @@
         ]
       }
     },
+    "/api/feedback/{feedback_id}/resolve": {
+      "post": {
+        "operationId": "feedback_api_router_resolve_feedback",
+        "summary": "Resolve Feedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "schema": {
+              "title": "Feedback Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Mark a piece of feedback as dealt with, recording who did it.",
+        "tags": [
+          "feedback"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/feedback/{feedback_id}/reopen": {
+      "post": {
+        "operationId": "feedback_api_router_reopen_feedback",
+        "summary": "Reopen Feedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "feedback_id",
+            "schema": {
+              "title": "Feedback Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Put resolved feedback back into the open inbox.",
+        "tags": [
+          "feedback"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/members/public/echo/{key}": {
       "get": {
         "operationId": "members_api_public_echo_verify",
@@ -19094,6 +19170,28 @@
             "title": "Has Context",
             "type": "boolean"
           },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -19181,6 +19279,18 @@
           "has_context": {
             "title": "Has Context",
             "type": "boolean"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
           },
           "message": {
             "title": "Message",

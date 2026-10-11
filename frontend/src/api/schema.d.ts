@@ -3190,6 +3190,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback/{feedback_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Feedback
+         * @description Mark a piece of feedback as dealt with, recording who did it.
+         */
+        post: operations["feedback_api_router_resolve_feedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/{feedback_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen Feedback
+         * @description Put resolved feedback back into the open inbox.
+         */
+        post: operations["feedback_api_router_reopen_feedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/public/echo/{key}": {
         parameters: {
             query?: never;
@@ -7313,6 +7353,9 @@ export interface components {
             submitted_by?: components["schemas"]["MemberBrief"] | null;
             /** Has Context */
             has_context: boolean;
+            /** Resolved At */
+            resolved_at?: string | null;
+            resolved_by?: components["schemas"]["MemberBrief"] | null;
             /** Message */
             message: string;
             /** Page */
@@ -7356,6 +7399,8 @@ export interface components {
             submitted_by?: components["schemas"]["MemberBrief"] | null;
             /** Has Context */
             has_context: boolean;
+            /** Resolved At */
+            resolved_at?: string | null;
             /** Message */
             message: string;
             /** Page */
@@ -13293,6 +13338,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    feedback_api_router_resolve_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedback_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+        };
+    };
+    feedback_api_router_reopen_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedback_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
             };
         };
     };

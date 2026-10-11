@@ -154,6 +154,88 @@ class FeedbackApiTestCase(TestCase):
         self.assertEqual(r.status_code, 204, r.content)
         self.assertEqual(Feedback.objects.count(), 0)
 
+    # --- resolving --------------------------------------------------------
+
+    def resolver(self):
+        """The signed-in sender, granted the view and change permissions."""
+        for codename in ("view_feedback", "change_feedback"):
+            self.user.user_permissions.add(
+                Permission.objects.get(content_type__app_label="feedback", codename=codename)
+            )
+        return User.objects.get(pk=self.user.pk)
+
+    def test_resolving_requires_the_change_permission(self):
+        feedback = Feedback.objects.create(message="Offen")
+        for action in ("resolve", "reopen"):
+            r = self.client.post(
+                "/api/feedback/{}/{}".format(feedback.pk, action), **self.auth(self.reader)
+            )
+            self.assertEqual(r.status_code, 403)
+        feedback.refresh_from_db()
+        self.assertFalse(feedback.is_resolved)
+
+    def test_changing_without_viewing_is_refused(self):
+        """The response carries the note itself, so change alone must not read it."""
+        self.user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="feedback", codename="change_feedback")
+        )
+        changer = User.objects.get(pk=self.user.pk)
+        feedback = Feedback.objects.create(message="Geheim")
+        r = self.client.post("/api/feedback/{}/resolve".format(feedback.pk), **self.auth(changer))
+        self.assertEqual(r.status_code, 403)
+
+    def test_resolving_without_a_member_leaves_resolved_by_empty(self):
+        self.reader.user_permissions.add(
+            Permission.objects.get(content_type__app_label="feedback", codename="change_feedback")
+        )
+        reader = User.objects.get(pk=self.reader.pk)
+        feedback = Feedback.objects.create(message="Ohne Mitglied")
+        r = self.client.post("/api/feedback/{}/resolve".format(feedback.pk), **self.auth(reader))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIsNotNone(r.json()["resolved_at"])
+        self.assertIsNone(r.json()["resolved_by"])
+
+    def test_resolving_records_who_and_when(self):
+        feedback = Feedback.objects.create(message="Behoben")
+        r = self.client.post(
+            "/api/feedback/{}/resolve".format(feedback.pk), **self.auth(self.resolver())
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIsNotNone(r.json()["resolved_at"])
+        self.assertEqual(r.json()["resolved_by"]["id"], self.member.pk)
+        feedback.refresh_from_db()
+        self.assertTrue(feedback.is_resolved)
+        self.assertEqual(feedback.resolved_by, self.member)
+
+    def test_resolving_twice_keeps_the_original_record(self):
+        first = timezone.now() - datetime.timedelta(days=3)
+        feedback = Feedback.objects.create(message="Schon erledigt", resolved_at=first)
+        r = self.client.post(
+            "/api/feedback/{}/resolve".format(feedback.pk), **self.auth(self.resolver())
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        feedback.refresh_from_db()
+        self.assertEqual(feedback.resolved_at, first)
+        self.assertIsNone(feedback.resolved_by)
+
+    def test_reopening_clears_the_resolution(self):
+        feedback = Feedback.objects.create(
+            message="Doch nicht", resolved_at=timezone.now(), resolved_by=self.member
+        )
+        r = self.client.post(
+            "/api/feedback/{}/reopen".format(feedback.pk), **self.auth(self.resolver())
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIsNone(r.json()["resolved_at"])
+        feedback.refresh_from_db()
+        self.assertFalse(feedback.is_resolved)
+        self.assertIsNone(feedback.resolved_by)
+
+    def test_listing_shows_the_status(self):
+        Feedback.objects.create(message="Erledigt", resolved_at=timezone.now())
+        r = self.client.get("/api/feedback", **self.auth(self.reader))
+        self.assertIsNotNone(r.json()[0]["resolved_at"])
+
     def test_str_shows_the_first_line_of_the_message(self):
         entry = Feedback.objects.create(message="  Erste Zeile\nZweite Zeile  ")
         self.assertEqual(str(entry), "Erste Zeile")
