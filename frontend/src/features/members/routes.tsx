@@ -107,7 +107,7 @@ function activityClimbers(score: number | null | undefined): ReactNode {
   return (
     <span title={`Aktivität: ${score}`} style={{ whiteSpace: "nowrap" }}>
       {Array.from({ length: level }, (_, i) => (
-        <img key={i} src={climberIcon} alt="" height={18} style={{ verticalAlign: "middle" }} />
+        <img key={i} src={climberIcon} alt="" height={18} className="activity-climber" />
       ))}
     </span>
   );

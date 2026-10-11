@@ -4,7 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/kompass.svg" />
+    <!-- Body text and headings. The stylesheet only asks for them once React
+         has rendered text, so name them here and they arrive alongside the JS. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="./node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="./node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2"
+      crossorigin
+    />
     <title>Kompass</title>
+    <script>
+      // The theme, settled before the first paint so a dark-mode visitor is not
+      // flashed the light sheet while the bundle loads. Mirrors src/theme.ts.
+      (function () {
+        var theme = "light";
+        var choice = null;
+        try {
+          choice = localStorage.getItem("kompass_theme");
+        } catch (e) {}
+        if (choice === "light" || choice === "dark") theme = choice;
+        else if (window.matchMedia("(prefers-color-scheme: dark)").matches) theme = "dark";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

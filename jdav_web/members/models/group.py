@@ -93,9 +93,8 @@ class Group(models.Model):
         return self.year_from and self.year_to
 
     def has_registration_password(self):
-        from .registration import RegistrationPassword
-
-        return RegistrationPassword.objects.filter(group=self).exists()
+        # Through the reverse manager, so a prefetched list answers from cache.
+        return self.registrationpassword_set.exists()
 
     def get_age_info(self):
         if self.has_age_info():

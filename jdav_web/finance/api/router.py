@@ -149,9 +149,23 @@ def finance_enums(request):
 @router.get("/statements", response=list[StatementBrief])
 def list_statements(request):
     """Statements the user may list, scoped by the shared permission filter."""
-    return scope_queryset(
-        request.user, Statement.objects.all().order_by("-submitted_date"), model=Statement
+    # Every row computes its total from its bills, allowances and excursion, so
+    # those relations are loaded in bulk rather than once per statement.
+    queryset = (
+        Statement.objects.select_related(
+            "created_by", "subsidy_to", "ljp_to", "excursion", "excursion__ljpproposal"
+        )
+        .prefetch_related(
+            "bill_set",
+            "allowance_to",
+            "created_by__group",
+            "excursion__jugendleiter",
+            "excursion__membersonlist__member",
+            "excursion__ljpproposal__intervention_set",
+        )
+        .order_by("-submitted_date")
     )
+    return scope_queryset(request.user, queryset, model=Statement)
 
 
 @router.post("/statements", response=StatementOut)
