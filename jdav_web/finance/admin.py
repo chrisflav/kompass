@@ -19,6 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from members.pdf import render_tex_with_attachments
 from utils import get_member
 
+from .admin_rulesets import ObligationInline
 from .models import Bill
 from .models import BillOnStatementProxy
 from .models import Ledger
@@ -131,8 +132,14 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     def get_inlines(self, request, obj=None):
         if obj is None or not obj.submitted:
             return [BillOnStatementInline]
-        else:
-            return [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
+        # A submitted statement shows what the rules resolved, frozen, beside
+        # the transactions generated from it: the two have to agree, and this
+        # is where somebody checking that looks.
+        return [
+            BillOnSubmittedStatementInline,
+            ObligationInline,
+            TransactionOnSubmittedStatementInline,
+        ]
 
     @extra_button(
         _("Submit"),
