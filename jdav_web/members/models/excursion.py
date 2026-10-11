@@ -252,10 +252,13 @@ class Freizeit(CommonModel):
     def staff_count(self):
         return self.jugendleiter.count()
 
+    # The helpers below read both relations with ``.all()``: neither holds
+    # duplicate rows, so ``.distinct()`` changed nothing but bypassed a
+    # prefetched list (the statement list prefetches them for its totals).
     @property
     def staff_on_memberlist(self):
-        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        ps = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         return ps.intersection(jls)
 
     @property
@@ -268,8 +271,8 @@ class Freizeit(CommonModel):
 
     @property
     def participants(self):
-        ps = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        ps = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         return list(ps - jls)
 
     @property
@@ -305,9 +308,9 @@ class Freizeit(CommonModel):
         This is the theoretic value, ignoring the cutoff at 5 participants.
         """
         # participants (possibly including youth leaders)
-        ps = {x.member for x in self.membersonlist.distinct()}
+        ps = {x.member for x in self.membersonlist.all()}
         # youth leaders
-        jls = set(self.jugendleiter.distinct())
+        jls = set(self.jugendleiter.all())
         # non-youth leader participants
         ps_only = ps - jls
         # participants of the correct age (age does not matter for excursions with goal qualification)
@@ -336,9 +339,9 @@ class Freizeit(CommonModel):
         than 5, this is zero, otherwise it is `theoretic_ljp_participant_count`.
         """
         # participants (possibly including youth leaders)
-        ps = {x.member for x in self.membersonlist.distinct()}
+        ps = {x.member for x in self.membersonlist.all()}
         # youth leaders
-        jls = set(self.jugendleiter.distinct())
+        jls = set(self.jugendleiter.all())
         if len(ps.union(jls)) < 5:
             return 0
         return self.theoretic_ljp_participant_count
@@ -430,8 +433,8 @@ class Freizeit(CommonModel):
         return (people, sks)
 
     def sjr_application_numbers(self):
-        members = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        members = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         participants = members - jls
         b27_local = len(
             [m for m in participants if m.age_at(self.date) <= 27 and settings.SEKTION in m.town]
@@ -460,8 +463,8 @@ class Freizeit(CommonModel):
         }
 
     def sjr_application_fields(self):
-        members = set(map(lambda x: x.member, self.membersonlist.distinct()))
-        jls = set(self.jugendleiter.distinct())
+        members = set(map(lambda x: x.member, self.membersonlist.all()))
+        jls = set(self.jugendleiter.all())
         numbers = self.sjr_application_numbers()
         title = self.ljpproposal.title if hasattr(self, "ljpproposal") else self.name
         base = {

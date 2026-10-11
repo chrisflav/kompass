@@ -233,7 +233,8 @@ class MemberOut(ModelSchema):
 
     @staticmethod
     def resolve_activities(obj):
-        return obj.get_activities()
+        # Load what ExcursionBrief resolves for every excursion in bulk.
+        return obj.get_activities().prefetch_related("groups", "jugendleiter", "membersonlist")
 
 
 class GroupOut(ModelSchema):

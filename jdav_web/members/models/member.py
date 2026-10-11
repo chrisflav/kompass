@@ -295,13 +295,15 @@ class Member(Person):
     get_group.short_description = _("Group")
 
     def get_skills(self):
-        # get skills by summing up all the activities taken part in
+        # get skills by summing up all the activities taken part in, fetching
+        # every (activity, difficulty) pair of past excursions in one query
+        points = {}
+        past = Freizeit.objects.filter(membersonlist__member=self, date__lt=timezone.now())
+        for kind_id, difficulty in past.values_list("activity", "difficulty"):
+            points[kind_id] = points.get(kind_id, 0) + difficulty * 3
         skills = {}
         for kind in ActivityCategory.objects.all():
-            lists = Freizeit.objects.filter(activity=kind, membersonlist__member=self)
-            skills[kind.name] = sum(
-                [lst.difficulty * 3 for lst in lists if lst.date < timezone.now()]
-            )
+            skills[kind.name] = points.get(kind.pk, 0)
         return skills
 
     def get_activities(self):
