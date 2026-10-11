@@ -1,12 +1,12 @@
 """Running a ruleset against a context, and closing the books afterwards.
 
 :func:`evaluate` is the whole of the engine's arithmetic. It calls into the
-ruleset four times — ``inputs``, ``transfers``, ``checks`` and the balance it
-does itself — and everything it gets back it distrusts: an amount finer than a
-cent, a transfer with nobody at one end, an exception out of a section's own
-Python. None of those may take a finance page down, so each one comes back as
-a message in :attr:`Result.errors`, and while that list is non-empty nothing is
-persisted and no money moves.
+ruleset three times — ``inputs``, ``transfers``, ``checks`` — and everything it
+gets back it distrusts: an amount finer than a cent, a transfer with nobody at
+one end, an exception out of a section's own Python. None of those may take a
+finance page down, so each one comes back as a message in
+:attr:`Result.errors`, and while that list is non-empty nothing is persisted
+and no money moves.
 
 The one amount the engine computes itself is the balancing transfer. A ruleset
 declares the two parties and the category (:attr:`kompass.rules.Ruleset.balance`)
