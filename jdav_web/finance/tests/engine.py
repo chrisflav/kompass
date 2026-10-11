@@ -699,7 +699,7 @@ class ContextTestCase(TestCase):
 class CasesTestCase(SimpleTestCase):
     def test_the_reference_rulesets_cases_all_pass(self):
         self.assertEqual(run_cases(active_ruleset(), REFERENCE / "cases"), {})
-        self.assertEqual(len(load_cases(REFERENCE / "cases")), 6)
+        self.assertEqual(len(load_cases(REFERENCE / "cases")), 7)
 
     def test_a_failing_case_is_reported_by_name(self):
         with TemporaryDirectory() as directory:

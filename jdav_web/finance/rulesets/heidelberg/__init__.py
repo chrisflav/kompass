@@ -207,11 +207,16 @@ class HeidelbergRules(Ruleset):
             travel = cents(excursion.kilometers * per_km)
             per_night = min(ctx.inputs.money("night_cost"), params.MAX_NIGHT_COST)
             nights = excursion.nights * per_night
+            # Rounded at the end rather than per factor, the way the property
+            # it replaces was — and rounded at all, which it was not: a maximum
+            # per night of three decimal places used to produce a subsidy of
+            # three decimal places, which the column then stored rounded while
+            # everything comparing against it used the unrounded figure.
             transfers.append(
                 Transfer(
                     source=SECTION,
                     destination=subsidy_to,
-                    amount=(travel + nights) * refinanced,
+                    amount=cents((travel + nights) * refinanced),
                     category="subsidy",
                     rule_id="subsidy",
                     label="Zuschuss zu Anreise und Übernachtung",
