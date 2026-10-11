@@ -157,10 +157,11 @@ class FeedbackApiTestCase(TestCase):
     # --- resolving --------------------------------------------------------
 
     def resolver(self):
-        """The signed-in sender, granted the change permission."""
-        self.user.user_permissions.add(
-            Permission.objects.get(content_type__app_label="feedback", codename="change_feedback")
-        )
+        """The signed-in sender, granted the view and change permissions."""
+        for codename in ("view_feedback", "change_feedback"):
+            self.user.user_permissions.add(
+                Permission.objects.get(content_type__app_label="feedback", codename=codename)
+            )
         return User.objects.get(pk=self.user.pk)
 
     def test_resolving_requires_the_change_permission(self):
@@ -172,6 +173,27 @@ class FeedbackApiTestCase(TestCase):
             self.assertEqual(r.status_code, 403)
         feedback.refresh_from_db()
         self.assertFalse(feedback.is_resolved)
+
+    def test_changing_without_viewing_is_refused(self):
+        """The response carries the note itself, so change alone must not read it."""
+        self.user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="feedback", codename="change_feedback")
+        )
+        changer = User.objects.get(pk=self.user.pk)
+        feedback = Feedback.objects.create(message="Geheim")
+        r = self.client.post("/api/feedback/{}/resolve".format(feedback.pk), **self.auth(changer))
+        self.assertEqual(r.status_code, 403)
+
+    def test_resolving_without_a_member_leaves_resolved_by_empty(self):
+        self.reader.user_permissions.add(
+            Permission.objects.get(content_type__app_label="feedback", codename="change_feedback")
+        )
+        reader = User.objects.get(pk=self.reader.pk)
+        feedback = Feedback.objects.create(message="Ohne Mitglied")
+        r = self.client.post("/api/feedback/{}/resolve".format(feedback.pk), **self.auth(reader))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIsNotNone(r.json()["resolved_at"])
+        self.assertIsNone(r.json()["resolved_by"])
 
     def test_resolving_records_who_and_when(self):
         feedback = Feedback.objects.create(message="Behoben")

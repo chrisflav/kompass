@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -156,6 +157,7 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
   const toast = useToast();
   const confirm = useConfirmDialog();
   const { can } = usePermissions();
+  const qc = useQueryClient();
   const resolved = Boolean(feedback.resolved_at);
 
   const toggleResolved = useApiMutation(
@@ -171,8 +173,12 @@ function FeedbackDetail({ feedback }: { feedback: FeedbackOut }) {
       ),
     {
       invalidate: [["feedback"]],
-      onSuccess: () =>
-        toast.success(resolved ? "Feedback wieder geöffnet." : "Feedback als erledigt markiert."),
+      onSuccess: (data) => {
+        // The answer is the updated note: show it at once instead of keeping
+        // the old label (and a clickable button) until the refetch lands.
+        qc.setQueryData(["feedback", feedback.id], data);
+        toast.success(resolved ? "Feedback wieder geöffnet." : "Feedback als erledigt markiert.");
+      },
       onError: (e: Error) => toast.error(e.message),
     },
   );

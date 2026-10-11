@@ -8,7 +8,7 @@ from django.db import models
 class Migration(migrations.Migration):
     dependencies = [
         ("feedback", "0001_initial"),
-        ("members", "0048_group_website_display_flags"),
+        ("members", "0049_group_show_website_registration"),
     ]
 
     operations = [

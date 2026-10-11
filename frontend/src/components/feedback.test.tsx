@@ -180,12 +180,15 @@ describe("feedback inbox", () => {
   });
 
   it("hides the delete action without the permission", async () => {
+    // Holding only the change permission: its button appearing proves the
+    // permissions have loaded, so the missing one is really hidden.
+    useMe({ permissions: ["feedback.change_feedback"] });
     listReturns();
     server.use(
       http.get(api("/api/feedback/1"), () => HttpResponse.json({ ...ROWS[1], user_agent: "" })),
     );
     renderRoute("/kompass/feedback/1");
-    await screen.findByText("Schöne Seite!");
+    await screen.findByRole("button", { name: "Wieder öffnen" });
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
   });
 
@@ -209,12 +212,13 @@ describe("feedback inbox", () => {
   });
 
   it("hides the resolve action without the permission", async () => {
+    useMe({ permissions: ["feedback.delete_feedback"] });
     listReturns();
     server.use(
       http.get(api("/api/feedback/2"), () => HttpResponse.json({ ...ROWS[0], user_agent: "" })),
     );
     renderRoute("/kompass/feedback/2");
-    await screen.findByText(/Zweite Zeile/);
+    await screen.findByRole("button", { name: "Löschen" });
     expect(
       screen.queryByRole("button", { name: "Als erledigt markieren" }),
     ).not.toBeInTheDocument();
