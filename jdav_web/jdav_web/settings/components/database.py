@@ -14,5 +14,13 @@ DATABASES = {
         "PASSWORD": get_var("database", "password", default="secret"),
         "HOST": get_var("database", "host", default="db"),
         "PORT": get_var("database", "port", default=3306),
+        # Keep a connection open for this many seconds instead of opening one per
+        # request (0 does that, None never closes). Django holds one connection per
+        # thread, so this costs at most one per uwsgi thread and celery process.
+        "CONN_MAX_AGE": get_var("database", "conn_max_age", default=60),
+        # Check a reused connection before a request uses it, so one the server
+        # dropped in the meantime (a restart, `wait_timeout`) is replaced instead
+        # of failing that request.
+        "CONN_HEALTH_CHECKS": get_var("database", "conn_health_checks", default=True),
     }
 }

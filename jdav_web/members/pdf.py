@@ -1,3 +1,4 @@
+import contextlib
 import glob
 import logging
 import os
@@ -74,17 +75,17 @@ def render_docx(name, template_path, context, date=None, save_only=False):
     filename = generate_tex(name, template_path, context, date=date)
     filename_tex = filename + ".tex"
     filename_docx = filename + ".docx"
-    oldwd = os.getcwd()
-    os.chdir(media_dir())
+    # ``cwd=`` rather than ``os.chdir``: the working directory belongs to the
+    # whole process, and uwsgi runs several request threads in each one.
     result = subprocess.run(
         ["pandoc", filename_tex, "-o", filename_docx],
         capture_output=True,
         text=True,
+        cwd=media_dir(),
     )
     logger.debug(f"Pandoc stdout: {result.stdout}")
     logger.debug(f"Pandoc stderr: {result.stderr}")
     time.sleep(1)
-    os.chdir(oldwd)
     if save_only:
         return filename_docx
     return serve_media(filename_docx, "application/docx")
@@ -111,27 +112,25 @@ def render_tex(name, template_path, context, date=None, save_only=False):
     filename = generate_tex(name, template_path, context, date=date)
     filename_tex = filename + ".tex"
     filename_pdf = filename + ".pdf"
-    # compile using pdflatex
-    oldwd = os.getcwd()
-    os.chdir(media_dir())
+    # compile using pdflatex, in the media directory without changing into it
+    # (see ``render_docx``)
     result = subprocess.run(
         ["pdflatex", "-halt-on-error", filename_tex],
         capture_output=True,
         text=True,
+        cwd=media_dir(),
     )
     logger.debug(f"pdflatex stdout: {result.stdout}")
     logger.debug(f"pdflatex stderr: {result.stderr}")
     time.sleep(1)
 
-    # do some cleanup
-    for f in glob.glob("*.log"):
-        os.remove(f)
-    for f in glob.glob("*.aux"):
-        os.remove(f)
+    # do some cleanup; a render running alongside sweeps the same files, so one
+    # may be gone by the time it is removed here
+    for f in glob.glob(media_path("*.log")) + glob.glob(media_path("*.aux")):
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(f)
     # os.remove(filename_tex)
     # os.remove(filename_table)
-
-    os.chdir(oldwd)
 
     pdf_path = media_path(filename_pdf)
     if result.returncode != 0 or not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
