@@ -19,6 +19,7 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 from django.test import TestCase
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django_celery_beat.models import PeriodicTask
 from finance.engine import reference_directory
 from finance.engine.versions import active_version
@@ -244,7 +245,7 @@ class RulesetAdminTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(active_version())
-        self.assertContains(response, "is now active")
+        self.assertContains(response, _("%(name)s is now active.") % {"name": ""})
 
     def test_importing_from_a_configuration_that_is_not_there(self):
         with override_settings(FINANCE_RULESET="nowhere", CONFIG_DIR_PATH="/tmp"):
@@ -253,7 +254,9 @@ class RulesetAdminTestCase(TestCase):
                 data={"import_from_configuration": "1"},
                 follow=True,
             )
-        self.assertContains(response, "There is no ruleset at")
+        self.assertContains(
+            response, _("There is no ruleset at %(path)s.") % {"path": "/tmp/nowhere"}
+        )
 
     def test_importing_a_configuration_that_fails_its_checks(self):
         with TemporaryDirectory() as directory:
@@ -266,7 +269,11 @@ class RulesetAdminTestCase(TestCase):
                     data={"import_from_configuration": "1"},
                     follow=True,
                 )
-        self.assertContains(response, "stored as a draft")
+        # The admin capitalises a message, so the assertion looks for the
+        # part of it that does not start with the version name.
+        self.assertContains(
+            response, _("%(name)s was stored as a draft and is not active.") % {"name": ""}
+        )
         self.assertContains(response, "may not import socket")
 
     def test_the_version_page_is_read_only(self):
@@ -294,7 +301,7 @@ class RulesetAdminTestCase(TestCase):
     def test_a_dry_run_against_a_statement_that_is_not_there(self):
         url = reverse("admin:finance_ruleset_dry_run", args=[self.row.pk])
         response = self.client.post(url, data={"statement": 9999}, follow=True)
-        self.assertContains(response, "There is no statement 9999")
+        self.assertContains(response, _("There is no statement %(id)s.") % {"id": "9999"})
 
     def test_a_dry_run_of_a_version_that_cannot_be_loaded(self):
         row = RuleSet.objects.create(
@@ -316,7 +323,7 @@ class RulesetAdminTestCase(TestCase):
             reverse("admin:finance_statement_change", args=[self.statement.pk])
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Resolved payout")
+        self.assertContains(response, _("Resolved payout"))
 
     def test_a_role_can_be_assigned(self):
         response = self.client.post(
