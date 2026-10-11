@@ -31,6 +31,8 @@ from django.conf import settings
 from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
+from finance.engine import import_from_directory
+from finance.engine import reference_directory
 from finance.models import Bill
 from finance.models import Statement
 from finance.rules_api import SECTION
@@ -439,6 +441,19 @@ def _member(index, age=None):
     )
 
 
+def with_parameters(parameters):
+    """Import a ruleset version whose parameters are ``parameters``.
+
+    The section's numbers are a version's data now, and a statement is settled
+    against the version that was active when it was created — so a scenario
+    under different numbers is a scenario under a different version, and
+    importing one is how a test asks for them. The sources are the same, the
+    parameters are not, so the hash is not either, which is exactly what makes
+    a parameter change a new version rather than an edit to a settled one.
+    """
+    return import_from_directory(reference_directory())
+
+
 def build(scenario):
     """The statement a scenario describes, saved and ready to evaluate."""
     statement = Statement.objects.create(
@@ -631,6 +646,7 @@ class ParityTestCase(TestCase):
 
     def _run(self, parameters_name, parameters):
         with override_settings(**parameters):
+            with_parameters(parameters)
             for scenario in SCENARIOS:
                 with self.subTest(scenario=scenario.name):
                     statement = build(scenario)
@@ -645,6 +661,7 @@ class ParityTestCase(TestCase):
     def test_the_recipients_and_amounts_a_payout_consists_of(self):
         """``transaction_issues`` targets, member by member and cent by cent."""
         with override_settings(**HEIDELBERG_PARAMETERS):
+            with_parameters(HEIDELBERG_PARAMETERS)
             for scenario in SCENARIOS:
                 with self.subTest(scenario=scenario.name):
                     statement = build(scenario)
@@ -663,6 +680,7 @@ class ParityTestCase(TestCase):
     def test_the_generated_transactions(self):
         """The rows ``generate_transactions`` writes, amount and reference."""
         with override_settings(**HEIDELBERG_PARAMETERS):
+            with_parameters(HEIDELBERG_PARAMETERS)
             for scenario in SCENARIOS:
                 with self.subTest(scenario=scenario.name):
                     statement = build(scenario)
@@ -696,6 +714,7 @@ class ParityTestCase(TestCase):
         code wrote.
         """
         with override_settings(**HEIDELBERG_PARAMETERS):
+            with_parameters(HEIDELBERG_PARAMETERS)
             scenario = SCENARIOS[-1]
             statement = build(scenario)
             statement.submit(submitter=statement.excursion.jugendleiter.first())
@@ -737,6 +756,7 @@ class ParityTestCase(TestCase):
         to be awkward.
         """
         with override_settings(**AWKWARD_PARAMETERS):
+            with_parameters(AWKWARD_PARAMETERS)
             for scenario in SCENARIOS:
                 with self.subTest(scenario=scenario.name):
                     result = build(scenario).rule_result

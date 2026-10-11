@@ -211,6 +211,8 @@ def build_context(
     *,
     permissions: Iterable[str] = (),
     inputs: Mapping[str, object] | None = None,
+    params: Mapping[str, Decimal] | None = None,
+    roles: Mapping[str, Iterable[int]] | None = None,
 ) -> RuleContext:
     """The context for ``statement``, read out of the database in one go.
 
@@ -218,11 +220,15 @@ def build_context(
     (:attr:`kompass.rules.Ruleset.permissions`); they are resolved here because
     a rule cannot query for them itself. ``inputs`` overrides the answers the
     statement carries, which is what a dry run against unsaved answers needs.
+    ``params`` and ``roles`` are passed in by
+    :mod:`finance.engine.statements`, which reads them from the statement's own
+    ruleset snapshot and from the dated role assignments; left out, the
+    parameters fall back to the settings as they always did.
     """
     excursion = statement.excursion
     return RuleContext(
         version=CONTEXT_VERSION,
-        params=Params(parameters(statement)),
+        params=Params(parameters(statement) if params is None else dict(params)),
         inputs=Inputs(statement_inputs(statement) if inputs is None else dict(inputs)),
         bills=_bills(statement),
         excursion=None if excursion is None else _excursion(excursion),
@@ -231,6 +237,9 @@ def build_context(
             creator=member_of(statement.created_by_id),
             submitter=member_of(statement.submitted_by_id),
         ),
-        roles={},
+        roles={
+            role: tuple(Member(MemberId(pk)) for pk in sorted(ids))
+            for role, ids in (roles or {}).items()
+        },
         permissions=permission_holders(permissions),
     )

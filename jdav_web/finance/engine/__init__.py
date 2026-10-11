@@ -10,20 +10,13 @@ A statement is resolved in three steps, and the engine owns all three.
 3. The engine appends the one transfer that closes the books, with the amount
    it resolves itself.
 
-What a ruleset is allowed to be is :mod:`finance.engine.imports` (the import
-whitelist) and :mod:`finance.engine.loader` (loading a version from its stored
-source, by hash). The rules themselves are in :mod:`finance.rulesets`.
-
-Step 1 of the refactor has one ruleset, the reference one, compiled into the
-image. :func:`active_ruleset` is the seam where step 2 will resolve the
-section's own version from the database instead.
+Around those: :mod:`finance.engine.imports` (what a ruleset may import),
+:mod:`finance.engine.loader` (loading a version from its stored source, by
+hash), :mod:`finance.engine.versions` (importing and activating a version) and
+:mod:`finance.engine.statements` (binding a statement to a version, and writing
+its transfers down as rows). The rules themselves are in
+:mod:`finance.rulesets`.
 """
-
-from collections.abc import Mapping
-from typing import Any
-
-from finance.rules_api import Ruleset
-from finance.rulesets.heidelberg import ruleset as reference_ruleset
 
 from .context import build_context
 from .context import parameters
@@ -41,6 +34,27 @@ from .loader import manifest
 from .loader import manifest_hash
 from .loader import read_sources
 from .loader import source_hash
+from .statements import active_ruleset
+from .statements import bind
+from .statements import cents_of
+from .statements import evaluate_statement
+from .statements import freeze
+from .statements import materialise
+from .statements import result_from_rows
+from .statements import rows_exist
+from .statements import ruleset_for
+from .statements import statement_context
+from .statements import statement_params
+from .statements import verify
+from .versions import active_version
+from .versions import check_directory
+from .versions import configured_directory
+from .versions import decimal_params
+from .versions import engine_version
+from .versions import import_from_directory
+from .versions import reference_directory
+from .versions import ruleset_directory
+from .versions import ruleset_from_sources
 
 __all__ = [
     "EngineError",
@@ -49,45 +63,35 @@ __all__ = [
     "RulesetInvalid",
     "RulesetRejected",
     "active_ruleset",
+    "active_version",
+    "bind",
     "build_context",
+    "cents_of",
+    "check_directory",
+    "configured_directory",
+    "decimal_params",
+    "engine_version",
     "evaluate",
     "evaluate_statement",
+    "freeze",
+    "import_from_directory",
     "load",
     "manifest",
     "manifest_hash",
+    "materialise",
     "no_queries",
     "parameters",
     "permission_holders",
     "read_sources",
+    "reference_directory",
+    "result_from_rows",
+    "rows_exist",
+    "ruleset_directory",
+    "ruleset_for",
+    "ruleset_from_sources",
     "source_hash",
+    "statement_context",
+    "statement_params",
     "sum_amounts",
+    "verify",
 ]
-
-
-def active_ruleset() -> Ruleset:
-    """The ruleset a statement is evaluated against.
-
-    Today: the reference ruleset that ships with Kompass. Step 2 of the
-    refactor replaces this with the version a statement is bound to, loaded
-    from its own snapshot, so that an old statement keeps the rules it was
-    created under.
-    """
-    return reference_ruleset
-
-
-def evaluate_statement(
-    statement: Any,
-    *,
-    ruleset: Ruleset | None = None,
-    inputs: Mapping[str, object] | None = None,
-) -> Result:
-    """Resolve ``statement`` into transfers.
-
-    The one call the rest of the finance app makes. ``ruleset`` and ``inputs``
-    are for a dry run — "what would this statement look like under that
-    version, with those answers" — which is what the admin's test pages and the
-    parity suite use.
-    """
-    rules = active_ruleset() if ruleset is None else ruleset
-    context = build_context(statement, permissions=rules.permissions, inputs=inputs)
-    return evaluate(rules, context)

@@ -71,6 +71,7 @@ from finance.rules_api import StatementInfo
 from finance.rules_api import Transfer
 from finance.rulesets.heidelberg import cents
 from finance.rulesets.heidelberg import HeidelbergRules
+from finance.rulesets.heidelberg import ruleset as reference
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -375,9 +376,10 @@ class QueryGuardTestCase(TestCase):
 
     def test_evaluating_a_statement_makes_no_query_at_all(self):
         statement = Statement.objects.create(short_description="Still", night_cost=0)
+        rules = active_ruleset()
         ctx = build_context(statement)
         with self.assertNumQueries(0):
-            evaluate(active_ruleset(), ctx)
+            evaluate(rules, ctx)
 
     def test_the_guard_lifts_again_afterwards(self):
         with no_queries():
@@ -514,8 +516,8 @@ class LoaderTestCase(SimpleTestCase):
 
     def test_the_reference_ruleset_loads_from_its_own_source(self):
         loaded = load(read_sources(REFERENCE))
-        self.assertEqual(loaded.name, active_ruleset().name)
-        self.assertIsNot(loaded, active_ruleset())
+        self.assertEqual(loaded.name, reference.name)
+        self.assertIsNot(loaded, reference)
 
     def test_a_ruleset_that_is_not_one(self):
         with self.assertRaises(RulesetInvalid):
@@ -698,7 +700,7 @@ class ContextTestCase(TestCase):
 
 class CasesTestCase(SimpleTestCase):
     def test_the_reference_rulesets_cases_all_pass(self):
-        self.assertEqual(run_cases(active_ruleset(), REFERENCE / "cases"), {})
+        self.assertEqual(run_cases(reference, REFERENCE / "cases"), {})
         self.assertEqual(len(load_cases(REFERENCE / "cases")), 7)
 
     def test_a_failing_case_is_reported_by_name(self):
@@ -708,7 +710,7 @@ class CasesTestCase(SimpleTestCase):
                 json.dumps({"name": "impossible", "expect": {"transfers": []}}),
                 encoding="utf-8",
             )
-            failed = run_cases(active_ruleset(), Path(directory))
+            failed = run_cases(reference, Path(directory))
         self.assertEqual(list(failed), ["impossible"])
 
     def test_a_case_names_its_parties_the_way_a_person_would(self):
@@ -755,12 +757,12 @@ class CasesTestCase(SimpleTestCase):
         self.assertEqual(case.context.inputs.raw("extra"), 1)
         self.assertEqual(case.context.excursion.ljp.goal, "participation")
         self.assertEqual(case.context.permission_holders("finance.x"), (Member(MemberId(1)),))
-        failures = run_case(active_ruleset(), case)
+        failures = run_case(reference, case)
         self.assertEqual(len(failures), 3)
         self.assertTrue(failures[0].startswith("transfers"))
         self.assertTrue(failures[1].startswith("errors"))
         self.assertTrue(failures[2].startswith("checks"))
-        self.assertEqual(set(run_cases(active_ruleset(), REFERENCE / "cases")), set())
+        self.assertEqual(set(run_cases(reference, REFERENCE / "cases")), set())
 
 
 # --- the reference ruleset's own edges -------------------------------------

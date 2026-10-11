@@ -6,6 +6,8 @@ from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from finance.engine import import_from_directory
+from finance.engine import reference_directory
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
@@ -40,6 +42,16 @@ class StatementTestCase(TestCase):
     allowance_to_count = 3
 
     def setUp(self):
+        # The section's numbers are a ruleset version's parameters now, and a
+        # statement is bound to the version that is active when it is created.
+        # So these are set first and imported into a version, once, before any
+        # statement exists — otherwise every figure below would be read from
+        # the version the migration imported, with the stock numbers.
+        settings.EXCURSION_ORG_FEE = 20
+        settings.LJP_TAX = 0.2
+        settings.LJP_CONTRIBUTION_PER_DAY = 20
+        import_from_directory(reference_directory())
+
         self.jl = Group.objects.create(name="Jugendleiter")
         self.fritz = Member.objects.create(
             prename="Fritz",
@@ -184,10 +196,6 @@ class StatementTestCase(TestCase):
             date=timezone.datetime(2024, 1, 2, 8, 0, 0, tzinfo=base.tzinfo),
             end=timezone.datetime(2024, 1, 5, 17, 0, 0, tzinfo=base.tzinfo),
         )
-
-        settings.EXCURSION_ORG_FEE = 20
-        settings.LJP_TAX = 0.2
-        settings.LJP_CONTRIBUTION_PER_DAY = 20
 
         self.st5 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
 
@@ -672,12 +680,27 @@ class StatementTestCase(TestCase):
         self.assertEqual(statement.submitted_by, self.fritz)
         self.assertIsNotNone(statement.submitted_date)
 
-    def test_submit_captures_settings_snapshot_and_uses_it_for_submitted_statements(self):
+    def test_a_statement_keeps_the_numbers_it_was_created_under(self):
+        """The numbers are fixed at creation, not at submission.
+
+        This is the second of the two bugs the refactor's proposal named: the
+        snapshot used to be taken in ``submit()`` and consulted only once the
+        statement was submitted, so a draft silently followed whatever the
+        settings said until somebody handed it in. A statement is now bound to
+        a ruleset version when it is created, and that version's parameters are
+        its numbers from then on — through a settings change, through
+        submission, and through the next ten imports.
+
+        ``settings_snapshot`` is still captured at submission; it is the legacy
+        field, kept until the column goes.
+        """
         statement = Statement.objects.create(
             short_description="Snapshot Statement",
             explanation="Snapshot test",
             night_cost=25,
         )
+        created_under = statement.ruleset_snapshot["params"]["ALLOWANCE_PER_DAY"]
+        self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), Decimal(created_under))
 
         with override_settings(
             ALLOWANCE_PER_DAY=42.0,
@@ -689,13 +712,32 @@ class StatementTestCase(TestCase):
             LJP_TAX=0.19,
         ):
             statement.submit(submitter=self.fritz)
-            snapshot_value = statement.settings_snapshot["ALLOWANCE_PER_DAY"]
-
-        self.assertIsInstance(statement.settings_snapshot, dict)
-        self.assertEqual(snapshot_value, 42.0)
+            self.assertEqual(statement.settings_snapshot["ALLOWANCE_PER_DAY"], 42.0)
+            # A changed setting does not reach a statement that already exists,
+            # whether it is a draft or submitted.
+            self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), Decimal(created_under))
 
         with override_settings(ALLOWANCE_PER_DAY=99.0):
-            self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), snapshot_value)
+            self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), Decimal(created_under))
+
+    def test_a_statement_created_before_the_store_reads_its_old_snapshot(self):
+        """An unbound statement keeps the behaviour it had before step 2.
+
+        Nothing in the database is unbound after the migration, but a row
+        could be written by a fixture or by an older code path, and the
+        fallback has to be the old one: the ``settings_snapshot`` of a
+        submitted statement, the live settings while a draft.
+        """
+        statement = Statement.objects.create(short_description="Unbound", night_cost=0)
+        Statement.objects.filter(pk=statement.pk).update(
+            ruleset=None, ruleset_hash="", ruleset_snapshot={}
+        )
+        statement.refresh_from_db()
+        with override_settings(ALLOWANCE_PER_DAY=77.0):
+            self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), Decimal("77.0"))
+            statement.submit(submitter=self.fritz)
+        with override_settings(ALLOWANCE_PER_DAY=99.0):
+            self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), Decimal("77.0"))
 
     def test_template_context_with_excursion(self):
         """Test statement template context when excursion is present"""

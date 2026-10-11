@@ -24,13 +24,19 @@ from schwifty import IBAN
 from utils import cvt_to_decimal
 from utils import RestrictedFileField
 
+from .engine import bind as bind_ruleset
 from .engine import evaluate_statement
-from .engine import parameters as engine_parameters
+from .engine import freeze as freeze_obligations
+from .engine import materialise
+from .engine import result_from_rows
+from .engine import rows_exist
+from .engine import statement_params
 from .rules import is_creator
 from .rules import leads_excursion
 from .rules import not_submitted
 from .rules_api import Member as RuleMember
 from .rules_api import SECTION
+from .store import RuleSet
 
 # Create your models here.
 
@@ -141,6 +147,29 @@ class Statement(CommonModel):
         blank=True,
         help_text=_("Financial settings captured at time of submission/confirmation."),
     )
+    # The rules this statement is settled under, bound when it is created and
+    # never afterwards. `ruleset` is the row (PROTECT: a version a statement
+    # depends on cannot be deleted), `ruleset_hash` is the dedup and audit key,
+    # and `ruleset_snapshot` is the whole closure plus its parameters, so the
+    # statement can be evaluated from itself alone.
+    ruleset = models.ForeignKey(
+        RuleSet,
+        verbose_name=_("Ruleset version"),
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=models.PROTECT,
+        related_name="statements",
+    )
+    ruleset_hash = models.CharField(
+        verbose_name=_("Ruleset hash"), max_length=64, blank=True, default=""
+    )
+    ruleset_snapshot = models.JSONField(
+        verbose_name=_("Ruleset snapshot"),
+        default=dict,
+        blank=True,
+        help_text=_("The rules and numbers this statement was created under."),
+    )
     submitted_date = models.DateTimeField(verbose_name=_("Submitted on"), default=None, null=True)
     confirmed_date = models.DateTimeField(verbose_name=_("Paid on"), default=None, null=True)
 
@@ -201,14 +230,19 @@ class Statement(CommonModel):
     def _get_setting(self, key: str) -> Decimal:
         """The section's number for ``key``, as it applies to this statement.
 
-        A submitted statement reads its own snapshot, a draft the live
-        settings. The value is a ``Decimal``: the snapshot holds JSON numbers
-        and the settings may hold either, and every amount column in this app
-        is a ``DecimalField``, so the conversion happens once, here, through
-        the text form — ``Decimal(str(0.15))`` is ``Decimal("0.15")`` and not
-        the binary expansion ``Decimal(0.15)`` would give.
+        The statement's own ruleset snapshot, taken when it was created, so
+        that a draft is settled against the numbers that were in force the day
+        it was opened rather than whatever the settings say today. A statement
+        from before the store falls back to the old behaviour: its
+        ``settings_snapshot`` once submitted, the live settings while a draft.
+
+        The value is a ``Decimal``: the snapshots hold JSON and the settings
+        may hold either, and every amount column in this app is a
+        ``DecimalField``, so the conversion happens once, here, through the
+        text form — ``Decimal(str(0.15))`` is ``Decimal("0.15")`` and not the
+        binary expansion ``Decimal(0.15)`` would give.
         """
-        return engine_parameters(self)[key]
+        return statement_params(self)[key]
 
     def _capture_settings_snapshot(self, force=False):
         if self.settings_snapshot and not force:
@@ -243,12 +277,30 @@ class Statement(CommonModel):
     status_badge.allow_tags = True
     status_badge.admin_order_field = "status"
 
+    def save(self, *args, **kwargs):
+        """Bind a new statement to the active rules, then write its rows.
+
+        Binding happens once, on creation: from then on the statement carries
+        the rules it was opened under. The obligation rows are rewritten on
+        every draft save and left alone once the statement is submitted, which
+        is what makes them the record rather than a cache.
+        """
+        creating = self._state.adding
+        if creating and self.ruleset_id is None:
+            bind_ruleset(self)
+        super().save(*args, **kwargs)
+        if not self.submitted:
+            materialise(self)
+
     def submit(self, submitter=None):
         self._capture_settings_snapshot(force=True)
         self.status = self.SUBMITTED
         self.submitted_date = timezone.now()
         self.submitted_by = submitter
         self.save()
+        # The rows the statement is handed in with are the ones it is settled
+        # from: frozen here, read everywhere afterwards, never recomputed.
+        freeze_obligations(self)
 
     @property
     def rule_result(self):
@@ -259,12 +311,19 @@ class Statement(CommonModel):
         asked (:class:`finance.engine.Result`). Every money figure below is
         read off it rather than recomputed here.
 
-        It is resolved on each access on purpose. A draft follows its own
-        fields — change the subsidy recipient and the next read says so — and
-        caching that correctly means fingerprinting the recipients, the bills
-        and the excursion, which costs the queries it would save. Step 2 of the
-        refactor materialises the transfers as rows, which removes the question.
+        A **submitted** statement reads the rows that were frozen when it was
+        handed in, and reads them once per instance: that record is what it is
+        settled from, and no code needs to run again to render it. A **draft**
+        is resolved live on every access, because it follows its own fields —
+        change the subsidy recipient and the next read says so — and
+        fingerprinting the recipients, the bills and the excursion to cache
+        that correctly would cost the queries it saves.
         """
+        if "_frozen_result" in self.__dict__:
+            return self.__dict__["_frozen_result"]
+        if self.submitted and rows_exist(self):
+            self.__dict__["_frozen_result"] = result_from_rows(self)
+            return self.__dict__["_frozen_result"]
         return evaluate_statement(self)
 
     @property
@@ -902,6 +961,34 @@ class Bill(CommonModel):
 
     def __str__(self):
         return "{} ({}€)".format(self.short_description, self.amount)
+
+    def save(self, *args, **kwargs):
+        """Save, and keep the statement's materialised payout in step.
+
+        The one field the finance officer may still edit after a statement is
+        handed in is ``costs_covered`` — that is what their permission on
+        ``BillOnStatementProxy`` is for — and covering a bill changes what is
+        owed. So a bill that moves re-freezes its statement's rows, unless the
+        statement is already paid out, where nothing may move at all.
+        """
+        super().save(*args, **kwargs)
+        self._refresh_statement()
+
+    def delete(self, *args, **kwargs):
+        statement = self.statement
+        deleted = super().delete(*args, **kwargs)
+        self.statement = statement
+        self._refresh_statement()
+        return deleted
+
+    def _refresh_statement(self):
+        statement = self.statement
+        if statement.confirmed:
+            return
+        if statement.submitted:
+            freeze_obligations(statement)
+        else:
+            materialise(statement)
 
     def pretty_amount(self):
         return "{}€".format(self.amount)
