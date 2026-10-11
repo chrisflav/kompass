@@ -629,7 +629,24 @@
       "get": {
         "operationId": "members_api_router_list_trainings",
         "summary": "List Trainings",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "member",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Member"
+            },
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -646,7 +663,7 @@
             }
           }
         },
-        "description": "Trainings the user may list, scoped by the shared permission filter.",
+        "description": "Trainings the user may list, scoped by the shared permission filter.\n\n``?member=<id>`` narrows the list to one member's trainings (the member\ndetail page), on top of — never instead of — the permission scope.",
         "tags": [
           "members"
         ],

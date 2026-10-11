@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useGroups } from "../../api/queries";
 import { usePermissions } from "../../api/me";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -544,9 +545,7 @@ function WaiterInvite({ waiter }: { waiter: WaiterOut }) {
   const [groupId, setGroupId] = useState<string>("");
   const [text, setText] = useState("");
 
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
-    enabled: open,
-  });
+  const groupsQuery = useGroups({ enabled: open });
   const groups = groupsQuery.data ?? [];
 
   const mutation = useApiMutation<WaiterOut, void>(

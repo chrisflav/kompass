@@ -420,13 +420,19 @@ def retrieve_me(request):
 
 
 @router.get("/trainings", response=list[TrainingBrief])
-def list_trainings(request):
-    """Trainings the user may list, scoped by the shared permission filter."""
+def list_trainings(request, member: int | None = None):
+    """Trainings the user may list, scoped by the shared permission filter.
+
+    ``?member=<id>`` narrows the list to one member's trainings (the member
+    detail page), on top of — never instead of — the permission scope.
+    """
     queryset = (
         MemberTraining.objects.select_related("member", "category")
         .prefetch_related("activity")
         .order_by("-date")
     )
+    if member is not None:
+        queryset = queryset.filter(member_id=member)
     return scope_queryset(request.user, queryset, model=MemberTraining)
 
 

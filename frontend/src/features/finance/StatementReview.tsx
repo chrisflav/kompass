@@ -6,6 +6,7 @@ import { mediaUrl } from "../../api/client";
 import { ChunkBoundary } from "../../components/ChunkBoundary";
 import { client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useMembers } from "../../api/queries";
 import {
   Badge,
   Button,
@@ -502,10 +503,10 @@ function BuchungenStage({
   invalidate: unknown[][];
 }) {
   const toast = useToast();
-  const ledgers = useApiQuery(["finance", "ledgers"], () =>
+  const ledgers = useApiQuery(["ledgers"], () =>
     unwrap(client.GET("/api/finance/ledgers/")),
   );
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const members = useMembers();
   const ledgerOptions = ledgers.data ?? [];
 
   const [editId, setEditId] = useState<number | null>(null);

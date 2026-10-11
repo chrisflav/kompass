@@ -556,6 +556,51 @@ describe("group detail — Gruppenberechtigungen", () => {
     ).toBeInTheDocument();
   });
 
+  it("loads the member and group lists only for the names it shows", async () => {
+    const requested: string[] = [];
+    const record = ({ request }: { request: Request }) => {
+      requested.push(new URL(request.url).pathname);
+    };
+    server.events.on("request:start", record);
+    try {
+      // Without stored permissions the read-only view needs neither list.
+      fullDetailReturns();
+      const first = renderRoute("/kompass/groups/7");
+      expect(await screen.findByText("Keine Berechtigungen.")).toBeInTheDocument();
+      expect(requested).not.toContain("/api/members/");
+      expect(requested).not.toContain("/api/members/groups");
+      first.unmount();
+
+      // A stored member grant needs the members for its names — not the groups.
+      requested.length = 0;
+      fullDetailReturns({}, [
+        http.get(api("/api/members/groups/7/permission-groups"), () =>
+          HttpResponse.json([
+            {
+              id: 15,
+              list_member_ids: [42],
+              view_member_ids: [],
+              change_member_ids: [],
+              delete_member_ids: [],
+              list_group_ids: [],
+              view_group_ids: [],
+              change_group_ids: [],
+              delete_group_ids: [],
+            },
+          ]),
+        ),
+      ]);
+      const { user } = renderRoute("/kompass/groups/7");
+      await user.click(await screen.findByRole("tab", { name: "Gruppenberechtigungen" }));
+      const panel = within(document.querySelector(".tab-panel:not([hidden])") as HTMLElement);
+      expect(await panel.findByText("Anna Ärmel")).toBeInTheDocument();
+      expect(requested).toContain("/api/members/");
+      expect(requested).not.toContain("/api/members/groups");
+    } finally {
+      server.events.removeListener("request:start", record);
+    }
+  });
+
   it("adds a permission set and creates it on save", async () => {
     fullDetailReturns();
     let created: Record<string, unknown> | null = null;

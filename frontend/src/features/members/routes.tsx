@@ -7,6 +7,7 @@ import { getToken } from "../../auth";
 import { API_BASE } from "../../api/client";
 import { ApiError, client, downloadArtifact, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { queryKeys, useGroups, useMembers, useTrainingCategories } from "../../api/queries";
 import { useRowHints, useSectionHelp } from "../../api/helpTexts";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
@@ -52,6 +53,32 @@ type MemberPermissionIn = components["schemas"]["MemberPermissionIn"];
 type TrainingBrief = components["schemas"]["TrainingBrief"];
 type TrainingOut = components["schemas"]["TrainingOut"];
 type MemberTrainingUpdate = components["schemas"]["MemberTrainingUpdate"];
+
+/* Per-member reads, shared by the detail page (which starts them all from the
+ * URL id) and the inlines that render them, so both hit the same cache entry. */
+const fetchMember = (memberId: number) =>
+  unwrap(client.GET("/api/members/{member_id}", { params: { path: { member_id: memberId } } }));
+const fetchEmergencyContacts = (memberId: number) =>
+  unwrap(
+    client.GET("/api/members/{member_id}/emergency-contacts", {
+      params: { path: { member_id: memberId } },
+    }),
+  );
+const fetchMemberDocuments = (memberId: number) =>
+  unwrap(
+    client.GET("/api/members/{member_id}/documents", {
+      params: { path: { member_id: memberId } },
+    }),
+  );
+// Only this member's trainings: the list endpoint filters server-side.
+const fetchMemberTrainings = (memberId: number) =>
+  unwrap(client.GET("/api/members/trainings", { params: { query: { member: memberId } } }));
+const fetchPermissionMembers = (memberId: number) =>
+  unwrap(
+    client.GET("/api/members/{member_id}/permission-members", {
+      params: { path: { member_id: memberId } },
+    }),
+  );
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
@@ -310,7 +337,7 @@ function MembersList() {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
-  const query = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const query = useMembers();
   const rows = query.data ?? [];
 
   const groupOptions = useMemo(() => {
@@ -451,6 +478,7 @@ function MemberBulkActions({ members, onDone }: { members: MemberBrief[]; onDone
     },
     {
       invalidate: [["members"], ["registrations"]],
+      markStale: [queryKeys.groups()],
       onSuccess: (r: { ok: number; failures: string[]; success: (n: number) => string }) => {
         if (r.ok) toast.success(r.success(r.ok));
         // Report the failures too — a partial run must not look like a success.
@@ -707,7 +735,7 @@ function MemberCreateForm({ onDone }: { onDone: () => void }) {
   const enumsQuery = useApiQuery(["members", "enums"], () =>
     unwrap(client.GET("/api/members/enums")),
   );
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const groupsQuery = useGroups();
   const genderChoices = enumsQuery.data?.gender ?? [];
   const groups: GroupOut[] = groupsQuery.data ?? [];
 
@@ -812,9 +840,7 @@ function MemberDetailPage() {
   const memberId = Number(id);
   const [sp] = useSearchParams();
   const groupId = sp.get("group");
-  const query = useApiQuery(["members", memberId], () =>
-    unwrap(client.GET("/api/members/{member_id}", { params: { path: { member_id: memberId } } })),
-  );
+  const query = useApiQuery(queryKeys.member(memberId), () => fetchMember(memberId));
   const groupQuery = useApiQuery(
     ["groups", Number(groupId)],
     () =>
@@ -837,10 +863,32 @@ function MemberDetailPage() {
     : [{ label: "Teilnehmende", to: "/kompass/members" }, { label: memberName }];
 
   return (
-    <QueryBoundary query={query}>
-      {(member: MemberOut) => <MemberDetailBody member={member} crumbs={crumbs} />}
-    </QueryBoundary>
+    <>
+      <MemberInlinesPrefetch memberId={memberId} />
+      <QueryBoundary query={query}>
+        {(member: MemberOut) => <MemberDetailBody member={member} crumbs={crumbs} />}
+      </QueryBoundary>
+    </>
   );
+}
+
+/** Starts the requests of every inline on the member page alongside the member
+ *  itself — they need nothing but the id from the URL — instead of only once
+ *  the member has loaded and the inlines mount. Renders nothing; the inlines
+ *  read the same cache entries. */
+function MemberInlinesPrefetch({ memberId }: { memberId: number }) {
+  // A malformed id in the URL leaves the page to report the missing member.
+  const opts = { enabled: Number.isFinite(memberId) };
+  useApiQuery(
+    queryKeys.memberEmergencyContacts(memberId),
+    () => fetchEmergencyContacts(memberId),
+    opts,
+  );
+  useApiQuery(queryKeys.memberDocuments(memberId), () => fetchMemberDocuments(memberId), opts);
+  useApiQuery(queryKeys.memberTrainings(memberId), () => fetchMemberTrainings(memberId), opts);
+  useApiQuery(queryKeys.memberPermissions(memberId), () => fetchPermissionMembers(memberId), opts);
+  useTrainingCategories(opts);
+  return null;
 }
 
 /** Members of a single group (group-based navigation). Rows carry the group in
@@ -852,7 +900,7 @@ function MembersOfGroup() {
   const groupQuery = useApiQuery(["groups", gid], () =>
     unwrap(client.GET("/api/members/groups/{group_id}", { params: { path: { group_id: gid } } })),
   );
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const membersQuery = useMembers();
   const groupName = groupQuery.data?.name;
   const rows = (membersQuery.data ?? []).filter(
     (m) => groupName !== undefined && m.groups.includes(groupName),
@@ -904,6 +952,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
       ),
     {
       invalidate: [["members"]],
+      markStale: [queryKeys.groups()],
       onSuccess: () => {
         toast.success("Mitglied gelöscht.");
         navigate("/kompass/members");
@@ -930,9 +979,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
     () => unwrap(client.GET("/api/members/enums")),
     { enabled: editing },
   );
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
-    enabled: editing,
-  });
+  const groupsQuery = useGroups({ enabled: editing });
   // The "Nutzer" link is gated per field, exactly as in the admin; without the
   // permission the row stays read-only and its options are never fetched (the
   // endpoint would refuse them anyway).
@@ -954,7 +1001,8 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
           body,
         }),
       ),
-    { invalidate: [["members"], ["members", member.id]] },
+    // A renamed Jugendleiter shows in the groups list too.
+    { invalidate: [["members"], ["members", member.id]], markStale: [queryKeys.groups()] },
   );
 
   // Inline editors (Notfallkontakte / Dokumente / Ausbildungen / Berechtigungen)
@@ -1497,14 +1545,8 @@ function EmergencyContactsInline({
   editing: boolean;
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const listKey = ["members", memberId, "emergency-contacts"];
-  const query = useApiQuery<EmergencyContactOut[]>(listKey, () =>
-    unwrap(
-      client.GET("/api/members/{member_id}/emergency-contacts", {
-        params: { path: { member_id: memberId } },
-      }),
-    ),
-  );
+  const listKey = queryKeys.memberEmergencyContacts(memberId);
+  const query = useApiQuery<EmergencyContactOut[]>(listKey, () => fetchEmergencyContacts(memberId));
   const createM = useApiMutation<EmergencyContactOut, EmergencyContactCreate>(
     (body) =>
       unwrap(
@@ -1674,14 +1716,8 @@ function DocumentsInline({
   editing: boolean;
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const listKey = ["members", memberId, "documents"];
-  const query = useApiQuery<MemberDocumentOut[]>(listKey, () =>
-    unwrap(
-      client.GET("/api/members/{member_id}/documents", {
-        params: { path: { member_id: memberId } },
-      }),
-    ),
-  );
+  const listKey = queryKeys.memberDocuments(memberId);
+  const query = useApiQuery<MemberDocumentOut[]>(listKey, () => fetchMemberDocuments(memberId));
   const createM = useApiMutation<MemberDocumentOut, File>(
     (f) => {
       const fd = new FormData();
@@ -1805,8 +1841,8 @@ function TrainingsInline({
   editing: boolean;
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const query = useApiQuery<TrainingBrief[]>(["members", "trainings"], () =>
-    unwrap(client.GET("/api/members/trainings")),
+  const query = useApiQuery<TrainingBrief[]>(queryKeys.memberTrainings(memberId), () =>
+    fetchMemberTrainings(memberId),
   );
   const updateM = useApiMutation<TrainingOut, { id: number; body: MemberTrainingUpdate }>(
     ({ id, body }) =>
@@ -1816,7 +1852,7 @@ function TrainingsInline({
           body,
         }),
       ),
-    { invalidate: [["members", "trainings"]] },
+    { invalidate: [queryKeys.trainings()] },
   );
   const createM = useApiMutation<TrainingOut, TrainingData>(
     (d) =>
@@ -1831,7 +1867,7 @@ function TrainingsInline({
           },
         }),
       ),
-    { invalidate: [["members", "trainings"]] },
+    { invalidate: [queryKeys.trainings()] },
   );
   const removeM = useApiMutation<unknown, number>(
     (id) =>
@@ -1840,27 +1876,23 @@ function TrainingsInline({
           params: { path: { training_id: id } },
         }),
       ),
-    { invalidate: [["members", "trainings"]] },
+    { invalidate: [queryKeys.trainings()] },
   );
-  const categories = useApiQuery(["training-categories"], () =>
-    unwrap(client.GET("/api/members/training-categories")),
-  );
+  const categories = useTrainingCategories();
   const [adding, setAdding] = useState<TrainingData | null>(null);
 
-  const serverRows = (query.data ?? [])
-    .filter((t) => t.member_id === memberId)
-    .map((t) => ({
-      id: t.id,
-      data: {
-        title: t.title ?? "",
-        date: t.date ?? "",
-        participated: t.participated ?? false,
-        passed: t.passed ?? false,
-        category_name: t.category_name,
-        category_id: t.category_id ?? null,
-        certificate: t.certificate ?? null,
-      } as TrainingData,
-    }));
+  const serverRows = (query.data ?? []).map((t) => ({
+    id: t.id,
+    data: {
+      title: t.title ?? "",
+      date: t.date ?? "",
+      participated: t.participated ?? false,
+      passed: t.passed ?? false,
+      category_name: t.category_name,
+      category_id: t.category_id ?? null,
+      certificate: t.certificate ?? null,
+    } as TrainingData,
+  }));
 
   const { rows, setRow, removeRow, addRow } = useInlineDraft<TrainingData>({
     serverRows,
@@ -2054,7 +2086,7 @@ function TrainingCertificate({
       return res.json();
     },
     {
-      invalidate: [["members", "trainings"]],
+      invalidate: [queryKeys.trainings()],
       onSuccess: () => toast.success("Nachweis hochgeladen."),
       onError: (e: Error) => toast.error(e.message),
     },
@@ -2128,26 +2160,12 @@ function PermissionMembersInline({
   editing: boolean;
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const listKey = ["members", memberId, "permission-members"];
-  const query = useApiQuery<MemberPermissionOut[]>(listKey, () =>
-    unwrap(
-      client.GET("/api/members/{member_id}/permission-members", {
-        params: { path: { member_id: memberId } },
-      }),
-    ),
-  );
+  const listKey = queryKeys.memberPermissions(memberId);
+  const query = useApiQuery<MemberPermissionOut[]>(listKey, () => fetchPermissionMembers(memberId));
 
   const optionsEnabled = editing || (query.data?.length ?? 0) > 0;
-  const membersQuery = useApiQuery<MemberBrief[]>(
-    ["members"],
-    () => unwrap(client.GET("/api/members/")),
-    { enabled: optionsEnabled },
-  );
-  const groupsQuery = useApiQuery<GroupOut[]>(
-    ["groups"],
-    () => unwrap(client.GET("/api/members/groups")),
-    { enabled: optionsEnabled },
-  );
+  const membersQuery = useMembers({ enabled: optionsEnabled });
+  const groupsQuery = useGroups({ enabled: optionsEnabled });
   const memberOpts = membersQuery.data ?? [];
   const groupOpts = groupsQuery.data ?? [];
   const memberName = (id: number) => memberOpts.find((m) => m.id === id)?.name ?? `#${id}`;
@@ -2161,7 +2179,7 @@ function PermissionMembersInline({
           body,
         }),
       ),
-    { invalidate: [listKey] },
+    { invalidate: [listKey], markStale: [queryKeys.members(), queryKeys.excursions()] },
   );
   const updateM = useApiMutation<MemberPermissionOut, { id: number; body: MemberPermissionIn }>(
     ({ id, body }) =>
@@ -2171,7 +2189,7 @@ function PermissionMembersInline({
           body,
         }),
       ),
-    { invalidate: [listKey] },
+    { invalidate: [listKey], markStale: [queryKeys.members(), queryKeys.excursions()] },
   );
   const delM = useApiMutation<unknown, number>(
     (id) =>
@@ -2180,7 +2198,7 @@ function PermissionMembersInline({
           params: { path: { permission_id: id } },
         }),
       ),
-    { invalidate: [listKey] },
+    { invalidate: [listKey], markStale: [queryKeys.members(), queryKeys.excursions()] },
   );
 
   const serverRows = (query.data ?? []).map((r) => ({

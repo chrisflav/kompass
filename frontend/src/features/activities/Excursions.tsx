@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { queryKeys, useExcursions, useGroups, useMembers } from "../../api/queries";
 import { useFieldsetHelp, useRowHints, useSectionHelp } from "../../api/helpTexts";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft, type DraftRow } from "../../components/inlineDraft";
@@ -74,10 +75,13 @@ export function ExcursionsList() {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
-  const query = useApiQuery(["excursions"], () => unwrap(client.GET("/api/members/excursions")));
+  const query = useExcursions();
   const rows = query.data ?? [];
   // Members back the participant filter's labels (the Brief carries only ids).
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  // They are fetched once that filter is opened or already set (restored from
+  // the session), not for every visit to the list.
+  const [participantFilterUsed, setParticipantFilterUsed] = useState(false);
+  const membersQuery = useMembers({ enabled: participantFilterUsed });
 
   // Group filter options = the distinct groups actually present in the list.
   const groupOptions = useMemo(() => {
@@ -122,6 +126,8 @@ export function ExcursionsList() {
           key: "participant",
           label: "Teilnehmer*in",
           options: memberOptions,
+          onOpen: () => setParticipantFilterUsed(true),
+          loading: membersQuery.isLoading,
           match: (e, v) => e.participant_ids.includes(Number(v)),
         },
       ],
@@ -134,10 +140,14 @@ export function ExcursionsList() {
       },
       defaultSort: { key: "date", dir: "desc" },
     }),
-    [groupOptions, memberOptions],
+    [groupOptions, memberOptions, membersQuery.isLoading],
   );
 
   const view = useListView(rows, config);
+  const participantFilter = view.filterValues.participant;
+  useEffect(() => {
+    if (participantFilter) setParticipantFilterUsed(true);
+  }, [participantFilter]);
 
   return (
     <div>
@@ -200,8 +210,8 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const groupsQuery = useGroups();
+  const membersQuery = useMembers();
   const groupOptions: Option[] = useMemo(
     () => (groupsQuery.data ?? []).map((g) => ({ value: g.id, label: g.name })),
     [groupsQuery.data],
@@ -228,6 +238,7 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
     },
     {
       invalidate: [["excursions"]],
+      markStale: [queryKeys.members()],
       onSuccess: (created: ExcursionOut) => {
         toast.success("Ausfahrt angelegt.");
         onDone();
@@ -373,6 +384,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
       ),
     {
       invalidate: [["excursions"]],
+      markStale: [queryKeys.members()],
       onSuccess: () => {
         toast.success("Ausfahrt gelöscht.");
         navigate("/kompass/excursions");
@@ -402,12 +414,8 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
   const [showFinance, setShowFinance] = useState(false);
   const { getRegistrar, runFlushes } = useFlushRegistry();
 
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")), {
-    enabled: editing,
-  });
-  const membersQuery = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), {
-    enabled: editing,
-  });
+  const groupsQuery = useGroups({ enabled: editing });
+  const membersQuery = useMembers({ enabled: editing });
   const categoriesQuery = useApiQuery(
     ["activity-categories"],
     () => unwrap(client.GET("/api/members/activity-categories")),
@@ -434,7 +442,11 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
           body,
         }),
       ),
-    { invalidate: [["excursions"], ["excursions", excursion.id]] },
+    // Jugendleiter and participants feed the members list's activity score.
+    {
+      invalidate: [["excursions"], ["excursions", excursion.id]],
+      markStale: [queryKeys.members()],
+    },
   );
 
   // --- LJP-Antrag (seminar report): a 1:1 excursion extension, edited as a

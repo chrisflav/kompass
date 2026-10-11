@@ -6,6 +6,7 @@ import { API_BASE } from "../../api/client";
 import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useGroups, useMembers } from "../../api/queries";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
@@ -73,7 +74,7 @@ function PostForm({
   const sectionsQuery = useApiQuery(["sections"], () =>
     unwrap(client.GET("/api/startpage/sections")),
   );
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const groupsQuery = useGroups();
 
   if (sectionsQuery.isLoading || groupsQuery.isLoading) return <Spinner />;
   const sections = (sectionsQuery.data ?? []) as SectionBrief[];
@@ -315,7 +316,7 @@ function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
   const sectionsQuery = useApiQuery(["sections"], () =>
     unwrap(client.GET("/api/startpage/sections")),
   );
-  const groupsQuery = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const groupsQuery = useGroups();
   const sections = (sectionsQuery.data ?? []) as SectionBrief[];
   const groups = (groupsQuery.data ?? []) as GroupOut[];
 
@@ -692,11 +693,7 @@ function PostPersonsInline({
     .map((q) => q.data as MemberOnPostOut | undefined)
     .filter((d): d is MemberOnPostOut => Boolean(d));
 
-  const membersQuery = useApiQuery(
-    ["members"],
-    () => unwrap(client.GET("/api/members/")),
-    { enabled: editing },
-  );
+  const membersQuery = useMembers({ enabled: editing });
   const members = (membersQuery.data ?? []) as MemberBrief[];
   const namesFor = (ids: number[]) =>
     ids.map((id) => members.find((m) => m.id === id)?.name ?? "");
