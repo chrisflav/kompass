@@ -178,10 +178,9 @@ msgstr "Unter %(path)s liegt kein Regelwerk."
 msgid "%(name)s was stored as a draft and is not active."
 msgstr "%(name)s wurde als Entwurf gespeichert und ist nicht aktiv."
 
-#, fuzzy, python-format
-#| msgid "%(name)s is not yet submitted."
+#, python-format
 msgid "%(name)s is now active."
-msgstr "%(name)s ist noch nicht eingereicht."
+msgstr "%(name)s ist jetzt aktiv."
 
 msgid "Dry run"
 msgstr "Probelauf"
@@ -348,10 +347,8 @@ msgstr "Regelwerk-Version"
 msgid "Ruleset hash"
 msgstr "Regelwerk-Hash"
 
-#, fuzzy
-#| msgid "Settings snapshot"
 msgid "Ruleset snapshot"
-msgstr "Einstellungszwischenstand"
+msgstr "Regelwerk-Zwischenstand"
 
 msgid "The rules and numbers this statement was created under."
 msgstr "Die Regeln und Beträge, unter denen diese Abrechnung angelegt wurde."
@@ -532,10 +529,8 @@ msgstr "Parameter"
 msgid "The section's numbers, as exact decimal strings."
 msgstr "Die Beträge der Sektion, als exakte Dezimalzahlen in Textform."
 
-#, fuzzy
-#| msgid "Status"
 msgid "State"
-msgstr "Status"
+msgstr "Zustand"
 
 msgid "Problems"
 msgstr "Probleme"
@@ -549,15 +544,11 @@ msgstr "Gültig ab"
 msgid "Valid to"
 msgstr "Gültig bis"
 
-#, fuzzy
-#| msgid "Submitted on"
 msgid "Imported on"
-msgstr "Eingereicht am"
+msgstr "Importiert am"
 
-#, fuzzy
-#| msgid "Associated excursion"
 msgid "Activated on"
-msgstr "Zugehörige Ausfahrt"
+msgstr "Aktiviert am"
 
 msgid "Cases passed on"
 msgstr "Testfälle bestanden am"
@@ -627,10 +618,8 @@ msgstr "Regel-Version"
 msgid "The hash of the ruleset version that produced this row."
 msgstr "Der Hash der Regelwerk-Version, die diese Zeile erzeugt hat."
 
-#, fuzzy
-#| msgid "Completed"
 msgid "Computed on"
-msgstr "Abgewickelt"
+msgstr "Berechnet am"
 
 msgid "Frozen on"
 msgstr "Festgeschrieben am"
@@ -643,10 +632,8 @@ msgstr ""
 msgid "Obligations"
 msgstr "Verbindlichkeiten"
 
-#, fuzzy
-#| msgid "Short description"
 msgid "Description"
-msgstr "Kurzbeschreibung"
+msgstr "Beschreibung"
 
 msgid "Applicable"
 msgstr "Zutreffend"
@@ -709,10 +696,9 @@ msgid ""
 "changes nothing: it hashes to the version that is already stored."
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "This excursion already has a statement."
+#, python-format
 msgid "What %(version)s would make of a statement"
-msgstr "Diese Ausfahrt hat bereits eine Abrechnung."
+msgstr "Was %(version)s aus einer Abrechnung machen würde"
 
 msgid ""
 "Nothing is written: the statement keeps its own version and its own payout. "
