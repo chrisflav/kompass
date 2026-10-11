@@ -2,7 +2,8 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { mediaUrl } from "../../../api/client";
-import { Spinner, useDocumentTitle } from "../../../components/ui";
+import { ChunkBoundary } from "../../../components/ChunkBoundary";
+import { useDocumentTitle } from "../../../components/ui";
 import type { components } from "../../../api/schema";
 
 type PostBrief = components["schemas"]["PublicPostBrief"];
@@ -14,14 +15,17 @@ const Markdown = lazy(() => import("./Markdown"));
  * Render a model's ``website_text`` (authored as Markdown in the backend) as
  * rich text — see ./Markdown for what that covers and how raw HTML in it is
  * kept safe. The renderer is fetched on first use, so pages without authored
- * text never download it.
+ * text never download it. No loading state while it does: a page such as the
+ * FAQ holds many of these, and a status message apiece would only flicker.
  */
 export function Prose({ text }: { text?: string | null }) {
   if (!text) return null;
   return (
-    <Suspense fallback={<Spinner />}>
-      <Markdown text={text} />
-    </Suspense>
+    <ChunkBoundary>
+      <Suspense fallback={null}>
+        <Markdown text={text} />
+      </Suspense>
+    </ChunkBoundary>
   );
 }
 

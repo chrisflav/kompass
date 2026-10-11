@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 
+import { ChunkBoundary } from "./components/ChunkBoundary";
 import { PublicLayout } from "./components/Layout";
 import { NotFound } from "./components/Placeholder";
 import { Spinner } from "./components/ui";
@@ -25,9 +26,11 @@ export function AppRoutes() {
       <Route
         path="/kompass/*"
         element={
-          <Suspense fallback={<Spinner />}>
-            <KompassRoutes />
-          </Suspense>
+          <ChunkBoundary>
+            <Suspense fallback={<Spinner />}>
+              <KompassRoutes />
+            </Suspense>
+          </ChunkBoundary>
         }
       />
 

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { mediaUrl } from "../../api/client";
+import { ChunkBoundary } from "../../components/ChunkBoundary";
 import { client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import {
@@ -802,9 +803,11 @@ function AuszahlenStage({
             <div className="payout-row-qr">
               {t.code ? (
                 <>
-                  <Suspense fallback={<Spinner />}>
-                    <QRCodeSVG value={t.code} size={116} level="M" marginSize={1} />
-                  </Suspense>
+                  <ChunkBoundary>
+                    <Suspense fallback={<Spinner />}>
+                      <QRCodeSVG value={t.code} size={116} level="M" marginSize={1} />
+                    </Suspense>
+                  </ChunkBoundary>
                   <span className="payout-qr-caption">Scannen zum Überweisen</span>
                 </>
               ) : (

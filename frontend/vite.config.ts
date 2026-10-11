@@ -1,24 +1,22 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { brotliCompress, constants, gzip } from "node:zlib";
+import { gzip } from "node:zlib";
 
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-const brotli = promisify(brotliCompress);
 const gz = promisify(gzip);
 
-/** What is worth compressing: text, and KaTeX's uncompressed .ttf fallbacks.
- *  woff2/woff and images already are compressed. */
-const COMPRESSIBLE = /\.(js|css|html|svg|json|ttf)$/;
+/** The text assets worth compressing; fonts and images already are. */
+const COMPRESSIBLE = /\.(js|css|html|svg|json)$/;
 
 /**
- * Write a `.gz` and a `.br` next to every compressible file of the build, at
- * the highest levels, so the web server can hand them out as they are
- * (nginx's `gzip_static`) instead of compressing on every request at the low
- * level it can afford there. A variant that would not be smaller is skipped,
- * and the server then falls back to the original.
+ * Write a `.gz` next to every text file of the build, at the highest level, so
+ * the web server can hand it out as it is (nginx's `gzip_static`) instead of
+ * compressing on every request at the low level it can afford there. Where it
+ * would not be smaller it is skipped, and the server falls back to the original.
+ * No `.br`: the SPA image's nginx has no brotli module to serve one.
  */
 function precompress(): Plugin {
   let outDir = "dist";
@@ -26,7 +24,7 @@ function precompress(): Plugin {
     name: "kompass-precompress",
     apply: "build",
     configResolved(config) {
-      outDir = config.build.outDir;
+      outDir = resolve(config.root, config.build.outDir);
     },
     async writeBundle() {
       const entries = await readdir(outDir, { recursive: true, withFileTypes: true });
@@ -36,21 +34,8 @@ function precompress(): Plugin {
       await Promise.all(
         files.map(async (file) => {
           const source = await readFile(file);
-          const variants: [string, Buffer][] = [
-            [".gz", await gz(source, { level: 9 })],
-            [
-              ".br",
-              await brotli(source, {
-                params: {
-                  [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY,
-                  [constants.BROTLI_PARAM_SIZE_HINT]: source.length,
-                },
-              }),
-            ],
-          ];
-          for (const [suffix, compressed] of variants) {
-            if (compressed.length < source.length) await writeFile(file + suffix, compressed);
-          }
+          const compressed = await gz(source, { level: 9 });
+          if (compressed.length < source.length) await writeFile(`${file}.gz`, compressed);
         }),
       );
     },

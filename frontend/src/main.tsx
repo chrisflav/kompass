@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import { AuthProvider } from "./auth";
+import { handlePreloadError } from "./components/ChunkBoundary";
 import { ConfirmProvider, ToastProvider } from "./components/ui";
 import { AppRoutes } from "./routes";
 // Self-hosted IBM Plex (GDPR-safe: no external font requests). Sans carries the
@@ -17,6 +18,10 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
 import "./styles.css";
+
+// A tab left open across a deploy asks for chunks that no longer exist: reload
+// once to pick up the new build instead of failing the page.
+window.addEventListener("vite:preloadError", (event) => handlePreloadError(event));
 
 const queryClient = new QueryClient({
   defaultOptions: {
