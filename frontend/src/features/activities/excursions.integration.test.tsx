@@ -156,7 +156,8 @@ describe("activities — Ausfahrten list", () => {
 
     const pick = async (filter: RegExp, option: string) => {
       await user.click(screen.getByRole("button", { name: filter }));
-      await user.click(dropdown().getByRole("button", { name: option }));
+      // `find`: the participant options only load once that filter opens.
+      await user.click(await dropdown().findByRole("button", { name: option }));
     };
 
     await pick(/Genehmigt:/, "Abgelehnt");
@@ -173,6 +174,40 @@ describe("activities — Ausfahrten list", () => {
     await user.click(screen.getByRole("button", { name: "Filter zurücksetzen" }));
     await pick(/Teilnehmer\*in:/, "Mila Nowak");
     await waitFor(() => expect(screen.getByText("1 / 3")).toBeInTheDocument());
+  });
+
+  it("loads the members only once the participant filter opens", async () => {
+    listReturns();
+    let memberRequests = 0;
+    server.use(
+      http.get(api("/api/members/"), () => {
+        memberRequests += 1;
+        return HttpResponse.json(MEMBERS);
+      }),
+    );
+    const { user } = renderRoute("/kompass/excursions");
+    await screen.findByText("Skifreizeit");
+    await user.click(screen.getByRole("button", { name: /Gruppe:/ }));
+    expect(memberRequests).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: /Teilnehmer\*in:/ }));
+    expect(await dropdown().findByRole("button", { name: "Mila Nowak" })).toBeInTheDocument();
+    expect(memberRequests).toBe(1);
+  });
+
+  it("loads the members at once when a participant filter is restored", async () => {
+    listReturns();
+    sessionStorage.setItem(
+      "listview:" + window.location.pathname,
+      JSON.stringify({ search: "", filterValues: { participant: "43" }, sort: null }),
+    );
+    try {
+      renderRoute("/kompass/excursions");
+      // The trigger names the restored member without the dropdown being opened.
+      expect(await screen.findByText("Mila Nowak")).toBeInTheDocument();
+    } finally {
+      sessionStorage.clear();
+    }
   });
 
   it("sorts by every column in both directions", async () => {

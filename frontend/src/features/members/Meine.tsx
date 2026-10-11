@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-import { client, unwrap } from "../../api/http";
-import { useApiQuery } from "../../api/hooks";
+import { useGroups } from "../../api/queries";
 import { useMe } from "../../api/me";
 import { DataTable, EmptyState, PageHeader, QueryBoundary } from "../../components/ui";
 import type { components } from "../../api/schema";
@@ -17,7 +16,7 @@ export function MeineGruppen() {
   const navigate = useNavigate();
   const me = useMe();
   const memberId = me.data?.member_id ?? null;
-  const query = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
+  const query = useGroups();
 
   const rows = (query.data ?? []).filter(
     (g: GroupOut) => memberId !== null && g.leiters.some((l) => l.id === memberId),

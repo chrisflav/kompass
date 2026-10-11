@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, client, unwrap } from "../../api/http";
 import { usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useEmailAddresses, useGroups, useMembers } from "../../api/queries";
 import { useRowHints } from "../../api/helpTexts";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
@@ -33,9 +34,7 @@ export function EmailAddressesList() {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
-  const query = useApiQuery(["mailer", "email-addresses"], () =>
-    unwrap(client.GET("/api/mailer/email-addresses")),
-  );
+  const query = useEmailAddresses();
   const rows = query.data ?? [];
 
   // Admin has no search_fields / list_filter; ordering = name.
@@ -143,10 +142,10 @@ function EmailAddressDetailBody({
   const toast = useToast();
   const confirm = useConfirmDialog();
 
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const groups = useApiQuery(["members", "groups"], () =>
-    unwrap(client.GET("/api/members/groups")),
-  );
+  // Only the edit pickers need the full lists; the view shows the address's own
+  // names.
+  const members = useMembers({ enabled: editing });
+  const groups = useGroups({ enabled: editing });
 
   const mutation = useApiMutation(
     (body: EmailAddressIn) =>
@@ -363,10 +362,8 @@ function EmailAddressForm({
   const [form, setForm] = useState<AddressFormState>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const groups = useApiQuery(["members", "groups"], () =>
-    unwrap(client.GET("/api/members/groups")),
-  );
+  const members = useMembers();
+  const groups = useGroups();
 
   const mutation = useApiMutation((body: EmailAddressIn) => onSubmit(body), {
     invalidate,

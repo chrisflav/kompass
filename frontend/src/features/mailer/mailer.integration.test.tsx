@@ -461,6 +461,33 @@ describe("mailer — Nachrichten", () => {
     expect(await screen.findByText("F26-01 · Skifreizeit")).toBeInTheDocument();
   });
 
+  it("loads the picker lists only once the message is edited", async () => {
+    detailReturns();
+    const pickerLists = [
+      "/api/members/",
+      "/api/members/groups",
+      "/api/members/excursions",
+      "/api/mailer/email-addresses",
+    ];
+    const requested: string[] = [];
+    const record = ({ request }: { request: Request }) => {
+      requested.push(new URL(request.url).pathname);
+    };
+    server.events.on("request:start", record);
+    try {
+      const { user } = renderRoute("/kompass/mailer/messages/4");
+      // The read-only view names its recipients from the message itself.
+      expect(await screen.findAllByText("Sommerfahrt")).not.toHaveLength(0);
+      expect(screen.getAllByText("Klettergruppe")).not.toHaveLength(0);
+      expect(requested.filter((p) => pickerLists.includes(p))).toEqual([]);
+
+      await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+      await waitFor(() => expect(requested).toEqual(expect.arrayContaining(pickerLists)));
+    } finally {
+      server.events.removeListener("request:start", record);
+    }
+  });
+
   it("refuses to save a message without subject and content", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();

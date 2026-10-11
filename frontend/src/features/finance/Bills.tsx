@@ -6,6 +6,7 @@ import { usePermissions } from "../../api/me";
 import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useMembers } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import {
   Badge,
@@ -203,7 +204,7 @@ function BillCreateForm({ onDone }: { onDone: () => void }) {
   const statements = useApiQuery(["finance", "statements"], () =>
     unwrap(client.GET("/api/finance/statements")),
   );
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const members = useMembers();
 
   const mutation = useApiMutation(
     () => {
@@ -342,7 +343,7 @@ export function BillDetailPage() {
 
 function BillDetailBody({ bill, crumbs }: { bill: BillOut; crumbs: Crumb[] }) {
   const toast = useToast();
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
+  const members = useMembers();
   const [editing, setEditing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form, setForm] = useState(() => ({

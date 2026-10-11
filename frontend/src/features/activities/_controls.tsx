@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useMembers } from "../../api/queries";
 import { InlineTable } from "../../components/inline";
 import { useInlineDraft } from "../../components/inlineDraft";
 import { Button, Field, Modal, MultiSelect, Select } from "../../components/ui";
@@ -152,11 +153,7 @@ export function ParticipantsInline({
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
   const listQuery = useApiQuery(queryKey, listFn);
-  const membersQuery = useApiQuery(
-    ["members"],
-    () => unwrap(client.GET("/api/members/")),
-    { enabled: editing },
-  );
+  const membersQuery = useMembers({ enabled: editing });
   const memberOptions: Option[] = useMemo(
     () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
     [membersQuery.data],

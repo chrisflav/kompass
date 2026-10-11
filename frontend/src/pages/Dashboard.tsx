@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { mediaUrl } from "../api/client";
 import { client, unwrap } from "../api/http";
 import { useApiQuery } from "../api/hooks";
+import { useExcursions, useGroups } from "../api/queries";
 import { useMe } from "../api/me";
 import { useSite } from "../api/site";
 import { ContourField, KompassMark } from "../components/Contour";
@@ -119,14 +120,12 @@ export function Dashboard() {
   const memberId = me.data?.member_id ?? null;
   const firstName = me.data?.name?.split(" ")[0];
 
-  const groups = useApiQuery(["groups"], () => unwrap(client.GET("/api/members/groups")));
-  const excursions = useApiQuery(["excursions"], () =>
-    unwrap(client.GET("/api/members/excursions")),
-  );
+  const groups = useGroups();
+  const excursions = useExcursions();
   const statements = useApiQuery(["finance", "statements"], () =>
     unwrap(client.GET("/api/finance/statements")),
   );
-  const links = useApiQuery(["startpage", "links"], () =>
+  const links = useApiQuery(["links"], () =>
     unwrap(client.GET("/api/startpage/links")),
   );
 

@@ -229,7 +229,7 @@ function LinkIconEdit({ link }: { link: LinkOut }) {
       return res.json();
     },
     {
-      invalidate: [["startpage", "links"], ["startpage", "links", link.id]],
+      invalidate: [["links"], ["links", link.id]],
       onSuccess: () => {
         toast.success("Icon hochgeladen.");
         setFile(null);

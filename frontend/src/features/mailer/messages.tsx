@@ -5,6 +5,7 @@ import { API_BASE } from "../../api/client";
 import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { useEmailAddresses, useExcursions, useGroups, useMembers } from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
@@ -146,16 +147,10 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<MessageFormState>(() => emptyMessage());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const groups = useApiQuery(["members", "groups"], () =>
-    unwrap(client.GET("/api/members/groups")),
-  );
-  const excursions = useApiQuery(["members", "excursions"], () =>
-    unwrap(client.GET("/api/members/excursions")),
-  );
-  const addresses = useApiQuery(["mailer", "email-addresses"], () =>
-    unwrap(client.GET("/api/mailer/email-addresses")),
-  );
+  const members = useMembers();
+  const groups = useGroups();
+  const excursions = useExcursions();
+  const addresses = useEmailAddresses();
 
   const create = useApiMutation(
     (body: MessageIn) => unwrap(client.POST("/api/mailer/messages", { body })),
@@ -363,16 +358,12 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
   const toast = useToast();
   const confirm = useConfirmDialog();
 
-  const members = useApiQuery(["members"], () => unwrap(client.GET("/api/members/")));
-  const groups = useApiQuery(["members", "groups"], () =>
-    unwrap(client.GET("/api/members/groups")),
-  );
-  const excursions = useApiQuery(["members", "excursions"], () =>
-    unwrap(client.GET("/api/members/excursions")),
-  );
-  const addresses = useApiQuery(["mailer", "email-addresses"], () =>
-    unwrap(client.GET("/api/mailer/email-addresses")),
-  );
+  // The read-only view renders the names the message itself carries; the full
+  // lists only back the edit pickers, so they load once editing starts.
+  const members = useMembers({ enabled: editing });
+  const groups = useGroups({ enabled: editing });
+  const excursions = useExcursions({ enabled: editing });
+  const addresses = useEmailAddresses({ enabled: editing });
 
   const { getRegistrar, runFlushes } = useFlushRegistry();
   const [saving, setSaving] = useState(false);

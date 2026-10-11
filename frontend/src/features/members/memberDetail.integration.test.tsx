@@ -121,6 +121,50 @@ describe("member detail", () => {
     expect(await screen.findByText("Erika")).toBeInTheDocument();
   });
 
+  it("starts the inline requests alongside the member, not after it", async () => {
+    detailReturns();
+    // Hold the member back: the inlines must not wait for it to render.
+    let releaseMember!: () => void;
+    const memberHeld = new Promise<void>((resolve) => (releaseMember = resolve));
+    server.use(
+      http.get(api("/api/members/42"), async () => {
+        await memberHeld;
+        return HttpResponse.json(MEMBER);
+      }),
+    );
+    const requested: string[] = [];
+    const record = ({ request }: { request: Request }) => {
+      const url = new URL(request.url);
+      requested.push(url.pathname + url.search);
+    };
+    server.events.on("request:start", record);
+    try {
+      renderRoute("/kompass/members/42");
+      await waitFor(() =>
+        expect(requested).toEqual(
+          expect.arrayContaining([
+            "/api/members/42/emergency-contacts",
+            "/api/members/42/documents",
+            "/api/members/42/permission-members",
+            // Only this member's trainings, filtered by the server.
+            "/api/members/trainings?member=42",
+            "/api/members/training-categories",
+          ]),
+        ),
+      );
+      expect(screen.queryByText("anna@example.org")).not.toBeInTheDocument();
+
+      releaseMember();
+      expect(await screen.findByText("anna@example.org")).toBeInTheDocument();
+      // The inlines render from the same cache entries; nobody asks for every
+      // member's trainings any more.
+      expect(await screen.findByText("Erika")).toBeInTheDocument();
+      expect(requested).not.toContain("/api/members/trainings");
+    } finally {
+      server.events.removeListener("request:start", record);
+    }
+  });
+
   it("stays read-only until Bearbeiten is pressed", async () => {
     detailReturns();
     const { user } = renderRoute("/kompass/members/42");

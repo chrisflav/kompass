@@ -36,6 +36,8 @@ export interface FilterDef<T> {
   key: string;
   label: string;
   options: { value: string; label: string }[];
+  /** Called when the dropdown opens — lets a page load costly options lazily. */
+  onOpen?: () => void;
   /** Whether `row` matches the selected filter `value`. */
   match: (row: T, value: string) => boolean;
 }
@@ -165,6 +167,7 @@ export function ListToolbar<T>({ view }: { view: ListView<T> }) {
           value={view.filterValues[f.key] ?? ""}
           onChange={(v) => view.setFilter(f.key, v)}
           options={f.options}
+          onOpen={f.onOpen}
         />
       ))}
       {view.active && (
