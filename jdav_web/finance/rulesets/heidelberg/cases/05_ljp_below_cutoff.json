@@ -1,0 +1,42 @@
+{
+  "name": "below five participants the LJP pays nothing, and says so with a zero",
+  "params": {
+    "ALLOWANCE_PER_DAY": "22",
+    "MAX_NIGHT_COST": "11",
+    "AID_PER_KM_TRAIN": "0.15",
+    "AID_PER_KM_CAR": "0.10",
+    "EXCURSION_ORG_FEE": "20",
+    "LJP_CONTRIBUTION_PER_DAY": "20",
+    "LJP_TAX": "0.2"
+  },
+  "inputs": {"ljp_to": 1},
+  "bills": [
+    {"id": 1, "amount": "900.00", "covered": false, "payer": 1, "description": "Hütte"}
+  ],
+  "excursion": {
+    "duration": "2.0",
+    "nights": 1,
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 0,
+    "participants": [
+      {"member": 20, "age": 7},
+      {"member": 21, "age": 8},
+      {"member": 22, "age": 9}
+    ],
+    "ljp": {
+      "goal": "participation",
+      "participant_count": 0,
+      "theoretic_participant_count": 4,
+      "duration": "1.0"
+    }
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "0.00", "ljp"],
+      ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true]
+  }
+}

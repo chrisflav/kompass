@@ -1,0 +1,40 @@
+{
+  "name": "a qualification trip charges no organisation fee, however old its participants",
+  "params": {
+    "ALLOWANCE_PER_DAY": "22",
+    "MAX_NIGHT_COST": "11",
+    "AID_PER_KM_TRAIN": "0.15",
+    "AID_PER_KM_CAR": "0.10",
+    "EXCURSION_ORG_FEE": "10",
+    "LJP_CONTRIBUTION_PER_DAY": "25",
+    "LJP_TAX": "0"
+  },
+  "inputs": {"allowance_to": [1]},
+  "excursion": {
+    "duration": "1.5",
+    "nights": 0,
+    "kilometers": 100,
+    "approach": "car",
+    "leaders": [1, 2],
+    "staff_count": 2,
+    "approved_staff_count": 2,
+    "participants": [
+      {"member": 30, "age": 40},
+      {"member": 31, "age": 50}
+    ],
+    "ljp": {
+      "goal": "qualification",
+      "participant_count": 6,
+      "theoretic_participant_count": 6,
+      "duration": "1.5"
+    }
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "33.00", "allowance"],
+      ["PARTICIPANTS", "SECTION", "33.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true]
+  }
+}
