@@ -157,16 +157,48 @@ class Message(CommonModel):
             recipients.append(self.to_freizeit.name)
         if self.to_notelist is not None:
             recipients.append(self.to_notelist.title)
-        # evaluate the members once, so that a prefetched ``to_members`` is
-        # reused instead of counting them twice in the database
-        members = list(self.to_members.all())
-        if 3 > len(members) > 0:
-            recipients.extend([m.name for m in members])
-        elif len(members) > 2:
+        # set by ``prefetch_recipients``, otherwise the members are counted
+        # in the database, so that a long member list is never loaded
+        member_count = getattr(self, "_member_count", None)
+        if member_count is None:
+            member_count = self.to_members.count()
+        if 3 > member_count > 0:
+            recipients.extend([m.name for m in self.to_members.all()])
+        elif member_count > 2:
             recipients.append(gettext("Some other members"))
         return ", ".join(recipients)
 
     get_recipients.short_description = _("recipients")
+
+    @classmethod
+    def prefetch_recipients(cls, messages):
+        """Load what ``get_recipients`` reads for all ``messages`` at once.
+
+        The number of queries does not depend on the number of messages. The
+        members are only counted, and their names are loaded just for the
+        messages that list them by name. Like ``to_members``, the count only
+        includes confirmed members.
+        """
+        messages = list(messages)
+        models.prefetch_related_objects(messages, "to_freizeit", "to_notelist", "to_groups")
+        through = cls.to_members.through
+        counts = dict(
+            through.objects.filter(message__in=messages, member__confirmed=True)
+            .values("message")
+            .annotate(count=models.Count("member"))
+            .values_list("message", "count")
+        )
+        for message in messages:
+            message._member_count = counts.get(message.pk, 0)
+        member_model = cls._meta.get_field("to_members").related_model
+        models.prefetch_related_objects(
+            [message for message in messages if 3 > message._member_count > 0],
+            models.Prefetch(
+                "to_members",
+                queryset=member_model.objects.only("id", "prename", "lastname"),
+            ),
+        )
+        return messages
 
     def submit(self, sender=None):
         """Sends the mail to the specified group of members"""
