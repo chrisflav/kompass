@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-18 23:42+0200\n"
+"POT-Creation-Date: 2026-10-11 19:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -68,6 +68,12 @@ msgstr "Seite"
 
 msgid "Browser"
 msgstr "Browser"
+
+msgid "Resolved on"
+msgstr "Erledigt am"
+
+msgid "Resolved by"
+msgstr "Erledigt von"
 
 msgid "Startpage"
 msgstr "Startseite"

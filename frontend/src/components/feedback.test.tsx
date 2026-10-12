@@ -127,6 +127,7 @@ describe("feedback inbox", () => {
       submitted_by: { id: 7, name: "Hannah Beckers" },
       page_url: "http://localhost/kompass/events",
       has_context: true,
+      resolved_at: null,
     },
     {
       id: 1,
@@ -135,6 +136,7 @@ describe("feedback inbox", () => {
       submitted_by: null,
       page_url: "",
       has_context: false,
+      resolved_at: "2026-09-15T09:00:00Z",
     },
   ];
 
@@ -152,6 +154,8 @@ describe("feedback inbox", () => {
     expect(table.getByText("Hannah Beckers")).toBeInTheDocument();
     expect(table.getByText("ohne Konto")).toBeInTheDocument();
     expect(table.getByText("mitgesendet")).toBeInTheDocument();
+    expect(table.getByText("offen")).toBeInTheDocument();
+    expect(table.getByText("erledigt")).toBeInTheDocument();
   });
 
   it("says so when nothing has come in", async () => {
@@ -176,12 +180,15 @@ describe("feedback inbox", () => {
   });
 
   it("hides the delete action without the permission", async () => {
+    // Holding only the change permission: its button appearing proves the
+    // permissions have loaded, so the missing one is really hidden.
+    useMe({ permissions: ["feedback.change_feedback"] });
     listReturns();
     server.use(
       http.get(api("/api/feedback/1"), () => HttpResponse.json({ ...ROWS[1], user_agent: "" })),
     );
     renderRoute("/kompass/feedback/1");
-    await screen.findByText("Schöne Seite!");
+    await screen.findByRole("button", { name: "Wieder öffnen" });
     expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
   });
 
@@ -202,5 +209,63 @@ describe("feedback inbox", () => {
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
     );
     await waitFor(() => expect(deleted).toBe(true));
+  });
+
+  it("hides the resolve action without the permission", async () => {
+    useMe({ permissions: ["feedback.delete_feedback"] });
+    listReturns();
+    server.use(
+      http.get(api("/api/feedback/2"), () => HttpResponse.json({ ...ROWS[0], user_agent: "" })),
+    );
+    renderRoute("/kompass/feedback/2");
+    await screen.findByRole("button", { name: "Löschen" });
+    expect(
+      screen.queryByRole("button", { name: "Als erledigt markieren" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marks open feedback as resolved", async () => {
+    useMe({ permissions: ["feedback.change_feedback"] });
+    listReturns();
+    let resolved = false;
+    server.use(
+      http.get(api("/api/feedback/2"), () => HttpResponse.json({ ...ROWS[0], user_agent: "" })),
+      http.post(api("/api/feedback/2/resolve"), () => {
+        resolved = true;
+        return HttpResponse.json({
+          ...ROWS[0],
+          user_agent: "",
+          resolved_at: "2026-10-11T12:00:00Z",
+          resolved_by: { id: 7, name: "Hannah Beckers" },
+        });
+      }),
+    );
+    const { user } = renderRoute("/kompass/feedback/2");
+    await user.click(await screen.findByRole("button", { name: "Als erledigt markieren" }));
+    await waitFor(() => expect(resolved).toBe(true));
+    expect(await screen.findByText("Feedback als erledigt markiert.")).toBeInTheDocument();
+  });
+
+  it("reopens resolved feedback and says who closed it", async () => {
+    useMe({ permissions: ["feedback.change_feedback"] });
+    listReturns();
+    let reopened = false;
+    server.use(
+      http.get(api("/api/feedback/1"), () =>
+        HttpResponse.json({
+          ...ROWS[1],
+          user_agent: "",
+          resolved_by: { id: 7, name: "Hannah Beckers" },
+        }),
+      ),
+      http.post(api("/api/feedback/1/reopen"), () => {
+        reopened = true;
+        return HttpResponse.json({ ...ROWS[1], user_agent: "", resolved_at: null });
+      }),
+    );
+    const { user } = renderRoute("/kompass/feedback/1");
+    expect(await screen.findByText(/von Hannah Beckers/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Wieder öffnen" }));
+    await waitFor(() => expect(reopened).toBe(true));
   });
 });
