@@ -42,6 +42,7 @@ from ninja import Router
 from ninja import Schema
 
 from .schemas import GroupBrief
+from .schemas import klettertreff_attendees
 from .schemas import MemberBrief
 
 router = Router()
@@ -321,7 +322,7 @@ def list_klettertreff_attendees(request, klettertreff_id: int):
     """List a klettertreff's attendees (``members.view_klettertreff``)."""
     authorize(request, "members.view_klettertreff")
     klettertreff = get_object_or_404(Klettertreff, pk=klettertreff_id)
-    return klettertreff.klettertreffattendee_set.all().order_by("id")
+    return klettertreff_attendees().filter(klettertreff=klettertreff).order_by("id")
 
 
 @router.post(

@@ -512,16 +512,92 @@ describe("activities — Klettertreff: remaining paths", () => {
   });
 
   it("says so when there are no attendees, and shows an em dash for a nameless one", async () => {
-    detailReturns();
-    server.use(
-      http.get(api("/api/members/klettertreff/9/attendees"), () =>
-        HttpResponse.json([{ id: 30, member: { id: 43, name: "" } }]),
-      ),
-    );
+    detailReturns({ attendees: [{ id: 43, name: "" }] });
     const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
+  });
+
+  it("shows the attendees from the detail alone, and loads their rows only to edit", async () => {
+    let details = 0;
+    let attendeeLists = 0;
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/klettertreff/9"), () => {
+        details += 1;
+        return HttpResponse.json({
+          ...KT,
+          attendees: [
+            { id: 43, name: "Mila Nowak" },
+            { id: 43, name: "Mila Nowak" },
+          ],
+        });
+      }),
+      http.get(api("/api/members/klettertreff/9/attendees"), () => {
+        attendeeLists += 1;
+        return HttpResponse.json([{ id: 30, member: { id: 43, name: "Mila Nowak" } }]);
+      }),
+    );
+    const { user } = renderRoute("/kompass/klettertreff/9");
+    await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
+    // The same member listed twice still renders as two rows.
+    expect(await screen.findAllByText("Mila Nowak")).toHaveLength(2);
+    expect(details).toBe(1);
+    expect(attendeeLists).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    expect(screen.getByText("Lädt…")).toBeInTheDocument();
+    expect(await screen.findAllByText("Mila Nowak")).toHaveLength(1);
+    expect(attendeeLists).toBe(1);
+  });
+
+  it("refreshes the shown attendees after adding and removing one", async () => {
+    let attendees = [{ id: 30, member: { id: 42, name: "Anna Ärmel" } }];
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/klettertreff/9"), () =>
+        HttpResponse.json({ ...KT, attendees: attendees.map((a) => a.member) }),
+      ),
+      http.get(api("/api/members/klettertreff/9/attendees"), () => HttpResponse.json(attendees)),
+      http.patch(api("/api/members/klettertreff/9"), () => HttpResponse.json(KT)),
+      http.post(api("/api/members/klettertreff/9/attendees"), async ({ request }) => {
+        const { member_id } = (await request.json()) as { member_id: number };
+        const member = MEMBERS.find((m) => m.id === member_id)!;
+        attendees = [...attendees, { id: 31, member }];
+        return HttpResponse.json({ id: 31, klettertreff_id: 9, member }, { status: 201 });
+      }),
+      http.delete(api("/api/members/attendees/:id"), ({ params }) => {
+        attendees = attendees.filter((a) => a.id !== Number(params.id));
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/klettertreff/9");
+    await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
+    const panel = () => within(document.querySelector(".tab-panel:not([hidden])") as HTMLElement);
+    expect(await panel().findByText("Anna Ärmel")).toBeInTheDocument();
+
+    // Add Mila.
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "Teilnehmende" }));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await screen.findByRole("button", { name: "Bearbeiten" });
+    expect(await panel().findByText("Mila Nowak")).toBeInTheDocument();
+    expect(panel().getByText("Anna Ärmel")).toBeInTheDocument();
+
+    // Remove Anna: editing loads the fresh rows, including Mila's new one.
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    await panel().findByText("Mila Nowak");
+    await user.click(panel().getAllByRole("button", { name: "Entfernen" })[0]);
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await screen.findByRole("button", { name: "Bearbeiten" });
+    await waitFor(() => expect(panel().queryByText("Anna Ärmel")).not.toBeInTheDocument());
+    expect(panel().getByText("Mila Nowak")).toBeInTheDocument();
+    expect(attendees.map((a) => a.id)).toEqual([31]);
   });
 });
 

@@ -18,6 +18,7 @@ from members.models import Freizeit
 from members.models import Group
 from members.models import InvitationToGroup
 from members.models import Klettertreff
+from members.models import KlettertreffAttendee
 from members.models import Member
 from members.models import MemberNoteList
 from members.models import MemberTraining
@@ -779,6 +780,19 @@ GROUP_UPDATE_SCALAR_FIELDS = (
     "show_website_contact_email",
     "show_website_registration",
 )
+
+
+def prefetch_klettertreff_brief_leaders():
+    """Prefetch a Klettertreff's youth leaders for :class:`KlettertreffBrief`.
+
+    The brief reads only their names, so only those columns are loaded.
+    """
+    return Prefetch("jugendleiter", queryset=Member.objects.only("pk", "prename", "lastname"))
+
+
+def klettertreff_attendees():
+    """Klettertreff attendees with the member and its groups for ``MemberBrief``."""
+    return KlettertreffAttendee.objects.select_related("member").prefetch_related("member__group")
 
 
 class KlettertreffBrief(ModelSchema):
