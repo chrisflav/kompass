@@ -782,17 +782,39 @@ GROUP_UPDATE_SCALAR_FIELDS = (
 )
 
 
-def prefetch_klettertreff_brief_leaders():
-    """Prefetch a Klettertreff's youth leaders for :class:`KlettertreffBrief`.
+def prefetch_klettertreff_leaders():
+    """Prefetch a Klettertreff's youth leaders, loading only their names.
 
-    The brief reads only their names, so only those columns are loaded.
+    Every Klettertreff schema names its youth leaders by :class:`MemberRef` or
+    by name alone, so nothing else is read.
     """
     return Prefetch("jugendleiter", queryset=Member.objects.only("pk", "prename", "lastname"))
 
 
 def klettertreff_attendees():
-    """Klettertreff attendees with the member and its groups for ``MemberBrief``."""
-    return KlettertreffAttendee.objects.select_related("member").prefetch_related("member__group")
+    """Klettertreff attendees with the name of the member for :class:`MemberRef`.
+
+    Ordered by id (the model has no default ordering), so the detail and the
+    attendees endpoint list them in the same, stable order.
+    """
+    return (
+        KlettertreffAttendee.objects.select_related("member")
+        .only("klettertreff", "member__prename", "member__lastname")
+        .order_by("id")
+    )
+
+
+class KlettertreffAttendeeOut(Schema):
+    """A klettertreff's attendee (admin ``KlettertreffAttendeeInline``).
+
+    ``id`` is the attendee row's own id, which removing the attendee needs; the
+    member is named by :class:`MemberRef` only, since attendance pages show no
+    more than the name.
+    """
+
+    id: int
+    klettertreff_id: int
+    member: MemberRef
 
 
 class KlettertreffBrief(ModelSchema):
@@ -812,8 +834,8 @@ class KlettertreffBrief(ModelSchema):
 class KlettertreffOut(ModelSchema):
     id: int
     group: GroupBrief
-    jugendleiter: list[MemberBrief]
-    attendees: list[MemberBrief]
+    jugendleiter: list[MemberRef]
+    attendees: list[KlettertreffAttendeeOut]
 
     class Meta:
         model = Klettertreff
@@ -825,7 +847,7 @@ class KlettertreffOut(ModelSchema):
 
     @staticmethod
     def resolve_attendees(obj):
-        return [a.member for a in obj.klettertreffattendee_set.all()]
+        return obj.klettertreffattendee_set.all()
 
 
 class KlettertreffUpdate(Schema):

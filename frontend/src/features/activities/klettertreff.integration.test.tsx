@@ -60,7 +60,6 @@ function listReturns(rows: unknown[] = [KT_BRIEF]) {
 function detailReturns(overrides: Record<string, unknown> = {}) {
   server.use(
     http.get(api("/api/members/klettertreff/9"), () => HttpResponse.json({ ...KT, ...overrides })),
-    http.get(api("/api/members/klettertreff/9/attendees"), () => HttpResponse.json([])),
     http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)),
     http.get(api("/api/members/"), () => HttpResponse.json(MEMBERS)),
   );
@@ -333,12 +332,11 @@ describe("activities — Klettertreff detail", () => {
   });
 
   it("removes an attendee on save", async () => {
-    detailReturns();
+    detailReturns({
+      attendees: [{ id: 30, klettertreff_id: 9, member: { id: 43, name: "Mila Nowak" } }],
+    });
     let deleted = false;
     server.use(
-      http.get(api("/api/members/klettertreff/9/attendees"), () =>
-        HttpResponse.json([{ id: 30, member: { id: 43, name: "Mila Nowak" } }]),
-      ),
       http.patch(api("/api/members/klettertreff/9"), () => HttpResponse.json(KT)),
       http.delete(api("/api/members/attendees/30"), () => {
         deleted = true;
@@ -512,16 +510,17 @@ describe("activities — Klettertreff: remaining paths", () => {
   });
 
   it("says so when there are no attendees, and shows an em dash for a nameless one", async () => {
-    detailReturns({ attendees: [{ id: 43, name: "" }] });
+    detailReturns({ attendees: [{ id: 30, klettertreff_id: 9, member: { id: 43, name: "" } }] });
     const { user } = renderRoute("/kompass/klettertreff/9");
     await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
     const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
     await waitFor(() => expect(panel.textContent).toContain("—"));
   });
 
-  it("shows the attendees from the detail alone, and loads their rows only to edit", async () => {
+  it("shows and edits the attendees from the detail alone", async () => {
     let details = 0;
     let attendeeLists = 0;
+    let deleted: number | null = null;
     detailReturns();
     server.use(
       http.get(api("/api/members/klettertreff/9"), () => {
@@ -529,14 +528,19 @@ describe("activities — Klettertreff: remaining paths", () => {
         return HttpResponse.json({
           ...KT,
           attendees: [
-            { id: 43, name: "Mila Nowak" },
-            { id: 43, name: "Mila Nowak" },
+            { id: 30, klettertreff_id: 9, member: { id: 43, name: "Mila Nowak" } },
+            { id: 31, klettertreff_id: 9, member: { id: 43, name: "Mila Nowak" } },
           ],
         });
       }),
       http.get(api("/api/members/klettertreff/9/attendees"), () => {
         attendeeLists += 1;
-        return HttpResponse.json([{ id: 30, member: { id: 43, name: "Mila Nowak" } }]);
+        return HttpResponse.json([]);
+      }),
+      http.patch(api("/api/members/klettertreff/9"), () => HttpResponse.json(KT)),
+      http.delete(api("/api/members/attendees/:id"), ({ params }) => {
+        deleted = Number(params.id);
+        return new HttpResponse(null, { status: 204 });
       }),
     );
     const { user } = renderRoute("/kompass/klettertreff/9");
@@ -544,27 +548,29 @@ describe("activities — Klettertreff: remaining paths", () => {
     // The same member listed twice still renders as two rows.
     expect(await screen.findAllByText("Mila Nowak")).toHaveLength(2);
     expect(details).toBe(1);
-    expect(attendeeLists).toBe(0);
 
+    // Editing shows the same rows at once, without a loading state, and
+    // removes one by its own row id.
     await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    expect(screen.getByText("Lädt…")).toBeInTheDocument();
-    expect(await screen.findAllByText("Mila Nowak")).toHaveLength(1);
-    expect(attendeeLists).toBe(1);
+    expect(screen.queryByText("Lädt…")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Mila Nowak")).toHaveLength(2);
+    await user.click(screen.getAllByRole("button", { name: "Entfernen" })[1]);
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(deleted).toBe(31));
+    await screen.findByRole("button", { name: "Bearbeiten" });
+    expect(attendeeLists).toBe(0);
   });
 
   it("refreshes the shown attendees after adding and removing one", async () => {
-    let attendees = [{ id: 30, member: { id: 42, name: "Anna Ärmel" } }];
+    let attendees = [{ id: 30, klettertreff_id: 9, member: { id: 42, name: "Anna Ärmel" } }];
     detailReturns();
     server.use(
-      http.get(api("/api/members/klettertreff/9"), () =>
-        HttpResponse.json({ ...KT, attendees: attendees.map((a) => a.member) }),
-      ),
-      http.get(api("/api/members/klettertreff/9/attendees"), () => HttpResponse.json(attendees)),
+      http.get(api("/api/members/klettertreff/9"), () => HttpResponse.json({ ...KT, attendees })),
       http.patch(api("/api/members/klettertreff/9"), () => HttpResponse.json(KT)),
       http.post(api("/api/members/klettertreff/9/attendees"), async ({ request }) => {
         const { member_id } = (await request.json()) as { member_id: number };
         const member = MEMBERS.find((m) => m.id === member_id)!;
-        attendees = [...attendees, { id: 31, member }];
+        attendees = [...attendees, { id: 31, klettertreff_id: 9, member }];
         return HttpResponse.json({ id: 31, klettertreff_id: 9, member }, { status: 201 });
       }),
       http.delete(api("/api/members/attendees/:id"), ({ params }) => {
@@ -589,7 +595,7 @@ describe("activities — Klettertreff: remaining paths", () => {
     expect(await panel().findByText("Mila Nowak")).toBeInTheDocument();
     expect(panel().getByText("Anna Ärmel")).toBeInTheDocument();
 
-    // Remove Anna: editing loads the fresh rows, including Mila's new one.
+    // Remove Anna: the refreshed detail carries Mila's new row with its id.
     await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
     await panel().findByText("Mila Nowak");
     await user.click(panel().getAllByRole("button", { name: "Entfernen" })[0]);

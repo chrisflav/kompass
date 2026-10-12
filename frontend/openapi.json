@@ -12924,6 +12924,29 @@
         "title": "KlettertreffBrief",
         "type": "object"
       },
+      "KlettertreffAttendeeOut": {
+        "description": "A klettertreff's attendee (admin ``KlettertreffAttendeeInline``).\n\n``id`` is the attendee row's own id, which removing the attendee needs; the\nmember is named by :class:`MemberRef` only, since attendance pages show no\nmore than the name.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "klettertreff_id": {
+            "title": "Klettertreff Id",
+            "type": "integer"
+          },
+          "member": {
+            "$ref": "#/components/schemas/MemberRef"
+          }
+        },
+        "required": [
+          "id",
+          "klettertreff_id",
+          "member"
+        ],
+        "title": "KlettertreffAttendeeOut",
+        "type": "object"
+      },
       "KlettertreffOut": {
         "properties": {
           "id": {
@@ -12935,14 +12958,14 @@
           },
           "jugendleiter": {
             "items": {
-              "$ref": "#/components/schemas/MemberBrief"
+              "$ref": "#/components/schemas/MemberRef"
             },
             "title": "Jugendleiter",
             "type": "array"
           },
           "attendees": {
             "items": {
-              "$ref": "#/components/schemas/MemberBrief"
+              "$ref": "#/components/schemas/KlettertreffAttendeeOut"
             },
             "title": "Attendees",
             "type": "array"
@@ -14521,29 +14544,6 @@
           }
         },
         "title": "PermissionGroupUpdate",
-        "type": "object"
-      },
-      "KlettertreffAttendeeOut": {
-        "description": "A klettertreff's attendee (admin ``KlettertreffAttendeeInline``).",
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "klettertreff_id": {
-            "title": "Klettertreff Id",
-            "type": "integer"
-          },
-          "member": {
-            "$ref": "#/components/schemas/MemberBrief"
-          }
-        },
-        "required": [
-          "id",
-          "klettertreff_id",
-          "member"
-        ],
-        "title": "KlettertreffAttendeeOut",
         "type": "object"
       },
       "KlettertreffAttendeeCreate": {

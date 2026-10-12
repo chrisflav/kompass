@@ -500,29 +500,13 @@ function KlettertreffAttendeesInline({
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
   const klettertreffId = kt.id;
-  // The detail already carries the attending members, so viewing shows those
-  // and needs no second request. Removing one needs the attendee rows' own ids,
-  // which only the attendees endpoint has: it is fetched once editing starts.
-  const listQuery = useApiQuery(
-    ["klettertreff", klettertreffId, "attendees"],
-    () =>
-      unwrap(
-        client.GET("/api/members/klettertreff/{klettertreff_id}/attendees", {
-          params: { path: { klettertreff_id: klettertreffId } },
-        }),
-      ),
-    { enabled: editing },
-  );
   const membersQuery = useMembers({ enabled: editing });
   const memberOptions: Option[] = useMemo(
     () => (membersQuery.data ?? []).map((m) => ({ value: m.id, label: m.name })),
     [membersQuery.data],
   );
 
-  const invalidate = [
-    ["klettertreff", klettertreffId, "attendees"],
-    ["klettertreff", klettertreffId],
-  ];
+  const invalidate = [["klettertreff", klettertreffId]];
   const createM = useApiMutation(
     (body: KlettertreffAttendeeCreate) =>
       unwrap(
@@ -543,16 +527,12 @@ function KlettertreffAttendeesInline({
     { invalidate },
   );
 
-  // Outside edit mode nothing is removed, so the position stands in for the id.
-  const serverRows = editing
-    ? (listQuery.data ?? []).map((a) => ({
-        id: a.id,
-        data: { member_id: a.member.id, member_name: a.member.name } as AttendeeData,
-      }))
-    : kt.attendees.map((m, index) => ({
-        id: index,
-        data: { member_id: m.id, member_name: m.name } as AttendeeData,
-      }));
+  // The detail carries the attendee rows with their own ids, which removal
+  // needs, so neither viewing nor editing requests the attendees separately.
+  const serverRows = kt.attendees.map((a) => ({
+    id: a.id,
+    data: { member_id: a.member.id, member_name: a.member.name } as AttendeeData,
+  }));
   const { rows, removeRow, addRow } = useInlineDraft<AttendeeData>({
     serverRows,
     editing,
@@ -575,7 +555,6 @@ function KlettertreffAttendeesInline({
         onAdd={() => setAdding({ member_id: null, member_name: "" })}
         addLabel="Teilnehmende"
         columns={[{ header: "Teilnehmende", cell: (row) => row.data.member_name || "—" }]}
-        empty={editing && listQuery.isPending ? "Lädt…" : undefined}
       />
       {adding && (
         <Modal title="Teilnehmende hinzufügen" onClose={() => setAdding(null)} size="sm">
