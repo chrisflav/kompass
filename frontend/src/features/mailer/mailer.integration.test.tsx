@@ -486,6 +486,30 @@ describe("mailer — Nachrichten", () => {
       expect(screen.getByText("Herbstfahrt 2024")).toBeInTheDocument();
       expect(screen.getByText("1.9.2024")).toBeInTheDocument();
     });
+
+    it("falls back to the 12 months when the older messages fail to load", async () => {
+      messageBase();
+      server.use(
+        http.get(api("/api/mailer/messages"), ({ request }) =>
+          new URL(request.url).searchParams.get("since")
+            ? HttpResponse.json([MESSAGE_BRIEF])
+            : HttpResponse.json({ detail: "boom" }, { status: 500 }),
+        ),
+      );
+      const { user } = renderRoute("/kompass/mailer/messages");
+      await screen.findByText("Sommerfahrt");
+
+      await user.click(screen.getByRole("button", { name: "Ältere Nachrichten laden" }));
+      expect(
+        await screen.findByText("Ältere Nachrichten konnten nicht geladen werden."),
+      ).toBeInTheDocument();
+      // The recent rows and the button are back, and the failed choice isn't kept.
+      expect(screen.getByText("Sommerfahrt")).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: "Ältere Nachrichten laden" }),
+      ).toBeInTheDocument();
+      expect(sessionStorage.getItem("mailer:messages:all")).toBeNull();
+    });
   });
 
   it("hides the compose button without the permission", async () => {

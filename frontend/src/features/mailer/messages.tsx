@@ -1,5 +1,5 @@
 import { keepPreviousData } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
@@ -99,10 +99,20 @@ export function MessagesList() {
     { placeholderData: keepPreviousData },
   );
   const rows = query.data ?? [];
-  const loadOlder = () => {
-    saveShowAll();
-    setShowAll(true);
-  };
+  const toast = useToast();
+  const loadOlder = () => setShowAll(true);
+  // Remember the choice only once the older messages are there; if loading
+  // them fails, fall back to the 12-month view so the button comes back.
+  const olderLoaded = showAll && query.isSuccess && !query.isPlaceholderData;
+  const olderFailed = showAll && query.isError;
+  useEffect(() => {
+    if (olderLoaded) saveShowAll();
+  }, [olderLoaded]);
+  useEffect(() => {
+    if (!olderFailed) return;
+    setShowAll(false);
+    toast.error("Ältere Nachrichten konnten nicht geladen werden.");
+  }, [olderFailed, toast]);
 
   const config: ListViewConfig<MessageBrief> = useMemo(
     () => ({

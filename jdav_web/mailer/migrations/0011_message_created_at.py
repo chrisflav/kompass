@@ -19,13 +19,15 @@ def backfill_created_at(apps, _schema_editor):
     content_type = ContentType.objects.filter(app_label="mailer", model="message").first()
     if content_type is not None:
         first_entries = (
-            LogEntry.objects.filter(content_type=content_type)
+            LogEntry.objects.filter(content_type=content_type, object_id__isnull=False)
             .order_by()
             .values("object_id")
             .annotate(first=Min("action_time"))
             .values_list("object_id", "first")
         )
-        logged = {int(pk): first for pk, first in first_entries if pk.isdigit()}
+        # A crash here would leave the column added but the migration
+        # unrecorded on MariaDB (no transactional DDL), so skip odd ids.
+        logged = {int(pk): first for pk, first in first_entries if pk and pk.isdigit()}
     later = timezone.now()
     messages = list(Message.objects.order_by("-id").only("id"))
     for message in messages:
