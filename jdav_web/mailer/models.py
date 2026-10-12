@@ -143,6 +143,7 @@ class Message(CommonModel):
         on_delete=models.SET_NULL,
         related_name="created_messages",
     )
+    created_at = models.DateTimeField(_("created"), auto_now_add=True)
 
     def __str__(self):
         return self.subject

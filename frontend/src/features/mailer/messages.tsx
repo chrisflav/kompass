@@ -1,3 +1,4 @@
+import { keepPreviousData } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -5,7 +6,13 @@ import { API_BASE } from "../../api/client";
 import { usePermissions } from "../../api/me";
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
-import { useEmailAddresses, useExcursions, useGroups, useMembers } from "../../api/queries";
+import {
+  queryKeys,
+  useEmailAddresses,
+  useExcursions,
+  useGroups,
+  useMembers,
+} from "../../api/queries";
 import { ListToolbar, useListView, type ListViewConfig } from "../../components/list";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
@@ -15,6 +22,7 @@ import {
   DataTable,
   EditableDetail,
   Field,
+  formatDate,
   Menu,
   Modal,
   PageHeader,
@@ -34,6 +42,33 @@ type MessageIn = components["schemas"]["MessageIn"];
 
 /* --- list ---------------------------------------------------------------- */
 
+/** Remembers for the session that the user asked for the older messages too. */
+const ALL_MESSAGES_KEY = "mailer:messages:all";
+
+function loadShowAll(): boolean {
+  try {
+    return sessionStorage.getItem(ALL_MESSAGES_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function saveShowAll() {
+  try {
+    sessionStorage.setItem(ALL_MESSAGES_KEY, "1");
+  } catch {
+    /* storage unavailable — the choice then only lasts for this page */
+  }
+}
+
+/** The local date twelve months ago as `YYYY-MM-DD`, the start of the default window. */
+function twelveMonthsAgo(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function MessagesList() {
   const { can } = usePermissions();
   const navigate = useNavigate();
@@ -48,10 +83,26 @@ export function MessagesList() {
       setSearchParams(searchParams, { replace: true });
     }
   };
-  const query = useApiQuery(["mailer", "messages"], () =>
-    unwrap(client.GET("/api/mailer/messages")),
+  // The list loads the past 12 months (and every draft) unless the user asks
+  // for the older messages, so search, filter and sort stay instant on the rows
+  // loaded. While the older ones load, the recent rows stay on screen.
+  const [showAll, setShowAll] = useState(loadShowAll);
+  const since = useMemo(() => (showAll ? null : twelveMonthsAgo()), [showAll]);
+  const query = useApiQuery(
+    queryKeys.messageList(since),
+    () =>
+      unwrap(
+        client.GET("/api/mailer/messages", {
+          params: { query: since === null ? {} : { since } },
+        }),
+      ),
+    { placeholderData: keepPreviousData },
   );
   const rows = query.data ?? [];
+  const loadOlder = () => {
+    saveShowAll();
+    setShowAll(true);
+  };
 
   const config: ListViewConfig<MessageBrief> = useMemo(
     () => ({
@@ -72,6 +123,7 @@ export function MessagesList() {
       sort: {
         subject: (m) => m.subject,
         sent: (m) => m.sent,
+        created: (m) => m.created_at,
         id: (m) => m.id,
       },
       // Admin ordering = -id (newest first).
@@ -99,6 +151,14 @@ export function MessagesList() {
         </Modal>
       )}
       <ListToolbar view={view} />
+      {(!showAll || query.isPlaceholderData) && (
+        <div className="list-window">
+          <p className="muted small">Zeigt Nachrichten der letzten 12 Monate und alle Entwürfe.</p>
+          <Button variant="ghost" busy={showAll} onClick={loadOlder}>
+            Ältere Nachrichten laden
+          </Button>
+        </div>
+      )}
       <QueryBoundary query={query} empty="Keine Nachrichten vorhanden.">
         {() => (
           <DataTable
@@ -114,6 +174,7 @@ export function MessagesList() {
                 sortKey: "subject",
               },
               { header: "Empfänger", cell: (m) => m.recipients },
+              { header: "Erstellt", cell: (m) => formatDate(m.created_at), sortKey: "created" },
               {
                 header: "Status",
                 cell: (m) =>
@@ -155,7 +216,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
   const create = useApiMutation(
     (body: MessageIn) => unwrap(client.POST("/api/mailer/messages", { body })),
     {
-      invalidate: [["mailer", "messages"]],
+      invalidate: [queryKeys.messages()],
       onError: (e: Error) => {
         if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
         toast.error(e.message);
@@ -171,7 +232,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
         }),
       ),
     {
-      invalidate: [["mailer", "messages"]],
+      invalidate: [queryKeys.messages()],
       onError: (e: Error) => toast.error(e.message),
     },
   );
@@ -377,10 +438,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
         }),
       ),
     {
-      invalidate: [
-        ["mailer", "messages"],
-        ["mailer", "messages", message.id],
-      ],
+      invalidate: [queryKeys.messages(), ["mailer", "messages", message.id]],
     },
   );
 
@@ -392,7 +450,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
         }),
       ),
     {
-      invalidate: [["mailer", "messages"]],
+      invalidate: [queryKeys.messages()],
       onSuccess: () => {
         toast.success("Nachricht gelöscht.");
         navigate("/kompass/mailer/messages");
@@ -632,10 +690,7 @@ function SubmitAction({ message }: { message: MessageOut }) {
         }),
       ),
     {
-      invalidate: [
-        ["mailer", "messages"],
-        ["mailer", "messages", message.id],
-      ],
+      invalidate: [queryKeys.messages(), ["mailer", "messages", message.id]],
       onSuccess: () => toast.success("Nachricht versendet."),
       onError: (e: Error) => toast.error(e.message),
     },

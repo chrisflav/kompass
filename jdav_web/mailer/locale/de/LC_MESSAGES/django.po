@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 23:09+0200\n"
+"POT-Creation-Date: 2026-10-12 23:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -162,6 +162,9 @@ msgstr "Gesendet"
 msgid "Created by"
 msgstr "Erstellt von"
 
+msgid "created"
+msgstr "Erstellt"
+
 msgid "recipients"
 msgstr "Empfänger"
 
@@ -232,9 +235,6 @@ msgstr "Empfänger:in"
 
 msgid "envelope sender"
 msgstr "Envelope-Absender:in"
-
-msgid "created"
-msgstr "Erstellt"
 
 msgid "bounced"
 msgstr "Zustellfehler"
