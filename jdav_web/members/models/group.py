@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.urls import NoReverseMatch
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import prepend_base_url
@@ -104,12 +105,16 @@ class Group(models.Model):
     def get_invitation_text_template(self):
         """The text template used to invite waiters to this group. This contains
         placeholders for the name of the waiter and personalized links."""
+        group_link = ""
         if self.show_website:
-            group_link = "({url}) ".format(
-                url=prepend_base_url(reverse("startpage:gruppe_detail", args=[self.name]))
-            )
-        else:
-            group_link = ""
+            # With [startpage] redirect_url set, the public group pages aren't
+            # routed at all; the invitation then simply goes without the link.
+            try:
+                url = reverse("startpage:gruppe_detail", args=[self.name])
+            except NoReverseMatch:
+                pass
+            else:
+                group_link = "({url}) ".format(url=prepend_base_url(url))
         if self.has_time_info():
             group_time = self.get_time_info()
         else:
