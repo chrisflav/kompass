@@ -27,8 +27,11 @@ from finance.models import Bill
 from finance.models import Statement
 from finance.store import RuleSet
 from finance.tasks import ensure_poll_task
+from finance.tasks import ensure_verify_task
 from finance.tasks import import_ruleset
 from finance.tasks import POLL_TASK_NAME
+from finance.tasks import verify_rulesets
+from finance.tasks import VERIFY_TASK_NAME
 from members.models import MALE
 from members.models import Member
 
@@ -95,6 +98,7 @@ class ImportRulesetCommandTestCase(TestCase):
         call_command("importruleset", stdout=StringIO())
         task = PeriodicTask.objects.get(name=POLL_TASK_NAME)
         self.assertEqual(task.interval.every, 15)
+        self.assertTrue(PeriodicTask.objects.filter(name=VERIFY_TASK_NAME).exists())
         self.assertEqual(task.task, "finance.tasks.import_ruleset")
 
 
@@ -195,6 +199,24 @@ class PollTaskTestCase(TestCase):
                     with self.assertLogs("finance.tasks", level="ERROR"):
                         import_ruleset()
 
+    def test_the_verification_is_scheduled_and_reports_what_it_finds(self):
+        """The detector behind the store's immutability, actually scheduled.
+
+        `RuleSet.save` refuses the ordinary edit; this notices a row that got
+        past it — a `QuerySet.update()`, a hand-edited dump — and a settled
+        payout that no longer reproduces.
+        """
+        task = ensure_verify_task()
+        self.assertEqual(task.interval.every, 24)
+        self.assertEqual(task.task, "finance.tasks.verify_rulesets")
+        self.assertEqual(verify_rulesets(), 0)
+        row = active_version()
+        RuleSet.objects.filter(pk=row.pk).update(sources={"__init__.py": "x = 1\n"})
+        with self.assertLogs("finance.tasks", level="ERROR"):
+            self.assertGreater(verify_rulesets(), 0)
+        self.assertIsNone(ensure_verify_task(0))
+        self.assertFalse(PeriodicTask.objects.filter(name=VERIFY_TASK_NAME).exists())
+
     def test_the_poll_entry_follows_the_setting(self):
         self.assertIsNone(ensure_poll_task(0))
         self.assertFalse(PeriodicTask.objects.filter(name=POLL_TASK_NAME).exists())
@@ -233,7 +255,9 @@ class RulesetAdminTestCase(TestCase):
         response = self.client.get(reverse("admin:finance_ruleset_changelist"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "heidelberg")
-        self.assertContains(response, "Import")
+        # Through `gettext`, because validation compiles the German catalogues
+        # and the page then says "Aus der Konfiguration importieren".
+        self.assertContains(response, _("Import from configuration"))
 
     def test_importing_from_the_configuration(self):
         Statement.objects.all().update(ruleset=None)

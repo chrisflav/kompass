@@ -99,6 +99,11 @@ FINANCE_RULESET = get_var("finance", "ruleset", default="")
 # Minutes between automatic re-imports of that package, or 0 for none. An
 # unchanged package hashes to the version already stored, so a poll is cheap.
 FINANCE_RULESET_POLL_MINUTES = get_var("finance", "ruleset_poll_minutes", default=0)
+# Hours between runs of `verifyrulesets`, which re-hashes every stored version
+# and replays a sample of settled statements. It is the detector behind the
+# store's immutability — the model refuses the ordinary edit, this notices the
+# ones it cannot refuse — so 0 (off) means trusting the database alone.
+FINANCE_VERIFY_HOURS = get_var("finance", "verify_hours", default=24)
 
 # links
 

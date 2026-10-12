@@ -29,6 +29,7 @@ from finance.rules_api import Participants as Participants
 from finance.rules_api import Party as Party
 from finance.rules_api import pct as pct
 from finance.rules_api import quantize as quantize
+from finance.rules_api import Roles as Roles
 from finance.rules_api import RuleContext as RuleContext
 from finance.rules_api import RuleError as RuleError
 from finance.rules_api import Ruleset as Ruleset

@@ -18,9 +18,15 @@ its transfers down as rows). The rules themselves are in
 :mod:`finance.rulesets`.
 """
 
+from .approval import ConstraintState
+from .approval import fully_approved
+from .approval import may_sign
+from .approval import resolve_eligibility
+from .approval import states as approval_states
 from .context import build_context
 from .context import parameters
 from .context import permission_holders
+from .context import statement_inputs
 from .errors import EngineError
 from .errors import QueryDuringEvaluation
 from .errors import RulesetInvalid
@@ -39,6 +45,7 @@ from .statements import bind
 from .statements import cents_of
 from .statements import evaluate_statement
 from .statements import freeze
+from .statements import live_rows
 from .statements import materialise
 from .statements import result_from_rows
 from .statements import rows_exist
@@ -57,12 +64,14 @@ from .versions import ruleset_directory
 from .versions import ruleset_from_sources
 
 __all__ = [
+    "ConstraintState",
     "EngineError",
     "QueryDuringEvaluation",
     "Result",
     "RulesetInvalid",
     "RulesetRejected",
     "active_ruleset",
+    "approval_states",
     "active_version",
     "bind",
     "build_context",
@@ -74,16 +83,20 @@ __all__ = [
     "evaluate",
     "evaluate_statement",
     "freeze",
+    "fully_approved",
     "import_from_directory",
     "load",
     "manifest",
     "manifest_hash",
+    "live_rows",
     "materialise",
+    "may_sign",
     "no_queries",
     "parameters",
     "permission_holders",
     "read_sources",
     "reference_directory",
+    "resolve_eligibility",
     "result_from_rows",
     "rows_exist",
     "ruleset_directory",
@@ -91,6 +104,7 @@ __all__ = [
     "ruleset_from_sources",
     "source_hash",
     "statement_context",
+    "statement_inputs",
     "statement_params",
     "sum_amounts",
     "verify",

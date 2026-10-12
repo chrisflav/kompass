@@ -26,6 +26,7 @@ from django.utils.translation import gettext_lazy as _
 from .engine import configured_directory
 from .engine import evaluate_statement
 from .engine import import_from_directory
+from .engine import no_queries
 from .engine import ruleset_from_sources
 from .engine import RulesetInvalid
 from .engine import RulesetRejected
@@ -77,6 +78,11 @@ class ObligationInline(admin.TabularInline):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    def get_queryset(self, request):
+        # The current record. A superseded row is kept — the GoBD asks for that
+        # — but the payout somebody is looking at is the one that stands.
+        return super().get_queryset(request).filter(superseded_at__isnull=True)
 
 
 @admin.register(RuleSet)
@@ -179,8 +185,11 @@ class RuleSetAdmin(ExtraButtonsMixin, admin.ModelAdmin):
             else:
                 result = evaluate_statement(statement, ruleset=loaded)
                 context = statement_context(statement, loaded, actors=True)
-                declarations = tuple(loaded.inputs(context))
-                constraints = loaded.approval(context, list(result.transfers))[0]
+                # The same guard the real evaluation runs under: a dry run of a
+                # section's rules must not be the one place they may query.
+                with no_queries():
+                    declarations = tuple(loaded.inputs(context))
+                    constraints = loaded.approval(context, list(result.transfers))[0]
         return render(
             request,
             "admin/finance/ruleset/dry_run.html",

@@ -12,6 +12,7 @@ A ruleset may import:
 
 * itself — relative imports inside its own package,
 * :mod:`kompass.rules`, the API of :mod:`finance.rules_api`,
+* ``from __future__ import …``, which is a compiler directive,
 * and a short list of stdlib modules that reimbursement arithmetic needs:
   ``decimal``, ``math``, ``dataclasses``, ``typing``, ``enum``, ``fractions``,
   ``itertools``, ``functools``, ``collections``.
@@ -19,14 +20,28 @@ A ruleset may import:
 Everything else is refused, and so is any mention of the usual ways around a
 restriction like this one — ``__import__``, ``importlib``, ``exec``, ``eval``,
 ``open``, ``os``, ``sys``, ``subprocess``, ``socket``, ``random``, ``time``,
-``requests``, anything under ``django`` — plus ``datetime.now`` and
-``date.today``, which are the clock.
+``requests``, anything under ``django``, ``getattr``, ``setattr`` — plus a
+*call* to ``now``, ``today``, ``utcnow`` or ``fromtimestamp``, which is the
+clock, and the **dunder attributes** that walk out of a module and into the
+interpreter.
 
-**What this is not.** It is a textual check on the source about to be
-executed, so a determined author can defeat it (``getattr(__builtins__,
-...)``); it is not a sandbox and nothing here claims otherwise. The section's
-own CI runs the same bans as ``ruff`` rules, which is where a violation should
-be caught first.
+**Where the limit really is.** An earlier version of this docstring, following
+§4.2 of the proposal, said the way out was ``getattr(__builtins__, …)`` and
+that a rule "cannot reach the ORM even if it imports it". Both were wrong. A
+module executed by :mod:`finance.engine.loader` is handed ``__loader__`` and
+``__spec__`` like any other module, and
+``__loader__.__class__.__init__.__globals__["sys"].modules["django.db"]``
+reaches a database connection in one line, through no import at all. Two
+things answer that now: the dunder bans below, which refuse that chain where
+it is written, and the restricted ``__builtins__`` the loader hands a ruleset,
+which holds no ``open``, ``eval``, ``exec`` or ``getattr``.
+
+What remains true: this is a textual check plus a restricted namespace, not a
+sandbox. Somebody determined, writing code nobody reviews, in a directory they
+can already write ``settings.toml`` into, can still get out — and the trust
+boundary of §4.2 is why that is acceptable, not this check. The section's own
+CI runs the same bans as ``ruff`` rules, which is where a violation should be
+caught first.
 """
 
 import ast
@@ -70,11 +85,43 @@ FORBIDDEN_NAMES = frozenset(
         "globals",
         "locals",
         "vars",
+        "getattr",
+        "setattr",
+        "delattr",
+        "dir",
     }
 )
 
-#: Attribute names that read the clock.
-FORBIDDEN_ATTRIBUTES = frozenset({"now", "today", "utcnow", "fromtimestamp"})
+#: Attribute names that walk out of a module and into the interpreter. The
+#: chain that made this list necessary was
+#: ``__loader__.__class__.__init__.__globals__``, which lands in the engine's
+#: own globals and from there in ``sys.modules``.
+FORBIDDEN_DUNDERS = frozenset(
+    {
+        "__class__",
+        "__bases__",
+        "__base__",
+        "__mro__",
+        "__subclasses__",
+        "__globals__",
+        "__builtins__",
+        "__loader__",
+        "__spec__",
+        "__dict__",
+        "__code__",
+        "__func__",
+        "__self__",
+        "__init__",
+        "__new__",
+        "__getattribute__",
+        "__reduce__",
+        "__reduce_ex__",
+    }
+)
+
+#: Attribute names that read the clock. Refused when they are *called*, so
+#: that a field or a key that happens to be named ``now`` is not an offence.
+CLOCK_CALLS = frozenset({"now", "today", "utcnow", "fromtimestamp"})
 
 
 def _root(module: str) -> str:
@@ -110,16 +157,24 @@ def check_source(path: str, source: str) -> list[str]:
             if node.level:
                 continue  # a relative import inside the ruleset's own package
             module = node.module or ""
+            if module == "__future__":
+                continue  # a compiler directive, not an import of anything
             if not _allowed_module(module):
                 refuse(node, f"may not import from {module}")
         elif isinstance(node, ast.Name):
-            if node.id in FORBIDDEN_NAMES:
+            # A bare name as well as an attribute: `__builtins__["open"]`
+            # never touches an attribute, and `__loader__` is a module global.
+            if node.id in FORBIDDEN_NAMES or node.id in FORBIDDEN_DUNDERS:
                 refuse(node, f"may not use {node.id}")
         elif isinstance(node, ast.Attribute):
-            if node.attr in FORBIDDEN_ATTRIBUTES:
-                refuse(node, f"may not read the clock ({node.attr})")
+            if node.attr in FORBIDDEN_DUNDERS:
+                refuse(node, f"may not reach through {node.attr}")
             elif node.attr in FORBIDDEN_NAMES:
                 refuse(node, f"may not use {node.attr}")
+        elif isinstance(node, ast.Call):
+            called = node.func
+            if isinstance(called, ast.Attribute) and called.attr in CLOCK_CALLS:
+                refuse(node, f"may not read the clock ({called.attr}())")
     return problems
 
 

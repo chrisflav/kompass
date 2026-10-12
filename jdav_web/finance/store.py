@@ -36,6 +36,9 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from finance.parties import MEMBER
+from finance.parties import PARTICIPANTS
+from finance.parties import SECTION
 from members.models import Member
 
 #: The fields of a :class:`RuleSet` row that may never change once it is
@@ -54,8 +57,8 @@ IMMUTABLE_FIELDS = (
     "supersedes_id",
 )
 
-#: How a party is stored on an :class:`Obligation`.
-MEMBER, SECTION, PARTICIPANTS = "member", "section", "participants"
+#: How a party is stored on an :class:`Obligation` (see
+#: :mod:`finance.parties` for why the strings live elsewhere).
 PARTY_KINDS = [
     (MEMBER, _("Member")),
     (SECTION, _("Section")),
@@ -343,7 +346,18 @@ class Obligation(models.Model):
         null=True,
         blank=True,
         default=None,
-        help_text=_("Set when the statement was handed in; a frozen row is never recomputed."),
+        help_text=_(
+            "Set when the statement was handed in. A frozen row is never changed: "
+            "where the payout had to be resolved again, this row is superseded and "
+            "the new one is written beside it."
+        ),
+    )
+    superseded_at = models.DateTimeField(
+        verbose_name=_("Superseded on"),
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_("Set when a later resolution replaced this row. It is kept, not deleted."),
     )
 
     class Meta:
@@ -352,7 +366,13 @@ class Obligation(models.Model):
         ordering = ["statement_id", "position", "pk"]
 
     def __str__(self):
-        return f"{self.category or self.rule_id}: {self.amount}€"
+        superseded = " (superseded)" if self.superseded_at is not None else ""
+        return f"{self.category or self.rule_id}: {self.amount}€{superseded}"
+
+    @property
+    def live(self):
+        """Whether this row is the current one rather than a superseded one."""
+        return self.superseded_at is None
 
     @property
     def amount(self):
@@ -374,6 +394,42 @@ class Obligation(models.Model):
         if kind == MEMBER:
             return member.name if member is not None else name
         return str(dict(PARTY_KINDS)[kind])
+
+
+class Approval(models.Model):
+    """One signature on one statement.
+
+    A signature is on the *statement*, not on a constraint: a person who is
+    named by two eligible sets signs once and advances both, because what they
+    did was approve the payout (GitLab's rule, and the only one that does not
+    ask somebody to click twice for the same decision).
+    """
+
+    statement = models.ForeignKey(
+        "finance.Statement",
+        verbose_name=_("Statement"),
+        on_delete=models.CASCADE,
+        related_name="approval_set",
+    )
+    member = models.ForeignKey(
+        Member,
+        verbose_name=_("Signed by"),
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=models.SET_NULL,
+        related_name="finance_approvals",
+    )
+    at = models.DateTimeField(verbose_name=_("Signed on"), auto_now_add=True)
+    note = models.TextField(verbose_name=_("Note"), blank=True, default="")
+
+    class Meta:
+        verbose_name = _("Approval")
+        verbose_name_plural = _("Approvals")
+        ordering = ["statement_id", "at", "pk"]
+
+    def __str__(self):
+        return f"{self.member}: {self.at:%Y-%m-%d}"
 
 
 class ApprovalConstraint(models.Model):
@@ -403,6 +459,32 @@ class ApprovalConstraint(models.Model):
         blank=True,
         help_text=_("Who the rules named, re-checked against the permission system."),
     )
+    excluded = models.JSONField(
+        verbose_name=_("Excluded"),
+        default=list,
+        blank=True,
+        help_text=_("Who a forbid or the permission check removed, and which one."),
+    )
+    satisfied = models.BooleanField(
+        verbose_name=_("Satisfied"),
+        default=False,
+        help_text=_("Whether the signatures this constraint asks for are in."),
+    )
+    overridden_by = models.ForeignKey(
+        Member,
+        verbose_name=_("Overridden by"),
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=models.SET_NULL,
+        related_name="overridden_approval_constraints",
+    )
+    overridden_at = models.DateTimeField(
+        verbose_name=_("Overridden on"), null=True, blank=True, default=None
+    )
+    override_reason = models.TextField(
+        verbose_name=_("Reason for the override"), blank=True, default=""
+    )
     rule_version = models.CharField(
         verbose_name=_("Rule version"), max_length=64, blank=True, default=""
     )
@@ -422,3 +504,38 @@ class ApprovalConstraint(models.Model):
     def eligible(self):
         """The members the rules named, as rows."""
         return Member.objects.filter(pk__in=self.eligible_member_ids)
+
+    @property
+    def overridden(self):
+        """Whether somebody signed this constraint off without the quorum."""
+        return self.overridden_at is not None
+
+    @property
+    def state_display(self):
+        """The state as a person reads it, with override and quorum apart.
+
+        "Does not apply" and "nobody signed" are different facts, and so are
+        "the quorum is in" and "somebody decided to go ahead anyway" — which is
+        why this has four answers rather than a boolean.
+        """
+        if not self.applicable:
+            return _("Does not apply")
+        if self.overridden:
+            return _("Overridden")
+        if self.satisfied:
+            return _("Signed")
+        return _("Open")
+
+    def as_row(self):
+        """The mapping :mod:`finance.engine.approval` evaluates."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "applicable": self.applicable,
+            "required": self.required,
+            "eligible": list(self.eligible_member_ids),
+            "excluded": list(self.excluded),
+            "overridden": self.overridden,
+            "overridden_by": self.overridden_by_id,
+            "override_reason": self.override_reason,
+        }

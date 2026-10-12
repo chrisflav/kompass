@@ -10,6 +10,8 @@ says no to what it says no to.
 """
 
 import json
+import sys
+import threading
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -49,6 +51,7 @@ from finance.engine.imports import check_source
 from finance.engine.imports import check_sources
 from finance.engine.loader import FINDER
 from finance.engine.loader import package_name
+from finance.engine.loader import safe_builtins
 from finance.models import Bill
 from finance.models import Statement
 from finance.rules_api import Bill as RuleBill
@@ -412,9 +415,14 @@ class ImportWhitelistTestCase(SimpleTestCase):
             "from finance.models import Statement": "may not import from finance.models",
             "value = open('/etc/passwd')": "may not use open",
             "value = __import__('os')": "may not use __import__",
-            "now = datetime.now()": "may not read the clock (now)",
-            "today = date.today()": "may not read the clock (today)",
+            "now = datetime.now()": "may not read the clock (now())",
+            "today = date.today()": "may not read the clock (today())",
             "module = thing.importlib": "may not use importlib",
+            # The way out the proposal said was not there.
+            "x = thing.__class__": "may not reach through __class__",
+            "x = thing.__globals__": "may not reach through __globals__",
+            "x = getattr(thing, 'y')": "may not use getattr",
+            "x = __builtins__['open']": "may not use __builtins__",
         }
         for source, expected in refused.items():
             with self.subTest(source=source):
@@ -422,6 +430,34 @@ class ImportWhitelistTestCase(SimpleTestCase):
                 self.assertEqual(len(problems), 1, problems)
                 self.assertIn(expected, problems[0])
                 self.assertTrue(problems[0].startswith("rules.py:1:"))
+
+    def test_what_the_check_used_to_let_through(self):
+        """The chain that reached a database connection in one line.
+
+        `__loader__.__class__.__init__.__globals__["sys"]` walks out of the
+        module the engine executed into the engine's own globals. The textual
+        check refuses it here; the loader's restricted `__builtins__` is the
+        other half, for the forms of it nobody wrote down.
+        """
+        escape = 'c = __loader__.__class__.__init__.__globals__["sys"]\n'
+        problems = check_source("rules.py", escape)
+        self.assertTrue(problems)
+        self.assertTrue(all("may not" in problem for problem in problems))
+
+    def test_a_ruleset_is_executed_without_open_or_getattr(self):
+        available = safe_builtins()
+        for name in ("open", "eval", "exec", "getattr", "globals", "compile", "dir"):
+            self.assertNotIn(name, available)
+        # And with what a rule actually needs, including the two hooks the
+        # interpreter calls for `import` and `class`.
+        for name in ("min", "sum", "sorted", "isinstance", "__import__", "__build_class__"):
+            self.assertIn(name, available)
+
+    def test_a_compiler_directive_is_not_an_import(self):
+        self.assertEqual(check_source("rules.py", "from __future__ import annotations\n"), [])
+
+    def test_a_field_named_now_is_not_the_clock(self):
+        self.assertEqual(check_source("rules.py", "x = ctx.statement.now\n"), [])
 
     def test_a_file_that_does_not_parse_is_one_problem(self):
         problems = check_source("rules.py", "def broken(:\n")
@@ -544,8 +580,6 @@ class LoaderTestCase(SimpleTestCase):
         self.assertEqual(len(caught.exception.problems), 1)
 
     def test_a_ruleset_that_fails_while_it_is_imported_leaves_nothing_behind(self):
-        import sys
-
         sources = {"__init__.py": "raise ValueError('nope')\n"}
         with self.assertRaises(ValueError):
             load(sources)
@@ -608,7 +642,13 @@ class ContextTestCase(TestCase):
             ),
         )
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
-        self.assertEqual(ctx.roles, {})
+        # Unresolved, not empty: reading a role from the arithmetic's context
+        # raises rather than quietly answering "nobody".
+        self.assertFalse(ctx.roles.resolved)
+        with self.assertRaises(RuleError):
+            ctx.roles["kassenwart"]
+        with self.assertRaises(RuleError):
+            ctx.role_holders("kassenwart")
 
     def test_the_trip_is_copied_out_with_both_ages(self):
         excursion = Freizeit.objects.create(
@@ -795,3 +835,36 @@ class ReferenceRulesetTestCase(SimpleTestCase):
         checks = HeidelbergRules().checks(ctx)
         self.assertFalse(checks[0].ok)
         self.assertIn("Bild", checks[0].message)
+
+
+class ConcurrentLoadTestCase(SimpleTestCase):
+    """Two threads loading one version must both get that version.
+
+    The loader used to publish the module into ``sys.modules`` before executing
+    it, which bypasses importlib's per-module lock: a second thread arriving
+    mid-exec read a module with no ``ruleset`` in it, `as_ruleset` refused it,
+    and the caller fell back to the *reference* ruleset and materialised those
+    figures. uwsgi runs four threads per process and recycles on RSS, so a cold
+    worker taking concurrent requests is routine.
+    """
+
+    def test_six_threads_loading_at_once_all_get_the_same_ruleset(self):
+        sources = stored("concurrent", "7.00")
+        results: list[object] = []
+        errors: list[BaseException] = []
+
+        def load_it():
+            try:
+                results.append(load(sources))
+            except BaseException as problem:  # pragma: no cover - the bug
+                errors.append(problem)
+
+        threads = [threading.Thread(target=load_it) for _ in range(6)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(errors, [])
+        self.assertEqual(len(results), 6)
+        self.assertEqual({type(ruleset).__module__ for ruleset in results}, {package_name(sources)})
+        self.assertEqual({ruleset.name for ruleset in results}, {"simple-concurrent"})

@@ -19,6 +19,7 @@ from finance.engine import import_from_directory
 from finance.engine import ruleset_directory
 from finance.store import RuleSet
 from finance.tasks import ensure_poll_task
+from finance.tasks import ensure_verify_task
 
 
 class Command(BaseCommand):
@@ -62,4 +63,5 @@ class Command(BaseCommand):
             )
             raise CommandError("the ruleset was stored as a draft")
         ensure_poll_task()
+        ensure_verify_task()
         self.stdout.write(self.style.SUCCESS(f"{where} is active: {row} ({directory})"))

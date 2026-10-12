@@ -35,6 +35,7 @@ from finance.rules_api import Member
 from finance.rules_api import MemberId
 from finance.rules_api import Params
 from finance.rules_api import Participant
+from finance.rules_api import Roles
 from finance.rules_api import RuleContext
 from finance.rules_api import Ruleset
 from finance.rules_api import SECTION
@@ -113,7 +114,7 @@ def random_context(rng: random.Random, params: dict[str, Decimal]) -> RuleContex
             ljp=ljp,
         ),
         statement=StatementInfo(id=1, creator=leaders[0], submitter=None),
-        roles={},
+        roles=Roles({}),
         permissions={},
     )
 

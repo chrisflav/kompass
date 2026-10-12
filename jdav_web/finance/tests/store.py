@@ -34,6 +34,8 @@ from finance.engine import configured_directory
 from finance.engine import engine_version
 from finance.engine import import_from_directory
 from finance.engine import materialise
+from finance.engine import no_queries
+from finance.engine import QueryDuringEvaluation
 from finance.engine import read_sources
 from finance.engine import reference_directory
 from finance.engine import result_from_rows
@@ -60,7 +62,9 @@ from finance.rules_api import Input
 from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
 from finance.rules_api import PARTICIPANTS
+from finance.rules_api import RuleError
 from finance.rules_api import SECTION
+from finance.rules_api import Transfer
 from finance.rulesets.heidelberg import HeidelbergRules
 from finance.store import ApprovalConstraint
 from finance.store import ImmutableRuleSet
@@ -162,7 +166,16 @@ class RoleAssignmentTestCase(TestCase):
         # arithmetic — see `statement_context`.
         context = statement_context(statement, active_ruleset(), actors=True)
         self.assertEqual(context.roles["kassenwart"], (RuleMember(MemberId(member.pk)),))
-        self.assertEqual(statement_context(statement, active_ruleset()).roles, {})
+        self.assertEqual(context.role_holders("kassenwart"), (RuleMember(MemberId(member.pk)),))
+        self.assertEqual(context.role_holders("vorstand"), ())
+        self.assertEqual(len(context.roles), 1)
+        self.assertEqual(list(context.roles), ["kassenwart"])
+        self.assertIn("kassenwart", repr(context.roles))
+        unresolved = statement_context(statement, active_ruleset()).roles
+        self.assertFalse(unresolved.resolved)
+        self.assertIn("unresolved", repr(unresolved))
+        with self.assertRaises(RuleError):
+            unresolved.get("kassenwart")
 
 
 class ObligationModelTestCase(TestCase):
@@ -470,6 +483,41 @@ class MaterialisationTestCase(TestCase):
             self.assertEqual(statement.total, Decimal("12.34"))
         self.assertEqual(statement.rule_result.balance.amount, Decimal("12.34"))
 
+    def test_a_settled_row_is_superseded_rather_than_overwritten(self):
+        """What the GoBD's Unveränderbarkeit asks of the one editable field.
+
+        Covering a bill after submission resolves the payout again. The rows
+        that were frozen at submission are kept and marked; only the current
+        ones are read.
+        """
+        self.statement.submit(submitter=self.member)
+        before = list(self.statement.obligation_set.all())
+        self.assertTrue(all(row.live for row in before))
+        bill = self.statement.bill_set.first()
+        bill.amount = Decimal("20.00")
+        bill.save()
+        statement = Statement.objects.get(pk=self.statement.pk)
+        rows = list(statement.obligation_set.all())
+        superseded = [row for row in rows if not row.live]
+        live = [row for row in rows if row.live]
+        self.assertEqual(len(superseded), len(before), "the old record is kept")
+        self.assertEqual({row.amount_cents for row in superseded}, {1234})
+        self.assertEqual(statement.total, Decimal("20.00"))
+        self.assertEqual(len(live), 2)
+        self.assertIn("superseded", str(superseded[0]))
+        # A draft's rows are a working copy and are simply replaced.
+        draft = Statement.objects.create(short_description="Entwurf", night_cost=0)
+        Bill.objects.create(
+            statement=draft,
+            short_description="Seil",
+            amount=Decimal("1.00"),
+            costs_covered=True,
+            paid_by=self.member,
+        )
+        draft.save()
+        self.assertTrue(all(row.live for row in draft.obligation_set.all()))
+        self.assertEqual(draft.obligation_set.count(), 2)
+
     def test_the_finance_officer_covering_a_bill_refreezes_the_payout(self):
         bill = Bill.objects.create(
             statement=self.statement,
@@ -640,12 +688,14 @@ class FuzzTestCase(SimpleTestCase):
         self.assertIsNone(random_answer(rng, Input("i", "I", "choice")))
         self.assertIsInstance(random_answer(rng, Input("j", "J", "int")), int)
 
-    def test_a_ruleset_that_does_not_balance_is_reported(self):
-        """A balance declaration that closes the wrong party's books.
+    def test_a_balance_declared_the_wrong_way_round_is_refused(self):
+        """The error the proposal's own sketch would have produced.
 
-        The engine zeroes the party its ``balance`` names as the destination,
-        so a ruleset that points it at the participants leaves the section out
-        of pocket — which is precisely what the fuzzer is there to notice.
+        ``balance`` is resolved so that its *destination* comes out at zero, so
+        ``(SECTION, PARTICIPANTS, …)`` — the order §3 and §4.3 of the proposal
+        are written in — closes nothing: the participants were already square
+        and the section is not. It used to yield a ``0.00`` balancing row and
+        books that did not add up, with no error; now it says so.
         """
 
         class Leaky(HeidelbergRules):
@@ -653,7 +703,35 @@ class FuzzTestCase(SimpleTestCase):
 
         problems = fuzz(Leaky(), 20, seed=2)
         self.assertTrue(problems)
-        self.assertIn("the section is out by", problems[0])
+        self.assertIn("the other way round", problems[0])
+
+    def test_a_balance_between_two_parties_the_section_is_not_one_of(self):
+        """Closing somebody else's books does not close the section's.
+
+        The engine guarantees that the *balancing party* comes out at zero, not
+        that the section does. A ruleset that balances a member against the
+        participants leaves every row two-ended and the section ten euro out of
+        pocket — which looks balanced to anything that only looks at the rows,
+        and is what the fuzzer's second assertion is for.
+        """
+
+        class Sideways(HeidelbergRules):
+            balance = (PARTICIPANTS, RuleMember(MemberId(1)), "rest")
+
+            def transfers(self, ctx):
+                return [
+                    Transfer(
+                        source=SECTION,
+                        destination=RuleMember(MemberId(1)),
+                        amount=Decimal("10.00"),
+                        category="rest",
+                        rule_id="gift",
+                    )
+                ], []
+
+        problems = fuzz(Sideways(), 3, seed=5)
+        self.assertEqual(len(problems), 3)
+        self.assertIn("the section is out by 10.00", problems[0])
 
     def test_a_ruleset_whose_rules_raise_is_reported(self):
         class Angry(HeidelbergRules):
@@ -670,3 +748,64 @@ class FuzzTestCase(SimpleTestCase):
         with TemporaryDirectory() as directory:
             (Path(directory) / "__init__.py").write_text("import os\n", encoding="utf-8")
             self.assertTrue(check_and_fuzz(Path(directory), 5))
+
+
+class GuardedCallsTestCase(TestCase):
+    """Every call into a section's rules runs inside the query guard.
+
+    ``transfers`` and ``checks`` always did. ``approval`` did not, and it is
+    reached from ``materialise`` on every draft save — so a rule resolving its
+    eligible set with a query would have frozen today's membership into rows
+    that replay differently in two years, with nothing to notice it.
+    """
+
+    def test_a_rule_that_queries_from_approval_is_refused(self):
+        statement = Statement.objects.create(short_description="Wach", night_cost=0)
+        ruleset = active_ruleset()
+        # Built before the guard is entered, on purpose: the context is the
+        # engine's own work and queries as much as it likes. What may not query
+        # is the section's rules, which is the one call inside the block.
+        context = statement_context(statement, ruleset, actors=True)
+
+        class Querying(type(ruleset)):
+            def approval(self, ctx, transfers):
+                # Returns nothing, because it never gets that far: the guard
+                # raises on the query itself.
+                Statement.objects.count()
+
+        with self.assertRaises(QueryDuringEvaluation):
+            with no_queries():
+                Querying().approval(context, [])
+
+    def test_the_fuzzer_runs_the_rules_under_the_guard_too(self):
+        self.assertEqual(fuzz(HeidelbergRules(), 3, seed=11), [])
+
+
+class ReplayComparesWhoWasPaidTestCase(TestCase):
+    """The audit compares the recipient, not only the amount.
+
+    A frozen row naming one member against a replay resolving another is
+    exactly the drift the replay is for, and comparing ``(category, rule_id,
+    amount)`` alone reported it as agreement.
+    """
+
+    def setUp(self):
+        self.anna = a_member("Anna")
+        self.bernd = a_member("Bernd")
+        self.statement = Statement.objects.create(short_description="Wem", night_cost=0)
+        Bill.objects.create(
+            statement=self.statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=self.anna,
+        )
+        self.statement.submit(submitter=self.anna)
+        self.statement.status = Statement.CONFIRMED
+        self.statement.save()
+
+    def test_the_same_amount_to_somebody_else_is_a_problem(self):
+        self.assertEqual(verify(Statement.objects.all()), [])
+        self.statement.obligation_set.filter(rule_id="bills").update(destination_member=self.bernd)
+        problems = verify(Statement.objects.all())
+        self.assertTrue(any("does not reproduce" in problem for problem in problems))

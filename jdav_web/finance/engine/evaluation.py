@@ -172,12 +172,19 @@ def _balance_for(ruleset: Ruleset, transfers: list[Transfer]) -> Transfer:
     source, destination, category = ruleset.balance
     if not isinstance(source, _PARTY_TYPES) or not isinstance(destination, _PARTY_TYPES):
         raise TypeError(f"the ruleset's balance declaration names {source!r} and {destination!r}")
-    amount = Decimal("0.00")
-    for transfer in transfers:
-        if transfer.source == destination:
-            amount += transfer.amount
-        if transfer.destination == destination:
-            amount -= transfer.amount
+    amount = _net_out(transfers, destination)
+    if amount == 0 and _net_out(transfers, source) != 0:
+        # The declaration is the wrong way round. The amount is resolved so
+        # that the *destination* comes out at zero, so pointing it at a party
+        # that is already square — while the source is out of pocket — closes
+        # nothing and leaves books that do not add up with a `0.00` row to show
+        # for it. The proposal's own §3 and §4.3 sketches are written this way,
+        # which is why this is an error with a sentence rather than a silent
+        # zero.
+        raise TypeError(
+            "the balance declaration brings its destination to zero, and this one "
+            f"is already there while {source!r} is not: declare it the other way round"
+        )
     if amount < 0:
         source, destination, amount = destination, source, -amount
     return Transfer(
@@ -189,6 +196,17 @@ def _balance_for(ruleset: Ruleset, transfers: list[Transfer]) -> Transfer:
         label="",
         explanation="",
     )
+
+
+def _net_out(transfers: Iterable[Transfer], party: Party) -> Decimal:
+    """What ``party`` pays out net over ``transfers``."""
+    total = Decimal("0.00")
+    for transfer in transfers:
+        if transfer.source == party:
+            total += transfer.amount
+        if transfer.destination == party:
+            total -= transfer.amount
+    return total
 
 
 def _answered(declarations: Iterable[Input], ctx: RuleContext) -> Inputs:

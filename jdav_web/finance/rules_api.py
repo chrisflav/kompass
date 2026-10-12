@@ -65,11 +65,13 @@ see :attr:`Ruleset.balance`.
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Callable
+from collections.abc import Iterator
 from collections.abc import Mapping
 from dataclasses import dataclass
 from dataclasses import field
 from decimal import Decimal
 from decimal import ROUND_FLOOR
+from typing import Any
 from typing import Final
 from typing import Literal
 from typing import NewType
@@ -403,6 +405,66 @@ class Params:
         return dict(self._values)
 
 
+class Roles(Mapping[str, tuple[Member, ...]]):
+    """Who holds which section role — or a refusal to guess.
+
+    A mapping, so ``ctx.roles["kassenwart"]`` reads as one, with one
+    difference that matters: a context built for the *arithmetic* does not
+    resolve the role assignments, and reading them from there raises
+    :class:`RuleError` instead of answering ``()``.
+
+    That asymmetry is deliberate. An empty mapping cannot distinguish "nobody
+    holds this role" from "nobody asked the database", and the second one,
+    silently, pays a treasurer nothing and balances the books around the hole.
+    Roles are resolved for :meth:`Ruleset.approval`, which is what they are
+    for; a rule that routes *money* by a role has to say so, and until the
+    engine offers that it says so by failing loudly.
+    """
+
+    __slots__ = ("_values", "_resolved")
+
+    def __init__(self, values: Mapping[str, tuple[Member, ...]] | None = None) -> None:
+        self._resolved = values is not None
+        self._values = dict(values or {})
+
+    @classmethod
+    def unresolved(cls) -> "Roles":
+        """The roles of a context that did not ask for them."""
+        return cls(None)
+
+    @property
+    def resolved(self) -> bool:
+        """Whether the role assignments were read at all."""
+        return self._resolved
+
+    def _check(self) -> None:
+        if not self._resolved:
+            raise RuleError(
+                "the role assignments were not resolved for this context; roles are "
+                "resolved for `approval`, so a rule that routes money by a role has "
+                "to be asked for differently"
+            )
+
+    def __getitem__(self, role: str) -> tuple[Member, ...]:
+        self._check()
+        return self._values[role]
+
+    def get(self, role: str, default: Any = ()) -> Any:
+        self._check()
+        return self._values.get(role, default)
+
+    def __iter__(self) -> Iterator[str]:
+        self._check()
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        self._check()
+        return len(self._values)
+
+    def __repr__(self) -> str:
+        return f"Roles({self._values!r})" if self._resolved else "Roles(unresolved)"
+
+
 @dataclass(frozen=True, slots=True)
 class RuleContext:
     """Everything a rule may know about one statement.
@@ -424,12 +486,22 @@ class RuleContext:
     excursion: Excursion | None
     #: The statement itself (see :class:`StatementInfo`).
     statement: StatementInfo
-    #: Who holds which section role. Empty until role assignments exist.
-    roles: Mapping[str, tuple[Member, ...]] = field(default_factory=dict)
+    #: Who holds which section role (see :class:`Roles`). Resolved for
+    #: :meth:`Ruleset.approval`; reading it elsewhere raises rather than
+    #: answering "nobody".
+    roles: Roles = field(default_factory=Roles.unresolved)
     #: Who holds which permission, for the codenames the ruleset declared in
     #: :attr:`Ruleset.permissions`. Read it through
     #: :meth:`permission_holders`.
     permissions: Mapping[str, tuple[Member, ...]] = field(default_factory=dict)
+
+    def role_holders(self, role: str) -> tuple[Member, ...]:
+        """Everybody who holds ``role``, or ``()`` if the role is unknown.
+
+        Raises :class:`RuleError` when this context did not resolve the role
+        assignments — see :class:`Roles` for why that is not silently empty.
+        """
+        return tuple(self.roles.get(role, ()))
 
     def permission_holders(self, codename: str) -> tuple[Member, ...]:
         """Everybody who holds ``codename``, as of this evaluation.
@@ -708,6 +780,7 @@ __all__ = [
     "Party",
     "RuleContext",
     "RuleError",
+    "Roles",
     "Ruleset",
     "SECTION",
     "Section",

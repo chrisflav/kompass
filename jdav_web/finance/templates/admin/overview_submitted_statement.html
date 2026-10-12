@@ -262,6 +262,8 @@ Once their proposal was approved, the ljp contributions of should be paid to:{% 
 
 {% endif %}
 
+{% include "admin/_statement_signatures.html" %}
+
 <form action="" method="post">
     {% csrf_token %}
     <input type="hidden" name="action" value="submit_statement">

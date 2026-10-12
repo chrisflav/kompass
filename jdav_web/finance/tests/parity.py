@@ -9,17 +9,46 @@ on the way out of the snapshot, ``0.9`` as a binary float, one
 ``cvt_to_decimal`` at the end — and compared with what the engine resolves over
 a spread of realistic statements.
 
-**Where the two differ, and why the new value wins.** The old properties put
-money through binary floats although every amount column is a
-``DecimalField``: ``_capture_settings_snapshot`` stored ``float(settings.X)``
-and ``_get_setting`` returned ``float(...)`` again, so ``real_night_cost``
-computed ``min(Decimal, Decimal(float))`` and ``paid_ljp_contributions``
-multiplied floats. A float cannot hold ``0.15``, so an exact half-cent — the
-one case where rounding has to decide — was decided by whichever side of the
-half the binary expansion happened to fall on. :data:`DIFFERENCES` lists every
-case in this suite where that shows, with the figure each implementation
-produces; in each of them the ``Decimal`` value is the one the section's own
-numbers imply, and the float value is an artefact.
+**What is pinned, exactly.** Five aggregates — ``total_allowance``,
+``total_subsidies``, ``total_org_fee``, ``paid_ljp_contributions``, ``total`` —
+plus the ``transaction_issues`` targets member by member and the rows
+``generate_transactions`` writes. That is the money. The *display* figures the
+documents narrate around it (``allowance_per_yl``, ``transportation_per_yl``,
+``nights_per_yl``, ``theoretical_total_staff``) are **not** pinned here: they
+still compute their own formula until step 5's summaries read rows instead, and
+under the awkward numbers below they move for the same two reasons the
+aggregates do. Forty properties were *ported*; five aggregates and the payout
+are what this suite holds down.
+
+**Where the two differ, and why the new value wins.** Two causes, and they are
+not the same thing:
+
+*A half cent decided by a bit pattern.* The old properties put money through
+binary floats although every amount column is a ``DecimalField``:
+``_capture_settings_snapshot`` stored ``float(settings.X)`` and
+``_get_setting`` returned ``float(...)`` again. ``Decimal(21.675)`` is
+``21.67500000000000142…``, just above the half cent, so the rounding went *up*
+where the section's own ``21,675 €`` sits exactly on the half.
+
+What decides that is worth stating precisely: ``cents()`` rounds
+``ROUND_HALF_DOWN``, which is what ``utils.cvt_to_decimal`` has always done, so
+the exact half goes down and **the change moves money down by a cent**. The
+*rounding mode* decides this, not ``Decimal`` — kaufmännisches Runden
+(``ROUND_HALF_UP``) would give the old ``21,68 €``. The port kept the mode it
+found; a section that wants commercial rounding is asking for a different
+``cents()`` and should say so in its own rules.
+
+*An amount that was never rounded at all.* ``nights_per_yl`` multiplied the
+night count by ``Decimal(float(MAX_NIGHT_COST))`` and quantised nothing, so a
+maximum a float cannot hold produced a subsidy of 28 significant digits in a
+column with two — stored rounded, compared unrounded, and therefore never
+reconcilable. That one is a live bug rather than a cent.
+
+:data:`DIFFERENCES` records every figure this suite finds moving, with both
+values. The entry that carries real money — ``total_subsidies`` 226.88 → 226.86
+— belongs to the *first* cause: 517 km × 0,155 € is 80,135 € exactly, a third
+half cent. The unquantised nights are in that number too, but they contribute
+about 1e-14 of it.
 """
 
 from dataclasses import dataclass
@@ -525,22 +554,28 @@ def build(scenario):
 #: are binary-exact or never land on a half cent, which is why nobody noticed.
 #: They are all under :data:`AWKWARD_PARAMETERS`, and they come in two shapes.
 #:
-#: **A half cent decided by the binary expansion.** ``Decimal(21.675)`` is
+#: **A half cent decided by the binary expansion** (cause one). The entries
+#: for the day trip, the qualification trip — and ``total_subsidies`` /
+#: ``total`` wherever an *odd* number of kilometres meets ``0,155 €`` or
+#: ``0,105 €``, which is where the real money is. ``Decimal(21.675)`` is
 #: ``21.67500000000000142108547152020037174224853515625``, just above the half
-#: cent, so ``ROUND_HALF_DOWN`` rounded *up* to ``21.68`` — while the section's
-#: number, ``21,675 €``, is exactly on the half and rounds down to ``21,67 €``.
-#: Same for the organisation fee of ``10,005 €`` a day. The new value is the
-#: one the section's own figure implies; the old one was decided by a bit
-#: pattern.
+#: cent, so the old code rounded *up* to ``21.68`` while the section's own
+#: ``21,675 €`` sits exactly on the half; ``517 × 0,155`` is ``80,135``
+#: exactly, the same story one factor along. ``ROUND_HALF_DOWN`` — Kompass's
+#: historical mode, which the port kept — then takes the half down, so these
+#: move money down by a cent. See the module docstring on why that is the
+#: mode's doing and not ``Decimal``'s.
 #:
-#: **An amount that was never rounded at all.** ``nights_per_yl`` multiplied
-#: the night count by ``Decimal(float(MAX_NIGHT_COST))`` and quantised
-#: nothing, so a maximum that a float cannot hold — ``11,10 €`` — produced a
-#: subsidy total of ``106.3999999999999985789145285``: 28 significant digits,
-#: into a column with two. ``Transaction.amount`` would store it rounded while
+#: **An amount that was never rounded at all** (cause two). ``nights_per_yl``
+#: multiplied the night count by ``Decimal(float(MAX_NIGHT_COST))`` and
+#: quantised nothing, so a maximum that a float cannot hold — ``11,10 €`` —
+#: produced ``106.3999999999999985789145285``: 28 significant digits into a
+#: column with two. ``Transaction.amount`` would store it rounded while
 #: ``transaction_issues`` compared against the unrounded figure, so such a
 #: statement could never be brought into agreement and never confirmed. That
-#: is the one difference here that is a live bug rather than a cent.
+#: is the live bug. It is also why several entries below carry a long decimal
+#: on the left: the tail is this cause, while the cent that actually moved is
+#: usually cause one.
 DIFFERENCES: dict[tuple[str, str, str], tuple[str, str]] = {
     # 21,675 € a day, twice, on a one-day trip.
     ("awkward", "a day trip with an allowance and one older participant", "total_allowance"): (
@@ -574,6 +609,9 @@ DIFFERENCES: dict[tuple[str, str, str], tuple[str, str]] = {
         "106.3999999999999985789145285",
         "106.40",
     ),
+    # Cause one, in the kilometres: 517 × 0,155 € = 80,135 € exactly, twice
+    # over for two refinanced leaders. The long tail on the left is cause two
+    # (the unquantised nights) and worth about 1e-14 of it.
     ("awkward", "subsidy only, nights above the maximum", "total_subsidies"): (
         "226.8799999999999978683717928",
         "226.86",

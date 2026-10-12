@@ -5403,6 +5403,216 @@
         ]
       }
     },
+    "/api/finance/statements/{statement_id}/form": {
+      "get": {
+        "operationId": "finance_api_router_statement_form",
+        "summary": "Statement Form",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "statement_id",
+            "schema": {
+              "title": "Statement Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementFormOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "The questions the section's rules ask about this statement.\n\nDerived from the rules rather than written beside them, so a section that\nreimburses something else gets a different form without a release. The\nanswers go back through ``PATCH /statements/{id}`` as ``inputs``, and each\none is validated against the declaration it belongs to.",
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/finance/statements/{statement_id}/preflight": {
+      "get": {
+        "operationId": "finance_api_router_statement_preflight",
+        "summary": "Statement Preflight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "statement_id",
+            "schema": {
+              "title": "Statement Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreflightOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "What stands between this statement and being handed in.\n\nThe ruleset's own checks, plus anything its ``transfers`` reported — the\ntwo lists ``submit`` refuses on — so a client can show them before somebody\npresses the button rather than after.",
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/finance/statements/{statement_id}/approval": {
+      "get": {
+        "operationId": "finance_api_router_statement_approval",
+        "summary": "Statement Approval",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "statement_id",
+            "schema": {
+              "title": "Statement Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementApprovalOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Who has to sign this statement off, and who has.",
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/finance/statements/{statement_id}/approve": {
+      "post": {
+        "operationId": "finance_api_router_approve_statement",
+        "summary": "Approve Statement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "statement_id",
+            "schema": {
+              "title": "Statement Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementApprovalOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Sign a submitted statement off; pay it out once the last signature is in.\n\nThe capability is the global permission, as it always was; whether this\nperson still has anything to sign is the section's rules' business, and the\nobject permission asks them both.",
+        "tags": [
+          "finance"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/finance/statements/{statement_id}/override-approval": {
+      "post": {
+        "operationId": "finance_api_router_override_statement_approval",
+        "summary": "Override Statement Approval",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "statement_id",
+            "schema": {
+              "title": "Statement Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementApprovalOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Sign a constraint off without its quorum, with who and why recorded.",
+        "tags": [
+          "finance"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalOverride"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/finance/statements/{statement_id}/transactions": {
       "get": {
         "operationId": "finance_api_inlines_list_statement_transactions",
@@ -15733,6 +15943,18 @@
               }
             ],
             "title": "Ljp To Id"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
           }
         },
         "title": "StatementUpdate",
@@ -16438,6 +16660,380 @@
           }
         },
         "title": "TransactionInlineUpdate",
+        "type": "object"
+      },
+      "InputDeclarationOut": {
+        "description": "One question the section's rules ask about a statement.\n\nDerived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks\nfor something else gets a different form without anybody editing the API.\n``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,\n``choice``, ``member``, ``member_set`` — and ``options`` is the domain a\nparty-valued answer may be picked from, resolved to names here because the\nrules themselves never see them.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "help": {
+            "default": "",
+            "title": "Help",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "options": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputOptionOut"
+            },
+            "title": "Options",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required"
+        ],
+        "title": "InputDeclarationOut",
+        "type": "object"
+      },
+      "InputOptionOut": {
+        "description": "One person a party-valued answer may name.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "InputOptionOut",
+        "type": "object"
+      },
+      "StatementFormOut": {
+        "description": "The questions this statement still has to answer.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot.",
+        "properties": {
+          "statement_id": {
+            "title": "Statement Id",
+            "type": "integer"
+          },
+          "inputs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputDeclarationOut"
+            },
+            "title": "Inputs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "statement_id"
+        ],
+        "title": "StatementFormOut",
+        "type": "object"
+      },
+      "CheckOut": {
+        "description": "One precondition for handing a statement in, and whether it holds.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "message"
+        ],
+        "title": "CheckOut",
+        "type": "object"
+      },
+      "PreflightOut": {
+        "description": "What stands between this statement and being handed in.",
+        "properties": {
+          "statement_id": {
+            "title": "Statement Id",
+            "type": "integer"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CheckOut"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "failing": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CheckOut"
+            },
+            "title": "Failing",
+            "type": "array"
+          },
+          "errors": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "statement_id",
+          "ok"
+        ],
+        "title": "PreflightOut",
+        "type": "object"
+      },
+      "ApprovalConstraintOut": {
+        "description": "One signature the rules asked for, and where it stands.\n\n``applicable`` and ``satisfied`` are separate states, and an override is a\nthird: a constraint that was waved through stays in the list with who did\nit and why, rather than disappearing.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "applicable": {
+            "title": "Applicable",
+            "type": "boolean"
+          },
+          "required": {
+            "title": "Required",
+            "type": "integer"
+          },
+          "satisfied": {
+            "title": "Satisfied",
+            "type": "boolean"
+          },
+          "overridden": {
+            "title": "Overridden",
+            "type": "boolean"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "missing": {
+            "title": "Missing",
+            "type": "integer"
+          },
+          "state_display": {
+            "title": "State Display",
+            "type": "string"
+          },
+          "eligible": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MemberBrief"
+            },
+            "title": "Eligible",
+            "type": "array"
+          },
+          "signed_by": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MemberBrief"
+            },
+            "title": "Signed By",
+            "type": "array"
+          },
+          "excluded": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ExclusionOut"
+            },
+            "title": "Excluded",
+            "type": "array"
+          },
+          "overridden_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "override_reason": {
+            "default": "",
+            "title": "Override Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "applicable",
+          "required",
+          "satisfied",
+          "overridden",
+          "open",
+          "missing",
+          "state_display"
+        ],
+        "title": "ApprovalConstraintOut",
+        "type": "object"
+      },
+      "ExclusionOut": {
+        "description": "One person a forbid (or the permission check) removed from a constraint.",
+        "properties": {
+          "member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forbid": {
+            "title": "Forbid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "forbid"
+        ],
+        "title": "ExclusionOut",
+        "type": "object"
+      },
+      "SignatureOut": {
+        "description": "One signature on a statement.",
+        "properties": {
+          "member": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "title": "SignatureOut",
+        "type": "object"
+      },
+      "StatementApprovalOut": {
+        "description": "Who has to sign a statement off, and who has.\n\nRouting runs on the resolved transfers rather than on the statement's\nfields, which is what lets a rule say \"nobody who receives money from this\nstatement\" — so this list is frozen at submission, beside the payout.",
+        "properties": {
+          "statement_id": {
+            "title": "Statement Id",
+            "type": "integer"
+          },
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          },
+          "may_approve": {
+            "title": "May Approve",
+            "type": "boolean"
+          },
+          "constraints": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ApprovalConstraintOut"
+            },
+            "title": "Constraints",
+            "type": "array"
+          },
+          "signatures": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SignatureOut"
+            },
+            "title": "Signatures",
+            "type": "array"
+          }
+        },
+        "required": [
+          "statement_id",
+          "approved",
+          "may_approve"
+        ],
+        "title": "StatementApprovalOut",
+        "type": "object"
+      },
+      "ApprovalCreate": {
+        "description": "A signature, with an optional note for the record.",
+        "properties": {
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "ApprovalCreate",
+        "type": "object"
+      },
+      "ApprovalOverride": {
+        "description": "Signing a constraint off without its quorum, on the record.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "reason"
+        ],
+        "title": "ApprovalOverride",
         "type": "object"
       },
       "LedgerListOut": {

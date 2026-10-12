@@ -35,6 +35,7 @@ from finance.rules_api import Member
 from finance.rules_api import MemberId
 from finance.rules_api import Params
 from finance.rules_api import Participant
+from finance.rules_api import Roles
 from finance.rules_api import RuleContext
 from finance.rules_api import StatementInfo
 from finance.rules_api import TourApproach
@@ -225,8 +226,11 @@ def build_context(
     statement carries, which is what a dry run against unsaved answers needs.
     ``params`` and ``roles`` are passed in by
     :mod:`finance.engine.statements`, which reads them from the statement's own
-    ruleset snapshot and from the dated role assignments; left out, the
-    parameters fall back to the settings as they always did.
+    ruleset snapshot and from the dated role assignments. Left out, the
+    parameters fall back to the settings as they always did, and the roles are
+    *unresolved* rather than empty: reading them then raises, because "nobody
+    asked" and "nobody holds it" must not look the same to a rule
+    (see :class:`kompass.rules.Roles`).
     """
     excursion = statement.excursion
     return RuleContext(
@@ -240,9 +244,15 @@ def build_context(
             creator=member_of(statement.created_by_id),
             submitter=member_of(statement.submitted_by_id),
         ),
-        roles={
-            role: tuple(Member(MemberId(pk)) for pk in sorted(ids))
-            for role, ids in (roles or {}).items()
-        },
+        roles=(
+            Roles.unresolved()
+            if roles is None
+            else Roles(
+                {
+                    role: tuple(Member(MemberId(pk)) for pk in sorted(ids))
+                    for role, ids in roles.items()
+                }
+            )
+        ),
         permissions=permission_holders(permissions),
     )

@@ -57,6 +57,7 @@ from finance.rules_api import Params
 from finance.rules_api import Participant
 from finance.rules_api import PARTICIPANTS
 from finance.rules_api import Party
+from finance.rules_api import Roles
 from finance.rules_api import RuleContext
 from finance.rules_api import Ruleset
 from finance.rules_api import SECTION
@@ -177,7 +178,10 @@ def parse_case(data: Mapping[str, Any], *, name: str) -> Case:
             creator=_maybe_member(data.get("statement", {}).get("creator")),
             submitter=_maybe_member(data.get("statement", {}).get("submitter")),
         ),
-        roles={},
+        # A case says what it says: an empty-but-resolved mapping, so a rule
+        # reading a role from one gets "nobody holds it" rather than the
+        # refusal an unresolved context would give.
+        roles=Roles({}),
         permissions={key: _members(value) for key, value in data.get("permissions", {}).items()},
     )
     checks = expected.get("checks")

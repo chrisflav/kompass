@@ -46,6 +46,24 @@ if ! [ -z "$(git diff --name-only)" ]; then
   exit 1
 fi
 
+# Whether anything in them is still English. `makemessages` produces no diff for an entry whose
+# `msgstr` is empty, and CI's fuzzy check does not look at one either, so a new string can reach a
+# German deployment untranslated with every gate green -- which is how two explanatory sentences on
+# the finance admin's new pages did.
+UNTRANSLATED=0
+for CATALOGUE in $(find . -name '*.po' -not -path './.venv/*' -not -path './node_modules/*'); do
+  COUNT=$(msgattrib --untranslated "$CATALOGUE" | grep -c '^msgid "' || true)
+  if [ "$COUNT" -gt 0 ]; then
+    echo "$CATALOGUE has untranslated entries:"
+    msgattrib --untranslated "$CATALOGUE" | grep '^msgid "' | grep -v '^msgid ""$'
+    UNTRANSLATED=1
+  fi
+done
+if [ "$UNTRANSLATED" -eq 1 ]; then
+  echo "Translate them, or a German deployment reads the English source string."
+  exit 1
+fi
+
 # Tests, against SQLite and an in-process cache -- see .agent/config/settings.toml. The app list
 # is docker/test/entrypoint-master.sh's, so the two run the same suite.
 cd jdav_web

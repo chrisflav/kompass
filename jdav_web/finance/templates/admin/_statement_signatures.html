@@ -1,0 +1,35 @@
+{% load i18n %}
+{% comment %}
+The signatures the section's rules ask for, with the forbids and the permission
+re-check already applied. Included by the submitted-statement overview; the
+states come from `finance.api.approval.approval_payload`, so the admin and the
+API say the same thing about who still has to sign.
+{% endcomment %}
+{% if approval.constraints %}
+<h3>{% trans "Signatures" %}</h3>
+<p>
+{% blocktrans %}The section's rules ask for these signatures before the money moves. One signature counts towards every step it satisfies.{% endblocktrans %}
+</p>
+<table>
+    <th>
+        <td>{% trans "Step" %}</td>
+        <td>{% trans "State" %}</td>
+        <td>{% trans "Signed by" %}</td>
+        <td>{% trans "May sign" %}</td>
+    </th>
+    {% for constraint in approval.constraints %}
+    <tr>
+        <td>{{ constraint.name }}: {{ constraint.description }}</td>
+        <td>
+            {{ constraint.state_display }}
+            {% if constraint.overridden %}&mdash; {{ constraint.overridden_by.name }}: {{ constraint.override_reason }}{% endif %}
+        </td>
+        <td>{% for member in constraint.signed_by %}{% if not forloop.first %}, {% endif %}{{ member.name }}{% endfor %}</td>
+        <td>
+            {% for member in constraint.eligible %}{% if not forloop.first %}, {% endif %}{{ member.name }}{% endfor %}
+            {% for exclusion in constraint.excluded %}<br><s>{{ exclusion.member.name }}</s> ({{ exclusion.forbid }}){% endfor %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}

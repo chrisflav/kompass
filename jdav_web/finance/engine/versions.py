@@ -101,10 +101,15 @@ def parameters_from_settings() -> dict[str, str]:
 
     Exact decimal *strings* — not floats, and not integer cents: a rate of
     ``0,155 €`` per kilometre and a tax of ``0,19`` are both configurable today
-    and neither is a whole number of cents. A string round-trips exactly,
-    canonicalises without IEEE-754 anywhere near it, and reads back as what the
-    section wrote. Amounts — what a rule *produces* — are integer cents, on
-    :class:`~finance.store.Obligation`, which is where that matters.
+    and neither is a whole number of cents.
+
+    TOML parses ``0.155`` into a float before this sees it, so the float is not
+    avoided — what is avoided is *storing* one and canonicalising it later:
+    ``str(float)`` recovers the literal the section wrote, and from there the
+    value is text all the way through the hash and the snapshot. Amounts — what
+    a rule *produces* — are integer cents, on
+    :class:`~finance.store.Obligation`, which is where IEEE-754 would actually
+    bite.
     """
     return {key: str(getattr(settings, key, 0)) for key in PARAMETER_KEYS}
 
@@ -186,6 +191,8 @@ def check_directory(directory: Path) -> tuple[Ruleset | None, list[str]]:
     if problems:
         return None, problems
     try:
+        # The whitelist ran three lines up; `check=False` here only avoids
+        # parsing every file twice.
         loaded = load(sources, check=False)
     except (RulesetRejected, RulesetInvalid) as refused:
         return None, [str(refused)]
@@ -252,5 +259,11 @@ def active_version() -> RuleSet | None:
 
 
 def ruleset_from_sources(sources: Mapping[str, str]) -> Ruleset:
-    """A ruleset from a stored closure, by hash, without touching the disk."""
-    return load(sources, check=False)
+    """A ruleset from a stored closure, by hash, without touching the disk.
+
+    Checked like any other load: a stored row is not more trustworthy than a
+    file, and a row that reached the database before a ban existed — or past
+    the model's immutability through an ``update()`` — must not be executed on
+    the strength of having been stored once.
+    """
+    return load(sources)

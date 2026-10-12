@@ -18,11 +18,19 @@ from django_celery_beat.models import IntervalSchedule
 from django_celery_beat.models import PeriodicTask
 from finance.engine import configured_directory
 from finance.engine import import_from_directory
+from finance.engine import verify
+from finance.models import Statement
 
 logger = logging.getLogger(__name__)
 
 #: The beat entry's name, which is also how it is found again to be removed.
 POLL_TASK_NAME = "finance: import the section's ruleset"
+
+#: The beat entry that re-checks what is stored.
+VERIFY_TASK_NAME = "finance: verify the stored rulesets and payouts"
+
+#: How often that runs, in hours.
+VERIFY_EVERY_HOURS = 24
 
 
 @shared_task
@@ -41,6 +49,50 @@ def import_ruleset():
     if problems:
         logger.error("the finance ruleset %s was not activated: %s", row.short_hash, problems)
     return row.hash
+
+
+@shared_task
+def verify_rulesets():
+    """Re-check what is stored, and complain in the log if it moved.
+
+    The counterpart to the model's refusal to change a stored version:
+    `RuleSet.save` prevents the ordinary edit, and this detects the ones it
+    cannot prevent — a `QuerySet.update()`, a hand-edited row, a restored dump
+    with a statement bound to a closure nobody imported, or a settled payout
+    that no longer reproduces from its own snapshot. §6 of the proposal asks
+    for exactly this, from beat; a detector nobody schedules detects nothing.
+    """
+    problems = verify(Statement.objects.all().order_by("-pk"))
+    for problem in problems:
+        logger.error("finance: %s", problem)
+    return len(problems)
+
+
+def ensure_verify_task(hours=None):
+    """Keep the beat entry for the verification in step.
+
+    Daily by default, and `[finance] verify_hours = 0` turns it off for a
+    section that would rather run it from its own CI against a dump.
+    """
+    every = (
+        getattr(settings, "FINANCE_VERIFY_HOURS", VERIFY_EVERY_HOURS) if hours is None else hours
+    )
+    every = int(every or 0)
+    if every <= 0:
+        PeriodicTask.objects.filter(name=VERIFY_TASK_NAME).delete()
+        return None
+    schedule, _created = IntervalSchedule.objects.get_or_create(
+        every=every, period=IntervalSchedule.HOURS
+    )
+    task, _created = PeriodicTask.objects.update_or_create(
+        name=VERIFY_TASK_NAME,
+        defaults={
+            "interval": schedule,
+            "task": "finance.tasks.verify_rulesets",
+            "enabled": True,
+        },
+    )
+    return task
 
 
 def ensure_poll_task(minutes=None):

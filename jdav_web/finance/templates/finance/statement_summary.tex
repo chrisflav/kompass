@@ -50,43 +50,19 @@
 bis zu {{ excursion.approved_staff_count }} Jugendleiter*innen {% if excursion.approved_extra_youth_leader_count %}
 (davon {{ excursion.approved_extra_youth_leader_count }} durch das Jugendreferat zusätzlich genehmigt){% endif %} bezuschusst werden.
 Zuschüsse und Aufwandsentschädigung werden wie folgt abgerufen:
+% One item per line the section's rules resolved, in the order they resolved
+% it: the label, the arithmetic and the recipient are the rules' own words.
+% Nothing in this document knows what an allowance or an LJP contribution is.
 \begin{itemize}
-
-    {% if statement.allowances_paid > 0 %}
-
-        \item Eine Aufwandsentschädigung von {{ statement.allowance_per_yl }} € pro Jugendleiter*in wird überwiesen an:
-        {% for m in statement.allowance_to.all %}{% if forloop.counter > 1 %}, {% endif %}{{ m.name }}{% endfor %}
-    {% else %}
-    \item Keiner*r der Jugendleiter*innen nimmt eine Aufwandsentschädigung in Anspruch.
-    {% endif %}
-
-    {% if statement.subsidy_to %}
-    \item Der Zuschuss zu Übernachtung und Anreise für alle Jugendleiter*innen in Höhe von {{ statement.total_subsidies }} € wird überwiesen an:
-            {{ statement.subsidy_to.name }}
-
-    {% else %}
-    \item Zuschüsse zu Übernachtung und Anreise werden nicht in Anspruch genommen.
-    {% endif %}
-
+    {% for line in statement.payout %}
+    \item {% if line.negative %}abzüglich {% endif %}{{ line.label|esc_all }} in Höhe von {{ line.amount_abs }} €{% if line.recipient %} {% if line.negative %}von{% else %}an{% endif %} {{ line.recipient|esc_all }}{% endif %}{% if line.explanation %} ({{ line.explanation|esc_all }}){% endif %}
+    {% empty %}
+    \item Es werden keine Zuschüsse und keine Aufwandsentschädigung in Anspruch genommen.
+    {% endfor %}
 \end{itemize}
 {% else %}
 \noindent Für die vorliegende Ausfahrt sind keine Jugendleiter*innen anspruchsberechtigt für Zuschüsse oder Aufwandsentschädigung.
 
-{% endif %}
-
-{% if statement.ljp_to %}
-\noindent\textbf{LJP-Zuschüsse}
-
-\noindent Der LJP-Zuschuss für die Teilnehmenden in Höhe von {{ statement.paid_ljp_contributions|esc_all }} € wird überwiesen an:
-{{ statement.ljp_to.name|esc_all }} Dieser Zuschuss wird aus Landesmitteln gewährt und ist daher
-in der Ausgabenübersicht gesondert aufgeführt.
-
-{% endif %}
-
-{% if statement.total_org_fee %}
-\noindent\textbf{Organisationsbeitrag}
-
-\noindent An der Ausfahrt haben {{ statement.old_participant_count }} Personen teilgenommen, die 27 Jahre alt oder älter sind. Für sie wird pro Tag ein Organisationsbeitrag von {{ statement.org_fee }} € erhoben und mit den bezahlten Zuschüssen und Aufwandsentschädigungen verrechnet.
 {% endif %}
 
 {% else %}
@@ -112,28 +88,17 @@ in der Ausgabenübersicht gesondert aufgeführt.
         \midrule
         \multicolumn{3}{l}{\textbf{Summe übernommene Ausgaben}} & \textbf{ {{ statement.total_bills }} }€\\
 {% endif %}
-{% if excursion.approved_staff_count > 0 and statement.allowances_paid > 0 or excursion.approved_staff_count > 0 and statement.subsidy_to %}
+{% if statement.payout %}
         \midrule
-        {% if statement.allowances_paid > 0 %}
-        {% for m in statement.allowance_to.all %}
-        Aufwandsentschädigung & & {{ m.name|esc_all }} & {{ statement.allowance_per_yl }} €\\
+        % Every line the section's rules resolved, in the order they resolved
+        % it. Nothing here knows what an allowance or an LJP contribution is.
+        {% for line in statement.payout %}
+        \multicolumn{2}{l}{ {{ line.label|esc_all }}{% if line.explanation %} ({{ line.explanation|esc_all }}){% endif %} } & {{ line.recipient|esc_all }} & {{ line.amount }} €\\
         {% endfor %}
-        {% endif %}
-        {% if statement.subsidy_to %}
-        \multicolumn{2}{l}{Zuschuss Übernachtung und Anreise für alle Jugendleiter*innen} & {{ statement.subsidy_to.name|esc_all }} & {{ statement.total_subsidies }} €\\
-        {% endif %}
-        {% if statement.total_org_fee %}
-        \multicolumn{2}{l}{abzüglich Organisationsbeitrag für {{ statement.old_participant_count }} Teilnehmende über 27 } &  & -{{ statement.total_org_fee }} €\\
-        {% endif %}
         \midrule
-        \multicolumn{3}{l}{\textbf{Summe Zuschüsse und Aufwandsentschädigung Jugendleitende}} & \textbf{ {{ statement.total_staff_paid }} }€\\
-{%endif %}
-{% if statement.ljp_to %}
-        \midrule
-        LJP-Zuschuss für die Teilnehmenden && {{ statement.ljp_to.name|esc_all }} & {{ statement.paid_ljp_contributions|esc_all }} €\\
-
+        \multicolumn{3}{l}{\textbf{Summe Zuschüsse und Entschädigungen}} & \textbf{ {{ statement.payout_total }} }€\\
 {% endif %}
-{% if statement.ljp_to or statement.bills_covered and excursion.approved_staff_count > 0 %}
+{% if statement.payout or statement.bills_covered %}
         \midrule
         \textbf{Gesamtsumme}& & & \textbf{ {{ statement.total }} }€\\
 {% endif %}

@@ -24,18 +24,23 @@ from schwifty import IBAN
 from utils import cvt_to_decimal
 from utils import RestrictedFileField
 
+from .engine import approval_states
 from .engine import bind as bind_ruleset
 from .engine import evaluate_statement
 from .engine import freeze as freeze_obligations
+from .engine import fully_approved
 from .engine import materialise
+from .engine import may_sign
 from .engine import result_from_rows
 from .engine import rows_exist
 from .engine import statement_params
 from .rules import is_creator
 from .rules import leads_excursion
+from .rules import may_approve
 from .rules import not_submitted
 from .rules_api import Member as RuleMember
 from .rules_api import SECTION
+from .store import Approval
 from .store import RuleSet
 
 # Create your models here.
@@ -138,6 +143,17 @@ class Statement(CommonModel):
         ),
     )
 
+    inputs = models.JSONField(
+        verbose_name=_("Answers"),
+        default=dict,
+        blank=True,
+        help_text=_(
+            "The answers to the questions the section's rules ask, by key. The "
+            "four columns above are still the ones the rules read; this is "
+            "written beside them until they are migrated into it."
+        ),
+    )
+
     status = models.IntegerField(
         verbose_name=_("Status"), choices=STATUS_CHOICES, default=UNSUBMITTED
     )
@@ -215,6 +231,10 @@ class Statement(CommonModel):
             # All users may delete relevant (see above) draft statements.
             "delete_obj": not_submitted
             & (is_creator | leads_excursion | has_global_perm("finance.delete_global_statement")),
+            # Signing a statement off is the capability plus the section's own
+            # routing: whoever may act as an approver at all, and whom the
+            # rules still leave something to sign.
+            "approve_obj": has_global_perm("finance.process_statementsubmitted") & may_approve,
         }
 
     @property
@@ -357,6 +377,47 @@ class Statement(CommonModel):
             if transfer.category == "ljp":
                 return _("LJP-Contribution %(excu)s") % {"excu": excursion.name}
         return transfer.label or transfer.category
+
+    def payout_lines(self, exclude=("bill",)):
+        """The payout as the rules resolved it, one line per transfer.
+
+        What the summary document prints instead of four hardcoded line kinds.
+        Each line carries what a person reading the paper needs — who gets it,
+        what it is called, the arithmetic behind it — and the amount is signed
+        from the recipient's point of view, so a deduction prints as a negative
+        rather than as a special case in the template.
+
+        The bills are excluded by default: a receipt is a fact about what was
+        spent, not a line the rules invented, and the document lists those
+        separately from its own evidence.
+        """
+        result = self.rule_result
+        members = self._transfer_members(result)
+        lines = []
+        for transfer in result.rule_transfers:
+            if transfer.category in exclude:
+                continue
+            for party, sign in ((transfer.destination, 1), (transfer.source, -1)):
+                if not isinstance(party, RuleMember):
+                    continue
+                member = members.get(party.id)
+                amount = sign * transfer.amount
+                lines.append(
+                    {
+                        "label": str(transfer.label) or transfer.category,
+                        "explanation": str(transfer.explanation),
+                        "recipient": member.name if member is not None else "",
+                        "amount": amount,
+                        # Both, because a document says "abzüglich 120,00 €"
+                        # rather than "-120,00 €", and a template cannot do
+                        # arithmetic.
+                        "amount_abs": abs(amount),
+                        "negative": amount < 0,
+                        "category": transfer.category,
+                        "rule_id": transfer.rule_id,
+                    }
+                )
+        return lines
 
     def transfer_payload(self):
         """The transfers with their parties resolved to members, for the API."""
@@ -517,13 +578,84 @@ class Statement(CommonModel):
             Statement.VALID: _("Everything is correct."),
         }[self.validity]
 
-    def confirm(self, confirmer=None):
-        if not self.submitted:
-            return False
+    @property
+    def approval_states(self):
+        """Each signature the rules asked for, and whether it is in.
 
+        Read off the :class:`~finance.store.ApprovalConstraint` rows that were
+        frozen at submission and the :class:`~finance.store.Approval` rows
+        signed since — never off the rules, which may have moved on. A
+        statement with no constraint rows has no constraints, which is a
+        ruleset that is happy with the capability check alone.
+        """
+        signatures = list(self.approval_set.all())
+        return approval_states(
+            [row.as_row() for row in self.approval_constraint_set.all()],
+            [approval.member_id for approval in signatures if approval.member_id],
+            uncredited=len([approval for approval in signatures if not approval.member_id]),
+        )
+
+    @property
+    def fully_approved(self):
+        """Whether every applicable constraint has its quorum or an override."""
+        return fully_approved(self.approval_states)
+
+    def may_be_approved_by(self, member):
+        """Whether ``member`` can still advance any open constraint.
+
+        The capability — ``finance.process_statementsubmitted`` — is checked by
+        the caller, as it always was; this is the second half of the question:
+        is there anything left for this person to sign? A constraint that names
+        nobody is answered by the capability alone.
+        """
+        if member is None or not self.submitted or self.confirmed:
+            return False
+        return may_sign(self.approval_states, member.pk)
+
+    def approve(self, member=None, note=""):
+        """Record a signature, and pay out once the last one is in.
+
+        Returns whether the statement ended up confirmed. A signature is
+        recorded even when it does not complete the quorum — that is the point
+        of having more than one — and the payout happens on the signature that
+        does.
+        """
+        if not self.submitted or self.confirmed:
+            return False
+        Approval.objects.create(statement=self, member=member, note=note)
+        states = self.approval_states
+        for row in self.approval_constraint_set.all():
+            state = next((s for s in states if s.name == row.name), None)
+            if state is not None and row.satisfied != state.satisfied:
+                row.satisfied = state.satisfied
+                row.save(update_fields=["satisfied"])
+        if not fully_approved(states):
+            return False
+        return self._pay_out(member)
+
+    def override_approval(self, name, member, reason):
+        """Sign a constraint off without its quorum, on the record.
+
+        An override is a state, not an absence: the constraint stays in the
+        list with who overrode it and why, because "we went ahead anyway" is
+        exactly the thing an audit has to be able to find. Returns whether the
+        statement ended up confirmed.
+        """
+        row = self.approval_constraint_set.filter(name=name).first()
+        if row is None or not self.submitted or self.confirmed:
+            return False
+        row.overridden_by = member
+        row.overridden_at = timezone.now()
+        row.override_reason = reason
+        row.save(update_fields=["overridden_by", "overridden_at", "override_reason"])
+        if not self.fully_approved:
+            return False
+        return self._pay_out(member)
+
+    def _pay_out(self, confirmer=None):
+        """Flip to paid: the last step, once the signatures are in."""
         if not self.validity == Statement.VALID:
             return False
-
         self._capture_settings_snapshot()
         self.status = self.CONFIRMED
         self.confirmed_date = timezone.now()
@@ -535,6 +667,20 @@ class Statement(CommonModel):
             trans.save()
         self.save()
         return True
+
+    def confirm(self, confirmer=None):
+        """Sign the statement off and pay it out if that completes the quorum.
+
+        The name the admin and the API have always used. It is now one
+        signature among however many the section's rules ask for — for
+        Heidelberg, which asks for exactly one from the finance department,
+        this is behaviourally what it always was.
+        """
+        if not self.submitted:
+            return False
+        if not self.validity == Statement.VALID:
+            return False
+        return self.approve(confirmer)
 
     def generate_transactions(self):
         """Book one transaction per member a transfer touches.
@@ -790,11 +936,23 @@ class Statement(CommonModel):
     total_pretty.admin_order_field = "total"
 
     def template_context(self):
+        """The figures the summary documents print.
+
+        ``payout`` is the part that used to be four hardcoded line kinds in the
+        template: it comes from the resolved transfers, so a section whose rules
+        pay something else gets it on the paper without anybody editing LaTeX.
+        The named figures below it are the rates and totals the document
+        narrates around that list.
+        """
         context = {
             "total_bills": self.total_bills,
             "total_bills_theoretic": self.total_bills_theoretic,
             "bills_covered": self.bills_covered,
             "total": self.total,
+            "payout": self.payout_lines(),
+            "payout_total": sum(
+                (line["amount"] for line in self.payout_lines()), cvt_to_decimal(0)
+            ),
         }
         if self.excursion:
             excursion_context = {

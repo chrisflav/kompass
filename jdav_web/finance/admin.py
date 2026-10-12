@@ -20,6 +20,7 @@ from members.pdf import render_tex_with_attachments
 from utils import get_member
 
 from .admin_rulesets import ObligationInline
+from .api.approval import approval_payload
 from .models import Bill
 from .models import BillOnStatementProxy
 from .models import Ledger
@@ -229,7 +230,8 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                 )
                 return HttpResponseRedirect(
                     reverse(
-                        "admin:{}_{}_overview".format(self.opts.app_label, self.opts.model_name)
+                        "admin:{}_{}_overview".format(self.opts.app_label, self.opts.model_name),
+                        args=(statement.pk,),
                     )
                 )
 
@@ -384,6 +386,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             object=statement,
             settings=settings,
             transaction_issues=statement.transaction_issues,
+            approval=approval_payload(statement, get_member(request)),
             **statement.template_context(),
         )
 
