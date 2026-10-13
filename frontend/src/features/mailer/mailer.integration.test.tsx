@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   api,
@@ -330,7 +330,7 @@ const MESSAGE_BRIEF: Record<string, unknown> = {
   sent: false,
   recipients: "Klettergruppe",
   created_by: { id: 7, name: "Hannah Beckers" },
-  created: "2026-05-01T10:00:00Z",
+  created_at: "2026-05-01T10:00:00Z",
 };
 
 const MESSAGE = {
@@ -407,6 +407,109 @@ describe("mailer — Nachrichten", () => {
     await screen.findByText("Sommerfahrt");
     await sortByEveryColumn(user);
     expect(screen.getAllByRole("row")).toHaveLength(3);
+  });
+
+  describe("window of the past 12 months", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const OLD = {
+      ...MESSAGE_BRIEF,
+      id: 2,
+      subject: "Herbstfahrt 2024",
+      sent: true,
+      created_at: "2024-09-01T10:00:00Z",
+    };
+
+    /** Answers with the recent rows for `?since=…` and with all rows otherwise. */
+    function windowReturns() {
+      messageBase();
+      const requested: (string | null)[] = [];
+      server.use(
+        http.get(api("/api/mailer/messages"), ({ request }) => {
+          const since = new URL(request.url).searchParams.get("since");
+          requested.push(since);
+          return HttpResponse.json(since ? [MESSAGE_BRIEF] : [MESSAGE_BRIEF, OLD]);
+        }),
+      );
+      return requested;
+    }
+
+    it("asks for the past 12 months by default and says so", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 9, 12, 9, 30));
+      const requested = windowReturns();
+      renderRoute("/kompass/mailer/messages");
+      await screen.findByText("Sommerfahrt");
+
+      expect(requested).toEqual(["2025-10-12"]);
+      expect(screen.queryByText("Herbstfahrt 2024")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Zeigt Nachrichten der letzten 12 Monate und alle Entwürfe."),
+      ).toBeInTheDocument();
+      expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    });
+
+    it("loads the older messages on request and keeps them for the session", async () => {
+      const requested = windowReturns();
+      const { user, unmount } = renderRoute("/kompass/mailer/messages");
+      await screen.findByText("Sommerfahrt");
+
+      await user.click(screen.getByRole("button", { name: "Ältere Nachrichten laden" }));
+      expect(await screen.findByText("Herbstfahrt 2024")).toBeInTheDocument();
+      expect(screen.getByText("2 / 2")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Ältere Nachrichten laden" }),
+      ).not.toBeInTheDocument();
+      expect(requested).toHaveLength(2);
+      expect(requested[1]).toBeNull();
+
+      // Coming back to the list later in the session loads everything again.
+      unmount();
+      renderRoute("/kompass/mailer/messages");
+      expect(await screen.findByText("Herbstfahrt 2024")).toBeInTheDocument();
+      expect(requested).toHaveLength(3);
+      expect(requested[2]).toBeNull();
+      expect(screen.queryByText(/letzten 12 Monate/)).not.toBeInTheDocument();
+    });
+
+    it("searches the loaded messages, older ones included", async () => {
+      windowReturns();
+      const { user } = renderRoute("/kompass/mailer/messages");
+      await screen.findByText("Sommerfahrt");
+      await user.click(screen.getByRole("button", { name: "Ältere Nachrichten laden" }));
+      await screen.findByText("Herbstfahrt 2024");
+
+      await user.type(screen.getByPlaceholderText("Suchen…"), "herbst");
+      await waitFor(() => expect(screen.queryByText("Sommerfahrt")).not.toBeInTheDocument());
+      expect(screen.getByText("Herbstfahrt 2024")).toBeInTheDocument();
+      expect(screen.getByText("1.9.2024")).toBeInTheDocument();
+    });
+
+    it("falls back to the 12 months when the older messages fail to load", async () => {
+      messageBase();
+      server.use(
+        http.get(api("/api/mailer/messages"), ({ request }) =>
+          new URL(request.url).searchParams.get("since")
+            ? HttpResponse.json([MESSAGE_BRIEF])
+            : HttpResponse.json({ detail: "boom" }, { status: 500 }),
+        ),
+      );
+      const { user } = renderRoute("/kompass/mailer/messages");
+      await screen.findByText("Sommerfahrt");
+
+      await user.click(screen.getByRole("button", { name: "Ältere Nachrichten laden" }));
+      expect(
+        await screen.findByText("Ältere Nachrichten konnten nicht geladen werden."),
+      ).toBeInTheDocument();
+      // The recent rows and the button are back, and the failed choice isn't kept.
+      expect(screen.getByText("Sommerfahrt")).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: "Ältere Nachrichten laden" }),
+      ).toBeInTheDocument();
+      expect(sessionStorage.getItem("mailer:messages:all")).toBeNull();
+    });
   });
 
   it("hides the compose button without the permission", async () => {

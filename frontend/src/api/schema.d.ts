@@ -2289,6 +2289,10 @@ export interface paths {
         /**
          * List Messages
          * @description Messages the user may list, creator-scoped by the shared permission filter.
+         *
+         *     With ``since``, only messages created on or after that day are listed, plus
+         *     every unsent draft regardless of its age, so no open draft drops out of
+         *     view. Without it, every message is listed.
          */
         get: operations["mailer_api_router_list_messages"];
         put?: never;
@@ -6222,6 +6226,11 @@ export interface components {
              * @default false
              */
             sent: boolean;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** AttachmentOut */
         AttachmentOut: {
@@ -11554,7 +11563,9 @@ export interface operations {
     };
     mailer_api_router_list_messages: {
         parameters: {
-            query?: never;
+            query?: {
+                since?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;

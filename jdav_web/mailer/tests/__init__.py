@@ -6,6 +6,7 @@ from .bounce import *
 from .delivery import *
 from .lmtp import *
 from .mailutils import *
+from .migrations import *
 from .models import *
 from .munge import *
 from .routing import *

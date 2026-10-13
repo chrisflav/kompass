@@ -25,6 +25,10 @@ export const queryKeys = {
   memberTrainings: (memberId: number) => ["trainings", { member: memberId }],
   trainingCategories: () => ["training-categories"],
   emailAddresses: () => ["mailer", "email-addresses"],
+  /** Every message query: both list windows, each message's detail and attachments. */
+  messages: () => ["mailer", "messages"],
+  /** The message list since `since` (`YYYY-MM-DD`), or all of it for `null`. */
+  messageList: (since: string | null) => ["mailer", "messages", "list", { since }],
 };
 
 /**

@@ -3804,6 +3804,15 @@ class GroupTestCase(BasicMemberTestCase):
         # check that method does not crash if no age info exists
         self.assertGreater(len(self.jl.get_invitation_text_template()), 0)
 
+    @override_settings(ROOT_URLCONF="members.tests.urls_without_startpage")
+    def test_get_invitation_text_template_without_public_group_pages(self):
+        # A group shown on the website, while the public pages aren't routed
+        # (redirect mode): the text is still built, just without the link.
+        self.assertTrue(self.alp.show_website)
+        alp_text = self.alp.get_invitation_text_template()
+        self.assertIn(str(WEEKDAYS[self.alp.weekday][1]), alp_text)
+        self.assertNotIn("gruppen/", alp_text)
+
 
 class NewMemberOnListTestCase(BasicMemberTestCase):
     def setUp(self):

@@ -501,6 +501,19 @@ h3 {
   min-width: 150px;
 }
 
+/* A list that only loads a recent window says so, with a way to load the rest. */
+.list-window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.list-window p {
+  margin: 0;
+}
+
 /* --- tables -------------------------------------------------------------- */
 
 .th-sort {
