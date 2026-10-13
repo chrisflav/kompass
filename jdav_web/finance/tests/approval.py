@@ -22,6 +22,8 @@ from tempfile import TemporaryDirectory
 
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.db import IntegrityError
+from django.db import transaction
 from django.test import SimpleTestCase
 from django.test import TestCase
 from django.utils.translation import gettext as _
@@ -38,7 +40,9 @@ from finance.rules_api import Constraint
 from finance.rules_api import Forbid
 from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
+from finance.rules_api import RuleError
 from finance.store import Approval
+from finance.store import ApprovalConstraint
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -96,6 +100,53 @@ class TwoSignatures(Ruleset):
 ruleset = TwoSignatures()
 '''
 
+#: The same section, with a bug in its exclusion rule.
+ANGRY_FORBID = '''
+from kompass.rules import Constraint, Forbid, Ruleset, SECTION, PARTICIPANTS, Transfer
+
+
+def kaputt(member):
+    raise ValueError("der Vorstand ist unbekannt")
+
+
+class AngryForbid(Ruleset):
+    """A forbid whose predicate raises on everybody it is asked about."""
+
+    name = "angry-forbid"
+    permissions = ("finance.process_statementsubmitted",)
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        transfers = []
+        for bill in ctx.bills:
+            if bill.covered and bill.payer is not None:
+                transfers.append(
+                    Transfer(SECTION, bill.payer, bill.amount, "bill", rule_id="bills")
+                )
+        return transfers, []
+
+    def approval(self, ctx, transfers):
+        signers = ctx.permission_holders("finance.process_statementsubmitted")
+        return (
+            [
+                Constraint(
+                    name="Kasse",
+                    description="Eine Unterschrift aus der Kasse",
+                    applicable=True,
+                    required=1,
+                    eligible=signers,
+                )
+            ],
+            [Forbid("kaputt", applies_to=kaputt)],
+        )
+
+
+ruleset = AngryForbid()
+'''
+
 
 def row(**overrides):
     """One stored constraint, as a mapping, for the pure tests."""
@@ -109,6 +160,7 @@ def row(**overrides):
         "overridden": False,
         "overridden_by": None,
         "override_reason": "",
+        "error": "",
     }
     values.update(overrides)
     return values
@@ -139,7 +191,15 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
         # Without a permitted set nothing is re-checked, which is the dry run.
         self.assertEqual(resolve_eligibility(constraint, []).eligible, (1, 2))
 
-    def test_a_forbid_that_raises_excludes_nobody(self):
+    def test_a_forbid_that_raises_is_a_rule_error_and_excludes_everybody(self):
+        """Failing open on a *forbid* is failing in the one forbidden direction.
+
+        A predicate that raises used to be shrugged off, which decided — on
+        the section's behalf and against its intent — that its most
+        restrictive instruction did not apply. It is an error now, and the
+        caller writes a constraint nobody can satisfy.
+        """
+
         def angry(member):
             raise ValueError("nope")
 
@@ -150,8 +210,23 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
             required=1,
             eligible=(RuleMember(MemberId(1)),),
         )
-        resolved = resolve_eligibility(constraint, [Forbid("kaputt", applies_to=angry)])
-        self.assertEqual(resolved.eligible, (1,))
+        with self.assertRaises(RuleError) as caught:
+            resolve_eligibility(constraint, [Forbid("kaputt", applies_to=angry)])
+        self.assertIn("kaputt", str(caught.exception))
+
+    def test_an_unresolvable_constraint_is_satisfied_by_nobody(self):
+        resolved = states([row(error="ValueError: nope", eligible=[], required=1)], signatures=[1])
+        self.assertTrue(resolved[0].unsatisfiable)
+        self.assertFalse(resolved[0].satisfied)
+        self.assertTrue(resolved[0].open)
+        self.assertFalse(fully_approved(resolved))
+        self.assertFalse(may_sign(resolved, 1))
+        # Not even an unattributable signature from the permission holder.
+        self.assertFalse(
+            states([row(error="boom", eligible=[])], signatures=[], uncredited=[("user", 1)])[
+                0
+            ].satisfied
+        )
 
     def test_one_signature_counts_against_every_constraint_it_satisfies(self):
         resolved = states(
@@ -184,10 +259,55 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
         resolved = states([row(eligible=[])], signatures=[9])
         self.assertEqual(resolved[0].signed_by, (9,))
         self.assertTrue(resolved[0].satisfied)
+        self.assertFalse(resolved[0].unsatisfiable)
 
-    def test_a_signature_nobody_can_be_named_for_still_counts(self):
-        resolved = states([row(eligible=[1])], signatures=[], uncredited=1)
-        self.assertTrue(resolved[0].satisfied)
+    def test_an_eligible_set_emptied_by_a_forbid_means_nobody_not_anybody(self):
+        """One bug that produces three, and the one the exclusions tell apart.
+
+        "Nobody is left" read as "anybody will do" meant: a forbid that
+        excluded everyone disabled itself, so the person it was written for
+        could sign their own payout; a permission re-check that rejected
+        everyone handed the right to every permission holder instead, which
+        inverts the rule it implements; and both of those were reported as
+        *satisfied*. The discriminator is already on the row: a constraint
+        that named nobody has no exclusions, and one whose people were all
+        removed has the list of who and why.
+        """
+        emptied = row(eligible=[], excluded=[{"member": 1, "forbid": "Befangenheit"}])
+        resolved = states([emptied], signatures=[1, 9], uncredited=[("user", 7)])
+        self.assertTrue(resolved[0].unsatisfiable)
+        self.assertEqual(resolved[0].signed_by, ())
+        self.assertFalse(resolved[0].satisfied)
+        self.assertTrue(resolved[0].open)
+        self.assertFalse(fully_approved(resolved))
+        self.assertFalse(may_sign(resolved, 1), "the excluded person least of all")
+        self.assertFalse(may_sign(resolved, 9))
+
+    def test_a_signature_nobody_can_be_named_for_counts_once(self):
+        """An unlinked account is one signer, however many times it clicks.
+
+        Counting unattributable signatures rather than *naming* them let one
+        administrator with no member record satisfy a quorum of two on their
+        own, which is the whole of what a four-eyes rule is for.
+        """
+        one = states([row(eligible=[1])], signatures=[], uncredited=[("user", 3)])
+        self.assertTrue(one[0].satisfied)
+        twice = states(
+            [row(required=2, eligible=[1])], signatures=[], uncredited=[("user", 3), ("user", 3)]
+        )
+        self.assertFalse(twice[0].satisfied)
+        self.assertEqual(twice[0].missing, 2)
+        two_accounts = states(
+            [row(required=2, eligible=[1])], signatures=[], uncredited=[("user", 3), ("user", 4)]
+        )
+        self.assertTrue(two_accounts[0].satisfied)
+        # And signatures nobody can attribute at all are one bucket, not many.
+        anonymous = states(
+            [row(required=2, eligible=[1])],
+            signatures=[],
+            uncredited=[("unattributable",), ("unattributable",)],
+        )
+        self.assertFalse(anonymous[0].satisfied)
 
     def test_a_constraint_that_does_not_apply_is_reported_not_hidden(self):
         resolved = states([row(applicable=False, required=2)], signatures=[])
@@ -224,6 +344,34 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
         self.assertTrue(may_sign(resolved, 2))
         self.assertTrue(may_sign(states([row(eligible=[])], signatures=[]), 99))
         self.assertFalse(may_sign(states([], signatures=[]), 1))
+
+    def test_the_frozen_row_says_which_kind_of_open_it_is(self):
+        """Four states a person has to tell apart, in words.
+
+        "Open" and "nobody may sign" are the same boolean and completely
+        different situations: one waits for a signature, the other waits for
+        somebody to fix a rule or change who holds a role.
+        """
+        waiting = ApprovalConstraint(
+            name="Kasse", applicable=True, required=1, eligible_member_ids=[1], excluded=[]
+        )
+        self.assertEqual(str(waiting.state_display), _("Open"))
+        nobody = ApprovalConstraint(
+            name="Kasse",
+            applicable=True,
+            required=1,
+            eligible_member_ids=[],
+            excluded=[{"member": 1, "forbid": "Befangenheit"}],
+        )
+        self.assertEqual(str(nobody.state_display), _("Nobody may sign"))
+        broken = ApprovalConstraint(
+            name="Kasse", applicable=True, required=1, eligible_member_ids=[], error="boom"
+        )
+        self.assertEqual(str(broken.state_display), _("Could not be resolved"))
+        named_nobody = ApprovalConstraint(
+            name="Kasse", applicable=True, required=1, eligible_member_ids=[], excluded=[]
+        )
+        self.assertEqual(str(named_nobody.state_display), _("Open"))
 
     def test_no_constraints_at_all_is_approved(self):
         self.assertTrue(fully_approved([]))
@@ -287,6 +435,7 @@ class HeidelbergApprovalTestCase(TestCase):
         self.assertTrue(self.statement.approval_constraint_set.get().satisfied)
         signature = self.statement.approval_set.get()
         self.assertEqual(signature.member, self.treasurer)
+        self.assertEqual(signature.signer, ("member", self.treasurer.pk))
         # The signature reads as who signed and the day they did.
         self.assertIn(str(self.treasurer), str(signature))
         self.assertIn(signature.at.strftime("%Y-%m-%d"), str(signature))
@@ -304,6 +453,34 @@ class HeidelbergApprovalTestCase(TestCase):
         # The signature is recorded even so: it happened.
         self.assertEqual(self.statement.approval_set.get().member, self.other)
         self.assertFalse(self.statement.approval_constraint_set.get().satisfied)
+
+    def test_a_draft_has_nothing_to_approve_and_is_not_approved(self):
+        draft = Statement.objects.create(short_description="Entwurf", night_cost=0)
+        self.assertFalse(draft.fully_approved)
+        self.assertFalse(draft.may_be_approved_by(self.treasurer))
+        self.assertFalse(draft.approve(self.treasurer))
+
+    def test_a_statement_whose_rules_report_a_problem_is_not_paid_out(self):
+        """The one bill Heidelberg refuses: covered, and nobody paid it.
+
+        Such a statement is submitted but never frozen — freezing a payout
+        that is known to be wrong would make the record say something false —
+        so there is nothing to pay out, whoever signs.
+        """
+        statement = Statement.objects.create(short_description="Ohne", night_cost=0)
+        Bill.objects.create(
+            statement=statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=None,
+        )
+        statement.submit(submitter=self.other)
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(statement.rule_result.errors)
+        self.assertFalse(statement.obligation_set.exists(), "nothing was frozen")
+        self.assertFalse(statement.approve(self.treasurer))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
 
     def test_a_statement_that_is_not_submitted_cannot_be_signed(self):
         draft = Statement.objects.create(short_description="Entwurf", night_cost=0)
@@ -331,6 +508,8 @@ class HeidelbergApprovalTestCase(TestCase):
         self.assertFalse(self.statement.override_approval("Nope", self.treasurer, "weil"))
         self.statement.refresh_from_db()
         self.assertFalse(self.statement.confirmed)
+        # And a step nobody asked for excludes nobody, rather than raising.
+        self.assertFalse(self.statement.forbids_approval_by("Nope", self.treasurer))
 
     def test_the_object_permission_asks_the_capability_and_the_rules(self):
         self.assertTrue(self.user.has_perm("finance.approve_obj_statement", self.statement))
@@ -342,6 +521,60 @@ class HeidelbergApprovalTestCase(TestCase):
                 "finance.approve_obj_statement", Statement.objects.get(pk=self.statement.pk)
             )
         )
+
+    def test_a_treasurer_appointed_after_submission_can_still_sign(self):
+        """What may not be frozen: who is *allowed* to act.
+
+        Heidelberg's one constraint names whoever holds
+        ``process_statementsubmitted``, resolved when the statement was handed
+        in. Appointing a treasurer while statements are in flight is ordinary,
+        and before the store they could confirm those statements at once; with
+        the eligible set frozen they passed the capability check and were
+        refused by the rules. The rows stay the record of who was named — an
+        audit asks what the rules said then — and the *gate* asks the rules
+        again.
+        """
+        frozen = self.statement.approval_constraint_set.get()
+        self.assertEqual(frozen.eligible_member_ids, [self.treasurer.pk])
+        self.assertFalse(self.statement.may_be_approved_by(self.other))
+        self.other_user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="finance", codename="process_statementsubmitted"
+            )
+        )
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertTrue(statement.may_be_approved_by(self.other))
+        self.assertTrue(statement.approve(self.other))
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(statement.confirmed)
+        self.assertEqual(statement.confirmed_by, self.other)
+        # And the frozen row still names who the rules named at submission.
+        self.assertEqual(
+            statement.approval_constraint_set.get().eligible_member_ids, [self.treasurer.pk]
+        )
+        self.assertEqual(
+            [state.eligible for state in statement.approval_states],
+            [(self.treasurer.pk,)],
+            "the record, not the gate",
+        )
+
+    def test_one_account_without_a_member_record_is_one_signature(self):
+        """An administrator who is not a member signs — and is named as one.
+
+        Heidelberg asks for a single signature, so this pays the statement
+        out, which is what Kompass did before there were constraints at all.
+        What such a signature may no longer do is *add up*: the account is
+        recorded, so two clicks are one signer rather than a quorum of two.
+        """
+        admin = User.objects.create_user("admin", password="secret")
+        self.assertTrue(self.statement.approve(None, user=admin))
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertTrue(statement.confirmed)
+        signature = statement.approval_set.get()
+        self.assertEqual(signature.user, admin)
+        self.assertIsNone(signature.member)
+        self.assertEqual(signature.signer, ("user", admin.pk))
+        self.assertIn(str(admin), str(signature))
 
     def test_the_permission_answers_for_an_excursion_as_well(self):
         """The object the permission is asked about is not always a statement.
@@ -442,12 +675,58 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertTrue(states_by_name["Kasse"].satisfied, "one signature is enough for Kasse")
         self.assertFalse(states_by_name["Vorstand"].satisfied)
         self.assertEqual(states_by_name["Vorstand"].missing, 1)
-        # The same person signing again adds nothing.
-        Approval.objects.create(statement=big, member=self.anna)
+        # The same person signing again adds nothing, and the database says so
+        # rather than leaving it to the arithmetic.
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Approval.objects.create(statement=big, member=self.anna)
+        big = Statement.objects.get(pk=big.pk)
+        self.assertFalse(big.approve(self.anna), "signing twice is signing once")
         big = Statement.objects.get(pk=big.pk)
         self.assertFalse(big.fully_approved)
+        self.assertEqual(big.approval_set.count(), 1)
         self.assertTrue(big.approve(self.bernd))
         self.assertTrue(Statement.objects.get(pk=big.pk).confirmed)
+
+    def test_a_forbid_cannot_be_overridden_by_the_person_it_excluded(self):
+        """Recording an override is a mitigation; refusing it is the control.
+
+        The forbid says nobody this statement pays may approve it. An override
+        that ignored it would make that rule a formality for anybody holding
+        the permission — and the person it names is exactly the person with a
+        reason to use it.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.anna)
+        self.assertFalse(big.override_approval("Kasse", self.anna, "Fristende"))
+        big = Statement.objects.get(pk=big.pk)
+        self.assertFalse(big.approval_constraint_set.get(name="Kasse").overridden)
+        self.assertFalse(big.confirmed)
+        # Somebody the forbid did not name may still override it (the payout
+        # waits for the second constraint, which is why this returns False).
+        self.assertFalse(big.override_approval("Kasse", self.bernd, "Fristende"))
+        self.assertTrue(
+            Statement.objects.get(pk=big.pk).approval_constraint_set.get(name="Kasse").overridden
+        )
+
+    def test_a_broken_forbid_stops_the_payout_instead_of_disabling_itself(self):
+        """A section's predicate that raises leaves the statement stuck.
+
+        Which is the safe direction: the alternatives are to persist no
+        constraints at all — a statement payable without a signature — or to
+        resolve them as if the rule had said nothing.
+        """
+        package = Path(self.directory.name)
+        (package / "__init__.py").write_text(ANGRY_FORBID, encoding="utf-8")
+        row, problems = import_from_directory(package, name="angry-forbid")
+        self.assertEqual(problems, [])
+        big = self.statement_for(Decimal("100.00"), self.clara)
+        constraint = big.approval_constraint_set.get()
+        self.assertIn("kaputt", constraint.error)
+        self.assertEqual(constraint.eligible_member_ids, [])
+        self.assertEqual(str(constraint.state_display), _("Could not be resolved"))
+        self.assertFalse(big.fully_approved)
+        self.assertFalse(big.may_be_approved_by(self.anna))
+        self.assertFalse(big.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=big.pk).confirmed)
 
     def test_an_override_of_one_step_leaves_the_other_standing(self):
         big = self.statement_for(Decimal("1200.00"), self.clara)

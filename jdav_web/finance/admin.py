@@ -217,7 +217,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             "transaction_execution_confirm" in request.POST
             or "transaction_execution_confirm_and_send" in request.POST
         ):
-            res = statement.confirm(confirmer=get_member(request))
+            res = statement.confirm(confirmer=get_member(request), user=request.user)
             if not res:  # pragma: no cover
                 # this should NOT happen!
                 logger.error(

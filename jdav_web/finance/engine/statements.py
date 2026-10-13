@@ -64,8 +64,9 @@ from .versions import version_hash
 
 logger = logging.getLogger(__name__)
 
-#: How a party is written to a row, and read back from one.
-_KIND_OF = {Section: SECTION, Participants: PARTICIPANTS, Member: MEMBER}
+#: The name a constraint carries when the rules could not be resolved at all.
+#: It is deliberately not a name a section can collide with by accident.
+UNRESOLVED = "<unresolved>"
 
 
 def _kind_of(party: Any) -> str:
@@ -290,53 +291,151 @@ def _retire_rows(statement: Any) -> None:
     )
 
 
-def _materialise_constraints(statement: Any, result: Result, *, version: str, frozen: Any) -> None:
-    """Freeze the signatures the rules ask for, with the forbids applied.
-
-    Routing runs on the *transfers*, after expansion, never on the raw
-    statement — which is the ordering §7 of the proposal insists on, because
-    "nobody who receives money from this statement" is a question about the
-    payout rather than about the form somebody filled in.
-
-    The forbids and the permission re-check are applied *here*, so the stored
-    eligible set is already the set that may sign: a predicate cannot be
-    persisted, and a statement's approval must not depend on re-running a
-    section's Python years later.
-    """
-    ruleset = ruleset_for(statement)
-    context = statement_context(statement, ruleset, actors=True)
-    # Inside the guard, like `transfers` and `checks`: a rule that resolved its
-    # eligible set with a query would freeze today's membership into rows that
-    # replay differently in two years, and this is the call where that would
-    # have gone unnoticed.
-    with no_queries():
-        constraints, forbids = ruleset.approval(context, list(result.transfers))
-    permitted = {
+def _approver_ids() -> set[int]:
+    """The members who hold the capability to sign anything off, today."""
+    return {
         member.id
         for codename in (APPROVER_PERMISSION,)
         for member in permission_holders([codename])[codename]
     }
+
+
+def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
+    """What the rules ask for in the way of signatures, resolved against today.
+
+    Returns one mapping per constraint in the shape
+    :meth:`~finance.store.ApprovalConstraint.as_row` produces, which is what
+    :mod:`finance.engine.approval` evaluates. Two callers:
+    :func:`_materialise_constraints`, which writes these down at submission,
+    and :func:`current_constraint_rows`, which asks the same question again at
+    the moment somebody tries to sign.
+
+    Routing runs on the *transfers*, after expansion, never on the raw
+    statement — the ordering §7 of the proposal insists on, because "nobody who
+    receives money from this statement" is a question about the payout rather
+    than about the form somebody filled in.
+
+    A ruleset that **fails** here — a forbid whose predicate raises, a rule
+    that tries to query — yields one constraint carrying the reason and naming
+    nobody. That is deliberate: the alternatives are to persist nothing, which
+    would leave a statement with no constraints at all and therefore payable
+    without a signature, or to resolve it permissively, which is the bug this
+    whole module is written against. A broken rule makes a payout *stuck*, and
+    stuck is the safe direction.
+    """
+    ruleset = ruleset_for(statement)
+    context = statement_context(statement, ruleset, actors=True)
+    try:
+        # Inside the guard, like `transfers` and `checks`: a rule that resolved
+        # its eligible set with a query would freeze today's membership into
+        # rows that replay differently in two years.
+        with no_queries():
+            constraints, forbids = ruleset.approval(context, list(result.transfers))
+        permitted = _approver_ids()
+        resolved = [
+            (constraint, resolve_eligibility(constraint, forbids, permitted=permitted))
+            for constraint in constraints
+        ]
+    except Exception as problem:
+        logger.warning("the section's approval rules failed: %s", problem)
+        return [
+            {
+                "name": UNRESOLVED,
+                "description": "",
+                "applicable": True,
+                "required": 1,
+                "eligible": [],
+                "excluded": [],
+                "error": f"{type(problem).__name__}: {problem}"[:500],
+            }
+        ]
+    return [
+        {
+            "name": constraint.name[:100],
+            "description": str(constraint.description),
+            "applicable": bool(constraint.applicable),
+            "required": int(constraint.required),
+            "eligible": list(eligibility.eligible),
+            "excluded": [
+                {"member": item.member, "forbid": item.forbid} for item in eligibility.excluded
+            ],
+            "error": "",
+        }
+        for constraint, eligibility in resolved
+    ]
+
+
+def _materialise_constraints(statement: Any, result: Result, *, version: str, frozen: Any) -> None:
+    """Freeze the signatures the rules ask for, with the forbids applied.
+
+    The forbids and the permission re-check are applied *here*, so the stored
+    eligible set is the set that may sign: a predicate cannot be persisted, and
+    an audit two years later must not depend on re-running a section's Python.
+    Who may sign *now* is a different question, asked by
+    :func:`current_constraint_rows` — see its docstring for why the two differ.
+    """
     statement.approval_constraint_set.all().delete()
-    rows = []
-    for position, constraint in enumerate(constraints):
-        eligibility = resolve_eligibility(constraint, forbids, permitted=permitted)
-        rows.append(
+    ApprovalConstraint.objects.bulk_create(
+        [
             ApprovalConstraint(
                 statement=statement,
                 position=position,
-                name=constraint.name[:100],
-                description=constraint.description,
-                applicable=constraint.applicable,
-                required=constraint.required,
-                eligible_member_ids=list(eligibility.eligible),
-                excluded=[
-                    {"member": item.member, "forbid": item.forbid} for item in eligibility.excluded
-                ],
+                name=row["name"],
+                description=row["description"],
+                applicable=row["applicable"],
+                required=row["required"],
+                eligible_member_ids=row["eligible"],
+                excluded=row["excluded"],
+                error=row["error"],
                 rule_version=version,
                 frozen_at=frozen,
             )
+            for position, row in enumerate(resolve_constraints(statement, result))
+        ]
+    )
+
+
+def current_constraint_rows(statement: Any) -> list[dict[str, Any]]:
+    """The same question as at submission, asked again at signing time.
+
+    The frozen :class:`~finance.store.ApprovalConstraint` rows are the record
+    of *what the rules named when the statement was handed in*, and they stay
+    exactly that. They are the wrong thing to **gate** on, though, and the
+    reason is concrete: Heidelberg's one constraint names whoever holds
+    ``process_statementsubmitted``, resolved at submission — so a treasurer
+    appointed while statements are in flight held the capability, passed the
+    permission check, and still could not sign the statements that were already
+    waiting. Before the store they could. That is a regression, and freezing
+    who *may act* is the wrong half to freeze.
+
+    So eligibility is re-resolved here, against today's permissions and today's
+    roles, while everything that is *history* — who has signed, what was
+    overridden and why — is read off the rows. If the rules cannot be resolved
+    at all today (the version is gone, a predicate broke), the frozen rows
+    stand: they were resolved when the rules worked, and falling back to them
+    is never more permissive than re-resolving would have been.
+    """
+    frozen = {row.name: row for row in statement.approval_constraint_set.all()}
+    try:
+        result = (
+            result_from_rows(statement) if rows_exist(statement) else evaluate_statement(statement)
         )
-    ApprovalConstraint.objects.bulk_create(rows)
+        rows = resolve_constraints(statement, result)
+    except Exception as problem:  # the version is unloadable, or the rules are gone
+        logger.warning("re-resolving the approval of %s failed: %s", statement.pk, problem)
+        return [row.as_row() for row in frozen.values()]
+    merged = []
+    for row in rows:
+        record = frozen.get(row["name"])
+        merged.append(
+            {
+                **row,
+                "overridden": record.overridden if record is not None else False,
+                "overridden_by": record.overridden_by_id if record is not None else None,
+                "override_reason": record.override_reason if record is not None else "",
+            }
+        )
+    return merged
 
 
 def result_from_rows(statement: Any) -> Result:

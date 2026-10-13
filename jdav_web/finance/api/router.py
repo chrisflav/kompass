@@ -425,7 +425,7 @@ def confirm_statement(request, statement_id: int, send: bool = False):
     """Confirm (pay out) a submitted statement, optionally mailing the summary."""
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.process_statementsubmitted")
-    if not statement.confirm(get_member(request)):
+    if not statement.confirm(get_member(request), user=request.user):
         raise ValidationError(_("Statement is not ready to be confirmed."))
     if send:
         member = get_member(request)
@@ -671,7 +671,9 @@ def approve_statement(request, statement_id: int, payload: ApprovalCreate):
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.approve_obj_statement", statement)
     member = get_member(request)
-    statement.approve(member, note=payload.note)
+    # The account goes on the row beside the member: a signature from an
+    # administrator with no member record is one signature from one person.
+    statement.approve(member, note=payload.note, user=request.user)
     statement.refresh_from_db()
     return approval_payload(statement, member)
 
@@ -690,6 +692,8 @@ def override_statement_approval(request, statement_id: int, payload: ApprovalOve
             _("This statement has no approval step called %(name)s.") % {"name": payload.name}
         )
     member = get_member(request)
+    if member is not None and statement.forbids_approval_by(payload.name, member):
+        raise ValidationError(_("The section's rules exclude you from this approval step."))
     statement.override_approval(payload.name, member, payload.reason)
     statement.refresh_from_db()
     return approval_payload(statement, member)

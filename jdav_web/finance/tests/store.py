@@ -34,8 +34,6 @@ from finance.engine import configured_directory
 from finance.engine import engine_version
 from finance.engine import import_from_directory
 from finance.engine import materialise
-from finance.engine import no_queries
-from finance.engine import QueryDuringEvaluation
 from finance.engine import read_sources
 from finance.engine import reference_directory
 from finance.engine import result_from_rows
@@ -780,31 +778,94 @@ class FuzzTestCase(SimpleTestCase):
 class GuardedCallsTestCase(TestCase):
     """Every call into a section's rules runs inside the query guard.
 
-    ``transfers`` and ``checks`` always did. ``approval`` did not, and it is
-    reached from ``materialise`` on every draft save — so a rule resolving its
-    eligible set with a query would have frozen today's membership into rows
-    that replay differently in two years, with nothing to notice it.
+    ``transfers`` and ``checks`` always did. ``approval`` and ``inputs`` did
+    not, and ``approval`` is reached from ``materialise`` on every draft save —
+    so a rule resolving its eligible set with a query would have frozen today's
+    membership into rows that replay differently in two years, with nothing to
+    notice it.
+
+    Both tests here drive the **real** path: the previous versions called the
+    rule inside a guard the test itself opened, which passes whether or not the
+    production code opens one, and asserted that the reference ruleset does not
+    query, which it never did.
     """
 
-    def test_a_rule_that_queries_from_approval_is_refused(self):
-        statement = Statement.objects.create(short_description="Wach", night_cost=0)
-        ruleset = active_ruleset()
-        # Built before the guard is entered, on purpose: the context is the
-        # engine's own work and queries as much as it likes. What may not query
-        # is the section's rules, which is the one call inside the block.
-        context = statement_context(statement, ruleset, actors=True)
+    #: A ruleset that reaches the database through a caller's frame, so that no
+    #: name on the import whitelist appears in it. The whitelist cannot stop
+    #: this; the guard can, and that is the point of asking from inside
+    #: ``approval``, which is where nothing was guarding.
+    QUERYING_APPROVAL = (
+        "from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS\n"
+        "\n"
+        "\n"
+        "class Nosy(Ruleset):\n"
+        "    name = 'nosy'\n"
+        "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+        "\n"
+        "    def inputs(self, ctx):\n"
+        "        return []\n"
+        "\n"
+        "    def transfers(self, ctx):\n"
+        "        return [], []\n"
+        "\n"
+        "    def approval(self, ctx, transfers):\n"
+        "        try:\n"
+        "            raise ValueError()\n"
+        "        except ValueError as problem:\n"
+        "            real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
+        "        db = real['__import__']('django.db', {}, {}, ['connection'])\n"
+        "        with db.connection.cursor() as cursor:\n"
+        "            cursor.execute('SELECT 1')\n"
+        "        return [], []\n"
+        "\n"
+        "\n"
+        "ruleset = Nosy()\n"
+    )
 
-        class Querying(type(ruleset)):
-            def approval(self, ctx, transfers):
-                # Returns nothing, because it never gets that far: the guard
-                # raises on the query itself.
-                Statement.objects.count()
+    def test_a_rule_that_queries_from_approval_leaves_a_statement_unpayable(self):
+        with TemporaryDirectory() as directory:
+            package = Path(directory)
+            (package / "__init__.py").write_text(self.QUERYING_APPROVAL, encoding="utf-8")
+            row, problems = import_from_directory(package, name="nosy")
+            self.assertEqual(problems, [], "no banned name appears in it")
+            self.assertEqual(active_version(), row)
+            statement = Statement.objects.create(short_description="Wach", night_cost=0)
+        constraint = statement.approval_constraint_set.get()
+        self.assertIn("must not query the database", constraint.error)
+        self.assertEqual(constraint.eligible_member_ids, [])
+        statement.submit(submitter=None)
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertFalse(statement.fully_approved, "a broken rule is not signed away")
+        self.assertFalse(statement.approve(None))
 
-        with self.assertRaises(QueryDuringEvaluation):
-            with no_queries():
-                Querying().approval(context, [])
+    def test_when_the_rules_cannot_be_re_resolved_at_all_the_rows_stand(self):
+        """The gate degrades to the record rather than to a 500.
+
+        Re-resolving eligibility needs the statement's version to load. If it
+        cannot — the configuration repository is gone, the stored closure is
+        unusable — the frozen rows are what the gate uses: they were resolved
+        when the rules worked, and they are never more permissive than a fresh
+        resolution would be.
+        """
+        statement = Statement.objects.create(short_description="Alt", night_cost=0)
+        statement.submit(submitter=None)
+        statement = Statement.objects.get(pk=statement.pk)
+        with patch(
+            "finance.engine.statements.resolve_constraints", side_effect=RuntimeError("gone")
+        ):
+            names = [state.name for state in statement.live_approval_states]
+        self.assertEqual(names, [row.name for row in statement.approval_constraint_set.all()])
 
     def test_the_fuzzer_runs_the_rules_under_the_guard_too(self):
+        class Nosy(HeidelbergRules):
+            def inputs(self, ctx):
+                # Returns nothing: the guard raises on the query.
+                Statement.objects.count()
+
+        problems = fuzz(Nosy(), 2, seed=11)
+        self.assertEqual(len(problems), 2)
+        self.assertIn("must not query the database", problems[0])
+        # And the reference ruleset passes the same run.
         self.assertEqual(fuzz(HeidelbergRules(), 3, seed=11), [])
 
 

@@ -14,6 +14,7 @@ that arrives as ``inputs`` lands in the column the rules read, and in the
 import datetime
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
@@ -306,6 +307,27 @@ class FinanceFormApiTestCase(TestCase):
         self.assertTrue(constraint["overridden"])
         self.assertEqual(constraint["override_reason"], "Fristende")
         self.assertEqual(constraint["overridden_by"]["id"], self.manager.pk)
+
+    def test_an_override_by_somebody_a_forbid_excludes_is_refused(self):
+        """The endpoint asks before it writes.
+
+        Heidelberg declares no forbids, so the rule itself is tested on the
+        model (:mod:`finance.tests.approval`). What this pins is that the
+        endpoint answers 422 rather than returning 200 with nothing changed,
+        which is what it would do if it left `override_approval` to refuse on
+        its own.
+        """
+        self.statement.submit(self.owner)
+        with patch.object(Statement, "forbids_approval_by", return_value=True):
+            r = self.client.post(
+                "/api/finance/statements/{}/override-approval".format(self.statement.pk),
+                data={"name": "Freigabe", "reason": "Fristende"},
+                content_type="application/json",
+                **self.auth(self.manager_user),
+            )
+        self.assertEqual(r.status_code, 422, r.content)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertFalse(statement.approval_constraint_set.get().overridden)
 
     def test_a_draft_cannot_be_overridden(self):
         r = self.client.post(

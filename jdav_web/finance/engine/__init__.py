@@ -43,6 +43,7 @@ from .loader import source_hash
 from .statements import active_ruleset
 from .statements import bind
 from .statements import cents_of
+from .statements import current_constraint_rows
 from .statements import evaluate_statement
 from .statements import freeze
 from .statements import live_rows
@@ -81,6 +82,7 @@ __all__ = [
     "decimal_params",
     "engine_version",
     "evaluate",
+    "current_constraint_rows",
     "evaluate_statement",
     "freeze",
     "fully_approved",

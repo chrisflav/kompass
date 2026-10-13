@@ -32,6 +32,7 @@ configuration repository is that documentation; these rows are the trace.
 
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -420,6 +421,20 @@ class Approval(models.Model):
         on_delete=models.SET_NULL,
         related_name="finance_approvals",
     )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Signed by account"),
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=models.SET_NULL,
+        related_name="finance_approvals",
+        help_text=_(
+            "The account that signed. Recorded beside the member so that a "
+            "signature from an administrator with no member record is still "
+            "one signature from one person rather than an anonymous tally."
+        ),
+    )
     at = models.DateTimeField(verbose_name=_("Signed on"), auto_now_add=True)
     note = models.TextField(verbose_name=_("Note"), blank=True, default="")
 
@@ -427,9 +442,40 @@ class Approval(models.Model):
         verbose_name = _("Approval")
         verbose_name_plural = _("Approvals")
         ordering = ["statement_id", "at", "pk"]
+        # One signature per signer per statement. Pressing the button twice is
+        # one person approving, and a quorum of two means two people: without
+        # these, an account with no member record could satisfy a four-eyes
+        # rule on its own.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["statement", "member"],
+                condition=Q(member__isnull=False),
+                name="finance_approval_once_per_member",
+            ),
+            models.UniqueConstraint(
+                fields=["statement", "user"],
+                condition=Q(member__isnull=True, user__isnull=False),
+                name="finance_approval_once_per_account",
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.member}: {self.at:%Y-%m-%d}"
+        return f"{self.member or self.user}: {self.at:%Y-%m-%d}"
+
+    @property
+    def signer(self):
+        """What identifies the person who signed, for counting purposes.
+
+        A member if the signature could be attributed to one, otherwise the
+        account, otherwise the fact that somebody unattributable signed — and
+        in that last case every such signature is the *same* key, because a
+        tally nobody can name must not add up to a quorum.
+        """
+        if self.member_id:
+            return ("member", self.member_id)
+        if self.user_id:
+            return ("user", self.user_id)
+        return ("unattributable",)
 
 
 class ApprovalConstraint(models.Model):
@@ -485,6 +531,16 @@ class ApprovalConstraint(models.Model):
     override_reason = models.TextField(
         verbose_name=_("Reason for the override"), blank=True, default=""
     )
+    error = models.TextField(
+        verbose_name=_("Could not be resolved"),
+        blank=True,
+        default="",
+        help_text=_(
+            "Why the rules could not say who may sign this. A constraint with "
+            "a reason here names nobody and is satisfied by nobody: a broken "
+            "rule may not be signed away."
+        ),
+    )
     rule_version = models.CharField(
         verbose_name=_("Rule version"), max_length=64, blank=True, default=""
     )
@@ -515,8 +571,9 @@ class ApprovalConstraint(models.Model):
         """The state as a person reads it, with override and quorum apart.
 
         "Does not apply" and "nobody signed" are different facts, and so are
-        "the quorum is in" and "somebody decided to go ahead anyway" — which is
-        why this has four answers rather than a boolean.
+        "the quorum is in" and "somebody decided to go ahead anyway" — which
+        is why this has more answers than a boolean. "Unresolved" is the
+        reason a payout is stuck when a section's own rule broke.
         """
         if not self.applicable:
             return _("Does not apply")
@@ -524,6 +581,12 @@ class ApprovalConstraint(models.Model):
             return _("Overridden")
         if self.satisfied:
             return _("Signed")
+        if self.error:
+            return _("Could not be resolved")
+        if self.eligible_member_ids:
+            return _("Open")
+        if self.excluded:
+            return _("Nobody may sign")
         return _("Open")
 
     def as_row(self):
@@ -538,4 +601,5 @@ class ApprovalConstraint(models.Model):
             "overridden": self.overridden,
             "overridden_by": self.overridden_by_id,
             "override_reason": self.override_reason,
+            "error": self.error,
         }

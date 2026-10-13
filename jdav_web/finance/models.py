@@ -26,6 +26,7 @@ from utils import RestrictedFileField
 
 from .engine import approval_states
 from .engine import bind as bind_ruleset
+from .engine import current_constraint_rows
 from .engine import evaluate_statement
 from .engine import freeze as freeze_obligations
 from .engine import fully_approved
@@ -34,6 +35,7 @@ from .engine import may_sign
 from .engine import result_from_rows
 from .engine import rows_exist
 from .engine import statement_params
+from .engine.approval import PERMISSION_EXCLUSION
 from .rules import is_creator
 from .rules import leads_excursion
 from .rules import may_approve
@@ -313,6 +315,15 @@ class Statement(CommonModel):
             materialise(self)
 
     def submit(self, submitter=None):
+        """Hand the statement in, and freeze the payout it was handed in with.
+
+        One wrinkle worth knowing about: a statement whose rules report a
+        problem (the one Heidelberg reports is a covered receipt with no payer)
+        is submitted but **not** frozen, because freezing a payout that is
+        known to be wrong would make the record say something false. Such a
+        statement keeps resolving live, cannot generate transactions and cannot
+        be paid out, and freezes on the first save after the problem is fixed.
+        """
         self._capture_settings_snapshot(force=True)
         self.status = self.SUBMITTED
         self.submitted_date = timezone.now()
@@ -578,52 +589,88 @@ class Statement(CommonModel):
             Statement.VALID: _("Everything is correct."),
         }[self.validity]
 
+    def _signatures(self):
+        """Who has signed, split into the named and the unattributable."""
+        signatures = list(self.approval_set.all())
+        members = [approval.member_id for approval in signatures if approval.member_id]
+        others = {approval.signer for approval in signatures if not approval.member_id}
+        return members, others
+
     @property
     def approval_states(self):
-        """Each signature the rules asked for, and whether it is in.
+        """Each signature the rules asked for, and whether it is in: the record.
 
         Read off the :class:`~finance.store.ApprovalConstraint` rows that were
         frozen at submission and the :class:`~finance.store.Approval` rows
-        signed since — never off the rules, which may have moved on. A
-        statement with no constraint rows has no constraints, which is a
-        ruleset that is happy with the capability check alone.
+        signed since. This is what the statement's page *shows* — who the
+        rules named when it was handed in — and deliberately not what decides
+        whether somebody may sign now; see :attr:`live_approval_states`.
         """
-        signatures = list(self.approval_set.all())
+        members, others = self._signatures()
         return approval_states(
             [row.as_row() for row in self.approval_constraint_set.all()],
-            [approval.member_id for approval in signatures if approval.member_id],
-            uncredited=len([approval for approval in signatures if not approval.member_id]),
+            members,
+            uncredited=others,
         )
+
+    @property
+    def live_approval_states(self):
+        """The same constraints, with eligibility resolved against today.
+
+        The gate rather than the record. Who *has* signed and what was
+        overridden come from the rows; who *may* sign is asked of the rules
+        again, because the alternative regresses against the behaviour before
+        the store: a treasurer appointed after a statement was handed in held
+        the capability and was still refused. Cached per instance, because a
+        page asks this three times.
+        """
+        if "_live_states" not in self.__dict__:
+            members, others = self._signatures()
+            self.__dict__["_live_states"] = approval_states(
+                current_constraint_rows(self), members, uncredited=others
+            )
+        return self.__dict__["_live_states"]
 
     @property
     def fully_approved(self):
         """Whether every applicable constraint has its quorum or an override."""
-        return fully_approved(self.approval_states)
+        if self.confirmed:
+            return True
+        if not self.submitted:
+            return False
+        return fully_approved(self.live_approval_states)
 
     def may_be_approved_by(self, member):
         """Whether ``member`` can still advance any open constraint.
 
         The capability — ``finance.process_statementsubmitted`` — is checked by
         the caller, as it always was; this is the second half of the question:
-        is there anything left for this person to sign? A constraint that names
-        nobody is answered by the capability alone.
+        is there anything left for this person to sign? A constraint that named
+        nobody is answered by the capability alone; one whose named people were
+        all excluded is answered by nobody.
         """
         if member is None or not self.submitted or self.confirmed:
             return False
-        return may_sign(self.approval_states, member.pk)
+        return may_sign(self.live_approval_states, member.pk)
 
-    def approve(self, member=None, note=""):
+    def approve(self, member=None, note="", user=None):
         """Record a signature, and pay out once the last one is in.
 
         Returns whether the statement ended up confirmed. A signature is
         recorded even when it does not complete the quorum — that is the point
         of having more than one — and the payout happens on the signature that
-        does.
+        does. Signing twice is signing once: the row is unique per signer, and
+        ``user`` is recorded so that an administrator with no member record is
+        still *one* person rather than an anonymous tally that can reach any
+        quorum by clicking twice.
         """
         if not self.submitted or self.confirmed:
             return False
-        Approval.objects.create(statement=self, member=member, note=note)
-        states = self.approval_states
+        Approval.objects.get_or_create(
+            statement=self, member=member, user=user, defaults={"note": note}
+        )
+        self.__dict__.pop("_live_states", None)
+        states = self.live_approval_states
         for row in self.approval_constraint_set.all():
             state = next((s for s in states if s.name == row.name), None)
             if state is not None and row.satisfied != state.satisfied:
@@ -638,22 +685,52 @@ class Statement(CommonModel):
 
         An override is a state, not an absence: the constraint stays in the
         list with who overrode it and why, because "we went ahead anyway" is
-        exactly the thing an audit has to be able to find. Returns whether the
-        statement ended up confirmed.
+        exactly the thing an audit has to be able to find.
+
+        It does **not** escape the forbids. Somebody a forbid excluded from a
+        constraint may not override that constraint: a rule that says "nobody
+        this statement pays may approve it" would otherwise be a formality for
+        anybody holding the permission, and recording that they did it is a
+        mitigation rather than a control. Returns whether the statement ended
+        up confirmed.
         """
         row = self.approval_constraint_set.filter(name=name).first()
         if row is None or not self.submitted or self.confirmed:
+            return False
+        if member is not None and self.forbids_approval_by(name, member):
             return False
         row.overridden_by = member
         row.overridden_at = timezone.now()
         row.override_reason = reason
         row.save(update_fields=["overridden_by", "overridden_at", "override_reason"])
+        self.__dict__.pop("_live_states", None)
         if not self.fully_approved:
             return False
         return self._pay_out(member)
 
+    def forbids_approval_by(self, name, member):
+        """Whether a forbid excludes ``member`` from the constraint ``name``.
+
+        The permission re-check is not a forbid: somebody excluded because they
+        did not hold the capability when the statement was handed in may hold
+        it now, and the capability is checked by the caller anyway.
+        """
+        for state in self.live_approval_states:
+            if state.name != name:
+                continue
+            return any(
+                exclusion.member == member.pk and exclusion.forbid != PERMISSION_EXCLUSION
+                for exclusion in state.excluded
+            )
+        return False
+
     def _pay_out(self, confirmer=None):
         """Flip to paid: the last step, once the signatures are in."""
+        if self.rule_result.errors:
+            # A statement whose rules report a problem has no settled payout to
+            # pay out: its rows were never frozen, and `generate_transactions`
+            # refused for the same reason.
+            return False
         if not self.validity == Statement.VALID:
             return False
         self._capture_settings_snapshot()
@@ -668,7 +745,7 @@ class Statement(CommonModel):
         self.save()
         return True
 
-    def confirm(self, confirmer=None):
+    def confirm(self, confirmer=None, user=None):
         """Sign the statement off and pay it out if that completes the quorum.
 
         The name the admin and the API have always used. It is now one
@@ -680,7 +757,7 @@ class Statement(CommonModel):
             return False
         if not self.validity == Statement.VALID:
             return False
-        return self.approve(confirmer)
+        return self.approve(confirmer, user=user)
 
     def generate_transactions(self):
         """Book one transaction per member a transfer touches.
