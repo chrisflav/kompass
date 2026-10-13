@@ -149,9 +149,15 @@ def statement_context(
     rule that routes money by who may sign it fails loudly instead of paying
     nothing and balancing the books around the hole.
     """
+    # `ruleset.permissions` is read inside the guard: it is a class attribute
+    # in every ruleset in tree, but nothing stops a section writing it as a
+    # property, and a property is code — which would then be the one line of a
+    # section's own that ran unguarded.
+    with no_queries():
+        declared = tuple(ruleset.permissions) if actors else ()
     return build_context(
         statement,
-        permissions=ruleset.permissions if actors else (),
+        permissions=declared,
         inputs=inputs,
         params=statement_params(statement),
         roles=RoleAssignment.roles_at() if actors else None,

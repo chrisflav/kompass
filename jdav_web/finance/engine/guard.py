@@ -84,15 +84,18 @@ def _refuse_query(execute: Any, sql: Any, params: Any, many: Any, context: Any) 
 class _RefusingConnection:
     """What ``connection.connection`` is while a rule runs.
 
-    The driver's connection object is a way to the database that knows nothing
-    about Django, so it cannot be wrapped — it is taken away instead, and put
-    back when the block ends.
+    The driver's connection object knows nothing about Django and cannot be
+    wrapped, so it is taken away for the duration — and this object holds **no
+    reference to it at all**. The first version kept it in a slot called
+    ``real``, which ordinary attribute lookup finds without ever reaching
+    ``__getattr__``: ``connection.connection.real`` handed the rule the real
+    driver connection back under a one-word name no list bans, which is the
+    same mistake as a name blacklist, inside the fix for a name blacklist. The
+    caller keeps the real connections in its own local and puts them back; here
+    there is nothing to find.
     """
 
-    __slots__ = ("real",)
-
-    def __init__(self, real: Any) -> None:
-        self.real = real
+    __slots__ = ()
 
     def __getattr__(self, name: str) -> Any:
         _refuse(f"connection.connection.{name}")
@@ -138,12 +141,16 @@ def no_queries() -> Iterator[None]:
             stack.enter_context(connection.execute_wrapper(_refuse_query))
             if connection.connection is not None:
                 live.append(connection)
+        # The real driver connections live here, in this frame, for exactly as
+        # long as the block does: not on the proxy, where the rule could read
+        # them back off it.
+        saved = [(connection, connection.connection) for connection in live]
         for connection in live:
-            connection.connection = _RefusingConnection(connection.connection)
+            connection.connection = _RefusingConnection()
         _state.depth = getattr(_state, "depth", 0) + 1
         try:
             yield
         finally:
             _state.depth -= 1
-            for connection in live:
-                connection.connection = connection.connection.real
+            for connection, real in saved:
+                connection.connection = real

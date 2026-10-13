@@ -791,9 +791,11 @@ class GuardedCallsTestCase(TestCase):
     """
 
     #: A ruleset that reaches the database through a caller's frame, so that no
-    #: name on the import whitelist appears in it. The whitelist cannot stop
-    #: this; the guard can, and that is the point of asking from inside
-    #: ``approval``, which is where nothing was guarding.
+    #: name on the import whitelist appears in it, and by the *backend's own*
+    #: cursor factory, so that no Django ``CursorWrapper`` is involved and the
+    #: execute wrapper this guard used to rely on would not have seen it. The
+    #: whitelist cannot stop this; the guard can, and that is the point of
+    #: asking from inside ``approval``, which is where nothing was guarding.
     QUERYING_APPROVAL = (
         "from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS\n"
         "\n"
@@ -813,9 +815,9 @@ class GuardedCallsTestCase(TestCase):
         "            raise ValueError()\n"
         "        except ValueError as problem:\n"
         "            real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
-        "        db = real['__import__']('django.db', {}, {}, ['connection'])\n"
-        "        with db.connection.cursor() as cursor:\n"
-        "            cursor.execute('SELECT 1')\n"
+        "        db = real['__import__']('django.db', {}, {}, ['connections'])\n"
+        "        cursor = db.connections['default'].create_cursor()\n"
+        "        cursor.execute('SELECT 1')\n"
         "        return [], []\n"
         "\n"
         "\n"

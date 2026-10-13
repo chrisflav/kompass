@@ -505,39 +505,111 @@ class FrameEscapeTestCase(TestCase):
     module in the process. The whitelist passing this is not a bug to be fixed
     by adding ``f_builtins`` to a list; it is why the guarantee that matters
     lives at the database connection instead.
+
+    Each ruleset below reaches the database by a route that does **not** go
+    through a Django ``CursorWrapper``, because the execute wrapper the first
+    version of this guard relied on would have caught the wrapper route — a
+    test written that way passes against the guard it was meant to replace.
     """
 
-    SOURCE = (
+    PREAMBLE = (
         "from kompass.rules import Ruleset, SECTION, PARTICIPANTS\n"
         "\n"
         "\n"
-        "class Escaping(Ruleset):\n"
-        "    name = 'escaping'\n"
-        "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
-        "\n"
-        "    def inputs(self, ctx):\n"
-        "        return []\n"
-        "\n"
-        "    def transfers(self, ctx):\n"
-        "        try:\n"
-        "            raise ValueError()\n"
-        "        except ValueError as problem:\n"
-        "            real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
-        "        db = real['__import__']('django.db', {}, {}, ['connection'])\n"
-        "        with db.connection.cursor() as cursor:\n"
-        "            cursor.execute('SELECT 1')\n"
-        "        return [], []\n"
+        "def reach():\n"
+        "    try:\n"
+        "        raise ValueError()\n"
+        "    except ValueError as problem:\n"
+        "        real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
+        "    return real['__import__']('django.db', {}, {}, ['connections'])\n"
         "\n"
         "\n"
-        "ruleset = Escaping()\n"
     )
 
-    def test_the_whitelist_passes_it_and_the_guard_still_refuses(self):
-        sources = {"__init__.py": self.SOURCE}
+    @classmethod
+    def ruleset_source(cls, body):
+        """A ruleset whose ``transfers`` runs ``body``, indented into place."""
+        lines = "".join(f"        {line}\n" for line in body)
+        return (
+            cls.PREAMBLE + "class Escaping(Ruleset):\n"
+            "    name = 'escaping'\n"
+            "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+            "\n"
+            "    def inputs(self, ctx):\n"
+            "        return []\n"
+            "\n"
+            "    def transfers(self, ctx):\n" + lines + "        return [], []\n"
+            "\n"
+            "\n"
+            "ruleset = Escaping()\n"
+        )
+
+    def test_the_backends_own_cursor_factory_refuses(self):
+        """`create_cursor` is the backend's factory; no wrapper is involved."""
+        sources = {
+            "__init__.py": self.ruleset_source(
+                [
+                    "db = reach()",
+                    "conn = db.connections['default']",
+                    "cursor = conn.create_cursor()",
+                    "cursor.execute('SELECT 1')",
+                ]
+            )
+        }
         self.assertEqual(check_sources(sources), [], "no name in it is on any list")
         result = evaluate(load(sources), context())
         self.assertIn("must not query the database", result.errors[0])
         self.assertEqual(result.transfers, ())
+
+    def test_the_driver_connection_is_gone_and_hands_nothing_back(self):
+        """The proxy used to keep the real connection in a slot called `real`.
+
+        Ordinary attribute lookup finds a slot without ever reaching
+        ``__getattr__``, so the fix for a name blacklist had a one-word name
+        in it that no list banned.
+        """
+        sources = {
+            "__init__.py": self.ruleset_source(
+                [
+                    "db = reach()",
+                    "conn = db.connections['default']",
+                    "cursor = conn.connection.real.cursor()",
+                    "cursor.execute('SELECT 1')",
+                ]
+            )
+        }
+        result = evaluate(load(sources), context())
+        self.assertIn("must not query the database", result.errors[0])
+        self.assertIn("connection.connection.real", result.errors[0])
+
+    def test_a_module_body_may_not_query_either(self):
+        """The import ran outside the guard, which was two holes at once.
+
+        A ruleset could query while being imported, and keep the cursor it got
+        for later use inside `transfers` — where a raw driver cursor goes past
+        the execute wrapper. Guarded, there is no moment at which a section's
+        own code runs unguarded, so there is nothing to stash.
+        """
+        source = (
+            self.PREAMBLE + "STASH = reach().connections['default'].create_cursor()\n"
+            "\n"
+            "\n"
+            "class Escaping(Ruleset):\n"
+            "    name = 'escaping-import'\n"
+            "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+            "\n"
+            "    def inputs(self, ctx):\n"
+            "        return []\n"
+            "\n"
+            "    def transfers(self, ctx):\n"
+            "        STASH.execute('SELECT 1')\n"
+            "        return [], []\n"
+            "\n"
+            "\n"
+            "ruleset = Escaping()\n"
+        )
+        with self.assertRaises(QueryDuringEvaluation):
+            load({"__init__.py": source})
 
 
 # --- the import whitelist --------------------------------------------------

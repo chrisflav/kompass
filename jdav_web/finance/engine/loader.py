@@ -40,6 +40,7 @@ from finance.rules_api import Ruleset
 
 from .errors import RulesetInvalid
 from .errors import RulesetRejected
+from .guard import no_queries
 from .imports import check_sources
 
 #: The prefix of every package a stored ruleset is executed into.
@@ -231,9 +232,12 @@ FINDER = StoredSourcesFinder()
 #: rulesets at once therefore waits, which is deliberate. The thing being
 #: protected is the finder's registry — a process-wide mapping — and a load
 #: costs milliseconds and happens once per version per process, so a shared
-#: lock is the cheap correct choice rather than a bottleneck. It is an
-#: ``RLock`` because a ruleset's own module body may import a submodule of
-#: itself, which re-enters this.
+#: lock is the cheap correct choice rather than a bottleneck. An ``RLock``
+#: rather than a ``Lock`` out of caution and not from a known re-entry:
+#: importing a submodule of the ruleset goes through the finder and does not
+#: come back here, so nothing re-enters it today. The cost of being wrong
+#: about that in a worker thread is a deadlock, and the cost of the superset
+#: is nothing.
 _LOAD_LOCK = threading.RLock()
 
 
@@ -272,6 +276,12 @@ def load(sources: Mapping[str, str], *, check: bool = True) -> Ruleset:
     with _LOAD_LOCK:
         FINDER.register(package, sources)
         _install()
+        # The module body is a rule as much as `transfers` is, and it ran
+        # outside the guard: a ruleset could query at import time, and — worse
+        # — keep the cursor it got for later use inside `transfers`, where a
+        # raw driver cursor goes past the execute wrapper. Guarded here, there
+        # is no moment at which a ruleset's own code runs unguarded, so there
+        # is nothing to stash.
         # `import_module`, not a hand-rolled `module_from_spec` plus
         # `sys.modules[...] = module` plus `exec_module`: that sequence
         # publishes a half-initialised module and bypasses importlib's
@@ -289,7 +299,8 @@ def load(sources: Mapping[str, str], *, check: bool = True) -> Ruleset:
         # not its dependencies) and reuses them, which is correct because they
         # are the same immutable sources. The cost is a little memory in a
         # process that has seen a broken ruleset.
-        module = import_module(package)
+        with no_queries():
+            module = import_module(package)
     return as_ruleset(module)
 
 
