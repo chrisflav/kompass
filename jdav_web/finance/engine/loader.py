@@ -226,6 +226,14 @@ FINDER = StoredSourcesFinder()
 #: Serialises registration and import. uwsgi runs this with four threads per
 #: process and recycles on RSS, so a cold worker taking two concurrent
 #: requests is routine rather than exotic.
+#:
+#: One lock for *all* versions, not one per version: loading two different
+#: rulesets at once therefore waits, which is deliberate. The thing being
+#: protected is the finder's registry — a process-wide mapping — and a load
+#: costs milliseconds and happens once per version per process, so a shared
+#: lock is the cheap correct choice rather than a bottleneck. It is an
+#: ``RLock`` because a ruleset's own module body may import a submodule of
+#: itself, which re-enters this.
 _LOAD_LOCK = threading.RLock()
 
 
@@ -272,6 +280,15 @@ def load(sources: Mapping[str, str], *, check: bool = True) -> Ruleset:
         # falls back to a *different* section's rules — and materialises them.
         # The lock around the registration is this module's own: two threads
         # loading two versions at once must not race on the finder's registry.
+        #
+        # One residue is left on purpose: if a module body raises halfway, the
+        # submodules it had already imported stay in `sys.modules`. Clearing
+        # them would mean deciding which of them a *concurrent* load of the
+        # same version is relying on, and the next load of this closure
+        # re-executes the package itself (importlib removed the failed module,
+        # not its dependencies) and reuses them, which is correct because they
+        # are the same immutable sources. The cost is a little memory in a
+        # process that has seen a broken ruleset.
         module = import_module(package)
     return as_ruleset(module)
 

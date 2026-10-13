@@ -705,33 +705,60 @@ class FuzzTestCase(SimpleTestCase):
         self.assertTrue(problems)
         self.assertIn("the other way round", problems[0])
 
-    def test_a_balance_between_two_parties_the_section_is_not_one_of(self):
-        """Closing somebody else's books does not close the section's.
+    def test_a_balance_that_closes_the_wrong_books(self):
+        """Closing the participants' books does not close the section's.
 
-        The engine guarantees that the *balancing party* comes out at zero, not
-        that the section does. A ruleset that balances a member against the
-        participants leaves every row two-ended and the section ten euro out of
-        pocket — which looks balanced to anything that only looks at the rows,
-        and is what the fuzzer's second assertion is for.
+        The engine guarantees that the party a declaration names as its
+        *destination* comes out at zero. It does not guarantee that the
+        section does — so a ruleset that balances the other way round, with
+        something else keeping the participants off zero so the direction
+        guard does not fire, leaves every row two-ended and the section ten
+        euro short. That is what the fuzzer's second assertion is for.
         """
 
         class Sideways(HeidelbergRules):
-            balance = (PARTICIPANTS, RuleMember(MemberId(1)), "rest")
+            balance = (SECTION, PARTICIPANTS, "rest")
 
             def transfers(self, ctx):
                 return [
+                    Transfer(
+                        source=SECTION,
+                        destination=PARTICIPANTS,
+                        amount=Decimal("10.00"),
+                        category="rest",
+                        rule_id="pot",
+                    ),
                     Transfer(
                         source=SECTION,
                         destination=RuleMember(MemberId(1)),
                         amount=Decimal("10.00"),
                         category="rest",
                         rule_id="gift",
-                    )
+                    ),
                 ], []
 
         problems = fuzz(Sideways(), 3, seed=5)
         self.assertEqual(len(problems), 3)
         self.assertIn("the section is out by 10.00", problems[0])
+
+    def test_a_person_may_not_be_the_party_the_books_are_balanced_against(self):
+        """The residue sink has to be a ledger, and a member is not one.
+
+        ``(PARTICIPANTS, Member(1), …)`` resolves, writes a transfer and adds
+        up — and hands that member whatever the rules did not account for,
+        which is a bill nobody wrote. §3 of the proposal claims the engine
+        makes sum-to-zero unfalsifiable; what it can promise is that the
+        declared party comes out at zero and that no transfer invents money,
+        and this is the declaration that satisfies both while being nonsense.
+        """
+
+        class Personal(HeidelbergRules):
+            balance = (PARTICIPANTS, RuleMember(MemberId(1)), "rest")
+
+        problems = fuzz(Personal(), 2, seed=5)
+        self.assertEqual(len(problems), 2)
+        self.assertIn("a payee and not a ledger", problems[0])
+        self.assertIn("member 1", problems[0])
 
     def test_a_ruleset_whose_rules_raise_is_reported(self):
         class Angry(HeidelbergRules):

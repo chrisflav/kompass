@@ -49,6 +49,34 @@ _EMPTY: dict[str, object] = {
 _PARTY_TYPES = (Member, Section, Participants)
 
 
+def party_key(party: Party) -> tuple[str, int | None]:
+    """What makes two parties the same party, for netting and for storage.
+
+    By type and id rather than by equality. :class:`~kompass.rules.Member` is
+    a frozen dataclass, so its generated ``__eq__`` is class-exact: a subclass
+    a section wrote to carry one extra field would be a *different* party to
+    every ``==`` comparison here while being the *same* party to the rows
+    (:func:`finance.engine.statements._party_fields` resolves the kind with
+    ``isinstance``). Money that nets against one key and is stored under
+    another is the shape of the bug the first review round found in
+    ``verify()``, so there is one key function and both sides call it.
+    """
+    if isinstance(party, Member):
+        return ("member", int(party.id))
+    if isinstance(party, Participants):
+        return ("participants", None)
+    return ("section", None)
+
+
+def party_label(party: Party) -> str:
+    """A party as an error message names it."""
+    if isinstance(party, Member):
+        return f"member {int(party.id)}"
+    if isinstance(party, Participants):
+        return "the participants"
+    return "the section"
+
+
 @dataclass(frozen=True)
 class Result:
     """What one evaluation produced.
@@ -97,23 +125,11 @@ class Result:
         Positive when the party is out of pocket. The balancing transfer is
         left out, because it is defined as the amount that makes this zero.
         """
-        total = Decimal("0.00")
-        for transfer in self.rule_transfers:
-            if transfer.source == party:
-                total += transfer.amount
-            if transfer.destination == party:
-                total -= transfer.amount
-        return total
+        return _net_out(self.rule_transfers, party)
 
     def amount_for(self, member: Member) -> Decimal:
         """What ``member`` receives net, over every transfer."""
-        total = Decimal("0.00")
-        for transfer in self.transfers:
-            if transfer.destination == member:
-                total += transfer.amount
-            if transfer.source == member:
-                total -= transfer.amount
-        return total
+        return -_net_out(self.transfers, member)
 
     def members(self) -> tuple[Member, ...]:
         """Every member a transfer touches, in the order they first appear."""
@@ -168,10 +184,31 @@ def _validate(transfers: Iterable[object]) -> tuple[list[Transfer], list[str]]:
 
 
 def _balance_for(ruleset: Ruleset, transfers: list[Transfer]) -> Transfer:
-    """The one transfer that closes the books, with the amount resolved here."""
+    """The one transfer that closes the books, with the amount resolved here.
+
+    What this guarantees, exactly: the party the declaration names as its
+    *destination* nets to zero once this transfer is added, and every transfer
+    has two ends, so nothing appears from nowhere. What it cannot guarantee is
+    that a sensible ruleset was written — the two checks below are the two ways
+    a declaration can be nonsense while still producing arithmetic that adds
+    up, and both used to pass silently.
+    """
     source, destination, category = ruleset.balance
     if not isinstance(source, _PARTY_TYPES) or not isinstance(destination, _PARTY_TYPES):
         raise TypeError(f"the ruleset's balance declaration names {source!r} and {destination!r}")
+    if isinstance(source, Member) or isinstance(destination, Member):
+        # A person is a payee, not a ledger. Balancing against a member makes
+        # whoever it names the residue sink for everything the rules did not
+        # account for: `(Member(999), SECTION, …)` resolves, writes a transfer,
+        # and leaves that member out of pocket by the remainder with no error
+        # at all — which is the one way a ruleset can hand somebody a bill
+        # nobody wrote.
+        raise TypeError(
+            "the balance declaration names "
+            f"{party_label(source)} and {party_label(destination)}: it must be "
+            "between the section and the participants, because a person is a "
+            "payee and not a ledger"
+        )
     amount = _net_out(transfers, destination)
     if amount == 0 and _net_out(transfers, source) != 0:
         # The declaration is the wrong way round. The amount is resolved so
@@ -185,9 +222,13 @@ def _balance_for(ruleset: Ruleset, transfers: list[Transfer]) -> Transfer:
             "the balance declaration brings its destination to zero, and this one "
             f"is already there while {source!r} is not: declare it the other way round"
         )
+    # The declaration's own destination, before the swap below may exchange the
+    # two: that is the party the amount was resolved for, and the only one the
+    # engine promises anything about.
+    declared = destination
     if amount < 0:
         source, destination, amount = destination, source, -amount
-    return Transfer(
+    balance = Transfer(
         source=source,
         destination=destination,
         amount=amount.quantize(CENT),
@@ -196,15 +237,23 @@ def _balance_for(ruleset: Ruleset, transfers: list[Transfer]) -> Transfer:
         label="",
         explanation="",
     )
+    # Post hoc, because the claim is worth more than the derivation: the party
+    # this was resolved for must come out at zero. Cheap, and it is the
+    # assertion that would catch a future change to the arithmetic above.
+    residue = _net_out(transfers + [balance], declared)
+    if residue != 0:
+        raise TypeError(f"the balancing transfer leaves {party_label(declared)} out by {residue}")
+    return balance
 
 
 def _net_out(transfers: Iterable[Transfer], party: Party) -> Decimal:
     """What ``party`` pays out net over ``transfers``."""
+    key = party_key(party)
     total = Decimal("0.00")
     for transfer in transfers:
-        if transfer.source == party:
+        if party_key(transfer.source) == key:
             total += transfer.amount
-        if transfer.destination == party:
+        if party_key(transfer.destination) == key:
             total -= transfer.amount
     return total
 

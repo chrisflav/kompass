@@ -15,10 +15,12 @@ import threading
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group as AuthGroup
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.db import connections
 from django.test import SimpleTestCase
 from django.test import TestCase
 from finance.engine import active_ruleset
@@ -46,6 +48,8 @@ from finance.engine.cases import run_case
 from finance.engine.cases import run_cases
 from finance.engine.context import decimal as to_decimal
 from finance.engine.context import member_of
+from finance.engine.evaluation import party_key
+from finance.engine.evaluation import party_label
 from finance.engine.evaluation import Result as EvaluationResult
 from finance.engine.imports import check_source
 from finance.engine.imports import check_sources
@@ -390,6 +394,151 @@ class QueryGuardTestCase(TestCase):
                 Statement.objects.count()
         self.assertEqual(Statement.objects.count(), 0)
 
+    def test_every_route_to_the_database_refuses_and_not_only_the_wrapped_one(self):
+        """The first version of this guard wrapped ``execute`` and nothing else.
+
+        ``create_cursor`` is the backend's own factory, ``chunked_cursor``
+        hands out a server-side cursor, and ``connection.connection`` is the
+        driver's own connection object, which knows nothing about Django at
+        all. Each one reaches the database without passing a ``CursorWrapper``,
+        so each one was a way past the guard while a rule was running.
+        """
+        connection = connections["default"]
+        connection.ensure_connection()
+        with no_queries():
+            for route in (
+                connection.cursor,
+                connection._cursor,
+                connection.create_cursor,
+                connection.chunked_cursor,
+                connection.ensure_connection,
+                connection.connect,
+            ):
+                with self.assertRaises(QueryDuringEvaluation):
+                    route()
+            with self.assertRaises(QueryDuringEvaluation):
+                connection.connection.cursor()
+        # And the connection is itself again afterwards, driver object included.
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchone()[0], 1)
+        self.assertIsNotNone(connection.connection.cursor())
+
+    def test_a_cursor_taken_before_the_block_still_refuses_to_execute(self):
+        """The execute wrapper stays, as the second net.
+
+        A cursor that predates the block is the one thing the connection-level
+        guard cannot take away, so the wrapper that the first version of this
+        guard relied on alone is kept for exactly that case.
+        """
+        connection = connections["default"]
+        with connection.cursor() as cursor:
+            with no_queries():
+                with self.assertRaises(QueryDuringEvaluation):
+                    cursor.execute("SELECT 1")
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchone()[0], 1)
+
+
+class PartyIdentityTestCase(SimpleTestCase):
+    """What makes two parties the same party, for netting and for storage.
+
+    :class:`~kompass.rules.Member` is a frozen dataclass, so ``==`` is
+    class-exact. A section that subclassed it to carry one more field would
+    have had money net against one identity and be stored under another, which
+    is the same root as the first review round's finding about ``verify()``
+    comparing amounts without comparing recipients.
+    """
+
+    def test_a_party_is_the_same_party_whatever_class_it_wears(self):
+        class Tagged(Member):
+            pass
+
+        plain, tagged = Member(MemberId(7)), Tagged(MemberId(7))
+        self.assertNotEqual(plain, tagged, "equality is class-exact, which is the trap")
+        self.assertEqual(party_key(plain), party_key(tagged))
+        self.assertEqual(party_key(SECTION), ("section", None))
+        self.assertEqual(party_key(PARTICIPANTS), ("participants", None))
+        self.assertEqual(party_label(plain), "member 7")
+        self.assertEqual(party_label(tagged), "member 7")
+        self.assertEqual(party_label(SECTION), "the section")
+        self.assertEqual(party_label(PARTICIPANTS), "the participants")
+
+    def test_money_nets_against_the_subclass_too(self):
+        class Tagged(Member):
+            pass
+
+        transfers = [
+            Transfer(SECTION, Tagged(MemberId(7)), Decimal("5.00"), "a", rule_id="a"),
+            Transfer(Member(MemberId(7)), SECTION, Decimal("2.00"), "b", rule_id="b"),
+        ]
+        result = Result(
+            transfers=tuple(transfers), errors=(), checks=(), declarations=(), balance=None
+        )
+        self.assertEqual(result.amount_for(Member(MemberId(7))), Decimal("3.00"))
+
+    def test_the_balance_is_checked_after_the_fact_as_well(self):
+        """An assertion, with the proof that it fires.
+
+        ``_balance_for`` resolves its amount so that the declared party nets to
+        zero, so this cannot fail as the code stands — which is the point of
+        checking it rather than asserting it in a docstring: the day somebody
+        changes the arithmetic above it, the check is what notices. A check
+        nobody has ever seen fail is a check nobody knows works, so the netting
+        is forced to disagree with itself here.
+        """
+        with patch(
+            "finance.engine.evaluation._net_out",
+            side_effect=[Decimal("10.00"), Decimal("0.01")],
+        ):
+            result = evaluate(Fixed(), context())
+        self.assertIn("out by 0.01", result.errors[0])
+        self.assertEqual(result.transfers, ())
+
+
+class FrameEscapeTestCase(TestCase):
+    """The escape no blacklist catches, and the guard that catches it anyway.
+
+    Four lines that mention no banned name reach a caller's frame and read its
+    ``f_builtins`` — the interpreter's real builtins, not the restricted
+    mapping the loader installs — and from there ``__import__`` and every
+    module in the process. The whitelist passing this is not a bug to be fixed
+    by adding ``f_builtins`` to a list; it is why the guarantee that matters
+    lives at the database connection instead.
+    """
+
+    SOURCE = (
+        "from kompass.rules import Ruleset, SECTION, PARTICIPANTS\n"
+        "\n"
+        "\n"
+        "class Escaping(Ruleset):\n"
+        "    name = 'escaping'\n"
+        "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+        "\n"
+        "    def inputs(self, ctx):\n"
+        "        return []\n"
+        "\n"
+        "    def transfers(self, ctx):\n"
+        "        try:\n"
+        "            raise ValueError()\n"
+        "        except ValueError as problem:\n"
+        "            real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
+        "        db = real['__import__']('django.db', {}, {}, ['connection'])\n"
+        "        with db.connection.cursor() as cursor:\n"
+        "            cursor.execute('SELECT 1')\n"
+        "        return [], []\n"
+        "\n"
+        "\n"
+        "ruleset = Escaping()\n"
+    )
+
+    def test_the_whitelist_passes_it_and_the_guard_still_refuses(self):
+        sources = {"__init__.py": self.SOURCE}
+        self.assertEqual(check_sources(sources), [], "no name in it is on any list")
+        result = evaluate(load(sources), context())
+        self.assertIn("must not query the database", result.errors[0])
+        self.assertEqual(result.transfers, ())
+
 
 # --- the import whitelist --------------------------------------------------
 
@@ -472,6 +621,36 @@ class ImportWhitelistTestCase(SimpleTestCase):
     def test_the_reference_ruleset_passes_its_own_check(self):
         self.assertEqual(check_sources(read_sources(REFERENCE)), [])
 
+    def test_the_two_dunders_ordinary_python_needs(self):
+        """A parameterised base ruleset and a ruleset that labels itself.
+
+        ``super().__init__(…)`` and ``self.__class__.__name__`` are the two
+        spellings the dunder list refused and should not have: a section
+        writing a base class with parameters hits the first on its second
+        ruleset, and neither reaches anything. What they must not open is the
+        chain the list exists for, so the attribute *after* a ``__class__`` is
+        still what decides.
+        """
+        allowed = (
+            "class Base:\n"
+            "    def __init__(self, rate):\n"
+            "        self.rate = rate\n"
+            "\n"
+            "class Derived(Base):\n"
+            "    def __init__(self):\n"
+            "        super().__init__(2)\n"
+            "    def label(self):\n"
+            "        return self.__class__.__name__ + self.__class__.__qualname__\n"
+        )
+        self.assertEqual(check_source("a.py", allowed), [])
+        for escape in (
+            "x = self.__class__.__init__\n",
+            "x = self.__class__.__mro__\n",
+            "x = other.__init__\n",
+            "x = self.__class__.__bases__\n",
+        ):
+            self.assertTrue(check_source("a.py", escape), escape)
+
 
 # --- the loader ------------------------------------------------------------
 
@@ -512,11 +691,25 @@ SHARE = Decimal("1")
 """
 
 
-def stored(tag, amount):
+#: A helpers module whose *body* takes long enough to lose the GIL several
+#: times over (the switch interval is 5 ms). The package's ``__init__`` is
+#: therefore half-executed for a measurable while, which is the window the old
+#: loader published a module into.
+SLOW_HELPERS_SOURCE = """
+from decimal import Decimal
+
+AMOUNT = Decimal("0")
+for _tick in range(30000):
+    AMOUNT += Decimal("{amount}") / Decimal("30000")
+"""
+
+
+def stored(tag, amount, *, slow=False):
     """A two-file ruleset package, as a version would be stored."""
+    helpers = SLOW_HELPERS_SOURCE if slow else HELPERS_SOURCE
     return {
         "__init__.py": RULESET_SOURCE.format(tag=tag),
-        "helpers/__init__.py": HELPERS_SOURCE.format(amount=amount),
+        "helpers/__init__.py": helpers.format(amount=amount),
         "rates.py": RATES_SOURCE,
     }
 
@@ -849,7 +1042,10 @@ class ConcurrentLoadTestCase(SimpleTestCase):
     """
 
     def test_six_threads_loading_at_once_all_get_the_same_ruleset(self):
-        sources = stored("concurrent", "7.00")
+        # `slow=True` is what gives this test teeth: with a package body that
+        # executes faster than a thread switch, six threads serialise by luck
+        # and the old racy loader passed too.
+        sources = stored("concurrent", "7.00", slow=True)
         results: list[object] = []
         errors: list[BaseException] = []
 

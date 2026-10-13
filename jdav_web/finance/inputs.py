@@ -24,13 +24,17 @@ anything is written — because approval must never fail on arithmetic that
 could have been checked when the form was submitted.
 """
 
+from collections.abc import Mapping
 from decimal import Decimal
 from decimal import InvalidOperation
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from finance.rules_api import Input
 from members.models import Member
 
+from .engine import no_queries
 from .engine import ruleset_for
 from .engine import statement_context
 
@@ -38,7 +42,7 @@ from .engine import statement_context
 MEMBER_TYPES = {"member": False, "member_set": True}
 
 
-def declarations(statement):
+def declarations(statement: Any) -> list[Input]:
     """The questions ``statement`` still has to ask, in order.
 
     Asked through ``relevant_inputs`` rather than ``inputs``, against the
@@ -50,10 +54,15 @@ def declarations(statement):
     ``PATCH``.
     """
     ruleset = ruleset_for(statement)
-    return list(ruleset.relevant_inputs(statement_context(statement, ruleset)))
+    context = statement_context(statement, ruleset)
+    # Inside the guard, like `transfers`, `checks` and `approval`: this is the
+    # `/form` endpoint's entry into a section's own code, and a declaration
+    # that queried would make the form depend on the day it was rendered.
+    with no_queries():
+        return list(ruleset.relevant_inputs(context))
 
 
-def options_for(declaration):
+def options_for(declaration: Input) -> list[dict[str, Any]]:
     """``[{id, name}]`` for a declaration that names people.
 
     The rules offered ids; this is where they become something to show. A
@@ -66,7 +75,7 @@ def options_for(declaration):
     return [{"id": pk, "name": by_id[pk].name} for pk in ids if pk in by_id]
 
 
-def rendered(statement):
+def rendered(statement: Any) -> list[dict[str, Any]]:
     """The whole form as a client needs it: declarations with resolved options."""
     return [
         {
@@ -82,7 +91,7 @@ def rendered(statement):
     ]
 
 
-def clean(statement, values):
+def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
     """Validate ``values`` against the declarations, or raise.
 
     Returns the cleaned answers, with members resolved to ids and money to
@@ -99,7 +108,7 @@ def clean(statement, values):
     return cleaned
 
 
-def clean_value(declaration, value):
+def clean_value(declaration: Input, value: Any) -> Any:
     """One answer, checked against one declaration and converted.
 
     Public because it is the whole of the widget vocabulary in one place:
@@ -118,7 +127,7 @@ def clean_value(declaration, value):
     return "" if value is None else str(value)
 
 
-def _clean_members(declaration, value):
+def _clean_members(declaration: Input, value: Any) -> Any:
     """Who may be named: exactly the people the rules offered, no more.
 
     This is ``_resolve_recipient`` and ``_validate_allowance_count``, both at
@@ -147,7 +156,7 @@ def _clean_members(declaration, value):
     return resolved if many else resolved[0]
 
 
-def _clean_money(declaration, value):
+def _clean_money(declaration: Input, value: Any) -> Decimal:
     try:
         amount = Decimal(str(value if value is not None else 0))
     except InvalidOperation:
@@ -161,7 +170,7 @@ def _clean_money(declaration, value):
     return amount
 
 
-def _clean_int(declaration, value):
+def _clean_int(declaration: Input, value: Any) -> int:
     try:
         number = int(value if value is not None else 0)
     except (TypeError, ValueError):
@@ -170,14 +179,30 @@ def _clean_int(declaration, value):
         ) from None
     if declaration.max is not None and number > declaration.max:
         raise ValidationError(
-            _("%(label)s is at most %(max)s.")
+            _("%(label)s may be at most %(max)s.")
             % {"label": str(declaration.label), "max": str(declaration.max)}
         )
     return number
 
 
-def stored(values):
-    """``values`` as the ``inputs`` column keeps them: JSON, money as text."""
+def stored(values: Mapping[str, Any]) -> dict[str, Any]:
+    """``values`` as the ``inputs`` column keeps them: JSON, money as text.
+
+    .. warning::
+
+       ``Statement.inputs`` is **written but not read** while the four
+       Heidelberg columns exist: ``statement_inputs`` resolves the answers
+       from the columns, and the admin's forms write the columns without
+       touching this field. So it can and does drift — an admin edit leaves it
+       stale, and a key the rules stopped asking for stays in it, because this
+       merges rather than replaces.
+
+       The migration that drops those columns (step 3's second half) must
+       therefore back-fill from **the columns**, not from this field, and must
+       drop the keys no declaration asks for. Reading this field as
+       authoritative is the one way to make a stale answer win over the one a
+       person actually saved.
+    """
     return {
         key: str(value) if isinstance(value, Decimal) else value for key, value in values.items()
     }

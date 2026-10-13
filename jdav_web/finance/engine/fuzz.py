@@ -43,6 +43,7 @@ from finance.rules_api import StatementInfo
 from finance.rules_api import TourApproach
 
 from .evaluation import evaluate
+from .guard import no_queries
 from .versions import check_directory
 from .versions import decimal_params
 from .versions import parameters_from_settings
@@ -114,7 +115,12 @@ def random_context(rng: random.Random, params: dict[str, Decimal]) -> RuleContex
             ljp=ljp,
         ),
         statement=StatementInfo(id=1, creator=leaders[0], submitter=None),
-        roles=Roles({}),
+        # Unresolved rather than empty: a random statement is not a statement
+        # where nobody holds any role, it is one where the roles were never
+        # looked up. Reading one must raise, which is the whole point of the
+        # sentinel — handing the fuzzer `Roles({})` would make it blind to
+        # exactly the bug the sentinel exists for.
+        roles=Roles.unresolved(),
         permissions={},
     )
 
@@ -152,7 +158,17 @@ def fuzz(ruleset: Ruleset, rounds: int, *, seed: int | None = None) -> list[str]
         round_seed = round_number if seed is None else seed + round_number
         rng = random.Random(round_seed)
         context = random_context(rng, params)
-        declarations = ruleset.inputs(context)
+        # Guarded like every other call into a section's rules: `inputs` is a
+        # rule too, and a declaration that resolved its options with a query
+        # would be a question whose answer depends on the day it was asked.
+        # Reported rather than raised, because a fuzzer that falls over is a
+        # fuzzer that tells you nothing about the other 199 rounds.
+        try:
+            with no_queries():
+                declarations = list(ruleset.inputs(context))
+        except Exception as problem:
+            problems.append(f"seed {round_seed}: the section's rules failed: {problem}")
+            continue
         answers = {declaration.key: random_answer(rng, declaration) for declaration in declarations}
         result = evaluate(ruleset, replace(context, inputs=Inputs(answers)))
         if result.errors:
