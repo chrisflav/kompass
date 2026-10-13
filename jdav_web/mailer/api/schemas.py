@@ -109,7 +109,7 @@ class MessageBrief(ModelSchema):
 
     class Meta:
         model = Message
-        fields = ["subject", "sent"]
+        fields = ["subject", "sent", "created_at"]
 
     @staticmethod
     def resolve_recipients(obj) -> str:

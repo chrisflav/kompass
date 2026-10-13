@@ -15,13 +15,17 @@ admin, where attachments are edited inline in the message change view), so the
 same ``change_obj_message`` predicate guards them.
 """
 
+import datetime
+
 from contrib.api.perms import authorize
 from contrib.api.perms import Forbidden
 from contrib.api.perms import get_authorized
 from contrib.api.perms import get_member
 from contrib.permissions import scope_queryset
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from mailer.models import Attachment
 from mailer.models import EmailAddress
@@ -102,9 +106,17 @@ def delete_email_address(request, address_id: int):
 
 
 @router.get("/messages", response=list[MessageBrief])
-def list_messages(request):
-    """Messages the user may list, creator-scoped by the shared permission filter."""
+def list_messages(request, since: datetime.date | None = None):
+    """Messages the user may list, creator-scoped by the shared permission filter.
+
+    With ``since``, only messages created on or after that day are listed, plus
+    every unsent draft regardless of its age, so no open draft drops out of
+    view. Without it, every message is listed.
+    """
     queryset = Message.objects.select_related("to_freizeit", "to_notelist").order_by("-id")
+    if since is not None:
+        start = timezone.make_aware(datetime.datetime.combine(since, datetime.time.min))
+        queryset = queryset.filter(Q(sent=False) | Q(created_at__gte=start))
     return Message.prefetch_recipients(scope_queryset(request.user, queryset, model=Message))
 
 

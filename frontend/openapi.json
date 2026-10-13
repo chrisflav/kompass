@@ -5842,7 +5842,25 @@
       "get": {
         "operationId": "mailer_api_router_list_messages",
         "summary": "List Messages",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            },
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -5859,7 +5877,7 @@
             }
           }
         },
-        "description": "Messages the user may list, creator-scoped by the shared permission filter.",
+        "description": "Messages the user may list, creator-scoped by the shared permission filter.\n\nWith ``since``, only messages created on or after that day are listed, plus\nevery unsent draft regardless of its age, so no open draft drops out of\nview. Without it, every message is listed.",
         "tags": [
           "mailer"
         ],
@@ -16584,12 +16602,18 @@
             "default": false,
             "title": "Sent",
             "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "recipients",
-          "subject"
+          "subject",
+          "created_at"
         ],
         "title": "MessageBrief",
         "type": "object"

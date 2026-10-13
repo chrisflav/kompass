@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -87,5 +88,24 @@ describe("shared reference lists", () => {
 
     await user.click(screen.getByRole("button", { name: "weiter" }));
     await waitFor(() => expect(calls.count).toBe(2));
+  });
+});
+
+describe("message query keys", () => {
+  it("invalidates both list windows, and the details, with the messages key", async () => {
+    const qc = new QueryClient();
+    const recent = queryKeys.messageList("2025-10-12");
+    const all = queryKeys.messageList(null);
+    const detail = ["mailer", "messages", 4];
+    const addresses = queryKeys.emailAddresses();
+    for (const key of [recent, all, detail, addresses]) qc.setQueryData(key, []);
+    expect(recent).not.toEqual(all);
+
+    await qc.invalidateQueries({ queryKey: queryKeys.messages() });
+
+    expect(qc.getQueryState(recent)?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(all)?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(detail)?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(addresses)?.isInvalidated).toBe(false);
   });
 });

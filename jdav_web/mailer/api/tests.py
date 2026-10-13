@@ -240,18 +240,18 @@ class MailerApiTestCase(TestCase):
             else:
                 message.to_members.add(self.owner)
 
-    def list_messages_counting_queries(self, headers):
+    def list_messages_counting_queries(self, headers, path):
         with CaptureQueriesContext(connection) as queries:
-            r = self.client.get("/api/mailer/messages", **headers)
+            r = self.client.get(path, **headers)
         self.assertEqual(r.status_code, 200)
         return r.json(), len(queries)
 
-    def assert_list_queries_do_not_grow(self, user, creator):
+    def assert_list_queries_do_not_grow(self, user, creator, path="/api/mailer/messages"):
         headers = self.auth(user)
         self.make_recipient_messages(2, creator)
-        few, few_queries = self.list_messages_counting_queries(headers)
+        few, few_queries = self.list_messages_counting_queries(headers, path)
         self.make_recipient_messages(4, creator)
-        many, many_queries = self.list_messages_counting_queries(headers)
+        many, many_queries = self.list_messages_counting_queries(headers, path)
 
         self.assertEqual(len(few), 2)
         self.assertEqual(len(many), 6)
@@ -264,6 +264,69 @@ class MailerApiTestCase(TestCase):
     def test_creator_message_list_queries_do_not_grow_with_messages(self):
         # no global permissions: the list is scoped to the creator
         self.assert_list_queries_do_not_grow(self.owner_user, self.owner)
+
+    def test_recent_message_list_queries_do_not_grow_with_messages(self):
+        since = timezone.localdate() - datetime.timedelta(days=365)
+        path = "/api/mailer/messages?since={}".format(since.isoformat())
+        self.assert_list_queries_do_not_grow(self.admin_user, self.admin, path)
+
+    # --- message list window ----------------------------------------------
+
+    def make_dated_message(self, subject, created_at, sent=True):
+        message = Message.objects.create(
+            subject=subject, content="Body", created_by=self.admin, sent=sent
+        )
+        message.to_members.add(self.owner)
+        # ``created_at`` is set on creation, so date the message afterwards
+        Message.objects.filter(pk=message.pk).update(created_at=created_at)
+        return message
+
+    def list_subjects(self, user, query=""):
+        r = self.client.get("/api/mailer/messages" + query, **self.auth(user))
+        self.assertEqual(r.status_code, 200, r.content)
+        return {row["subject"] for row in r.json()}
+
+    def test_message_list_since_hides_older_sent_messages(self):
+        now = timezone.now()
+        self.make_dated_message("old", now - datetime.timedelta(days=500))
+        self.make_dated_message("recent", now - datetime.timedelta(days=30))
+        self.make_dated_message("old draft", now - datetime.timedelta(days=500), sent=False)
+        since = (timezone.localdate() - datetime.timedelta(days=365)).isoformat()
+
+        # unsent drafts are listed however old they are
+        self.assertEqual(
+            self.list_subjects(self.admin_user, "?since=" + since), {"recent", "old draft"}
+        )
+        # without ``since``, every message is listed
+        self.assertEqual(self.list_subjects(self.admin_user), {"old", "recent", "old draft"})
+
+    def test_message_list_since_starts_at_local_midnight(self):
+        since = datetime.date(2025, 3, 1)
+        start = timezone.make_aware(datetime.datetime(2025, 3, 1))
+        self.make_dated_message("at midnight", start)
+        self.make_dated_message("just before", start - datetime.timedelta(microseconds=1))
+        # the day starts at midnight in the local time zone, not in UTC
+        self.assertEqual(
+            self.list_subjects(self.admin_user, "?since=" + since.isoformat()), {"at midnight"}
+        )
+
+    def test_message_list_since_keeps_creator_scope(self):
+        now = timezone.now()
+        mine = self.make_dated_message("mine", now)
+        Message.objects.filter(pk=mine.pk).update(created_by=self.owner)
+        self.make_dated_message("theirs", now)
+        since = timezone.localdate().isoformat()
+        self.assertEqual(self.list_subjects(self.owner_user, "?since=" + since), {"mine"})
+
+    def test_message_list_rejects_invalid_since(self):
+        r = self.client.get("/api/mailer/messages?since=yesterday", **self.auth(self.admin_user))
+        self.assertEqual(r.status_code, 422)
+
+    def test_message_created_at_is_set_on_creation(self):
+        before = timezone.now()
+        message = self.make_message(self.owner)
+        self.assertGreaterEqual(message.created_at, before)
+        self.assertLessEqual(message.created_at, timezone.now())
 
     def test_message_list_recipients(self):
         freizeit = Freizeit.objects.create(
@@ -310,7 +373,7 @@ class MailerApiTestCase(TestCase):
             ["bare", "three", "two and unconfirmed", "two", "none"],
         )
         for row in rows:
-            self.assertEqual(set(row), {"id", "subject", "sent", "recipients"})
+            self.assertEqual(set(row), {"id", "subject", "sent", "created_at", "recipients"})
             self.assertFalse(row["sent"])
         recipients = {row["subject"]: row["recipients"].split(", ") for row in rows}
         shared = ["Alpenfuechse", "Hüttentour", "Kletterliste"]
