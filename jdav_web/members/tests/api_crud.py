@@ -598,6 +598,11 @@ class MembersCrudApiTestCase(TestCase):
         treff = Klettertreff.objects.get(pk=treff_id)
         self.assertEqual(treff.group, other_group)
         self.assertEqual(list(treff.jugendleiter.all()), [self.member])
+        # The response reflects the change, naming the new leader by id and name.
+        body = r.json()
+        self.assertEqual(body["group"]["id"], other_group.pk)
+        self.assertEqual(body["jugendleiter"], [{"id": self.member.pk, "name": self.member.name}])
+        self.assertEqual(body["attendees"], [])
 
     def test_update_training_moves_it_and_replaces_its_activities(self):
         category = self._category()

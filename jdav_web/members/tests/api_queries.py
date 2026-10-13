@@ -363,15 +363,9 @@ class KlettertreffApiQueryCountTestCase(QueryCountMixin, TestCase):
                 klettertreff=klettertreff, member=self.make_member(groups=2)
             )
 
-    def expected_people(self, klettertreff):
-        def brief(member):
-            return (member.name, set(member.group.values_list("name", flat=True)))
-
-        leaders = {m.pk: brief(m) for m in klettertreff.jugendleiter.all()}
-        attendees = {
-            a.member.pk: brief(a.member) for a in klettertreff.klettertreffattendee_set.all()
-        }
-        return leaders, attendees
+    def assertMemberRef(self, ref, member):
+        """``ref`` names ``member`` by id and name and carries nothing else."""
+        self.assertEqual(ref, {"id": member.pk, "name": member.name})
 
     def check_retrieve(self, user):
         klettertreff = self.make_klettertreff()
@@ -385,16 +379,18 @@ class KlettertreffApiQueryCountTestCase(QueryCountMixin, TestCase):
             user,
             lambda n: self.make_people(klettertreff, n),
         )
-        leaders, attendees = self.expected_people(klettertreff)
-        self.assertEqual(len(leaders), 9)
-        self.assertEqual(len(attendees), 10)
         self.assertEqual(body["group"]["name"], klettertreff.group.name)
-        self.assertEqual(
-            {m["id"]: (m["name"], set(m["groups"])) for m in body["jugendleiter"]}, leaders
-        )
-        self.assertEqual(
-            {m["id"]: (m["name"], set(m["groups"])) for m in body["attendees"]}, attendees
-        )
+        leaders = sorted(klettertreff.jugendleiter.all(), key=lambda m: m.pk)
+        self.assertEqual(len(leaders), 9)
+        self.assertEqual(len(body["jugendleiter"]), 9)
+        for ref, leader in zip(sorted(body["jugendleiter"], key=lambda m: m["id"]), leaders):
+            self.assertMemberRef(ref, leader)
+        attendees = list(klettertreff.klettertreffattendee_set.order_by("id"))
+        self.assertEqual(len(attendees), 10)
+        self.assertEqual([a["id"] for a in body["attendees"]], [a.pk for a in attendees])
+        for row, attendee in zip(body["attendees"], attendees):
+            self.assertEqual(row["klettertreff_id"], klettertreff.pk)
+            self.assertMemberRef(row["member"], attendee.member)
 
     def test_retrieve_superuser(self):
         self.check_retrieve(self.superuser)
@@ -413,14 +409,27 @@ class KlettertreffApiQueryCountTestCase(QueryCountMixin, TestCase):
         )
         expected = list(klettertreff.klettertreffattendee_set.order_by("id"))
         self.assertEqual([a["id"] for a in body], [a.pk for a in expected])
-        self.assertTrue(all(a["klettertreff_id"] == klettertreff.pk for a in body))
-        self.assertEqual(
-            [(a["member"]["id"], set(a["member"]["groups"])) for a in body],
-            [(a.member.pk, set(a.member.group.values_list("name", flat=True))) for a in expected],
-        )
+        for row, attendee in zip(body, expected):
+            self.assertEqual(row["klettertreff_id"], klettertreff.pk)
+            self.assertMemberRef(row["member"], attendee.member)
 
     def test_attendees_superuser(self):
         self.check_attendees(self.superuser)
 
     def test_attendees_viewer(self):
         self.check_attendees(self.viewer)
+
+    def test_detail_and_attendees_agree_on_the_order(self):
+        klettertreff = self.make_klettertreff()
+        # Rows whose ids run against their creation and against their members'
+        # ids: both endpoints still list them by attendee id.
+        for pk in (1003, 1002, 1001):
+            KlettertreffAttendee.objects.create(
+                pk=pk, klettertreff=klettertreff, member=self.make_member()
+            )
+        headers = self.auth(self.viewer)
+        url = "/api/members/klettertreff/{}".format(klettertreff.pk)
+        detail = self.client.get(url, **headers).json()
+        attendees = self.client.get(url + "/attendees", **headers).json()
+        self.assertEqual([a["id"] for a in detail["attendees"]], [1001, 1002, 1003])
+        self.assertEqual(attendees, detail["attendees"])

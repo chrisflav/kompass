@@ -43,7 +43,7 @@ from ninja import Schema
 
 from .schemas import GroupBrief
 from .schemas import klettertreff_attendees
-from .schemas import MemberBrief
+from .schemas import KlettertreffAttendeeOut
 
 router = Router()
 
@@ -167,14 +167,6 @@ def _apply_permission_group_m2m(permission_group, data):
 
 
 # --- schemas: klettertreff attendees --------------------------------------
-
-
-class KlettertreffAttendeeOut(Schema):
-    """A klettertreff's attendee (admin ``KlettertreffAttendeeInline``)."""
-
-    id: int
-    klettertreff_id: int
-    member: MemberBrief
 
 
 class KlettertreffAttendeeCreate(Schema):
@@ -322,7 +314,7 @@ def list_klettertreff_attendees(request, klettertreff_id: int):
     """List a klettertreff's attendees (``members.view_klettertreff``)."""
     authorize(request, "members.view_klettertreff")
     klettertreff = get_object_or_404(Klettertreff, pk=klettertreff_id)
-    return klettertreff_attendees().filter(klettertreff=klettertreff).order_by("id")
+    return klettertreff_attendees().filter(klettertreff=klettertreff)
 
 
 @router.post(

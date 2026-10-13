@@ -184,8 +184,20 @@ class ApiGapsTestCase(TestCase):
         body = r.json()
         self.assertEqual(body["location"], "Kletterhalle")
         self.assertEqual(body["group"]["id"], self.group.pk)
-        self.assertEqual({j["id"] for j in body["jugendleiter"]}, {self.owner.pk})
-        self.assertEqual({a["id"] for a in body["attendees"]}, {self.other.pk})
+        # Leaders and attendees are named by id and name only: none of their
+        # personal data (email, phone, birth date, comments, groups) is sent.
+        self.assertEqual(body["jugendleiter"], [{"id": self.owner.pk, "name": self.owner.name}])
+        attendee = KlettertreffAttendee.objects.get(klettertreff=kt)
+        self.assertEqual(
+            body["attendees"],
+            [
+                {
+                    "id": attendee.pk,
+                    "klettertreff_id": kt.pk,
+                    "member": {"id": self.other.pk, "name": self.other.name},
+                }
+            ],
+        )
 
     def test_klettertreff_detail_forbidden_without_permission(self):
         kt = self._make_klettertreff()

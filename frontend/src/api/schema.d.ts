@@ -4785,15 +4785,30 @@ export interface components {
              */
             topic: string;
         };
+        /**
+         * KlettertreffAttendeeOut
+         * @description A klettertreff's attendee (admin ``KlettertreffAttendeeInline``).
+         *
+         *     ``id`` is the attendee row's own id, which removing the attendee needs; the
+         *     member is named by :class:`MemberRef` only, since attendance pages show no
+         *     more than the name.
+         */
+        KlettertreffAttendeeOut: {
+            /** Id */
+            id: number;
+            /** Klettertreff Id */
+            klettertreff_id: number;
+            member: components["schemas"]["MemberRef"];
+        };
         /** KlettertreffOut */
         KlettertreffOut: {
             /** Id */
             id: number;
             group: components["schemas"]["GroupBrief"];
             /** Jugendleiter */
-            jugendleiter: components["schemas"]["MemberBrief"][];
+            jugendleiter: components["schemas"]["MemberRef"][];
             /** Attendees */
-            attendees: components["schemas"]["MemberBrief"][];
+            attendees: components["schemas"]["KlettertreffAttendeeOut"][];
             /**
              * Date
              * Format: date
@@ -5418,17 +5433,6 @@ export interface components {
             change_group_ids?: number[] | null;
             /** Delete Group Ids */
             delete_group_ids?: number[] | null;
-        };
-        /**
-         * KlettertreffAttendeeOut
-         * @description A klettertreff's attendee (admin ``KlettertreffAttendeeInline``).
-         */
-        KlettertreffAttendeeOut: {
-            /** Id */
-            id: number;
-            /** Klettertreff Id */
-            klettertreff_id: number;
-            member: components["schemas"]["MemberBrief"];
         };
         /**
          * KlettertreffAttendeeCreate

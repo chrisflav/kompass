@@ -56,7 +56,7 @@ from .schemas import MemberTrainingUpdate
 from .schemas import MemberUpdate
 from .schemas import MeOut
 from .schemas import prefetch_excursion_leaders
-from .schemas import prefetch_klettertreff_brief_leaders
+from .schemas import prefetch_klettertreff_leaders
 from .schemas import RegistrationBrief
 from .schemas import TrainingBrief
 from .schemas import TrainingCategoryOut
@@ -513,6 +513,18 @@ def delete_training(request, training_id: int):
 # --- klettertreff ---------------------------------------------------------
 
 
+def _klettertreff_detail():
+    """Klettertreffs with what :class:`KlettertreffOut` reads, loaded in bulk.
+
+    The youth leaders and attendees are loaded in one query each, so the query
+    count does not grow with the number of people.
+    """
+    return Klettertreff.objects.select_related("group").prefetch_related(
+        prefetch_klettertreff_leaders(),
+        Prefetch("klettertreffattendee_set", queryset=klettertreff_attendees()),
+    )
+
+
 @router.get("/klettertreff", response=list[KlettertreffBrief])
 def list_klettertreff(request):
     """Klettertreff events the user may view.
@@ -523,7 +535,7 @@ def list_klettertreff(request):
     authorize(request, "members.view_klettertreff")
     return (
         Klettertreff.objects.select_related("group")
-        .prefetch_related(prefetch_klettertreff_brief_leaders())
+        .prefetch_related(prefetch_klettertreff_leaders())
         .order_by("-date")
     )
 
@@ -548,13 +560,7 @@ def create_klettertreff(request, payload: KlettertreffCreate):
 def retrieve_klettertreff(request, klettertreff_id: int):
     """Full Klettertreff detail (plain Django ``members.view_klettertreff`` perm)."""
     authorize(request, "members.view_klettertreff")
-    # Load the youth leaders and attendees with their groups in bulk, so the
-    # query count does not grow with the number of people.
-    queryset = Klettertreff.objects.select_related("group").prefetch_related(
-        Prefetch("jugendleiter", queryset=Member.objects.prefetch_related("group")),
-        Prefetch("klettertreffattendee_set", queryset=klettertreff_attendees()),
-    )
-    return get_object_or_404(queryset, pk=klettertreff_id)
+    return get_object_or_404(_klettertreff_detail(), pk=klettertreff_id)
 
 
 @router.patch("/klettertreff/{klettertreff_id}", response=KlettertreffOut)
@@ -575,7 +581,7 @@ def update_klettertreff(request, klettertreff_id: int, payload: KlettertreffUpda
     klettertreff.save()
     if data.get("jugendleiter_ids") is not None:
         klettertreff.jugendleiter.set(data["jugendleiter_ids"])
-    return klettertreff
+    return _klettertreff_detail().get(pk=klettertreff.pk)
 
 
 @router.delete("/klettertreff/{klettertreff_id}", response={204: None})
