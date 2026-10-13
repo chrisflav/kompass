@@ -46,6 +46,15 @@ class Command(BaseCommand):
         if not directory.is_dir():
             raise CommandError(f"{directory} is not a directory")
         where = "the configured ruleset" if ruleset_directory() else "the reference ruleset"
+        # Before the import, not after it. These two beat entries used to be
+        # installed on the success path only, so a deployment whose package
+        # does not compile — the one deployment where an hourly re-import and
+        # a nightly `verifyrulesets` matter most — never got either, and the
+        # entrypoint's `|| true` hid it. `verify()` is what stands behind
+        # `RuleSet` immutability against a stray `QuerySet.update()`, so this
+        # is load-bearing rather than tidy.
+        ensure_poll_task()
+        ensure_verify_task()
         row, problems = import_from_directory(
             directory, name=options["name"], revision=options["revision"]
         )
@@ -62,6 +71,4 @@ class Command(BaseCommand):
                 )
             )
             raise CommandError("the ruleset was stored as a draft")
-        ensure_poll_task()
-        ensure_verify_task()
         self.stdout.write(self.style.SUCCESS(f"{where} is active: {row} ({directory})"))

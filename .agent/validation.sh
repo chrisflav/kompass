@@ -49,13 +49,14 @@ fi
 # Whether anything in them is still English. `makemessages` produces no diff for an entry whose
 # `msgstr` is empty, and CI's fuzzy check does not look at one either, so a new string can reach a
 # German deployment untranslated with every gate green -- which is how two explanatory sentences on
-# the finance admin's new pages did.
+# the finance admin's new pages did. `--no-obsolete` because an obsolete entry (`#~`) is a string
+# no code mentions any more: counting those would fail the build while printing nothing to fix.
 UNTRANSLATED=0
 for CATALOGUE in $(find . -name '*.po' -not -path './.venv/*' -not -path './node_modules/*'); do
-  COUNT=$(msgattrib --untranslated "$CATALOGUE" | grep -c '^msgid "' || true)
+  COUNT=$(msgattrib --untranslated --no-obsolete "$CATALOGUE" | grep -c '^msgid "' || true)
   if [ "$COUNT" -gt 0 ]; then
     echo "$CATALOGUE has untranslated entries:"
-    msgattrib --untranslated "$CATALOGUE" | grep '^msgid "' | grep -v '^msgid ""$'
+    msgattrib --untranslated --no-obsolete "$CATALOGUE" | grep '^msgid "' | grep -v '^msgid ""$'
     UNTRANSLATED=1
   fi
 done

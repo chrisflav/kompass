@@ -94,6 +94,24 @@ class ImportRulesetCommandTestCase(TestCase):
         self.assertIn("no version is active", err.getvalue())
 
     @override_settings(FINANCE_RULESET_POLL_MINUTES=15)
+    def test_the_schedule_is_installed_even_when_the_package_does_not_compile(self):
+        """The deployment that most needs the nightly check is the broken one.
+
+        Both beat entries used to be installed after the import, on the
+        success path, so a section whose package fails to compile got neither
+        — no hourly retry that would pick the fix up, and no ``verifyrulesets``
+        at all, which is the only thing standing behind ``RuleSet``
+        immutability against a stray ``QuerySet.update()``. The entrypoint's
+        ``|| true`` then hid the whole thing.
+        """
+        err = StringIO()
+        with TemporaryDirectory() as directory:
+            with self.assertRaises(CommandError):
+                call_command("importruleset", str(refused_package(directory)), stderr=err)
+        self.assertEqual(PeriodicTask.objects.get(name=POLL_TASK_NAME).interval.every, 15)
+        self.assertTrue(PeriodicTask.objects.filter(name=VERIFY_TASK_NAME).exists())
+
+    @override_settings(FINANCE_RULESET_POLL_MINUTES=15)
     def test_the_import_keeps_the_poll_in_step_with_the_setting(self):
         call_command("importruleset", stdout=StringIO())
         task = PeriodicTask.objects.get(name=POLL_TASK_NAME)

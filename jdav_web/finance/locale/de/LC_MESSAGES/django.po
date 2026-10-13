@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 00:07+0200\n"
+"POT-Creation-Date: 2026-10-13 23:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -276,6 +276,9 @@ msgstr "Ein Übergehen muss begründet werden."
 msgid "This statement has no approval step called %(name)s."
 msgstr "Diese Abrechnung hat keinen Freigabeschritt namens %(name)s."
 
+msgid "The section's rules exclude you from this approval step."
+msgstr "Die Regeln der Sektion schließen dich von diesem Freigabeschritt aus."
+
 msgid "Finance"
 msgstr "Finanzen"
 
@@ -296,8 +299,8 @@ msgid "%(label)s is not a whole number."
 msgstr "%(label)s ist keine ganze Zahl."
 
 #, python-format
-msgid "%(label)s is at most %(max)s."
-msgstr "%(label)s ist höchstens %(max)s."
+msgid "%(label)s may be at most %(max)s."
+msgstr "%(label)s darf höchstens %(max)s sein."
 
 msgid "Name"
 msgstr "Name"
@@ -365,7 +368,7 @@ msgstr ""
 "Berechnung von Zuschüssen aus dem Jugendetat."
 
 msgid "Answers"
-msgstr "Angaben"
+msgstr "Antworten"
 
 msgid ""
 "The answers to the questions the section's rules ask, by key. The four "
@@ -598,7 +601,7 @@ msgid "Cases passed on"
 msgstr "Testfälle bestanden am"
 
 msgid "Supersedes"
-msgstr "Ersetzt"
+msgstr "Ersetzt Version"
 
 msgid "Ruleset versions"
 msgstr "Regelwerk-Versionen"
@@ -674,7 +677,7 @@ msgid ""
 "is written beside it."
 msgstr ""
 "Wird beim Einreichen gesetzt. Eine festgeschriebene Zeile wird nie geändert: "
-"musste die Auszahlung neu aufgelöst werden, wird diese Zeile ersetzt und die "
+"musste die Auszahlung neu ermittelt werden, wird diese Zeile ersetzt und die "
 "neue daneben geschrieben."
 
 msgid "Superseded on"
@@ -682,7 +685,7 @@ msgstr "Ersetzt am"
 
 msgid "Set when a later resolution replaced this row. It is kept, not deleted."
 msgstr ""
-"Wird gesetzt, wenn eine spätere Auflösung diese Zeile ersetzt hat. Sie "
+"Wird gesetzt, wenn eine spätere Ermittlung diese Zeile ersetzt hat. Sie "
 "bleibt erhalten und wird nicht gelöscht."
 
 msgid "Obligations"
@@ -690,6 +693,18 @@ msgstr "Verbindlichkeiten"
 
 msgid "Signed by"
 msgstr "Unterschrieben von"
+
+msgid "Signed by account"
+msgstr "Unterschrieben von Konto"
+
+msgid ""
+"The account that signed. Recorded beside the member so that a signature from "
+"an administrator with no member record is still one signature from one "
+"person rather than an anonymous tally."
+msgstr ""
+"Das Konto, das unterschrieben hat. Wird neben dem Mitglied festgehalten, "
+"damit die Unterschrift einer Verwaltung ohne Mitgliedseintrag eine "
+"Unterschrift einer Person bleibt und nicht eine anonyme Zählung."
 
 msgid "Signed on"
 msgstr "Unterschrieben am"
@@ -740,6 +755,18 @@ msgstr "Übergangen am"
 msgid "Reason for the override"
 msgstr "Begründung für das Übergehen"
 
+msgid "Could not be resolved"
+msgstr "Nicht ermittelbar"
+
+msgid ""
+"Why the rules could not say who may sign this. A constraint with a reason "
+"here names nobody and is satisfied by nobody: a broken rule may not be "
+"signed away."
+msgstr ""
+"Warum die Regeln nicht sagen konnten, wer hier unterschreiben darf. Eine "
+"Anforderung mit einer Begründung hier nennt niemanden und wird von niemandem "
+"erfüllt: eine kaputte Regel darf nicht weggezeichnet werden."
+
 msgid "Approval constraint"
 msgstr "Freigabe-Anforderung"
 
@@ -757,6 +784,9 @@ msgstr "Unterschrieben"
 
 msgid "Open"
 msgstr "Offen"
+
+msgid "Nobody may sign"
+msgstr "Niemand darf unterschreiben"
 
 msgid "Signatures"
 msgstr "Unterschriften"

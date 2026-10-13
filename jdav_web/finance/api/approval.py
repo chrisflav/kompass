@@ -9,10 +9,12 @@ rows and the :class:`~finance.store.Approval` signatures, never from re-running
 the rules: a statement's routing was decided when it was handed in.
 """
 
+from typing import Any
+
 from members.models import Member
 
 
-def approval_payload(statement, member=None):
+def approval_payload(statement: Any, member: Any = None) -> dict[str, Any]:
     """Who has to sign ``statement`` off, and who has.
 
     ``member`` is the person asking, so the payload can say whether *they* may

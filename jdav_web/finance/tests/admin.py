@@ -22,6 +22,7 @@ from members.tests.utils import create_custom_user
 
 from ..admin import StatementAdmin
 from ..admin import TransactionAdmin
+from ..engine import freeze as freeze_obligations
 from ..models import Bill
 from ..models import Ledger
 from ..models import Statement
@@ -361,11 +362,22 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_overview_view(self):
+        # Freeze the payout, so the page renders the signatures the rules ask
+        # for: the fixture sets `status` directly and therefore never did.
+        freeze_obligations(self.statement)
         url = reverse("admin:finance_statement_overview", args=(self.statement.pk,))
         c = self._login("superuser")
         response = c.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertContains(response, _("View submitted statement"))
+        # The signatures table's header was `<th><td>…</td></th>`, which every
+        # browser silently hoists out of the table head, so the row did not
+        # render as a row. Nothing asserted structure, so nothing noticed.
+        # (The same mistake is in five of this app's older templates; those
+        # are `main`'s and are left alone here.)
+        page = response.content.decode()
+        self.assertIn("<th>{}</th>".format(_("Step")), page)
+        self.assertIn("<th>{}</th>".format(_("May sign")), page)
 
     def test_overview_view_statement_not_found(self):
         """Test overview_view with statement that can't be found in StatementSubmitted queryset"""

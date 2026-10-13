@@ -11,12 +11,12 @@ API say the same thing about who still has to sign.
 {% blocktrans %}The section's rules ask for these signatures before the money moves. One signature counts towards every step it satisfies.{% endblocktrans %}
 </p>
 <table>
-    <th>
-        <td>{% trans "Step" %}</td>
-        <td>{% trans "State" %}</td>
-        <td>{% trans "Signed by" %}</td>
-        <td>{% trans "May sign" %}</td>
-    </th>
+    <tr>
+        <th>{% trans "Step" %}</th>
+        <th>{% trans "State" %}</th>
+        <th>{% trans "Signed by" %}</th>
+        <th>{% trans "May sign" %}</th>
+    </tr>
     {% for constraint in approval.constraints %}
     <tr>
         <td>{{ constraint.name }}: {{ constraint.description }}</td>
