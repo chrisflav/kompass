@@ -446,15 +446,22 @@ class Approval(models.Model):
         # one person approving, and a quorum of two means two people: without
         # these, an account with no member record could satisfy a four-eyes
         # rule on its own.
+        #
+        # Deliberately *unconditional*. The obvious spelling — a condition that
+        # skips the null rows — is silently dropped by MariaDB, which does not
+        # support partial unique indexes (`models.W036`), so it would have been
+        # enforced on the agent's SQLite and on nothing in production. These
+        # need no condition: in SQLite, MySQL/MariaDB and PostgreSQL alike a
+        # `NULL` never collides with another `NULL` in a unique index, which is
+        # exactly the rule wanted here — any number of signatures with no
+        # member, at most one per member who has one.
         constraints = [
             models.UniqueConstraint(
                 fields=["statement", "member"],
-                condition=Q(member__isnull=False),
                 name="finance_approval_once_per_member",
             ),
             models.UniqueConstraint(
                 fields=["statement", "user"],
-                condition=Q(member__isnull=True, user__isnull=False),
                 name="finance_approval_once_per_account",
             ),
         ]

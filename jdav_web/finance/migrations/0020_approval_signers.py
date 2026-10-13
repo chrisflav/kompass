@@ -4,8 +4,13 @@
 credits, which is what makes "one signature per person" expressible for an
 administrator who has no member record: without it, such signatures were an
 anonymous tally, and two clicks from one account satisfied a quorum of two.
-The two constraints are conditional because both columns are nullable, and
-``NULL`` does not collide with ``NULL`` in any database this runs on.
+Both constraints are unconditional, which is load-bearing: a condition that
+skipped the null rows would be *silently dropped* by MariaDB, which has no
+partial unique indexes (``models.W036``) — enforced on SQLite, enforced on
+nothing in production. They need no condition, because in SQLite,
+MySQL/MariaDB and PostgreSQL alike a ``NULL`` never collides with another
+``NULL`` in a unique index: any number of signatures with no member, at most
+one per member who has one.
 
 ``ApprovalConstraint.error`` is why a constraint names nobody. A rule that
 raises used to be swallowed, which quietly turned the section's most
@@ -62,7 +67,6 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="approval",
             constraint=models.UniqueConstraint(
-                condition=models.Q(("member__isnull", False)),
                 fields=("statement", "member"),
                 name="finance_approval_once_per_member",
             ),
@@ -70,7 +74,6 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="approval",
             constraint=models.UniqueConstraint(
-                condition=models.Q(("member__isnull", True), ("user__isnull", False)),
                 fields=("statement", "user"),
                 name="finance_approval_once_per_account",
             ),
