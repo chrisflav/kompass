@@ -7,6 +7,7 @@ from contrib.api.perms import set_scalar_fields
 from contrib.permissions import scope_queryset
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from members.models import ActivityCategory
@@ -35,6 +36,7 @@ from .schemas import GROUP_UPDATE_SCALAR_FIELDS
 from .schemas import GroupCreate
 from .schemas import GroupOut
 from .schemas import GroupUpdate
+from .schemas import klettertreff_attendees
 from .schemas import KlettertreffBrief
 from .schemas import KlettertreffCreate
 from .schemas import KlettertreffOut
@@ -54,6 +56,7 @@ from .schemas import MemberTrainingUpdate
 from .schemas import MemberUpdate
 from .schemas import MeOut
 from .schemas import prefetch_excursion_leaders
+from .schemas import prefetch_klettertreff_brief_leaders
 from .schemas import RegistrationBrief
 from .schemas import TrainingBrief
 from .schemas import TrainingCategoryOut
@@ -518,7 +521,11 @@ def list_klettertreff(request):
     default Django ``view_klettertreff`` permission checked globally.
     """
     authorize(request, "members.view_klettertreff")
-    return Klettertreff.objects.all().order_by("-date")
+    return (
+        Klettertreff.objects.select_related("group")
+        .prefetch_related(prefetch_klettertreff_brief_leaders())
+        .order_by("-date")
+    )
 
 
 @router.post("/klettertreff", response={201: KlettertreffOut})
@@ -541,7 +548,13 @@ def create_klettertreff(request, payload: KlettertreffCreate):
 def retrieve_klettertreff(request, klettertreff_id: int):
     """Full Klettertreff detail (plain Django ``members.view_klettertreff`` perm)."""
     authorize(request, "members.view_klettertreff")
-    return get_object_or_404(Klettertreff, pk=klettertreff_id)
+    # Load the youth leaders and attendees with their groups in bulk, so the
+    # query count does not grow with the number of people.
+    queryset = Klettertreff.objects.select_related("group").prefetch_related(
+        Prefetch("jugendleiter", queryset=Member.objects.prefetch_related("group")),
+        Prefetch("klettertreffattendee_set", queryset=klettertreff_attendees()),
+    )
+    return get_object_or_404(queryset, pk=klettertreff_id)
 
 
 @router.patch("/klettertreff/{klettertreff_id}", response=KlettertreffOut)

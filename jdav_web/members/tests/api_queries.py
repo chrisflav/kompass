@@ -8,6 +8,7 @@ resolves must be loaded in bulk, not once per row.
 import datetime
 import uuid
 
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.test import TestCase
@@ -19,6 +20,8 @@ from members.models import DIVERSE
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import Group
+from members.models import Klettertreff
+from members.models import KlettertreffAttendee
 from members.models import Member
 from members.models import MemberTraining
 from members.models import NewMemberOnList
@@ -296,3 +299,128 @@ class ScopedMembersApiQueryCountTestCase(QueryCountMixin, TestCase):
         )
         self.assertEqual(len(body), 2 * 9)
         self.assertTrue({t["member_id"] for t in body} <= self.listable)
+
+
+class KlettertreffApiQueryCountTestCase(QueryCountMixin, TestCase):
+    """The Klettertreff list, detail and attendees, as superuser and as viewer.
+
+    Each row adds a Klettertreff to the list, or youth leaders and attendees to
+    the detail; the number of queries must not depend on how many there are.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.superuser = User.objects.create_superuser("root", password="secret")
+        viewer_user, _ = make_member_user("viewer")
+        self.viewer = grant(viewer_user, "view_klettertreff")
+
+    def make_member(self, prefix="m", groups=0, confirmed=True):
+        member = super().make_member(prefix)
+        if not confirmed:
+            member.confirmed = False
+            member.save()
+        member.group.set([self.make_group() for _ in range(groups)])
+        return member
+
+    def make_klettertreff(self):
+        self.counter += 1
+        return Klettertreff.objects.create(
+            location="Halle {}".format(self.counter), topic="Toprope", group=self.make_group()
+        )
+
+    def check_list(self, user):
+        # An unconfirmed youth leader is hidden by the default manager.
+        hidden = self.make_klettertreff()
+        hidden.jugendleiter.set([self.make_member(), self.make_member(confirmed=False)])
+        expected = {hidden.pk: (hidden.group.name, {hidden.jugendleiter.get().name})}
+
+        def make_rows(n):
+            for _ in range(n):
+                klettertreff = self.make_klettertreff()
+                leaders = [self.make_member(), self.make_member()]
+                klettertreff.jugendleiter.set(leaders)
+                expected[klettertreff.pk] = (
+                    klettertreff.group.name,
+                    {leader.name for leader in leaders},
+                )
+
+        body = self.assertConstantQueries("/api/members/klettertreff", user, make_rows)
+        self.assertEqual(
+            {k["id"]: (k["group"]["name"], set(k["jugendleiter"])) for k in body}, expected
+        )
+
+    def test_list_superuser(self):
+        self.check_list(self.superuser)
+
+    def test_list_viewer(self):
+        self.check_list(self.viewer)
+
+    def make_people(self, klettertreff, n):
+        """Add ``n`` youth leaders and ``n`` attendees, each in two groups."""
+        klettertreff.jugendleiter.add(*[self.make_member("leader", groups=2) for _ in range(n)])
+        for _ in range(n):
+            KlettertreffAttendee.objects.create(
+                klettertreff=klettertreff, member=self.make_member(groups=2)
+            )
+
+    def expected_people(self, klettertreff):
+        def brief(member):
+            return (member.name, set(member.group.values_list("name", flat=True)))
+
+        leaders = {m.pk: brief(m) for m in klettertreff.jugendleiter.all()}
+        attendees = {
+            a.member.pk: brief(a.member) for a in klettertreff.klettertreffattendee_set.all()
+        }
+        return leaders, attendees
+
+    def check_retrieve(self, user):
+        klettertreff = self.make_klettertreff()
+        # An unconfirmed leader stays hidden; an unconfirmed attendee is shown.
+        klettertreff.jugendleiter.add(self.make_member("leader", groups=1, confirmed=False))
+        KlettertreffAttendee.objects.create(
+            klettertreff=klettertreff, member=self.make_member(groups=1, confirmed=False)
+        )
+        body = self.assertConstantQueries(
+            "/api/members/klettertreff/{}".format(klettertreff.pk),
+            user,
+            lambda n: self.make_people(klettertreff, n),
+        )
+        leaders, attendees = self.expected_people(klettertreff)
+        self.assertEqual(len(leaders), 9)
+        self.assertEqual(len(attendees), 10)
+        self.assertEqual(body["group"]["name"], klettertreff.group.name)
+        self.assertEqual(
+            {m["id"]: (m["name"], set(m["groups"])) for m in body["jugendleiter"]}, leaders
+        )
+        self.assertEqual(
+            {m["id"]: (m["name"], set(m["groups"])) for m in body["attendees"]}, attendees
+        )
+
+    def test_retrieve_superuser(self):
+        self.check_retrieve(self.superuser)
+
+    def test_retrieve_viewer(self):
+        self.check_retrieve(self.viewer)
+
+    def check_attendees(self, user):
+        klettertreff = self.make_klettertreff()
+        # Another Klettertreff's attendees are not listed.
+        self.make_people(self.make_klettertreff(), 1)
+        body = self.assertConstantQueries(
+            "/api/members/klettertreff/{}/attendees".format(klettertreff.pk),
+            user,
+            lambda n: self.make_people(klettertreff, n),
+        )
+        expected = list(klettertreff.klettertreffattendee_set.order_by("id"))
+        self.assertEqual([a["id"] for a in body], [a.pk for a in expected])
+        self.assertTrue(all(a["klettertreff_id"] == klettertreff.pk for a in body))
+        self.assertEqual(
+            [(a["member"]["id"], set(a["member"]["groups"])) for a in body],
+            [(a.member.pk, set(a.member.group.values_list("name", flat=True))) for a in expected],
+        )
+
+    def test_attendees_superuser(self):
+        self.check_attendees(self.superuser)
+
+    def test_attendees_viewer(self):
+        self.check_attendees(self.viewer)
