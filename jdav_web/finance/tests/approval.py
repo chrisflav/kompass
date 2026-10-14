@@ -985,6 +985,7 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         ]
         with patch("finance.engine.statements.resolve_constraints", return_value=generous):
             states_by_name = {state.name: state for state in big.live_approval_states}
+        self.assertEqual(sorted(states_by_name), ["Kasse", "Vorstand"])
         kasse = states_by_name["Kasse"]
         self.assertNotIn(self.anna.pk, kasse.eligible, "the payee stays excluded")
         self.assertIn(self.bernd.pk, kasse.eligible)
@@ -993,8 +994,11 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         # frozen rows are the spine, so a requirement can only be added by
         # re-asking, never removed. (Unreachable while the rules and the
         # transfers are both frozen, which is exactly why it is asserted.)
+        # A *fresh* instance: `live_approval_states` caches per instance, so
+        # re-reading `big` here would assert the answer from the block above.
+        again = Statement.objects.get(pk=big.pk)
         with patch("finance.engine.statements.resolve_constraints", return_value=generous[:1]):
-            names = {state.name: state for state in big.live_approval_states}
+            names = {state.name: state for state in again.live_approval_states}
         self.assertEqual(sorted(names), ["Kasse", "Vorstand"])
         self.assertEqual(names["Vorstand"].required, 2)
         self.assertNotIn(self.anna.pk, names["Vorstand"].eligible)
