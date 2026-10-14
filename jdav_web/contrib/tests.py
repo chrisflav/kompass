@@ -1,9 +1,11 @@
 import difflib
 import json
+import os
 import subprocess
 import sys
 import tempfile
 from datetime import timedelta
+from io import StringIO
 from itertools import islice
 from pathlib import Path
 from unittest.mock import Mock
@@ -18,11 +20,13 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.db import models
 from django.test import RequestFactory
 from django.test import TestCase
 from django.utils import translation
 from django.utils.translation import gettext_lazy as _
+from members.models import Member
 from rules.contrib.models import RulesModelBase
 from rules.contrib.models import RulesModelMixin
 from utils import file_size_validator
@@ -365,3 +369,56 @@ class ExportOpenapiTest(TestCase):
             translation.activate(active)
         self.assertIn("openapi", json.loads(written))
         self.assertTrue(written.endswith("\n"))
+
+
+class EnsureSuperuserTestCase(TestCase):
+    """The account a new instance starts with, and the member row it needs.
+
+    Permissions are held by ``User``s; everything a section's finance rules
+    reason about is a ``Member``. An account with no member row therefore
+    holds every capability and is nobody the rules can name — and since the
+    rules engine refuses a payout whose eligible group comes out empty, the
+    documented bootstrap account could not approve anything through the
+    ordinary path. This command is where that is fixed, because this command
+    is what every new deployment runs.
+    """
+
+    environment = {
+        "DJANGO_SUPERUSER_USERNAME": "kompass",
+        "DJANGO_SUPERUSER_PASSWORD": "secret",
+        "DJANGO_SUPERUSER_EMAIL": "admin@localhost",
+    }
+
+    def run_it(self, **overrides):
+        out = StringIO()
+        with patch.dict(os.environ, {**self.environment, **overrides}):
+            call_command("ensuresuperuser", stdout=out)
+        return out.getvalue()
+
+    def test_without_the_environment_it_does_nothing(self):
+        output = self.run_it(DJANGO_SUPERUSER_USERNAME="", DJANGO_SUPERUSER_PASSWORD="")
+        self.assertIn("was not set", output)
+        self.assertFalse(User.objects.exists())
+        self.assertFalse(Member.objects.exists())
+
+    def test_the_account_comes_with_a_member_record(self):
+        output = self.run_it()
+        user = User.objects.get(username="kompass")
+        self.assertTrue(user.is_superuser)
+        member = Member.objects.get(user=user)
+        self.assertEqual(member.email, "admin@localhost")
+        self.assertIn("kompass", member.name)
+        self.assertIn("member record", output)
+
+    def test_running_it_again_changes_nothing(self):
+        self.run_it()
+        output = self.run_it()
+        self.assertIn("already exists", output)
+        self.assertEqual(Member.objects.count(), 1)
+
+    def test_an_account_that_predates_this_gets_its_record_on_the_next_run(self):
+        """Which is what makes running it by hand a repair rather than a no-op."""
+        User.objects.create_superuser(username="kompass", password="secret")
+        self.assertFalse(Member.objects.exists())
+        self.run_it()
+        self.assertEqual(Member.objects.get(user__username="kompass").lastname, "(Administration)")

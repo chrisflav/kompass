@@ -16,13 +16,16 @@ transfers*, after rule expansion, which is what lets a rule say "nobody who
 receives money from this statement".
 """
 
+import os
 from decimal import Decimal
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.db import IntegrityError
 from django.db import transaction
 from django.test import SimpleTestCase
@@ -1010,3 +1013,61 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertFalse(big.confirmed)
         self.assertTrue(big.approve(self.bernd))
         self.assertTrue(Statement.objects.get(pk=big.pk).confirmed)
+
+
+class BootstrapAccountTestCase(TestCase):
+    """A brand new instance can approve a payout through the ordinary path.
+
+    This is the test that would have caught the one real cost of making an
+    empty eligible group mean *nobody*: ``permission_holders`` names members,
+    the documented bootstrap account had no member row, so on a fresh
+    deployment the frozen group came out empty, ``confirm()`` refused, and the
+    only way to pay anybody was the override — the mechanism reserved for "we
+    went ahead anyway", which would have recorded every legitimate payout as
+    *overridden by nobody* rather than *signed*.
+    """
+
+    def setUp(self):
+        with patch.dict(
+            os.environ,
+            {
+                "DJANGO_SUPERUSER_USERNAME": "kompass",
+                "DJANGO_SUPERUSER_PASSWORD": "secret",
+                "DJANGO_SUPERUSER_EMAIL": "admin@localhost",
+            },
+        ):
+            call_command("ensuresuperuser", stdout=StringIO())
+        self.user = User.objects.get(username="kompass")
+        self.member = Member.objects.get(user=self.user)
+        self.ledger = Ledger.objects.create(name="Konto")
+
+    def test_the_only_account_there_is_can_sign_a_payout_off(self):
+        payee = Member.objects.create(
+            prename="Anna", lastname="Test", email="a@localhost", gender=MALE
+        )
+        statement = Statement.objects.create(short_description="Erste", night_cost=0)
+        Bill.objects.create(
+            statement=statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=payee,
+        )
+        statement.submit(submitter=payee)
+        statement.generate_transactions()
+        statement.transaction_set.update(ledger=self.ledger)
+        statement = Statement.objects.get(pk=statement.pk)
+        # The rules can name the bootstrap account, so the group is not empty.
+        self.assertEqual(
+            statement.approval_constraint_set.get().eligible_member_ids, [self.member.pk]
+        )
+        self.assertTrue(self.user.has_perm("finance.approve_obj_statement", statement))
+        self.assertTrue(statement.confirm(self.member, user=self.user))
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(statement.confirmed)
+        self.assertEqual(statement.confirmed_by, self.member)
+        # Signed, not overridden: the override's signal is intact.
+        constraint = statement.approval_constraint_set.get()
+        self.assertTrue(constraint.satisfied)
+        self.assertFalse(constraint.overridden)
+        self.assertEqual(statement.approval_set.get().member, self.member)
