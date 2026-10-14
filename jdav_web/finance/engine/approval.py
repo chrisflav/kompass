@@ -27,16 +27,22 @@ subject to the forbids: somebody a forbid excluded may not override the
 constraint it excluded them from, because recording that they did is a
 mitigation and not a control.
 
-**An empty eligible set means nobody, not anybody.** If the rules named people
-and every one of them was removed — by a forbid, or because they do not hold
-the capability — the constraint stands open and no signature satisfies it. The
-opposite reading is the one bug that produces three: a forbid that excluded
-everyone would disable itself, a permission check that rejected everyone would
-grant the right to everyone, and the person the forbid was written for could
-sign their own payout. The one case where the capability layer decides alone is
-a constraint that named **nobody in the first place**, which is where Kompass
-was before there were constraints at all; the exclusions recorded on the
-constraint are what tells the two apart.
+**An empty eligible set means nobody, not anybody.** Whatever made it empty —
+a forbid that caught everyone, a permission check that rejected everyone, a
+role nobody holds, a filter that matched nobody — the constraint stands open
+and no signature satisfies it. The opposite reading is one bug that produces
+four: a forbid that excluded everyone disables itself, a permission check that
+rejected everyone grants the right to everyone, a vacant role lets the payee
+sign their own payout past a forbid written for them, and all three are
+reported as *satisfied*.
+
+An earlier version of this module read "nobody was excluded" as "the rules
+named nobody on purpose", which is a proxy for intent and fails whenever a
+restriction is empty for an innocent reason. A section that wants the
+capability to decide now says so, on the constraint
+(:attr:`kompass.rules.Constraint.anyone_permitted`), and the engine fills the
+group in from the permission holders — so the forbids apply to it and nothing
+has to be inferred.
 
 What this module does *not* decide is whether somebody may sign at all. That is
 the capability layer — a global permission, checked by the view — and the
@@ -55,6 +61,7 @@ from typing import Any
 from finance.rules_api import Constraint
 from finance.rules_api import Forbid
 from finance.rules_api import Member
+from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 
 #: The ``forbid`` name an exclusion carries when it was the permission system
@@ -111,12 +118,12 @@ class ConstraintState:
     def unsatisfiable(self) -> bool:
         """Whether no signature can satisfy this constraint as it stands.
 
-        Either its rules could not be resolved, or everybody they named was
-        excluded. Both are states to be read and fixed, not states to be
-        signed away — and this is what keeps "nobody is eligible" from
-        meaning "anybody will do".
+        Either its rules could not be resolved, or there is nobody left in the
+        group. Both are states to be read and fixed, not states to be signed
+        away — and this is what keeps "nobody is eligible" from meaning
+        "anybody will do".
         """
-        return bool(self.error) or (not self.eligible and bool(self.excluded))
+        return bool(self.error) or not self.eligible
 
     @property
     def open(self) -> bool:
@@ -140,11 +147,20 @@ def resolve_eligibility(
     all. ``None`` means "do not re-check", which is for a dry run; the real
     flow always passes it, because the rules' word about who may act is never
     the last word.
+
+    A constraint that names nobody and sets
+    :attr:`~kompass.rules.Constraint.anyone_permitted` has its group *filled
+    in* from ``permitted`` here, before the forbids run — so a section can say
+    "whoever may act on statements, except whoever this one pays" without
+    naming anybody, and the exception still bites.
     """
     excluded: list[Exclusion] = []
     eligible: list[int] = []
     allowed = None if permitted is None else set(permitted)
-    for member in constraint.eligible:
+    candidates = constraint.eligible
+    if not candidates and constraint.anyone_permitted and allowed is not None:
+        candidates = tuple(Member(MemberId(member_id)) for member_id in sorted(allowed))
+    for member in candidates:
         forbid = _first_forbid(member, forbids)
         if forbid is not None:
             excluded.append(Exclusion(member=int(member.id), forbid=forbid))
@@ -209,19 +225,17 @@ def states(
         )
         error = str(row.get("error", "") or "")
         required = int(row.get("required", 1) or 0)
-        if error or (not eligible and excluded):
-            # Nobody. Either the rules could not be resolved at all, or they
-            # named people and every one of them was removed — and in both
-            # cases the constraint stands open rather than opening up.
+        if error or not eligible:
+            # Nobody. Either the rules could not be resolved at all, or there
+            # is no group left to sign — and in both cases the constraint
+            # stands open rather than opening up. A section that wants the
+            # capability to decide says so on the constraint, and the engine
+            # fills the group in (`resolve_eligibility`), so by the time a row
+            # is written an empty group is an empty group.
             by: tuple[int, ...] = ()
             given = 0
-        elif eligible:
-            by = tuple(sorted(signed & set(eligible)))
-            given = len(by) + len(anonymous)
         else:
-            # The rules named nobody at all: the capability decides alone, as
-            # it did before there were constraints.
-            by = tuple(sorted(signed))
+            by = tuple(sorted(signed & set(eligible)))
             given = len(by) + len(anonymous)
         overridden = bool(row.get("overridden", False))
         resolved.append(
@@ -262,6 +276,6 @@ def may_sign(constraint_states: Iterable[ConstraintState], member_id: int) -> bo
     for state in constraint_states:
         if not state.open or state.unsatisfiable:
             continue
-        if not state.eligible or member_id in state.eligible:
+        if member_id in state.eligible:
             return True
     return False

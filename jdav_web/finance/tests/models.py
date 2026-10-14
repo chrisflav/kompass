@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.contrib.auth.models import Permission
+from django.contrib.auth.models import User
 from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
@@ -61,6 +63,17 @@ class StatementTestCase(TestCase):
             gender=MALE,
         )
         self.fritz.group.add(self.jl)
+        # With an account that may approve statements: the section's rules name
+        # whoever holds that capability, and a group that comes out empty means
+        # nobody may sign rather than anybody. The admin and the API check the
+        # same capability before they call `confirm()`, so this is the state
+        # every real confirmation happens in.
+        self.fritz.user = User.objects.create_user("fritz", password="secret")
+        self.fritz.user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="finance", codename="process_statementsubmitted"
+            )
+        )
         self.fritz.save()
 
         self.personal_account = Ledger.objects.create(name="personal account")

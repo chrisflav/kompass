@@ -620,6 +620,22 @@ class Constraint:
     #: Who may sign. Re-checked against the real permission system, so naming
     #: somebody here cannot grant them a right they do not have.
     eligible: tuple[Member, ...]
+    #: What it means for :attr:`eligible` to come out **empty**.
+    #:
+    #: Left ``False``, an empty group means *nobody*: the constraint stands
+    #: open and no signature satisfies it. That is the safe reading, and it is
+    #: the one an empty group usually deserves — a role nobody holds, a filter
+    #: that matched nobody, a query that returned nothing — because the
+    #: alternative lets a statement pay itself out precisely when the rules
+    #: could not say who should allow it.
+    #:
+    #: Set ``True``, the engine fills the group from the holders of the
+    #: section's approval capability instead, which is what Kompass did before
+    #: there were constraints at all. The forbids still apply to the group it
+    #: fills in, so "whoever may act, except whoever is paid" is sayable. An
+    #: empty group *then* still means nobody — there is no reading under which
+    #: "we could not work out who" means "anyone will do".
+    anyone_permitted: bool = False
 
 
 @dataclass(frozen=True)

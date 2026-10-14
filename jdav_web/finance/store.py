@@ -590,9 +590,11 @@ class ApprovalConstraint(models.Model):
             return _("Signed")
         if self.error:
             return _("Could not be resolved")
-        if self.eligible_member_ids:
-            return _("Open")
-        if self.excluded:
+        if not self.eligible_member_ids:
+            # Whatever emptied the group — a forbid that caught everyone, a
+            # permission check that rejected everyone, a vacant role — there
+            # is nobody who may sign, and that is a different thing to read
+            # than "waiting for a signature".
             return _("Nobody may sign")
         return _("Open")
 

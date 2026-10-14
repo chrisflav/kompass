@@ -8,6 +8,7 @@ from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.db.models import Sum
 from django.utils import timezone
 from django.utils.html import format_html
@@ -666,9 +667,8 @@ class Statement(CommonModel):
         """
         if not self.submitted or self.confirmed:
             return False
-        Approval.objects.get_or_create(
-            statement=self, member=member, user=user, defaults={"note": note}
-        )
+        if not self._has_signed(member, user):
+            Approval.objects.create(statement=self, member=member, user=user, note=note)
         self.__dict__.pop("_live_states", None)
         states = self.live_approval_states
         for row in self.approval_constraint_set.all():
@@ -679,6 +679,25 @@ class Statement(CommonModel):
         if not fully_approved(states):
             return False
         return self._pay_out(member)
+
+    def _has_signed(self, member, user):
+        """Whether this signer already has a signature on this statement.
+
+        Asked per *identity*, not per row: a `get_or_create` on the whole
+        triple missed the case where somebody signed once as an account with
+        no member record and again once their member record existed, which
+        then violated the account's own uniqueness constraint and raised a raw
+        `IntegrityError` — a 500 where the answer should have been "signing
+        twice is signing once".
+        """
+        conflict = Q(member__isnull=True, user__isnull=True)
+        if member is not None or user is not None:
+            conflict = Q(pk__in=[])
+            if member is not None:
+                conflict |= Q(member=member)
+            if user is not None:
+                conflict |= Q(user=user)
+        return self.approval_set.filter(conflict).exists()
 
     def override_approval(self, name, member, reason):
         """Sign a constraint off without its quorum, on the record.
@@ -691,11 +710,20 @@ class Statement(CommonModel):
         constraint may not override that constraint: a rule that says "nobody
         this statement pays may approve it" would otherwise be a formality for
         anybody holding the permission, and recording that they did it is a
-        mitigation rather than a control. Returns whether the statement ended
-        up confirmed.
+        mitigation rather than a control.
+
+        Nor does it clear a constraint the rules could not resolve at all. A
+        broken forbid is a rule that *failed to say* who is excluded, so there
+        is no answer to the question "may this person sign it off" — and the
+        person with the most reason to ask is the one the forbid was written
+        for. Such a payout stays stuck until the rule is fixed, which is what
+        "stuck" has to mean to be worth claiming. Returns whether the
+        statement ended up confirmed.
         """
         row = self.approval_constraint_set.filter(name=name).first()
         if row is None or not self.submitted or self.confirmed:
+            return False
+        if self.approval_cannot_be_resolved(name):
             return False
         if member is not None and self.forbids_approval_by(name, member):
             return False
@@ -707,6 +735,10 @@ class Statement(CommonModel):
         if not self.fully_approved:
             return False
         return self._pay_out(member)
+
+    def approval_cannot_be_resolved(self, name):
+        """Whether the rules failed to say who may sign the step ``name``."""
+        return any(state.name == name and bool(state.error) for state in self.live_approval_states)
 
     def forbids_approval_by(self, name, member):
         """Whether a forbid excludes ``member`` from the constraint ``name``.

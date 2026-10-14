@@ -4,9 +4,12 @@ One function, used by three callers (the ``/approval`` endpoint, the two
 actions that change it, and the admin's overview page), so that what a person
 sees about who still has to sign is assembled in exactly one place.
 
-The states come from the frozen :class:`~finance.store.ApprovalConstraint`
-rows and the :class:`~finance.store.Approval` signatures, never from re-running
-the rules: a statement's routing was decided when it was handed in.
+A statement that is still waiting shows the states the **gate** uses — the
+frozen rows with eligibility re-asked, which is what decides whether the
+button appears — and a settled one shows the rows as they were frozen, because
+that is the record and nothing should re-run the rules to render it. Showing
+one and deciding by the other is how an earlier version came to report
+``approved: true`` beside a constraint displayed as open.
 """
 
 from typing import Any
@@ -21,7 +24,11 @@ def approval_payload(statement: Any, member: Any = None) -> dict[str, Any]:
     still sign — which is the one thing a client needs in order to decide
     whether to offer the button.
     """
-    states = statement.approval_states
+    states = (
+        statement.live_approval_states
+        if statement.submitted and not statement.confirmed
+        else statement.approval_states
+    )
     rows = {row.name: row for row in statement.approval_constraint_set.all()}
     ids = set()
     for state in states:

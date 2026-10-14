@@ -47,6 +47,7 @@ from finance.store import RoleAssignment
 from finance.store import RuleSet
 from members.models import Member as MemberModel
 
+from .approval import PERMISSION_EXCLUSION
 from .approval import resolve_eligibility
 from .context import build_context
 from .context import parameters
@@ -54,6 +55,7 @@ from .context import permission_holders
 from .errors import RulesetInvalid
 from .errors import RulesetRejected
 from .evaluation import evaluate
+from .evaluation import party_key
 from .evaluation import Result
 from .guard import no_queries
 from .loader import manifest
@@ -101,16 +103,38 @@ def ruleset_for(statement: Any) -> Ruleset:
     Its own snapshot where it has one, so that neither a new version nor a
     changed file can move an open statement; the active version otherwise.
     """
-    sources = (statement.ruleset_snapshot or {}).get("sources")
+    return loaded_ruleset(statement)[0]
+
+
+def loaded_ruleset(statement: Any) -> tuple[Ruleset, str]:
+    """The ruleset to use for ``statement``, and the version it came from.
+
+    The second element is the identity of what was *actually loaded*: the
+    snapshot's hash when the statement's own closure was used, and the active
+    version's hash (or ``""`` for the ruleset that ships in the image) when it
+    could not be and the fallback took over.
+
+    The fallback is deliberate — a statement whose stored closure no longer
+    loads must still render, generate transactions and print — but it means
+    the rules that answer a question are not always the rules the statement was
+    settled under, and anything that *compares* an answer to a stored record
+    has to know which it got. :func:`current_constraint_rows` is that
+    somebody: before this returned the identity, a fallback to the reference
+    ruleset silently replaced a section's frozen forbids with the reference
+    ruleset's constraints.
+    """
+    snapshot = statement.ruleset_snapshot or {}
+    sources = snapshot.get("sources")
     if sources:
         try:
-            return ruleset_from_sources(sources)
+            return ruleset_from_sources(sources), str(snapshot.get("hash", ""))
         except (RulesetInvalid, RulesetRejected):
             logger.warning(
                 "statement %s carries a snapshot that cannot be loaded; using the active ruleset",
                 statement.pk,
             )
-    return active_ruleset()
+    row = active_version()
+    return active_ruleset(), str(row.hash) if row is not None else ""
 
 
 def statement_params(statement: Any) -> dict[str, Decimal]:
@@ -322,12 +346,18 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
     than about the form somebody filled in.
 
     A ruleset that **fails** here — a forbid whose predicate raises, a rule
-    that tries to query — yields one constraint carrying the reason and naming
+    that tries to query — yields constraints that carry the reason and name
     nobody. That is deliberate: the alternatives are to persist nothing, which
     would leave a statement with no constraints at all and therefore payable
     without a signature, or to resolve it permissively, which is the bug this
     whole module is written against. A broken rule makes a payout *stuck*, and
     stuck is the safe direction.
+
+    The failure is recorded **per constraint**, and that matters: collapsing
+    the whole list into one unresolved row turned a board's two signatures into
+    one row that one override could clear. Each constraint keeps its own name,
+    its own ``required`` and its own ``applicable``; only the group it could
+    not resolve is replaced by the reason it could not.
     """
     ruleset = ruleset_for(statement)
     context = statement_context(statement, ruleset, actors=True)
@@ -337,11 +367,6 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
         # rows that replay differently in two years.
         with no_queries():
             constraints, forbids = ruleset.approval(context, list(result.transfers))
-        permitted = _approver_ids()
-        resolved = [
-            (constraint, resolve_eligibility(constraint, forbids, permitted=permitted))
-            for constraint in constraints
-        ]
     except Exception as problem:
         logger.warning("the section's approval rules failed: %s", problem)
         return [
@@ -355,20 +380,30 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
                 "error": f"{type(problem).__name__}: {problem}"[:500],
             }
         ]
-    return [
-        {
-            "name": constraint.name[:100],
+    permitted = _approver_ids()
+    rows: list[dict[str, Any]] = []
+    for constraint in constraints:
+        row: dict[str, Any] = {
+            "name": str(constraint.name)[:100],
             "description": str(constraint.description),
             "applicable": bool(constraint.applicable),
             "required": int(constraint.required),
-            "eligible": list(eligibility.eligible),
-            "excluded": [
-                {"member": item.member, "forbid": item.forbid} for item in eligibility.excluded
-            ],
+            "eligible": [],
+            "excluded": [],
             "error": "",
         }
-        for constraint, eligibility in resolved
-    ]
+        try:
+            eligibility = resolve_eligibility(constraint, forbids, permitted=permitted)
+        except Exception as problem:
+            logger.warning("the forbids of %s could not be resolved: %s", constraint.name, problem)
+            row["error"] = f"{type(problem).__name__}: {problem}"[:500]
+        else:
+            row["eligible"] = list(eligibility.eligible)
+            row["excluded"] = [
+                {"member": item.member, "forbid": item.forbid} for item in eligibility.excluded
+            ]
+        rows.append(row)
+    return rows
 
 
 def _materialise_constraints(statement: Any, result: Result, *, version: str, frozen: Any) -> None:
@@ -411,37 +446,90 @@ def current_constraint_rows(statement: Any) -> list[dict[str, Any]]:
     ``process_statementsubmitted``, resolved at submission — so a treasurer
     appointed while statements are in flight held the capability, passed the
     permission check, and still could not sign the statements that were already
-    waiting. Before the store they could. That is a regression, and freezing
-    who *may act* is the wrong half to freeze.
+    waiting. Before the store they could. Freezing who *may act* is the wrong
+    half to freeze.
 
-    So eligibility is re-resolved here, against today's permissions and today's
-    roles, while everything that is *history* — who has signed, what was
-    overridden and why — is read off the rows. If the rules cannot be resolved
-    at all today (the version is gone, a predicate broke), the frozen rows
-    stand: they were resolved when the rules worked, and falling back to them
-    is never more permissive than re-resolving would have been.
+    So eligibility is re-asked, under two bounds that make re-asking safe:
+
+    **Only the same rules may answer.** A re-resolution is accepted only when
+    the ruleset that produced it is the version the rows were frozen under
+    (``ApprovalConstraint.rule_version``). The fallback in
+    :func:`loaded_ruleset` is otherwise enough to replace a section's rules
+    with the *reference* ruleset — on nothing worse than a Kompass upgrade that
+    makes an old snapshot unloadable, or a statement created before the first
+    import — and the reference ruleset has no forbids, so the conflict of
+    interest the section wrote would quietly evaporate.
+
+    **A frozen restriction is sticky.** The frozen rows are the spine: every
+    one of them survives, with its own ``applicable`` and ``required``, and
+    anybody a *forbid* excluded at submission stays excluded however today's
+    resolution comes out. Only the permission exclusions are re-asked, because
+    the capability is a question about now. So the appointed treasurer gets in
+    and the excluded payee cannot, which is the whole point of asking again.
     """
-    frozen = {row.name: row for row in statement.approval_constraint_set.all()}
+    frozen = list(statement.approval_constraint_set.all())
+    if not frozen:
+        return []
+    rows = _rows_from_the_same_rules(statement, frozen)
+    if rows is None:
+        return [row.as_row() for row in frozen]
+    today = {row["name"]: row for row in rows}
+    merged = []
+    for record in frozen:
+        base = record.as_row()
+        fresh = today.get(record.name)
+        if fresh is None:
+            # The same rules cannot stop naming a constraint they named — the
+            # transfers are frozen too — so this is impossible rather than
+            # merely unlikely. Keeping the row is what makes it harmless.
+            merged.append(base)
+            continue
+        sticky = [
+            item for item in base["excluded"] if str(item.get("forbid", "")) != PERMISSION_EXCLUSION
+        ]
+        barred = {int(item["member"]) for item in sticky}
+        excluded = list(sticky) + [
+            item for item in fresh["excluded"] if int(item["member"]) not in barred
+        ]
+        merged.append(
+            {
+                **base,
+                "eligible": [member for member in fresh["eligible"] if int(member) not in barred],
+                "excluded": excluded,
+                "error": fresh["error"] or base["error"],
+            }
+        )
+    return merged
+
+
+def _rows_from_the_same_rules(
+    statement: Any, frozen: list[ApprovalConstraint]
+) -> list[dict[str, Any]] | None:
+    """Today's resolution, or ``None`` if today's rules are not the same rules.
+
+    "The same" is the version hash the rows carry. A row frozen before the
+    store recorded one (``""``) is answered by the record alone: there is
+    nothing to compare, and guessing in the permissive direction is what this
+    function exists to prevent.
+    """
+    version = {row.rule_version for row in frozen}
+    ruleset, loaded = loaded_ruleset(statement)
+    if version != {loaded} or not loaded:
+        logger.warning(
+            "the approval of statement %s is not re-resolved: frozen under %s, loaded %r",
+            statement.pk,
+            ", ".join(sorted(version)) or "nothing",
+            loaded,
+        )
+        return None
     try:
         result = (
             result_from_rows(statement) if rows_exist(statement) else evaluate_statement(statement)
         )
-        rows = resolve_constraints(statement, result)
-    except Exception as problem:  # the version is unloadable, or the rules are gone
+        return resolve_constraints(statement, result)
+    except Exception as problem:  # the rules are there but will not run
         logger.warning("re-resolving the approval of %s failed: %s", statement.pk, problem)
-        return [row.as_row() for row in frozen.values()]
-    merged = []
-    for row in rows:
-        record = frozen.get(row["name"])
-        merged.append(
-            {
-                **row,
-                "overridden": record.overridden if record is not None else False,
-                "overridden_by": record.overridden_by_id if record is not None else None,
-                "override_reason": record.override_reason if record is not None else "",
-            }
-        )
-    return merged
+        return None
 
 
 def result_from_rows(statement: Any) -> Result:
@@ -472,10 +560,12 @@ def row_as_transfer(row: Obligation) -> Transfer:
 
 
 def _party_key(party: Any) -> tuple[str, int | None]:
-    """``(kind, member id)`` for a transfer's party, as a row stores it."""
-    if isinstance(party, Member):
-        return (MEMBER, int(party.id))
-    return (_kind_of(party), None)
+    """``(kind, member id)`` for a transfer's party, as a row stores it.
+
+    The engine's own key function, not a second one that agrees with it by
+    coincidence: what `verify` compares has to be what the arithmetic netted.
+    """
+    return party_key(party)
 
 
 def _party_of(kind: str, member_id: int | None) -> Any:
