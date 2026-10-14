@@ -1,0 +1,48 @@
+{
+  "name": "the LJP contribution, capped by the regulations rather than by the cost",
+  "params": {
+    "ALLOWANCE_PER_DAY": "22",
+    "MAX_NIGHT_COST": "11",
+    "AID_PER_KM_TRAIN": "0.15",
+    "AID_PER_KM_CAR": "0.10",
+    "EXCURSION_ORG_FEE": "20",
+    "LJP_CONTRIBUTION_PER_DAY": "20",
+    "LJP_TAX": "0.2"
+  },
+  "inputs": {"ljp_to": 1},
+  "bills": [
+    {"id": 1, "amount": "300.00", "covered": true, "payer": 1, "description": "Bus"},
+    {"id": 2, "amount": "900.00", "covered": false, "payer": 1, "description": "Hütte"}
+  ],
+  "excursion": {
+    "duration": "4.0",
+    "nights": 3,
+    "kilometers": 0,
+    "approach": "public",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 2,
+    "participants": [
+      {"member": 20, "age": 21},
+      {"member": 21, "age": 22},
+      {"member": 22, "age": 23},
+      {"member": 23, "age": 24},
+      {"member": 24, "age": 25}
+    ],
+    "ljp": {
+      "goal": "environment",
+      "participant_count": 9,
+      "theoretic_participant_count": 9,
+      "duration": "1.0"
+    }
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "300.00", "bill"],
+      ["SECTION", "1", "144.00", "ljp"],
+      ["PARTICIPANTS", "SECTION", "444.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true]
+  }
+}

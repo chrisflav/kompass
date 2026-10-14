@@ -69,7 +69,15 @@ class FinanceDocumentsApiTestCase(TestCase):
         )
         self.owner_user, self.owner = make_member_user("owner")
         self.manager_user, self.manager = make_member_user("manager")
-        self.manager_user = grant(self.manager_user, "may_manage_confirmed_statements")
+        # `process_statementsubmitted` as well as the document permission: the
+        # rules name whoever may approve, and an empty group means nobody may.
+        # In production the view checks that capability before `confirm()` is
+        # ever called, so the person signing is always in the group; a test
+        # that signs without it was relying on an empty group being read as
+        # "anybody", which is the fail-open this release closed.
+        self.manager_user = grant(
+            self.manager_user, "may_manage_confirmed_statements", "process_statementsubmitted"
+        )
 
     def auth(self, user):
         token = AccessToken.objects.create(

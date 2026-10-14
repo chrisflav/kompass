@@ -1,0 +1,82 @@
+{% extends "admin/extra_view.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<h2>{% blocktranslate with version=ruleset %}What {{ version }} would make of a statement{% endblocktranslate %}</h2>
+<p>
+    {% translate "Nothing is written: the statement keeps its own version and its own payout. This is how a rule change is tried against a real trip before anybody activates it." %}
+</p>
+
+<form action="" method="post">
+    {% csrf_token %}
+    <select name="statement">
+        {% for option in statements %}
+        <option value="{{ option.pk }}" {% if statement and option.pk == statement.pk %}selected{% endif %}>
+            {{ option.pk }} — {{ option }} ({{ option.get_status_display }})
+        </option>
+        {% endfor %}
+    </select>
+    <input class="default" type="submit" value="{% translate 'Dry run' %}">
+</form>
+
+{% if result %}
+<h3>{% translate "Transfers" %}</h3>
+<table>
+    <tr>
+        <th>{% translate "Category" %}</th>
+        <th>{% translate "Owed by" %}</th>
+        <th>{% translate "Owed to" %}</th>
+        <th>{% translate "Amount" %}</th>
+        <th>{% translate "Rule" %}</th>
+        <th>{% translate "Label" %}</th>
+        <th>{% translate "Explanation" %}</th>
+    </tr>
+    {% for transfer in result.transfers %}
+    <tr>
+        <td>{{ transfer.category }}</td>
+        <td>{{ transfer.source }}</td>
+        <td>{{ transfer.destination }}</td>
+        <td>{{ transfer.amount }} €</td>
+        <td>{{ transfer.rule_id }}</td>
+        <td>{{ transfer.label }}</td>
+        <td>{{ transfer.explanation }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% if result.errors %}
+<h3>{% translate "Problems" %}</h3>
+<ul>
+    {% for error in result.errors %}<li><pre>{{ error }}</pre></li>{% endfor %}
+</ul>
+{% endif %}
+
+<h3>{% translate "Questions it would ask" %}</h3>
+<ul>
+    {% for declaration in declarations %}
+    <li>{{ declaration.label }} <code>{{ declaration.key }}</code> ({{ declaration.type }}{% if not declaration.required %}, {% translate "optional" %}{% endif %})</li>
+    {% endfor %}
+</ul>
+
+<h3>{% translate "Checks" %}</h3>
+<ul>
+    {% for check in result.checks %}
+    <li>{% if check.ok %}✓{% else %}✗{% endif %} {{ check.message }}</li>
+    {% endfor %}
+</ul>
+
+<h3>{% translate "Signatures" %}</h3>
+<ul>
+    {% for constraint in constraints %}
+    <li>
+        <strong>{{ constraint.name }}</strong>: {{ constraint.description }} —
+        {% blocktranslate count counter=constraint.required %}{{ counter }} signature{% plural %}{{ counter }} signatures{% endblocktranslate %}
+        {% if not constraint.applicable %}({% translate "not applicable" %}){% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% url opts|admin_urlname:'changelist' as changelist_url %}
+<a class="button" href="{{ changelist_url }}">{% translate "Back" %}</a>
+{% endblock %}

@@ -58,6 +58,8 @@ _JET_SIDE_MENU_ITEMS = [
             {"name": "ledger", "permissions": ["finance.view_ledger"]},
             {"name": "bill", "permissions": ["finance.view_bill", "finance.view_bill_admin"]},
             {"name": "transaction", "permissions": ["finance.view_transaction"]},
+            {"name": "ruleset", "permissions": ["finance.view_ruleset"]},
+            {"name": "roleassignment", "permissions": ["finance.view_roleassignment"]},
         ],
     },
     {

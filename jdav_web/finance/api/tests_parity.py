@@ -126,6 +126,46 @@ class FinanceParityApiTestCase(TestCase):
 
     # --- bill update: refunded write path ---------------------------------
 
+    # --- the payout, as the rules resolved it ------------------------------
+
+    def test_statement_out_carries_the_transfers_the_rules_resolved(self):
+        """``StatementOut.transfers``: who owes whom, with the parties resolved.
+
+        The named totals are a summary of this list, and the last entry is the
+        engine's balancing transfer, so what the response says adds up to
+        nothing — which is the property a client can rely on instead of
+        re-deriving the payout from five figures.
+        """
+        stmt = self.make_statement(self.owner)
+        Bill.objects.create(
+            statement=stmt,
+            short_description="Seil",
+            amount=Decimal("12.34"),
+            costs_covered=True,
+            paid_by=self.owner,
+        )
+        r = self.client.get(
+            "/api/finance/statements/{}".format(stmt.pk), **self.auth(self.owner_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        bill, balance = body["transfers"]
+        self.assertEqual(bill["source"], {"kind": "section", "member": None})
+        self.assertEqual(bill["destination"]["kind"], "member")
+        self.assertEqual(bill["destination"]["member"]["id"], self.owner.pk)
+        self.assertEqual(
+            (bill["amount"], bill["category"], bill["rule_id"], bill["label"]),
+            (12.34, "bill", "bills", "Seil"),
+        )
+        self.assertEqual(bill["reference"], "A statement: Seil")
+        self.assertEqual(balance["source"], {"kind": "participants", "member": None})
+        self.assertEqual(balance["destination"], {"kind": "section", "member": None})
+        self.assertEqual(
+            (balance["amount"], balance["category"], balance["rule_id"]),
+            (12.34, "participant_contribution", "balance"),
+        )
+        self.assertEqual(body["total"], 12.34)
+
     def test_update_bill_refunded_on_own_statement(self):
         stmt = self.make_statement(self.owner)
         bill = Bill.objects.create(statement=stmt, short_description="a", amount=1)

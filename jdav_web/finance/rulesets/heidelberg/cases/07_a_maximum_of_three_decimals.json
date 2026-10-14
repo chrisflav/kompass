@@ -1,0 +1,30 @@
+{
+  "name": "a maximum per night of three decimal places still pays whole cents",
+  "params": {
+    "ALLOWANCE_PER_DAY": "22",
+    "MAX_NIGHT_COST": "11.005",
+    "AID_PER_KM_TRAIN": "0.15",
+    "AID_PER_KM_CAR": "0.10",
+    "EXCURSION_ORG_FEE": "10",
+    "LJP_CONTRIBUTION_PER_DAY": "25",
+    "LJP_TAX": "0"
+  },
+  "inputs": {"night_cost": "27", "subsidy_to": 1},
+  "excursion": {
+    "duration": "4.0",
+    "nights": 3,
+    "kilometers": 0,
+    "approach": "public",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 2
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "33.01", "subsidy"],
+      ["PARTICIPANTS", "SECTION", "33.01", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true]
+  }
+}

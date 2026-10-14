@@ -88,6 +88,23 @@ EXCURSION_ORG_FEE = get_var("finance", "org_fee", default=10)
 AID_PER_KM_TRAIN = get_var("finance", "aid_per_km_train", default=0.15)
 AID_PER_KM_CAR = get_var("finance", "aid_per_km_car", default=0.10)
 
+# The section's own finance rules: a package directory under
+# KOMPASS_CONFIG_DIR_PATH, beside settings.toml. Unset means the reference
+# ruleset that ships in the image, which is Heidelberg's policy. The numbers
+# above are what a *new* ruleset version is imported with; once a version is
+# stored, each statement is settled with the numbers of the version it was
+# created under, and changing one of the settings above means importing a new
+# version rather than moving what has already been settled.
+FINANCE_RULESET = get_var("finance", "ruleset", default="")
+# Minutes between automatic re-imports of that package, or 0 for none. An
+# unchanged package hashes to the version already stored, so a poll is cheap.
+FINANCE_RULESET_POLL_MINUTES = get_var("finance", "ruleset_poll_minutes", default=0)
+# Hours between runs of `verifyrulesets`, which re-hashes every stored version
+# and replays a sample of settled statements. It is the detector behind the
+# store's immutability — the model refuses the ordinary edit, this notices the
+# ones it cannot refuse — so 0 (off) means trusting the database alone.
+FINANCE_VERIFY_HOURS = get_var("finance", "verify_hours", default=24)
+
 # links
 
 REGISTRATION_FORM_DOWNLOAD_LINK = get_var(

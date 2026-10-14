@@ -28,6 +28,9 @@ from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
+from finance.inputs import clean as clean_inputs
+from finance.inputs import rendered as rendered_inputs
+from finance.inputs import stored as stored_inputs
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
@@ -40,14 +43,20 @@ from ninja import Router
 from ninja import Schema
 from ninja.files import UploadedFile
 
+from .approval import approval_payload
+from .schemas import ApprovalCreate
+from .schemas import ApprovalOverride
 from .schemas import BillBrief
 from .schemas import BillCreate
 from .schemas import BillOut
 from .schemas import BillUpdate
 from .schemas import FinanceEnumsOut
 from .schemas import FinanceOverviewOut
+from .schemas import PreflightOut
+from .schemas import StatementApprovalOut
 from .schemas import StatementBrief
 from .schemas import StatementCreate
+from .schemas import StatementFormOut
 from .schemas import StatementOut
 from .schemas import StatementUpdate
 from .schemas import TransactionBrief
@@ -158,6 +167,8 @@ def list_statements(request):
         .prefetch_related(
             "bill_set",
             "allowance_to",
+            # A submitted statement's total is read off its frozen rows.
+            "obligation_set",
             "created_by__group",
             "excursion__jugendleiter",
             "excursion__membersonlist__member",
@@ -282,6 +293,10 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
     subsidy_to_id = data.pop("subsidy_to_id", _UNSET)
     ljp_to_id = data.pop("ljp_to_id", _UNSET)
     excursion_id = data.pop("excursion_id", _UNSET)
+    # Answers by declaration key. They are validated against what the rules
+    # actually ask for and then applied to the columns the rules still read, so
+    # a client may speak either language and get the same statement.
+    answers = data.pop("inputs", _UNSET)
     # The excursion is applied to the in-memory instance FIRST, because every
     # recipient is validated against ``statement.excursion``. Resolving the
     # recipients before the swap would check them against the outgoing
@@ -294,6 +309,19 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
     # Resolve + validate every recipient BEFORE writing anything, and wrap the
     # writes in a transaction, so a rejected recipient never leaves a partial
     # update behind (mirrors the admin form validating in ``clean``).
+    cleaned = {}
+    if answers is not _UNSET and answers:
+        cleaned = clean_inputs(statement, answers)
+        # Whatever the declarations call them, the four Heidelberg answers are
+        # still kept in their columns; everything else lives in `inputs` alone.
+        if "night_cost" in cleaned:
+            data["night_cost"] = cleaned["night_cost"]
+        if "subsidy_to" in cleaned:
+            subsidy_to_id = cleaned["subsidy_to"]
+        if "ljp_to" in cleaned:
+            ljp_to_id = cleaned["ljp_to"]
+        if "allowance_to" in cleaned:
+            allowance_to_ids = cleaned["allowance_to"]
     subsidy_to = (
         _resolve_recipient(statement, subsidy_to_id) if subsidy_to_id is not _UNSET else _UNSET
     )
@@ -315,6 +343,8 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
             statement.subsidy_to = subsidy_to
         if ljp_to is not _UNSET:
             statement.ljp_to = ljp_to
+        if cleaned:
+            statement.inputs = dict(statement.inputs or {}, **stored_inputs(cleaned))
         statement.save()
         if allowance_members is not None:
             statement.allowance_to.set(allowance_members)
@@ -395,7 +425,7 @@ def confirm_statement(request, statement_id: int, send: bool = False):
     """Confirm (pay out) a submitted statement, optionally mailing the summary."""
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.process_statementsubmitted")
-    if not statement.confirm(get_member(request)):
+    if not statement.confirm(get_member(request), user=request.user):
         raise ValidationError(_("Statement is not ready to be confirmed."))
     if send:
         member = get_member(request)
@@ -584,3 +614,86 @@ def update_transaction(request, transaction_id: int, payload: TransactionInlineU
     partial_clean(transaction, changed)
     transaction.save()
     return transaction
+
+
+# --- the form, the preflight and the signatures ---------------------------
+
+
+@router.get("/statements/{statement_id}/form", response=StatementFormOut)
+def statement_form(request, statement_id: int):
+    """The questions the section's rules ask about this statement.
+
+    Derived from the rules rather than written beside them, so a section that
+    reimburses something else gets a different form without a release. The
+    answers go back through ``PATCH /statements/{id}`` as ``inputs``, and each
+    one is validated against the declaration it belongs to.
+    """
+    statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
+    return {"statement_id": statement.pk, "inputs": rendered_inputs(statement)}
+
+
+@router.get("/statements/{statement_id}/preflight", response=PreflightOut)
+def statement_preflight(request, statement_id: int):
+    """What stands between this statement and being handed in.
+
+    The ruleset's own checks, plus anything its ``transfers`` reported — the
+    two lists ``submit`` refuses on — so a client can show them before somebody
+    presses the button rather than after.
+    """
+    statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
+    result = statement.rule_result
+    checks = [{"ok": check.ok, "message": str(check.message)} for check in result.checks]
+    failing = [check for check in checks if not check["ok"]]
+    return {
+        "statement_id": statement.pk,
+        "ok": not failing and not result.errors,
+        "checks": checks,
+        "failing": failing,
+        "errors": [str(error) for error in result.errors],
+    }
+
+
+@router.get("/statements/{statement_id}/approval", response=StatementApprovalOut)
+def statement_approval(request, statement_id: int):
+    """Who has to sign this statement off, and who has."""
+    statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
+    return approval_payload(statement, get_member(request))
+
+
+@router.post("/statements/{statement_id}/approve", response=StatementApprovalOut)
+def approve_statement(request, statement_id: int, payload: ApprovalCreate):
+    """Sign a submitted statement off; pay it out once the last signature is in.
+
+    The capability is the global permission, as it always was; whether this
+    person still has anything to sign is the section's rules' business, and the
+    object permission asks them both.
+    """
+    statement = get_object_or_404(Statement, pk=statement_id)
+    authorize(request, "finance.approve_obj_statement", statement)
+    member = get_member(request)
+    # The account goes on the row beside the member: a signature from an
+    # administrator with no member record is one signature from one person.
+    statement.approve(member, note=payload.note, user=request.user)
+    statement.refresh_from_db()
+    return approval_payload(statement, member)
+
+
+@router.post("/statements/{statement_id}/override-approval", response=StatementApprovalOut)
+def override_statement_approval(request, statement_id: int, payload: ApprovalOverride):
+    """Sign a constraint off without its quorum, with who and why recorded."""
+    statement = get_object_or_404(Statement, pk=statement_id)
+    authorize(request, "finance.process_statementsubmitted")
+    if not statement.submitted or statement.confirmed:
+        raise ValidationError(_("Only submitted, unconfirmed statements can be approved."))
+    if not payload.reason.strip():
+        raise ValidationError(_("An override has to say why."))
+    if not statement.approval_constraint_set.filter(name=payload.name).exists():
+        raise ValidationError(
+            _("This statement has no approval step called %(name)s.") % {"name": payload.name}
+        )
+    member = get_member(request)
+    if member is not None and statement.forbids_approval_by(payload.name, member):
+        raise ValidationError(_("The section's rules exclude you from this approval step."))
+    statement.override_approval(payload.name, member, payload.reason)
+    statement.refresh_from_db()
+    return approval_payload(statement, member)

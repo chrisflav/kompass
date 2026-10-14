@@ -19,6 +19,8 @@ from django.utils.translation import gettext_lazy as _
 from members.pdf import render_tex_with_attachments
 from utils import get_member
 
+from .admin_rulesets import ObligationInline
+from .api.approval import approval_payload
 from .models import Bill
 from .models import BillOnStatementProxy
 from .models import Ledger
@@ -131,8 +133,14 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     def get_inlines(self, request, obj=None):
         if obj is None or not obj.submitted:
             return [BillOnStatementInline]
-        else:
-            return [BillOnSubmittedStatementInline, TransactionOnSubmittedStatementInline]
+        # A submitted statement shows what the rules resolved, frozen, beside
+        # the transactions generated from it: the two have to agree, and this
+        # is where somebody checking that looks.
+        return [
+            BillOnSubmittedStatementInline,
+            ObligationInline,
+            TransactionOnSubmittedStatementInline,
+        ]
 
     @extra_button(
         _("Submit"),
@@ -209,7 +217,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             "transaction_execution_confirm" in request.POST
             or "transaction_execution_confirm_and_send" in request.POST
         ):
-            res = statement.confirm(confirmer=get_member(request))
+            res = statement.confirm(confirmer=get_member(request), user=request.user)
             if not res:  # pragma: no cover
                 # this should NOT happen!
                 logger.error(
@@ -222,7 +230,8 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                 )
                 return HttpResponseRedirect(
                     reverse(
-                        "admin:{}_{}_overview".format(self.opts.app_label, self.opts.model_name)
+                        "admin:{}_{}_overview".format(self.opts.app_label, self.opts.model_name),
+                        args=(statement.pk,),
                     )
                 )
 
@@ -377,6 +386,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             object=statement,
             settings=settings,
             transaction_issues=statement.transaction_issues,
+            approval=approval_payload(statement, get_member(request)),
             **statement.template_context(),
         )
 

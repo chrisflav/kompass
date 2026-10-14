@@ -51,6 +51,9 @@ if ! [ -f /tmp/completed_initial_run ]; then
     touch /tmp/completed_initial_run
 fi
 
+# See docker/production/entrypoint-master.sh: unconditional, every start.
+python jdav_web/manage.py importruleset || true
+
 cd jdav_web
 
 celery -A jdav_web worker -B --scheduler django_celery_beat.schedulers:DatabaseScheduler -l info &

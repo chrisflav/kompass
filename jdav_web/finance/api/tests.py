@@ -319,7 +319,10 @@ class FinanceApiTestCase(TestCase):
     def test_unconfirm_requires_permission(self):
         stmt = self.make_statement(self.owner)
         stmt.submit(self.owner)
-        self.assertTrue(stmt.confirm(self.owner))
+        # The manager, not the owner: signing a statement off is now the
+        # section's rules' business as well as the capability's, and the rules
+        # name the people who hold `process_statementsubmitted`.
+        self.assertTrue(stmt.confirm(self.manager))
         r = self.client.post(
             "/api/finance/statements/{}/unconfirm".format(stmt.pk), **self.auth(self.owner_user)
         )

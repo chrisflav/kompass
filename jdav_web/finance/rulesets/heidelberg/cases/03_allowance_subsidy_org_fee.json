@@ -1,0 +1,40 @@
+{
+  "name": "allowance, subsidy and the organisation fee charged against them",
+  "params": {
+    "ALLOWANCE_PER_DAY": "22",
+    "MAX_NIGHT_COST": "11",
+    "AID_PER_KM_TRAIN": "0.15",
+    "AID_PER_KM_CAR": "0.10",
+    "EXCURSION_ORG_FEE": "10",
+    "LJP_CONTRIBUTION_PER_DAY": "25",
+    "LJP_TAX": "0"
+  },
+  "inputs": {"night_cost": "27", "allowance_to": [1, 2], "subsidy_to": 1},
+  "excursion": {
+    "duration": "4.0",
+    "nights": 3,
+    "kilometers": 512,
+    "approach": "muscle",
+    "leaders": [1, 2, 3],
+    "staff_count": 3,
+    "approved_staff_count": 2,
+    "participants": [
+      {"member": 10, "age": 30},
+      {"member": 11, "age": 41},
+      {"member": 12, "age": 27},
+      {"member": 13, "age": 16},
+      {"member": 1, "age": 35, "is_leader": true}
+    ]
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "88.00", "allowance"],
+      ["SECTION", "2", "88.00", "allowance"],
+      ["SECTION", "1", "219.60", "subsidy"],
+      ["1", "SECTION", "120.00", "org_fee"],
+      ["PARTICIPANTS", "SECTION", "275.60", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true]
+  }
+}

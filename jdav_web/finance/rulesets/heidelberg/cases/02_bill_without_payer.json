@@ -1,0 +1,15 @@
+{
+  "name": "a covered bill with nobody named is an error, and still owed",
+  "bills": [
+    {"id": 7, "amount": "42.00", "covered": true, "description": "Hüttenrechnung"}
+  ],
+  "expect": {
+    "transfers": [
+      ["SECTION", "PARTICIPANTS", "42.00", "bill"],
+      ["PARTICIPANTS", "SECTION", "42.00", "participant_contribution"]
+    ],
+    "errors": [
+      "Für den übernommenen Beleg „Hüttenrechnung“ ist nicht eingetragen, wer ihn bezahlt hat."
+    ]
+  }
+}

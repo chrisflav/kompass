@@ -1,0 +1,376 @@
+"""The endpoints that speak in declarations rather than in columns.
+
+``/form`` asks the section's rules what to ask a person, ``/preflight`` asks
+them what is still wrong, ``/approval`` asks them who has to sign — and the
+``inputs`` half of ``PATCH /statements/{id}`` reads the answers back, validating
+each against the declaration it belongs to rather than against a hand-written
+list of the four columns Heidelberg happens to have.
+
+The columns are still the source of truth, and these tests say so: an answer
+that arrives as ``inputs`` lands in the column the rules read, and in the
+``inputs`` field beside it.
+"""
+
+import datetime
+import uuid
+from decimal import Decimal
+from unittest.mock import patch
+
+from django.core.exceptions import ValidationError
+from django.test import SimpleTestCase
+from django.test import TestCase
+from django.utils import timezone
+from finance.api.tests import AccessToken
+from finance.api.tests import Application
+from finance.api.tests import grant
+from finance.api.tests import make_member_user
+from finance.inputs import clean_value
+from finance.models import Bill
+from finance.models import Ledger
+from finance.models import Statement
+from finance.rules_api import Input
+from members.models import Freizeit
+from members.models import GEMEINSCHAFTS_TOUR
+from members.models import MUSKELKRAFT_ANREISE
+from members.models import NewMemberOnList
+
+
+class FinanceFormApiTestCase(TestCase):
+    def setUp(self):
+        self.application = Application.objects.create(
+            name="test-client-forms",
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_PASSWORD,
+            client_secret="test-secret",
+        )
+        self.owner_user, self.owner = make_member_user("fowner")
+        self.leader_user, self.leader = make_member_user("fleader")
+        self.manager_user, self.manager = make_member_user("fmanager")
+        self.manager_user = grant(
+            self.manager_user,
+            "view_global_statement",
+            "change_global_statement",
+            "process_statementsubmitted",
+        )
+        self.excursion = Freizeit.objects.create(
+            name="Formfahrt",
+            kilometers_traveled=100,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        self.excursion.jugendleiter.add(self.leader)
+        # Four participants, so the section approves two youth leaders: the
+        # allowance declaration's `max` comes from that ratio.
+        for index in range(4):
+            _user, participant = make_member_user(f"fteil{index}")
+            NewMemberOnList.objects.create(member=participant, memberlist=self.excursion)
+        self.statement = Statement.objects.create(
+            short_description="Formular",
+            night_cost=0,
+            excursion=self.excursion,
+            created_by=self.owner,
+        )
+
+    def auth(self, user):
+        token = AccessToken.objects.create(
+            user=user,
+            application=self.application,
+            token="tok-{}-{}".format(user.username, uuid.uuid4().hex[:8]),
+            expires=timezone.now() + datetime.timedelta(days=1),
+            scope="read write",
+        )
+        return {"HTTP_AUTHORIZATION": "Bearer {}".format(token.token)}
+
+    # --- the form ---------------------------------------------------------
+
+    def test_the_form_comes_from_the_rules_with_the_options_resolved(self):
+        r = self.client.get(
+            "/api/finance/statements/{}/form".format(self.statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertEqual(body["statement_id"], self.statement.pk)
+        keys = [declaration["key"] for declaration in body["inputs"]]
+        self.assertEqual(keys, ["night_cost", "allowance_to", "subsidy_to", "ljp_to"])
+        allowance = body["inputs"][1]
+        self.assertEqual(allowance["type"], "member_set")
+        self.assertFalse(allowance["required"])
+        self.assertEqual(allowance["options"], [{"id": self.leader.pk, "name": self.leader.name}])
+        self.assertEqual(allowance["max"], self.excursion.approved_staff_count)
+        self.assertIn("Übernachtung", body["inputs"][0]["label"])
+
+    def test_a_statement_without_a_trip_offers_nobody(self):
+        statement = Statement.objects.create(
+            short_description="Ohne Fahrt", night_cost=0, created_by=self.owner
+        )
+        r = self.client.get(
+            "/api/finance/statements/{}/form".format(statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200)
+        for declaration in r.json()["inputs"]:
+            self.assertEqual(declaration["options"], [])
+
+    # --- the answers ------------------------------------------------------
+
+    def test_an_answer_lands_in_the_column_the_rules_read(self):
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={
+                "inputs": {
+                    "night_cost": "12.50",
+                    "allowance_to": [self.leader.pk],
+                    "subsidy_to": self.leader.pk,
+                    "ljp_to": self.leader.pk,
+                }
+            },
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.statement.refresh_from_db()
+        self.assertEqual(self.statement.night_cost, Decimal("12.50"))
+        self.assertEqual(self.statement.subsidy_to, self.leader)
+        self.assertEqual(self.statement.ljp_to, self.leader)
+        self.assertEqual(list(self.statement.allowance_to.all()), [self.leader])
+        # And beside the columns, under the keys the rules use.
+        self.assertEqual(self.statement.inputs["night_cost"], "12.50")
+        self.assertEqual(self.statement.inputs["allowance_to"], [self.leader.pk])
+
+    def test_an_answer_naming_somebody_the_rules_did_not_offer(self):
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"subsidy_to": self.owner.pk}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertIn("Jugendleiter", r.content.decode())
+
+    def test_more_recipients_than_the_section_approved(self):
+        for index in range(3):
+            _user, member = make_member_user(f"extra{index}")
+            self.excursion.jugendleiter.add(member)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={
+                "inputs": {
+                    "allowance_to": list(self.excursion.jugendleiter.values_list("pk", flat=True))
+                }
+            },
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_an_answer_to_a_question_the_rules_do_not_ask(self):
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"lieblingsfarbe": "blau"}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+    def test_an_amount_that_is_not_one(self):
+        for value in ("zwölf", "-1"):
+            with self.subTest(value=value):
+                r = self.client.patch(
+                    "/api/finance/statements/{}".format(self.statement.pk),
+                    data={"inputs": {"night_cost": value}},
+                    content_type="application/json",
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 422, r.content)
+
+    # --- the preflight ----------------------------------------------------
+
+    def test_the_preflight_lists_what_is_still_wrong(self):
+        Bill.objects.create(
+            statement=self.statement,
+            short_description="Hütte",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+        )
+        self.statement.ljp_to = self.leader
+        self.statement.save()
+        r = self.client.get(
+            "/api/finance/statements/{}/preflight".format(self.statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertFalse(body["ok"])
+        # The LJP check (no picture) and the payerless receipt (an error).
+        self.assertTrue(any("Bild" in check["message"] for check in body["failing"]))
+        self.assertTrue(any("Beleg" in error for error in body["errors"]))
+        self.assertGreaterEqual(len(body["checks"]), len(body["failing"]))
+
+    def test_a_statement_with_nothing_wrong_passes_its_preflight(self):
+        r = self.client.get(
+            "/api/finance/statements/{}/preflight".format(self.statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertTrue(r.json()["ok"])
+
+    # --- the signatures ---------------------------------------------------
+
+    def test_the_approval_endpoint_names_who_may_still_sign(self):
+        Bill.objects.create(
+            statement=self.statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=self.leader,
+        )
+        self.statement.submit(self.owner)
+        r = self.client.get(
+            "/api/finance/statements/{}/approval".format(self.statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertFalse(body["approved"])
+        self.assertTrue(body["may_approve"])
+        constraint = body["constraints"][0]
+        self.assertEqual(constraint["name"], "Freigabe")
+        self.assertEqual(constraint["required"], 1)
+        self.assertTrue(constraint["applicable"])
+        self.assertFalse(constraint["satisfied"])
+        self.assertTrue(constraint["open"])
+        self.assertEqual(constraint["missing"], 1)
+        self.assertEqual([m["id"] for m in constraint["eligible"]], [self.manager.pk])
+        self.assertEqual(body["signatures"], [])
+
+    def test_signing_a_statement_off_through_the_api(self):
+        Bill.objects.create(
+            statement=self.statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=self.leader,
+        )
+        self.statement.submit(self.owner)
+        self.statement.generate_transactions()
+        self.statement.transaction_set.update(ledger=Ledger.objects.create(name="Konto"))
+        r = self.client.post(
+            "/api/finance/statements/{}/approve".format(self.statement.pk),
+            data={"note": "geprüft"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertTrue(body["approved"])
+        self.assertFalse(body["may_approve"], "there is nothing left to sign")
+        self.assertEqual(body["signatures"][0]["member"]["id"], self.manager.pk)
+        self.assertEqual(body["signatures"][0]["note"], "geprüft")
+        self.assertTrue(Statement.objects.get(pk=self.statement.pk).confirmed)
+
+    def test_somebody_without_the_capability_cannot_sign(self):
+        self.statement.submit(self.owner)
+        r = self.client.post(
+            "/api/finance/statements/{}/approve".format(self.statement.pk),
+            data={"note": ""},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403, r.content)
+
+    def test_overriding_a_step_through_the_api(self):
+        self.statement.submit(self.owner)
+        url = "/api/finance/statements/{}/override-approval".format(self.statement.pk)
+        r = self.client.post(
+            url,
+            data={"name": "Freigabe", "reason": ""},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, "an override has to say why")
+        r = self.client.post(
+            url,
+            data={"name": "Gibt es nicht", "reason": "weil"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        r = self.client.post(
+            url,
+            data={"name": "Freigabe", "reason": "Fristende"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        constraint = r.json()["constraints"][0]
+        self.assertTrue(constraint["overridden"])
+        self.assertEqual(constraint["override_reason"], "Fristende")
+        self.assertEqual(constraint["overridden_by"]["id"], self.manager.pk)
+
+    def test_an_override_by_somebody_a_forbid_excludes_is_refused(self):
+        """The endpoint asks before it writes.
+
+        Heidelberg declares no forbids, so the rule itself is tested on the
+        model (:mod:`finance.tests.approval`). What this pins is that the
+        endpoint answers 422 rather than returning 200 with nothing changed,
+        which is what it would do if it left `override_approval` to refuse on
+        its own.
+        """
+        self.statement.submit(self.owner)
+        with patch.object(Statement, "forbids_approval_by", return_value=True):
+            r = self.client.post(
+                "/api/finance/statements/{}/override-approval".format(self.statement.pk),
+                data={"name": "Freigabe", "reason": "Fristende"},
+                content_type="application/json",
+                **self.auth(self.manager_user),
+            )
+        self.assertEqual(r.status_code, 422, r.content)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertFalse(statement.approval_constraint_set.get().overridden)
+
+    def test_a_draft_cannot_be_overridden(self):
+        r = self.client.post(
+            "/api/finance/statements/{}/override-approval".format(self.statement.pk),
+            data={"name": "Freigabe", "reason": "weil"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+
+
+class InputValueTestCase(SimpleTestCase):
+    """One answer against one declaration, for every type there is.
+
+    Heidelberg asks for money and for people, so the rest of the vocabulary a
+    declaration may use would otherwise first be exercised by the section that
+    starts using it — on a live statement. ``clean_value`` is public for that
+    reason: a type's conversion is checkable without a statement, a ruleset or
+    a request.
+    """
+
+    def test_a_whole_number_within_the_bound_it_declared(self):
+        declaration = Input("nights", "Nächte", "int", max=7)
+        self.assertEqual(clean_value(declaration, "3"), 3)
+        self.assertEqual(clean_value(declaration, None), 0)
+        self.assertEqual(clean_value(Input("n", "N", "int"), 99), 99)
+        with self.assertRaises(ValidationError):
+            clean_value(declaration, "drei")
+        with self.assertRaises(ValidationError):
+            clean_value(declaration, 8)
+
+    def test_a_flag_and_a_line_of_text(self):
+        self.assertIs(clean_value(Input("f", "F", "bool"), "ja"), True)
+        self.assertIs(clean_value(Input("f", "F", "bool"), None), False)
+        self.assertEqual(clean_value(Input("t", "T", "text"), 12), "12")
+        self.assertEqual(clean_value(Input("t", "T", "text"), None), "")
+
+    def test_an_answer_cleared_again(self):
+        """Erasing an answer is an answer, and it is not zero.
+
+        A member nobody picked is ``None`` and an empty set is ``[]``, so the
+        rules read "nobody" rather than a member id that no longer applies.
+        """
+        self.assertIsNone(clean_value(Input("m", "M", "member"), None))
+        self.assertEqual(clean_value(Input("s", "S", "member_set"), None), [])
+        self.assertEqual(clean_value(Input("c", "C", "money"), None), Decimal("0"))

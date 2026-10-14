@@ -8,6 +8,7 @@ from contrib.models import CommonModel
 from contrib.rules import has_global_perm
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.db.models import Sum
 from django.utils import timezone
 from django.utils.html import format_html
@@ -24,9 +25,26 @@ from schwifty import IBAN
 from utils import cvt_to_decimal
 from utils import RestrictedFileField
 
+from .engine import approval_states
+from .engine import bind as bind_ruleset
+from .engine import current_constraint_rows
+from .engine import evaluate_statement
+from .engine import freeze as freeze_obligations
+from .engine import fully_approved
+from .engine import materialise
+from .engine import may_sign
+from .engine import result_from_rows
+from .engine import rows_exist
+from .engine import statement_params
+from .engine.approval import PERMISSION_EXCLUSION
 from .rules import is_creator
 from .rules import leads_excursion
+from .rules import may_approve
 from .rules import not_submitted
+from .rules_api import Member as RuleMember
+from .rules_api import SECTION
+from .store import Approval
+from .store import RuleSet
 
 # Create your models here.
 
@@ -128,6 +146,17 @@ class Statement(CommonModel):
         ),
     )
 
+    inputs = models.JSONField(
+        verbose_name=_("Answers"),
+        default=dict,
+        blank=True,
+        help_text=_(
+            "The answers to the questions the section's rules ask, by key. The "
+            "four columns above are still the ones the rules read; this is "
+            "written beside them until they are migrated into it."
+        ),
+    )
+
     status = models.IntegerField(
         verbose_name=_("Status"), choices=STATUS_CHOICES, default=UNSUBMITTED
     )
@@ -136,6 +165,29 @@ class Statement(CommonModel):
         default=dict,
         blank=True,
         help_text=_("Financial settings captured at time of submission/confirmation."),
+    )
+    # The rules this statement is settled under, bound when it is created and
+    # never afterwards. `ruleset` is the row (PROTECT: a version a statement
+    # depends on cannot be deleted), `ruleset_hash` is the dedup and audit key,
+    # and `ruleset_snapshot` is the whole closure plus its parameters, so the
+    # statement can be evaluated from itself alone.
+    ruleset = models.ForeignKey(
+        RuleSet,
+        verbose_name=_("Ruleset version"),
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=models.PROTECT,
+        related_name="statements",
+    )
+    ruleset_hash = models.CharField(
+        verbose_name=_("Ruleset hash"), max_length=64, blank=True, default=""
+    )
+    ruleset_snapshot = models.JSONField(
+        verbose_name=_("Ruleset snapshot"),
+        default=dict,
+        blank=True,
+        help_text=_("The rules and numbers this statement was created under."),
     )
     submitted_date = models.DateTimeField(verbose_name=_("Submitted on"), default=None, null=True)
     confirmed_date = models.DateTimeField(verbose_name=_("Paid on"), default=None, null=True)
@@ -182,6 +234,10 @@ class Statement(CommonModel):
             # All users may delete relevant (see above) draft statements.
             "delete_obj": not_submitted
             & (is_creator | leads_excursion | has_global_perm("finance.delete_global_statement")),
+            # Signing a statement off is the capability plus the section's own
+            # routing: whoever may act as an approver at all, and whom the
+            # rules still leave something to sign.
+            "approve_obj": has_global_perm("finance.process_statementsubmitted") & may_approve,
         }
 
     @property
@@ -194,10 +250,22 @@ class Statement(CommonModel):
     def __str__(self):
         return str(self.title)
 
-    def _get_setting(self, key: str):
-        if self.submitted and self.settings_snapshot and key in self.settings_snapshot:
-            return float(self.settings_snapshot[key])
-        return float(getattr(settings, key, 0))
+    def _get_setting(self, key: str) -> Decimal:
+        """The section's number for ``key``, as it applies to this statement.
+
+        The statement's own ruleset snapshot, taken when it was created, so
+        that a draft is settled against the numbers that were in force the day
+        it was opened rather than whatever the settings say today. A statement
+        from before the store falls back to the old behaviour: its
+        ``settings_snapshot`` once submitted, the live settings while a draft.
+
+        The value is a ``Decimal``: the snapshots hold JSON and the settings
+        may hold either, and every amount column in this app is a
+        ``DecimalField``, so the conversion happens once, here, through the
+        text form — ``Decimal(str(0.15))`` is ``Decimal("0.15")`` and not the
+        binary expansion ``Decimal(0.15)`` would give.
+        """
+        return statement_params(self)[key]
 
     def _capture_settings_snapshot(self, force=False):
         if self.settings_snapshot and not force:
@@ -232,50 +300,182 @@ class Statement(CommonModel):
     status_badge.allow_tags = True
     status_badge.admin_order_field = "status"
 
+    def save(self, *args, **kwargs):
+        """Bind a new statement to the active rules, then write its rows.
+
+        Binding happens once, on creation: from then on the statement carries
+        the rules it was opened under. The obligation rows are rewritten on
+        every draft save and left alone once the statement is submitted, which
+        is what makes them the record rather than a cache.
+        """
+        creating = self._state.adding
+        if creating and self.ruleset_id is None:
+            bind_ruleset(self)
+        super().save(*args, **kwargs)
+        if not self.submitted:
+            materialise(self)
+
     def submit(self, submitter=None):
+        """Hand the statement in, and freeze the payout it was handed in with.
+
+        One wrinkle worth knowing about: a statement whose rules report a
+        problem (the one Heidelberg reports is a covered receipt with no payer)
+        is submitted but **not** frozen, because freezing a payout that is
+        known to be wrong would make the record say something false. Such a
+        statement keeps resolving live, cannot generate transactions and cannot
+        be paid out, and freezes on the first save after the problem is fixed.
+        """
         self._capture_settings_snapshot(force=True)
         self.status = self.SUBMITTED
         self.submitted_date = timezone.now()
         self.submitted_by = submitter
         self.save()
+        # The rows the statement is handed in with are the ones it is settled
+        # from: frozen here, read everywhere afterwards, never recomputed.
+        freeze_obligations(self)
+
+    @property
+    def rule_result(self):
+        """This statement resolved against the section's rules.
+
+        The single seam between the finance app and the rules engine: who is
+        owed what, what is wrong with the statement, and what still has to be
+        asked (:class:`finance.engine.Result`). Every money figure below is
+        read off it rather than recomputed here.
+
+        A **submitted** statement reads the rows that were frozen when it was
+        handed in, and reads them once per instance: that record is what it is
+        settled from, and no code needs to run again to render it. A **draft**
+        is resolved live on every access, because it follows its own fields —
+        change the subsidy recipient and the next read says so — and
+        fingerprinting the recipients, the bills and the excursion to cache
+        that correctly would cost the queries it saves.
+        """
+        if "_frozen_result" in self.__dict__:
+            return self.__dict__["_frozen_result"]
+        if self.submitted and rows_exist(self):
+            self.__dict__["_frozen_result"] = result_from_rows(self)
+            return self.__dict__["_frozen_result"]
+        return evaluate_statement(self)
+
+    @property
+    def transfers(self):
+        """The transfers this statement resolves to, balancing one last."""
+        return self.rule_result.transfers
+
+    def _transfer_members(self, result):
+        """The members a result touches, by id, in one query."""
+        return Member.objects.in_bulk([party.id for party in result.members()])
+
+    def _transfer_reference(self, transfer):
+        """The payment reference a transfer is booked under.
+
+        The wording is the association's, not the ruleset's: a transfer carries
+        a category and a short label, and the context the rules see holds no
+        names, so the excursion's name is interpolated here. A category this
+        app has no wording for falls back to the ruleset's own label, which is
+        what a section with its own categories gets.
+        """
+        if transfer.category == "bill":
+            return "{}: {}".format(str(self), transfer.label)
+        excursion = self.excursion
+        if excursion is not None:
+            if transfer.category == "allowance":
+                return _("Allowance for %(excu)s") % {"excu": excursion.name}
+            if transfer.category == "subsidy":
+                return _("Night and travel costs for %(excu)s") % {"excu": excursion.name}
+            if transfer.category == "org_fee":
+                return _("reduced by org fee")
+            if transfer.category == "ljp":
+                return _("LJP-Contribution %(excu)s") % {"excu": excursion.name}
+        return transfer.label or transfer.category
+
+    def payout_lines(self, exclude=("bill",)):
+        """The payout as the rules resolved it, one line per transfer.
+
+        What the summary document prints instead of four hardcoded line kinds.
+        Each line carries what a person reading the paper needs — who gets it,
+        what it is called, the arithmetic behind it — and the amount is signed
+        from the recipient's point of view, so a deduction prints as a negative
+        rather than as a special case in the template.
+
+        The bills are excluded by default: a receipt is a fact about what was
+        spent, not a line the rules invented, and the document lists those
+        separately from its own evidence.
+        """
+        result = self.rule_result
+        members = self._transfer_members(result)
+        lines = []
+        for transfer in result.rule_transfers:
+            if transfer.category in exclude:
+                continue
+            for party, sign in ((transfer.destination, 1), (transfer.source, -1)):
+                if not isinstance(party, RuleMember):
+                    continue
+                member = members.get(party.id)
+                amount = sign * transfer.amount
+                lines.append(
+                    {
+                        "label": str(transfer.label) or transfer.category,
+                        "explanation": str(transfer.explanation),
+                        "recipient": member.name if member is not None else "",
+                        "amount": amount,
+                        # Both, because a document says "abzüglich 120,00 €"
+                        # rather than "-120,00 €", and a template cannot do
+                        # arithmetic.
+                        "amount_abs": abs(amount),
+                        "negative": amount < 0,
+                        "category": transfer.category,
+                        "rule_id": transfer.rule_id,
+                    }
+                )
+        return lines
+
+    def transfer_payload(self):
+        """The transfers with their parties resolved to members, for the API."""
+        result = self.rule_result
+        members = self._transfer_members(result)
+
+        def party(value):
+            if isinstance(value, RuleMember):
+                return {"kind": "member", "member": members.get(value.id)}
+            return {"kind": "section" if value == SECTION else "participants", "member": None}
+
+        return [
+            {
+                "source": party(transfer.source),
+                "destination": party(transfer.destination),
+                "amount": transfer.amount,
+                "category": transfer.category,
+                "rule_id": transfer.rule_id,
+                "label": str(transfer.label),
+                "explanation": str(transfer.explanation),
+                "reference": str(self._transfer_reference(transfer)),
+            }
+            for transfer in result.transfers
+        ]
 
     @property
     def transaction_issues(self):
         """
         Returns a list of critical problems with the currently configured transactions. This is done
-        by calculating a list of required paiments. From this list, we deduce the total amount
-        every member should receive (this amount can be negative, due to org fees).
-        Finally, the amounts are compared to the total amounts paid out by currently setup transactions.
+        by resolving the statement against the section's rules. From the resulting transfers, we
+        deduce the total amount every member should receive (this amount can be negative, due to
+        org fees). Finally, the amounts are compared to the total amounts paid out by currently
+        setup transactions.
 
-        The list of required paiments is generated from:
-        - All covered bills that have a configured payer.
-          (Note: This means that `transaction_issues` might return an empty list, but the calculated
-          total still differs from the transaction total.)
-        - If the statement is associated with an excursion: allowances, subsidies, LJP paiment and org fee.
+        Only transfers that touch a member can be an issue: a covered bill with no payer is money
+        the statement owes somebody it cannot name, which is reported as a rule error instead.
+        (Note: This means that `transaction_issues` might return an empty list, but the calculated
+        total still differs from the transaction total.)
         """
-        needed_paiments = [
-            (b.paid_by, b.amount) for b in self.bill_set.all() if b.costs_covered and b.paid_by
-        ]
-
-        if self.excursion is not None:
-            needed_paiments.extend([(yl, self.allowance_per_yl) for yl in self.allowance_to.all()])
-        if self.subsidy_to:
-            needed_paiments.append((self.subsidy_to, self.total_subsidies))
-
-        # only include org fee if either allowance or subsidy is claimed (part of the property)
-        if self.total_org_fee:
-            needed_paiments.append((self.org_fee_payant, -self.total_org_fee))
-
-        if self.ljp_to:
-            needed_paiments.append((self.ljp_to, self.paid_ljp_contributions))
-
-        needed_paiments = sorted(needed_paiments, key=lambda p: p[0].pk)
-        target = dict(
-            map(
-                lambda p: (p[0], sum([x[1] for x in p[1]])),
-                groupby(needed_paiments, lambda p: p[0]),
-            )
-        )
+        result = self.rule_result
+        members = self._transfer_members(result)
+        target = {
+            members[party.id]: result.amount_for(party)
+            for party in sorted(result.members(), key=lambda party: party.id)
+            if party.id in members
+        }
 
         transactions = sorted(self.transaction_set.all(), key=lambda trans: trans.member.pk)
         current = dict(
@@ -390,13 +590,181 @@ class Statement(CommonModel):
             Statement.VALID: _("Everything is correct."),
         }[self.validity]
 
-    def confirm(self, confirmer=None):
+    def _signatures(self):
+        """Who has signed, split into the named and the unattributable."""
+        signatures = list(self.approval_set.all())
+        members = [approval.member_id for approval in signatures if approval.member_id]
+        others = {approval.signer for approval in signatures if not approval.member_id}
+        return members, others
+
+    @property
+    def approval_states(self):
+        """Each signature the rules asked for, and whether it is in: the record.
+
+        Read off the :class:`~finance.store.ApprovalConstraint` rows that were
+        frozen at submission and the :class:`~finance.store.Approval` rows
+        signed since. This is what the statement's page *shows* — who the
+        rules named when it was handed in — and deliberately not what decides
+        whether somebody may sign now; see :attr:`live_approval_states`.
+        """
+        members, others = self._signatures()
+        return approval_states(
+            [row.as_row() for row in self.approval_constraint_set.all()],
+            members,
+            uncredited=others,
+        )
+
+    @property
+    def live_approval_states(self):
+        """The same constraints, with eligibility resolved against today.
+
+        The gate rather than the record. Who *has* signed and what was
+        overridden come from the rows; who *may* sign is asked of the rules
+        again, because the alternative regresses against the behaviour before
+        the store: a treasurer appointed after a statement was handed in held
+        the capability and was still refused. Cached per instance, because a
+        page asks this three times.
+        """
+        if "_live_states" not in self.__dict__:
+            members, others = self._signatures()
+            self.__dict__["_live_states"] = approval_states(
+                current_constraint_rows(self), members, uncredited=others
+            )
+        return self.__dict__["_live_states"]
+
+    @property
+    def fully_approved(self):
+        """Whether every applicable constraint has its quorum or an override."""
+        if self.confirmed:
+            return True
         if not self.submitted:
             return False
+        return fully_approved(self.live_approval_states)
 
+    def may_be_approved_by(self, member):
+        """Whether ``member`` can still advance any open constraint.
+
+        The capability — ``finance.process_statementsubmitted`` — is checked by
+        the caller, as it always was; this is the second half of the question:
+        is there anything left for this person to sign? A constraint that named
+        nobody is answered by the capability alone; one whose named people were
+        all excluded is answered by nobody.
+        """
+        if member is None or not self.submitted or self.confirmed:
+            return False
+        return may_sign(self.live_approval_states, member.pk)
+
+    def approve(self, member=None, note="", user=None):
+        """Record a signature, and pay out once the last one is in.
+
+        Returns whether the statement ended up confirmed. A signature is
+        recorded even when it does not complete the quorum — that is the point
+        of having more than one — and the payout happens on the signature that
+        does. Signing twice is signing once: the row is unique per signer, and
+        ``user`` is recorded so that an administrator with no member record is
+        still *one* person rather than an anonymous tally that can reach any
+        quorum by clicking twice.
+        """
+        if not self.submitted or self.confirmed:
+            return False
+        if not self._has_signed(member, user):
+            Approval.objects.create(statement=self, member=member, user=user, note=note)
+        self.__dict__.pop("_live_states", None)
+        states = self.live_approval_states
+        for row in self.approval_constraint_set.all():
+            state = next((s for s in states if s.name == row.name), None)
+            if state is not None and row.satisfied != state.satisfied:
+                row.satisfied = state.satisfied
+                row.save(update_fields=["satisfied"])
+        if not fully_approved(states):
+            return False
+        return self._pay_out(member)
+
+    def _has_signed(self, member, user):
+        """Whether this signer already has a signature on this statement.
+
+        Asked per *identity*, not per row: a `get_or_create` on the whole
+        triple missed the case where somebody signed once as an account with
+        no member record and again once their member record existed, which
+        then violated the account's own uniqueness constraint and raised a raw
+        `IntegrityError` — a 500 where the answer should have been "signing
+        twice is signing once".
+        """
+        conflict = Q(member__isnull=True, user__isnull=True)
+        if member is not None or user is not None:
+            conflict = Q(pk__in=[])
+            if member is not None:
+                conflict |= Q(member=member)
+            if user is not None:
+                conflict |= Q(user=user)
+        return self.approval_set.filter(conflict).exists()
+
+    def override_approval(self, name, member, reason):
+        """Sign a constraint off without its quorum, on the record.
+
+        An override is a state, not an absence: the constraint stays in the
+        list with who overrode it and why, because "we went ahead anyway" is
+        exactly the thing an audit has to be able to find.
+
+        It does **not** escape the forbids. Somebody a forbid excluded from a
+        constraint may not override that constraint: a rule that says "nobody
+        this statement pays may approve it" would otherwise be a formality for
+        anybody holding the permission, and recording that they did it is a
+        mitigation rather than a control.
+
+        Nor does it clear a constraint the rules could not resolve at all. A
+        broken forbid is a rule that *failed to say* who is excluded, so there
+        is no answer to the question "may this person sign it off" — and the
+        person with the most reason to ask is the one the forbid was written
+        for. Such a payout stays stuck until the rule is fixed, which is what
+        "stuck" has to mean to be worth claiming. Returns whether the
+        statement ended up confirmed.
+        """
+        row = self.approval_constraint_set.filter(name=name).first()
+        if row is None or not self.submitted or self.confirmed:
+            return False
+        if self.approval_cannot_be_resolved(name):
+            return False
+        if member is not None and self.forbids_approval_by(name, member):
+            return False
+        row.overridden_by = member
+        row.overridden_at = timezone.now()
+        row.override_reason = reason
+        row.save(update_fields=["overridden_by", "overridden_at", "override_reason"])
+        self.__dict__.pop("_live_states", None)
+        if not self.fully_approved:
+            return False
+        return self._pay_out(member)
+
+    def approval_cannot_be_resolved(self, name):
+        """Whether the rules failed to say who may sign the step ``name``."""
+        return any(state.name == name and bool(state.error) for state in self.live_approval_states)
+
+    def forbids_approval_by(self, name, member):
+        """Whether a forbid excludes ``member`` from the constraint ``name``.
+
+        The permission re-check is not a forbid: somebody excluded because they
+        did not hold the capability when the statement was handed in may hold
+        it now, and the capability is checked by the caller anyway.
+        """
+        for state in self.live_approval_states:
+            if state.name != name:
+                continue
+            return any(
+                exclusion.member == member.pk and exclusion.forbid != PERMISSION_EXCLUSION
+                for exclusion in state.excluded
+            )
+        return False
+
+    def _pay_out(self, confirmer=None):
+        """Flip to paid: the last step, once the signatures are in."""
+        if self.rule_result.errors:
+            # A statement whose rules report a problem has no settled payout to
+            # pay out: its rows were never frozen, and `generate_transactions`
+            # refused for the same reason.
+            return False
         if not self.validity == Statement.VALID:
             return False
-
         self._capture_settings_snapshot()
         self.status = self.CONFIRMED
         self.confirmed_date = timezone.now()
@@ -409,69 +777,46 @@ class Statement(CommonModel):
         self.save()
         return True
 
+    def confirm(self, confirmer=None, user=None):
+        """Sign the statement off and pay it out if that completes the quorum.
+
+        The name the admin and the API have always used. It is now one
+        signature among however many the section's rules ask for — for
+        Heidelberg, which asks for exactly one from the finance department,
+        this is behaviourally what it always was.
+        """
+        if not self.submitted:
+            return False
+        if not self.validity == Statement.VALID:
+            return False
+        return self.approve(confirmer, user=user)
+
     def generate_transactions(self):
-        # bills
-        for bill in self.bill_set.all():
-            if not bill.costs_covered:
-                continue
-            if not bill.paid_by:
-                return False
-            ref = "{}: {}".format(str(self), bill.short_description)
-            Transaction(
-                statement=self,
-                member=bill.paid_by,
-                amount=bill.amount,
-                confirmed=False,
-                reference=ref,
-            ).save()
+        """Book one transaction per member a transfer touches.
 
-        # excursion specific
-        if self.excursion is None:
-            return True
-
-        # allowance
-        for yl in self.allowance_to.all():
-            ref = _("Allowance for %(excu)s") % {"excu": self.excursion.name}
-            Transaction(
-                statement=self,
-                member=yl,
-                amount=self.allowance_per_yl,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
-        # subsidies (i.e. night and transportation costs)
-        if self.subsidy_to:
-            ref = _("Night and travel costs for %(excu)s") % {"excu": self.excursion.name}
-            Transaction(
-                statement=self,
-                member=self.subsidy_to,
-                amount=self.total_subsidies,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
-        if self.total_org_fee:
-            # if no subsidy receiver is given but org fees have to be paid. Just pick one of allowance receivers
-            ref = _("reduced by org fee")
-            Transaction(
-                statement=self,
-                member=self.org_fee_payant,
-                amount=-self.total_org_fee,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
-        if self.ljp_to:
-            ref = _("LJP-Contribution %(excu)s") % {"excu": self.excursion.name}
-            Transaction(
-                statement=self,
-                member=self.ljp_to,
-                amount=self.paid_ljp_contributions,
-                confirmed=False,
-                reference=ref,
-            ).save()
-
+        Returns ``False`` without writing anything when the rules reported a
+        problem — a covered bill with no payer is the one Heidelberg reports —
+        so a statement that cannot be paid out leaves no half-generated rows
+        behind. Money owed to a member is a transfer *to* them and money
+        charged against their reimbursement a transfer *from* them, which is
+        where the negative amount of an org-fee row comes from.
+        """
+        result = self.rule_result
+        if result.errors:
+            return False
+        members = self._transfer_members(result)
+        for transfer in result.transfers:
+            reference = self._transfer_reference(transfer)
+            for party, sign in ((transfer.destination, 1), (transfer.source, -1)):
+                if not isinstance(party, RuleMember):
+                    continue
+                Transaction(
+                    statement=self,
+                    member=members[party.id],
+                    amount=sign * transfer.amount,
+                    confirmed=False,
+                    reference=reference,
+                ).save()
         return True
 
     def reduce_transactions(self):
@@ -555,7 +900,8 @@ class Statement(CommonModel):
         if self.excursion is None:
             return 0
 
-        return cvt_to_decimal(self.excursion.duration * self._get_setting("ALLOWANCE_PER_DAY"))
+        duration = cvt_to_decimal(self.excursion.duration)
+        return cvt_to_decimal(duration * self._get_setting("ALLOWANCE_PER_DAY"))
 
     @property
     def allowances_paid(self):
@@ -563,7 +909,8 @@ class Statement(CommonModel):
 
     @property
     def total_allowance(self):
-        return self.allowance_per_yl * self.allowances_paid
+        """What the youth leaders actually receive as an allowance."""
+        return self.rule_result.total_of("allowance")
 
     @property
     def total_transportation(self):
@@ -571,7 +918,7 @@ class Statement(CommonModel):
 
     @property
     def real_night_cost(self):
-        return min(self.night_cost, Decimal(self._get_setting("MAX_NIGHT_COST")))
+        return min(cvt_to_decimal(self.night_cost), self._get_setting("MAX_NIGHT_COST"))
 
     @property
     def nights_per_yl(self):
@@ -602,29 +949,22 @@ class Statement(CommonModel):
             return 0
         return cvt_to_decimal(
             self._get_setting("EXCURSION_ORG_FEE")
-            * self.excursion.duration
+            * cvt_to_decimal(self.excursion.duration)
             * self.excursion.old_participant_count
         )
 
     @property
     def total_org_fee(self):
-        """only calculate org fee if subsidies or allowances are claimed."""
-        if not self.subsidy_to and self.allowances_paid == 0:
-            return cvt_to_decimal(0)
-
-        # if the excursion is for qualification, we don't charge org fees for older participants.
-        if hasattr(self.excursion, "ljpproposal"):
-            proposal = getattr(self.excursion, "ljpproposal")
-            if proposal.goal == proposal.LJP_QUALIFICATION:
-                return cvt_to_decimal(0)
-
-        return self.total_org_fee_theoretical
+        """The organisation fee actually charged against this statement."""
+        return self.rule_result.total_of("org_fee")
 
     @property
     def org_fee_payant(self):
-        if self.total_org_fee == 0:
-            return None
-        return self.subsidy_to if self.subsidy_to else self.allowance_to.all()[0]
+        """Whose reimbursement the organisation fee is charged against."""
+        for transfer in self.rule_result.of_category("org_fee"):
+            if isinstance(transfer.source, RuleMember):
+                return Member.objects.filter(pk=transfer.source.id).first()
+        return None
 
     @property
     def total_subsidies(self):
@@ -632,10 +972,7 @@ class Statement(CommonModel):
         The total amount of subsidies excluding the allowance, i.e. the transportation
         and night costs per youth leader multiplied with the real number of youth leaders.
         """
-        if self.subsidy_to:
-            return (self.transportation_per_yl + self.nights_per_yl) * self.real_staff_count
-        else:
-            return cvt_to_decimal(0)
+        return self.rule_result.total_of("subsidy")
 
     @property
     def subsidies_paid(self):
@@ -677,31 +1014,19 @@ class Statement(CommonModel):
 
     @property
     def paid_ljp_contributions(self):
-        if hasattr(self.excursion, "ljpproposal") and self.ljp_to:
-            if self.excursion.theoretic_ljp_participant_count < 5:
-                return 0
-
-            return cvt_to_decimal(
-                min(
-                    # if total costs are more than the max amount of the LJP contribution, we pay the max amount, reduced by taxes
-                    (1 - self._get_setting("LJP_TAX"))
-                    * self._get_setting("LJP_CONTRIBUTION_PER_DAY")
-                    * self.excursion.ljp_participant_count
-                    * self.excursion.ljp_duration,
-                    # if the total costs are less than the max amount, we pay up to 90% of the total costs, reduced by taxes
-                    (1 - self._get_setting("LJP_TAX"))
-                    * 0.9
-                    * (float(self.total_bills_not_covered) + float(self.total_staff)),
-                    # we never pay more than the maximum costs of the trip
-                    float(self.total_bills_not_covered),
-                )
-            )
-        else:
-            return 0
+        """The Landesjugendplan contribution this statement passes on."""
+        return self.rule_result.total_of("ljp")
 
     @property
     def total(self):
-        return self.total_bills + self.total_staff_paid + self.paid_ljp_contributions
+        """What this statement costs the section, net.
+
+        Read off the transfers as the money that leaves the section minus the
+        money that comes back to it — which is the same figure the engine's
+        balancing transfer resolves, and the same one the participants'
+        contributions have to cover.
+        """
+        return self.rule_result.net_out(SECTION)
 
     @property
     def total_theoretic(self):
@@ -720,11 +1045,23 @@ class Statement(CommonModel):
     total_pretty.admin_order_field = "total"
 
     def template_context(self):
+        """The figures the summary documents print.
+
+        ``payout`` is the part that used to be four hardcoded line kinds in the
+        template: it comes from the resolved transfers, so a section whose rules
+        pay something else gets it on the paper without anybody editing LaTeX.
+        The named figures below it are the rates and totals the document
+        narrates around that list.
+        """
         context = {
             "total_bills": self.total_bills,
             "total_bills_theoretic": self.total_bills_theoretic,
             "bills_covered": self.bills_covered,
             "total": self.total,
+            "payout": self.payout_lines(),
+            "payout_total": sum(
+                (line["amount"] for line in self.payout_lines()), cvt_to_decimal(0)
+            ),
         }
         if self.excursion:
             excursion_context = {
@@ -891,6 +1228,34 @@ class Bill(CommonModel):
 
     def __str__(self):
         return "{} ({}€)".format(self.short_description, self.amount)
+
+    def save(self, *args, **kwargs):
+        """Save, and keep the statement's materialised payout in step.
+
+        The one field the finance officer may still edit after a statement is
+        handed in is ``costs_covered`` — that is what their permission on
+        ``BillOnStatementProxy`` is for — and covering a bill changes what is
+        owed. So a bill that moves re-freezes its statement's rows, unless the
+        statement is already paid out, where nothing may move at all.
+        """
+        super().save(*args, **kwargs)
+        self._refresh_statement()
+
+    def delete(self, *args, **kwargs):
+        statement = self.statement
+        deleted = super().delete(*args, **kwargs)
+        self.statement = statement
+        self._refresh_statement()
+        return deleted
+
+    def _refresh_statement(self):
+        statement = self.statement
+        if statement.confirmed:
+            return
+        if statement.submitted:
+            freeze_obligations(statement)
+        else:
+            materialise(statement)
 
     def pretty_amount(self):
         return "{}€".format(self.amount)

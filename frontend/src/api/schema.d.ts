@@ -2125,6 +2125,119 @@ export interface paths {
         patch: operations["finance_api_router_update_transaction"];
         trace?: never;
     };
+    "/api/finance/statements/{statement_id}/form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Statement Form
+         * @description The questions the section's rules ask about this statement.
+         *
+         *     Derived from the rules rather than written beside them, so a section that
+         *     reimburses something else gets a different form without a release. The
+         *     answers go back through ``PATCH /statements/{id}`` as ``inputs``, and each
+         *     one is validated against the declaration it belongs to.
+         */
+        get: operations["finance_api_router_statement_form"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/finance/statements/{statement_id}/preflight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Statement Preflight
+         * @description What stands between this statement and being handed in.
+         *
+         *     The ruleset's own checks, plus anything its ``transfers`` reported — the
+         *     two lists ``submit`` refuses on — so a client can show them before somebody
+         *     presses the button rather than after.
+         */
+        get: operations["finance_api_router_statement_preflight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/finance/statements/{statement_id}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Statement Approval
+         * @description Who has to sign this statement off, and who has.
+         */
+        get: operations["finance_api_router_statement_approval"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/finance/statements/{statement_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Statement
+         * @description Sign a submitted statement off; pay it out once the last signature is in.
+         *
+         *     The capability is the global permission, as it always was; whether this
+         *     person still has anything to sign is the section's rules' business, and the
+         *     object permission asks them both.
+         */
+        post: operations["finance_api_router_approve_statement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/finance/statements/{statement_id}/override-approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Override Statement Approval
+         * @description Sign a constraint off without its quorum, with who and why recorded.
+         */
+        post: operations["finance_api_router_override_statement_approval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/finance/statements/{statement_id}/transactions": {
         parameters: {
             query?: never;
@@ -5729,6 +5842,11 @@ export interface components {
              * @default []
              */
             bills: components["schemas"]["BillBrief"][];
+            /**
+             * Transfers
+             * @default []
+             */
+            transfers: components["schemas"]["TransferOut"][];
             /** Total */
             total: number;
             /** Total Bills */
@@ -5815,6 +5933,56 @@ export interface components {
             /** Difference */
             difference: number;
         };
+        /**
+         * TransferOut
+         * @description One movement of money the section's rules resolved.
+         *
+         *     The payout list, as the rules see it rather than as the statement's
+         *     columns happen to be shaped: who owes whom how much, under which rule, and
+         *     in which category. The last transfer of a statement is the engine's
+         *     balancing one — what the participants' contributions have to cover — so the
+         *     list adds up to zero by construction.
+         *
+         *     ``reference`` is the text the generated bank transaction carries.
+         */
+        TransferOut: {
+            source: components["schemas"]["TransferPartyOut"];
+            destination: components["schemas"]["TransferPartyOut"];
+            /** Amount */
+            amount: number;
+            /** Category */
+            category: string;
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+            /**
+             * Reference
+             * @default
+             */
+            reference: string;
+        };
+        /**
+         * TransferPartyOut
+         * @description One end of a transfer: a member, the section, or the participants.
+         *
+         *     ``member`` is filled only for ``kind == "member"``; the other two parties
+         *     are the section's own money and the participants' contributions, which
+         *     have no bank account of their own in Kompass.
+         */
+        TransferPartyOut: {
+            /** Kind */
+            kind: string;
+            member?: components["schemas"]["MemberBrief"] | null;
+        };
         /** StatementCreate */
         StatementCreate: {
             /** Short Description */
@@ -5856,6 +6024,10 @@ export interface components {
             subsidy_to_id?: number | null;
             /** Ljp To Id */
             ljp_to_id?: number | null;
+            /** Inputs */
+            inputs?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * FinanceOverviewOut
@@ -6119,6 +6291,225 @@ export interface components {
             member_id?: number | null;
             /** Ledger Id */
             ledger_id?: number | null;
+        };
+        /**
+         * InputDeclarationOut
+         * @description One question the section's rules ask about a statement.
+         *
+         *     Derived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks
+         *     for something else gets a different form without anybody editing the API.
+         *     ``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,
+         *     ``choice``, ``member``, ``member_set`` — and ``options`` is the domain a
+         *     party-valued answer may be picked from, resolved to names here because the
+         *     rules themselves never see them.
+         */
+        InputDeclarationOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Type */
+            type: string;
+            /** Required */
+            required: boolean;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
+            /** Max */
+            max?: number | null;
+            /**
+             * Options
+             * @default []
+             */
+            options: components["schemas"]["InputOptionOut"][];
+        };
+        /**
+         * InputOptionOut
+         * @description One person a party-valued answer may name.
+         */
+        InputOptionOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /**
+         * StatementFormOut
+         * @description The questions this statement still has to answer.
+         *
+         *     ``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a
+         *     question once an earlier answer makes it moot.
+         */
+        StatementFormOut: {
+            /** Statement Id */
+            statement_id: number;
+            /**
+             * Inputs
+             * @default []
+             */
+            inputs: components["schemas"]["InputDeclarationOut"][];
+        };
+        /**
+         * CheckOut
+         * @description One precondition for handing a statement in, and whether it holds.
+         */
+        CheckOut: {
+            /** Ok */
+            ok: boolean;
+            /** Message */
+            message: string;
+        };
+        /**
+         * PreflightOut
+         * @description What stands between this statement and being handed in.
+         */
+        PreflightOut: {
+            /** Statement Id */
+            statement_id: number;
+            /** Ok */
+            ok: boolean;
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["CheckOut"][];
+            /**
+             * Failing
+             * @default []
+             */
+            failing: components["schemas"]["CheckOut"][];
+            /**
+             * Errors
+             * @default []
+             */
+            errors: string[];
+        };
+        /**
+         * ApprovalConstraintOut
+         * @description One signature the rules asked for, and where it stands.
+         *
+         *     ``applicable`` and ``satisfied`` are separate states, and an override is a
+         *     third: a constraint that was waved through stays in the list with who did
+         *     it and why, rather than disappearing.
+         */
+        ApprovalConstraintOut: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Applicable */
+            applicable: boolean;
+            /** Required */
+            required: number;
+            /** Satisfied */
+            satisfied: boolean;
+            /** Overridden */
+            overridden: boolean;
+            /** Open */
+            open: boolean;
+            /** Missing */
+            missing: number;
+            /** State Display */
+            state_display: string;
+            /**
+             * Eligible
+             * @default []
+             */
+            eligible: components["schemas"]["MemberBrief"][];
+            /**
+             * Signed By
+             * @default []
+             */
+            signed_by: components["schemas"]["MemberBrief"][];
+            /**
+             * Excluded
+             * @default []
+             */
+            excluded: components["schemas"]["ExclusionOut"][];
+            overridden_by?: components["schemas"]["MemberBrief"] | null;
+            /**
+             * Override Reason
+             * @default
+             */
+            override_reason: string;
+        };
+        /**
+         * ExclusionOut
+         * @description One person a forbid (or the permission check) removed from a constraint.
+         */
+        ExclusionOut: {
+            member?: components["schemas"]["MemberBrief"] | null;
+            /** Forbid */
+            forbid: string;
+        };
+        /**
+         * SignatureOut
+         * @description One signature on a statement.
+         */
+        SignatureOut: {
+            member?: components["schemas"]["MemberBrief"] | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /**
+         * StatementApprovalOut
+         * @description Who has to sign a statement off, and who has.
+         *
+         *     Routing runs on the resolved transfers rather than on the statement's
+         *     fields, which is what lets a rule say "nobody who receives money from this
+         *     statement" — so this list is frozen at submission, beside the payout.
+         */
+        StatementApprovalOut: {
+            /** Statement Id */
+            statement_id: number;
+            /** Approved */
+            approved: boolean;
+            /** May Approve */
+            may_approve: boolean;
+            /**
+             * Constraints
+             * @default []
+             */
+            constraints: components["schemas"]["ApprovalConstraintOut"][];
+            /**
+             * Signatures
+             * @default []
+             */
+            signatures: components["schemas"]["SignatureOut"][];
+        };
+        /**
+         * ApprovalCreate
+         * @description A signature, with an optional note for the record.
+         */
+        ApprovalCreate: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /**
+         * ApprovalOverride
+         * @description Signing a constraint off without its quorum, on the record.
+         */
+        ApprovalOverride: {
+            /** Name */
+            name: string;
+            /** Reason */
+            reason: string;
         };
         /** LedgerListOut */
         LedgerListOut: {
@@ -11291,6 +11682,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransactionOut"];
+                };
+            };
+        };
+    };
+    finance_api_router_statement_form: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementFormOut"];
+                };
+            };
+        };
+    };
+    finance_api_router_statement_preflight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreflightOut"];
+                };
+            };
+        };
+    };
+    finance_api_router_statement_approval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementApprovalOut"];
+                };
+            };
+        };
+    };
+    finance_api_router_approve_statement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementApprovalOut"];
+                };
+            };
+        };
+    };
+    finance_api_router_override_statement_approval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalOverride"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementApprovalOut"];
                 };
             };
         };

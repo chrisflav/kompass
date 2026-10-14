@@ -44,3 +44,80 @@ force-single-line = true
 case-sensitive = false
 order-by-type = false
 detect-same-package = false
+
+# `mypy --strict`, over the finance rules API and the engine only.
+#
+# The rules API is the contract a section's rules are written and type-checked
+# against, which is worth nothing if the module it describes is not itself
+# checked: a `Decimal + bool`, a destination that is an `int` rather than a
+# `Member`, a rule that forgets `excursion` may be `None` — those are supposed
+# to be CI failures with a file and a line, in this repository as much as in a
+# section's own. The rest of Kompass is not checked and this does not start
+# checking it; `files` names what is in scope and nothing else, so running
+# `mypy` from the repository root is the whole obligation.
+#
+# Django, the models and the rest of the app are skipped rather than stubbed:
+# `follow_imports = "skip"` makes them `Any`, which is exactly how the engine's
+# context construction already treats a model instance. Nothing here imposes a
+# type obligation on a module outside `files`.
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "jdav_web"
+files = [
+    "jdav_web/finance/api/approval.py",
+    "jdav_web/finance/api/router.py",
+    "jdav_web/finance/api/schemas.py",
+    "jdav_web/finance/engine",
+    "jdav_web/finance/inputs.py",
+    "jdav_web/finance/parties.py",
+    "jdav_web/finance/rules.py",
+    "jdav_web/finance/rules_api.py",
+    "jdav_web/finance/rulesets",
+    "jdav_web/kompass",
+]
+strict = true
+
+[[tool.mypy.overrides]]
+module = [
+    "django.*",
+    "ninja.*",
+    "rules",
+    "django_celery_beat.*",
+    "celery.*",
+    "members.*",
+    "finance.models",
+    "finance.store",
+    "contrib.*",
+    "utils",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+# `finance.rules` is four predicates, each wrapped by `@predicate` (django-rules)
+# and `@memberize_user` (contrib) -- both from modules that are skipped above and
+# therefore `Any`, which `--strict` reports as "untyped decorator makes function
+# untyped" on every one of them. The bodies are checked; only the decorators are
+# exempted here, and saying so in the configuration is better than four
+# `# type: ignore` comments in the module.
+[[tool.mypy.overrides]]
+module = ["finance.rules"]
+disallow_untyped_decorators = false
+
+# The API layer, checked for the errors that can actually be *found* there.
+# `router.py` and `schemas.py` were out of scope because `--strict` has 146
+# things to say about them and every one is "mypy cannot see a type": ninja's
+# decorators come back untyped, `Schema` is `Any` because pydantic is skipped,
+# and an endpoint signature Django-ninja introspects gains nothing from a
+# return annotation. Not one of the 146 was two types disagreeing. So the
+# noise is switched off and the substantive codes -- `arg-type`,
+# `assignment`, `operator`, `union-attr`, `return-value`, `index`, `call-arg`
+# -- are switched on, which is worth more than leaving the layer unchecked
+# and cheaper than annotating 40 endpoints for a type checker that cannot see
+# past the decorator anyway.
+[[tool.mypy.overrides]]
+module = ["finance.api.router", "finance.api.schemas"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+disallow_subclassing_any = false
+disable_error_code = ["misc", "no-untyped-call", "no-any-return"]

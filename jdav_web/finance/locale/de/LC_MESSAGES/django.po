@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-20 23:09+0200\n"
+"POT-Creation-Date: 2026-10-14 23:12+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -161,6 +161,34 @@ msgstr "Beleg herunterladen"
 msgid "Length"
 msgstr "Länge"
 
+msgid "Obligation"
+msgstr "Verbindlichkeit"
+
+msgid "Resolved payout"
+msgstr "Ermittelte Auszahlung"
+
+msgid "Statements"
+msgstr "Abrechnungen"
+
+#, python-format
+msgid "There is no ruleset at %(path)s."
+msgstr "Unter %(path)s liegt kein Regelwerk."
+
+#, python-format
+msgid "%(name)s was stored as a draft and is not active."
+msgstr "%(name)s wurde als Entwurf gespeichert und ist nicht aktiv."
+
+#, python-format
+msgid "%(name)s is now active."
+msgstr "%(name)s ist jetzt aktiv."
+
+msgid "Dry run"
+msgstr "Probelauf"
+
+#, python-format
+msgid "There is no statement %(id)s."
+msgstr "Es gibt keine Abrechnung %(id)s."
+
 msgid "Statement is not yet confirmed."
 msgstr "Diese Abrechnung ist noch nicht bestätigt."
 
@@ -236,8 +264,43 @@ msgstr ""
 "Buchungen können nur bei eingereichten, noch nicht bestätigten Abrechnungen "
 "bearbeitet werden."
 
+msgid "Only submitted, unconfirmed statements can be approved."
+msgstr ""
+"Nur eingereichte, noch nicht abgewickelte Abrechnungen können freigegeben "
+"werden."
+
+msgid "An override has to say why."
+msgstr "Ein Übergehen muss begründet werden."
+
+#, python-format
+msgid "This statement has no approval step called %(name)s."
+msgstr "Diese Abrechnung hat keinen Freigabeschritt namens %(name)s."
+
+msgid "The section's rules exclude you from this approval step."
+msgstr "Die Regeln der Sektion schließen dich von diesem Freigabeschritt aus."
+
 msgid "Finance"
 msgstr "Finanzen"
+
+#, python-format
+msgid "These rules do not ask for %(key)s."
+msgstr "Diese Regeln fragen %(key)s nicht ab."
+
+#, python-format
+msgid "%(label)s is not an amount of money."
+msgstr "%(label)s ist kein Geldbetrag."
+
+#, python-format
+msgid "%(label)s cannot be negative."
+msgstr "%(label)s darf nicht negativ sein."
+
+#, python-format
+msgid "%(label)s is not a whole number."
+msgstr "%(label)s ist keine ganze Zahl."
+
+#, python-format
+msgid "%(label)s may be at most %(max)s."
+msgstr "%(label)s darf höchstens %(max)s sein."
 
 msgid "Name"
 msgstr "Name"
@@ -304,6 +367,18 @@ msgstr ""
 "Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die "
 "Berechnung von Zuschüssen aus dem Jugendetat."
 
+msgid "Answers"
+msgstr "Antworten"
+
+msgid ""
+"The answers to the questions the section's rules ask, by key. The four "
+"columns above are still the ones the rules read; this is written beside them "
+"until they are migrated into it."
+msgstr ""
+"Die Antworten auf die Fragen, die die Regeln der Sektion stellen, nach "
+"Schlüssel. Gelesen werden weiterhin die vier Spalten darüber; dies wird "
+"daneben geschrieben, bis sie hierher übertragen sind."
+
 msgid "Status"
 msgstr "Status"
 
@@ -312,6 +387,18 @@ msgstr "Einstellungszwischenstand"
 
 msgid "Financial settings captured at time of submission/confirmation."
 msgstr "Gültige Finanzregeln bei Einreichung bzw. Bestätigung"
+
+msgid "Ruleset version"
+msgstr "Regelwerk-Version"
+
+msgid "Ruleset hash"
+msgstr "Regelwerk-Hash"
+
+msgid "Ruleset snapshot"
+msgstr "Regelwerk-Zwischenstand"
+
+msgid "The rules and numbers this statement was created under."
+msgstr "Die Regeln und Beträge, unter denen diese Abrechnung angelegt wurde."
 
 msgid "Submitted on"
 msgstr "Eingereicht am"
@@ -331,12 +418,24 @@ msgstr "Autorisiert von"
 msgid "Statement"
 msgstr "Abrechnung"
 
-msgid "Statements"
-msgstr "Abrechnungen"
-
 #, python-format
 msgid "Excursion %(excursion)s"
 msgstr "Ausfahrt %(excursion)s"
+
+#, python-format
+msgid "Allowance for %(excu)s"
+msgstr "Aufwandsentschädigung für %(excu)s"
+
+#, python-format
+msgid "Night and travel costs for %(excu)s"
+msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
+
+msgid "reduced by org fee"
+msgstr "reduziert um Org-Beitrag"
+
+#, python-format
+msgid "LJP-Contribution %(excu)s"
+msgstr "LJP-Zuschuss %(excu)s"
 
 msgid "Ready to confirm"
 msgstr "Bereit zur Abwicklung"
@@ -358,21 +457,6 @@ msgstr ""
 
 msgid "Everything is correct."
 msgstr "Alles in Ordnung."
-
-#, python-format
-msgid "Allowance for %(excu)s"
-msgstr "Aufwandsentschädigung für %(excu)s"
-
-#, python-format
-msgid "Night and travel costs for %(excu)s"
-msgstr "Übernachtungs- und Fahrtkosten für %(excu)s"
-
-msgid "reduced by org fee"
-msgstr "reduziert um Org-Beitrag"
-
-#, python-format
-msgid "LJP-Contribution %(excu)s"
-msgstr "LJP-Zuschuss %(excu)s"
 
 msgid "Total"
 msgstr "Gesamtbetrag"
@@ -435,6 +519,291 @@ msgstr "Überweisung"
 msgid "Transactions"
 msgstr "Überweisungen"
 
+msgid "Member"
+msgstr "Mitglied"
+
+msgid "Section"
+msgstr "Sektion"
+
+msgid "Participants"
+msgstr "Teilnehmende"
+
+msgid "Draft (not activated)"
+msgstr "Entwurf (nicht aktiviert)"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Retired"
+msgstr "Abgelöst"
+
+msgid "Hash"
+msgstr "Hash"
+
+msgid "Manifest"
+msgstr "Manifest"
+
+msgid "One SHA-256 per file of the ruleset, keyed by relative path."
+msgstr "Ein SHA-256 pro Datei des Regelwerks, nach relativem Pfad."
+
+msgid "Sources"
+msgstr "Quelltexte"
+
+msgid "The ruleset's whole source closure, keyed by relative path."
+msgstr "Der gesamte Quelltext des Regelwerks, nach relativem Pfad."
+
+msgid "Revision"
+msgstr "Revision"
+
+msgid "The commit the sources were read from, where there is one."
+msgstr ""
+"Der Commit, aus dem die Quelltexte gelesen wurden, sofern es einen gibt."
+
+msgid "Engine version"
+msgstr "Engine-Version"
+
+msgid "The Kompass and interpreter version the sources were imported into."
+msgstr ""
+"Die Kompass- und Interpreter-Version, in die die Quelltexte importiert "
+"wurden."
+
+msgid "Context version"
+msgstr "Kontext-Version"
+
+msgid "Parameters"
+msgstr "Parameter"
+
+msgid "The section's numbers, as exact decimal strings."
+msgstr "Die Beträge der Sektion, als exakte Dezimalzahlen in Textform."
+
+msgid "State"
+msgstr "Zustand"
+
+msgid "Problems"
+msgstr "Probleme"
+
+msgid "Why this version was not activated, where it was not."
+msgstr "Warum diese Version nicht aktiviert wurde, sofern sie es nicht wurde."
+
+msgid "Valid from"
+msgstr "Gültig ab"
+
+msgid "Valid to"
+msgstr "Gültig bis"
+
+msgid "Imported on"
+msgstr "Importiert am"
+
+msgid "Activated on"
+msgstr "Aktiviert am"
+
+msgid "Cases passed on"
+msgstr "Testfälle bestanden am"
+
+msgid "Supersedes"
+msgstr "Ersetzt Version"
+
+msgid "Ruleset versions"
+msgstr "Regelwerk-Versionen"
+
+msgid "Role"
+msgstr "Rolle"
+
+msgid "The name the section's rules read this role under, e.g. 'kassenwart'."
+msgstr ""
+"Der Name, unter dem die Regeln der Sektion diese Rolle lesen, z.B. "
+"„kassenwart“."
+
+msgid "Comment"
+msgstr "Kommentar"
+
+msgid "Role assignment"
+msgstr "Rollenzuordnung"
+
+msgid "Role assignments"
+msgstr "Rollenzuordnungen"
+
+msgid "Position"
+msgstr "Position"
+
+msgid "The order the rules produced this transfer in."
+msgstr "Die Reihenfolge, in der die Regeln diese Zahlung erzeugt haben."
+
+msgid "Owed by"
+msgstr "Geschuldet von"
+
+msgid "Owed by (member)"
+msgstr "Geschuldet von (Mitglied)"
+
+msgid "Owed by (name)"
+msgstr "Geschuldet von (Name)"
+
+msgid "Owed to"
+msgstr "Geschuldet an"
+
+msgid "Owed to (member)"
+msgstr "Geschuldet an (Mitglied)"
+
+msgid "Owed to (name)"
+msgstr "Geschuldet an (Name)"
+
+msgid "Amount in cents"
+msgstr "Betrag in Cent"
+
+msgid "Category"
+msgstr "Kategorie"
+
+msgid "Label"
+msgstr "Bezeichnung"
+
+msgid "Rule"
+msgstr "Regel"
+
+msgid "Rule version"
+msgstr "Regel-Version"
+
+msgid "The hash of the ruleset version that produced this row."
+msgstr "Der Hash der Regelwerk-Version, die diese Zeile erzeugt hat."
+
+msgid "Computed on"
+msgstr "Berechnet am"
+
+msgid "Frozen on"
+msgstr "Festgeschrieben am"
+
+msgid ""
+"Set when the statement was handed in. A frozen row is never changed: where "
+"the payout had to be resolved again, this row is superseded and the new one "
+"is written beside it."
+msgstr ""
+"Wird beim Einreichen gesetzt. Eine festgeschriebene Zeile wird nie geändert: "
+"Musste die Auszahlung neu ermittelt werden, wird diese Zeile ersetzt und die "
+"neue daneben geschrieben."
+
+msgid "Superseded on"
+msgstr "Ersetzt am"
+
+msgid "Set when a later resolution replaced this row. It is kept, not deleted."
+msgstr ""
+"Wird gesetzt, wenn eine spätere Ermittlung diese Zeile ersetzt hat. Sie "
+"bleibt erhalten und wird nicht gelöscht."
+
+msgid "Obligations"
+msgstr "Verbindlichkeiten"
+
+msgid "Signed by"
+msgstr "Unterschrieben von"
+
+msgid "Signed by account"
+msgstr "Unterschrieben vom Konto"
+
+msgid ""
+"The account that signed. Recorded beside the member so that a signature from "
+"an administrator with no member record is still one signature from one "
+"person rather than an anonymous tally."
+msgstr ""
+"Das Konto, das unterschrieben hat. Wird neben dem Mitglied festgehalten, "
+"damit die Unterschrift eines Administrators ohne Mitgliedseintrag die "
+"Unterschrift einer Person bleibt und nicht eine anonyme Zählung wird."
+
+msgid "Signed on"
+msgstr "Unterschrieben am"
+
+msgid "Note"
+msgstr "Notiz"
+
+msgid "Approval"
+msgstr "Freigabe"
+
+msgid "Approvals"
+msgstr "Freigaben"
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "Applicable"
+msgstr "Zutreffend"
+
+msgid "Signatures required"
+msgstr "Benötigte Unterschriften"
+
+msgid "Eligible members"
+msgstr "Berechtigte Mitglieder"
+
+msgid "Who the rules named, re-checked against the permission system."
+msgstr "Wen die Regeln benannt haben, erneut gegen die Berechtigungen geprüft."
+
+msgid "Excluded"
+msgstr "Ausgeschlossen"
+
+msgid "Who a forbid or the permission check removed, and which one."
+msgstr ""
+"Wen ein Ausschluss oder die Berechtigungsprüfung entfernt hat, und welcher."
+
+msgid "Satisfied"
+msgstr "Erfüllt"
+
+msgid "Whether the signatures this constraint asks for are in."
+msgstr "Ob die Unterschriften vorliegen, die diese Anforderung verlangt."
+
+msgid "Overridden by"
+msgstr "Übergangen von"
+
+msgid "Overridden on"
+msgstr "Übergangen am"
+
+msgid "Reason for the override"
+msgstr "Begründung für das Übergehen"
+
+msgid "Could not be resolved"
+msgstr "Nicht ermittelbar"
+
+msgid ""
+"Why the rules could not say who may sign this. A constraint with a reason "
+"here names nobody and is satisfied by nobody: a broken rule may not be "
+"signed away."
+msgstr ""
+"Warum die Regeln nicht sagen konnten, wer hier unterschreiben darf. Eine "
+"Anforderung mit einer Begründung hier nennt niemanden und wird von niemandem "
+"erfüllt: eine fehlerhafte Regel darf nicht durchgewinkt werden."
+
+msgid "Approval constraint"
+msgstr "Freigabe-Anforderung"
+
+msgid "Approval constraints"
+msgstr "Freigabe-Anforderungen"
+
+msgid "Does not apply"
+msgstr "Nicht zutreffend"
+
+msgid "Overridden"
+msgstr "Übergangen"
+
+msgid "Signed"
+msgstr "Unterschrieben"
+
+msgid "Nobody may sign"
+msgstr "Niemand darf unterschreiben"
+
+msgid "Open"
+msgstr "Offen"
+
+msgid "Signatures"
+msgstr "Unterschriften"
+
+msgid ""
+"The section's rules ask for these signatures before the money moves. One "
+"signature counts towards every step it satisfies."
+msgstr ""
+"Die Regeln der Sektion verlangen diese Unterschriften, bevor Geld fließt. "
+"Eine Unterschrift zählt für jeden Schritt, den sie erfüllt."
+
+msgid "Step"
+msgstr "Schritt"
+
+msgid "May sign"
+msgstr "Darf unterschreiben"
+
 msgid "Paying statement"
 msgstr "Rechnung bezahlen"
 
@@ -468,6 +837,55 @@ msgstr "Nur bestätigen"
 
 msgid "Confirm and send receipt to office"
 msgstr "Bestätigen und Beleg an die Geschäftsstelle senden"
+
+msgid "Import from configuration"
+msgstr "Aus der Konfiguration importieren"
+
+#, python-format
+msgid ""
+"The section's rules are read from %(path)s. Importing an unchanged package "
+"changes nothing: it hashes to the version that is already stored."
+msgstr ""
+"Die Regeln der Sektion werden aus %(path)s gelesen. Ein unverändertes Paket "
+"erneut zu importieren ändert nichts: es hat denselben Hash wie die schon "
+"gespeicherte Version."
+
+#, python-format
+msgid "What %(version)s would make of a statement"
+msgstr "Was %(version)s aus einer Abrechnung machen würde"
+
+msgid ""
+"Nothing is written: the statement keeps its own version and its own payout. "
+"This is how a rule change is tried against a real trip before anybody "
+"activates it."
+msgstr ""
+"Es wird nichts geschrieben: die Abrechnung behält ihre eigene Version und "
+"ihre eigene Auszahlung. So wird eine Regeländerung an einer echten Ausfahrt "
+"ausprobiert, bevor sie jemand aktiviert."
+
+msgid "Transfers"
+msgstr "Zahlungen"
+
+msgid "Questions it would ask"
+msgstr "Welche Angaben es erfragen würde"
+
+msgid "optional"
+msgstr "optional"
+
+msgid "Checks"
+msgstr "Prüfungen"
+
+#, python-format
+msgid "%(counter)s signature"
+msgid_plural "%(counter)s signatures"
+msgstr[0] "%(counter)s Unterschrift"
+msgstr[1] "%(counter)s Unterschriften"
+
+msgid "not applicable"
+msgstr "nicht zutreffend"
+
+msgid "Back"
+msgstr "Zurück"
 
 msgid ""
 "This statement is still a draft. It needs to be submitted before it can be "

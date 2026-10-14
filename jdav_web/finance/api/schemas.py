@@ -12,6 +12,7 @@ identity/status a list row needs.
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from finance.models import Bill
 from finance.models import Statement
@@ -40,6 +41,40 @@ class TransactionIssueOut(Schema):
     current: float
     target: float
     difference: float
+
+
+class TransferPartyOut(Schema):
+    """One end of a transfer: a member, the section, or the participants.
+
+    ``member`` is filled only for ``kind == "member"``; the other two parties
+    are the section's own money and the participants' contributions, which
+    have no bank account of their own in Kompass.
+    """
+
+    kind: str
+    member: MemberBrief | None = None
+
+
+class TransferOut(Schema):
+    """One movement of money the section's rules resolved.
+
+    The payout list, as the rules see it rather than as the statement's
+    columns happen to be shaped: who owes whom how much, under which rule, and
+    in which category. The last transfer of a statement is the engine's
+    balancing one — what the participants' contributions have to cover — so the
+    list adds up to zero by construction.
+
+    ``reference`` is the text the generated bank transaction carries.
+    """
+
+    source: TransferPartyOut
+    destination: TransferPartyOut
+    amount: float
+    category: str
+    rule_id: str
+    label: str = ""
+    explanation: str = ""
+    reference: str = ""
 
 
 class BillBrief(ModelSchema):
@@ -141,6 +176,10 @@ class StatementOut(ModelSchema):
     ljp_to: MemberBrief | None = None
     allowance_to: list[MemberBrief] = []
     bills: list[BillBrief] = []
+    # The payout, as the rules resolved it. Every money figure below is a
+    # summary of these, so a client that wants the breakdown reads them
+    # instead of re-deriving it from the named totals.
+    transfers: list[TransferOut] = []
     # Computed money figures (mirroring ``template_context`` / the properties).
     total: float
     total_bills: float
@@ -201,6 +240,10 @@ class StatementOut(ModelSchema):
     @staticmethod
     def resolve_bills(obj):
         return obj.bill_set.all()
+
+    @staticmethod
+    def resolve_transfers(obj):
+        return obj.transfer_payload()
 
 
 class TransactionBrief(ModelSchema):
@@ -278,6 +321,12 @@ class StatementUpdate(Schema):
     allowance_to_ids: list[int] | None = None
     subsidy_to_id: int | None = None
     ljp_to_id: int | None = None
+    # The answers by declaration key, validated against what the section's
+    # rules actually ask for (``GET .../form``). The four fields above are the
+    # same answers under the names the columns have today, and they remain the
+    # source of truth; whatever arrives here is applied to them and kept in
+    # ``Statement.inputs`` beside them.
+    inputs: dict[str, Any] | None = None
 
 
 class BillCreate(Schema):
@@ -392,3 +441,128 @@ class FinanceOverviewOut(Schema):
 
     # Summary
     total_relative_costs: float
+
+
+# --- the form, the preflight and the signatures (derived from the rules) ---
+
+
+class InputOptionOut(Schema):
+    """One person a party-valued answer may name."""
+
+    id: int
+    name: str
+
+
+class InputDeclarationOut(Schema):
+    """One question the section's rules ask about a statement.
+
+    Derived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks
+    for something else gets a different form without anybody editing the API.
+    ``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,
+    ``choice``, ``member``, ``member_set`` — and ``options`` is the domain a
+    party-valued answer may be picked from, resolved to names here because the
+    rules themselves never see them.
+    """
+
+    key: str
+    label: str
+    type: str
+    required: bool
+    help: str = ""
+    max: int | None = None
+    options: list[InputOptionOut] = []
+
+
+class StatementFormOut(Schema):
+    """The questions this statement still has to answer.
+
+    ``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a
+    question once an earlier answer makes it moot.
+    """
+
+    statement_id: int
+    inputs: list[InputDeclarationOut] = []
+
+
+class CheckOut(Schema):
+    """One precondition for handing a statement in, and whether it holds."""
+
+    ok: bool
+    message: str
+
+
+class PreflightOut(Schema):
+    """What stands between this statement and being handed in."""
+
+    statement_id: int
+    ok: bool
+    checks: list[CheckOut] = []
+    failing: list[CheckOut] = []
+    errors: list[str] = []
+
+
+class ExclusionOut(Schema):
+    """One person a forbid (or the permission check) removed from a constraint."""
+
+    member: MemberBrief | None = None
+    forbid: str
+
+
+class ApprovalConstraintOut(Schema):
+    """One signature the rules asked for, and where it stands.
+
+    ``applicable`` and ``satisfied`` are separate states, and an override is a
+    third: a constraint that was waved through stays in the list with who did
+    it and why, rather than disappearing.
+    """
+
+    name: str
+    description: str = ""
+    applicable: bool
+    required: int
+    satisfied: bool
+    overridden: bool
+    open: bool
+    missing: int
+    state_display: str
+    eligible: list[MemberBrief] = []
+    signed_by: list[MemberBrief] = []
+    excluded: list[ExclusionOut] = []
+    overridden_by: MemberBrief | None = None
+    override_reason: str = ""
+
+
+class SignatureOut(Schema):
+    """One signature on a statement."""
+
+    member: MemberBrief | None = None
+    at: datetime
+    note: str = ""
+
+
+class StatementApprovalOut(Schema):
+    """Who has to sign a statement off, and who has.
+
+    Routing runs on the resolved transfers rather than on the statement's
+    fields, which is what lets a rule say "nobody who receives money from this
+    statement" — so this list is frozen at submission, beside the payout.
+    """
+
+    statement_id: int
+    approved: bool
+    may_approve: bool
+    constraints: list[ApprovalConstraintOut] = []
+    signatures: list[SignatureOut] = []
+
+
+class ApprovalCreate(Schema):
+    """A signature, with an optional note for the record."""
+
+    note: str = ""
+
+
+class ApprovalOverride(Schema):
+    """Signing a constraint off without its quorum, on the record."""
+
+    name: str
+    reason: str
