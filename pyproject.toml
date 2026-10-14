@@ -65,6 +65,8 @@ python_version = "3.13"
 mypy_path = "jdav_web"
 files = [
     "jdav_web/finance/api/approval.py",
+    "jdav_web/finance/api/router.py",
+    "jdav_web/finance/api/schemas.py",
     "jdav_web/finance/engine",
     "jdav_web/finance/inputs.py",
     "jdav_web/finance/parties.py",
@@ -78,6 +80,7 @@ strict = true
 [[tool.mypy.overrides]]
 module = [
     "django.*",
+    "ninja.*",
     "rules",
     "django_celery_beat.*",
     "celery.*",
@@ -99,3 +102,22 @@ follow_imports = "skip"
 [[tool.mypy.overrides]]
 module = ["finance.rules"]
 disallow_untyped_decorators = false
+
+# The API layer, checked for the errors that can actually be *found* there.
+# `router.py` and `schemas.py` were out of scope because `--strict` has 146
+# things to say about them and every one is "mypy cannot see a type": ninja's
+# decorators come back untyped, `Schema` is `Any` because pydantic is skipped,
+# and an endpoint signature Django-ninja introspects gains nothing from a
+# return annotation. Not one of the 146 was two types disagreeing. So the
+# noise is switched off and the substantive codes -- `arg-type`,
+# `assignment`, `operator`, `union-attr`, `return-value`, `index`, `call-arg`
+# -- are switched on, which is worth more than leaving the layer unchecked
+# and cheaper than annotating 40 endpoints for a type checker that cannot see
+# past the decorator anyway.
+[[tool.mypy.overrides]]
+module = ["finance.api.router", "finance.api.schemas"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+disallow_subclassing_any = false
+disable_error_code = ["misc", "no-untyped-call", "no-any-return"]

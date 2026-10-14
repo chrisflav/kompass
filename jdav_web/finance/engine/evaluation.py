@@ -20,6 +20,9 @@ from dataclasses import dataclass
 from dataclasses import replace
 from decimal import Decimal
 
+from finance.parties import MEMBER
+from finance.parties import PARTICIPANTS
+from finance.parties import SECTION
 from finance.rules_api import CENT
 from finance.rules_api import Check
 from finance.rules_api import Input
@@ -59,13 +62,16 @@ def party_key(party: Party) -> tuple[str, int | None]:
     (:func:`finance.engine.statements._party_fields` resolves the kind with
     ``isinstance``). Money that nets against one key and is stored under
     another is the shape of the bug the first review round found in
-    ``verify()``, so there is one key function and both sides call it.
+    ``verify()``, so there is one key function and both sides call it — and the
+    kinds come from :mod:`finance.parties`, the leaf module that exists so the
+    engine and the store cannot drift apart by writing the same three strings
+    twice.
     """
     if isinstance(party, Member):
-        return ("member", int(party.id))
+        return (MEMBER, int(party.id))
     if isinstance(party, Participants):
-        return ("participants", None)
-    return ("section", None)
+        return (PARTICIPANTS, None)
+    return (SECTION, None)
 
 
 def party_label(party: Party) -> str:

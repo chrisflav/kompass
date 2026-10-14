@@ -23,11 +23,14 @@ repos:
       # Run the formatter.
       - id: ruff-format
   # `mypy --strict` over the finance rules API, the engine, the reference
-  # ruleset and the edge that turns a person's answers into money
-  # (`finance/inputs.py`). The scope is `files` in pyproject.toml, which is why
-  # this hook passes no filenames: a section's rules are type-checked against
-  # `kompass.rules`, so that module has to be checked here too. Nothing outside
-  # that scope is checked — see the comment on [tool.mypy].
+  # ruleset, the edge that turns a person's answers into money
+  # (`finance/inputs.py`) and the finance API — the last of those with the
+  # "mypy cannot see a type" codes switched off and the "two types disagree"
+  # codes on, which is the only part of `--strict` that can find anything
+  # behind django-ninja's decorators. The scope is `files` in pyproject.toml,
+  # which is why this hook passes no filenames: a section's rules are
+  # type-checked against `kompass.rules`, so that module has to be checked
+  # here too. Nothing outside that scope is checked — see [tool.mypy].
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.18.2
     hooks:
