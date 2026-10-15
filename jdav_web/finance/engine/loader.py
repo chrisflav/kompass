@@ -301,7 +301,16 @@ def load(sources: Mapping[str, str], *, check: bool = True) -> Ruleset:
         # process that has seen a broken ruleset.
         with no_queries():
             module = import_module(package)
-    return as_ruleset(module)
+            # `as_ruleset` is inside the block too, and that is not tidiness.
+            # It reads `module.ruleset` and the `context_version` of what it
+            # finds, and a section can make either read executable: a module
+            # may define `__getattr__` (PEP 562) and an exported object may
+            # declare `context_version` as a `property`. Both read like data
+            # and are a call into the section's own code, so a ruleset whose
+            # `context_version` queried got its cursor handed to it one line
+            # after the guard lifted — and stashed it for `transfers`, where
+            # a raw driver cursor goes past the execute wrapper.
+            return as_ruleset(module)
 
 
 def as_ruleset(module: ModuleType) -> Ruleset:

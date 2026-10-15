@@ -79,6 +79,7 @@ from finance.rules_api import Transfer
 from finance.rulesets.heidelberg import cents
 from finance.rulesets.heidelberg import HeidelbergRules
 from finance.rulesets.heidelberg import ruleset as reference
+from finance.tests.harness import guard_lifted
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -610,6 +611,78 @@ class FrameEscapeTestCase(TestCase):
         )
         with self.assertRaises(QueryDuringEvaluation):
             load({"__init__.py": source})
+
+    def test_the_exported_ruleset_may_not_query_while_it_is_being_read(self):
+        """`as_ruleset` ran one line after the guard lifted.
+
+        Reading `module.ruleset` looks like reading data, and is a call into
+        the section's own code whenever the section wants it to be: a module
+        may define `__getattr__` (PEP 562). `load` returned *through*
+        `as_ruleset` from outside the `with no_queries():` block, so that read
+        was the one line of a ruleset that ran unguarded — and a cursor taken
+        there is a cursor `transfers` can use later, past the execute wrapper.
+        """
+        source = (
+            self.PREAMBLE + "class Lazy(Ruleset):\n"
+            "    name = 'lazy-export'\n"
+            "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+            "\n"
+            "    def inputs(self, ctx):\n"
+            "        return []\n"
+            "\n"
+            "    def transfers(self, ctx):\n"
+            "        return [], []\n"
+            "\n"
+            "\n"
+            "def __getattr__(name):\n"
+            "    cursor = reach().connections['default'].create_cursor()\n"
+            "    cursor.execute('SELECT 1')\n"
+            "    return Lazy()\n"
+        )
+        sources = {"__init__.py": source}
+        self.assertEqual(check_sources(sources), [], "no name in it is on any list")
+        with self.assertRaises(QueryDuringEvaluation):
+            load(sources)
+        # The other direction, which is what says the guard is what refused
+        # rather than something about the fixture: with the one line this test
+        # exists for lifted, the same read goes through and hands back a
+        # ruleset. Neuter the fix, watch it go red — as code.
+        with guard_lifted("finance.engine.loader"):
+            self.assertEqual(load(sources).name, "lazy-export")
+
+    def test_a_context_version_that_queries_is_refused_as_well(self):
+        """The second read `as_ruleset` makes, and a `property` is rule code.
+
+        `exported.context_version` is compared against this Kompass's own, so
+        it is read on every load of every version — and a ruleset that
+        declares it as a property has the engine call its code to get it.
+        """
+        source = (
+            self.PREAMBLE + "class Nosy(Ruleset):\n"
+            "    name = 'nosy-version'\n"
+            "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+            "\n"
+            "    @property\n"
+            "    def context_version(self):\n"
+            "        cursor = reach().connections['default'].create_cursor()\n"
+            "        cursor.execute('SELECT 1')\n"
+            "        return 1\n"
+            "\n"
+            "    def inputs(self, ctx):\n"
+            "        return []\n"
+            "\n"
+            "    def transfers(self, ctx):\n"
+            "        return [], []\n"
+            "\n"
+            "\n"
+            "ruleset = Nosy()\n"
+        )
+        sources = {"__init__.py": source}
+        self.assertEqual(check_sources(sources), [])
+        with self.assertRaises(QueryDuringEvaluation):
+            load(sources)
+        with guard_lifted("finance.engine.loader"):
+            self.assertEqual(load(sources).context_version, 1)
 
 
 # --- the import whitelist --------------------------------------------------

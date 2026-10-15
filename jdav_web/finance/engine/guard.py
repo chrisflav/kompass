@@ -3,8 +3,21 @@
 Two prohibitions make an old statement verifiable: a rule may not read the
 clock, and a rule may not read the database. The clock is handled by leaving it
 out of the context; the database cannot be, because a ruleset is ordinary
-Python in the same process as the ORM. So it is enforced instead — every call
-into a ruleset runs inside :func:`no_queries`, and a query raises.
+Python in the same process as the ORM. So it is enforced instead: a query
+raises while a rule is running.
+
+**What counts as a rule running** has had to grow twice. Every *call* into a
+ruleset is obvious — ``transfers``, ``checks``, ``approval``, ``inputs`` — and
+so is executing its module body. The reads that look like data are not: the
+exported ``ruleset`` object, its ``context_version``, its ``name`` and its
+``valid_from`` are attribute lookups on a section's own module and on its own
+objects, and a section can make an attribute lookup executable — PEP 562's
+module ``__getattr__``, or a ``property``. Three of those sat one line outside
+the block (``load`` returned through ``as_ruleset``; the import read two fields
+off the loaded object), which was enough for a ruleset to be handed a cursor
+and stash it for ``transfers``. They are inside it now, and the claim this
+paragraph is allowed to make is the narrow one: every entry point *this
+package* uses to reach a section's code opens the block first.
 
 **Where the enforcement sits, and why it moved.** The first version wrapped
 ``connection.execute_wrapper``, which sees only what a Django ``CursorWrapper``
@@ -14,9 +27,19 @@ executes. Everything that hands out a cursor another way went past it:
 ``callproc`` on a cursor obtained from any of them. The guard is therefore
 installed one level down, on the connection class itself: while a rule is
 running, *every* route that opens a connection or hands out a cursor refuses,
-and the driver connection is swapped for an object that refuses too. The
-execute wrapper stays as a second net, for a cursor that somehow predates the
-block.
+and the driver connection is swapped for an object that refuses too.
+
+The execute wrapper stays, as a net under the one case the connection-level
+guard cannot reach: a cursor that was handed out before the block. How little
+it covers is worth being exact about, because the first version mistook it for
+the guarantee. ``CursorWrapper`` routes ``execute`` and ``executemany`` through
+``_execute_with_wrappers`` and nothing else — ``callproc`` calls the driver's
+``callproc`` itself, and the wrapper's ``__getattr__`` hands out the raw DBAPI
+cursor it holds, and every method on it, unwrapped. So the wrapper sees two
+methods on one kind of object, and the raw cursor behind it — which is what
+every route listed above hands out — goes straight past. That asymmetry is
+*why* the guard belongs at the connection: the connection is the only thing
+every route to the database has to come through.
 
 The patch on the connection class is permanent and inert: it checks a
 thread-local depth, so blocking a rule in one worker thread never blocks the
