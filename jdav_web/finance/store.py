@@ -610,10 +610,11 @@ class ApprovalConstraint(models.Model):
         as open and missing a signature, with the row itself saying
         ``satisfied`` all along.
 
-        The rows the **gate** builds leave it off again (see
-        :func:`finance.engine.statements.current_constraint_rows`): asking the
-        question afresh is the gate's whole job, and the recorded answer is
-        exactly what it must not read.
+        Which of the two questions a reader of this row is asking is *its*
+        business to say: :func:`finance.engine.approval.states` reads this
+        field only when it is asked with ``recorded=True``, and the gate — the
+        same rows, re-resolved — never asks, because asking the question
+        afresh is the whole of what it is for.
         """
         return {
             "name": self.name,

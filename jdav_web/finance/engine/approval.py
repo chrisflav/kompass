@@ -197,6 +197,7 @@ def states(
     signatures: Iterable[int],
     *,
     uncredited: Iterable[Any] = (),
+    recorded: bool = False,
 ) -> list[ConstraintState]:
     """The state of each constraint, given who has signed.
 
@@ -204,13 +205,19 @@ def states(
     required, eligible, excluded, overridden, error — so that this stays a pure
     function over data and the model layer owns the rows.
 
-    A row may also carry ``satisfied``, and where it does, that is the answer
-    rather than a recomputation. Such a row is the **record**: it holds what
-    was true when the statement was signed, and the frozen eligible set it
-    would otherwise be recounted against cannot contain somebody who was
-    appointed after submission — so recounting reported an ordinary signature
-    as no signature at all. The rows the *gate* builds leave it off, because
-    the gate exists to ask the question again.
+    ``recorded`` says which question is being asked, and the two answers are
+    meant to differ. Left ``False`` — the **gate** — ``satisfied`` is counted
+    from ``signatures`` against ``eligible``, every time. Passed ``True`` — the
+    **record** — it is read from the row's own ``satisfied``, because the row
+    holds what was true when the statement was signed and the *frozen*
+    eligible set it would otherwise be recounted against cannot contain
+    somebody who was appointed after submission: recounting reported an
+    ordinary signature as no signature at all.
+
+    It is an argument rather than "the row carries the key": presence as the
+    signal meant a row builder that happened to include ``satisfied: False``
+    froze the gate at *unsatisfied*, and nothing could ever be signed again —
+    with no type error to say so, and no caller having asked for anything.
 
     ``uncredited`` are the *signers* whose signature cannot be attributed to a
     member: an admin account with no member record, which the capability layer
@@ -246,7 +253,6 @@ def states(
             by = tuple(sorted(signed & set(eligible)))
             given = len(by) + len(anonymous)
         overridden = bool(row.get("overridden", False))
-        recorded = row.get("satisfied")
         resolved.append(
             ConstraintState(
                 name=str(row.get("name", "")),
@@ -255,7 +261,7 @@ def states(
                 required=required,
                 eligible=eligible,
                 signed_by=by,
-                satisfied=given >= required if recorded is None else bool(recorded),
+                satisfied=bool(row.get("satisfied", False)) if recorded else given >= required,
                 overridden=overridden,
                 overridden_by=row.get("overridden_by"),
                 override_reason=str(row.get("override_reason", "")),

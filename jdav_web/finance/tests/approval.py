@@ -462,6 +462,29 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
         )
         self.assertFalse(anonymous[0].satisfied)
 
+    def test_the_record_is_read_and_the_gate_is_counted(self):
+        """``recorded`` is an argument, not a key the row happens to carry.
+
+        The two callers ask different questions of the same rows, so the
+        answer cannot be inferred from what is in them: a row builder that
+        included ``satisfied: False`` without meaning anything by it would
+        have frozen the gate at *unsatisfied*, and nothing could ever be
+        signed again.
+        """
+        signed = row(eligible=[1], satisfied=True)
+        self.assertTrue(states([signed], signatures=[], recorded=True)[0].satisfied)
+        self.assertFalse(states([signed], signatures=[])[0].satisfied, "counted, not read")
+        self.assertTrue(states([signed], signatures=[1])[0].satisfied)
+        # And the other way round: the record says what it says, whoever has
+        # signed since — a row recorded unsatisfied is unsatisfied even when
+        # the person who signed is in the frozen group.
+        unsigned = row(eligible=[1], satisfied=False)
+        self.assertFalse(states([unsigned], signatures=[1], recorded=True)[0].satisfied)
+        self.assertTrue(states([unsigned], signatures=[1])[0].satisfied)
+        # A row without the column at all — which is what `resolve_constraints`
+        # produces — reads as unsatisfied rather than raising.
+        self.assertFalse(states([row(eligible=[1])], signatures=[], recorded=True)[0].satisfied)
+
     def test_a_constraint_that_does_not_apply_is_reported_not_hidden(self):
         resolved = states([row(applicable=False, required=2)], signatures=[])
         self.assertFalse(resolved[0].applicable)
@@ -1071,9 +1094,10 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         direction that makes the difference worth having: a signature that
         counted when it was given stays on the record, while the gate asks who
         may sign *now* — so a signer who has since lost the capability stops
-        advancing the step they signed. The gate's rows are built from the same
-        frozen rows (`_gate_row`), so reading the recorded answer off them
-        would let the record decide what the gate is for.
+        advancing the step they signed. The gate is handed the same frozen
+        rows, `satisfied` column and all, and asks `states` without
+        `recorded=True`: answering from the row instead would let the record
+        decide what the gate is for.
         """
         big = self.statement_for(Decimal("1200.00"), self.clara)
         self.assertFalse(big.approve(self.anna), "Kasse is in, Vorstand wants two")

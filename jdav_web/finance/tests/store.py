@@ -429,12 +429,12 @@ class ImportTestCase(TestCase):
         self.assertEqual(again.pk, row.pk)
         self.assertTrue(problems)
 
-    def imported(self, source):
+    def imported(self, source, **options):
         """Import ``source`` as a ruleset of its own, and return the outcome."""
         with TemporaryDirectory() as directory:
             package = Path(directory)
             (package / "__init__.py").write_text(source, encoding="utf-8")
-            return import_from_directory(package)
+            return import_from_directory(package, **options)
 
     def test_a_name_that_queries_is_a_draft_rather_than_a_free_cursor(self):
         """The import read two fields off the loaded object, past the guard.
@@ -461,6 +461,24 @@ class ImportTestCase(TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(lifted.name, "nosy-anyway")
         self.assertEqual(active_version(), lifted)
+
+    def test_a_name_given_by_the_importer_is_not_read_off_the_ruleset(self):
+        """The short-circuit `declared_fields` keeps, and what it costs.
+
+        ``name or loaded.name`` is the behaviour this replaced, and it is
+        preserved deliberately: an explicit name is the importer's, not the
+        ruleset's, so ``importruleset --name`` must not depend on what the
+        ruleset says about itself. The cost is that the querying property is
+        never read, and so never refused: such a version activates with no
+        problem recorded. That is harmless — nothing else reads
+        ``loaded.name``, and the row's own name is what the admin shows — but
+        it is the kind of thing to pin rather than discover.
+        """
+        row, problems = self.imported(querying_field("name", "nosy-explicit"), name="von-hand")
+        self.assertEqual(problems, [], "the property was never read, so it never refused")
+        self.assertEqual(row.name, "von-hand")
+        self.assertEqual(row.state, RuleSet.ACTIVE)
+        self.assertEqual(active_version(), row)
 
     def test_a_valid_from_that_queries_is_a_draft_too(self):
         """The second field, read through ``declared_valid_from``.

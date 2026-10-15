@@ -34,12 +34,14 @@ guard cannot reach: a cursor that was handed out before the block. How little
 it covers is worth being exact about, because the first version mistook it for
 the guarantee. ``CursorWrapper`` routes ``execute`` and ``executemany`` through
 ``_execute_with_wrappers`` and nothing else — ``callproc`` calls the driver's
-``callproc`` itself, and the wrapper's ``__getattr__`` hands out the raw DBAPI
-cursor it holds, and every method on it, unwrapped. So the wrapper sees two
-methods on one kind of object, and the raw cursor behind it — which is what
-every route listed above hands out — goes straight past. That asymmetry is
-*why* the guard belongs at the connection: the connection is the only thing
-every route to the database has to come through.
+``callproc`` itself, and the raw DBAPI cursor is held in the plain attribute
+``CursorWrapper.cursor``, which ordinary lookup finds without ever reaching
+``__getattr__`` (the same trap as ``_RefusingConnection`` below), while
+``__getattr__`` passes every *other* method straight through to it. So the
+wrapper sees two methods on one kind of object, and the raw cursor behind it —
+which is what every route listed above hands out — goes past untouched. That
+asymmetry is *why* the guard belongs at the connection: the connection is the
+only thing every route to the database has to come through.
 
 The patch on the connection class is permanent and inert: it checks a
 thread-local depth, so blocking a rule in one worker thread never blocks the

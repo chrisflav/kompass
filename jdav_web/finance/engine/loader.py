@@ -316,8 +316,11 @@ def load(sources: Mapping[str, str], *, check: bool = True) -> Ruleset:
 def as_ruleset(module: ModuleType) -> Ruleset:
     """The ``ruleset`` a loaded module exports, checked.
 
-    Also used for the reference ruleset, which is an ordinary package in this
-    repository rather than a stored closure.
+    Called from :func:`load` and nowhere else, which is why it runs inside the
+    guard the caller opens: both reads it makes are reads of a section's own
+    module. (It used to say it was "also used for the reference ruleset" — that
+    package is imported directly, by :mod:`finance.engine.statements`, and has
+    not come through here for some time.)
     """
     exported = getattr(module, EXPORT, None)
     if not isinstance(exported, Ruleset):
