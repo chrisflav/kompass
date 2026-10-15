@@ -412,6 +412,80 @@ class FinanceFormApiTestCase(TestCase):
         statement = Statement.objects.get(pk=self.statement.pk)
         self.assertFalse(statement.approval_constraint_set.get().overridden)
 
+    #: A section whose forbid broke *after* a statement was handed in. The
+    #: step keeps its name, so it is the frozen "Freigabe" row that can no
+    #: longer be resolved — which is what makes the override refusable.
+    BROKEN_FORBID = (
+        "from kompass.rules import Constraint, Forbid, Ruleset, SECTION, PARTICIPANTS\n"
+        "\n"
+        "\n"
+        "def kaputt(member):\n"
+        "    raise ValueError('der Vorstand ist unbekannt')\n"
+        "\n"
+        "\n"
+        "class BrokenForbid(Ruleset):\n"
+        "    name = 'broken-forbid'\n"
+        "    permissions = ('finance.process_statementsubmitted',)\n"
+        "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+        "\n"
+        "    def inputs(self, ctx):\n"
+        "        return []\n"
+        "\n"
+        "    def transfers(self, ctx):\n"
+        "        return [], []\n"
+        "\n"
+        "    def approval(self, ctx, transfers):\n"
+        "        signers = ctx.permission_holders('finance.process_statementsubmitted')\n"
+        "        return (\n"
+        "            [\n"
+        "                Constraint(\n"
+        "                    name='Freigabe',\n"
+        "                    description='Eine Unterschrift',\n"
+        "                    applicable=True,\n"
+        "                    required=1,\n"
+        "                    eligible=signers,\n"
+        "                )\n"
+        "            ],\n"
+        "            [Forbid('kaputt', applies_to=kaputt)],\n"
+        "        )\n"
+        "\n"
+        "\n"
+        "ruleset = BrokenForbid()\n"
+    )
+
+    def test_an_override_of_a_step_the_rules_cannot_resolve_is_refused_loudly(self):
+        """The refusal that used to answer 200 with ``overridden: false``.
+
+        A broken forbid is a rule that failed to say who is excluded, so there
+        is no answer to "may this person sign it off" and the payout stays
+        stuck — the model's rule, tested on the model in
+        :mod:`finance.tests.approval`. What this pins is the endpoint: its
+        other four refusals raise and answer 422, this one left
+        `override_approval` to refuse on its own and reported the refusal only
+        as a field in a 200 body, which a client has to diff against what it
+        sent to notice.
+        """
+        self.statement.submit(self.owner)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        snapshot = dict(statement.ruleset_snapshot)
+        snapshot["sources"] = {"__init__.py": self.BROKEN_FORBID}
+        Statement.objects.filter(pk=statement.pk).update(ruleset_snapshot=snapshot)
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(
+            statement.approval_cannot_be_resolved("Freigabe"),
+            "the forbid broke, which is the premise of this test",
+        )
+        r = self.client.post(
+            "/api/finance/statements/{}/override-approval".format(self.statement.pk),
+            data={"name": "Freigabe", "reason": "Fristende"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        settled = Statement.objects.get(pk=self.statement.pk)
+        self.assertFalse(settled.approval_constraint_set.get().overridden)
+        self.assertFalse(settled.confirmed)
+
     def test_a_draft_cannot_be_overridden(self):
         r = self.client.post(
             "/api/finance/statements/{}/override-approval".format(self.statement.pk),
