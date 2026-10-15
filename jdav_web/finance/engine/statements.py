@@ -528,16 +528,27 @@ def _rows_from_the_same_rules(
     function exists to prevent.
     """
     version = {row.rule_version for row in frozen}
-    ruleset, loaded = loaded_ruleset(statement)
-    if version != {loaded} or not loaded:
-        logger.warning(
-            "the approval of statement %s is not re-resolved: frozen under %s, loaded %r",
-            statement.pk,
-            ", ".join(sorted(version)) or "nothing",
-            loaded,
-        )
-        return None
     try:
+        # `loaded_ruleset` is inside the `try` rather than above it, because
+        # it is not the total function it reads like: it catches the two
+        # exceptions a *refused* snapshot raises, and a snapshot whose module
+        # body raises anything else — a section's own `ValueError` at import
+        # time — comes straight out of it. Called out here, that propagated
+        # through `live_approval_states` and answered the approval page and
+        # the `/approval` endpoint with a 500, which is the one thing
+        # `active_ruleset` promises not to do: a section's broken rules must
+        # not take its finance pages down. Inside, a snapshot that will not
+        # load degrades to the frozen rows, like every other way re-resolving
+        # can fail.
+        ruleset, loaded = loaded_ruleset(statement)
+        if version != {loaded} or not loaded:
+            logger.warning(
+                "the approval of statement %s is not re-resolved: frozen under %s, loaded %r",
+                statement.pk,
+                ", ".join(sorted(version)) or "nothing",
+                loaded,
+            )
+            return None
         result = (
             result_from_rows(statement) if rows_exist(statement) else evaluate_statement(statement)
         )

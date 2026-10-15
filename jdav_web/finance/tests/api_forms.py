@@ -245,6 +245,33 @@ class FinanceFormApiTestCase(TestCase):
         self.assertEqual([m["id"] for m in constraint["eligible"]], [self.manager.pk])
         self.assertEqual(body["signatures"], [])
 
+    def test_the_approval_endpoint_survives_a_snapshot_whose_body_raises(self):
+        """A section's broken rules must not take its finance pages down.
+
+        `loaded_ruleset` catches the two exceptions a *refused* snapshot
+        raises, and a snapshot whose module body raises anything else — the
+        section's own `ValueError` at import time, which is what a bad
+        configuration repository looks like once it is stored — comes straight
+        out of it. The call sat outside `_rows_from_the_same_rules`'s own
+        `try`, so the gate propagated it and this endpoint and the admin's
+        approval page answered 500 instead of falling back to the frozen rows
+        they are built around.
+        """
+        self.statement.submit(self.owner)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        frozen = [row.name for row in statement.approval_constraint_set.all()]
+        self.assertTrue(frozen, "there are rows to fall back to, which makes this a test")
+        snapshot = dict(statement.ruleset_snapshot)
+        snapshot["sources"] = {"__init__.py": "raise ValueError('kaputt')\n"}
+        Statement.objects.filter(pk=statement.pk).update(ruleset_snapshot=snapshot)
+        r = self.client.get(
+            "/api/finance/statements/{}/approval".format(self.statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual([c["name"] for c in r.json()["constraints"]], frozen)
+        self.assertFalse(r.json()["approved"], "and the payout is still stuck, not waved through")
+
     def test_signing_a_statement_off_through_the_api(self):
         Bill.objects.create(
             statement=self.statement,
