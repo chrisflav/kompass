@@ -599,12 +599,28 @@ class ApprovalConstraint(models.Model):
         return _("Open")
 
     def as_row(self):
-        """The mapping :mod:`finance.engine.approval` evaluates."""
+        """The mapping :mod:`finance.engine.approval` evaluates.
+
+        ``satisfied`` is on it because this row **is** the record: it holds
+        the answer that was reached when the statement was signed. Left off,
+        it was recomputed as ``signed ∩ eligible`` against the *frozen*
+        eligible set — and a treasurer appointed after submission is by
+        construction not in that set, so an ordinary mid-flight signature
+        made a settled statement report ``approved: true`` beside a step read
+        as open and missing a signature, with the row itself saying
+        ``satisfied`` all along.
+
+        The rows the **gate** builds leave it off again (see
+        :func:`finance.engine.statements.current_constraint_rows`): asking the
+        question afresh is the gate's whole job, and the recorded answer is
+        exactly what it must not read.
+        """
         return {
             "name": self.name,
             "description": self.description,
             "applicable": self.applicable,
             "required": self.required,
+            "satisfied": self.satisfied,
             "eligible": list(self.eligible_member_ids),
             "excluded": list(self.excluded),
             "overridden": self.overridden,

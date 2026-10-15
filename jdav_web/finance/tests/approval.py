@@ -48,6 +48,7 @@ from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 from finance.store import Approval
 from finance.store import ApprovalConstraint
+from finance.tests.harness import gate_of
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -1005,6 +1006,30 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertEqual(sorted(names), ["Kasse", "Vorstand"])
         self.assertEqual(names["Vorstand"].required, 2)
         self.assertNotIn(self.anna.pk, names["Vorstand"].eligible)
+
+    def test_the_gate_does_not_read_the_answer_the_record_wrote_down(self):
+        """The record carries ``satisfied``; the gate may not read it.
+
+        The two resolutions are supposed to disagree, and this is the
+        direction that makes the difference worth having: a signature that
+        counted when it was given stays on the record, while the gate asks who
+        may sign *now* — so a signer who has since lost the capability stops
+        advancing the step they signed. The gate's rows are built from the same
+        frozen rows (`_gate_row`), so reading the recorded answer off them
+        would let the record decide what the gate is for.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.approve(self.anna), "Kasse is in, Vorstand wants two")
+        self.assertTrue(big.approval_constraint_set.get(name="Kasse").satisfied)
+        # Anna leaves the finance department.
+        self.anna_user.user_permissions.clear()
+        record = {state.name: state for state in Statement.objects.get(pk=big.pk).approval_states}
+        self.assertTrue(record["Kasse"].satisfied, "she signed it, and that is the record")
+        gate = {state.name: state for state in gate_of(big)}
+        self.assertNotIn(self.anna.pk, gate["Kasse"].eligible)
+        self.assertFalse(gate["Kasse"].satisfied, "and she may not sign it any more")
+        self.assertTrue(gate["Kasse"].open)
+        self.assertFalse(Statement.objects.get(pk=big.pk).fully_approved)
 
     def test_an_override_of_one_step_leaves_the_other_standing(self):
         big = self.statement_for(Decimal("1200.00"), self.clara)

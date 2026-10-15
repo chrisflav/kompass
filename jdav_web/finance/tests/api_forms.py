@@ -20,6 +20,7 @@ from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from finance.api.tests import AccessToken
 from finance.api.tests import Application
 from finance.api.tests import grant
@@ -268,6 +269,61 @@ class FinanceFormApiTestCase(TestCase):
         self.assertEqual(body["signatures"][0]["member"]["id"], self.manager.pk)
         self.assertEqual(body["signatures"][0]["note"], "geprüft")
         self.assertTrue(Statement.objects.get(pk=self.statement.pk).confirmed)
+
+    def test_the_settled_payload_after_a_signature_from_mid_flight(self):
+        """What a settled statement says when the person who signed it arrived late.
+
+        Ordinary Heidelberg, nothing corrupted: the statement is handed in, a
+        treasurer is appointed while it waits, signs, and it pays out. The
+        payload then reads the **record** — the frozen rows, because nothing
+        should re-run a section's rules to render a settled statement — and
+        the record recomputed `satisfied` as `signed ∩ frozen eligible`, a set
+        a mid-flight signer is by construction not in. So it answered
+        `approved: true` beside the one step reported open and missing a
+        signature, while the frozen row it was reading said `satisfied`.
+        """
+        Bill.objects.create(
+            statement=self.statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=self.leader,
+        )
+        self.statement.submit(self.owner)
+        self.statement.generate_transactions()
+        self.statement.transaction_set.update(ledger=Ledger.objects.create(name="Konto"))
+        frozen = self.statement.approval_constraint_set.get()
+        self.assertEqual(frozen.eligible_member_ids, [self.manager.pk])
+        appointed_user, appointed = make_member_user("fspaet")
+        appointed_user = grant(appointed_user, "process_statementsubmitted")
+        signed = self.client.post(
+            "/api/finance/statements/{}/approve".format(self.statement.pk),
+            data={"note": "spät"},
+            content_type="application/json",
+            **self.auth(appointed_user),
+        )
+        self.assertEqual(signed.status_code, 200, signed.content)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertTrue(statement.confirmed, "the gate let the appointed treasurer in")
+        r = self.client.get(
+            "/api/finance/statements/{}/approval".format(self.statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertTrue(body["approved"])
+        constraint = body["constraints"][0]
+        self.assertTrue(constraint["satisfied"], "the payload agrees with `approved`")
+        self.assertFalse(constraint["open"])
+        self.assertEqual(constraint["missing"], 0)
+        self.assertEqual(constraint["state_display"], _("Signed"))
+        self.assertTrue(statement.approval_constraint_set.get().satisfied, "and with the row")
+        # `eligible` and `signed_by` stay what the rules named when the
+        # statement was handed in, which is the question an audit asks of a
+        # record; who actually signed it is reported under `signatures`.
+        self.assertEqual([member["id"] for member in constraint["eligible"]], [self.manager.pk])
+        self.assertEqual(constraint["signed_by"], [])
+        self.assertEqual([s["member"]["id"] for s in body["signatures"]], [appointed.pk])
 
     def test_somebody_without_the_capability_cannot_sign(self):
         self.statement.submit(self.owner)

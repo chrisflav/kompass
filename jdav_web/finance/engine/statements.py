@@ -472,11 +472,11 @@ def current_constraint_rows(statement: Any) -> list[dict[str, Any]]:
         return []
     rows = _rows_from_the_same_rules(statement, frozen)
     if rows is None:
-        return [row.as_row() for row in frozen]
+        return [_gate_row(record) for record in frozen]
     today = {row["name"]: row for row in rows}
     merged = []
     for record in frozen:
-        base = record.as_row()
+        base = _gate_row(record)
         fresh = today.get(record.name)
         if fresh is None:
             # The same rules cannot stop naming a constraint they named — the
@@ -500,6 +500,21 @@ def current_constraint_rows(statement: Any) -> list[dict[str, Any]]:
             }
         )
     return merged
+
+
+def _gate_row(record: ApprovalConstraint) -> dict[str, Any]:
+    """One frozen row as a row for the *gate*: without the recorded answer.
+
+    :meth:`~finance.store.ApprovalConstraint.as_row` carries the ``satisfied``
+    column, because the record has to report the answer that was reached when
+    the statement was signed. The gate re-asks the question — that is what it
+    is for — so the recorded answer is the one field it must not read, and it
+    is dropped here rather than in each of the two places that build a gate
+    row from a record.
+    """
+    row: dict[str, Any] = record.as_row()
+    row.pop("satisfied", None)
+    return row
 
 
 def _rows_from_the_same_rules(

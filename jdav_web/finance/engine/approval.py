@@ -204,6 +204,14 @@ def states(
     required, eligible, excluded, overridden, error — so that this stays a pure
     function over data and the model layer owns the rows.
 
+    A row may also carry ``satisfied``, and where it does, that is the answer
+    rather than a recomputation. Such a row is the **record**: it holds what
+    was true when the statement was signed, and the frozen eligible set it
+    would otherwise be recounted against cannot contain somebody who was
+    appointed after submission — so recounting reported an ordinary signature
+    as no signature at all. The rows the *gate* builds leave it off, because
+    the gate exists to ask the question again.
+
     ``uncredited`` are the *signers* whose signature cannot be attributed to a
     member: an admin account with no member record, which the capability layer
     let in. They are a set rather than a count, and that is the whole of the
@@ -238,6 +246,7 @@ def states(
             by = tuple(sorted(signed & set(eligible)))
             given = len(by) + len(anonymous)
         overridden = bool(row.get("overridden", False))
+        recorded = row.get("satisfied")
         resolved.append(
             ConstraintState(
                 name=str(row.get("name", "")),
@@ -246,7 +255,7 @@ def states(
                 required=required,
                 eligible=eligible,
                 signed_by=by,
-                satisfied=given >= required,
+                satisfied=given >= required if recorded is None else bool(recorded),
                 overridden=overridden,
                 overridden_by=row.get("overridden_by"),
                 override_reason=str(row.get("override_reason", "")),
