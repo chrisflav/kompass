@@ -19,6 +19,27 @@ back outside the ``try``, drop the ``satisfied`` the frozen row carries, warm
 the cached property first — then run it. A test that still passes is not
 testing what its name says it tests.
 
+**What the recipe found the second time.** The audit went through the
+regression tests around the approval gate, the query guard and the loader,
+neutered the fix each one guards — 26 of them — and ran it. Four fixes went
+unnoticed by every test in the suite, and all four for the same reason: a
+*second* mechanism in the production code made the first one unobservable.
+
+* ``create_cursor`` in ``GUARDED_METHODS``: while a connection is live the
+  driver object has been taken away, so the backend's factory refuses on its
+  way down whether or not it is on the list. Pinned now with no live
+  connection to take away.
+* the guard around ``ruleset.permissions`` in ``statement_context``: nothing
+  asked a ruleset to query from it.
+* the version bound in ``_rows_from_the_same_rules``: the frozen rows being
+  the spine kept the existing test green, because the ruleset it falls back
+  to names a differently *named* step. Pinned now with two versions that name
+  the same step over different groups.
+* ``import_module`` in the loader: ``_LOAD_LOCK`` serialises a whole load, so
+  the concurrency test passed against a faithful reimplementation of the racy
+  publish-then-exec loader it was written against. Pinned now with the lock
+  lifted.
+
 The area attracts this for reasons that are not going away: there is a cached
 property, there are two resolution paths (the record and the gate) that are
 *supposed* to disagree, and there is heavy patching. The two helpers here make

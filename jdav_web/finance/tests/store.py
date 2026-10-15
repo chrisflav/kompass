@@ -34,6 +34,7 @@ from finance.engine import configured_directory
 from finance.engine import engine_version
 from finance.engine import import_from_directory
 from finance.engine import materialise
+from finance.engine import QueryDuringEvaluation
 from finance.engine import read_sources
 from finance.engine import reference_directory
 from finance.engine import result_from_rows
@@ -932,6 +933,60 @@ class GuardedCallsTestCase(TestCase):
         statement = Statement.objects.get(pk=statement.pk)
         self.assertFalse(statement.fully_approved, "a broken rule is not signed away")
         self.assertFalse(statement.approve(None))
+
+    #: The same escape, from the ``permissions`` declaration: a class
+    #: attribute in every ruleset in tree, and a ``property`` wherever a
+    #: section prefers one. ``statement_context`` reads it to resolve who may
+    #: act, which is one query's worth of code running on the section's behalf.
+    QUERYING_PERMISSIONS = (
+        "from kompass.rules import Ruleset, SECTION, PARTICIPANTS\n"
+        "\n"
+        "\n"
+        "class Nosy(Ruleset):\n"
+        "    name = 'nosy-permissions'\n"
+        "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+        "\n"
+        "    @property\n"
+        "    def permissions(self):\n"
+        "        try:\n"
+        "            raise ValueError()\n"
+        "        except ValueError as problem:\n"
+        "            real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
+        "        db = real['__import__']('django.db', {}, {}, ['connections'])\n"
+        "        cursor = db.connections['default'].create_cursor()\n"
+        "        cursor.execute('SELECT 1')\n"
+        "        return ('finance.process_statementsubmitted',)\n"
+        "\n"
+        "    def inputs(self, ctx):\n"
+        "        return []\n"
+        "\n"
+        "    def transfers(self, ctx):\n"
+        "        return [], []\n"
+        "\n"
+        "\n"
+        "ruleset = Nosy()\n"
+    )
+
+    def test_a_permissions_declaration_that_queries_is_refused(self):
+        """The read `statement_context` guards, which nothing was testing.
+
+        Found by the audit in #549: lifting the guard around
+        ``ruleset.permissions`` left the whole suite green. It is the same
+        shape as the three reads in #545 — an attribute lookup that a section
+        can turn into code — and it is read on every draft save, because the
+        approval step needs to know who may act. Loud rather than recorded:
+        unlike a rule that *raises*, a rule that queries has reached outside
+        the statement entirely, and the materialisation refuses to write a row
+        under it.
+        """
+        with TemporaryDirectory() as directory:
+            package = Path(directory)
+            (package / "__init__.py").write_text(self.QUERYING_PERMISSIONS, encoding="utf-8")
+            row, problems = import_from_directory(package, name="nosy-permissions")
+            self.assertEqual(problems, [], "no banned name appears in it")
+            self.assertEqual(active_version(), row)
+            with self.assertRaises(QueryDuringEvaluation):
+                Statement.objects.create(short_description="Neugierig", night_cost=0)
 
     def test_when_the_rules_cannot_be_re_resolved_at_all_the_rows_stand(self):
         """The gate degrades to the record rather than to a 500.
