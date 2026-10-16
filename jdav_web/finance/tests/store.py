@@ -34,6 +34,7 @@ from finance.engine import configured_directory
 from finance.engine import engine_version
 from finance.engine import import_from_directory
 from finance.engine import materialise
+from finance.engine import QueryDuringEvaluation
 from finance.engine import read_sources
 from finance.engine import reference_directory
 from finance.engine import result_from_rows
@@ -69,11 +70,54 @@ from finance.store import ImmutableRuleSet
 from finance.store import Obligation
 from finance.store import RoleAssignment
 from finance.store import RuleSet
+from finance.tests.harness import guard_lifted
 from members.models import MALE
 from members.models import Member
 
 #: A ruleset that is stored but cannot be loaded, for the fallbacks.
 BROKEN_SOURCES = {"__init__.py": "ruleset = 'not a ruleset at all'\n"}
+
+#: A ruleset that queries from a field the **import** reads rather than from a
+#: rule the engine calls. ``name`` and ``valid_from`` are attribute lookups on
+#: the loaded object, which is why they were written as data; a ``property``
+#: makes reading one a call into the section's own code. It reaches the
+#: database through a caller's frame and the backend's own cursor factory, so
+#: that no name in it is on the import whitelist and no ``CursorWrapper`` is
+#: involved. ``FIELD`` is the field to declare that way and ``VALUE`` what it
+#: answers once it is allowed to.
+QUERYING_FIELD = (
+    "from kompass.rules import Ruleset, SECTION, PARTICIPANTS\n"
+    "\n"
+    "\n"
+    "class Nosy(Ruleset):\n"
+    "    name = 'nosy'\n"
+    "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+    "\n"
+    "    @property\n"
+    "    def FIELD(self):\n"
+    "        try:\n"
+    "            raise ValueError()\n"
+    "        except ValueError as problem:\n"
+    "            real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
+    "        db = real['__import__']('django.db', {}, {}, ['connections'])\n"
+    "        cursor = db.connections['default'].create_cursor()\n"
+    "        cursor.execute('SELECT 1')\n"
+    "        return VALUE\n"
+    "\n"
+    "    def inputs(self, ctx):\n"
+    "        return []\n"
+    "\n"
+    "    def transfers(self, ctx):\n"
+    "        return [], []\n"
+    "\n"
+    "\n"
+    "ruleset = Nosy()\n"
+)
+
+
+def querying_field(field, value):
+    """:data:`QUERYING_FIELD` with its field and its answer filled in."""
+    return QUERYING_FIELD.replace("FIELD", field).replace("VALUE", repr(value))
 
 
 def a_member(name="Rolle"):
@@ -384,6 +428,74 @@ class ImportTestCase(TestCase):
             again, problems = import_from_directory(Path(directory))
         self.assertEqual(again.pk, row.pk)
         self.assertTrue(problems)
+
+    def imported(self, source, **options):
+        """Import ``source`` as a ruleset of its own, and return the outcome."""
+        with TemporaryDirectory() as directory:
+            package = Path(directory)
+            (package / "__init__.py").write_text(source, encoding="utf-8")
+            return import_from_directory(package, **options)
+
+    def test_a_name_that_queries_is_a_draft_rather_than_a_free_cursor(self):
+        """The import read two fields off the loaded object, past the guard.
+
+        ``loaded.name`` is an attribute lookup, which is why it was written as
+        data, and a section can declare it as a ``property`` — at which point
+        reading it is a call into the section's own code, one line after the
+        load's guard lifted and on the way into ``RuleSet.objects.create``.
+        The refusal is *reported*, like every other way a ruleset can be bad:
+        the row is a draft and the version in force does not move.
+        """
+        active = active_version()
+        row, problems = self.imported(querying_field("name", "nosy-name"))
+        self.assertEqual(row.state, RuleSet.DRAFT)
+        self.assertTrue(any("must not query the database" in problem for problem in problems))
+        self.assertEqual(active_version(), active, "the previous version stays in force")
+        # The other direction, which is what says the guard refused rather
+        # than the fixture failing some other way: with `no_queries` lifted
+        # where the import opens it, the same read goes through and the name
+        # it answers is the name on the row. (A different answer, so that this
+        # is a different version rather than the stored draft read back.)
+        with guard_lifted("finance.engine.versions"):
+            lifted, problems = self.imported(querying_field("name", "nosy-anyway"))
+        self.assertEqual(problems, [])
+        self.assertEqual(lifted.name, "nosy-anyway")
+        self.assertEqual(active_version(), lifted)
+
+    def test_a_name_given_by_the_importer_is_not_read_off_the_ruleset(self):
+        """The short-circuit `declared_fields` keeps, and what it costs.
+
+        ``name or loaded.name`` is the behaviour this replaced, and it is
+        preserved deliberately: an explicit name is the importer's, not the
+        ruleset's, so ``importruleset --name`` must not depend on what the
+        ruleset says about itself. The cost is that the querying property is
+        never read, and so never refused: such a version activates with no
+        problem recorded. That is harmless — nothing else reads
+        ``loaded.name``, and the row's own name is what the admin shows — but
+        it is the kind of thing to pin rather than discover.
+        """
+        row, problems = self.imported(querying_field("name", "nosy-explicit"), name="von-hand")
+        self.assertEqual(problems, [], "the property was never read, so it never refused")
+        self.assertEqual(row.name, "von-hand")
+        self.assertEqual(row.state, RuleSet.ACTIVE)
+        self.assertEqual(active_version(), row)
+
+    def test_a_valid_from_that_queries_is_a_draft_too(self):
+        """The second field, read through ``declared_valid_from``.
+
+        A section stages a change by naming a future date, so this one is read
+        on the way into the row as well — and ``getattr(ruleset,
+        "valid_from")`` runs whatever the section put behind that name.
+        """
+        active = active_version()
+        row, problems = self.imported(querying_field("valid_from", "2099-01-01"))
+        self.assertEqual(row.state, RuleSet.DRAFT)
+        self.assertTrue(any("must not query the database" in problem for problem in problems))
+        self.assertEqual(active_version(), active)
+        with guard_lifted("finance.engine.versions"):
+            lifted, problems = self.imported(querying_field("valid_from", "2099-01-02"))
+        self.assertEqual(problems, [])
+        self.assertEqual(lifted.valid_from.date().isoformat(), "2099-01-02")
 
     def test_a_stored_draft_without_problems_is_activated_on_the_next_import(self):
         row, _problems = import_from_directory(reference_directory())
@@ -839,6 +951,60 @@ class GuardedCallsTestCase(TestCase):
         statement = Statement.objects.get(pk=statement.pk)
         self.assertFalse(statement.fully_approved, "a broken rule is not signed away")
         self.assertFalse(statement.approve(None))
+
+    #: The same escape, from the ``permissions`` declaration: a class
+    #: attribute in every ruleset in tree, and a ``property`` wherever a
+    #: section prefers one. ``statement_context`` reads it to resolve who may
+    #: act, which is one query's worth of code running on the section's behalf.
+    QUERYING_PERMISSIONS = (
+        "from kompass.rules import Ruleset, SECTION, PARTICIPANTS\n"
+        "\n"
+        "\n"
+        "class Nosy(Ruleset):\n"
+        "    name = 'nosy-permissions'\n"
+        "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+        "\n"
+        "    @property\n"
+        "    def permissions(self):\n"
+        "        try:\n"
+        "            raise ValueError()\n"
+        "        except ValueError as problem:\n"
+        "            real = problem.__traceback__.tb_frame.f_back.f_builtins\n"
+        "        db = real['__import__']('django.db', {}, {}, ['connections'])\n"
+        "        cursor = db.connections['default'].create_cursor()\n"
+        "        cursor.execute('SELECT 1')\n"
+        "        return ('finance.process_statementsubmitted',)\n"
+        "\n"
+        "    def inputs(self, ctx):\n"
+        "        return []\n"
+        "\n"
+        "    def transfers(self, ctx):\n"
+        "        return [], []\n"
+        "\n"
+        "\n"
+        "ruleset = Nosy()\n"
+    )
+
+    def test_a_permissions_declaration_that_queries_is_refused(self):
+        """The read `statement_context` guards, which nothing was testing.
+
+        Found by the audit in #549: lifting the guard around
+        ``ruleset.permissions`` left the whole suite green. It is the same
+        shape as the three reads in #545 — an attribute lookup that a section
+        can turn into code — and it is read on every draft save, because the
+        approval step needs to know who may act. Loud rather than recorded:
+        unlike a rule that *raises*, a rule that queries has reached outside
+        the statement entirely, and the materialisation refuses to write a row
+        under it.
+        """
+        with TemporaryDirectory() as directory:
+            package = Path(directory)
+            (package / "__init__.py").write_text(self.QUERYING_PERMISSIONS, encoding="utf-8")
+            row, problems = import_from_directory(package, name="nosy-permissions")
+            self.assertEqual(problems, [], "no banned name appears in it")
+            self.assertEqual(active_version(), row)
+            with self.assertRaises(QueryDuringEvaluation):
+                Statement.objects.create(short_description="Neugierig", night_cost=0)
 
     def test_when_the_rules_cannot_be_re_resolved_at_all_the_rows_stand(self):
         """The gate degrades to the record rather than to a 500.

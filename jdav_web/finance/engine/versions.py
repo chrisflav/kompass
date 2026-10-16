@@ -29,6 +29,7 @@ import hashlib
 import os
 import platform
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -44,6 +45,7 @@ from .cases import run_cases
 from .context import PARAMETER_KEYS
 from .errors import RulesetInvalid
 from .errors import RulesetRejected
+from .guard import no_queries
 from .imports import check_sources
 from .loader import load
 from .loader import manifest
@@ -169,6 +171,41 @@ def declared_valid_from(ruleset: Ruleset) -> datetime:
     return parsed if parsed > now else now
 
 
+@dataclass(frozen=True)
+class DeclaredFields:
+    """The three row fields that come from the ruleset *object* itself."""
+
+    name: str
+    context_version: int
+    valid_from: datetime
+
+
+def declared_fields(loaded: Ruleset | None, directory: Path, *, name: str = "") -> DeclaredFields:
+    """What ``loaded`` says about itself, read inside the query guard.
+
+    These are attribute lookups rather than calls, which is why they ran
+    outside the guard: they read like data. They are not. A section's ruleset
+    is its own Python, ``name``, ``context_version`` and ``valid_from`` can
+    each be a ``property``, and a property is rule code — so it is guarded
+    like the rest of it, and a version whose ``name`` queries is a draft with
+    a problem rather than a version that got a cursor for free.
+
+    ``name`` given by the caller wins, and short-circuits the read, exactly as
+    the ``name or ...`` it replaced did: an explicit name is the importer's,
+    not the ruleset's.
+    """
+    if loaded is None:
+        return DeclaredFields(
+            name=name or directory.name, context_version=0, valid_from=timezone.now()
+        )
+    with no_queries():
+        return DeclaredFields(
+            name=name or loaded.name,
+            context_version=loaded.context_version,
+            valid_from=declared_valid_from(loaded),
+        )
+
+
 def failed_cases(ruleset: Ruleset, directory: Path) -> dict[str, list[str]]:
     """The ruleset's own cases that do not pass, by name."""
     cases = directory / CASES_DIRECTORY
@@ -223,19 +260,28 @@ def import_from_directory(
         return stored, list(stored.problems)
 
     loaded, problems = check_directory(directory)
+    try:
+        declared = declared_fields(loaded, directory, name=name)
+    except Exception as broken:  # a field of the section's that runs code
+        # Reported rather than raised, like every other way a ruleset can be
+        # bad: the row is stored as a draft, the previous version stays active,
+        # and the admin and the hourly task both say so instead of falling over
+        # (this function's own step 6).
+        loaded, declared = None, declared_fields(None, directory, name=name)
+        problems = [*problems, f"the ruleset's own fields could not be read: {broken}"]
     predecessor = RuleSet.objects.active()
     row = RuleSet.objects.create(
-        name=name or (loaded.name if loaded is not None else directory.name),
+        name=declared.name,
         hash=digest,
         manifest=entries,
         sources=sources,
         revision=revision,
         engine_version=engine_version(),
-        context_version=loaded.context_version if loaded is not None else 0,
+        context_version=declared.context_version,
         params=params,
         state=RuleSet.DRAFT,
         problems=problems,
-        valid_from=declared_valid_from(loaded) if loaded is not None else timezone.now(),
+        valid_from=declared.valid_from,
         cases_passed_at=None if problems or loaded is None else timezone.now(),
         supersedes=predecessor,
     )

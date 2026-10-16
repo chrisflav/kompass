@@ -612,6 +612,7 @@ class Statement(CommonModel):
             [row.as_row() for row in self.approval_constraint_set.all()],
             members,
             uncredited=others,
+            recorded=True,
         )
 
     @property

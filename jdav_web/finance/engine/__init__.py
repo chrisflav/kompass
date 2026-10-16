@@ -16,6 +16,12 @@ hash), :mod:`finance.engine.versions` (importing and activating a version) and
 :mod:`finance.engine.statements` (binding a statement to a version, and writing
 its transfers down as rows). The rules themselves are in
 :mod:`finance.rulesets`.
+
+Adding a test around the query guard, the loader or the approval gate: read
+:mod:`finance.tests.harness` first. Three tests here once passed while testing
+nothing of the production path, and an audit of the rest found four more fixes
+that no test would have missed; that module is the recipe for not writing the
+next one, and the two helpers that make it cheap.
 """
 
 from .approval import ConstraintState

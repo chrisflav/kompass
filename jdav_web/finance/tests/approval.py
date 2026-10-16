@@ -48,6 +48,7 @@ from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 from finance.store import Approval
 from finance.store import ApprovalConstraint
+from finance.tests.harness import gate_of
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -204,6 +205,59 @@ class VacantGroup(Ruleset):
 
 ruleset = VacantGroup()
 '''
+
+
+#: One approval step called "Kasse", over whichever group ``ELIGIBLE`` names.
+#: Two sections that ask for the same-named signature from different groups,
+#: which is what the version bound in `_rows_from_the_same_rules` is for: the
+#: frozen rows being the spine does not help when the rows and the resolution
+#: agree on the name and disagree on the group.
+ONE_STEP = '''
+from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS, Transfer
+
+
+class OneStep(Ruleset):
+    """One signature, from the group this version names."""
+
+    name = "NAME"
+    permissions = ("finance.process_statementsubmitted",)
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        transfers = []
+        for bill in ctx.bills:
+            if bill.covered and bill.payer is not None:
+                transfers.append(
+                    Transfer(SECTION, bill.payer, bill.amount, "bill", rule_id="bills")
+                )
+        return transfers, []
+
+    def approval(self, ctx, transfers):
+        signers = ctx.permission_holders("finance.process_statementsubmitted")
+        return (
+            [
+                Constraint(
+                    name="Kasse",
+                    description="Eine Unterschrift aus der Kasse",
+                    applicable=True,
+                    required=1,
+                    eligible=ELIGIBLE,
+                )
+            ],
+            [],
+        )
+
+
+ruleset = OneStep()
+'''
+
+
+def one_step(name, eligible):
+    """:data:`ONE_STEP` as a version called ``name`` over ``eligible``."""
+    return ONE_STEP.replace("NAME", name).replace("ELIGIBLE", eligible)
 
 
 def row(**overrides):
@@ -407,6 +461,29 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
             uncredited=[("unattributable",), ("unattributable",)],
         )
         self.assertFalse(anonymous[0].satisfied)
+
+    def test_the_record_is_read_and_the_gate_is_counted(self):
+        """``recorded`` is an argument, not a key the row happens to carry.
+
+        The two callers ask different questions of the same rows, so the
+        answer cannot be inferred from what is in them: a row builder that
+        included ``satisfied: False`` without meaning anything by it would
+        have frozen the gate at *unsatisfied*, and nothing could ever be
+        signed again.
+        """
+        signed = row(eligible=[1], satisfied=True)
+        self.assertTrue(states([signed], signatures=[], recorded=True)[0].satisfied)
+        self.assertFalse(states([signed], signatures=[])[0].satisfied, "counted, not read")
+        self.assertTrue(states([signed], signatures=[1])[0].satisfied)
+        # And the other way round: the record says what it says, whoever has
+        # signed since — a row recorded unsatisfied is unsatisfied even when
+        # the person who signed is in the frozen group.
+        unsigned = row(eligible=[1], satisfied=False)
+        self.assertFalse(states([unsigned], signatures=[1], recorded=True)[0].satisfied)
+        self.assertTrue(states([unsigned], signatures=[1])[0].satisfied)
+        # A row without the column at all — which is what `resolve_constraints`
+        # produces — reads as unsatisfied rather than raising.
+        self.assertFalse(states([row(eligible=[1])], signatures=[], recorded=True)[0].satisfied)
 
     def test_a_constraint_that_does_not_apply_is_reported_not_hidden(self):
         resolved = states([row(applicable=False, required=2)], signatures=[])
@@ -895,7 +972,11 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         record was left reading "Kasse: not signed" while the money moved.
 
         Now a re-resolution is only accepted from the version the rows were
-        frozen under, and the frozen rows are the spine in any case.
+        frozen under, and the frozen rows are the spine in any case. What this
+        test pins is the spine: the reference ruleset names a differently
+        *named* step, so the version bound never comes into it, which is why
+        it has a test of its own below
+        (``test_only_the_version_the_rows_were_frozen_under_may_widen_the_group``).
         """
         big = self.statement_for(Decimal("1200.00"), self.anna)
         kasse = big.approval_constraint_set.get(name="Kasse")
@@ -1005,6 +1086,72 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertEqual(sorted(names), ["Kasse", "Vorstand"])
         self.assertEqual(names["Vorstand"].required, 2)
         self.assertNotIn(self.anna.pk, names["Vorstand"].eligible)
+
+    def test_the_gate_does_not_read_the_answer_the_record_wrote_down(self):
+        """The record carries ``satisfied``; the gate may not read it.
+
+        The two resolutions are supposed to disagree, and this is the
+        direction that makes the difference worth having: a signature that
+        counted when it was given stays on the record, while the gate asks who
+        may sign *now* — so a signer who has since lost the capability stops
+        advancing the step they signed. The gate is handed the same frozen
+        rows, `satisfied` column and all, and asks `states` without
+        `recorded=True`: answering from the row instead would let the record
+        decide what the gate is for.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.approve(self.anna), "Kasse is in, Vorstand wants two")
+        self.assertTrue(big.approval_constraint_set.get(name="Kasse").satisfied)
+        # Anna leaves the finance department.
+        self.anna_user.user_permissions.clear()
+        record = {state.name: state for state in Statement.objects.get(pk=big.pk).approval_states}
+        self.assertTrue(record["Kasse"].satisfied, "she signed it, and that is the record")
+        gate = {state.name: state for state in gate_of(big)}
+        self.assertNotIn(self.anna.pk, gate["Kasse"].eligible)
+        self.assertFalse(gate["Kasse"].satisfied, "and she may not sign it any more")
+        self.assertTrue(gate["Kasse"].open)
+        self.assertFalse(Statement.objects.get(pk=big.pk).fully_approved)
+
+    def test_only_the_version_the_rows_were_frozen_under_may_widen_the_group(self):
+        """The bound that the frozen spine does not provide, found by #549's audit.
+
+        Its sibling above — "a fallback to other rules does not drop a frozen
+        forbid" — stayed green with the version check removed, because the
+        ruleset it falls back to names a *differently* named step, so the
+        spine kept the section's rows untouched and the check never mattered.
+        Two sections that ask for the same-named signature from different
+        groups are the case it was written for: the frozen row and today's
+        resolution agree on the name, the merge takes today's eligible set,
+        and a forbid cannot bar somebody the section's own rules never named.
+        So an unrelated version would hand the signature to whoever *it*
+        names, on nothing worse than a statement that lost its own closure.
+        """
+        package = Path(self.directory.name)
+        narrow = one_step("narrow", "tuple(sorted(signers, key=lambda m: int(m.id))[:1])")
+        (package / "__init__.py").write_text(narrow, encoding="utf-8")
+        row, problems = import_from_directory(package, name="narrow")
+        self.assertEqual(problems, [])
+        statement = self.statement_for(Decimal("100.00"), self.clara)
+        named = min(member.pk for member in (self.anna, self.bernd, self.clara))
+        outsider = next(
+            member for member in (self.anna, self.bernd, self.clara) if member.pk != named
+        )
+        self.assertEqual(statement.approval_constraint_set.get().eligible_member_ids, [named])
+        # Another section's version takes over, naming everybody for the step
+        # this one named one person for, and the statement loses its own
+        # closure — which is the state of every statement created before the
+        # first import, and of every one whose snapshot stops loading.
+        (package / "__init__.py").write_text(one_step("wide", "tuple(signers)"), encoding="utf-8")
+        wide, problems = import_from_directory(package, name="wide")
+        self.assertEqual(problems, [])
+        self.assertNotEqual(wide.hash, row.hash)
+        Statement.objects.filter(pk=statement.pk).update(ruleset_snapshot={})
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertEqual(gate["Kasse"].eligible, (named,), "the other version's group is not read")
+        again = Statement.objects.get(pk=statement.pk)
+        self.assertFalse(again.may_be_approved_by(outsider))
+        self.assertFalse(again.approve(outsider))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
 
     def test_an_override_of_one_step_leaves_the_other_standing(self):
         big = self.statement_for(Decimal("1200.00"), self.clara)

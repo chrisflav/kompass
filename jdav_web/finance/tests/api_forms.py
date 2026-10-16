@@ -20,6 +20,7 @@ from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from finance.api.tests import AccessToken
 from finance.api.tests import Application
 from finance.api.tests import grant
@@ -244,6 +245,33 @@ class FinanceFormApiTestCase(TestCase):
         self.assertEqual([m["id"] for m in constraint["eligible"]], [self.manager.pk])
         self.assertEqual(body["signatures"], [])
 
+    def test_the_approval_endpoint_survives_a_snapshot_whose_body_raises(self):
+        """A section's broken rules must not take its finance pages down.
+
+        `loaded_ruleset` catches the two exceptions a *refused* snapshot
+        raises, and a snapshot whose module body raises anything else — the
+        section's own `ValueError` at import time, which is what a bad
+        configuration repository looks like once it is stored — comes straight
+        out of it. The call sat outside `_rows_from_the_same_rules`'s own
+        `try`, so the gate propagated it and this endpoint and the admin's
+        approval page answered 500 instead of falling back to the frozen rows
+        they are built around.
+        """
+        self.statement.submit(self.owner)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        frozen = [row.name for row in statement.approval_constraint_set.all()]
+        self.assertTrue(frozen, "there are rows to fall back to, which makes this a test")
+        snapshot = dict(statement.ruleset_snapshot)
+        snapshot["sources"] = {"__init__.py": "raise ValueError('kaputt')\n"}
+        Statement.objects.filter(pk=statement.pk).update(ruleset_snapshot=snapshot)
+        r = self.client.get(
+            "/api/finance/statements/{}/approval".format(self.statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual([c["name"] for c in r.json()["constraints"]], frozen)
+        self.assertFalse(r.json()["approved"], "and the payout is still stuck, not waved through")
+
     def test_signing_a_statement_off_through_the_api(self):
         Bill.objects.create(
             statement=self.statement,
@@ -268,6 +296,61 @@ class FinanceFormApiTestCase(TestCase):
         self.assertEqual(body["signatures"][0]["member"]["id"], self.manager.pk)
         self.assertEqual(body["signatures"][0]["note"], "geprüft")
         self.assertTrue(Statement.objects.get(pk=self.statement.pk).confirmed)
+
+    def test_the_settled_payload_after_a_signature_from_mid_flight(self):
+        """What a settled statement says when the person who signed it arrived late.
+
+        Ordinary Heidelberg, nothing corrupted: the statement is handed in, a
+        treasurer is appointed while it waits, signs, and it pays out. The
+        payload then reads the **record** — the frozen rows, because nothing
+        should re-run a section's rules to render a settled statement — and
+        the record recomputed `satisfied` as `signed ∩ frozen eligible`, a set
+        a mid-flight signer is by construction not in. So it answered
+        `approved: true` beside the one step reported open and missing a
+        signature, while the frozen row it was reading said `satisfied`.
+        """
+        Bill.objects.create(
+            statement=self.statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=self.leader,
+        )
+        self.statement.submit(self.owner)
+        self.statement.generate_transactions()
+        self.statement.transaction_set.update(ledger=Ledger.objects.create(name="Konto"))
+        frozen = self.statement.approval_constraint_set.get()
+        self.assertEqual(frozen.eligible_member_ids, [self.manager.pk])
+        appointed_user, appointed = make_member_user("fspaet")
+        appointed_user = grant(appointed_user, "process_statementsubmitted")
+        signed = self.client.post(
+            "/api/finance/statements/{}/approve".format(self.statement.pk),
+            data={"note": "spät"},
+            content_type="application/json",
+            **self.auth(appointed_user),
+        )
+        self.assertEqual(signed.status_code, 200, signed.content)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertTrue(statement.confirmed, "the gate let the appointed treasurer in")
+        r = self.client.get(
+            "/api/finance/statements/{}/approval".format(self.statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertTrue(body["approved"])
+        constraint = body["constraints"][0]
+        self.assertTrue(constraint["satisfied"], "the payload agrees with `approved`")
+        self.assertFalse(constraint["open"])
+        self.assertEqual(constraint["missing"], 0)
+        self.assertEqual(constraint["state_display"], _("Signed"))
+        self.assertTrue(statement.approval_constraint_set.get().satisfied, "and with the row")
+        # `eligible` and `signed_by` stay what the rules named when the
+        # statement was handed in, which is the question an audit asks of a
+        # record; who actually signed it is reported under `signatures`.
+        self.assertEqual([member["id"] for member in constraint["eligible"]], [self.manager.pk])
+        self.assertEqual(constraint["signed_by"], [])
+        self.assertEqual([s["member"]["id"] for s in body["signatures"]], [appointed.pk])
 
     def test_somebody_without_the_capability_cannot_sign(self):
         self.statement.submit(self.owner)
@@ -328,6 +411,80 @@ class FinanceFormApiTestCase(TestCase):
         self.assertEqual(r.status_code, 422, r.content)
         statement = Statement.objects.get(pk=self.statement.pk)
         self.assertFalse(statement.approval_constraint_set.get().overridden)
+
+    #: A section whose forbid broke *after* a statement was handed in. The
+    #: step keeps its name, so it is the frozen "Freigabe" row that can no
+    #: longer be resolved — which is what makes the override refusable.
+    BROKEN_FORBID = (
+        "from kompass.rules import Constraint, Forbid, Ruleset, SECTION, PARTICIPANTS\n"
+        "\n"
+        "\n"
+        "def kaputt(member):\n"
+        "    raise ValueError('der Vorstand ist unbekannt')\n"
+        "\n"
+        "\n"
+        "class BrokenForbid(Ruleset):\n"
+        "    name = 'broken-forbid'\n"
+        "    permissions = ('finance.process_statementsubmitted',)\n"
+        "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+        "\n"
+        "    def inputs(self, ctx):\n"
+        "        return []\n"
+        "\n"
+        "    def transfers(self, ctx):\n"
+        "        return [], []\n"
+        "\n"
+        "    def approval(self, ctx, transfers):\n"
+        "        signers = ctx.permission_holders('finance.process_statementsubmitted')\n"
+        "        return (\n"
+        "            [\n"
+        "                Constraint(\n"
+        "                    name='Freigabe',\n"
+        "                    description='Eine Unterschrift',\n"
+        "                    applicable=True,\n"
+        "                    required=1,\n"
+        "                    eligible=signers,\n"
+        "                )\n"
+        "            ],\n"
+        "            [Forbid('kaputt', applies_to=kaputt)],\n"
+        "        )\n"
+        "\n"
+        "\n"
+        "ruleset = BrokenForbid()\n"
+    )
+
+    def test_an_override_of_a_step_the_rules_cannot_resolve_is_refused_loudly(self):
+        """The refusal that used to answer 200 with ``overridden: false``.
+
+        A broken forbid is a rule that failed to say who is excluded, so there
+        is no answer to "may this person sign it off" and the payout stays
+        stuck — the model's rule, tested on the model in
+        :mod:`finance.tests.approval`. What this pins is the endpoint: its
+        other four refusals raise and answer 422, this one left
+        `override_approval` to refuse on its own and reported the refusal only
+        as a field in a 200 body, which a client has to diff against what it
+        sent to notice.
+        """
+        self.statement.submit(self.owner)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        snapshot = dict(statement.ruleset_snapshot)
+        snapshot["sources"] = {"__init__.py": self.BROKEN_FORBID}
+        Statement.objects.filter(pk=statement.pk).update(ruleset_snapshot=snapshot)
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(
+            statement.approval_cannot_be_resolved("Freigabe"),
+            "the forbid broke, which is the premise of this test",
+        )
+        r = self.client.post(
+            "/api/finance/statements/{}/override-approval".format(self.statement.pk),
+            data={"name": "Freigabe", "reason": "Fristende"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        settled = Statement.objects.get(pk=self.statement.pk)
+        self.assertFalse(settled.approval_constraint_set.get().overridden)
+        self.assertFalse(settled.confirmed)
 
     def test_a_draft_cannot_be_overridden(self):
         r = self.client.post(

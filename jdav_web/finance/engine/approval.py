@@ -197,12 +197,27 @@ def states(
     signatures: Iterable[int],
     *,
     uncredited: Iterable[Any] = (),
+    recorded: bool = False,
 ) -> list[ConstraintState]:
     """The state of each constraint, given who has signed.
 
     ``rows`` are the constraints as mappings — name, description, applicable,
     required, eligible, excluded, overridden, error — so that this stays a pure
     function over data and the model layer owns the rows.
+
+    ``recorded`` says which question is being asked, and the two answers are
+    meant to differ. Left ``False`` — the **gate** — ``satisfied`` is counted
+    from ``signatures`` against ``eligible``, every time. Passed ``True`` — the
+    **record** — it is read from the row's own ``satisfied``, because the row
+    holds what was true when the statement was signed and the *frozen*
+    eligible set it would otherwise be recounted against cannot contain
+    somebody who was appointed after submission: recounting reported an
+    ordinary signature as no signature at all.
+
+    It is an argument rather than "the row carries the key": presence as the
+    signal meant a row builder that happened to include ``satisfied: False``
+    froze the gate at *unsatisfied*, and nothing could ever be signed again —
+    with no type error to say so, and no caller having asked for anything.
 
     ``uncredited`` are the *signers* whose signature cannot be attributed to a
     member: an admin account with no member record, which the capability layer
@@ -246,7 +261,7 @@ def states(
                 required=required,
                 eligible=eligible,
                 signed_by=by,
-                satisfied=given >= required,
+                satisfied=bool(row.get("satisfied", False)) if recorded else given >= required,
                 overridden=overridden,
                 overridden_by=row.get("overridden_by"),
                 override_reason=str(row.get("override_reason", "")),

@@ -12,6 +12,7 @@ says no to what it says no to.
 import json
 import sys
 import threading
+from contextlib import nullcontext
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -79,6 +80,7 @@ from finance.rules_api import Transfer
 from finance.rulesets.heidelberg import cents
 from finance.rulesets.heidelberg import HeidelbergRules
 from finance.rulesets.heidelberg import ruleset as reference
+from finance.tests.harness import guard_lifted
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -402,6 +404,12 @@ class QueryGuardTestCase(TestCase):
         driver's own connection object, which knows nothing about Django at
         all. Each one reaches the database without passing a ``CursorWrapper``,
         so each one was a way past the guard while a rule was running.
+
+        What this does **not** pin is :data:`GUARDED_METHODS`: with a live
+        connection the driver object has been taken away, so every route here
+        runs into the refusing proxy on its way down and still raises with any
+        one method missing from that list. The test below is the one that
+        pins it.
         """
         connection = connections["default"]
         connection.ensure_connection()
@@ -423,6 +431,45 @@ class QueryGuardTestCase(TestCase):
             cursor.execute("SELECT 1")
             self.assertEqual(cursor.fetchone()[0], 1)
         self.assertIsNotNone(connection.connection.cursor())
+
+    def test_the_routes_refuse_with_no_live_connection_to_take_away(self):
+        """The guard's other half, and the one :data:`GUARDED_METHODS` is for.
+
+        Found by the audit in #549: dropping ``create_cursor`` from that list
+        left every guard test green, because the test above runs with a live
+        connection whose driver object has been swapped for the refusing
+        proxy — so the backend's factory refuses on its way down whether or
+        not it is on the list. A connection that is not open yet has no driver
+        object to take away, which is the ordinary state of a worker that has
+        not served a request yet, and then the patch on the connection class
+        is the only thing standing there. One route missing from the list is a
+        rule with a cursor.
+        """
+        connection = connections["default"]
+        connection.ensure_connection()
+        live = connection.connection
+        # The same trick the guard itself uses, and put back the same way: the
+        # object is never closed, only set aside, so the surrounding test
+        # transaction is untouched.
+        connection.connection = None
+        try:
+            with no_queries():
+                self.assertIsNone(connection.connection, "nothing was swapped in")
+                for route in (
+                    connection.cursor,
+                    connection._cursor,
+                    connection.create_cursor,
+                    connection.chunked_cursor,
+                    connection.ensure_connection,
+                    connection.connect,
+                ):
+                    with self.assertRaises(QueryDuringEvaluation):
+                        route()
+        finally:
+            connection.connection = live
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchone()[0], 1)
 
     def test_a_cursor_taken_before_the_block_still_refuses_to_execute(self):
         """The execute wrapper stays, as the second net.
@@ -545,7 +592,11 @@ class FrameEscapeTestCase(TestCase):
         )
 
     def test_the_backends_own_cursor_factory_refuses(self):
-        """`create_cursor` is the backend's factory; no wrapper is involved."""
+        """`create_cursor` is the backend's factory; no wrapper is involved.
+
+        Which of the guard's two halves refuses it here is not pinned —
+        see ``test_the_routes_refuse_with_no_live_connection_to_take_away``.
+        """
         sources = {
             "__init__.py": self.ruleset_source(
                 [
@@ -610,6 +661,78 @@ class FrameEscapeTestCase(TestCase):
         )
         with self.assertRaises(QueryDuringEvaluation):
             load({"__init__.py": source})
+
+    def test_the_exported_ruleset_may_not_query_while_it_is_being_read(self):
+        """`as_ruleset` ran one line after the guard lifted.
+
+        Reading `module.ruleset` looks like reading data, and is a call into
+        the section's own code whenever the section wants it to be: a module
+        may define `__getattr__` (PEP 562). `load` returned *through*
+        `as_ruleset` from outside the `with no_queries():` block, so that read
+        was the one line of a ruleset that ran unguarded — and a cursor taken
+        there is a cursor `transfers` can use later, past the execute wrapper.
+        """
+        source = (
+            self.PREAMBLE + "class Lazy(Ruleset):\n"
+            "    name = 'lazy-export'\n"
+            "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+            "\n"
+            "    def inputs(self, ctx):\n"
+            "        return []\n"
+            "\n"
+            "    def transfers(self, ctx):\n"
+            "        return [], []\n"
+            "\n"
+            "\n"
+            "def __getattr__(name):\n"
+            "    cursor = reach().connections['default'].create_cursor()\n"
+            "    cursor.execute('SELECT 1')\n"
+            "    return Lazy()\n"
+        )
+        sources = {"__init__.py": source}
+        self.assertEqual(check_sources(sources), [], "no name in it is on any list")
+        with self.assertRaises(QueryDuringEvaluation):
+            load(sources)
+        # The other direction, which is what says the guard is what refused
+        # rather than something about the fixture: with the one line this test
+        # exists for lifted, the same read goes through and hands back a
+        # ruleset. Neuter the fix, watch it go red — as code.
+        with guard_lifted("finance.engine.loader"):
+            self.assertEqual(load(sources).name, "lazy-export")
+
+    def test_a_context_version_that_queries_is_refused_as_well(self):
+        """The second read `as_ruleset` makes, and a `property` is rule code.
+
+        `exported.context_version` is compared against this Kompass's own, so
+        it is read on every load of every version — and a ruleset that
+        declares it as a property has the engine call its code to get it.
+        """
+        source = (
+            self.PREAMBLE + "class Nosy(Ruleset):\n"
+            "    name = 'nosy-version'\n"
+            "    balance = (PARTICIPANTS, SECTION, 'rest')\n"
+            "\n"
+            "    @property\n"
+            "    def context_version(self):\n"
+            "        cursor = reach().connections['default'].create_cursor()\n"
+            "        cursor.execute('SELECT 1')\n"
+            "        return 1\n"
+            "\n"
+            "    def inputs(self, ctx):\n"
+            "        return []\n"
+            "\n"
+            "    def transfers(self, ctx):\n"
+            "        return [], []\n"
+            "\n"
+            "\n"
+            "ruleset = Nosy()\n"
+        )
+        sources = {"__init__.py": source}
+        self.assertEqual(check_sources(sources), [])
+        with self.assertRaises(QueryDuringEvaluation):
+            load(sources)
+        with guard_lifted("finance.engine.loader"):
+            self.assertEqual(load(sources).context_version, 1)
 
 
 # --- the import whitelist --------------------------------------------------
@@ -1111,13 +1234,16 @@ class ConcurrentLoadTestCase(SimpleTestCase):
     and the caller fell back to the *reference* ruleset and materialised those
     figures. uwsgi runs four threads per process and recycles on RSS, so a cold
     worker taking concurrent requests is routine.
+
+    Two things hold the property now, and they are tested apart because the
+    audit in #549 found the first hiding the second: ``_LOAD_LOCK`` serialises
+    a whole load, so the test below stays green even against a faithful
+    reimplementation of the racy loader, and ``import_module`` publishes
+    nothing until the body has run.
     """
 
-    def test_six_threads_loading_at_once_all_get_the_same_ruleset(self):
-        # `slow=True` is what gives this test teeth: with a package body that
-        # executes faster than a thread switch, six threads serialise by luck
-        # and the old racy loader passed too.
-        sources = stored("concurrent", "7.00", slow=True)
+    def loaded_by_six_threads(self, sources):
+        """Six threads calling ``load`` at once, and what came back."""
         results: list[object] = []
         errors: list[BaseException] = []
 
@@ -1134,5 +1260,30 @@ class ConcurrentLoadTestCase(SimpleTestCase):
             thread.join()
         self.assertEqual(errors, [])
         self.assertEqual(len(results), 6)
+        return results
+
+    def test_six_threads_loading_at_once_all_get_the_same_ruleset(self):
+        # `slow=True` is what gives this test teeth: with a package body that
+        # executes faster than a thread switch, six threads serialise by luck
+        # and the old racy loader passed too.
+        sources = stored("concurrent", "7.00", slow=True)
+        results = self.loaded_by_six_threads(sources)
         self.assertEqual({type(ruleset).__module__ for ruleset in results}, {package_name(sources)})
         self.assertEqual({ruleset.name for ruleset in results}, {"simple-concurrent"})
+
+    def test_the_import_is_atomic_without_the_lock_around_the_registry(self):
+        """And this is the test that pins ``import_module``.
+
+        ``_LOAD_LOCK`` is there for the finder's registry, and it happens to
+        serialise the import as well — which is why the test above cannot see
+        the difference between `import_module` and the publish-then-exec
+        sequence it replaced. With the lock out of the way the import is on
+        its own: it holds importlib's per-module lock and publishes nothing
+        until the body has run, so a thread arriving mid-exec waits rather
+        than reading a module with no ``ruleset`` in it.
+        """
+        sources = stored("unlocked", "8.00", slow=True)
+        with patch("finance.engine.loader._LOAD_LOCK", nullcontext()):
+            results = self.loaded_by_six_threads(sources)
+        self.assertEqual({type(ruleset).__module__ for ruleset in results}, {package_name(sources)})
+        self.assertEqual({ruleset.name for ruleset in results}, {"simple-unlocked"})
