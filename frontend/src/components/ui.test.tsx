@@ -7,6 +7,7 @@ import {
   DataTable,
   formatDate,
   Modal,
+  Select,
   useConfirmDialog,
   useRowSelection,
 } from "./ui";
@@ -178,6 +179,33 @@ describe("Modal", () => {
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(inner).toHaveBeenCalledTimes(1);
     expect(outer).not.toHaveBeenCalled();
+  });
+});
+
+describe("AnchoredDropdown placement", () => {
+  it("flips the dropdown above the trigger when there is no room below", async () => {
+    const user = userEvent.setup();
+    render(<Select value="" onChange={vi.fn()} options={[{ value: 1, label: "Eins" }]} />);
+    const trigger = screen.getByRole("button", { name: /Auswählen/ });
+    const anchor = trigger.closest(".searchselect") as HTMLElement;
+    // Near the bottom of a tall page: nothing fits below, plenty fits above.
+    vi.spyOn(anchor, "getBoundingClientRect").mockReturnValue({
+      top: 760,
+      bottom: 780,
+      left: 10,
+      right: 210,
+      width: 200,
+      height: 20,
+      x: 10,
+      y: 760,
+      toJSON: () => {},
+    } as DOMRect);
+
+    await user.click(trigger);
+
+    const panel = document.querySelector(".ms-dropdown") as HTMLElement;
+    expect(panel.style.bottom).not.toBe("");
+    expect(panel.style.top).toBe("");
   });
 });
 
