@@ -1,5 +1,6 @@
 import logging
 import unicodedata
+import uuid
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
@@ -87,6 +88,12 @@ def normalize_filename(filename, append_date=True, date=None):
         date = datetime.today()
     if date:
         filename = filename + "_" + date.strftime("%d_%m_%Y")
+    # A document and a date do not make a unique path: two requests for the
+    # same document on the same day would otherwise share one, and one could
+    # serve the other's half-written file. Every caller already uses the
+    # name it gets back rather than reconstructing it, so this is free to
+    # change from one call to the next.
+    filename = filename + "_" + uuid.uuid4().hex[:8]
     filename = filename.replace(" ", "_").replace("&", "").replace("/", "_")
     # drop umlauts, accents etc.
     return unicodedata.normalize("NFKD", filename).encode("ASCII", "ignore").decode()
