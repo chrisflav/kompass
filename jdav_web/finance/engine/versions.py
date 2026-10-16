@@ -193,6 +193,10 @@ def declared_fields(loaded: Ruleset | None, directory: Path, *, name: str = "") 
     ``name`` given by the caller wins, and short-circuits the read, exactly as
     the ``name or ...`` it replaced did: an explicit name is the importer's,
     not the ruleset's.
+
+    The fourth such attribute, ``permissions``, is read by
+    :func:`check_directory` rather than here: it is not a field of the row,
+    and reading it is the same refusal for the same reason (#554).
     """
     if loaded is None:
         return DeclaredFields(
@@ -217,9 +221,10 @@ def failed_cases(ruleset: Ruleset, directory: Path) -> dict[str, list[str]]:
 def check_directory(directory: Path) -> tuple[Ruleset | None, list[str]]:
     """Everything that can be checked about a ruleset without storing it.
 
-    The whitelist, then the load, then the cases. Returns the ruleset where it
-    could be loaded at all, and one message per problem — which is what
-    ``manage.py checkruleset`` prints and what the import gates on.
+    The whitelist, then the load, then the declared permissions, then the
+    cases. Returns the ruleset where it could be loaded at all, and one
+    message per problem — which is what ``manage.py checkruleset`` prints and
+    what the import gates on.
     """
     sources = read_sources(directory)
     if not sources:
@@ -235,6 +240,18 @@ def check_directory(directory: Path) -> tuple[Ruleset | None, list[str]]:
         return None, [str(refused)]
     except Exception as broken:  # a section's own import-time code
         return None, [f"the ruleset could not be loaded: {broken}"]
+    try:
+        # `permissions` is the fourth attribute a section can write as a
+        # `property` — after the three :func:`declared_fields` reads — and the
+        # one nothing read at import time, so a ruleset whose `permissions`
+        # queries passed every gate here and met the guard later, on the
+        # engine's side, where it is only a problem to record. Read and
+        # dropped: the point is the refusal, and the engine reads the names
+        # again when it needs them (`statement_context`).
+        with no_queries():
+            tuple(loaded.permissions)
+    except Exception as broken:
+        return loaded, [f"the ruleset's permissions could not be read: {broken}"]
     failed = failed_cases(loaded, directory)
     problems = [f"case “{case}”: {'; '.join(messages)}" for case, messages in failed.items()]
     return loaded, problems

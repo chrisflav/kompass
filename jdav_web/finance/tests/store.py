@@ -34,7 +34,6 @@ from finance.engine import configured_directory
 from finance.engine import engine_version
 from finance.engine import import_from_directory
 from finance.engine import materialise
-from finance.engine import QueryDuringEvaluation
 from finance.engine import read_sources
 from finance.engine import reference_directory
 from finance.engine import result_from_rows
@@ -48,6 +47,8 @@ from finance.engine.fuzz import fuzz
 from finance.engine.fuzz import random_answer
 from finance.engine.fuzz import random_context
 from finance.engine.statements import bind
+from finance.engine.statements import UNRESOLVED
+from finance.engine.versions import activate
 from finance.engine.versions import active_version
 from finance.engine.versions import decimal_params
 from finance.engine.versions import declared_valid_from
@@ -1041,26 +1042,70 @@ class GuardedCallsTestCase(TestCase):
         "ruleset = Nosy()\n"
     )
 
-    def test_a_permissions_declaration_that_queries_is_refused(self):
-        """The read `statement_context` guards, which nothing was testing.
+    def test_a_permissions_declaration_that_queries_is_a_draft_problem(self):
+        """Refused at the import, degraded afterwards — a decision, not a drift.
 
-        Found by the audit in #549: lifting the guard around
+        The read :func:`~finance.engine.statements.statement_context` guards
+        was found by #549's audit: lifting the guard around
         ``ruleset.permissions`` left the whole suite green. It is the same
-        shape as the three reads in #545 — an attribute lookup that a section
-        can turn into code — and it is read on every draft save, because the
-        approval step needs to know who may act. Loud rather than recorded:
-        unlike a rule that *raises*, a rule that queries has reached outside
-        the statement entirely, and the materialisation refuses to write a row
-        under it.
+        shape as the three reads #545 moved inside the guard — an attribute
+        lookup a section can turn into code — and it is read on **every draft
+        save**, because the approval step needs to know who may act.
+
+        What this test pinned until #554 was the only behaviour there was:
+        the refusal came out of ``materialise`` and therefore out of every
+        save, so one ``property`` in a ruleset that imports cleanly bricked
+        statement creation for a whole section. That is now changed in two
+        places, deliberately:
+
+        * the **import** reads ``permissions`` like the other three, so such a
+          ruleset is a draft with a problem and the version in force does not
+          move. Loudly, before anything is settled under it, which is where a
+          ruleset that cannot be read belongs;
+        * a ruleset that is active regardless — stored before this check
+          existed, or activated by hash — yields an ``UNRESOLVED`` constraint
+          that names nobody and carries the reason, with the payout stuck.
+          Which is what ``resolve_constraints``' docstring already promised
+          for "a rule that tries to query", what the same failure already did
+          at signing time, and a destination three other failures already use
+          and are tested on.
+
+        Both halves are the direction this module keeps choosing: stuck is
+        safe, and a section's broken rules must not take its finance pages
+        down.
         """
         with TemporaryDirectory() as directory:
             package = Path(directory)
             (package / "__init__.py").write_text(self.QUERYING_PERMISSIONS, encoding="utf-8")
+            in_force = active_version()
             row, problems = import_from_directory(package, name="nosy-permissions")
-            self.assertEqual(problems, [], "no banned name appears in it")
-            self.assertEqual(active_version(), row)
-            with self.assertRaises(QueryDuringEvaluation):
-                Statement.objects.create(short_description="Neugierig", night_cost=0)
+            self.assertEqual(row.state, RuleSet.DRAFT, "no banned name appears in it even so")
+            self.assertTrue(any("must not query the database" in problem for problem in problems))
+            self.assertEqual(active_version(), in_force, "the version in force does not move")
+            # Activated regardless, which is the state of a row that reached
+            # the database before the check existed: a draft save degrades to
+            # an unresolved constraint instead of raising out of `materialise`.
+            activate(row)
+            statement = Statement.objects.create(short_description="Neugierig", night_cost=0)
+            constraint = statement.approval_constraint_set.get()
+            self.assertEqual(constraint.name, UNRESOLVED)
+            self.assertIn("must not query the database", constraint.error)
+            self.assertEqual(constraint.eligible_member_ids, [])
+            statement.submit(submitter=None)
+            statement = Statement.objects.get(pk=statement.pk)
+            self.assertFalse(statement.fully_approved, "a broken rule is not signed away")
+            self.assertFalse(statement.approve(None))
+            # The other direction, which is what says the guard refused rather
+            # than the fixture failing some other way: with `no_queries` lifted
+            # where the import opens it, the same property is read, answers,
+            # and the version goes into force. (Renamed, so that it is a new
+            # version rather than the stored draft read back.)
+            allowed = self.QUERYING_PERMISSIONS.replace("nosy-permissions", "nosy-anyway")
+            (package / "__init__.py").write_text(allowed, encoding="utf-8")
+            with guard_lifted("finance.engine.versions"):
+                lifted, problems = import_from_directory(package, name="nosy-anyway")
+        self.assertEqual(problems, [])
+        self.assertEqual(active_version(), lifted)
 
     def test_when_the_rules_cannot_be_re_resolved_at_all_the_rows_stand(self):
         """The gate degrades to the record rather than to a 500.

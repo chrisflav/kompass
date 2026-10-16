@@ -364,8 +364,8 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
     than about the form somebody filled in.
 
     A ruleset that **fails** here — a forbid whose predicate raises, a rule
-    that tries to query — yields constraints that carry the reason and name
-    nobody. That is deliberate: the alternatives are to persist nothing, which
+    that tries to query, a ``permissions`` declaration that does — yields
+    constraints that carry the reason and name nobody. That is deliberate: the alternatives are to persist nothing, which
     would leave a statement with no constraints at all and therefore payable
     without a signature, or to resolve it permissively, which is the bug this
     whole module is written against. A broken rule makes a payout *stuck*, and
@@ -378,8 +378,19 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
     not resolve is replaced by the reason it could not.
     """
     ruleset = ruleset_for(statement)
-    context = statement_context(statement, ruleset, actors=True)
     try:
+        # Building the context is inside the `try` as well, because it is a
+        # call into the section's rules too: it reads `ruleset.permissions` to
+        # resolve who may act, and a `property` there is code, guarded like
+        # the rest of it. Outside, one such property raised
+        # `QueryDuringEvaluation` out of `materialise` and therefore out of
+        # *every draft save* in the section — while the identical failure at
+        # signing time already degraded, and while such a ruleset reaches
+        # ACTIVE because nothing read `permissions` at import. Loud on one
+        # path and silent on the other is the one answer that cannot be
+        # right; the import says so now (`check_directory`) and the save ends
+        # up where this docstring already promised.
+        context = statement_context(statement, ruleset, actors=True)
         # Inside the guard, like `transfers` and `checks`: a rule that resolved
         # its eligible set with a query would freeze today's membership into
         # rows that replay differently in two years.
