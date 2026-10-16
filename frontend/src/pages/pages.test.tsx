@@ -223,14 +223,6 @@ const LINKS = [
     visible: true,
   },
   {
-    id: 3,
-    title: "Versteckt",
-    description: "Nicht sichtbar",
-    url: "https://nope.example.org",
-    icon: null,
-    visible: false,
-  },
-  {
     id: 4,
     title: "Bergwetter",
     description: "Vorhersage für die Alpen",
@@ -332,7 +324,9 @@ describe("Dashboard", () => {
     expect(screen.getByText("240,50 €")).toBeInTheDocument();
   });
 
-  it("shows every visible link as icon, title and description, never its URL", async () => {
+  it("shows every link as icon, title and description, never its URL", async () => {
+    // The backend already filters to visible links (see /api/startpage/links),
+    // so the dashboard renders exactly what it is given.
     dashboardReturns();
     renderWithApp(<Dashboard />, { route: "/kompass" });
 
@@ -346,9 +340,8 @@ describe("Dashboard", () => {
     ).toBeInTheDocument();
     // The address itself is never on the dashboard, only behind the link.
     expect(screen.queryByText("https://wiki.example.org")).not.toBeInTheDocument();
-    expect(screen.queryByText("Versteckt")).not.toBeInTheDocument();
-    // One tile per visible link, and nothing padding the grid out: the columns
-    // are chosen by the tiles themselves, so an "incomplete" row cannot occur.
+    // One tile per link, and nothing padding the grid out: the columns are
+    // chosen by the tiles themselves, so an "incomplete" row cannot occur.
     expect(document.querySelectorAll(".dash-link")).toHaveLength(3);
   });
 

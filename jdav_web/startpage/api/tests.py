@@ -254,6 +254,30 @@ class StartpageApiTestCase(TestCase):
         self.assertEqual(by_title["JDAV"]["description"], "")
         self.assertIsNone(by_title["JDAV"]["icon"])
 
+    def test_link_list_hides_invisible_links_by_default(self):
+        """The dashboard's listing must not leak hidden links' description/icon."""
+        visible = Link.objects.create(title="DAV", url="https://dav.de", visible=True)
+        hidden = Link.objects.create(title="Intern", url="https://intern.de", visible=False)
+
+        r = self.client.get("/api/startpage/links", **self.auth(self.editor_user))
+        self.assertEqual(r.status_code, 200)
+        ids = {row["id"] for row in r.json()}
+        self.assertIn(visible.pk, ids)
+        self.assertNotIn(hidden.pk, ids)
+
+    def test_link_list_include_hidden_shows_invisible_links(self):
+        """The CMS editor passes include_hidden=true to manage hidden links too."""
+        visible = Link.objects.create(title="DAV", url="https://dav.de", visible=True)
+        hidden = Link.objects.create(title="Intern", url="https://intern.de", visible=False)
+
+        r = self.client.get(
+            "/api/startpage/links?include_hidden=true", **self.auth(self.editor_user)
+        )
+        self.assertEqual(r.status_code, 200)
+        ids = {row["id"] for row in r.json()}
+        self.assertIn(visible.pk, ids)
+        self.assertIn(hidden.pk, ids)
+
     def test_link_icon_upload_valid(self):
         link = Link.objects.create(title="DAV", url="https://dav.de")
         icon = SimpleUploadedFile("icon.png", b"fakeimage", content_type="image/png")

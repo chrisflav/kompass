@@ -75,7 +75,11 @@ export function LinksList() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<LinkIn>(emptyLink);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const query = useApiQuery(["links"], () => unwrap(client.GET("/api/startpage/links")));
+  const query = useApiQuery(["links"], () =>
+    unwrap(
+      client.GET("/api/startpage/links", { params: { query: { include_hidden: true } } }),
+    ),
+  );
   const rows = query.data ?? [];
 
   const create = useApiMutation(
