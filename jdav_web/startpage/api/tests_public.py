@@ -21,6 +21,7 @@ from members.models import Group
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
+from startpage.api import schemas
 from startpage.models import FAQ
 from startpage.models import Image
 from startpage.models import MemberOnPost
@@ -29,6 +30,17 @@ from startpage.models import Section
 
 Application = get_application_model()
 AccessToken = get_access_token_model()
+
+
+def assert_matches_schema(test, schema_cls, body):
+    """Assert ``body`` carries exactly the keys ``schema_cls`` declares.
+
+    This is the check that would have caught ``PublicMemberBrief`` promising
+    ``prename``/``lastname`` while a resolver omitted them (taxis #506): a
+    missing key fails here with a clear diff instead of surfacing as a frontend
+    ``TypeError`` on ``undefined`` three layers away.
+    """
+    test.assertEqual(set(body.keys()), set(schema_cls.model_fields.keys()), schema_cls.__name__)
 
 
 def make_member_user(username):
@@ -106,6 +118,10 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertNotIn("telefax", body)
         self.assertNotIn("board_mail", body)
 
+    def test_public_site_matches_schema(self):
+        body = self.client.get("/api/startpage/public/site").json()
+        assert_matches_schema(self, schemas.PublicSiteOut, body)
+
     @override_settings(
         SEKTION="Musterstadt",
         SEKTION_DAV="Schwaben",
@@ -140,6 +156,15 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertNotIn(self.hidden_group.pk, group_ids)
         self.assertEqual(body["root_section"]["urlname"], settings.ROOT_SECTION)
 
+    def test_public_navigation_matches_schema(self):
+        body = self.client.get("/api/startpage/public/navigation").json()
+        assert_matches_schema(self, schemas.NavigationOut, body)
+        for group in body["groups"]:
+            assert_matches_schema(self, schemas.PublicGroupBrief, group)
+        for section in body["sections"]:
+            assert_matches_schema(self, schemas.SectionBrief, section)
+        assert_matches_schema(self, schemas.SectionOut, body["root_section"])
+
     # --- index ------------------------------------------------------------
 
     def test_public_index(self):
@@ -149,6 +174,12 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual({p["id"] for p in body["recent_posts"]}, {self.recent_post.pk})
         self.assertEqual({p["id"] for p in body["reports"]}, {self.report_post.pk})
         self.assertEqual(body["recent_posts"][0]["website_text"], "Wir waren unterwegs.")
+
+    def test_public_index_matches_schema(self):
+        body = self.client.get("/api/startpage/public/index").json()
+        assert_matches_schema(self, schemas.IndexOut, body)
+        for post in [*body["recent_posts"], *body["reports"]]:
+            assert_matches_schema(self, schemas.PublicPostBrief, post)
 
     def test_public_index_is_bounded(self):
         """The landing page leads with one story and lists a few; the full
@@ -199,6 +230,13 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual(body["section"]["urlname"], settings.REPORTS_SECTION)
         self.assertEqual({p["id"] for p in body["posts"]}, {self.report_post.pk})
 
+    def test_public_aktuelles_matches_schema(self):
+        body = self.client.get("/api/startpage/public/aktuelles").json()
+        assert_matches_schema(self, schemas.SectionPostsOut, body)
+        assert_matches_schema(self, schemas.SectionOut, body["section"])
+        for post in body["posts"]:
+            assert_matches_schema(self, schemas.PublicPostBrief, post)
+
     def test_public_aktuelles_missing_section_404(self):
         Section.objects.filter(urlname=settings.RECENT_SECTION).delete()
         r = self.client.get("/api/startpage/public/aktuelles")
@@ -213,6 +251,7 @@ class StartpagePublicReadApiTestCase(TestCase):
         body = r.json()
         self.assertEqual(len(body), 1)
         self.assertEqual(body[0]["answer"], "Montags.")
+        assert_matches_schema(self, schemas.FAQOut, body[0])
 
     # --- groups -----------------------------------------------------------
 
@@ -221,6 +260,8 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200)
         ids = {g["id"] for g in r.json()}
         self.assertEqual(ids, {self.visible_group.pk})
+        for group in r.json():
+            assert_matches_schema(self, schemas.PublicGroupBrief, group)
 
     def test_public_group_detail(self):
         r = self.client.get("/api/startpage/public/groups/{}".format(self.visible_group.name))
@@ -228,6 +269,20 @@ class StartpagePublicReadApiTestCase(TestCase):
         body = r.json()
         self.assertEqual(body["name"], "Alpenfuechse")
         self.assertEqual({p["id"] for p in body["people"]}, {self.leiter.pk})
+
+    def test_public_group_detail_matches_schema(self):
+        """Regression for taxis #506: ``PublicMemberBrief`` declares ``prename``
+        and ``lastname`` required, so a real leader in ``people`` must carry
+        both — not just ``name`` — or a frontend trusting the generated type
+        crashes on ``undefined``."""
+        r = self.client.get("/api/startpage/public/groups/{}".format(self.visible_group.name))
+        body = r.json()
+        assert_matches_schema(self, schemas.PublicGroupDetail, body)
+        self.assertTrue(body["people"])
+        for person in body["people"]:
+            assert_matches_schema(self, schemas.PublicMemberBrief, person)
+            self.assertIsInstance(person["prename"], str)
+            self.assertIsInstance(person["lastname"], str)
 
     def test_public_group_detail_exposes_registration_flag(self):
         # The SPA gates the registration link on this flag, the way
@@ -271,6 +326,8 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200)
         ids = {s["id"] for s in r.json()}
         self.assertTrue({self.recent.pk, self.reports.pk, self.root.pk} <= ids)
+        for section in r.json():
+            assert_matches_schema(self, schemas.SectionBrief, section)
 
     def test_public_section_detail(self):
         self.root.website_text = "Über uns."
@@ -278,6 +335,7 @@ class StartpagePublicReadApiTestCase(TestCase):
         r = self.client.get("/api/startpage/public/sections/{}".format(settings.ROOT_SECTION))
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["website_text"], "Über uns.")
+        assert_matches_schema(self, schemas.SectionOut, r.json())
 
     def test_public_section_detail_unknown_404(self):
         r = self.client.get("/api/startpage/public/sections/nope-nope")
@@ -307,6 +365,29 @@ class StartpagePublicReadApiTestCase(TestCase):
         self.assertEqual(len(body["people_on_post"]), 1)
         self.assertEqual(body["people_on_post"][0]["tag"], "gipfel")
         self.assertEqual({m["id"] for m in body["people_on_post"][0]["members"]}, {member.pk})
+
+    def test_public_post_detail_matches_schema(self):
+        self.recent_post.groups.add(self.visible_group)
+        _, member = make_member_user("teilnehmer2")
+        member.group.add(self.visible_group)
+        mop = MemberOnPost.objects.create(post=self.recent_post, description="Gipfelfoto")
+        mop.members.add(member)
+
+        r = self.client.get(
+            "/api/startpage/public/sections/{}/posts/{}".format(
+                settings.RECENT_SECTION, self.recent_post.urlname
+            )
+        )
+        body = r.json()
+        assert_matches_schema(self, schemas.PublicPostDetail, body)
+        assert_matches_schema(self, schemas.SectionBrief, body["section"])
+        self.assertTrue(body["people"])
+        for person in body["people"]:
+            assert_matches_schema(self, schemas.PublicMemberBrief, person)
+        for mop_body in body["people_on_post"]:
+            assert_matches_schema(self, schemas.PublicMemberOnPost, mop_body)
+            for person in mop_body["members"]:
+                assert_matches_schema(self, schemas.PublicMemberBrief, person)
 
     def test_public_post_detail_unknown_404(self):
         r = self.client.get(
