@@ -31,6 +31,8 @@ from django.db import transaction
 from django.test import SimpleTestCase
 from django.test import TestCase
 from django.utils.translation import gettext as _
+from finance.api.approval import approval_payload
+from finance.api.approval import state_display
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
 from finance.engine.approval import Exclusion
@@ -47,7 +49,6 @@ from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 from finance.store import Approval
-from finance.store import ApprovalConstraint
 from finance.tests.harness import gate_of
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
@@ -521,35 +522,34 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
         self.assertFalse(may_sign(states([row(eligible=[])], signatures=[]), 99))
         self.assertFalse(may_sign(states([], signatures=[]), 1))
 
-    def test_the_frozen_row_says_which_kind_of_open_it_is(self):
-        """Four states a person has to tell apart, in words.
+    def test_the_state_says_which_kind_of_open_it_is(self):
+        """Six states a person has to tell apart, in words.
 
         "Open" and "nobody may sign" are the same boolean and completely
         different situations: one waits for a signature, the other waits for
         somebody to fix a rule or change who holds a role.
+
+        Read off the resolved state rather than off the frozen row, which is
+        what the row answering it cost (#551): every other field of the
+        rendering comes from the state, so the row's answer was the one that
+        could contradict the rest of its own line.
         """
-        waiting = ApprovalConstraint(
-            name="Kasse", applicable=True, required=1, eligible_member_ids=[1], excluded=[]
+
+        def display(signatures=(), **overrides):
+            return state_display(states([row(**overrides)], signatures=signatures)[0])
+
+        self.assertEqual(display(eligible=[1]), _("Open"))
+        self.assertEqual(display(eligible=[1], signatures=[1]), _("Signed"))
+        self.assertEqual(display(applicable=False), _("Does not apply"))
+        self.assertEqual(display(overridden=True), _("Overridden"))
+        self.assertEqual(
+            display(eligible=[], excluded=[{"member": 1, "forbid": "Befangenheit"}]),
+            _("Nobody may sign"),
         )
-        self.assertEqual(str(waiting.state_display), _("Open"))
-        nobody = ApprovalConstraint(
-            name="Kasse",
-            applicable=True,
-            required=1,
-            eligible_member_ids=[],
-            excluded=[{"member": 1, "forbid": "Befangenheit"}],
-        )
-        self.assertEqual(str(nobody.state_display), _("Nobody may sign"))
-        broken = ApprovalConstraint(
-            name="Kasse", applicable=True, required=1, eligible_member_ids=[], error="boom"
-        )
-        self.assertEqual(str(broken.state_display), _("Could not be resolved"))
+        self.assertEqual(display(eligible=[], error="boom"), _("Could not be resolved"))
         # An empty group reads the same way whatever emptied it, which is the
         # point: "the rules named nobody" is not a licence any more.
-        named_nobody = ApprovalConstraint(
-            name="Kasse", applicable=True, required=1, eligible_member_ids=[], excluded=[]
-        )
-        self.assertEqual(str(named_nobody.state_display), _("Nobody may sign"))
+        self.assertEqual(display(eligible=[]), _("Nobody may sign"))
 
     def test_no_constraints_at_all_is_approved(self):
         self.assertTrue(fully_approved([]))
@@ -600,7 +600,7 @@ class HeidelbergApprovalTestCase(TestCase):
         self.assertEqual(constraint.eligible_member_ids, [self.treasurer.pk])
         self.assertFalse(constraint.satisfied)
         self.assertFalse(constraint.overridden)
-        self.assertEqual(str(constraint.state_display), _("Open"))
+        self.assertEqual(state_display(self.statement.approval_states[0]), _("Open"))
 
     def test_one_signature_from_the_finance_department_pays_it_out(self):
         self.assertFalse(self.statement.fully_approved)
@@ -680,7 +680,7 @@ class HeidelbergApprovalTestCase(TestCase):
         self.assertTrue(constraint.overridden)
         self.assertEqual(constraint.overridden_by, self.treasurer)
         self.assertEqual(constraint.override_reason, "Fristende")
-        self.assertEqual(str(constraint.state_display), _("Overridden"))
+        self.assertEqual(state_display(self.statement.approval_states[0]), _("Overridden"))
 
     def test_overriding_a_step_nobody_asked_for_does_nothing(self):
         self.assertFalse(self.statement.override_approval("Nope", self.treasurer, "weil"))
@@ -828,9 +828,8 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         states_by_name = {state.name: state for state in small.approval_states}
         self.assertTrue(states_by_name["Kasse"].applicable)
         self.assertFalse(states_by_name["Vorstand"].applicable)
-        # And the frozen row says so in words, rather than reading as unsigned.
-        rows = {row.name: row for row in small.approval_constraint_set.all()}
-        self.assertEqual(str(rows["Vorstand"].state_display), _("Does not apply"))
+        # And it says so in words, rather than reading as unsigned.
+        self.assertEqual(state_display(states_by_name["Vorstand"]), _("Does not apply"))
         self.assertTrue(small.approve(self.anna))
         self.assertTrue(Statement.objects.get(pk=small.pk).confirmed)
 
@@ -902,6 +901,7 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertEqual(problems, [])
         big = self.statement_for(Decimal("1200.00"), self.anna)
         rows = {row.name: row for row in big.approval_constraint_set.all()}
+        resolved = {state.name: state for state in big.approval_states}
         # One failure, two constraints: collapsing them into a single
         # unresolved row turned a board's two signatures into one row that one
         # override could clear.
@@ -910,7 +910,7 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         for constraint in rows.values():
             self.assertIn("kaputt", constraint.error)
             self.assertEqual(constraint.eligible_member_ids, [])
-            self.assertEqual(str(constraint.state_display), _("Could not be resolved"))
+            self.assertEqual(state_display(resolved[constraint.name]), _("Could not be resolved"))
         self.assertFalse(big.fully_approved)
         self.assertFalse(big.may_be_approved_by(self.anna))
         self.assertFalse(big.approve(self.anna))
@@ -1015,7 +1015,7 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         constraint = big.approval_constraint_set.get()
         self.assertEqual(constraint.eligible_member_ids, [])
         self.assertEqual(constraint.excluded, [])
-        self.assertEqual(str(constraint.state_display), _("Nobody may sign"))
+        self.assertEqual(state_display(big.approval_states[0]), _("Nobody may sign"))
         self.assertFalse(big.fully_approved)
         for signer in (self.anna, self.bernd, self.clara):
             self.assertFalse(big.may_be_approved_by(signer))
@@ -1111,6 +1111,66 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertFalse(gate["Kasse"].satisfied, "and she may not sign it any more")
         self.assertTrue(gate["Kasse"].open)
         self.assertFalse(Statement.objects.get(pk=big.pk).fully_approved)
+
+    def test_the_rendering_does_not_contradict_itself_in_its_own_line(self):
+        """#551: the words came from the row, every other field from the state.
+
+        The same situation as the test above, read through the payload the
+        ``/approval`` endpoint and the admin page are both built from. The row
+        is right about what it records — Anna's signature satisfied Kasse
+        when she gave it, and #552 keeps that — and wrong as a rendering of
+        the gate, which has just stopped counting her. Measured before the
+        fix: ``satisfied: false``, ``open: true``, ``missing: 1``, ``signed_by:
+        []`` and, in the same dict, ``state_display: "Signed"``.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.approve(self.anna), "Kasse is in, Vorstand wants two")
+        self.assertTrue(big.approval_constraint_set.get(name="Kasse").satisfied)
+        self.anna_user.user_permissions.clear()
+        payload = approval_payload(Statement.objects.get(pk=big.pk))
+        kasse = next(row for row in payload["constraints"] if row["name"] == "Kasse")
+        self.assertFalse(kasse["satisfied"])
+        self.assertTrue(kasse["open"])
+        self.assertEqual(kasse["missing"], 1)
+        self.assertEqual(kasse["signed_by"], [])
+        self.assertEqual(kasse["state_display"], _("Open"), "and the words agree with all of it")
+        # The record of a settled statement reads the row, and says the other
+        # thing on purpose: `approval_states` is resolved *from* the frozen
+        # row, so the same function renders "signed" for the audit trail.
+        record = {state.name: state for state in Statement.objects.get(pk=big.pk).approval_states}
+        self.assertEqual(state_display(record["Kasse"]), _("Signed"))
+
+    def test_a_step_that_can_no_longer_be_resolved_says_so_rather_than_open(self):
+        """#551 again, and the residue of #546: an unresolvable step read "Open".
+
+        A step the rules can no longer resolve names nobody and carries the
+        reason, and the payload said "Open" beside an empty ``eligible`` — the
+        row having been resolved while the rules still worked.
+
+        The re-resolution is patched, which is the seam its sibling above uses
+        too: under an unchanged version the same rules only start failing on
+        data they did not see at submission — a forbid that raises on the
+        treasurer appointed since — and what is under test here is the
+        rendering of that state, not how it arises.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        unresolvable = [
+            {
+                "name": name,
+                "description": "",
+                "applicable": True,
+                "required": 1,
+                "eligible": [],
+                "excluded": [],
+                "error": "RuleError: the forbid 'Befangenheit' failed",
+            }
+            for name in ("Kasse", "Vorstand")
+        ]
+        with patch("finance.engine.statements.resolve_constraints", return_value=unresolvable):
+            payload = approval_payload(Statement.objects.get(pk=big.pk))
+        kasse = next(row for row in payload["constraints"] if row["name"] == "Kasse")
+        self.assertEqual(kasse["eligible"], [])
+        self.assertEqual(kasse["state_display"], _("Could not be resolved"))
 
     def test_only_the_version_the_rows_were_frozen_under_may_widen_the_group(self):
         """The bound that the frozen spine does not provide, found by #549's audit.

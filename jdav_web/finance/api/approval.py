@@ -10,11 +10,60 @@ button appears — and a settled one shows the rows as they were frozen, because
 that is the record and nothing should re-run the rules to render it. Showing
 one and deciding by the other is how an earlier version came to report
 ``approved: true`` beside a constraint displayed as open.
+
+Which is also why the words come from the state and not from the row; see
+:func:`state_display`.
 """
 
 from typing import Any
 
+from django.utils.translation import gettext as _
+from finance.engine.approval import ConstraintState
 from members.models import Member
+
+
+def state_display(state: ConstraintState) -> str:
+    """The state as a person reads it, with override and quorum apart.
+
+    "Does not apply" and "nobody signed" are different facts, and so are "the
+    quorum is in" and "somebody decided to go ahead anyway" — which is why
+    this has more answers than a boolean. "Could not be resolved" is the
+    reason a payout is stuck when a section's own rule broke.
+
+    It is derived from the :class:`~finance.engine.approval.ConstraintState`
+    rather than from the frozen
+    :class:`~finance.store.ApprovalConstraint` row, and that is the whole
+    point: every other field in the payload comes from the state, so a row
+    answering this one made a constraint contradict itself in its own
+    rendering. The two ways it did, both measured: a signer who has since lost
+    the capability left the row's ``satisfied`` column standing, so the payload
+    read ``state_display: "Signed"`` beside ``satisfied: false``, ``open:
+    true`` and nobody in ``signed_by``; and a step the rules can no longer
+    resolve read ``state_display: "Open"`` beside an empty ``eligible`` and an
+    error, where "could not be resolved" is the answer. The row is the record
+    of what was true at submission (:meth:`~finance.store.ApprovalConstraint.
+    as_row`) — a fine thing to render *as the record*, which is what the state
+    of a settled statement already is, since it is read from that very row.
+    """
+    if not state.applicable:
+        text = _("Does not apply")
+    elif state.overridden:
+        text = _("Overridden")
+    elif state.satisfied:
+        text = _("Signed")
+    elif state.error:
+        text = _("Could not be resolved")
+    elif not state.eligible:
+        # Whatever emptied the group — a forbid that caught everyone, a
+        # permission check that rejected everyone, a vacant role — there is
+        # nobody who may sign, and that is a different thing to read than
+        # "waiting for a signature".
+        text = _("Nobody may sign")
+    else:
+        text = _("Open")
+    # Rendered here rather than left lazy: the payload is JSON, and the admin
+    # page it also feeds is rendered in the same request as this one.
+    return str(text)
 
 
 def approval_payload(statement: Any, member: Any = None) -> dict[str, Any]:
@@ -55,7 +104,7 @@ def approval_payload(statement: Any, member: Any = None) -> dict[str, Any]:
                 "overridden": state.overridden,
                 "open": state.open,
                 "missing": state.missing,
-                "state_display": str(row.state_display) if row is not None else "",
+                "state_display": state_display(state),
                 "eligible": [people[pk] for pk in state.eligible if pk in people],
                 "signed_by": [people[pk] for pk in state.signed_by if pk in people],
                 "excluded": [

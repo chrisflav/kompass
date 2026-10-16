@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-15 21:32+0200\n"
+"POT-Creation-Date: 2026-10-16 23:58+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -188,6 +188,24 @@ msgstr "Probelauf"
 #, python-format
 msgid "There is no statement %(id)s."
 msgstr "Es gibt keine Abrechnung %(id)s."
+
+msgid "Does not apply"
+msgstr "Nicht zutreffend"
+
+msgid "Overridden"
+msgstr "Übergangen"
+
+msgid "Signed"
+msgstr "Unterschrieben"
+
+msgid "Could not be resolved"
+msgstr "Nicht ermittelbar"
+
+msgid "Nobody may sign"
+msgstr "Niemand darf unterschreiben"
+
+msgid "Open"
+msgstr "Offen"
 
 msgid "Statement is not yet confirmed."
 msgstr "Diese Abrechnung ist noch nicht bestätigt."
@@ -762,9 +780,6 @@ msgstr "Übergangen am"
 msgid "Reason for the override"
 msgstr "Begründung für das Übergehen"
 
-msgid "Could not be resolved"
-msgstr "Nicht ermittelbar"
-
 msgid ""
 "Why the rules could not say who may sign this. A constraint with a reason "
 "here names nobody and is satisfied by nobody: a broken rule may not be "
@@ -779,21 +794,6 @@ msgstr "Freigabe-Anforderung"
 
 msgid "Approval constraints"
 msgstr "Freigabe-Anforderungen"
-
-msgid "Does not apply"
-msgstr "Nicht zutreffend"
-
-msgid "Overridden"
-msgstr "Übergangen"
-
-msgid "Signed"
-msgstr "Unterschrieben"
-
-msgid "Nobody may sign"
-msgstr "Niemand darf unterschreiben"
-
-msgid "Open"
-msgstr "Offen"
 
 msgid "Signatures"
 msgstr "Unterschriften"

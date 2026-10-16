@@ -573,31 +573,6 @@ class ApprovalConstraint(models.Model):
         """Whether somebody signed this constraint off without the quorum."""
         return self.overridden_at is not None
 
-    @property
-    def state_display(self):
-        """The state as a person reads it, with override and quorum apart.
-
-        "Does not apply" and "nobody signed" are different facts, and so are
-        "the quorum is in" and "somebody decided to go ahead anyway" — which
-        is why this has more answers than a boolean. "Unresolved" is the
-        reason a payout is stuck when a section's own rule broke.
-        """
-        if not self.applicable:
-            return _("Does not apply")
-        if self.overridden:
-            return _("Overridden")
-        if self.satisfied:
-            return _("Signed")
-        if self.error:
-            return _("Could not be resolved")
-        if not self.eligible_member_ids:
-            # Whatever emptied the group — a forbid that caught everyone, a
-            # permission check that rejected everyone, a vacant role — there
-            # is nobody who may sign, and that is a different thing to read
-            # than "waiting for a signature".
-            return _("Nobody may sign")
-        return _("Open")
-
     def as_row(self):
         """The mapping :mod:`finance.engine.approval` evaluates.
 
@@ -615,6 +590,11 @@ class ApprovalConstraint(models.Model):
         field only when it is asked with ``recorded=True``, and the gate — the
         same rows, re-resolved — never asks, because asking the question
         afresh is the whole of what it is for.
+
+        The words a person reads come from the resolved state and never from
+        this row directly (:func:`finance.api.approval.state_display`), for
+        the same reason: a row rendered beside the gate's answer contradicted
+        it.
         """
         return {
             "name": self.name,
