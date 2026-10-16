@@ -87,13 +87,22 @@ def active_ruleset() -> Ruleset:
     — the reference ruleset that ships in the image. A stored version that no
     longer loads is a loud warning and the same fallback: a section's broken
     rules must not take its finance pages down.
+
+    *However* it fails to load, which is the whole of the promise and was not
+    the whole of the code. Catching only the two exceptions a *refused*
+    snapshot raises left every other way a module body can fail — a section's
+    own ``ValueError``, and the realistic one, an ``ImportError`` from a
+    Kompass upgrade that renamed something in ``kompass.rules`` — to propagate
+    out of here and 500 the page that asked.
     """
     row = active_version()
     if row is not None:
         try:
             return ruleset_from_sources(row.sources)
-        except (RulesetInvalid, RulesetRejected):
-            logger.warning("the active ruleset %s cannot be loaded; using the reference", row)
+        except Exception as problem:
+            logger.warning(
+                "the active ruleset %s cannot be loaded (%s); using the reference", row, problem
+            )
     return reference_ruleset
 
 
@@ -128,10 +137,19 @@ def loaded_ruleset(statement: Any) -> tuple[Ruleset, str]:
     if sources:
         try:
             return ruleset_from_sources(sources), str(snapshot.get("hash", ""))
-        except (RulesetInvalid, RulesetRejected):
+        except Exception as problem:
+            # Every way a stored closure can fail to load, not only the two a
+            # refusal raises: a module body is a section's own code and may
+            # raise anything, and an old snapshot meets a renamed
+            # `kompass.rules` with an `ImportError`. Narrower, this function
+            # was total on one path (`_rows_from_the_same_rules` wrapped it)
+            # and a 500 on every other — the draft save, the form, the
+            # printout — for the one kind of failure the fallback exists for.
             logger.warning(
-                "statement %s carries a snapshot that cannot be loaded; using the active ruleset",
+                "statement %s carries a snapshot that cannot be loaded (%s); "
+                "using the active ruleset",
                 statement.pk,
+                problem,
             )
     row = active_version()
     return active_ruleset(), str(row.hash) if row is not None else ""
@@ -521,17 +539,16 @@ def _rows_from_the_same_rules(
     """
     version = {row.rule_version for row in frozen}
     try:
-        # `loaded_ruleset` is inside the `try` rather than above it, because
-        # it is not the total function it reads like: it catches the two
-        # exceptions a *refused* snapshot raises, and a snapshot whose module
-        # body raises anything else — a section's own `ValueError` at import
-        # time — comes straight out of it. Called out here, that propagated
-        # through `live_approval_states` and answered the approval page and
-        # the `/approval` endpoint with a 500, which is the one thing
-        # `active_ruleset` promises not to do: a section's broken rules must
-        # not take its finance pages down. Inside, a snapshot that will not
-        # load degrades to the frozen rows, like every other way re-resolving
-        # can fail.
+        # `loaded_ruleset` is inside the `try` rather than above it, and stays
+        # there now that it degrades on its own (#553): the reason it was
+        # moved in was that it caught only the two exceptions a *refused*
+        # snapshot raises, so a module body raising anything else came
+        # straight out of it, through `live_approval_states`, and answered the
+        # approval page and the `/approval` endpoint with a 500. That is fixed
+        # at the source, where the other callers needed it too; keeping the
+        # call in here is what makes this function's own promise — degrade to
+        # the frozen rows, however re-resolving fails — not depend on which
+        # of the two places the failure comes from.
         ruleset, loaded = loaded_ruleset(statement)
         if version != {loaded} or not loaded:
             logger.warning(

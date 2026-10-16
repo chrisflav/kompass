@@ -77,6 +77,18 @@ from members.models import Member
 #: A ruleset that is stored but cannot be loaded, for the fallbacks.
 BROKEN_SOURCES = {"__init__.py": "ruleset = 'not a ruleset at all'\n"}
 
+#: A stored closure that is not *refused* but simply will not run: a section's
+#: own exception in the module body, which is ordinary Python and may be
+#: anything. Nothing about it is refusable — the whitelist passes it, and it
+#: never gets far enough to be asked for a ``ruleset``.
+ANGRY_SOURCES = {"__init__.py": "raise ValueError('kaputt')\n"}
+
+#: The realistic way the same thing happens: an old snapshot meeting a
+#: ``kompass.rules`` that has moved on, which is the case
+#: :func:`~finance.engine.statements.active_ruleset` names — "a Kompass
+#: upgrade that makes an old snapshot unloadable".
+RENAMED_API_SOURCES = {"__init__.py": "from kompass.rules import Gone\n"}
+
 #: A ruleset that queries from a field the **import** reads rather than from a
 #: rule the engine calls. ``name`` and ``valid_from`` are attribute lookups on
 #: the loaded object, which is why they were written as data; a ``property``
@@ -550,6 +562,50 @@ class BindingTestCase(TestCase):
         self.assertEqual(statement.ruleset_snapshot["sources"], BROKEN_SOURCES)
         with self.assertLogs("finance.engine.statements", level="WARNING"):
             self.assertEqual(ruleset_for(statement).name, "heidelberg")
+
+    def assert_a_statement_bound_to(self, sources):
+        """A statement bound to ``sources`` works on the paths that 500ed.
+
+        The draft save that materialises it and the reads a page makes, which
+        is what "must not take its finance pages down" means in code.
+        """
+        RuleSet.objects.all().delete()
+        a_version(sources=sources)
+        with self.assertLogs("finance.engine.statements", level="WARNING"):
+            statement = Statement.objects.create(short_description="Weg", night_cost=0)
+        with self.assertLogs("finance.engine.statements", level="WARNING"):
+            self.assertEqual(ruleset_for(statement).name, "heidelberg")
+        with self.assertLogs("finance.engine.statements", level="WARNING"):
+            statement.save()
+        with self.assertLogs("finance.engine.statements", level="WARNING"):
+            self.assertEqual(Statement.objects.get(pk=statement.pk).rule_result.errors, ())
+        statement.submit(submitter=None)
+        settled = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(settled.approval_constraint_set.exists(), "and it can be handed in")
+        self.assertEqual([state.name for state in settled.live_approval_states], ["Freigabe"])
+
+    def test_a_snapshot_whose_own_code_raises_falls_back_as_well(self):
+        """#553: the fallback caught a refusal and nothing else.
+
+        A module body is a section's own Python and may raise anything at all.
+        Caught narrowly, a ``ValueError`` in one came out of
+        ``loaded_ruleset`` on every path a statement has — the draft save, the
+        form, the printout — rather than reaching the fallback written for
+        exactly this.
+        """
+        self.assert_a_statement_bound_to(ANGRY_SOURCES)
+
+    def test_a_snapshot_the_api_has_moved_on_from_falls_back_as_well(self):
+        """The same hole, through the door ``active_ruleset`` names.
+
+        "A Kompass upgrade that makes an old snapshot unloadable" is its
+        docstring's own example, and the way that happens is an
+        ``ImportError``: rename anything in ``kompass.rules`` and every
+        statement bound to a version that mentions the old name stopped
+        rendering and stopped saving — one deployment, every open draft of
+        every section whose rules use it.
+        """
+        self.assert_a_statement_bound_to(RENAMED_API_SOURCES)
 
 
 class MaterialisationTestCase(TestCase):
