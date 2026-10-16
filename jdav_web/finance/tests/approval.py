@@ -49,6 +49,7 @@ from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 from finance.store import Approval
+from finance.store import RoleAssignment
 from finance.tests.harness import gate_of
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
@@ -205,6 +206,61 @@ class VacantGroup(Ruleset):
 
 
 ruleset = VacantGroup()
+'''
+
+
+#: A section that routes its two signatures by **role**, which makes the two
+#: groups disjoint and — unlike a group derived from who holds the capability —
+#: stable when somebody loses it. Both are needed to see what the ``satisfied``
+#: column records: with one shared group, the second signature re-satisfies the
+#: step the first signer's lost capability had emptied, and a column rewritten
+#: in between is invisible.
+TWO_ROLES = '''
+from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS, Transfer
+
+
+class TwoRoles(Ruleset):
+    """One signature from whoever keeps the cash, one from the board."""
+
+    name = "two-roles"
+    permissions = ("finance.process_statementsubmitted",)
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        transfers = []
+        for bill in ctx.bills:
+            if bill.covered and bill.payer is not None:
+                transfers.append(
+                    Transfer(SECTION, bill.payer, bill.amount, "bill", rule_id="bills")
+                )
+        return transfers, []
+
+    def approval(self, ctx, transfers):
+        return (
+            [
+                Constraint(
+                    name="Kasse",
+                    description="Die Kassenwartin",
+                    applicable=True,
+                    required=1,
+                    eligible=ctx.role_holders("kassenwart"),
+                ),
+                Constraint(
+                    name="Vorstand",
+                    description="Der Vorstand",
+                    applicable=True,
+                    required=1,
+                    eligible=ctx.role_holders("vorstand"),
+                ),
+            ],
+            [],
+        )
+
+
+ruleset = TwoRoles()
 '''
 
 
@@ -1139,6 +1195,48 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         # row, so the same function renders "signed" for the audit trail.
         record = {state.name: state for state in Statement.objects.get(pk=big.pk).approval_states}
         self.assertEqual(state_display(record["Kasse"]), _("Signed"))
+
+    def test_a_recorded_signature_is_not_rewritten_by_the_next_one(self):
+        """#552: the column was a cache of the gate rather than a record.
+
+        Anna, the treasurer, signs "Kasse" and the column records it. She
+        loses the capability, so the gate stops counting her signature —
+        correctly, that is what the gate is for — and Bernd then signs the
+        *other* step. Re-syncing every row to the gate's answer on the way
+        past wrote that verdict over the record of hers: Kasse's column came
+        back ``False`` while her ``Approval`` row still stood. No money ever
+        moved on it — the signatures are the trail and the column is read for
+        display — but a record that is edited is the one thing §6's appeal to
+        the GoBD's *Unveränderbarkeit* cannot have.
+
+        Two roles rather than two groups of signers, because that is what
+        makes the rewrite observable at all; see :data:`TWO_ROLES`.
+        """
+        RoleAssignment.objects.create(role="kassenwart", member=self.anna)
+        RoleAssignment.objects.create(role="vorstand", member=self.bernd)
+        package = Path(self.directory.name)
+        (package / "__init__.py").write_text(TWO_ROLES, encoding="utf-8")
+        version, problems = import_from_directory(package, name="two-roles")
+        self.assertEqual(problems, [])
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        rows = {row.name: row for row in big.approval_constraint_set.all()}
+        self.assertEqual(rows["Kasse"].eligible_member_ids, [self.anna.pk])
+        self.assertEqual(rows["Vorstand"].eligible_member_ids, [self.bernd.pk])
+        self.assertFalse(big.approve(self.anna), "the board has not signed yet")
+        self.assertTrue(big.approval_constraint_set.get(name="Kasse").satisfied)
+        # Anna leaves the finance department, which empties Kasse's group: the
+        # statement is stuck, and that much is the gate working.
+        self.anna_user.user_permissions.clear()
+        self.assertFalse(Statement.objects.get(pk=big.pk).approve(self.bernd))
+        after = {row.name: row for row in big.approval_constraint_set.all()}
+        self.assertTrue(after["Kasse"].satisfied, "she signed it, and that is the record")
+        self.assertTrue(after["Vorstand"].satisfied, "and the step just signed is recorded too")
+        self.assertTrue(big.approval_set.filter(member=self.anna).exists())
+        self.assertFalse(Statement.objects.get(pk=big.pk).confirmed)
+        # The gate still disagrees, which is the point of having two answers.
+        gate = {state.name: state for state in gate_of(big)}
+        self.assertFalse(gate["Kasse"].satisfied)
+        self.assertEqual(gate["Kasse"].eligible, ())
 
     def test_a_step_that_can_no_longer_be_resolved_says_so_rather_than_open(self):
         """#551 again, and the residue of #546: an unresolvable step read "Open".

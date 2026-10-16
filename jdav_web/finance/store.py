@@ -577,7 +577,10 @@ class ApprovalConstraint(models.Model):
         """The mapping :mod:`finance.engine.approval` evaluates.
 
         ``satisfied`` is on it because this row **is** the record: it holds
-        the answer that was reached when the statement was signed. Left off,
+        the answer that was reached when the statement was signed — written
+        once, by the signature that reached it
+        (:meth:`finance.models.Statement.approve`), and not revised
+        afterwards. Left off,
         it was recomputed as ``signed ∩ eligible`` against the *frozen*
         eligible set — and a treasurer appointed after submission is by
         construction not in that set, so an ordinary mid-flight signature
