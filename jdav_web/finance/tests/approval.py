@@ -50,6 +50,7 @@ from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 from finance.store import Approval
 from finance.store import RoleAssignment
+from finance.store import RuleSet
 from finance.tests.harness import gate_of
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
@@ -261,6 +262,55 @@ class TwoRoles(Ruleset):
 
 
 ruleset = TwoRoles()
+'''
+
+
+#: A section that narrows the reference ruleset: the step keeps the name the
+#: reference gives it — ``Freigabe`` — and the group is the treasurer rather
+#: than everybody who may process statements. Which is what a section that
+#: starts from the shipped rules and tightens them looks like, and why the
+#: identity :func:`~finance.engine.statements.loaded_ruleset` reports has to
+#: be the identity of what *loaded*: the same step name is what lets a
+#: fallback hand the signature to the reference ruleset's group.
+NARROW_FREIGABE = '''
+from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS, Transfer
+
+
+class NarrowFreigabe(Ruleset):
+    """One signature, from whoever keeps the cash."""
+
+    name = "narrow-freigabe"
+    permissions = ("finance.process_statementsubmitted",)
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        transfers = []
+        for bill in ctx.bills:
+            if bill.covered and bill.payer is not None:
+                transfers.append(
+                    Transfer(SECTION, bill.payer, bill.amount, "bill", rule_id="bills")
+                )
+        return transfers, []
+
+    def approval(self, ctx, transfers):
+        return (
+            [
+                Constraint(
+                    name="Freigabe",
+                    description="Die Kassenwartin",
+                    applicable=True,
+                    required=1,
+                    eligible=ctx.role_holders("kassenwart"),
+                )
+            ],
+            [],
+        )
+
+
+ruleset = NarrowFreigabe()
 '''
 
 
@@ -1310,6 +1360,53 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertFalse(again.may_be_approved_by(outsider))
         self.assertFalse(again.approve(outsider))
         self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_snapshot_that_will_not_load_does_not_widen_the_group(self):
+        """The other half of #553: degrading may not substitute other rules.
+
+        Falling back is safe only while the fallback cannot *answer* for the
+        section. ``loaded_ruleset`` reported the active row's hash even when
+        that row was the row that would not load and the **reference** ruleset
+        had answered — so for the ordinary case, a statement frozen under the
+        version that has just stopped loading, the hash matched itself, the
+        bound in :func:`_rows_from_the_same_rules` passed, and eligibility was
+        re-resolved under rules the section never wrote.
+
+        It bites because the step name survives: this section narrowed the
+        reference ruleset's ``Freigabe`` to the treasurer, so the reference
+        ruleset's own ``Freigabe`` — whoever holds the capability — lands on
+        the same row in the merge. The quorum and the frozen forbids stay; who
+        may sign widens from one person to everybody. Reported as ``""``, the
+        bound fails and the frozen rows stand.
+        """
+        RoleAssignment.objects.create(role="kassenwart", member=self.anna)
+        package = Path(self.directory.name)
+        (package / "__init__.py").write_text(NARROW_FREIGABE, encoding="utf-8")
+        version, problems = import_from_directory(package, name="narrow-freigabe")
+        self.assertEqual(problems, [])
+        statement = self.statement_for(Decimal("100.00"), self.clara)
+        row = statement.approval_constraint_set.get()
+        self.assertEqual(row.name, "Freigabe", "the name the reference ruleset uses as well")
+        self.assertEqual(row.eligible_member_ids, [self.anna.pk])
+        # The upgrade this is written for: `kompass.rules` renamed something
+        # the section's rules import, so neither the statement's snapshot nor
+        # the version in force loads any more — while the row stays ACTIVE,
+        # because nothing re-imports it. `update()` because a stored version is
+        # immutable through `save`, which is the hole `verify` watches.
+        gone = {"__init__.py": "from kompass.rules import Gone\n"}
+        RuleSet.objects.filter(pk=version.pk).update(sources=gone)
+        Statement.objects.filter(pk=statement.pk).update(
+            ruleset_snapshot={**statement.ruleset_snapshot, "sources": gone}
+        )
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertEqual(gate["Freigabe"].eligible, (self.anna.pk,), "nobody is added")
+        waiting = Statement.objects.get(pk=statement.pk)
+        self.assertFalse(waiting.may_be_approved_by(self.bernd))
+        self.assertFalse(waiting.approve(self.bernd), "and a signature from him advances nothing")
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+        # The treasurer the section did name can still sign, which is what
+        # says the statement degraded rather than seized up.
+        self.assertTrue(Statement.objects.get(pk=statement.pk).approve(self.anna))
 
     def test_an_override_of_one_step_leaves_the_other_standing(self):
         big = self.statement_for(Decimal("1200.00"), self.clara)

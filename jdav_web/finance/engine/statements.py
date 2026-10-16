@@ -95,15 +95,47 @@ def active_ruleset() -> Ruleset:
     Kompass upgrade that renamed something in ``kompass.rules`` — to propagate
     out of here and 500 the page that asked.
     """
+    return _active_with_identity()[0]
+
+
+def _active_with_identity() -> tuple[Ruleset, str]:
+    """The ruleset in force, and the identity of what *actually* loaded.
+
+    ``""`` whenever the answer comes from the reference ruleset — because
+    nothing has been imported, **or** because the active version would not
+    load and the fallback took over. One caller depends on telling those two
+    apart from a version that loaded, and it depends on it for a right rather
+    than for tidiness: :func:`_rows_from_the_same_rules` re-resolves a
+    statement's eligibility only while the rules answering are the rules its
+    rows were frozen under, and that check is a hash comparison. Reporting the
+    active row's hash for an answer the *reference* ruleset gave passes it with
+    the wrong rules — and the reference ruleset names ``Freigabe``, which is
+    the step name every section that starts from it and narrows the group
+    keeps, so the merge in :func:`current_constraint_rows` would take the
+    reference ruleset's group for the section's own: a statement a section
+    reserved for its treasurer, signable by everybody holding the capability.
+    The frozen forbids stay sticky and the quorum stays frozen; it is exactly
+    *who may sign* that would widen. Reported as ``""``, the bound fails, and
+    the frozen rows stand — which is what degrading has to mean.
+    """
     row = active_version()
     if row is not None:
         try:
-            return ruleset_from_sources(row.sources)
+            return ruleset_from_sources(row.sources), str(row.hash)
         except Exception as problem:
-            logger.warning(
-                "the active ruleset %s cannot be loaded (%s); using the reference", row, problem
+            # `error` rather than `warning`: the consequence is instance-wide
+            # — every statement created from now on is settled against the
+            # reference ruleset — and `tasks.import_ruleset` already shouts at
+            # this level for a version that did not activate.
+            logger.error(
+                "the active ruleset %s cannot be loaded (%s: %s); the reference ruleset is "
+                "answering for it",
+                row,
+                type(problem).__name__,
+                problem,
+                exc_info=True,
             )
-    return reference_ruleset
+    return reference_ruleset, ""
 
 
 def ruleset_for(statement: Any) -> Ruleset:
@@ -119,9 +151,11 @@ def loaded_ruleset(statement: Any) -> tuple[Ruleset, str]:
     """The ruleset to use for ``statement``, and the version it came from.
 
     The second element is the identity of what was *actually loaded*: the
-    snapshot's hash when the statement's own closure was used, and the active
-    version's hash (or ``""`` for the ruleset that ships in the image) when it
-    could not be and the fallback took over.
+    snapshot's hash when the statement's own closure was used, the active
+    version's hash when that answered instead, and ``""`` when neither could
+    be loaded and the reference ruleset answered. Taking the last of those
+    literally is what makes the sentence true, and
+    :func:`_active_with_identity` says what it costs when it is not.
 
     The fallback is deliberate — a statement whose stored closure no longer
     loads must still render, generate transactions and print — but it means
@@ -146,13 +180,14 @@ def loaded_ruleset(statement: Any) -> tuple[Ruleset, str]:
             # and a 500 on every other — the draft save, the form, the
             # printout — for the one kind of failure the fallback exists for.
             logger.warning(
-                "statement %s carries a snapshot that cannot be loaded (%s); "
-                "using the active ruleset",
+                "statement %s carries a snapshot that cannot be loaded (%s: %s); "
+                "using the version in force",
                 statement.pk,
+                type(problem).__name__,
                 problem,
+                exc_info=True,
             )
-    row = active_version()
-    return active_ruleset(), str(row.hash) if row is not None else ""
+    return _active_with_identity()
 
 
 def statement_params(statement: Any) -> dict[str, Decimal]:
