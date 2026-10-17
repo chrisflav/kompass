@@ -1,4 +1,4 @@
-# Finance rules for JDAV &lt;Sektion&gt;
+# Finance rules for a JDAV section
 
 This is the template for a section's **configuration repository**: the
 directory a Kompass instance mounts read-only, and the place a section's own
@@ -64,15 +64,17 @@ services:
 ```
 
 `settings.toml` is read from that mount at start, and `[finance] ruleset =
-"rules"` names the package beside it. Anything else in `[finance]` —
-`allowance_per_day`, `max_night_cost`, `aid_per_km_train`, `aid_per_km_car`,
-`org_fee` — is read by your rules as `ctx.params.ALLOWANCE_PER_DAY` and so on.
+"rules"` names the package beside it. The section's numbers come from there
+too: `[finance] allowance_per_day`, `max_night_cost`, `aid_per_km_train`,
+`aid_per_km_car` and `org_fee`, plus `[LJP] contribution_per_day` and `tax`,
+are what your rules read as `ctx.params.ALLOWANCE_PER_DAY`,
+`ctx.params.EXCURSION_ORG_FEE`, `ctx.params.LJP_TAX` and so on.
 
-**Parameter names are not free-form.** Kompass reads a fixed list of keys out
-of `[finance]`, so `ctx.params.WHATEVER_YOU_LIKE` does not work: a number that
-is not one of those keys belongs in `rules/` as a module constant, where it is
-versioned with the rules that read it — which is arguably where a figure your
-section voted on belongs anyway.
+**Parameter names are not free-form.** That list is fixed, so
+`ctx.params.WHATEVER_YOU_LIKE` does not work: a number that is not one of
+those keys belongs in `rules/` as a module constant, where it is versioned
+with the rules that read it — which is arguably where a figure your section
+voted on belongs anyway.
 
 `manage.py importruleset` runs **at every container start**, so a merged rule
 change is picked up without a Kompass release and without a container restart:

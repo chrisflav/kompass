@@ -4,7 +4,9 @@
 # and the interpreter that will execute these rules both come from the image,
 # so what passes here is what the instance will accept. `mypy` and `ruff` are
 # not in the image -- it carries the application's dependencies and not a
-# toolchain -- so they are fetched by `uv`, which is, at pinned versions.
+# toolchain -- so they are fetched at pinned versions by `uv`, which is in the
+# image. They still run on the image's interpreter and against the image's
+# `kompass.rules`, which is the part that has to match production.
 #
 # Nothing here needs a database, a secret or a network service. `checkruleset`
 # reads the rules, runs the cases and fuzzes them; it touches no data at all.

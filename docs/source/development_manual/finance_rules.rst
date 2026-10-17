@@ -310,17 +310,18 @@ The section's numbers
 A figure that the section votes on rather than a rule that it writes — the
 allowance per day, the maximum per night, the rate per kilometre — is a
 *parameter*, read from the context as ``ctx.params.ALLOWANCE_PER_DAY``. The
-values come from ``[finance]`` in ``settings.toml``, as exact decimal strings,
+values come from the section's ``settings.toml``, as exact decimal strings,
 and they are hashed into the ruleset's version alongside its sources: changing
 the allowance per day is a new version, not an edit, and nothing that was
 settled under the old number moves.
 
 .. note::
-   The parameter names are **not** free-form. Kompass reads a fixed list of
-   keys out of ``[finance]`` — today ``ALLOWANCE_PER_DAY``,
-   ``MAX_NIGHT_COST``, ``AID_PER_KM_TRAIN``, ``AID_PER_KM_CAR``,
-   ``EXCURSION_ORG_FEE``, ``LJP_CONTRIBUTION_PER_DAY`` and ``LJP_TAX``
-   (``PARAMETER_KEYS`` in ``finance/engine/context.py``) — so
+   The parameter names are **not** free-form. Kompass copies a fixed list of
+   settings into a version's parameters — ``PARAMETER_KEYS`` in
+   ``finance/engine/context.py``, today ``ALLOWANCE_PER_DAY``,
+   ``MAX_NIGHT_COST``, ``AID_PER_KM_TRAIN``, ``AID_PER_KM_CAR`` and
+   ``EXCURSION_ORG_FEE`` (from ``[finance]``) plus
+   ``LJP_CONTRIBUTION_PER_DAY`` and ``LJP_TAX`` (from ``[LJP]``) — so
    ``ctx.params.WHATEVER_YOU_LIKE`` raises
    :class:`~kompass.rules.RuleError`.
 
