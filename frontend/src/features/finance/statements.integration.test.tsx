@@ -80,7 +80,12 @@ function statement(overrides: Record<string, unknown> = {}) {
     subsidy_to: null,
     ljp_to: null,
     allowance_to: [],
+    night_cost: 11,
     bills: [],
+    // The payout as the engine resolved it. Every money figure below is a
+    // summary of these, and the flow's preview reads them rather than
+    // re-deriving a breakdown from the named totals.
+    transfers: [],
     total: 240.5,
     total_bills: 240.5,
     total_bills_theoretic: 240.5,
@@ -107,7 +112,6 @@ function statement(overrides: Record<string, unknown> = {}) {
     paid_ljp_contributions: 0,
     short_description: "Skifreizeit",
     explanation: "",
-    night_cost: 11,
     status: 0,
     submitted_date: null,
     confirmed_date: null,
@@ -115,21 +119,84 @@ function statement(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const LEADERS = [
+  { id: 7, name: "Hannah Beckers" },
+  { id: 9, name: "Mila Nowak" },
+];
+
+/** One declaration, with the fields `/form` always sends. */
+function declaration(overrides: Record<string, unknown>) {
+  return { required: false, help: "", max: null, options: [], ...overrides };
+}
+
+/**
+ * The form the section's rules ask for, and what stands in the way.
+ *
+ * The flow's reimbursement step renders whatever `/form` declares and its last
+ * leg prints whatever `/preflight` finds — neither is a list of fields or a
+ * list of checks written in the client any more, so both are stubbed.
+ */
+const FORM = {
+  statement_id: 1,
+  inputs: [
+    declaration({
+      key: "night_cost",
+      label: "Preis pro Übernachtung",
+      type: "money",
+      help: "Was eine Übernachtung pro Jugendleiter*in gekostet hat.",
+    }),
+    declaration({
+      key: "allowance_to",
+      label: "Aufwandsentschädigung an",
+      type: "member_set",
+      options: LEADERS,
+      max: 2,
+    }),
+    declaration({
+      key: "subsidy_to",
+      label: "Fahrt- und Übernachtungszuschuss an",
+      type: "member",
+      options: LEADERS,
+    }),
+  ],
+  answers: { night_cost: "11.00", allowance_to: [], subsidy_to: null },
+};
+
+const PREFLIGHT = {
+  statement_id: 1,
+  ok: true,
+  checks: [{ ok: true, message: "Jeder Beleg hat ein Bild." }],
+  failing: [],
+  errors: [],
+};
+
 /** Everything the detail page and its inlines fetch. */
 function detailReturns(data: Record<string, unknown> = {}) {
   const s = statement(data);
   server.use(
     http.get(api("/api/finance/statements/1"), () => HttpResponse.json(s)),
     http.get(api("/api/finance/statements/1/transactions"), () => HttpResponse.json([])),
-    http.get(api("/api/members/"), () =>
-      HttpResponse.json([
-        { id: 7, name: "Hannah Beckers" },
-        { id: 9, name: "Mila Nowak" },
-      ]),
-    ),
+    http.get(api("/api/finance/statements/1/form"), () => HttpResponse.json(FORM)),
+    http.get(api("/api/finance/statements/1/preflight"), () => HttpResponse.json(PREFLIGHT)),
+    http.get(api("/api/members/"), () => HttpResponse.json(LEADERS)),
     http.get(api("/api/finance/ledgers/"), () => HttpResponse.json(LEDGERS)),
   );
   return s;
+}
+
+/** A transfer the engine resolved, as `StatementOut.transfers` carries it. */
+function transfer(overrides: Record<string, unknown> = {}) {
+  return {
+    source: { kind: "section", member: null },
+    destination: { kind: "member", member: LEADERS[0] },
+    amount: 80,
+    category: "allowance",
+    rule_id: "allowance",
+    label: "Aufwandsentschädigung",
+    explanation: "2 × 40,00 €",
+    reference: "",
+    ...overrides,
+  };
 }
 
 const EXCURSION_DETAIL = {
@@ -542,6 +609,146 @@ describe("submission flow — Belege", () => {
   });
 });
 
+describe("submission flow — Erstattung", () => {
+  /** Open the reimbursement leg with `form` as what the rules ask for. */
+  function openForm(form: Record<string, unknown> = {}) {
+    flowReturns();
+    detailReturns();
+    server.use(
+      http.get(api("/api/finance/statements/1/form"), () =>
+        HttpResponse.json({ ...FORM, ...form }),
+      ),
+    );
+    return renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
+  }
+
+  it("asks what the rules declare, not four fields of its own", async () => {
+    openForm();
+
+    expect(await screen.findByText("Preis pro Übernachtung")).toBeInTheDocument();
+    expect(screen.getByText("Aufwandsentschädigung an")).toBeInTheDocument();
+    expect(screen.getByText("Fahrt- und Übernachtungszuschuss an")).toBeInTheDocument();
+    // The declaration's own help, in the section's language.
+    expect(screen.getByText(/Was eine Übernachtung pro Jugendleiter\*in gekostet hat/))
+      .toBeInTheDocument();
+    // The answer the statement already carries seeds the control.
+    expect(screen.getByDisplayValue("11.00")).toBeInTheDocument();
+  });
+
+  it("renders every type in the widget vocabulary", async () => {
+    // Four of the seven have no section in tree that asks for them, and the
+    // renderer is the only thing standing between a declaration and a form.
+    openForm({
+      inputs: [
+        declaration({ key: "nights", label: "Nächte", type: "int", max: 9 }),
+        declaration({ key: "catered", label: "Mit Verpflegung", type: "bool" }),
+        declaration({ key: "note", label: "Anmerkung", type: "text" }),
+        declaration({ key: "pick", label: "Variante", type: "choice" }),
+      ],
+      answers: { nights: 3, catered: true, note: "eine Zeile", pick: "a" },
+    });
+
+    expect(await screen.findByText("Nächte")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("3")).toHaveAttribute("max", "9");
+    expect(screen.getByRole("checkbox")).toBeChecked();
+    expect(screen.getByDisplayValue("eine Zeile")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("a")).toBeInTheDocument();
+  });
+
+  it("sends an answer under the key the rules declared", async () => {
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm();
+
+    await screen.findByText("Fahrt- und Übernachtungszuschuss an");
+    await user.click(screen.getByRole("button", { name: /niemand/ }));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({
+      inputs: { night_cost: "11.00", allowance_to: [], subsidy_to: 9 },
+    });
+  });
+
+  it("picks several people for a set-valued answer", async () => {
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm();
+
+    await screen.findByText("Aufwandsentschädigung an");
+    await user.click(screen.getByRole("button", { name: /Personen auswählen/ }));
+    await user.click(dropdown().getByRole("button", { name: "Hannah Beckers" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect((patched as unknown as { inputs: { allowance_to: number[] } }).inputs.allowance_to)
+      .toEqual([7]);
+  });
+
+  it("waits for a pause before sending a typed answer", async () => {
+    let patches = 0;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () => {
+        patches += 1;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm();
+
+    const field = await screen.findByDisplayValue("11.00");
+    await user.clear(field);
+    await user.type(field, "27");
+    // Four keystrokes, not four requests.
+    expect(patches).toBe(0);
+    await waitFor(() => expect(patches).toBe(1), { timeout: 2000 });
+  });
+
+  it("names the answer a refusal is about", async () => {
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () =>
+        djangoValidation({
+          allowance_to: ["Diese Fahrt hat nur 2 anerkannte Jugendleiter*innen."],
+        }),
+      ),
+    );
+    const { user } = openForm();
+
+    await screen.findByText("Aufwandsentschädigung an")
+    await user.click(screen.getByRole("button", { name: /Personen auswählen/ }));
+    await user.click(dropdown().getByRole("button", { name: "Hannah Beckers" }));
+
+    // Under the question, because the 422 is keyed by the answer it is about.
+    const message = await screen.findByText(/nur 2 anerkannte/);
+    expect(message).toHaveClass("field-error");
+  });
+
+  it("says so when the rules ask for nothing", async () => {
+    openForm({ inputs: [], answers: {} });
+    expect(
+      await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
+    ).toBeInTheDocument();
+  });
+
+  it("offers nobody when the rules offer nobody", async () => {
+    const { user } = openForm({
+      inputs: [declaration({ key: "allowance_to", label: "An", type: "member_set" })],
+      answers: {},
+    });
+    await screen.findByText("An");
+    await user.click(screen.getByRole("button", { name: /Personen auswählen/ }));
+    expect(dropdown().getByText("Hier bieten die Regeln niemanden an.")).toBeInTheDocument();
+  });
+});
+
 describe("submission flow — Abschluss", () => {
   const READY = {
     bills: [
@@ -615,91 +822,121 @@ describe("submission flow — Abschluss", () => {
     expect(await screen.findByText("Es fehlen Belege.")).toBeInTheDocument();
   });
 
-  it("adds its own breakdown up, receipts included", async () => {
+  it("prints the payout the engine resolved, transfer by transfer", async () => {
     flowReturns();
-    // No bill is covered yet at submission — the treasurer decides that later —
-    // so `statement.total` excludes them all. The claim must still count them.
+    // `claimedTotal` used to add five named totals up in the client, and
+    // `payoutLines` to name four line kinds that only one section's rules have.
+    // These are the engine's own answer, and the last one is its balancing
+    // transfer — so the list adds up to zero by construction.
     detailReturns({
       ...READY,
       total: 0,
-      total_bills: 0,
-      total_bills_theoretic: 180,
-      total_allowance: 80,
-      allowance_per_yl: 40,
-      allowances_paid: 2,
-      total_subsidies: 60,
-      total_org_fee: 0,
-      paid_ljp_contributions: 0,
-    });
-    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
-
-    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
-    const shown = within(document.querySelector(".summary-card") as HTMLElement);
-    expect(shown.getByText("180,00 €")).toBeInTheDocument();
-    expect(shown.getByText("80,00 €")).toBeInTheDocument();
-    expect(shown.getByText("60,00 €")).toBeInTheDocument();
-    // 180 + 80 + 60 — not statement.total, which would read 0,00 €.
-    expect(shown.getByText("320,00 €")).toBeInTheDocument();
-  });
-
-  it("always shows the allowance, so it cannot be mistaken for the travel line", async () => {
-    flowReturns();
-    detailReturns({
-      ...READY,
-      total_allowance: 0,
-      allowances_paid: 0,
-      allowance_per_yl: 40,
-      total_subsidies: 60,
-    });
-    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
-
-    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
-    const card = document.querySelector(".summary-card") as HTMLElement;
-    // Zero rows used to be filtered out, which removed the allowance entirely
-    // and left the travel subsidy looking like it.
-    expect(within(card).getByText("Aufwandsentschädigung")).toBeInTheDocument();
-    expect(within(card).getByText("0 × 40,00 € pro Person")).toBeInTheDocument();
-    expect(within(card).getByText("Fahrt- und Übernachtungszuschuss")).toBeInTheDocument();
-  });
-
-  it("names the LJP amount, not only its recipient", async () => {
-    flowReturns();
-    detailReturns({
-      ...READY,
-      ljp_to: { id: 9, name: "Mila Nowak" },
-      paid_ljp_contributions: 210,
-    });
-    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
-
-    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
-    const card = document.querySelector(".summary-card") as HTMLElement;
-    expect(within(card).getByText("LJP-Beitrag")).toBeInTheDocument();
-    expect(within(card).getByText("an Mila Nowak")).toBeInTheDocument();
-    expect(within(card).getByText("210,00 €")).toBeInTheDocument();
-  });
-
-  it("blocks submitting and names the blocker before it is pressed", async () => {
-    flowReturns();
-    detailReturns({
-      bills: [
-        {
-          id: 12,
-          short_description: "Hütte",
+      transfers: [
+        transfer({ amount: 180, category: "bill", label: "Beleg Hütte", explanation: "" }),
+        transfer({ amount: 80 }),
+        transfer({
+          destination: { kind: "member", member: LEADERS[1] },
+          amount: 60,
+          category: "subsidy",
+          label: "Fahrt- und Übernachtungszuschuss",
           explanation: "",
-          amount: 180,
-          costs_covered: false,
-          refunded: false,
-          statement_id: 1,
-          paid_by: null,
-          has_proof: false,
-          proof_url: null,
-        },
+        }),
+        transfer({
+          source: { kind: "participants", member: null },
+          destination: { kind: "section", member: null },
+          amount: 320,
+          category: "participant_contribution",
+          label: "Beitrag der Teilnehmenden",
+          explanation: "",
+        }),
       ],
     });
     renderRoute("/kompass/finance/statements/1/edit?stage=submit");
 
-    expect(await screen.findByText(/Beleg\(e\) ohne Zahler/)).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
+    const payout = within(document.querySelector(".payout") as HTMLElement);
+    expect(payout.getByText("Beleg Hütte")).toBeInTheDocument();
+    expect(payout.getByText("Aufwandsentschädigung")).toBeInTheDocument();
+    expect(payout.getByText("180,00 €")).toBeInTheDocument();
+    expect(payout.getByText("80,00 €")).toBeInTheDocument();
+    expect(payout.getByText("60,00 €")).toBeInTheDocument();
+    // Who pays whom, from the resolved parties rather than from a field name.
+    expect(payout.getByText(/die Sektion → Hannah Beckers · 2 × 40,00 €/)).toBeInTheDocument();
+    expect(payout.getByText(/die Teilnehmenden → die Sektion/)).toBeInTheDocument();
+    // 180 + 80 + 60 goes to people; the balancing transfer is not theirs — and
+    // it comes to the same figure here, which is the books closing.
+    const sum = document.querySelector(".payout-sum") as HTMLElement;
+    expect(within(sum).getByText("An Personen")).toBeInTheDocument();
+    expect(within(sum).getByText("320,00 €")).toBeInTheDocument();
+  });
+
+  it("charges a transfer away from a person against what they receive", async () => {
+    flowReturns();
+    detailReturns({
+      ...READY,
+      transfers: [
+        transfer({ amount: 100 }),
+        transfer({
+          source: { kind: "member", member: LEADERS[0] },
+          destination: { kind: "section", member: null },
+          amount: 30,
+          category: "org_fee",
+          label: "Orga-Pauschale",
+          explanation: "",
+        }),
+      ],
+    });
+    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
+
+    await screen.findByRole("heading", { name: "Prüfen und einreichen" });
+    const payout = within(document.querySelector(".payout") as HTMLElement);
+    expect(payout.getByText("Orga-Pauschale")).toBeInTheDocument();
+    expect(payout.getByText("70,00 €")).toBeInTheDocument();
+  });
+
+  it("says so when the rules resolved nothing to pay out", async () => {
+    flowReturns();
+    detailReturns(READY);
+    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
+    expect(await screen.findByText("Noch nichts zu erstatten.")).toBeInTheDocument();
+  });
+
+  it("blocks submitting and names the blocker the rules found", async () => {
+    flowReturns();
+    detailReturns(READY);
+    // Not re-derived here any more: the section's own checks, which is also
+    // exactly what `submit` refuses on.
+    server.use(
+      http.get(api("/api/finance/statements/1/preflight"), () =>
+        HttpResponse.json({
+          statement_id: 1,
+          ok: false,
+          checks: [{ ok: false, message: "Für den LJP-Beitrag braucht jeder Beleg ein Bild." }],
+          failing: [{ ok: false, message: "Für den LJP-Beitrag braucht jeder Beleg ein Bild." }],
+          errors: ["Ein übernommener Beleg hat keine Zahler*in."],
+        }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
+
+    expect(await screen.findByText(/braucht jeder Beleg ein Bild/)).toBeInTheDocument();
+    expect(screen.getByText(/keine Zahler\*in/)).toBeInTheDocument();
+    expect(screen.getByText("Das fehlt noch, bevor du einreichen kannst.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Einreichen" })).toBeDisabled();
+  });
+
+  it("says so when the rules have nothing to check", async () => {
+    flowReturns();
+    detailReturns(READY);
+    server.use(
+      http.get(api("/api/finance/statements/1/preflight"), () =>
+        HttpResponse.json({ statement_id: 1, ok: true, checks: [], failing: [], errors: [] }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=submit");
+    expect(
+      await screen.findByText("Die Regeln der Sektion haben nichts zu beanstanden."),
+    ).toBeInTheDocument();
   });
 
   it("saves a draft instead of handing it in", async () => {
@@ -1311,6 +1548,35 @@ describe("statement detail — submitted and confirmed", () => {
 
     expect(await screen.findByText("Eingereicht")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Prüfen & auszahlen" })).not.toBeInTheDocument();
+  });
+
+  it("points a handed-in statement at its approval record", async () => {
+    // Not gated on the treasurer's permission, unlike the review pipeline:
+    // what a statement is waiting for is what the person who handed it in most
+    // wants to know, and the page's own actions are gated there.
+    detailReturns({ submitted: true, status: 1, status_display: "Eingereicht" });
+    server.use(
+      http.get(api("/api/finance/statements/1/approval"), () =>
+        HttpResponse.json({
+          statement_id: 1,
+          approved: false,
+          may_approve: false,
+          constraints: [],
+          signatures: [],
+        }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/finance/statements/1");
+
+    await user.click(await screen.findByRole("button", { name: "Freigabe" }));
+    expect(await screen.findByRole("heading", { name: "Freigabe" })).toBeInTheDocument();
+  });
+
+  it("does not offer the approval record for a draft", async () => {
+    detailReturns();
+    renderRoute("/kompass/finance/statements/1");
+    await screen.findByText("Entwurf");
+    expect(screen.queryByRole("button", { name: "Freigabe" })).not.toBeInTheDocument();
   });
 
   it("offers the summary PDF and an undo once confirmed", async () => {

@@ -9,7 +9,6 @@ import {
   Badge,
   Button,
   Field,
-  MultiSelect,
   PageHeader,
   QueryBoundary,
   Select,
@@ -17,11 +16,15 @@ import {
   useToast,
   euro,
 } from "../../components/ui";
+import { AnswerField, TYPED_INTO, type Answers } from "./answers";
 import { postMultipart } from "./Bills";
 import { Check, EtappenRail, Preflight, type Etappe } from "./stages";
 import type { components } from "../../api/schema";
 
 type StatementOut = components["schemas"]["StatementOut"];
+type StatementFormOut = components["schemas"]["StatementFormOut"];
+type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
+type TransferPartyOut = components["schemas"]["TransferPartyOut"];
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
 type ExcursionOut = components["schemas"]["ExcursionOut"];
 type BillBrief = components["schemas"]["BillBrief"];
@@ -33,15 +36,20 @@ const STATEMENTS = "/kompass/finance/statements";
 
 /* --- draft ---------------------------------------------------------------- */
 
+/**
+ * What the first leg of the flow collects.
+ *
+ * It used to carry four more fields — `night_cost`, `allowance_to_ids`,
+ * `subsidy_to_id`, `ljp_to_id` — because `Statement` had four columns by those
+ * names. The answers the section's rules ask for are not here any more: they
+ * are declared by the rules, served by `GET …/form`, and edited by
+ * `ErstattungStep` against `PATCH … {inputs}`.
+ */
 interface Draft {
   mode: "excursion" | "other";
   excursion_id: string;
   short_description: string;
   explanation: string;
-  night_cost: string;
-  allowance_to_ids: number[];
-  subsidy_to_id: string;
-  ljp_to_id: string;
 }
 
 function seed(s: StatementOut | null, presetExcursion?: string | null): Draft {
@@ -53,10 +61,6 @@ function seed(s: StatementOut | null, presetExcursion?: string | null): Draft {
     excursion_id: s?.excursion ? String(s.excursion.id) : (presetExcursion ?? ""),
     short_description: s?.short_description ?? "",
     explanation: s?.explanation ?? "",
-    night_cost: s ? String(s.night_cost ?? 0) : "0",
-    allowance_to_ids: (s?.allowance_to ?? []).map((m) => m.id),
-    subsidy_to_id: s?.subsidy_to ? String(s.subsidy_to.id) : "",
-    ljp_to_id: s?.ljp_to ? String(s.ljp_to.id) : "",
   };
 }
 
@@ -155,7 +159,6 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
               short_description: d.short_description,
               explanation: d.explanation,
               excursion_id,
-              night_cost: Number(d.night_cost) || 0,
             },
           }),
         );
@@ -167,10 +170,6 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
             short_description: d.short_description,
             explanation: d.explanation,
             excursion_id,
-            night_cost: Number(d.night_cost) || 0,
-            allowance_to_ids: d.allowance_to_ids,
-            subsidy_to_id: d.subsidy_to_id ? Number(d.subsidy_to_id) : null,
-            ljp_to_id: d.ljp_to_id ? Number(d.ljp_to_id) : null,
           },
         }),
       );
@@ -218,8 +217,11 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
     reachable: statement !== null,
   }));
 
-  const preflight = buildPreflight(statement, draft, bills);
-  const ready = preflight.every((c) => c.ok);
+  // What stands between this statement and being handed in, asked of the
+  // section's rules rather than re-derived here. Fetched at this level, not in
+  // the last leg, because the Einreichen button is here.
+  const preflightQ = usePreflight(statement);
+  const ready = preflightQ.data?.ok ?? false;
 
   return (
     <div className="flow">
@@ -256,19 +258,8 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
         {step === "receipts" && statement && (
           <BelegeStep statement={statement} excursion={excursion} />
         )}
-        {step === "reimbursement" && statement && (
-          <ErstattungStep
-            statement={statement}
-            excursion={excursion}
-            draft={draft}
-            setDraft={setDraft}
-            onCommit={(d) => saveM.mutate(d)}
-            errors={fieldErrors}
-          />
-        )}
-        {step === "submit" && statement && (
-          <AbschlussStep statement={statement} preflight={preflight} />
-        )}
+        {step === "reimbursement" && statement && <ErstattungStep statement={statement} />}
+        {step === "submit" && statement && <AbschlussStep statement={statement} />}
       </div>
 
       <div className="flow-nav">
@@ -356,7 +347,10 @@ function stepReadout(
   }
   if (s === "reimbursement") {
     if (!statement) return "—";
-    return `${statement.allowances_paid} × Entschädigung`;
+    // What the leg settles, from the resolved transfers rather than from a
+    // count of allowance recipients — which only one section's rules have.
+    const people = statement.transfers.filter((t) => t.destination.kind === "member");
+    return `${people.length} × Erstattung`;
   }
   return statement ? euro(statement.total) : "—";
 }
@@ -397,18 +391,10 @@ function AnlassStep({
         <ChoiceCard
           selected={draft.mode === "other"}
           disabled={locked}
-          onSelect={() =>
-            // Recipients only exist for a trip, and the API rejects them once
-            // the excursion is gone — drop them with it.
-            setDraft({
-              ...draft,
-              mode: "other",
-              excursion_id: "",
-              allowance_to_ids: [],
-              subsidy_to_id: "",
-              ljp_to_id: "",
-            })
-          }
+          // Dropping the trip drops the answers that named its youth leaders,
+          // and the API does that itself: whom the rules offer is derived from
+          // the excursion, so an answer naming somebody goes with it.
+          onSelect={() => setDraft({ ...draft, mode: "other", excursion_id: "" })}
           title="Sonstige Ausgabe"
           hint="Material, Miete, Gebühren — nur Belege"
         />
@@ -423,10 +409,6 @@ function AnlassStep({
               setDraft({
                 ...draft,
                 excursion_id: v,
-                // Recipients belong to the old trip; the API drops them too.
-                allowance_to_ids: [],
-                subsidy_to_id: "",
-                ljp_to_id: "",
                 short_description:
                   draft.short_description || (picked ? picked.name.slice(0, 30) : ""),
               });
@@ -795,188 +777,158 @@ function BillForm({
 
 /* --- step 3: who gets what ------------------------------------------------ */
 
-function ErstattungStep({
-  statement,
-  excursion,
-  draft,
-  setDraft,
-  onCommit,
-  errors,
-}: {
-  statement: StatementOut;
-  excursion: ExcursionOut | null;
-  draft: Draft;
-  setDraft: (d: Draft) => void;
-  onCommit: (d: Draft) => void;
-  errors: Record<string, string[]>;
-}) {
-  const leaders = excursion?.jugendleiter ?? [];
-  const maxAllowances = statement.real_staff_count;
-  // The payout figures come from the server, so every change is committed and
-  // the preview below always shows what would actually be paid.
-  const commit = (next: Draft) => {
-    setDraft(next);
-    onCommit(next);
-  };
-  const nightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (nightTimer.current) clearTimeout(nightTimer.current); }, []);
-
+/**
+ * The questions the section's rules ask about this statement.
+ *
+ * Nothing here knows what they are. `GET …/form` returns the declarations —
+ * with the people a party-valued answer may name already resolved to `{id,
+ * name}` — and `answers.tsx` renders the widget vocabulary. The form is asked
+ * for again after every save, because a ruleset may retire a question once an
+ * earlier answer makes it moot (`relevant_inputs`).
+ */
+function ErstattungStep({ statement }: { statement: StatementOut }) {
+  const formQ = useApiQuery(["finance", "statements", statement.id, "form"], () =>
+    unwrap(
+      client.GET("/api/finance/statements/{statement_id}/form", {
+        params: { path: { statement_id: statement.id } },
+      }),
+    ),
+  );
   return (
     <section className="flow-step">
       <h2 className="flow-title">Wer bekommt was?</h2>
       <p className="flow-lead">
-        Entschädigung und Zuschüsse gehen nur an die Jugendleiter*innen dieser Fahrt. Die Beträge
-        rechnet Kompass aus.
+        Diese Fragen stellt die Finanzordnung der Sektion. Die Beträge rechnet Kompass daraus
+        selbst aus.
       </p>
-
-      <Field
-        label="Aufwandsentschädigung an"
-        hint={`Höchstens ${maxAllowances} anerkannt — ${euro(statement.allowance_per_yl)} pro Person.`}
-      >
-        <MultiSelect
-          options={leaders.map((m) => ({ value: m.id, label: m.name }))}
-          selected={draft.allowance_to_ids}
-          onChange={(ids) => commit({ ...draft, allowance_to_ids: ids })}
-          placeholder="Jugendleiter*innen auswählen…"
-          emptyText="Diese Fahrt hat keine Jugendleiter*innen."
-        />
-        {errors.allowance_to && <div className="field-error">{errors.allowance_to.join(" ")}</div>}
-      </Field>
-
-      <Field
-        label="Fahrt- und Übernachtungszuschuss an"
-        hint="Meist die Person, die Sprit und Hütte bezahlt hat."
-      >
-        <Select
-          value={draft.subsidy_to_id}
-          onChange={(v) => commit({ ...draft, subsidy_to_id: v })}
-          options={leaders.map((m) => ({ value: m.id, label: m.name }))}
-          placeholder="— niemand —"
-          allowEmpty
-          emptyLabel="— niemand —"
-        />
-      </Field>
-
-      <Field
-        label="LJP-Beitrag an"
-        hint="Nur wenn für diese Fahrt ein LJP-Antrag gestellt wurde. Dann braucht jeder Beleg ein Bild."
-      >
-        <Select
-          value={draft.ljp_to_id}
-          onChange={(v) => commit({ ...draft, ljp_to_id: v })}
-          options={leaders.map((m) => ({ value: m.id, label: m.name }))}
-          placeholder="— niemand —"
-          allowEmpty
-          emptyLabel="— niemand —"
-        />
-      </Field>
-
-      <Field label="Preis pro Übernachtung" hint="Was eine Person pro Nacht gekostet hat.">
-        <input
-          type="number"
-          step="0.01"
-          inputMode="decimal"
-          value={draft.night_cost}
-          onChange={(e) => {
-            const next = { ...draft, night_cost: e.target.value };
-            setDraft(next);
-            if (nightTimer.current) clearTimeout(nightTimer.current);
-            nightTimer.current = setTimeout(() => onCommit(next), 500);
-          }}
-        />
-        {errors.night_cost && <div className="field-error">{errors.night_cost.join(" ")}</div>}
-      </Field>
-
+      <QueryBoundary query={formQ}>
+        {(form) => <AnswerForm statement={statement} form={form} />}
+      </QueryBoundary>
       <PayoutPreview statement={statement} />
     </section>
   );
 }
 
-/** The computed payout, itemised the way the reimbursement rules build it up. */
-/** What this statement is claiming, assuming every receipt is covered.
- *
- * NOT `statement.total`: that counts only the bills the treasurer has already
- * marked covered, which at submission time is none of them. Showing it to
- * someone still filling the statement in prints receipts that the total then
- * silently excludes.
- */
-function claimedTotal(s: StatementOut): number {
+/** How long a typed-into field waits before it becomes a request. */
+const TYPING_PAUSE = 500;
+
+function AnswerForm({ statement, form }: { statement: StatementOut; form: StatementFormOut }) {
+  const toast = useToast();
+  const [answers, setAnswers] = useState<Answers>(() => ({ ...form.answers }));
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const saveM = useApiMutation(
+    (next: Answers) =>
+      unwrap(
+        client.PATCH("/api/finance/statements/{statement_id}", {
+          params: { path: { statement_id: statement.id } },
+          body: { inputs: next },
+        }),
+      ),
+    {
+      // Both the statement (the payout below) and the form (a question the
+      // rules may have just retired) are stale once an answer lands.
+      invalidate: [
+        ["finance", "statements"],
+        ["finance", "statements", statement.id],
+        ["finance", "statements", statement.id, "form"],
+      ],
+      onError: (e: Error) => {
+        // A 422 is keyed by the answer it is about, so the message lands under
+        // the question rather than only in a toast.
+        if (e instanceof ApiError) setErrors(e.fieldErrors);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  function change(declaration: InputDeclarationOut, value: unknown) {
+    const next = { ...answers, [declaration.key]: value };
+    setAnswers(next);
+    setErrors({});
+    if (timer.current) clearTimeout(timer.current);
+    if (TYPED_INTO.has(declaration.type)) {
+      timer.current = setTimeout(() => saveM.mutate(next), TYPING_PAUSE);
+    } else {
+      saveM.mutate(next);
+    }
+  }
+
+  if (form.inputs.length === 0) {
+    return <p className="muted">Für diese Abrechnung fragen die Regeln nichts ab.</p>;
+  }
   return (
-    s.total_bills_theoretic +
-    s.total_allowance +
-    s.total_subsidies -
-    s.total_org_fee +
-    s.paid_ljp_contributions
+    <>
+      {form.inputs.map((declaration) => (
+        <AnswerField
+          key={declaration.key}
+          declaration={declaration}
+          value={answers[declaration.key]}
+          errors={errors[declaration.key]}
+          onChange={(value) => change(declaration, value)}
+        />
+      ))}
+    </>
   );
 }
 
-interface PayoutLine {
-  label: string;
-  /** How the figure is arrived at, so two lines can never be mistaken for each other. */
-  basis?: string;
-  value: number;
+/** Who the section is paying, as the engine resolved it. */
+function partyName(party: TransferPartyOut): string {
+  if (party.kind === "member") return party.member?.name ?? "unbekannt";
+  return party.kind === "section" ? "die Sektion" : "die Teilnehmenden";
 }
 
-function payoutLines(statement: StatementOut): PayoutLine[] {
-  const lines: PayoutLine[] = [
-    {
-      label: "Belege",
-      basis: `${statement.bills.length} ${statement.bills.length === 1 ? "Beleg" : "Belege"}`,
-      value: statement.total_bills_theoretic,
-    },
-  ];
-  if (statement.excursion) {
-    // Both of these are shown even at zero. Filtering empty rows made the
-    // Aufwandsentschädigung disappear whenever nobody was selected yet, leaving
-    // the travel line looking like it.
-    lines.push({
-      label: "Aufwandsentschädigung",
-      basis: `${statement.allowances_paid} × ${euro(statement.allowance_per_yl)} pro Person`,
-      value: statement.total_allowance,
-    });
-    lines.push({
-      label: "Fahrt- und Übernachtungszuschuss",
-      basis: statement.subsidy_to ? `an ${statement.subsidy_to.name}` : "niemand ausgewählt",
-      value: statement.total_subsidies,
-    });
-    if (statement.total_org_fee) {
-      lines.push({ label: "Orga-Pauschale", value: -statement.total_org_fee });
-    }
-    // Shown as soon as a recipient is chosen, so the amount is visible here and
-    // not only after the statement has been handed in.
-    if (statement.ljp_to || statement.paid_ljp_contributions) {
-      lines.push({
-        label: "LJP-Beitrag",
-        basis: statement.ljp_to ? `an ${statement.ljp_to.name}` : undefined,
-        value: statement.paid_ljp_contributions,
-      });
-    }
-  }
-  return lines;
-}
-
-/** The computed payout, itemised the way the reimbursement rules build it up. */
+/**
+ * The payout, as the rules resolved it.
+ *
+ * This used to be `payoutLines` plus `claimedTotal`: four hardcoded line kinds
+ * and a sum the client computed from five named totals, both of which had to
+ * be edited whenever the regulation paid something else. `StatementOut.
+ * transfers` is the engine's own answer — who owes whom how much, under which
+ * rule — and the last one is the balancing transfer, so the list adds up to
+ * zero by construction.
+ */
 function PayoutPreview({ statement }: { statement: StatementOut }) {
-  const lines = payoutLines(statement);
+  const transfers = statement.transfers;
+  const toPeople = transfers
+    .filter((t) => t.destination.kind === "member")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const fromPeople = transfers
+    .filter((t) => t.source.kind === "member")
+    .reduce((sum, t) => sum + t.amount, 0);
   return (
     <div className="payout">
       <span className="payout-caption">Voraussichtliche Auszahlung</span>
-      <dl>
-        {lines.map((l) => (
-          <div key={l.label}>
-            <dt>
-              {l.label}
-              {l.basis && <span className="payout-basis">{l.basis}</span>}
-            </dt>
-            <dd>{euro(l.value)}</dd>
+      {transfers.length === 0 ? (
+        <p className="muted">Noch nichts zu erstatten.</p>
+      ) : (
+        <dl>
+          {transfers.map((t, i) => (
+            <div key={`${t.rule_id}-${i}`}>
+              <dt>
+                {t.label || t.category}
+                <span className="payout-basis">
+                  {partyName(t.source)} → {partyName(t.destination)}
+                  {t.explanation ? ` · ${t.explanation}` : ""}
+                </span>
+              </dt>
+              <dd>{euro(t.amount)}</dd>
+            </div>
+          ))}
+          <div className="payout-sum">
+            <dt>An Personen</dt>
+            {/* What the section transfers out, less what it charges back. */}
+            <dd>{euro(toPeople - fromPeople)}</dd>
           </div>
-        ))}
-        <div className="payout-sum">
-          <dt>Gesamt</dt>
-          {/* The sum of the lines above, so the breakdown always adds up. */}
-          <dd>{euro(claimedTotal(statement))}</dd>
-        </div>
-      </dl>
+        </dl>
+      )}
       <p className="payout-note">
         Die Kassenwartin entscheidet noch, welche Belege übernommen werden. Der ausgezahlte Betrag
         kann darum kleiner ausfallen.
@@ -987,112 +939,65 @@ function PayoutPreview({ statement }: { statement: StatementOut }) {
 
 /* --- step 4: hand in ------------------------------------------------------ */
 
-interface PreflightItem {
-  ok: boolean;
-  text: string;
-}
-
-function buildPreflight(
-  statement: StatementOut | null,
-  draft: Draft,
-  bills: BillBrief[],
-): PreflightItem[] {
-  if (!statement) return [];
-  const items: PreflightItem[] = [];
-
-  items.push({
-    ok: (statement.short_description ?? "").trim().length > 0,
-    text: "Die Abrechnung hat eine Kurzbeschreibung.",
-  });
-
-  const claimsSomething =
-    bills.length > 0 ||
-    statement.allowance_to.length > 0 ||
-    statement.subsidy_to !== null ||
-    statement.ljp_to !== null;
-  items.push({ ok: claimsSomething, text: "Die Abrechnung fordert mindestens einen Betrag." });
-
-  const payerless = bills.filter((b) => !b.paid_by);
-  items.push({
-    ok: payerless.length === 0,
-    text:
-      payerless.length === 0
-        ? "Bei jedem Beleg steht, wer ihn ausgelegt hat."
-        : `${payerless.length} Beleg(e) ohne Zahler*in: ${payerless
-            .map((b) => b.short_description)
-            .join(", ")}. Ohne Zahler*in kann das Geld nicht überwiesen werden.`,
-  });
-
-  if (draft.mode === "excursion") {
-    const tooMany = statement.allowance_to.length > statement.real_staff_count;
-    items.push({
-      ok: !tooMany,
-      text: tooMany
-        ? `Für diese Fahrt sind ${statement.real_staff_count} Aufwandsentschädigungen anerkannt, eingetragen sind ${statement.allowance_to.length}.`
-        : "Die Empfänger*innen der Aufwandsentschädigung sind zulässig.",
-    });
-
-    if (statement.ljp_to) {
-      const missing = bills.filter((b) => !b.has_proof);
-      items.push({
-        ok: missing.length === 0,
-        text:
-          missing.length === 0
-            ? "Jeder Beleg hat ein Bild — Voraussetzung für den LJP-Beitrag."
-            : `Für den LJP-Beitrag braucht jeder Beleg ein Bild. Es fehlen: ${missing
-                .map((b) => b.short_description)
-                .join(", ")}.`,
-      });
-    }
-  }
-
-  return items;
-}
-
-function AbschlussStep({
-  statement,
-  preflight,
-}: {
-  statement: StatementOut;
-  preflight: PreflightItem[];
-}) {
-  const blockers = preflight.filter((c) => !c.ok);
+/**
+ * What stands between this statement and being handed in.
+ *
+ * `buildPreflight` used to re-derive this in the client: a description, "claims
+ * something", a payer per receipt, the allowance count against the approved
+ * staff count, a picture per receipt when LJP is claimed. Three of those five
+ * were the Heidelberg rules restated in TypeScript, where they could and did
+ * drift from the Python. `GET …/preflight` asks the section's own rules, which
+ * is also exactly what `submit` refuses on.
+ */
+function AbschlussStep({ statement }: { statement: StatementOut }) {
+  const preflightQ = usePreflight(statement);
   return (
     <section className="flow-step">
       <h2 className="flow-title">Prüfen und einreichen</h2>
-      <p className="flow-lead">
-        {blockers.length === 0
-          ? "Alles vollständig. Nach dem Einreichen übernimmt die Kassenwartin."
-          : "Das fehlt noch, bevor du einreichen kannst."}
-      </p>
+      <QueryBoundary query={preflightQ}>
+        {(preflight) => (
+          <>
+            <p className="flow-lead">
+              {preflight.ok
+                ? "Alles vollständig. Nach dem Einreichen übernimmt die Kassenwartin."
+                : "Das fehlt noch, bevor du einreichen kannst."}
+            </p>
+            <Preflight>
+              {preflight.checks.map((c, i) => (
+                <Check key={i} ok={c.ok}>
+                  {c.message}
+                </Check>
+              ))}
+              {preflight.errors.map((message, i) => (
+                <Check key={`e${i}`} ok={false}>
+                  {message}
+                </Check>
+              ))}
+              {preflight.checks.length === 0 && preflight.errors.length === 0 && (
+                <Check ok>Die Regeln der Sektion haben nichts zu beanstanden.</Check>
+              )}
+            </Preflight>
+          </>
+        )}
+      </QueryBoundary>
 
-      <Preflight>
-        {preflight.map((c, i) => (
-          <Check key={i} ok={c.ok}>
-            {c.text}
-          </Check>
-        ))}
-      </Preflight>
-
-      {/* The same breakdown as the reimbursement step, from the same figures —
+      {/* The same breakdown as the reimbursement step, from the same transfers —
           two summaries of one statement must never disagree. */}
-      <div className="summary-card">
-        <div className="summary-head">
-          <span>{statement.title}</span>
-          <strong>{euro(claimedTotal(statement))}</strong>
-        </div>
-        <dl className="summary-lines">
-          {payoutLines(statement).map((l) => (
-            <div key={l.label}>
-              <dt>
-                {l.label}
-                {l.basis && <span className="payout-basis">{l.basis}</span>}
-              </dt>
-              <dd>{euro(l.value)}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      <PayoutPreview statement={statement} />
     </section>
+  );
+}
+
+/** The section's own preconditions for handing this statement in. */
+function usePreflight(statement: StatementOut | null) {
+  return useApiQuery(
+    ["finance", "statements", statement?.id ?? 0, "preflight"],
+    () =>
+      unwrap(
+        client.GET("/api/finance/statements/{statement_id}/preflight", {
+          params: { path: { statement_id: statement?.id as number } },
+        }),
+      ),
+    { enabled: statement !== null },
   );
 }
