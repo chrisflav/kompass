@@ -825,11 +825,29 @@ class Statement(CommonModel):
         is no answer to the question "may this person sign it off" — and the
         person with the most reason to ask is the one the forbid was written
         for. Such a payout stays stuck until the rule is fixed, which is what
-        "stuck" has to mean to be worth claiming. Returns whether the
-        statement ended up confirmed.
+        "stuck" has to mean to be worth claiming.
+
+        And a step that **does not apply** cannot be waived, which is new and
+        is the honest place for it. Such a step is not in the way —
+        :func:`~finance.engine.approval.fully_approved` ignores it — so the
+        request has nothing to grant, and granting it anyway wrote a waiver
+        for a question nobody had asked. That record then came due: a payout
+        under the section's threshold let one person waive the board's two
+        signatures *before the rules asked for them*, and when a covered
+        receipt pushed the statement over the threshold the step the rules now
+        asked for took the waiver over. One unrelated signature paid it out.
+        The carry re-asks this too — a waiver does not pass onto a step that
+        was asking nothing when it was given
+        (:func:`finance.engine.statements._why_the_waiver_does_not_carry`) —
+        and that is where the money is actually stopped; refusing here stops
+        the meaningless record being written at all, which is the difference
+        between a control and a repair. Returns whether the statement ended up
+        confirmed.
         """
         row = self.approval_constraint_set.filter(name=name).first()
         if row is None or not self.submitted or self.confirmed:
+            return False
+        if not row.applicable:
             return False
         if self.approval_cannot_be_resolved(name):
             return False
