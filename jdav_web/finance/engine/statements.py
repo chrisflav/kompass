@@ -115,6 +115,14 @@ def _active_with_identity() -> tuple[Ruleset, str]:
     The frozen forbids stay sticky and the quorum stays frozen; it is exactly
     *who may sign* that would widen. Reported as ``""``, the bound fails, and
     the frozen rows stand — which is what degrading has to mean.
+
+    The property this establishes is worth stating as one line, because it is
+    stronger than the case it was written for: **a snapshot that will not load
+    now means no re-resolution at all.** Either the active version loaded, and
+    its hash differs from the hash the rows were frozen under — or it is the
+    same ``(sources, params)`` as the snapshot, by construction, in which case
+    it did not load either and the identity is ``""``. Both ways the bound in
+    :func:`_rows_from_the_same_rules` fails, and no third way exists.
     """
     row = active_version()
     if row is not None:
@@ -335,6 +343,17 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
         return ()
     members = MemberModel.objects.in_bulk([party.id for party in result.members()])
     names = {pk: member.name for pk, member in members.items()}
+    # The hash the statement was *asked* to settle under, which is not always
+    # the hash of the rules that have just answered: a statement created while
+    # the active version does not load gets its rows stamped with the section's
+    # version and resolved by the reference ruleset. Inert where it would
+    # matter — the identity `_active_with_identity` reports is then `""`, so
+    # the bound in `_rows_from_the_same_rules` fails and these rows are read
+    # rather than re-resolved for as long as the version stays unloadable —
+    # logged at ERROR when it happens, and reported by `verify`, which replays
+    # from the snapshot and says it cannot load it instead of dying on it. A
+    # deliberate trade against the alternative, which is the outage this
+    # fallback exists to prevent; recorded on #555 rather than changed here.
     version = (statement.ruleset_snapshot or {}).get("hash", "")
     frozen = timezone.now() if freeze else None
     rows = [

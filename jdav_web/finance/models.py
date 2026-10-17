@@ -690,8 +690,8 @@ class Statement(CommonModel):
         after submission — the finance officer covering a bill, reaching it
         through ``Bill.save`` → ``_refresh_statement`` → ``freeze``. That
         resets the columns and, worse, drops a recorded override: who went
-        ahead anyway, and why. It is a separate defect, filed separately, and
-        the contrast is ``_retire_rows`` beside it, which *supersedes* frozen
+        ahead anyway, and why. That is a separate defect (#555), and the
+        contrast is ``_retire_rows`` beside it, which *supersedes* frozen
         obligations rather than deleting them, for the reason this paragraph
         has already given.
         """
