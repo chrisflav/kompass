@@ -1,0 +1,89 @@
+# The checks this configuration repository runs over its own finance rules.
+#
+# Everything runs inside the Kompass image, which is the point: `kompass.rules`
+# and the interpreter that will execute these rules both come from the image,
+# so what passes here is what the instance will accept. `mypy` and `ruff` are
+# not in the image -- it carries the application's dependencies and not a
+# toolchain -- so they are fetched by `uv`, which is, at pinned versions.
+#
+# Nothing here needs a database, a secret or a network service. `checkruleset`
+# reads the rules, runs the cases and fuzzes them; it touches no data at all.
+
+name: Check the finance rules
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  # ---------------------------------------------------------------------------
+  # PLACEHOLDER -- pin this before you rely on it.
+  #
+  # `latest` tracks Kompass's `main` branch. It is a moving target: the image
+  # that checked your rules this morning is not necessarily the image your
+  # instance is running, and a green run here is then weaker than it looks.
+  #
+  # Immutable, versioned release tags are not published yet (Kompass issues
+  # #535 and #538). When they are, replace this with the release your instance
+  # runs and bump it when you upgrade:
+  #
+  #     KOMPASS_IMAGE: ghcr.io/chrisflav/kompass:2.1.0
+  #
+  # Until then there is one thing you can pin today, and it is better than
+  # `latest`: a digest. `docker buildx imagetools inspect
+  # ghcr.io/chrisflav/kompass:latest` prints one, and
+  # `ghcr.io/chrisflav/kompass@sha256:<digest>` is immutable. Re-pin it
+  # deliberately, the way you would a release tag.
+  # ---------------------------------------------------------------------------
+  KOMPASS_IMAGE: ghcr.io/chrisflav/kompass:latest
+
+  # Pinned so that a new release of either tool does not fail a pull request
+  # that changed nothing. Keep them in step with the Kompass version above.
+  RUFF_VERSION: "0.11.11"
+  MYPY_VERSION: "1.18.2"
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the configuration repository
+        uses: actions/checkout@v4
+
+      - name: Check the rules inside the Kompass image
+        run: |
+          docker run --rm \
+            -v "$PWD":/app/config:ro \
+            -e KOMPASS_CONFIG_DIR_PATH=/app/config \
+            -e MYPYPATH=/app/jdav_web \
+            -e UV_CACHE_DIR=/tmp/uv-cache \
+            -e RUFF_VERSION \
+            -e MYPY_VERSION \
+            "$KOMPASS_IMAGE" \
+            sh -ec '
+              cd /app/config
+
+              # `--strict` against the real `kompass.rules`, which ships in
+              # the image and carries `py.typed`. The cache goes to /tmp
+              # because /app/config is mounted read-only -- as it is in
+              # production.
+              uvx --python 3.13 "mypy@$MYPY_VERSION" \
+                  --strict --cache-dir /tmp/mypy-cache rules
+
+              # The banned-import rules in pyproject.toml, which mirror what
+              # the engine refuses. A violation is a lint failure here instead
+              # of a rejected version in the admin.
+              uvx --python 3.13 "ruff@$RUFF_VERSION" check --no-cache rules
+
+              # The import whitelist, the loader, and every case in
+              # rules/cases/ -- the same checks the instance gates activation
+              # on. `--fuzz` additionally runs random but valid statements
+              # through the rules and insists that each one reports no error
+              # and balances.
+              #
+              # KOMPASS_CONFIG_DIR_PATH is set so that the fuzz uses this
+              # repository's own [finance] numbers. The cases carry their own
+              # `params`, so they do not depend on it.
+              python /app/jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
+            '

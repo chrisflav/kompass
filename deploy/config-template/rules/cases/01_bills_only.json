@@ -1,0 +1,15 @@
+{
+  "name": "bills only: a statement without a trip pays back what it covers",
+  "bills": [
+    {"id": 1, "amount": "67.30", "covered": true, "payer": 4, "description": "Lebensmittel"},
+    {"id": 2, "amount": "10.00", "covered": false, "payer": 4, "description": "Geschenk"}
+  ],
+  "expect": {
+    "transfers": [
+      ["SECTION", "4", "67.30", "bill"],
+      ["PARTICIPANTS", "SECTION", "67.30", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true]
+  }
+}
