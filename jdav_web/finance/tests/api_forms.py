@@ -16,6 +16,7 @@ import uuid
 from decimal import Decimal
 from unittest.mock import patch
 
+from django import forms
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from django.test import TestCase
@@ -26,6 +27,7 @@ from finance.api.tests import Application
 from finance.api.tests import grant
 from finance.api.tests import make_member_user
 from finance.inputs import clean_value
+from finance.inputs import form_field
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
@@ -574,3 +576,36 @@ class InputValueTestCase(SimpleTestCase):
         self.assertIsNone(clean_value(Input("m", "M", "member"), None))
         self.assertEqual(clean_value(Input("s", "S", "member_set"), None), [])
         self.assertEqual(clean_value(Input("c", "C", "money"), None), Decimal("0"))
+
+
+class FormFieldTestCase(SimpleTestCase):
+    """Each type as the control a server-rendered form shows for it.
+
+    Same reason ``clean_value`` is checked without a statement: the admin's
+    excursion inline builds its fields from the declarations, and four of the
+    seven types have no section in tree that asks for them yet.
+    """
+
+    def test_every_type_becomes_a_field_that_says_what_it_wants(self):
+        cases = {
+            "money": forms.DecimalField,
+            "int": forms.IntegerField,
+            "bool": forms.BooleanField,
+            "text": forms.CharField,
+            "choice": forms.CharField,
+            "member": forms.TypedChoiceField,
+            "member_set": forms.TypedMultipleChoiceField,
+        }
+        for input_type, expected in cases.items():
+            with self.subTest(type=input_type):
+                field = form_field(Input("k", "Frage", input_type, help="Hilfe"))
+                self.assertIsInstance(field, expected)
+                self.assertEqual(field.label, "Frage")
+                self.assertEqual(field.help_text, "Hilfe")
+
+    def test_a_bound_whole_number_carries_its_bound(self):
+        self.assertEqual(form_field(Input("n", "N", "int", max=9)).max_value, 9)
+
+    def test_a_person_may_be_left_unanswered(self):
+        field = form_field(Input("m", "M", "member", required=False))
+        self.assertIsNone(field.clean(""))

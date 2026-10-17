@@ -3577,7 +3577,7 @@ class StatementOnListFormTestCase(BasicMemberTestCase):
             }
         )
         self.assertFalse(form.is_valid())
-        self.assertIn("anerkannte", " ".join(form.errors["allowance_to"]))
+        self.assertIn("genehmigt", " ".join(form.errors["allowance_to"]))
 
     def test_the_inline_asks_the_declarations_for_its_fields(self):
         """Including for an excursion that has no statement yet.

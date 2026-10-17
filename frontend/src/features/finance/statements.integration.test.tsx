@@ -403,12 +403,12 @@ describe("submission flow — Anlass", () => {
     await user.click(screen.getByRole("button", { name: "Weiter" }));
 
     await waitFor(() => expect(body).not.toBeNull());
-    // Numbers and null, never the form's strings.
+    // What the statement is for, and nothing a section's rules might not ask
+    // about: `night_cost` used to be here because it used to be a column.
     expect(body).toEqual({
       short_description: "Skifreizeit",
       explanation: "",
       excursion_id: null,
-      night_cost: 0,
     });
     expect(await screen.findByRole("heading", { name: "Belege" })).toBeInTheDocument();
   });
@@ -779,7 +779,11 @@ describe("submission flow — Abschluss", () => {
     );
     const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=submit");
 
-    await user.click(await screen.findByRole("button", { name: "Einreichen" }));
+    // The button is disabled until the preflight has answered, which is the
+    // point of asking the rules rather than guessing in the client.
+    const button = await screen.findByRole("button", { name: "Einreichen" });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
     const dialog = within(await screen.findByRole("dialog"));
     expect(submitted).toBe(false);
 
@@ -799,7 +803,9 @@ describe("submission flow — Abschluss", () => {
       }),
     );
     const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=submit");
-    await user.click(await screen.findByRole("button", { name: "Einreichen" }));
+    const button = await screen.findByRole("button", { name: "Einreichen" });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
     );
@@ -815,7 +821,9 @@ describe("submission flow — Abschluss", () => {
       ),
     );
     const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=submit");
-    await user.click(await screen.findByRole("button", { name: "Einreichen" }));
+    const button = await screen.findByRole("button", { name: "Einreichen" });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Einreichen" }),
     );

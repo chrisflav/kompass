@@ -1,4 +1,4 @@
-import { Field, MultiSelect, Select, euro } from "../../components/ui";
+import { Field, MultiSelect, Select } from "../../components/ui";
 import type { components } from "../../api/schema";
 
 type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
@@ -107,21 +107,4 @@ function control(
       onChange={(e) => onChange(e.target.value)}
     />
   );
-}
-
-/** One answer as a line of prose, for a readout rather than a control. */
-export function formatAnswer(declaration: InputDeclarationOut, value: unknown): string {
-  const named = (id: unknown) =>
-    declaration.options.find((option) => option.id === Number(id))?.name ?? String(id);
-  if (declaration.type === "member_set") {
-    const picked = ids(value);
-    return picked.length ? picked.map(named).join(", ") : "—";
-  }
-  if (declaration.type === "member") {
-    return value === null || value === undefined ? "—" : named(value);
-  }
-  if (declaration.type === "bool") return value ? "Ja" : "Nein";
-  if (declaration.type === "money") return euro(Number(value) || 0);
-  if (value === null || value === undefined || value === "") return "—";
-  return String(value);
 }

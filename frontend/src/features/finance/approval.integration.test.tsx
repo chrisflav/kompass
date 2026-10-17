@@ -106,6 +106,25 @@ describe("statement approval — the record", () => {
     expect(screen.getByText("Alle Freigaben liegen vor.")).toBeInTheDocument();
   });
 
+  it("marks a signed step as signed", async () => {
+    approvalReturns({
+      approved: true,
+      constraints: [
+        constraint({
+          satisfied: true,
+          open: false,
+          missing: 0,
+          state_display: "Unterschrieben",
+          signed_by: [HANNAH],
+        }),
+      ],
+    });
+    renderRoute(APPROVAL);
+
+    expect(await screen.findByText("Unterschrieben")).toBeInTheDocument();
+    expect(screen.getByText("1 Unterschrift")).toBeInTheDocument();
+  });
+
   it("says a step does not apply rather than calling it unsigned", async () => {
     approvalReturns({
       constraints: [

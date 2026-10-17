@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-16 23:58+0200\n"
+"POT-Creation-Date: 2026-10-17 17:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -217,17 +217,6 @@ msgstr "Dieser Dateityp wird nicht unterstützt."
 msgid "Please keep filesize under %(mb)s MiB."
 msgstr "Bitte halte die Dateigröße unter %(mb)s MiB."
 
-msgid "Only youth leaders of this excursion may receive contributions."
-msgstr "Nur Jugendleiter*innen dieser Ausfahrt können Zuschüsse erhalten."
-
-#, python-format
-msgid ""
-"This excursion only has up to %(approved_count)s approved youth leaders, but "
-"you listed %(entered_count)s."
-msgstr ""
-"Für diese Ausfahrt sind nur bis zu %(approved_count)s Jugendleiter*innen "
-"genehmigt, du hast aber %(entered_count)s eingetragen."
-
 msgid "This excursion already has a statement."
 msgstr "Diese Ausfahrt hat bereits eine Abrechnung."
 
@@ -311,6 +300,17 @@ msgstr "Finanzen"
 msgid "These rules do not ask for %(key)s."
 msgstr "Diese Regeln fragen %(key)s nicht ab."
 
+msgid "Only youth leaders of this excursion may receive contributions."
+msgstr "Nur Jugendleiter*innen dieser Ausfahrt können Zuschüsse erhalten."
+
+#, python-format
+msgid ""
+"This excursion only has up to %(approved_count)s approved youth leaders, but "
+"you listed %(entered_count)s."
+msgstr ""
+"Für diese Ausfahrt sind nur bis zu %(approved_count)s Jugendleiter*innen "
+"genehmigt, du hast aber %(entered_count)s eingetragen."
+
 #, python-format
 msgid "%(label)s is not an amount of money."
 msgstr "%(label)s ist kein Geldbetrag."
@@ -354,55 +354,17 @@ msgstr "Erklärung"
 msgid "Associated excursion"
 msgstr "Zugehörige Ausfahrt"
 
-msgid "Pay allowance to"
-msgstr "Aufwandsentschädigung auszahlen an"
-
-msgid "The youth leaders to which an allowance should be paid."
-msgstr ""
-"Die Jugendleiter*innen an die eine Aufwandsentschädigung ausgezahlt werden "
-"soll."
-
-msgid "Pay subsidy to"
-msgstr "Übernachtungs- und Fahrtkostenzuschüsse auszahlen an"
-
-msgid ""
-"The person that should receive the subsidy for night and travel costs. "
-"Typically the person who paid for them."
-msgstr ""
-"Die Person, die die Übernachtungs- und Fahrtkostenzuschüsse erhalten soll. "
-"Dies ist in der Regel die Person, die sie bezahlt hat."
-
-msgid "Pay ljp contributions to"
-msgstr "LJP-Zuschüsse auszahlen an"
-
-msgid ""
-"The person that should receive the ljp contributions for the participants. "
-"Should be only selected if an ljp request was submitted."
-msgstr ""
-"Die Person, die die LJP-Zuschüsse für die Teilnehmenden erhalten soll. Nur "
-"auswählen, wenn ein LJP-Antrag abgegeben wird."
-
-msgid "Price per night"
-msgstr "Preis pro Übernachtung"
-
-msgid ""
-"Price for the overnight stay of a youth leader. This is required for the "
-"calculation of the subsidies for night costs."
-msgstr ""
-"Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die "
-"Berechnung von Zuschüssen aus dem Jugendetat."
-
 msgid "Answers"
 msgstr "Antworten"
 
 msgid ""
-"The answers to the questions the section's rules ask, by key. The four "
-"columns above are still the ones the rules read; this is written beside them "
-"until they are migrated into it."
+"The answers to the questions the section's rules ask, by key. Which "
+"questions those are is the ruleset's declaration, so this is the only place "
+"a statement keeps them."
 msgstr ""
 "Die Antworten auf die Fragen, die die Regeln der Sektion stellen, nach "
-"Schlüssel. Gelesen werden weiterhin die vier Spalten darüber; dies wird "
-"daneben geschrieben, bis sie hierher übertragen sind."
+"Schlüssel. Welche Fragen das sind, legt das Regelwerk fest; darum hält eine "
+"Abrechnung sie nur hier."
 
 msgid "Status"
 msgstr "Status"
