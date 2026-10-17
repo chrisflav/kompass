@@ -14,6 +14,7 @@ This part of the documentation describes the development and maintenance of the 
    architecture
    authentication
    mail_routing
+   finance_rules
    testing
    translations
    ci
@@ -34,6 +35,17 @@ Any form of contribution is appreciated!
 
    :ref:`Contributing <development_manual/contributing>`
 
+
+
+A section's finance rules
+-------------------------
+
+How a section writes its own finance rules, and the API they are written
+against.
+
+.. seealso::
+
+   :ref:`A section's finance rules <development_manual/finance_rules>`
 
 
 Documentation
