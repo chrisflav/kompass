@@ -1,5 +1,12 @@
 """Writing a statement's answers in a fixture.
 
+Here rather than in ``finance/tests/``: that package's ``__init__`` star-imports
+every module in it for discovery, so importing one helper out of it pulls in
+``finance.tests.api_forms``, which imports ``finance.api.tests`` — and
+``finance/api/tests.py`` needs these helpers too. The cycle was a real
+``ImportError`` on a clean run.
+
+
 ``night_cost``, ``allowance_to``, ``subsidy_to`` and ``ljp_to`` were columns,
 so a fixture wrote them the way it writes any field: ``statement.subsidy_to =
 fritz``, ``statement.allowance_to.add(m)``. They are keys in

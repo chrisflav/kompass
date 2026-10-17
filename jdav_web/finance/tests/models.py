@@ -22,9 +22,9 @@ from finance.models import StatementUnSubmitted
 from finance.models import StatementUnSubmittedManager
 from finance.models import Transaction
 from finance.models import TransactionIssue
-from finance.tests.answers import also
-from finance.tests.answers import answer
-from finance.tests.answers import without
+from finance.testing import also
+from finance.testing import answer
+from finance.testing import without
 from members.models import DIVERSE
 from members.models import FAHRGEMEINSCHAFT_ANREISE
 from members.models import Freizeit

@@ -13,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from finance.tests.answers import also
+from finance.testing import also
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE

@@ -32,7 +32,7 @@ from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
 from finance.rules_api import Input
-from finance.tests.answers import answer
+from finance.testing import answer
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MUSKELKRAFT_ANREISE

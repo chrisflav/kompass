@@ -240,7 +240,7 @@ class Statement(CommonModel):
         return [int(pk) for pk in value]
 
     def answer_members(self, key: str) -> list[Member]:
-        """The members answering ``key``. One a bulk lookup: ids are the record.
+        """The members answering ``key``, in one bulk lookup: ids are the record.
 
         A member who has since been deleted drops out rather than raising,
         which is what the ``SET_NULL`` on the old columns did.

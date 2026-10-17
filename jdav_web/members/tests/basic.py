@@ -32,8 +32,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from finance.models import Bill
 from finance.models import Statement
-from finance.tests.answers import also
-from finance.tests.answers import answer
+from finance.testing import also
+from finance.testing import answer
 from mailer.models import EmailAddress
 from mailer.models import Message
 from members.admin import AgeFilter
