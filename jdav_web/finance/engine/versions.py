@@ -197,8 +197,8 @@ def declared_valid_from(ruleset: Ruleset) -> datetime:
     March either way. Unset, and the answer is "from now", which is every
     ordinary import.
 
-    A past date used to be refused, on the grounds that honouring it would
-    rewrite settled statements. It does not, and that is the point: a
+    A past date used to be refused (#560), on the grounds that honouring it
+    would rewrite settled statements. It does not, and that is the point: a
     statement is bound to the closure it copied **when it was created**
     (:func:`~finance.engine.statements.bind`), so what it settles under is
     decided once and no later row can move it. What the refusal actually did
@@ -211,7 +211,7 @@ def declared_valid_from(ruleset: Ruleset) -> datetime:
     What a backdated version does **not** do is re-settle the statements that
     were created in the gap. They keep their own snapshot and their own rows,
     and re-settling them is a separate, deliberate act that this code does not
-    offer.
+    offer; #561 is the deliberate act, and it does not exist yet.
 
     The authority for the date is the ruleset package itself — the
     git-versioned configuration repository that §4.2's trust model puts on a
@@ -410,7 +410,7 @@ def activate(row: RuleSet, *, correction: bool = False) -> None:
     ``valid_from`` is immutable, so a rollback re-opens that old interval
     rather than starting a new one, and the version it rolls back from is
     closed at a date before its own start. That is a lossy way to say "these
-    rules apply again" and it is filed rather than changed here, because the
+    rules apply again" and it is #563 rather than changed here, because the
     honest alternative — a second row with the same sources and a new interval
     — collides with ``hash`` being the row's identity.
     """
