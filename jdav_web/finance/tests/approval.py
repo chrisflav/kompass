@@ -1600,6 +1600,34 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertFalse(statement.approve(self.anna))
         self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
 
+    def test_a_waiver_nobody_can_be_named_for_carries(self):
+        """The other end of the forbid re-check: there is nobody to re-ask about.
+
+        ``override_approval`` skips the forbid check when there is no member to
+        check — an administrator with no member record, whom the capability
+        layer let in — because a forbid matches member ids and matches nothing
+        here. So the carry has nothing to re-ask either, and the waiver stands
+        even though this resolution excludes somebody else entirely. The row
+        goes on saying that it was given and that nobody can be named for it,
+        which is what ``Approval.signer`` says about the same case one model
+        over.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.override_approval("Vorstand", None, "Vorstandsbeschluss"))
+
+        statement = self.cover_another_receipt(big, payer=self.bernd)
+
+        board = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertTrue(board.overridden, "a waiver with no author still carries")
+        self.assertIsNone(board.overridden_by)
+        self.assertEqual(board.override_reason, "Vorstandsbeschluss")
+        self.assertEqual(board.override_withdrawn, "", "there was nothing to withdraw")
+        # Bernd is excluded by the forbid now, which is what makes this the
+        # same shape as the test above with the author taken out of it.
+        self.assertIn(self.bernd.pk, [int(item["member"]) for item in board.excluded])
+        self.assertTrue(statement.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
     def test_a_superseded_constraint_row_is_never_written_again(self):
         """The other half of #555's measurement: the ``satisfied`` column.
 
