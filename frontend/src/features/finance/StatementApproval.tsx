@@ -147,45 +147,38 @@ function Approval({
             : "Diese Unterschriften verlangen die Regeln der Sektion, bevor ausgezahlt wird."}
         </p>
 
-        {approval.constraints.length === 0 ? (
+        {approval.constraints.length === 0 && (
           <p className="muted">
             Für diese Abrechnung verlangen die Regeln keine gesonderte Freigabe.
           </p>
-        ) : (
-          <ul className="preflight">
-            {approval.constraints.map((constraint) => (
-              <li
-                key={constraint.name}
-                className={`preflight-item ${constraint.open ? "bad" : "ok"}`}
-              >
-                <span className="preflight-mark" aria-hidden="true">
-                  {constraint.open ? "✕" : "✓"}
-                </span>
-                <div>
-                  <div className="summary-head">
-                    <span>{constraint.description || constraint.name}</span>
-                    <Badge tone={tone(constraint)}>{constraint.state_display}</Badge>
-                  </div>
-                  <ConstraintDetail constraint={constraint} />
-                  {mayOverride && constraint.open && (
-                    <div className="row-actions">
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          setErrors([]);
-                          setReason("");
-                          setOverriding(constraint);
-                        }}
-                      >
-                        Ohne Unterschrift freigeben
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
         )}
+        {/* One card per constraint: the state is said in words by the badge
+            rather than in two colours, because there are more states than
+            "done" and "not done" — it does not apply, nobody may sign, the
+            rules could not say who. */}
+        {approval.constraints.map((constraint) => (
+          <div key={constraint.name} className="summary-card">
+            <div className="summary-head">
+              <span>{constraint.description || constraint.name}</span>
+              <Badge tone={tone(constraint)}>{constraint.state_display}</Badge>
+            </div>
+            <ConstraintDetail constraint={constraint} />
+            {mayOverride && constraint.open && (
+              <div className="row-actions">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setErrors([]);
+                    setReason("");
+                    setOverriding(constraint);
+                  }}
+                >
+                  Ohne Unterschrift freigeben
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
 
         {approval.may_approve && (
           <div className="stage-actions">
