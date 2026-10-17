@@ -164,6 +164,37 @@ class QueryingDeclarations(Ruleset):
         return [], []
 
 
+class EveryWidgetCase(Ruleset):
+    """A ruleset whose inputs are *not* the four the reference one declares.
+
+    It reads each one through the accessor that raises on the wrong type, so a
+    case whose answers were not typed by these declarations fails loudly rather
+    than quietly computing with a string.
+    """
+
+    name = "every-widget-case"
+
+    def __init__(self) -> None:
+        self.seen: tuple[object, ...] = ()
+
+    def inputs(self, ctx):
+        return [
+            Input("fee", "Gebühr", "money", required=False),
+            Input("helper", "Helfer*in", "member", required=False),
+            Input("helpers", "Helfende", "member_set", required=False),
+            Input("nights", "Nächte", "int", required=False),
+        ]
+
+    def transfers(self, ctx):
+        self.seen = (
+            ctx.inputs.money("fee"),
+            ctx.inputs.member("helper"),
+            ctx.inputs.members("helpers"),
+            ctx.inputs.number("nights"),
+        )
+        return [], []
+
+
 class EveryWidgetRules(Ruleset):
     """One declaration of each type in the widget vocabulary.
 
@@ -1324,6 +1355,47 @@ class CasesTestCase(SimpleTestCase):
         self.assertTrue(failures[1].startswith("errors"))
         self.assertTrue(failures[2].startswith("checks"))
         self.assertEqual(set(run_cases(reference, REFERENCE / "cases")), set())
+
+    def test_a_case_may_answer_any_input_its_ruleset_declares(self):
+        """Not only the four the reference ruleset happens to.
+
+        A case file is JSON, so every answer in it is JSON; they used to be
+        coerced by *name* — those four keys, everything else passed through —
+        so a case answering any other ``money`` input handed the rules a
+        ``str``. Neuter :func:`answered` by evaluating ``case.context``
+        directly and this goes red with ``input 'fee' is not a money value,
+        but str``, which is what it did before the fix.
+
+        It is worth a test of its own because cases gate activation: until a
+        case could express a custom input, the one mechanism that would catch a
+        custom input being mishandled was the one that could not.
+        """
+        case = parse_case(
+            {
+                "inputs": {"fee": "2.50", "helper": 7, "helpers": [7, 8], "nights": 3},
+                "expect": {"transfers": [["PARTICIPANTS", "SECTION", "0.00", "balance"]]},
+            },
+            name="custom",
+        )
+        rules = EveryWidgetCase()
+        self.assertEqual(run_case(rules, case), [])
+        # And they arrived as the types the declarations promised, not as the
+        # JSON the file wrote.
+        self.assertEqual(
+            rules.seen,
+            (
+                Decimal("2.50"),
+                Member(MemberId(7)),
+                (Member(MemberId(7)), Member(MemberId(8))),
+                3,
+            ),
+        )
+
+    def test_a_case_that_answers_nothing_reads_as_the_empty_values(self):
+        case = parse_case({"expect": {"transfers": []}}, name="blank")
+        seen = EveryWidgetCase()
+        run_case(seen, case)
+        self.assertEqual(seen.seen, (Decimal("0"), None, (), 0))
 
 
 # --- the reference ruleset's own edges -------------------------------------

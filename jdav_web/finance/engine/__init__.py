@@ -24,17 +24,17 @@ that no test would have missed; that module is the recipe for not writing the
 next one, and the two helpers that make it cheap.
 """
 
+from .answers import coerce_input
+from .answers import typed_inputs
 from .approval import ConstraintState
 from .approval import fully_approved
 from .approval import may_sign
 from .approval import resolve_eligibility
 from .approval import states as approval_states
 from .context import build_context
-from .context import coerce_input
 from .context import parameters
 from .context import permission_holders
 from .context import statement_inputs
-from .context import typed_inputs
 from .errors import EngineError
 from .errors import QueryDuringEvaluation
 from .errors import RulesetInvalid
