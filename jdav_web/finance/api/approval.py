@@ -45,6 +45,10 @@ def state_display(state: ConstraintState) -> str:
     as_row`) — a fine thing to render *as the record*, which is what the state
     of a settled statement already is, since it is read from that very row.
     """
+    # `gettext`, not `gettext_lazy`: the payload is serialised in the request
+    # that built it, and so is the admin page it also feeds. Annotated because
+    # Django is `Any` to this repository's mypy configuration.
+    text: str
     if not state.applicable:
         text = _("Does not apply")
     elif state.overridden:
@@ -61,9 +65,7 @@ def state_display(state: ConstraintState) -> str:
         text = _("Nobody may sign")
     else:
         text = _("Open")
-    # Rendered here rather than left lazy: the payload is JSON, and the admin
-    # page it also feeds is rendered in the same request as this one.
-    return str(text)
+    return text
 
 
 def approval_payload(statement: Any, member: Any = None) -> dict[str, Any]:

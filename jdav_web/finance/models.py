@@ -666,17 +666,34 @@ class Statement(CommonModel):
         still *one* person rather than an anonymous tally that can reach any
         quorum by clicking twice.
 
-        Each constraint's ``satisfied`` column is written **once**, by the
-        signature that satisfied it, and never written again. It is a record
-        and not a cache of the gate: re-syncing every row to today's answer on
-        every signature made the column say, of a step that was signed, that
-        it was not — a signer who has since lost the capability stops
-        advancing the step at the *gate*, which is what the gate is for, and
-        the next signature on any other step then wrote that verdict over the
-        record of hers. The ``Approval`` row she left is the trail that
-        matters and it stood all along, so nothing was ever paid out wrongly;
-        what §6's appeal to the GoBD's *Unveränderbarkeit* cannot live with is
-        the record being edited at all.
+        Each constraint's ``satisfied`` column is written here **once** — by
+        the first of these calls that finds the step satisfied — and no later
+        signature writes it again. It is a record and not a cache of the gate:
+        re-syncing every row to today's answer on every signature made the
+        column say, of a step that was signed, that it was not — a signer who
+        has since lost the capability stops advancing the step at the *gate*,
+        which is what the gate is for, and the next signature on any other
+        step then wrote that verdict over the record of hers. The ``Approval``
+        row she left is the trail that matters and it stood all along, so
+        nothing was ever paid out wrongly; what §6's appeal to the GoBD's
+        *Unveränderbarkeit* cannot live with is the record being edited at all.
+
+        "The first call that finds it satisfied" rather than "the signature
+        that satisfied it", because those differ in exactly the case above: a
+        step the gate has stopped counting is not recorded by the signature
+        that reached its quorum.
+
+        And **once here** is the honest scope. The rows themselves are
+        rewritten elsewhere: :func:`finance.engine.statements.
+        _materialise_constraints` deletes and recreates them whenever a
+        submitted statement is re-frozen, which is the one edit left open
+        after submission — the finance officer covering a bill, reaching it
+        through ``Bill.save`` → ``_refresh_statement`` → ``freeze``. That
+        resets the columns and, worse, drops a recorded override: who went
+        ahead anyway, and why. It is a separate defect, filed separately, and
+        the contrast is ``_retire_rows`` beside it, which *supersedes* frozen
+        obligations rather than deleting them, for the reason this paragraph
+        has already given.
         """
         if not self.submitted or self.confirmed:
             return False

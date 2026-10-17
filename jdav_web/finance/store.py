@@ -578,9 +578,9 @@ class ApprovalConstraint(models.Model):
 
         ``satisfied`` is on it because this row **is** the record: it holds
         the answer that was reached when the statement was signed — written
-        once, by the signature that reached it
-        (:meth:`finance.models.Statement.approve`), and not revised
-        afterwards. Left off,
+        by the first :meth:`finance.models.Statement.approve` that finds the
+        step satisfied, and never revised by a later signature (that method's
+        docstring has the exact scope of "once"). Left off,
         it was recomputed as ``signed ∩ eligible`` against the *frozen*
         eligible set — and a treasurer appointed after submission is by
         construction not in that set, so an ordinary mid-flight signature

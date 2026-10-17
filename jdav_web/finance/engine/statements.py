@@ -398,11 +398,12 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
 
     A ruleset that **fails** here — a forbid whose predicate raises, a rule
     that tries to query, a ``permissions`` declaration that does — yields
-    constraints that carry the reason and name nobody. That is deliberate: the alternatives are to persist nothing, which
-    would leave a statement with no constraints at all and therefore payable
-    without a signature, or to resolve it permissively, which is the bug this
-    whole module is written against. A broken rule makes a payout *stuck*, and
-    stuck is the safe direction.
+    constraints that carry the reason and name nobody. That is deliberate: the
+    alternatives are to persist nothing, which would leave a statement with no
+    constraints at all and therefore payable without a signature, or to
+    resolve it permissively, which is the bug this whole module is written
+    against. A broken rule makes a payout *stuck*, and stuck is the safe
+    direction.
 
     The failure is recorded **per constraint**, and that matters: collapsing
     the whole list into one unresolved row turned a board's two signatures into
