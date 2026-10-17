@@ -854,10 +854,18 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
     setAnswers(next);
     setErrors({});
     if (timer.current) clearTimeout(timer.current);
+    // Only the questions this form still asks. A ruleset may retire one once an
+    // earlier answer makes it moot, and the API refuses a key the rules do not
+    // ask for — so sending back everything that was ever answered would turn
+    // `relevant_inputs` into a 422.
+    const asked = new Set(form.inputs.map((declared) => declared.key));
+    const body = Object.fromEntries(
+      Object.entries(next).filter(([key]) => asked.has(key)),
+    );
     if (TYPED_INTO.has(declaration.type)) {
-      timer.current = setTimeout(() => saveM.mutate(next), TYPING_PAUSE);
+      timer.current = setTimeout(() => saveM.mutate(body), TYPING_PAUSE);
     } else {
-      saveM.mutate(next);
+      saveM.mutate(body);
     }
   }
 

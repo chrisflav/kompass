@@ -731,6 +731,31 @@ describe("submission flow — Erstattung", () => {
     expect(message).toHaveClass("field-error");
   });
 
+  it("sends back only the questions the form still asks", async () => {
+    // A ruleset may retire a question once an earlier answer makes it moot, and
+    // the API refuses a key the rules do not ask for. Neuter it — send the
+    // whole local draft — and this goes red with a 422 on `retired`.
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      answers: { night_cost: "11.00", allowance_to: [], subsidy_to: null, retired: "alt" },
+    });
+
+    await screen.findByText("Fahrt- und Übernachtungszuschuss an");
+    await user.click(screen.getByRole("button", { name: /niemand/ }));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({
+      inputs: { night_cost: "11.00", allowance_to: [], subsidy_to: 9 },
+    });
+  });
+
   it("says so when the rules ask for nothing", async () => {
     openForm({ inputs: [], answers: {} });
     expect(
