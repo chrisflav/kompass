@@ -406,6 +406,19 @@ function StatementActions({ statement }: { statement: StatementOut }) {
           Prüfen & auszahlen
         </Button>
       )}
+      {/* Not gated on a permission, unlike the two above: what a handed-in
+          statement is still waiting for is what the person who handed it in
+          most wants to know, and the page's two actions are gated themselves.
+          Reading it at all is already behind `view_obj_statement`. */}
+      {submitted && (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => navigate(`/kompass/finance/statements/${statement.id}/approval`)}
+        >
+          Freigabe
+        </Button>
+      )}
       {workflowButtons.length >= 2 ? (
         <Menu label="Aktionen">{workflowButtons}</Menu>
       ) : (
