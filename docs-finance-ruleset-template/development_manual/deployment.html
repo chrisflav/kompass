@@ -443,8 +443,9 @@ from the <code class="docutils literal notranslate"><span class="pre">settings.t
 </span><span id="line-2"><span class="n">ruleset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"rules"</span><span class="w">   </span><span class="c1"># a package directory under KOMPASS_CONFIG_DIR_PATH</span>
 </span></code></pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">importruleset</span></code> runs at every container start, so a rule change needs neither a
-Kompass release nor a restart. A package that fails its checks or its cases is stored as a draft,
+<p><code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">importruleset</span></code> runs when the <code class="docutils literal notranslate"><span class="pre">master</span></code> container starts — the only one of the five
+containers whose entrypoint imports — so a rule change needs neither a Kompass release nor a
+rebuild. A package that fails its checks or its cases is stored as a draft,
 the previous version stays active, the command says so loudly and the container keeps serving.</p>
 <p><code class="docutils literal notranslate"><span class="pre">deploy/config-template/</span></code> in this repository is the directory to copy, and
 <a class="reference internal" href="finance_rules.html#development-manual-finance-rules"><span class="std std-ref">A section’s finance rules</span></a> is the reference for writing the rules themselves.</p>

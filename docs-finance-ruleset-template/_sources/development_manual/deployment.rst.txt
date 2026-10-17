@@ -373,8 +373,9 @@ or texts used in automatically generated emails. Here we will explain how to con
      [finance]
      ruleset = "rules"   # a package directory under KOMPASS_CONFIG_DIR_PATH
 
-  ``manage.py importruleset`` runs at every container start, so a rule change needs neither a
-  Kompass release nor a restart. A package that fails its checks or its cases is stored as a draft,
+  ``manage.py importruleset`` runs when the ``master`` container starts — the only one of the five
+  containers whose entrypoint imports — so a rule change needs neither a Kompass release nor a
+  rebuild. A package that fails its checks or its cases is stored as a draft,
   the previous version stays active, the command says so loudly and the container keeps serving.
 
   ``deploy/config-template/`` in this repository is the directory to copy, and

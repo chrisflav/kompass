@@ -178,6 +178,16 @@ these declarations, so a question is asked because a rule reads its answer.</p>
 </dl>
 <p>Each one is given a <a class="reference internal" href="#kompass.rules.RuleContext" title="kompass.rules.RuleContext"><code class="xref py py-class docutils literal notranslate"><span class="pre">RuleContext</span></code></a> — every fact about the
 statement a rule is allowed to know, as frozen values.</p>
+<p>There is a fifth method, and it matters to anyone whose questions depend on
+the answers already given: the live form asks
+<a class="reference internal" href="#kompass.rules.Ruleset.relevant_inputs" title="kompass.rules.Ruleset.relevant_inputs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">relevant_inputs()</span></code></a>, not
+<a class="reference internal" href="#kompass.rules.Ruleset.inputs" title="kompass.rules.Ruleset.inputs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">inputs()</span></code></a>. Its default implementation re-runs
+<code class="docutils literal notranslate"><span class="pre">inputs</span></code> against the answers so far, which is why a ruleset that branches
+inside <code class="docutils literal notranslate"><span class="pre">inputs</span></code> already works — but a ruleset that overrides
+<code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> is overriding the method the form actually calls, while
+the case runner, the fuzzer and the stored declarations go through <code class="docutils literal notranslate"><span class="pre">inputs</span></code>.
+Keep the two consistent, or the question a person is asked and the answer a
+rule reads come apart.</p>
 </section>
 <section id="how-a-ruleset-reaches-a-running-instance">
 <h2>How a ruleset reaches a running instance<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-a-ruleset-reaches-a-running-instance" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-a-ruleset-reaches-a-running-instance'">¶</a></h2>
@@ -189,8 +199,10 @@ from the settings:</p>
 </span><span id="line-2"><span class="n">ruleset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"rules"</span><span class="w">   </span><span class="c1"># a package directory under KOMPASS_CONFIG_DIR_PATH</span>
 </span></code></pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">importruleset</span></code> runs at every container start, on demand from the
-admin, and — with <code class="docutils literal notranslate"><span class="pre">[finance]</span> <span class="pre">ruleset_poll_minutes</span></code> — from a periodic task. It
+<p><code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">importruleset</span></code> runs when the <code class="docutils literal notranslate"><span class="pre">master</span></code> container starts — one of
+the five the image runs, and the only one whose entrypoint imports; the SPA,
+the Celery worker, the beat and the LMTP containers do not — on demand from
+the admin, and, with <code class="docutils literal notranslate"><span class="pre">[finance]</span> <span class="pre">ruleset_poll_minutes</span></code>, from a periodic task. It
 reads every <code class="docutils literal notranslate"><span class="pre">*.py</span></code> under the package, hashes the sources together with the
 section’s finance parameters, and stores that as a <strong>version</strong>. An unchanged
 package hashes to the version that is already stored, so importing twice costs
@@ -389,8 +401,8 @@ acceptable value. Unanswered: <code class="docutils literal notranslate"><span c
 <td><p>Free text. Unanswered: <code class="docutils literal notranslate"><span class="pre">""</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">choice</span></code></p></td>
-<td><p><a class="reference internal" href="#kompass.rules.Inputs.text" title="kompass.rules.Inputs.text"><code class="xref py py-meth docutils literal notranslate"><span class="pre">text()</span></code></a></p></td>
-<td><p>One of a set of named options. Unanswered: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></td>
+<td><p><a class="reference internal" href="#kompass.rules.Inputs.raw" title="kompass.rules.Inputs.raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">raw()</span></code></a></p></td>
+<td><p><strong>In the vocabulary, not yet usable</strong> — see the warning below.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">member</span></code></p></td>
 <td><p><a class="reference internal" href="#kompass.rules.Inputs.member" title="kompass.rules.Inputs.member"><code class="xref py py-meth docutils literal notranslate"><span class="pre">member()</span></code></a></p></td>
@@ -409,6 +421,29 @@ against the options the declaration offered, so an answer can never name
 somebody the rule did not offer. A rule cannot widen the set by returning a
 wider one from somewhere else either: the leaders in
 <a class="reference internal" href="#kompass.rules.Excursion.leaders" title="kompass.rules.Excursion.leaders"><code class="xref py py-attr docutils literal notranslate"><span class="pre">leaders</span></code></a> are re-checked too.</p>
+<p>Which <em>keys</em> may be declared is a separate and much tighter restriction than
+which types exist — see
+<a class="reference internal" href="#development-manual-finance-rules-four-keys"><span class="std std-ref">Only four input keys can be answered today</span></a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warnung</p>
+<p><strong>Do not use</strong> <code class="docutils literal notranslate"><span class="pre">choice</span></code> <strong>yet</strong> (<strong>#573</strong>). It is in the vocabulary and
+the form renders it, but there is no way to say what may be chosen:
+<a class="reference internal" href="#kompass.rules.Input.options" title="kompass.rules.Input.options"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options</span></code></a> is <code class="docutils literal notranslate"><span class="pre">tuple[Member,</span> <span class="pre">...]</span></code> and
+<code class="docutils literal notranslate"><span class="pre">finance/inputs.py::options_for</span></code> resolves it through
+<code class="docutils literal notranslate"><span class="pre">Member.objects.in_bulk</span></code>, so a <code class="docutils literal notranslate"><span class="pre">choice</span></code> arrives with an empty option
+list and <code class="docutils literal notranslate"><span class="pre">clean_value</span></code> falls through to „anything else is text“ — it
+accepts any string at all.</p>
+<p>Worse, the unanswered value is <code class="docutils literal notranslate"><span class="pre">None</span></code> while
+<a class="reference internal" href="#kompass.rules.Inputs.text" title="kompass.rules.Inputs.text"><code class="xref py py-meth docutils literal notranslate"><span class="pre">text()</span></code></a> type-checks against <code class="docutils literal notranslate"><span class="pre">str</span></code>, so reading
+an unanswered <code class="docutils literal notranslate"><span class="pre">choice</span></code> with the accessor its type suggests raises
+<a class="reference internal" href="#kompass.rules.RuleError" title="kompass.rules.RuleError"><code class="xref py py-class docutils literal notranslate"><span class="pre">RuleError</span></code></a> — and because that happens inside
+<a class="reference internal" href="#kompass.rules.Ruleset.transfers" title="kompass.rules.Ruleset.transfers"><code class="xref py py-meth docutils literal notranslate"><span class="pre">transfers()</span></code></a>, it collapses the whole evaluation
+into one error rather than reporting a missing answer.</p>
+<p>Until #573, a fixed set of alternatives is a <code class="docutils literal notranslate"><span class="pre">bool</span></code> per alternative, or a
+<code class="docutils literal notranslate"><span class="pre">text</span></code> input whose value a check validates. If you must use <code class="docutils literal notranslate"><span class="pre">choice</span></code>,
+read it with <a class="reference internal" href="#kompass.rules.Inputs.raw" title="kompass.rules.Inputs.raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">raw()</span></code></a> and test for <code class="docutils literal notranslate"><span class="pre">None</span></code>
+before anything else — and know that nothing validates what came in.</p>
+</div>
 </section>
 </section>
 <section id="the-section-s-numbers">
@@ -480,29 +515,55 @@ rules read <a class="reference internal" href="#kompass.rules.RuleContext.permis
 </ul>
 <p>The format is implemented in <code class="docutils literal notranslate"><span class="pre">jdav_web/finance/engine/cases.py</span></code>, which is
 also where a new key would be added.</p>
-<div class="admonition note">
-<p class="admonition-title">Bemerkung</p>
-<p>One sharp edge today: a case file’s answers are coerced into the types the
-accessors expect only for the reference ruleset’s four keys
-(<code class="docutils literal notranslate"><span class="pre">night_cost</span></code>, <code class="docutils literal notranslate"><span class="pre">allowance_to</span></code>, <code class="docutils literal notranslate"><span class="pre">subsidy_to</span></code>, <code class="docutils literal notranslate"><span class="pre">ljp_to</span></code>). An answer
-under any other key arrives as JSON wrote it, so a <code class="docutils literal notranslate"><span class="pre">money</span></code> answer reaches
-the rules as a string and <a class="reference internal" href="#kompass.rules.Inputs.money" title="kompass.rules.Inputs.money"><code class="xref py py-meth docutils literal notranslate"><span class="pre">money()</span></code></a> refuses it
-with a <a class="reference internal" href="#kompass.rules.RuleError" title="kompass.rules.RuleError"><code class="xref py py-class docutils literal notranslate"><span class="pre">RuleError</span></code></a>.</p>
-<p>Until the case runner coerces by declaration, a case that has to answer a
-custom <code class="docutils literal notranslate"><span class="pre">money</span></code>, <code class="docutils literal notranslate"><span class="pre">member</span></code> or <code class="docutils literal notranslate"><span class="pre">member_set</span></code> question either uses one of
-those four key names or reads the answer with
-<a class="reference internal" href="#kompass.rules.Inputs.raw" title="kompass.rules.Inputs.raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">raw()</span></code></a>. <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">bool</span></code> and <code class="docutils literal notranslate"><span class="pre">text</span></code> answers
-round-trip through JSON unharmed.</p>
+<section id="only-four-input-keys-can-be-answered-today">
+<span id="development-manual-finance-rules-four-keys"></span><h3>Only four input keys can be answered today<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#only-four-input-keys-can-be-answered-today" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#only-four-input-keys-can-be-answered-today'">¶</a></h3>
+<div class="admonition danger">
+<p class="admonition-title">Gefahr</p>
+<p>This is the one restriction on this page that can cost money, and it is a
+restriction of the <strong>running instance</strong>, not of the case runner.</p>
+<p>A statement does not yet store its answers in one field. It has four
+columns, the ones the reference ruleset happens to need, and
+<code class="docutils literal notranslate"><span class="pre">finance/engine/context.py::statement_inputs</span></code> returns exactly those:
+<code class="docutils literal notranslate"><span class="pre">night_cost</span></code>, <code class="docutils literal notranslate"><span class="pre">allowance_to</span></code>, <code class="docutils literal notranslate"><span class="pre">subsidy_to</span></code> and <code class="docutils literal notranslate"><span class="pre">ljp_to</span></code>. A
+declaration under any other key has nowhere to be stored, so
+<code class="docutils literal notranslate"><span class="pre">finance/engine/evaluation.py::_answered</span></code> substitutes that type’s empty
+value — <code class="docutils literal notranslate"><span class="pre">0.00</span></code>, <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">False</span></code>, <code class="docutils literal notranslate"><span class="pre">""</span></code>, <code class="docutils literal notranslate"><span class="pre">None</span></code> or <code class="docutils literal notranslate"><span class="pre">()</span></code> — on every
+evaluation. The person is asked the question, the answer goes nowhere, and
+the rule reads a zero. Nothing raises and nothing warns.</p>
+<p><a class="reference internal" href="#kompass.rules.Inputs.raw" title="kompass.rules.Inputs.raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">raw()</span></code></a> does not get round it: the key is present
+in the mapping, holding the empty value. There is nothing else to read.</p>
+<p><strong>A case will not catch it</strong>, which is what makes it dangerous.
+<code class="docutils literal notranslate"><span class="pre">cases.py::_inputs</span></code> coerces those same four keys and passes any other key
+through as JSON wrote it, so a case that answers a custom key proves
+something the instance will never do: the case goes green and production
+pays zero.</p>
+<p>Until the answers move into one JSON field (step 3 of the refactor,
+<strong>#556</strong>, in flight), a rule may only read those four keys — and a section
+whose policy needs another number puts it in the ruleset as a module
+constant, where it is versioned with the rules, rather than declaring an
+input for it.</p>
+<p>One consequence of the four keys being the reference ruleset’s: their
+<em>types</em> are fixed too — <code class="docutils literal notranslate"><span class="pre">night_cost</span></code> is <code class="docutils literal notranslate"><span class="pre">money</span></code>, <code class="docutils literal notranslate"><span class="pre">allowance_to</span></code> is
+<code class="docutils literal notranslate"><span class="pre">member_set</span></code>, <code class="docutils literal notranslate"><span class="pre">subsidy_to</span></code> and <code class="docutils literal notranslate"><span class="pre">ljp_to</span></code> are <code class="docutils literal notranslate"><span class="pre">member</span></code>. A declaration
+that reuses a key with a different type gets the column’s value, not the
+declared type’s.</p>
 </div>
+</section>
 </section>
 <section id="checking-a-ruleset">
 <h2>Checking a ruleset<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#checking-a-ruleset" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#checking-a-ruleset'">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">checkruleset</span></code> runs the import check, loads the package, and runs its cases.
 It touches no data, so it runs anywhere the image runs:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="go">docker run --rm -v "$PWD":/app/config:ro ghcr.io/chrisflav/kompass:&lt;tag&gt; \</span>
-</span><span id="line-2"><span class="go">    python jdav_web/manage.py checkruleset /app/config/rules --fuzz 200</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="go">docker run --rm -v "$PWD":/app/config:ro \</span>
+</span><span id="line-2"><span class="go">    -e KOMPASS_CONFIG_DIR_PATH=/app/config \</span>
+</span><span id="line-3"><span class="go">    ghcr.io/chrisflav/kompass:&lt;tag&gt; \</span>
+</span><span id="line-4"><span class="go">    python jdav_web/manage.py checkruleset /app/config/rules --fuzz 200</span>
 </span></code></pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">KOMPASS_CONFIG_DIR_PATH</span></code> makes the fuzz use the numbers from the
+<code class="docutils literal notranslate"><span class="pre">settings.toml</span></code> beside the rules; the cases carry their own <code class="docutils literal notranslate"><span class="pre">params</span></code>. The
+command keeps the image’s own working directory, <code class="docutils literal notranslate"><span class="pre">/app</span></code>, which is where it
+has to run — see the warning below.</p>
 <p><code class="docutils literal notranslate"><span class="pre">--fuzz</span> <span class="pre">N</span></code> additionally builds <code class="docutils literal notranslate"><span class="pre">N</span></code> random but valid statements, asks the
 ruleset what to ask the person, answers those questions at random <em>within the
 domains the ruleset itself declared</em>, and checks the two things that must hold
@@ -511,11 +572,27 @@ balance. It is not a proof and it is not a substitute for a case with an
 expected figure — it is the cheapest way to find the rule that divides by a
 participant count nobody checked for zero.</p>
 <p>A section’s CI runs three commands, all three inside the image the instance
-runs, so that the API module and the interpreter match production:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="go">mypy --strict rules/</span>
-</span><span id="line-2"><span class="go">ruff check rules/</span>
-</span><span id="line-3"><span class="go">python /app/jdav_web/manage.py checkruleset /app/config/rules --fuzz 200</span>
+runs, so that the API module and the interpreter match production. They do
+<strong>not</strong> share a working directory:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="go">cd /app/config &amp;&amp; mypy --strict rules      # reads ./pyproject.toml</span>
+</span><span id="line-2"><span class="go">cd /app/config &amp;&amp; ruff check rules          # reads ./pyproject.toml</span>
+</span><span id="line-3"><span class="go">cd /app &amp;&amp; python jdav_web/manage.py checkruleset /app/config/rules --fuzz 200</span>
 </span></code></pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warnung</p>
+<p>The third command must not run from <code class="docutils literal notranslate"><span class="pre">/app/config</span></code>. Kompass pulls in
+Celery, whose Django fixup inserts the working directory at the front of
+<code class="docutils literal notranslate"><span class="pre">sys.path</span></code> on purpose, and a configuration directory contains a
+<code class="docutils literal notranslate"><span class="pre">rules/</span></code> package — which is also the top-level name of <code class="docutils literal notranslate"><span class="pre">django-rules</span></code>,
+a dependency and an installed app. From <code class="docutils literal notranslate"><span class="pre">/app/config</span></code> the section’s own
+ruleset shadows it and <code class="docutils literal notranslate"><span class="pre">django.setup()</span></code> dies with <code class="docutils literal notranslate"><span class="pre">No</span> <span class="pre">module</span> <span class="pre">named</span>
+<span class="pre">'rules.contrib'</span></code> before a single rule is read.</p>
+<p>So <code class="docutils literal notranslate"><span class="pre">checkruleset</span></code> runs from <code class="docutils literal notranslate"><span class="pre">/app</span></code>, exactly as the container
+entrypoint does, and is given the package by absolute path. <code class="docutils literal notranslate"><span class="pre">mypy</span></code> and
+<code class="docutils literal notranslate"><span class="pre">ruff</span></code> do need <code class="docutils literal notranslate"><span class="pre">/app/config</span></code> as their working directory, because that
+is where their <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> is; neither imports Django, so neither
+is affected.</p>
 </div>
 <p>The exact invocation — the mount, the environment and where <code class="docutils literal notranslate"><span class="pre">mypy</span></code> and
 <code class="docutils literal notranslate"><span class="pre">ruff</span></code> come from, since the image carries the application’s dependencies and
@@ -983,6 +1060,18 @@ Roles are resolved for <a class="reference internal" href="#kompass.rules.Rulese
 for; a rule that routes <em>money</em> by a role has to say so, and until the
 engine offers that it says so by failing loudly.</p>
 <dl class="py method">
+<dt class="sig sig-object py" id="kompass.rules.Roles.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">role</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Roles.get" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Roles.get'">¶</a></dt>
+<dd><p>The holders of <code class="docutils literal notranslate"><span class="pre">role</span></code>, or <code class="docutils literal notranslate"><span class="pre">default</span></code> when nobody holds it.</p>
+<p>Documented here rather than inherited: the signature comes from
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code>, but the behaviour does not. The
+default is <code class="docutils literal notranslate"><span class="pre">()</span></code> rather than <code class="docutils literal notranslate"><span class="pre">None</span></code>, and on a context that did not
+resolve the role assignments this <strong>raises</strong>
+<a class="reference internal" href="#kompass.rules.RuleError" title="kompass.rules.RuleError"><code class="xref py py-class docutils literal notranslate"><span class="pre">RuleError</span></code></a> instead of returning the default — which is the whole
+point of the unresolved state, and the opposite of what
+<code class="docutils literal notranslate"><span class="pre">Mapping.get</span></code>’s own docstring says.</p>
+</dd></dl>
+<dl class="py method">
 <dt class="sig sig-object py" id="kompass.rules.Roles.unresolved">
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">unresolved</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><a class="reference internal" href="#kompass.rules.Roles" title="finance.rules_api.Roles"><span class="pre">Roles</span></a></span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Roles.unresolved" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Roles.unresolved'">¶</a></dt>
 <dd><p>The roles of a context that did not ask for them.</p>
@@ -992,10 +1081,6 @@ engine offers that it says so by failing loudly.</p>
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">resolved</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Roles.resolved" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Roles.resolved'">¶</a></dt>
 <dd><p>Whether the role assignments were read at all.</p>
 </dd></dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="kompass.rules.Roles.get">
-<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">d</span></span></em><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><span class="pre">D[k]</span> <span class="pre">if</span> <span class="pre">k</span> <span class="pre">in</span> <span class="pre">D,</span> <span class="pre">else</span> <span class="pre">d.</span>  <span class="pre">d</span> <span class="pre">defaults</span> <span class="pre">to</span> <span class="pre">None.</span></span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Roles.get" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Roles.get'">¶</a></dt>
-<dd></dd></dl>
 </dd></dl>
 </section>
 <section id="parties">
@@ -1322,7 +1407,10 @@ somebody and there is more than one candidate: <code class="docutils literal not
 </ul>
 </li>
 <li><a :data-current="activeSection === '#the-section-s-numbers'" class="reference internal" href="#the-section-s-numbers">The section’s numbers</a></li>
-<li><a :data-current="activeSection === '#cases-a-ruleset-s-own-tests'" class="reference internal" href="#cases-a-ruleset-s-own-tests">Cases: a ruleset’s own tests</a></li>
+<li><a :data-current="activeSection === '#cases-a-ruleset-s-own-tests'" class="reference internal" href="#cases-a-ruleset-s-own-tests">Cases: a ruleset’s own tests</a><ul>
+<li><a :data-current="activeSection === '#only-four-input-keys-can-be-answered-today'" class="reference internal" href="#only-four-input-keys-can-be-answered-today">Only four input keys can be answered today</a></li>
+</ul>
+</li>
 <li><a :data-current="activeSection === '#checking-a-ruleset'" class="reference internal" href="#checking-a-ruleset">Checking a ruleset</a></li>
 <li><a :data-current="activeSection === '#api-reference'" class="reference internal" href="#api-reference">API reference</a><ul>
 <li><a :data-current="activeSection === '#the-ruleset'" class="reference internal" href="#the-ruleset">The ruleset</a><ul>
@@ -1415,9 +1503,9 @@ somebody and there is more than one candidate: <code class="docutils literal not
 </ul>
 </li>
 <li><a :data-current="activeSection === '#kompass.rules.Roles'" class="reference internal" href="#kompass.rules.Roles"><code class="docutils literal notranslate"><span class="pre">Roles</span></code></a><ul>
+<li><a :data-current="activeSection === '#kompass.rules.Roles.get'" class="reference internal" href="#kompass.rules.Roles.get"><code class="docutils literal notranslate"><span class="pre">Roles.get()</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Roles.unresolved'" class="reference internal" href="#kompass.rules.Roles.unresolved"><code class="docutils literal notranslate"><span class="pre">Roles.unresolved()</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Roles.resolved'" class="reference internal" href="#kompass.rules.Roles.resolved"><code class="docutils literal notranslate"><span class="pre">Roles.resolved</span></code></a></li>
-<li><a :data-current="activeSection === '#kompass.rules.Roles.get'" class="reference internal" href="#kompass.rules.Roles.get"><code class="docutils literal notranslate"><span class="pre">Roles.get()</span></code></a></li>
 </ul>
 </li>
 </ul>
