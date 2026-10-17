@@ -416,8 +416,11 @@ def activate(row: RuleSet, *, correction: bool = False) -> None:
     """
     moment = row.valid_from
     others = RuleSet.objects.exclude(pk=row.pk).exclude(state=RuleSet.DRAFT)
-    covering = others.filter(valid_from__lte=moment).filter(
-        Q(valid_to__isnull=True) | Q(valid_to__gt=moment)
+    # `list`, because the loop writes to the rows the query selected on.
+    covering = list(
+        others.filter(valid_from__lte=moment).filter(
+            Q(valid_to__isnull=True) | Q(valid_to__gt=moment)
+        )
     )
     for predecessor in covering:
         predecessor.retire(when=moment)
