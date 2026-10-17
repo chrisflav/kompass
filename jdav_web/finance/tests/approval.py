@@ -49,6 +49,7 @@ from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 from finance.store import Approval
+from finance.store import ApprovalConstraint
 from finance.store import RoleAssignment
 from finance.store import RuleSet
 from finance.tests.harness import gate_of
@@ -1415,6 +1416,133 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertFalse(big.confirmed)
         self.assertTrue(big.approve(self.bernd))
         self.assertTrue(Statement.objects.get(pk=big.pk).confirmed)
+
+    def cover_another_receipt(self, statement, amount=Decimal("30.00")):
+        """The one edit a submitted statement stays open for.
+
+        The finance officer covering a receipt after submission —
+        ``BillOnStatementProxy``'s whole reason to exist — resolves the
+        statement again through ``Bill.save`` → ``_refresh_statement`` →
+        ``freeze_obligations``, and the transactions are re-booked against the
+        new total as they would be in the admin.
+        """
+        Bill.objects.create(
+            statement=statement,
+            short_description="Essen",
+            amount=amount,
+            costs_covered=True,
+            paid_by=self.clara,
+        )
+        statement = Statement.objects.get(pk=statement.pk)
+        statement.transaction_set.all().delete()
+        statement.generate_transactions()
+        statement.transaction_set.update(ledger=self.ledger)
+        return Statement.objects.get(pk=statement.pk)
+
+    def test_a_re_freeze_keeps_who_overrode_a_step_and_why(self):
+        """#555, and the record the whole versioning argument is about.
+
+        An override is "we went ahead anyway", and its entire value is the
+        record of who decided that and what reason they gave. Re-freezing
+        *deleted* the constraint rows and wrote fresh ones, so a finance
+        officer covering an unrelated receipt — an ordinary action, and the
+        one edit a submitted statement stays open for — turned
+        ``(overridden_by=bernd, override_reason="Fristende")`` into
+        ``(None, "")``. Both halves were wrong: the authorisation was gone
+        from the record, and the payout was back in front of the board that
+        had already waived it.
+
+        The rows are superseded now, the way ``Obligation`` rows have been
+        since ``0019``, and the decision taken about a step is carried onto
+        the row that takes over.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.override_approval("Vorstand", self.bernd, "Fristende"))
+        self.assertFalse(Statement.objects.get(pk=big.pk).confirmed, "Kasse is still open")
+
+        statement = self.cover_another_receipt(big)
+
+        self.assertEqual(
+            [row.name for row in statement.approval_constraint_set.all()],
+            ["Kasse", "Vorstand"],
+            "one live row per step, and a superseded row is not one of them",
+        )
+        waived = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertEqual(waived.overridden_by, self.bernd)
+        self.assertEqual(waived.override_reason, "Fristende")
+        self.assertIsNotNone(waived.overridden_at)
+        # The row that was replaced is kept, saying what it said.
+        superseded = [
+            row
+            for row in ApprovalConstraint.all_objects.filter(statement=statement)
+            if not row.live
+        ]
+        self.assertEqual(
+            [row.name for row in superseded], ["Kasse", "Vorstand"], "kept, not deleted"
+        )
+        before = next(row for row in superseded if row.name == "Vorstand")
+        self.assertEqual(before.overridden_by, self.bernd)
+        self.assertEqual(before.override_reason, "Fristende")
+        self.assertIn("superseded", str(before))
+        # The gate does not ask the board again, and nothing counts twice.
+        gate = gate_of(statement)
+        self.assertEqual([state.name for state in gate], ["Kasse", "Vorstand"])
+        board = next(state for state in gate if state.name == "Vorstand")
+        self.assertTrue(board.overridden)
+        self.assertFalse(board.open)
+        # And what a treasurer reads still names the person and the reason.
+        payload = approval_payload(statement, self.anna)
+        shown = next(item for item in payload["constraints"] if item["name"] == "Vorstand")
+        self.assertEqual(shown["overridden_by"].name, self.bernd.name)
+        self.assertEqual(shown["override_reason"], "Fristende")
+        self.assertEqual(shown["state_display"], _("Overridden"))
+        # The one signature that was still outstanding pays it out: the
+        # waiver survived the edit, so the board is not in the way.
+        self.assertTrue(statement.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_superseded_constraint_row_is_never_written_again(self):
+        """The other half of #555's measurement: the ``satisfied`` column.
+
+        A signed step read ``satisfied: True``; the officer covered a receipt
+        and both columns read ``False`` again. No money moved, because the
+        gate counts signatures — but the column is the *record* of what was
+        true when the statement was signed (#552), and an unrelated edit
+        rewriting it is what §6's *Unveränderbarkeit* cannot live with.
+
+        So the answer is carried onto the live row, and the superseded row
+        keeps its own: a later signature writes the live rows and never
+        reaches back. The statement is unpayable here for an unrelated
+        reason, which is what lets a signature be recorded without the
+        statement confirming and the rows freezing for good.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        big.transaction_set.all().delete()
+        self.assertFalse(big.approve(self.anna), "Vorstand still wants two")
+        signed = Statement.objects.get(pk=big.pk).approval_constraint_set.get(name="Kasse")
+        self.assertTrue(signed.satisfied)
+
+        statement = self.cover_another_receipt(big)
+
+        rows = {row.name: row for row in statement.approval_constraint_set.all()}
+        self.assertTrue(rows["Kasse"].satisfied, "the step stays signed across the re-freeze")
+        self.assertFalse(rows["Vorstand"].satisfied)
+        kept = ApprovalConstraint.all_objects.filter(
+            statement=statement, superseded_at__isnull=False
+        )
+        self.assertEqual(
+            {row.name: row.satisfied for row in kept}, {"Kasse": True, "Vorstand": False}
+        )
+        # The second signature completes the board's quorum. It writes the
+        # live row and may not touch the row that was replaced.
+        self.assertTrue(statement.approve(self.bernd))
+        live = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertTrue(live.satisfied)
+        self.assertEqual(
+            {row.name: row.satisfied for row in kept.all()},
+            {"Kasse": True, "Vorstand": False},
+            "a superseded row is history and is never written again",
+        )
 
 
 class BootstrapAccountTestCase(TestCase):

@@ -339,7 +339,7 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
         # Writing rows here would hide a payerless receipt behind a payout that
         # looks complete.
         _retire_rows(statement)
-        statement.approval_constraint_set.all().delete()
+        _retire_constraint_rows(statement)
         return ()
     members = MemberModel.objects.in_bulk([party.id for party in result.members()])
     names = {pk: member.name for pk, member in members.items()}
@@ -389,6 +389,56 @@ def _retire_rows(statement: Any) -> None:
     rows.filter(frozen_at__isnull=False, superseded_at__isnull=True).update(
         superseded_at=timezone.now()
     )
+
+
+def _retire_constraint_rows(statement: Any) -> None:
+    """Clear the way for a new resolution, keeping what was settled.
+
+    The mirror of :func:`_retire_rows`, one model over, and for the same
+    reason: a draft's constraint rows are a working copy and are dropped, a
+    row frozen at submission is a record and is marked superseded.
+
+    They were *deleted* until #555, and what the delete destroyed was the only
+    record of who authorised a payout against a failing approval step and what
+    reason they gave — to an unrelated receipt edit, through the one edit the
+    finance officer's permission exists for. The decision the rows carried is
+    read back by :func:`_decisions_so_far`.
+    """
+    rows = statement.approval_constraint_set.all()
+    rows.filter(frozen_at__isnull=True).delete()
+    rows.filter(frozen_at__isnull=False).update(superseded_at=timezone.now())
+
+
+#: The fields of an :class:`~finance.store.ApprovalConstraint` that record a
+#: *decision* about the step rather than a resolution of it: whether its
+#: signatures came in, and who waived it with what reason.
+DECISION_FIELDS = ("satisfied", "overridden_by_id", "overridden_at", "override_reason")
+
+
+def _decisions_so_far(statement: Any) -> dict[str, dict[str, Any]]:
+    """Per step name, the decision its most recent row carries.
+
+    Superseded rows included, and deliberately: a re-resolution that happens
+    while the rules report a problem persists nothing, so the live rows are
+    gone by the time the problem is fixed and the row that carried the
+    override is a superseded one. Reading only live rows would carry a
+    decision across an ordinary re-freeze and lose it across that pair of
+    events, which is the same defect with one more step in it.
+
+    A decision belongs to the **step**, not to the row. Resolving a statement
+    again re-asks who may sign it; it does not re-ask whether the people who
+    already signed did, nor withdraw an authorisation nobody withdrew —
+    before #555 a covered receipt did exactly that, and put a payout the board
+    had waived back in front of the board. The superseded row keeps its own
+    copy of the decision beside the eligible set and the amounts it was taken
+    against, so the chain reads as what happened rather than as the latest
+    state alone.
+    """
+    decisions: dict[str, dict[str, Any]] = {}
+    rows = ApprovalConstraint.all_objects.filter(statement=statement).order_by("pk")
+    for row in rows:
+        decisions[row.name] = {field: getattr(row, field) for field in DECISION_FIELDS}
+    return decisions
 
 
 def _approver_ids() -> set[int]:
@@ -496,8 +546,18 @@ def _materialise_constraints(statement: Any, result: Result, *, version: str, fr
     an audit two years later must not depend on re-running a section's Python.
     Who may sign *now* is a different question, asked by
     :func:`current_constraint_rows` — see its docstring for why the two differ.
+
+    Called again for a statement that is already submitted — the finance
+    officer covering a receipt, which is the one edit that stays open — the
+    rows it finds are **superseded rather than deleted**
+    (:func:`_retire_constraint_rows`), and each new row carries the decision
+    recorded about that step so far (:func:`_decisions_so_far`). Who overrode
+    a step and why is the record the override mechanism exists to leave;
+    losing it to an unrelated receipt edit was #555, and so was handing the
+    payout back to the board that had already waived it.
     """
-    statement.approval_constraint_set.all().delete()
+    decisions = _decisions_so_far(statement)
+    _retire_constraint_rows(statement)
     ApprovalConstraint.objects.bulk_create(
         [
             ApprovalConstraint(
@@ -512,6 +572,7 @@ def _materialise_constraints(statement: Any, result: Result, *, version: str, fr
                 error=row["error"],
                 rule_version=version,
                 frozen_at=frozen,
+                **decisions.get(row["name"], {}),
             )
             for position, row in enumerate(resolve_constraints(statement, result))
         ]
