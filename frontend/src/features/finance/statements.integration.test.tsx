@@ -610,6 +610,18 @@ describe("submission flow — Belege", () => {
 });
 
 describe("submission flow — Erstattung", () => {
+  /**
+   * The picker under the question labelled `label`.
+   *
+   * `Field` wraps its control in a `<label>`, which swallows the trigger's
+   * accessible name — the same reason the review pipeline reaches for
+   * `.ss-trigger` directly.
+   */
+  function pickerFor(label: string) {
+    const field = screen.getByText(label).closest(".field") as HTMLElement;
+    return field.querySelector(".ss-trigger, .ms-toggle") as HTMLElement;
+  }
+
   /** Open the reimbursement leg with `form` as what the rules ask for. */
   function openForm(form: Record<string, unknown> = {}) {
     flowReturns();
@@ -666,7 +678,7 @@ describe("submission flow — Erstattung", () => {
     const { user } = openForm();
 
     await screen.findByText("Fahrt- und Übernachtungszuschuss an");
-    await user.click(screen.getByRole("button", { name: /niemand/ }));
+    await user.click(pickerFor("Fahrt- und Übernachtungszuschuss an"));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
 
     await waitFor(() => expect(patched).not.toBeNull());
@@ -686,7 +698,7 @@ describe("submission flow — Erstattung", () => {
     const { user } = openForm();
 
     await screen.findByText("Aufwandsentschädigung an");
-    await user.click(screen.getByRole("button", { name: /Personen auswählen/ }));
+    await user.click(pickerFor("Aufwandsentschädigung an"));
     await user.click(dropdown().getByRole("button", { name: "Hannah Beckers" }));
 
     await waitFor(() => expect(patched).not.toBeNull());
@@ -722,13 +734,14 @@ describe("submission flow — Erstattung", () => {
     );
     const { user } = openForm();
 
-    await screen.findByText("Aufwandsentschädigung an")
-    await user.click(screen.getByRole("button", { name: /Personen auswählen/ }));
+    await screen.findByText("Aufwandsentschädigung an");
+    await user.click(pickerFor("Aufwandsentschädigung an"));
     await user.click(dropdown().getByRole("button", { name: "Hannah Beckers" }));
 
-    // Under the question, because the 422 is keyed by the answer it is about.
-    const message = await screen.findByText(/nur 2 anerkannte/);
-    expect(message).toHaveClass("field-error");
+    // Under the question, because the 422 is keyed by the answer it is about —
+    // and in a toast, like any refusal.
+    const messages = await screen.findAllByText(/nur 2 anerkannte/);
+    expect(messages.map((node) => node.className)).toContain("field-error");
   });
 
   it("sends back only the questions the form still asks", async () => {
@@ -747,7 +760,7 @@ describe("submission flow — Erstattung", () => {
     });
 
     await screen.findByText("Fahrt- und Übernachtungszuschuss an");
-    await user.click(screen.getByRole("button", { name: /niemand/ }));
+    await user.click(pickerFor("Fahrt- und Übernachtungszuschuss an"));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
 
     await waitFor(() => expect(patched).not.toBeNull());
@@ -769,7 +782,7 @@ describe("submission flow — Erstattung", () => {
       answers: {},
     });
     await screen.findByText("An");
-    await user.click(screen.getByRole("button", { name: /Personen auswählen/ }));
+    await user.click(pickerFor("An"));
     expect(dropdown().getByText("Hier bieten die Regeln niemanden an.")).toBeInTheDocument();
   });
 });
