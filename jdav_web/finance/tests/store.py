@@ -540,6 +540,9 @@ class ImportTestCase(TestCase):
         january, _problems = self.imported(dated("januar", self.days_ago(120)), name="januar")
         april, _problems = self.imported(dated("april", self.days_ago(30)), name="april")
         self.assertEqual(active_version(), april)
+        january.refresh_from_db()
+        self.assertIsNotNone(january.retired_at)
+        self.told_when_april_arrived = january.retired_at
 
         march, problems = self.imported(dated("maerz", self.days_ago(60)), name="maerz")
         self.assertEqual(problems, [])
@@ -549,6 +552,13 @@ class ImportTestCase(TestCase):
         self.assertEqual(january.valid_to, march.valid_from)
         self.assertIsNone(april.valid_to, "April is untouched")
         self.assertEqual(active_version(), april, "and still in force")
+        self.assertEqual(
+            january.retired_at,
+            self.told_when_april_arrived,
+            "and when Kompass stopped applying January's rules is not rewritten: it "
+            "stopped applying them when April was imported, whatever today's "
+            "correction says about when they ceased to be valid",
+        )
         when = timezone.now() - timezone.timedelta(days=45)
         self.assertEqual(RuleSet.objects.active(when=when), march)
 
@@ -604,6 +614,16 @@ class ImportTestCase(TestCase):
         self.assertEqual(statement.ruleset_id, current.pk, "and a new statement is bound to it")
         later = staged.valid_from + timezone.timedelta(days=1)
         self.assertEqual(RuleSet.objects.active(when=later), staged)
+        # And the record says what it is rather than what it will be: the
+        # version in force has not stopped being applied, and nothing may
+        # stamp the moment it stops before that moment arrives. Both were
+        # stamped at the import, so `dumpruleset` told an auditor that the
+        # version every statement created today binds to had been applied for
+        # no time at all, and the admin showed it as retired.
+        current.refresh_from_db()
+        self.assertEqual(current.valid_to, staged.valid_from, "its validity ends on the date")
+        self.assertIsNone(current.retired_at, "but it is still being applied")
+        self.assertEqual(current.state, RuleSet.ACTIVE)
 
     def test_a_number_the_section_wrote_wrong_is_a_draft_rather_than_a_hole(self):
         """A parameter that is not a number stops the version, loudly.

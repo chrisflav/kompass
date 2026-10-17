@@ -260,16 +260,43 @@ class RuleSet(models.Model):
 
         ``when`` is **valid** time: the instant the rules stopped applying,
         which is the successor's ``valid_from`` and may be in the past (a
-        backdated correction) or in the future (a staged change).
-        :attr:`retired_at` is transaction time and is always now, because now
-        is when Kompass was told. Recording only one of the two is what made a
-        backdated correction unrepresentable: the row said the rules ended in
-        March and nothing said that Kompass went on applying them until May.
+        backdated correction) or in the future (a staged change). It is
+        written every time, because the latest knowledge decides what was in
+        force.
+
+        :attr:`retired_at` is transaction time, and the two other rules follow
+        from what it means — *when Kompass stopped applying this version*:
+
+        **It is written once.** A correction imported in May with a March
+        ``valid_from`` closes the validity of a row that a successor already
+        closed in April. Overwriting its ``retired_at`` from April to May
+        would destroy the one fact the column was added to keep: Kompass
+        applied those rules until April. The first retirement is the one that
+        stopped them being applied.
+
+        **It is not written ahead of time, and neither is the state.** A
+        staged change retires its predecessor at a *future* date, and until
+        that date the predecessor is still the version every statement is
+        settled under — which is what makes
+        :meth:`RuleSetManager.active` read the dates rather than the state.
+        Stamping either there said that Kompass had stopped applying the
+        version it was in fact applying, and ``dumpruleset`` told an auditor
+        it had been applied for no time at all. Nothing flips them when the
+        date arrives: the dates decide what applies when, and ``NULL`` reads
+        as *not recorded* rather than as a time nobody can stand behind.
         """
-        self.valid_to = timezone.now() if when is None else when
-        self.retired_at = timezone.now()
-        self.state = RuleSet.RETIRED
-        self.save(update_fields=["valid_to", "retired_at", "state"])
+        now = timezone.now()
+        moment = now if when is None else when
+        self.valid_to = moment
+        changed = ["valid_to"]
+        if moment <= now:
+            if self.retired_at is None:
+                self.retired_at = now
+                changed.append("retired_at")
+            if self.state != RuleSet.RETIRED:
+                self.state = RuleSet.RETIRED
+                changed.append("state")
+        self.save(update_fields=changed)
 
     def activate(self, until=None):
         """Put this version in force, up to ``until`` where its interval ends.
@@ -590,6 +617,19 @@ class ApprovalConstraint(models.Model):
     justified versioning the configuration in the first place. Deleting them
     and writing fresh ones, which is what this did until #555, lost that
     record to an unrelated receipt edit.
+
+    What a row takes over from the row it replaces is the *decision* about the
+    step — see :func:`finance.engine.statements._carried_decision` — with one
+    exception, and the exception is a control rather than a nicety: a waiver
+    does not carry onto a row that excludes the person who gave it. An
+    override is refused from somebody a ``Forbid`` excludes
+    (:meth:`finance.models.Statement.override_approval`), because recording
+    that they did it is a mitigation and not a control, and carrying an
+    earlier copy of exactly that override would be the same hole with a
+    timestamp on it: the payee fronts a receipt after waiving the step, and
+    the waiver they are no longer allowed to give would go on closing it.
+    :attr:`override_withdrawn` is what the new row says instead, and the
+    waiver itself stays on the superseded row.
     """
 
     statement = models.ForeignKey(
@@ -634,6 +674,16 @@ class ApprovalConstraint(models.Model):
     )
     override_reason = models.TextField(
         verbose_name=_("Reason for the override"), blank=True, default=""
+    )
+    override_withdrawn = models.TextField(
+        verbose_name=_("Withdrawn override"),
+        blank=True,
+        default="",
+        help_text=_(
+            "Why an override recorded on this step did not carry onto this row: the "
+            "person who gave it is excluded from it now. The override itself is on "
+            "the row this one replaced, which is kept."
+        ),
     )
     error = models.TextField(
         verbose_name=_("Could not be resolved"),
