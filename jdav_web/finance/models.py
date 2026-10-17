@@ -761,17 +761,15 @@ class Statement(CommonModel):
         step the gate has stopped counting is not recorded by the signature
         that reached its quorum.
 
-        And **once here** is the honest scope. The rows themselves are
-        rewritten elsewhere: :func:`finance.engine.statements.
-        _materialise_constraints` deletes and recreates them whenever a
-        submitted statement is re-frozen, which is the one edit left open
-        after submission — the finance officer covering a bill, reaching it
-        through ``Bill.save`` → ``_refresh_statement`` → ``freeze``. That
-        resets the columns and, worse, drops a recorded override: who went
-        ahead anyway, and why. That is a separate defect (#555), and the
-        contrast is ``_retire_rows`` beside it, which *supersedes* frozen
-        obligations rather than deleting them, for the reason this paragraph
-        has already given.
+        And **once here** is the honest scope: the row this writes is the
+        live one, and a re-freeze writes a *new* row from outside this method.
+        :func:`finance.engine.statements._materialise_constraints` supersedes
+        the rows it finds and carries their decision — this column and the
+        three ``overridden_*`` fields — onto the row that takes over, so what
+        a row says stays true of the row for as long as it was live. It used
+        to delete them and start blank, which cost an override its record and
+        handed a waived payout back to the board on nothing worse than a
+        finance officer covering a receipt (#555).
         """
         if not self.submitted or self.confirmed:
             return False

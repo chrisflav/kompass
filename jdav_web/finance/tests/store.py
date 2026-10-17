@@ -333,7 +333,7 @@ class VersionIdentityTestCase(SimpleTestCase):
     def test_when_a_version_applies_from(self):
         """A declared date is honoured, **including one in the past**.
 
-        That is a decision rather than drift (R3 on taxis #495). A past date
+        That is a decision rather than drift (#560). A past date
         was refused on the grounds that honouring it would rewrite settled
         statements, which it does not: a statement copies its closure when it
         is created and nothing imported later moves it. What the refusal did

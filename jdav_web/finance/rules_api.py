@@ -685,7 +685,8 @@ class Ruleset(ABC):
     #:
     #: Backdating records; it does not re-settle. A statement is bound to the
     #: rules it was created under, and no version imported afterwards — with
-    #: whatever date — changes what it settled under.
+    #: whatever date — changes what it settled under; settling one again under
+    #: a correction is a separate, deliberate act (#561).
     valid_from: str = ""
     #: Permission codenames the rules read with
     #: :meth:`RuleContext.permission_holders`. The engine resolves these before
