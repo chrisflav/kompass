@@ -133,6 +133,35 @@ def querying_field(field, value):
     return QUERYING_FIELD.replace("FIELD", field).replace("VALUE", repr(value))
 
 
+#: A ruleset that says when its rules were in force from, which is the
+#: declaration a section backdates or stages a change with — and the only
+#: authority for either, because it is reviewed and committed in the
+#: configuration repository rather than typed at a command line.
+DATED = """
+from kompass.rules import Ruleset, SECTION, PARTICIPANTS
+
+
+class Dated(Ruleset):
+    name = "NAME"
+    valid_from = "WHEN"
+    balance = (PARTICIPANTS, SECTION, "rest")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        return [], []
+
+
+ruleset = Dated()
+"""
+
+
+def dated(name, when):
+    """:data:`DATED` as a version called ``name``, valid from ``when``."""
+    return DATED.replace("NAME", name).replace("WHEN", when)
+
+
 def a_member(name="Rolle"):
     return Member.objects.create(prename=name, lastname="Test", email="r@localhost", gender=MALE)
 
@@ -302,13 +331,28 @@ class VersionIdentityTestCase(SimpleTestCase):
         self.assertTrue(engine_version().startswith("kompass "))
 
     def test_when_a_version_applies_from(self):
+        """A declared date is honoured, **including one in the past**.
+
+        That is a decision rather than drift (#560). A past date
+        was refused on the grounds that honouring it would rewrite settled
+        statements, which it does not: a statement copies its closure when it
+        is created and nothing imported later moves it. What the refusal did
+        was pin valid time to transaction time, so the one correction a
+        section actually needs — rates resolved in March, Kompass told in May
+        — could not be expressed at all, and the record could not say that
+        Kompass had applied one version while another had been in force.
+
+        Unset, and unreadable, both mean "from now": an import that silently
+        backdated a typo to the epoch would be worse than one that does not
+        backdate.
+        """
         rules = HeidelbergRules()
         now = timezone.now()
         self.assertGreaterEqual(declared_valid_from(rules), now)
         rules.valid_from = "not a date"
         self.assertGreaterEqual(declared_valid_from(rules), now)
         rules.valid_from = "2020-01-01"
-        self.assertGreaterEqual(declared_valid_from(rules), now, "a past date is not honoured")
+        self.assertEqual(declared_valid_from(rules).date().isoformat(), "2020-01-01")
         future = (now + timezone.timedelta(days=30)).replace(microsecond=0)
         rules.valid_from = future.isoformat()
         self.assertEqual(declared_valid_from(rules), future)
@@ -448,6 +492,159 @@ class ImportTestCase(TestCase):
             package = Path(directory)
             (package / "__init__.py").write_text(source, encoding="utf-8")
             return import_from_directory(package, **options)
+
+    def days_ago(self, days):
+        """A date that many days back, as a ruleset declares one."""
+        return (timezone.localdate() - timezone.timedelta(days=days)).isoformat()
+
+    def test_a_correction_may_say_its_rules_were_valid_before_the_import(self):
+        """R3: the gap between what was in force and what Kompass was told.
+
+        A section resolves new rates in March and gets round to telling
+        Kompass in May. Both instants are on the record afterwards: the
+        correction's own ``valid_from`` is in March and its ``imported_at`` is
+        now, and the version it replaced says its rules ended in March
+        (``valid_to``) while Kompass went on applying them until now
+        (``retired_at``). That second pair is what a single column could not
+        say, and unrecorded history cannot be retrofitted.
+        """
+        RuleSet.objects.all().delete()
+        january, problems = self.imported(dated("januar", self.days_ago(120)), name="januar")
+        self.assertEqual(problems, [])
+        self.assertEqual(active_version(), january)
+
+        march, problems = self.imported(dated("maerz", self.days_ago(60)), name="maerz")
+        self.assertEqual(problems, [])
+        self.assertLess(march.valid_from, march.imported_at, "valid time before transaction time")
+        january.refresh_from_db()
+        self.assertEqual(january.valid_to, march.valid_from, "its rules ended in March")
+        self.assertIsNotNone(january.retired_at, "when Kompass was told is on the record")
+        self.assertLess(january.valid_to, january.retired_at, "and Kompass applied them until now")
+        # Nothing was in force after March, so the correction is in force now.
+        self.assertEqual(active_version(), march)
+        # And the valid-time question has an answer for a past moment.
+        in_february = timezone.now() - timezone.timedelta(days=90)
+        self.assertEqual(RuleSet.objects.active(when=in_february), january)
+
+    def test_a_correction_does_not_displace_a_version_imported_after_it(self):
+        """A backdated row fills its gap and withdraws nothing.
+
+        The section resolved March's rates in March, imported an April change
+        on time, and only then got round to March. Valid time now reads
+        January → March → April, the April version is still what applies
+        today, and the correction answers for the month it was resolved for.
+        Without the cap, "what applies now" would have come out as the March
+        rules and an April change nobody withdrew would have been reverted.
+        """
+        RuleSet.objects.all().delete()
+        january, _problems = self.imported(dated("januar", self.days_ago(120)), name="januar")
+        april, _problems = self.imported(dated("april", self.days_ago(30)), name="april")
+        self.assertEqual(active_version(), april)
+        january.refresh_from_db()
+        self.assertIsNotNone(january.retired_at)
+        self.told_when_april_arrived = january.retired_at
+
+        march, problems = self.imported(dated("maerz", self.days_ago(60)), name="maerz")
+        self.assertEqual(problems, [])
+        april.refresh_from_db()
+        january.refresh_from_db()
+        self.assertEqual(march.valid_to, april.valid_from, "the correction ends where April began")
+        self.assertEqual(january.valid_to, march.valid_from)
+        self.assertIsNone(april.valid_to, "April is untouched")
+        self.assertEqual(active_version(), april, "and still in force")
+        self.assertEqual(
+            january.retired_at,
+            self.told_when_april_arrived,
+            "and when Kompass stopped applying January's rules is not rewritten: it "
+            "stopped applying them when April was imported, whatever today's "
+            "correction says about when they ceased to be valid",
+        )
+        when = timezone.now() - timezone.timedelta(days=45)
+        self.assertEqual(RuleSet.objects.active(when=when), march)
+
+    def test_a_statement_already_bound_is_not_re_settled_by_a_correction(self):
+        """The constraint that is not negotiable, and why backdating is safe.
+
+        Binding happens at creation (§7), so what a statement settles under is
+        decided once. A correction imported afterwards — with a date before
+        the statement was even created — leaves its version, its hash, its
+        closure and its numbers exactly as they were. Re-settling it under the
+        corrected rules would be a separate, deliberate act, and this code
+        does not offer one.
+        """
+        RuleSet.objects.all().delete()
+        with override_settings(ALLOWANCE_PER_DAY=22):
+            january, _problems = self.imported(dated("januar", self.days_ago(120)), name="januar")
+            statement = Statement.objects.create(short_description="Februar", night_cost=0)
+        self.assertEqual(statement.ruleset_id, january.pk)
+
+        with override_settings(ALLOWANCE_PER_DAY=99):
+            march, problems = self.imported(dated("maerz", self.days_ago(60)), name="maerz")
+        self.assertEqual(problems, [])
+        bound = Statement.objects.get(pk=statement.pk)
+        self.assertEqual(bound.ruleset_id, january.pk)
+        self.assertEqual(bound.ruleset_hash, january.hash)
+        self.assertEqual(statement_params(bound)["ALLOWANCE_PER_DAY"], Decimal("22"))
+        self.assertEqual(ruleset_for(bound).name, "januar")
+        # A statement created now is settled under what is in force now.
+        with override_settings(ALLOWANCE_PER_DAY=99):
+            later = Statement.objects.create(short_description="Juni", night_cost=0)
+        self.assertEqual(later.ruleset_id, march.pk)
+        self.assertEqual(statement_params(later)["ALLOWANCE_PER_DAY"], Decimal("99"))
+
+    def test_a_staged_version_leaves_the_current_one_in_force(self):
+        """Staging a change may not leave nothing in force in the meantime.
+
+        Activating a staged version closes its predecessor's validity at the
+        future date and marks it ``RETIRED`` there and then, and
+        ``RuleSet.objects.active`` used to require ``state=ACTIVE`` — so
+        between the import and the date it takes effect, **nothing was in
+        force**. A statement created in that window bound to no version at
+        all and was settled against the reference ruleset and the live
+        settings rather than the section's own rules. The state column says
+        how an import ended; the dates say what applies when.
+        """
+        RuleSet.objects.all().delete()
+        current, _problems = self.imported(dated("jetzt", self.days_ago(30)), name="jetzt")
+        when = (timezone.localdate() + timezone.timedelta(days=10)).isoformat()
+        staged, problems = self.imported(dated("naechster-monat", when), name="naechster-monat")
+        self.assertEqual(problems, [])
+        self.assertEqual(active_version(), current, "the staged change is not in force yet")
+        statement = Statement.objects.create(short_description="Heute", night_cost=0)
+        self.assertEqual(statement.ruleset_id, current.pk, "and a new statement is bound to it")
+        later = staged.valid_from + timezone.timedelta(days=1)
+        self.assertEqual(RuleSet.objects.active(when=later), staged)
+        # And the record says what it is rather than what it will be: the
+        # version in force has not stopped being applied, and nothing may
+        # stamp the moment it stops before that moment arrives. Both were
+        # stamped at the import, so `dumpruleset` told an auditor that the
+        # version every statement created today binds to had been applied for
+        # no time at all, and the admin showed it as retired.
+        current.refresh_from_db()
+        self.assertEqual(current.valid_to, staged.valid_from, "its validity ends on the date")
+        self.assertIsNone(current.retired_at, "but it is still being applied")
+        self.assertEqual(current.state, RuleSet.ACTIVE)
+
+    def test_a_number_the_section_wrote_wrong_is_a_draft_rather_than_a_hole(self):
+        """A parameter that is not a number stops the version, loudly.
+
+        ``decimal_params`` dropped a value it could not read, so a typo in
+        ``settings.toml`` — a decimal comma, a figure in quotes — reached the
+        rules as *that parameter does not exist*. The number is as much part
+        of a version as the code, since the hash covers both, so it is a
+        reason not to activate the version: the previous one stays in force
+        and the problem is on the draft, where the admin and the hourly
+        import task both show it.
+        """
+        RuleSet.objects.all().delete()
+        current, problems = import_from_directory(reference_directory())
+        self.assertEqual(problems, [])
+        with override_settings(ALLOWANCE_PER_DAY="22,50"):
+            row, problems = import_from_directory(reference_directory())
+        self.assertEqual(row.state, RuleSet.DRAFT)
+        self.assertTrue(any("ALLOWANCE_PER_DAY" in problem for problem in problems), problems)
+        self.assertTrue(any("not a number" in problem for problem in problems), problems)
+        self.assertEqual(active_version(), current, "the previous version stays in force")
 
     def test_a_name_that_queries_is_a_draft_rather_than_a_free_cursor(self):
         """The import read two fields off the loaded object, past the guard.
