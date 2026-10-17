@@ -147,7 +147,7 @@ class Querying(Ruleset):
         return [], [f"{Statement.objects.count()} statements"]
 
 
-class QueryingDeclarations(Ruleset):
+class QueryingDeclarations(Fixed):
     """A ruleset that reaches for the database while declaring its form.
 
     ``inputs`` is a call into a section's own code like ``transfers`` is, so it
@@ -159,9 +159,6 @@ class QueryingDeclarations(Ruleset):
     def inputs(self, ctx):
         Statement.objects.count()
         return [Input("night_cost", "Preis pro Nacht", "money", required=False)]
-
-    def transfers(self, ctx):
-        return [], []
 
 
 class EveryWidgetCase(Ruleset):
@@ -195,30 +192,22 @@ class EveryWidgetCase(Ruleset):
         return [], []
 
 
-class EveryWidgetRules(Ruleset):
-    """One declaration of each type in the widget vocabulary.
-
-    The reference ruleset asks for money, a person and a set of people; the
-    other four types have no section in tree that uses them, and the coercion
-    from what ``Statement.inputs`` stores to what a rule reads has to be right
-    for all seven.
-    """
-
-    name = "every-widget"
-
-    def inputs(self, ctx):
-        return [
-            Input("night_cost", "Geld", "money", required=False),
-            Input("nights", "Ganze Zahl", "int", required=False, max=9),
-            Input("catered", "Ja oder nein", "bool", required=False),
-            Input("note", "Text", "text", required=False),
-            Input("pick", "Auswahl", "choice", required=False),
-            Input("subsidy_to", "Eine Person", "member", required=False),
-            Input("allowance_to", "Mehrere Personen", "member_set", required=False),
-        ]
-
-    def transfers(self, ctx):
-        return [], []
+#: One declaration of each type in the widget vocabulary, for a ruleset that is
+#: only ever asked what it asks.
+#:
+#: The reference ruleset asks for money, a person and a set of people; the other
+#: four types have no section in tree that uses them, and the coercion from what
+#: ``Statement.inputs`` stores to what a rule reads has to be right for all
+#: seven.
+EVERY_WIDGET = [
+    Input("night_cost", "Geld", "money", required=False),
+    Input("nights", "Ganze Zahl", "int", required=False, max=9),
+    Input("catered", "Ja oder nein", "bool", required=False),
+    Input("note", "Text", "text", required=False),
+    Input("pick", "Auswahl", "choice", required=False),
+    Input("subsidy_to", "Eine Person", "member", required=False),
+    Input("allowance_to", "Mehrere Personen", "member_set", required=False),
+]
 
 
 # --- the typed API ---------------------------------------------------------
@@ -1165,7 +1154,7 @@ class ContextTestCase(TestCase):
         }
         self.statement.inputs = answers
         self.statement.save()
-        ctx = build_context(self.statement, ruleset=EveryWidgetRules())
+        ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
         self.assertEqual(ctx.inputs.number("nights"), 3)
         self.assertIs(ctx.inputs.flag("catered"), True)
@@ -1179,7 +1168,7 @@ class ContextTestCase(TestCase):
 
     def test_a_question_that_was_never_answered_reads_as_its_types_empty(self):
         blank = Statement.objects.create(short_description="Unbeantwortet")
-        ctx = build_context(blank, ruleset=EveryWidgetRules())
+        ctx = build_context(blank, ruleset=Fixed(declarations=EVERY_WIDGET))
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("0"))
         self.assertEqual(ctx.inputs.number("nights"), 0)
         self.assertIs(ctx.inputs.flag("catered"), False)
@@ -1196,7 +1185,7 @@ class ContextTestCase(TestCase):
         """
         self.statement.inputs = {"night_cost": "1.00", "retired": "alt"}
         self.statement.save()
-        ctx = build_context(self.statement, ruleset=EveryWidgetRules())
+        ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
         self.assertNotIn("retired", ctx.inputs.declared())
         with self.assertRaises(RuleError):
             ctx.inputs.raw("retired")
