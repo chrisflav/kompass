@@ -10,10 +10,11 @@ years later: *under which rules was this settled, and what did they say?*
     update: that is the difference between valid time (``valid_from`` /
     ``valid_to``, when the rules applied) and transaction time
     (``imported_at`` / ``activated_at`` / ``retired_at``, when Kompass was
-    told), and an auditor needs both (#560). The two can differ by months — a section
-    resolves new rates in March and gets round to telling Kompass in May — and
-    a row records all four instants, so that *what was in force* and *what
-    Kompass applied at the time* are separately answerable years later.
+    told), and an auditor needs both (#560). The two can differ by months — a
+    section resolves new rates in March and gets round to telling Kompass in
+    May — and a row records each of them, so that *what was in force* and
+    *what Kompass applied at the time* stay separately answerable years
+    later.
 :class:`RoleAssignment`
     Who held which section role, with dates. The source of ``ctx.roles``.
 :class:`Obligation`
