@@ -17,7 +17,7 @@ everything it offers is documented below.
 
 .. tip::
    There is a directory in this repository to copy rather than start from
-   nothing: ``deploy/config-template/``. It holds a working ruleset, two
+   nothing: ``deploy/config-template/``. It holds a working ruleset, three
    worked cases, the ``mypy`` and ``ruff`` configuration and a CI workflow.
    Its ``README.md`` is the section's half of this page.
 
@@ -190,9 +190,10 @@ no counters, no "the statement I am working on". Everything a method needs is
 in the context it is given, and anything stored on the instance is a figure
 from somebody else's statement waiting to be used in yours.
 
-Parameters and helper constants are fine, because they do not change:
-``self.params`` read from the context, a module-level ``ORG_FEE_AGE = 27``, a
-pure helper method.
+What does not change is fine: a number read from the context
+(``ctx.params.ALLOWANCE_PER_DAY``), a module-level constant
+(``ORG_FEE_AGE = 27``), a class attribute the engine itself reads
+(:attr:`~kompass.rules.Ruleset.balance`), a pure helper method.
 
 
 What a ruleset may import
@@ -260,7 +261,7 @@ reimbursement.
 The widget vocabulary
 ---------------------
 
-:data:`~kompass.rules.Input.type` is presentation, not rule structure —
+:attr:`~kompass.rules.Input.type` is presentation, not rule structure —
 ``money`` and ``int`` are both numbers, and the difference is the field the
 person is shown.
 
@@ -301,6 +302,32 @@ against the options the declaration offered, so an answer can never name
 somebody the rule did not offer. A rule cannot widen the set by returning a
 wider one from somewhere else either: the leaders in
 :attr:`~kompass.rules.Excursion.leaders` are re-checked too.
+
+
+The section's numbers
+=====================
+
+A figure that the section votes on rather than a rule that it writes — the
+allowance per day, the maximum per night, the rate per kilometre — is a
+*parameter*, read from the context as ``ctx.params.ALLOWANCE_PER_DAY``. The
+values come from ``[finance]`` in ``settings.toml``, as exact decimal strings,
+and they are hashed into the ruleset's version alongside its sources: changing
+the allowance per day is a new version, not an edit, and nothing that was
+settled under the old number moves.
+
+.. note::
+   The parameter names are **not** free-form. Kompass reads a fixed list of
+   keys out of ``[finance]`` — today ``ALLOWANCE_PER_DAY``,
+   ``MAX_NIGHT_COST``, ``AID_PER_KM_TRAIN``, ``AID_PER_KM_CAR``,
+   ``EXCURSION_ORG_FEE``, ``LJP_CONTRIBUTION_PER_DAY`` and ``LJP_TAX``
+   (``PARAMETER_KEYS`` in ``finance/engine/context.py``) — so
+   ``ctx.params.WHATEVER_YOU_LIKE`` raises
+   :class:`~kompass.rules.RuleError`.
+
+   A number that is not one of those keys belongs in the ruleset as a
+   module-level constant, where it is versioned with the rules that read it.
+   That is arguably where a figure the section voted on belongs anyway: the
+   hash moves when it changes, which is exactly the behaviour a parameter has.
 
 
 Cases: a ruleset's own tests
@@ -384,14 +411,19 @@ balance. It is not a proof and it is not a substitute for a case with an
 expected figure — it is the cheapest way to find the rule that divides by a
 participant count nobody checked for zero.
 
-Run the same three commands your instance will run, inside the image it will
-run them in:
+A section's CI runs three commands, all three inside the image the instance
+runs, so that the API module and the interpreter match production:
 
 .. code-block:: console
 
    mypy --strict rules/
    ruff check rules/
-   python jdav_web/manage.py checkruleset /app/config/rules
+   python /app/jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
+
+The exact invocation — the mount, the environment and where ``mypy`` and
+``ruff`` come from, since the image carries the application's dependencies and
+not a toolchain — is ``.github/workflows/check-rules.yml`` in
+``deploy/config-template/``.
 
 ``mypy --strict`` is worth having because the accessors are typed: a
 ``Decimal + bool``, a destination that is an ``int`` rather than a
