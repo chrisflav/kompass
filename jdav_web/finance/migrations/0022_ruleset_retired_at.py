@@ -17,8 +17,11 @@ retired by a path that left no ``supersedes`` pointer — keeps ``NULL``, which
 reads as "not recorded" rather than as a timestamp nobody can stand behind.
 An active row has not been retired and keeps ``NULL`` as well.
 
-Nothing is read differently by the backfill: ``retired_at`` is a record, and
-no decision is taken from it.
+What it reads, to be exact: ``supersedes_id`` and ``imported_at`` to find the
+import that closed a row, and ``valid_to`` to tell a retired row from a live
+one. What it writes is ``retired_at`` and nothing else, so no version's
+identity, validity or state moves — and nothing *reads* ``retired_at`` to take
+a decision: it is a record.
 """
 
 from django.db import migrations
