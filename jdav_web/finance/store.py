@@ -22,7 +22,9 @@ years later: *under which rules was this settled, and what did they say?*
     and possibly the maintainers are gone.
 :class:`ApprovalConstraint`
     What the rules asked for in the way of signatures, frozen beside the
-    obligations.
+    obligations — and, where one was signed off against a failing step, who
+    authorised that and why. Superseded rather than rewritten when a submitted
+    statement is resolved again, for the same reason as :class:`Obligation`.
 
 A German club's books fall under the GoBD, which asks for *Unveränderbarkeit*
 (no entry altered unnoticed), *Nachvollziehbarkeit* (every transaction
@@ -485,14 +487,58 @@ class Approval(models.Model):
         return ("unattributable",)
 
 
+class ApprovalConstraintManager(models.Manager):
+    """The rows that are a statement's *current* approval record.
+
+    A superseded row is history and never takes part in a decision: it must
+    not count towards a quorum, appear as a step still waiting for a
+    signature, or be the row an override or a signature is written onto. There
+    are seven readers of these rows — the record
+    (:attr:`finance.models.Statement.approval_states`), the gate
+    (:func:`finance.engine.statements.current_constraint_rows`), the version
+    bound inside it, :meth:`finance.models.Statement.approve`,
+    :meth:`finance.models.Statement.override_approval`, the ``/approval``
+    payload and the admin page it feeds — and "every one of them asks for the
+    live rows" is a property of the model rather than a convention seven
+    callers have to keep: so it is the **default** manager, which is what
+    ``statement.approval_constraint_set`` is built from.
+
+    Django's own advice is not to filter in a default manager, and the reason
+    it gives is this exact reach. Here the reach *is* the design: the question
+    every one of those callers asks is "what does this statement still need",
+    and a row that was replaced is not part of the answer. The two things that
+    must see everything still do — ``_base_manager``, which is what cascading
+    deletes and forward relations use, and :attr:`ApprovalConstraint.
+    all_objects`, which is the audit view and the one to reach for when the
+    question is "what did this look like before".
+
+    One consequence to know: ``dumpdata`` serialises the default manager, so
+    it would leave superseded rows out. Nothing in this repository calls it;
+    an export that has to be complete passes ``--all`` or reads
+    ``all_objects``.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(superseded_at__isnull=True)
+
+
 class ApprovalConstraint(models.Model):
     """A signature the rules asked for, frozen beside the obligations.
 
     Persisted at submission so that the question "who was allowed to sign
     this, at the time" has an answer that does not depend on today's
     permissions or today's rules. Evaluating these — quorum, exclusions,
-    who has signed — is the approval engine, which is a later step; this is
-    the record it will read.
+    who has signed — is the approval engine; this is the record it reads.
+
+    A row is **superseded, never rewritten**. The finance officer covering a
+    receipt after submission resolves the statement again, and the rows the
+    rules ask for are resolved again with it; the previous rows are marked
+    :attr:`superseded_at` and stay. They are the only record of who signed a
+    payout off against a step that was failing, and why they said it was all
+    right — which is the half of §6's GoBD argument (*Unveränderbarkeit*) that
+    justified versioning the configuration in the first place. Deleting them
+    and writing fresh ones, which is what this did until #555, lost that
+    record to an unrelated receipt edit.
     """
 
     statement = models.ForeignKey(
@@ -554,6 +600,22 @@ class ApprovalConstraint(models.Model):
     frozen_at = models.DateTimeField(
         verbose_name=_("Frozen on"), null=True, blank=True, default=None
     )
+    superseded_at = models.DateTimeField(
+        verbose_name=_("Superseded on"),
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "Set when a later resolution replaced this row. It is kept, not deleted: "
+            "who signed a step off against the rules, and why, is a record no edit "
+            "elsewhere may destroy."
+        ),
+    )
+
+    objects = ApprovalConstraintManager()
+    #: Every row, superseded ones included. The audit view: what a statement's
+    #: approval record looked like before it was resolved again.
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = _("Approval constraint")
@@ -561,7 +623,13 @@ class ApprovalConstraint(models.Model):
         ordering = ["statement_id", "position", "pk"]
 
     def __str__(self):
-        return f"{self.name} ({self.required})"
+        superseded = " (superseded)" if self.superseded_at is not None else ""
+        return f"{self.name} ({self.required}){superseded}"
+
+    @property
+    def live(self):
+        """Whether this row is the current one rather than a superseded one."""
+        return self.superseded_at is None
 
     @property
     def eligible(self):
@@ -579,9 +647,10 @@ class ApprovalConstraint(models.Model):
         ``satisfied`` is on it because this row **is** the record: it holds
         the answer that was reached when the statement was signed — written
         by the first :meth:`finance.models.Statement.approve` that finds the
-        step satisfied, and never revised by a later signature — that method's
-        docstring has the exact scope of "once", including the way a re-freeze
-        rewrites the row from outside it (#555). Left off,
+        step satisfied, and never revised by a later signature. A re-freeze no
+        longer rewrites it either: since #555 the row is superseded and a new
+        one is written beside it, so what this mapping says is what was true
+        of *this* row for as long as it was the live one. Left off,
         it was recomputed as ``signed ∩ eligible`` against the *frozen*
         eligible set — and a treasurer appointed after submission is by
         construction not in that set, so an ordinary mid-flight signature
