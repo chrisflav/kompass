@@ -210,15 +210,19 @@ def create_statements():
         excursion=excursion1,
         defaults={
             "explanation": "Kosten für Klettertour im Dahner Felsenland",
-            "night_cost": Decimal("15.00"),
             "status": 0,  # UNSUBMITTED
             "created_by": tobias,
         },
     )
 
     if created:
-        statement1.allowance_to.add(tobias, victoria)
-        statement1.subsidy_to = tobias
+        # The answers the section's rules ask for, under the keys they declare.
+        statement1.inputs = {
+            "night_cost": "15.00",
+            "allowance_to": sorted([tobias.pk, victoria.pk]),
+            "subsidy_to": tobias.pk,
+            "ljp_to": None,
+        }
         statement1.save()
 
         # Add some bills to the statement
@@ -251,14 +255,17 @@ def create_statements():
         excursion=excursion2,
         defaults={
             "explanation": "Kosten für Alpenwoche im Zillertal",
-            "night_cost": Decimal("20.00"),
             "status": 0,  # UNSUBMITTED
             "created_by": victoria,
         },
     )
     if created:
-        statement2.allowance_to.add(tobias, victoria)
-        statement2.subsidy_to = victoria
+        statement2.inputs = {
+            "night_cost": "20.00",
+            "allowance_to": sorted([tobias.pk, victoria.pk]),
+            "subsidy_to": victoria.pk,
+            "ljp_to": None,
+        }
         statement2.save()
 
         Bill.objects.get_or_create(

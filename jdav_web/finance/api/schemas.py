@@ -172,9 +172,15 @@ class StatementOut(ModelSchema):
     created_by: MemberBrief | None = None
     submitted_by: MemberBrief | None = None
     confirmed_by: MemberBrief | None = None
+    # The three party-valued answers, resolved to people. They are a *reading*
+    # of ``inputs``, not fields: the record view and the excursion's finance
+    # overview narrate the Heidelberg payout and name its recipients, and the
+    # answers they name are the ones the section's rules asked for. Writing one
+    # is ``PATCH`` with ``inputs``, which checks it against its declaration.
     subsidy_to: MemberBrief | None = None
     ljp_to: MemberBrief | None = None
     allowance_to: list[MemberBrief] = []
+    night_cost: float
     bills: list[BillBrief] = []
     # The payout, as the rules resolved it. Every money figure below is a
     # summary of these, so a client that wants the breakdown reads them
@@ -211,7 +217,6 @@ class StatementOut(ModelSchema):
         fields = [
             "short_description",
             "explanation",
-            "night_cost",
             "status",
             "submitted_date",
             "confirmed_date",
@@ -235,7 +240,11 @@ class StatementOut(ModelSchema):
 
     @staticmethod
     def resolve_allowance_to(obj):
-        return obj.allowance_to.all()
+        return obj.allowance_to
+
+    @staticmethod
+    def resolve_night_cost(obj) -> float:
+        return obj.night_cost
 
     @staticmethod
     def resolve_bills(obj):
@@ -296,36 +305,38 @@ class TransactionOut(ModelSchema):
 
 
 class StatementCreate(Schema):
+    """A new draft. The answers come afterwards, through ``inputs``.
+
+    ``night_cost`` used to be here, because it used to be a column; a create
+    now says what the statement is for and nothing a section's rules might not
+    ask about.
+    """
+
     short_description: str
     explanation: str = ""
     excursion_id: int | None = None
-    night_cost: Decimal = Decimal(0)
 
 
 class StatementUpdate(Schema):
     """Editable draft fields; PATCH semantics (only supplied fields applied).
 
-    ``allowance_to_ids`` / ``subsidy_to_id`` / ``ljp_to_id`` mirror the admin's
-    ``StatementOnListInline`` (edited from the excursion): the recipients of the
-    allowance / subsidy / LJP contributions. Passing ``null`` clears an FK; an
-    omitted field is left unchanged.
+    ``inputs`` is the answers by declaration key, validated against what the
+    section's rules actually ask for (``GET .../form``). It replaces the four
+    fields that were here — ``night_cost``, ``allowance_to_ids``,
+    ``subsidy_to_id`` and ``ljp_to_id`` — which were four fields because they
+    were four columns on ``Statement``, and so a section whose rules ask a
+    fifth question had no way to be asked it. A key the rules do not ask for is
+    refused; a key left out is unchanged.
     """
 
     short_description: str | None = None
     explanation: str | None = None
-    night_cost: Decimal | None = None
     # The associated excursion stays editable while the statement is a draft, so
     # picking the wrong one in the submission flow is a correction rather than a
     # delete-and-start-over. ``update_statement`` refuses any edit once submitted.
+    # Changing it drops every answer that named a person, because the people the
+    # rules offer are the incoming trip's.
     excursion_id: int | None = None
-    allowance_to_ids: list[int] | None = None
-    subsidy_to_id: int | None = None
-    ljp_to_id: int | None = None
-    # The answers by declaration key, validated against what the section's
-    # rules actually ask for (``GET .../form``). The four fields above are the
-    # same answers under the names the columns have today, and they remain the
-    # source of truth; whatever arrives here is applied to them and kept in
-    # ``Statement.inputs`` beside them.
     inputs: dict[str, Any] | None = None
 
 
@@ -474,14 +485,19 @@ class InputDeclarationOut(Schema):
 
 
 class StatementFormOut(Schema):
-    """The questions this statement still has to answer.
+    """The questions this statement still has to answer, and its answers.
 
     ``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a
-    question once an earlier answer makes it moot.
+    question once an earlier answer makes it moot — and ``answers`` is
+    restricted to the keys that survived that, so a retired answer is not
+    handed back to a client to re-submit. The values are as
+    ``Statement.inputs`` holds them: money as a string, a person as an id, a
+    set of people as a list of ids.
     """
 
     statement_id: int
     inputs: list[InputDeclarationOut] = []
+    answers: dict[str, Any] = {}
 
 
 class CheckOut(Schema):

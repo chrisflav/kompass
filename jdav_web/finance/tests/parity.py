@@ -165,7 +165,7 @@ class legacy:
 
     @staticmethod
     def total_allowance(statement):
-        return legacy.allowance_per_yl(statement) * statement.allowance_to.count()
+        return legacy.allowance_per_yl(statement) * len(statement.allowance_to)
 
     @staticmethod
     def total_subsidies(statement):
@@ -187,7 +187,7 @@ class legacy:
 
     @staticmethod
     def total_org_fee(statement):
-        if not statement.subsidy_to and statement.allowance_to.count() == 0:
+        if not statement.subsidy_to and not statement.allowance_to:
             return cvt_to_decimal(0)
         if hasattr(statement.excursion, "ljpproposal"):
             proposal = statement.excursion.ljpproposal
@@ -201,7 +201,7 @@ class legacy:
             return None
         if statement.subsidy_to:
             return statement.subsidy_to
-        return statement.allowance_to.order_by("pk")[0]
+        return sorted(statement.allowance_to, key=lambda member: member.pk)[0]
 
     @staticmethod
     def total_staff(statement):
@@ -256,7 +256,7 @@ class legacy:
             if bill.costs_covered and bill.paid_by:
                 add(bill.paid_by, bill.amount)
         if statement.excursion is not None:
-            for leader in statement.allowance_to.all():
+            for leader in statement.allowance_to:
                 add(leader, legacy.allowance_per_yl(statement))
         if statement.subsidy_to:
             add(statement.subsidy_to, legacy.total_subsidies(statement))
@@ -485,9 +485,10 @@ def with_parameters(parameters):
 
 def build(scenario):
     """The statement a scenario describes, saved and ready to evaluate."""
-    statement = Statement.objects.create(
-        short_description=scenario.name[:30], night_cost=Decimal(scenario.night_cost)
-    )
+    # The answers, under the keys the rules declare rather than in the four
+    # columns this suite was written against.
+    answers = {"night_cost": scenario.night_cost}
+    statement = Statement.objects.create(short_description=scenario.name[:30], inputs=answers)
     leaders = []
     if scenario.trip is not None:
         trip = scenario.trip
@@ -537,12 +538,24 @@ def build(scenario):
             proof="bill_images/proof.pdf" if scenario.proofs else "",
         )
     if scenario.subsidy and leaders:
-        statement.subsidy_to = leaders[0]
+        answers["subsidy_to"] = leaders[0].pk
     if scenario.ljp and leaders:
-        statement.ljp_to = leaders[-1]
-    statement.save()
+        answers["ljp_to"] = leaders[-1].pk
     if scenario.allowance_to:
-        statement.allowance_to.set(leaders[: scenario.allowance_to])
+        # **Reversed on purpose.** The legacy reference this suite compares
+        # against bills the organisation fee to `sorted(allowance_to)[0]`,
+        # because `allowance_to.order_by("pk")[0]` is what the column did; the
+        # engine bills `first_of(*allowance_to)`, the first element as the
+        # answer holds it. Writing the ids already sorted made the two agree
+        # whether or not anything normalised the order, so this suite
+        # structurally could not see the normalisation go missing — and it did
+        # go missing when the column became a list. Written backwards, the
+        # agreement is evidence.
+        answers["allowance_to"] = [
+            leader.pk for leader in reversed(leaders[: scenario.allowance_to])
+        ]
+    statement.inputs = answers
+    statement.save()
     return statement
 
 

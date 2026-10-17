@@ -34,7 +34,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from finance.inputs import clean_value
+from finance.inputs import declarations
+from finance.inputs import form_field
+from finance.inputs import stored as stored_answers
 from finance.models import BillOnExcursionProxy
+from finance.models import Statement
 from finance.models import StatementOnExcursionProxy
 from mailer.models import Message
 from members.pdf import NO_PUBLIC_GROUPS
@@ -377,9 +382,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             path(
                 "create_crisis_intervention_list/",
                 wrap(self.create_crisis_intervention_list_view),
-                name="{}_{}_create_crisis_intervention_list".format(
-                    self.opts.app_label, self.opts.model_name
-                ),
+                name=f"{self.opts.app_label}_{self.opts.model_name}_create_crisis_intervention_list",
             ),
         ]
         return custom_urls + urls
@@ -436,9 +439,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     def send_mail_to(self, request, queryset):
         member_pks = [m.pk for m in queryset]
         query = str(member_pks).replace(" ", "")
-        return HttpResponseRedirect(
-            reverse("admin:mailer_message_add") + "?members={}".format(query)
-        )
+        return HttpResponseRedirect(reverse("admin:mailer_message_add") + f"?members={query}")
 
     send_mail_to.short_description = _("Compose new mail to selected members")
 
@@ -470,7 +471,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             query = str(member_pks).replace(" ", "")
             return HttpResponseRedirect(
                 reverse("admin:members_member_create_crisis_intervention_list")
-                + "?members={}".format(query)
+                + f"?members={query}"
             )
 
         model = MODELS.get(choice)
@@ -479,8 +480,8 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             query = str(member_pks).replace(" ", "")
 
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_add".format(model._meta.app_label, model._meta.model_name))
-                + "?members={}".format(query)
+                reverse(f"admin:{model._meta.app_label}_{model._meta.model_name}_add")
+                + f"?members={query}"
             )
 
         elif "add_to_selected" in request.POST:
@@ -490,9 +491,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             if entry_id is None or model is None:
                 # If validation failed, return to member list
                 return HttpResponseRedirect(
-                    reverse(
-                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
-                    )
+                    reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
                 )
 
             try:
@@ -509,7 +508,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                 )
                 return HttpResponseRedirect(
                     reverse(
-                        "admin:{}_{}_change".format(model._meta.app_label, model._meta.model_name),
+                        f"admin:{model._meta.app_label}_{model._meta.model_name}_change",
                         args=(entry_id,),
                     )
                 )
@@ -611,7 +610,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
 
         return HttpResponseRedirect(
             reverse(
-                "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                 args=(member.pk,),
             )
         )
@@ -655,12 +654,12 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             # this should be unreachable, because of allowed_permissions attribute
             messages.error(request, _("Permission denied."))
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
             )
         if "apply" in request.POST:
             self.invite_as_user(request, queryset)
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
             )
 
         context = dict(
@@ -695,7 +694,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             )
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                     args=(member.pk,),
                 )
             )
@@ -706,7 +705,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                 self.invite_as_user(request, Member.objects.filter(pk=member.pk))
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                     args=(member.pk,),
                 )
             )
@@ -755,14 +754,14 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     def name_text_or_link(self, obj):
         if not hasattr(obj, "_viewable") or obj._viewable:
             url = reverse(
-                "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                 args=(obj.pk,),
             )
             request = getattr(_thread_locals, "request", None)
             if request is not None:
                 preserved_filters = self.get_preserved_filters(request)
                 if preserved_filters:
-                    url = "{}?{}".format(url, preserved_filters)
+                    url = f"{url}?{preserved_filters}"
             return format_html('<a href="{link}">{name}</a>', link=url, name=obj.name)
         else:
             return obj.name
@@ -791,7 +790,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         except (json.JSONDecodeError, ValueError):
             messages.error(request, _("Invalid member selection."))
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
             )
 
         # Handle form submission
@@ -1198,7 +1197,7 @@ class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
         if "_invite" in request.POST:
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_invite".format(waiter._meta.app_label, waiter._meta.model_name),
+                    f"admin:{waiter._meta.app_label}_{waiter._meta.model_name}_invite",
                     args=(waiter.pk,),
                 )
             )
@@ -1331,15 +1330,13 @@ class MemberWaitingListAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdm
             if waiter:
                 return HttpResponseRedirect(
                     reverse(
-                        "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                        f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                         args=(waiter.pk,),
                     )
                 )
             else:
                 return HttpResponseRedirect(
-                    reverse(
-                        "admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name)
-                    )
+                    reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
                 )
 
         context = dict(
@@ -1362,7 +1359,7 @@ class RegistrationPasswordInline(admin.TabularInline):
 
 class GroupAdminForm(forms.ModelForm):
     name = forms.RegexField(
-        regex=r"^{pattern}+$".format(pattern=settings.STARTPAGE_URL_NAME_PATTERN),
+        regex=rf"^{settings.STARTPAGE_URL_NAME_PATTERN}+$",
         label=_("name"),
         error_messages={
             "invalid": _(
@@ -1423,7 +1420,7 @@ class GroupAdmin(admin.ModelAdmin):
         if not request.user.has_perm("members.view_group"):
             messages.error(request, _("You are not allowed to create a group overview."))
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
             )
 
         ensure_media_dir()
@@ -1436,7 +1433,7 @@ class GroupAdmin(admin.ModelAdmin):
         if not request.user.has_perm("members.view_group"):
             messages.error(request, _("You are not allowed to create a group checklist."))
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
             )
 
         groups = self.model.objects.filter(show_website=True)
@@ -1445,7 +1442,7 @@ class GroupAdmin(admin.ModelAdmin):
             # zero-byte PDF instead of failing (see ``members.pdf``).
             messages.error(request, NO_PUBLIC_GROUPS)
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
             )
 
         ensure_media_dir()
@@ -1506,48 +1503,81 @@ class BillOnExcursionInline(CommonAdminInlineMixin, admin.TabularInline):
 
 
 class StatementOnListForm(forms.ModelForm):
+    """The answers an excursion's statement carries, as its rules ask for them.
+
+    This was a ``ModelForm`` over four columns — the price per night and three
+    recipients — with the eligible youth leaders assigned into three querysets
+    by hand. It is now derived: :func:`finance.inputs.declarations` says which
+    questions this statement's ruleset asks, :func:`finance.inputs.form_field`
+    turns each into a field with its own domain, and
+    :func:`finance.inputs.clean_value` checks what comes back against the
+    declaration it belongs to. The two messages this form used to raise itself
+    come from there now, which is why the wording is unchanged.
+
+    The fields are not on the class, because which fields there are depends on
+    the excursion. :func:`statement_answer_form` builds a subclass per request
+    whose declared fields are this statement's questions, which is what the
+    admin's fieldsets need: a field it cannot find in ``declared_fields`` it
+    refuses to render.
     """
-    Form to edit a statement attached to an excursion. This is used in an inline on
-    the excursion admin.
-    """
+
+    #: The declarations this form's fields were built from, in order.
+    answer_declarations = ()
+
+    class Meta:
+        model = StatementOnExcursionProxy
+        fields = []
 
     def __init__(self, *args, **kwargs):
         excursion = kwargs.pop("parent_obj")
         super().__init__(*args, **kwargs)
-        # only allow youth leaders of this excursion to be selected as recipients
-        # of subsidies and allowance
-        self.fields["allowance_to"].queryset = excursion.jugendleiter.all()
-        self.fields["subsidy_to"].queryset = excursion.jugendleiter.all()
-        self.fields["ljp_to"].queryset = excursion.jugendleiter.all()
-        # the model's help_text is deployment independent, name the configured
-        # maximum here
-        self.fields["night_cost"].help_text = _(
-            "Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs. The maximum subsidised value is %(max_cost)s€."
-        ) % {"max_cost": settings.MAX_NIGHT_COST}
-
-    class Meta:
-        model = StatementOnExcursionProxy
-        fields = ["night_cost", "allowance_to", "subsidy_to", "ljp_to"]
+        # A statement being added through the inline has no excursion yet, and
+        # every domain is derived from one. The formset assigns it on save; the
+        # form needs it now, to show whom the rules offer.
+        if self.instance.excursion_id is None:
+            self.instance.excursion = excursion
+        carried = self.instance.answers
+        for declaration in self.answer_declarations:
+            self.initial.setdefault(declaration.key, carried.get(declaration.key))
+        self.answers = {}
 
     def clean(self):
-        """Check if the `allowance_to` and `subsidy_to` fields are compatible with
-        the total number of approved youth leaders."""
-        allowance_to = self.cleaned_data.get("allowance_to")
-        excursion = self.cleaned_data.get("excursion")
-        if allowance_to is None:
-            return
-        if allowance_to.count() > excursion.approved_staff_count:
-            raise ValidationError(
-                {
-                    "allowance_to": _(
-                        "This excursion only has up to %(approved_count)s approved youth leaders, but you listed %(entered_count)s."
-                    )
-                    % {
-                        "approved_count": str(excursion.approved_staff_count),
-                        "entered_count": str(allowance_to.count()),
-                    },
-                }
-            )
+        """Every answer against its own declaration, all of them before any.
+
+        A field-keyed error, so "this excursion only has up to two approved
+        youth leaders" appears under the answer it is about, as it did when
+        this form raised it itself.
+        """
+        cleaned = super().clean()
+        answers = {}
+        for declaration in self.answer_declarations:
+            if declaration.key in self.errors:
+                continue
+            try:
+                answers[declaration.key] = clean_value(declaration, cleaned.get(declaration.key))
+            except ValidationError as problem:
+                self.add_error(declaration.key, problem)
+        self.answers = answers
+        return cleaned
+
+    def save(self, commit=True):
+        self.instance.inputs = dict(self.instance.answers, **stored_answers(self.answers))
+        return super().save(commit=commit)
+
+
+def statement_answer_form(statement):
+    """A :class:`StatementOnListForm` subclass with ``statement``'s questions.
+
+    Built per request rather than per class, because the questions are the
+    ruleset's and the domains are the trip's.
+    """
+    declared = declarations(statement)
+    fields = {declaration.key: form_field(declaration) for declaration in declared}
+    return type(
+        "DerivedStatementOnListForm",
+        (StatementOnListForm,),
+        dict(fields, answer_declarations=tuple(declared)),
+    )
 
 
 class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedInline):
@@ -1557,11 +1587,24 @@ class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedIn
         "Please list here all expenses in relation with this excursion and upload relevant bills. These have to be permanently stored for the application of LJP contributions. The short descriptions are used in the seminar report cost overview (possible descriptions are e.g. food, material, etc.)."
     )
     sortable_options = []
-    fields = ["night_cost", "allowance_to", "subsidy_to", "ljp_to"]
     inlines = [BillOnExcursionInline]
     form = StatementOnListForm
 
+    def _asked_of(self, obj):
+        """The statement the questions are asked of: this trip's, or a draft."""
+        statement = getattr(obj, "statement", None) if obj is not None else None
+        return statement if statement is not None else Statement(excursion=obj)
+
+    def get_fields(self, request, obj=None):
+        """The declaration keys, which is what the derived form's fields are."""
+        return [
+            declaration.key
+            for declaration in declarations(self._asked_of(obj))
+            if self.may_view_field(declaration.key, request, obj)
+        ]
+
     def get_formset(self, request, obj=None, **kwargs):
+        kwargs["form"] = statement_answer_form(self._asked_of(obj))
         BaseFormSet = kwargs.pop("formset", self.formset)
 
         class CustomFormSet(BaseFormSet):
@@ -1764,7 +1807,7 @@ def decorate_download(fun):
         except Freizeit.DoesNotExist:
             messages.error(request, _("Excursion not found."))
             return HttpResponseRedirect(
-                reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+                reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
             )
         if not self.may_view_excursion(request, memberlist):
             return self.not_allowed_view(request, memberlist)
@@ -1775,7 +1818,7 @@ def decorate_download(fun):
             )
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                     args=(memberlist.pk,),
                 )
             )
@@ -1891,7 +1934,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             % {"name": memberlist.name},
         )
         return HttpResponseRedirect(
-            reverse("admin:{}_{}_changelist".format(self.opts.app_label, self.opts.model_name))
+            reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_changelist")
         )
 
     @extra_button(
@@ -1958,7 +2001,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             messages.error(request, _("This excursion does not have a statement."))
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                     args=(memberlist.pk,),
                 )
             )
@@ -1973,7 +2016,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             total_bills=statement.total_bills_theoretic,
             total_allowance=statement.total_allowance,
             total_theoretic=statement.total_theoretic,
-            allowance_to=statement.allowance_to.all(),
+            allowance_to=statement.allowance_to,
             allowance_per_yl=statement.allowance_per_yl,
             settings=settings,
         )
@@ -1998,7 +2041,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             )
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                     args=(memberlist.pk,),
                 )
             )
@@ -2084,7 +2127,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             messages.error(request, _("No statement found. Please add a statement and then retry."))
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                     args=(memberlist.pk,),
                 )
             )
@@ -2098,7 +2141,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
                 )
                 return HttpResponseRedirect(
                     reverse(
-                        "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                        f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                         args=(memberlist.pk,),
                     )
                 )
@@ -2112,7 +2155,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
                 )
                 return HttpResponseRedirect(
                     reverse(
-                        "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                        f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                         args=(memberlist.pk,),
                     )
                 )
@@ -2126,7 +2169,7 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             )
             return HttpResponseRedirect(
                 reverse(
-                    "admin:{}_{}_change".format(self.opts.app_label, self.opts.model_name),
+                    f"admin:{self.opts.app_label}_{self.opts.model_name}_change",
                     args=(memberlist.pk,),
                 )
             )
@@ -2157,26 +2200,22 @@ class FreizeitAdmin(ExtraButtonsMixin, CommonAdminMixin, nested_admin.NestedMode
             path(
                 "<path:object_id>/download/ljp_vbk",
                 wrap(self.download_seminar_vbk),
-                name="{}_{}_download_ljp_vbk".format(self.opts.app_label, self.opts.model_name),
+                name=f"{self.opts.app_label}_{self.opts.model_name}_download_ljp_vbk",
             ),
             path(
                 "<path:object_id>/download/ljp_report_docx",
                 wrap(self.download_seminar_report_docx),
-                name="{}_{}_download_ljp_report_docx".format(
-                    self.opts.app_label, self.opts.model_name
-                ),
+                name=f"{self.opts.app_label}_{self.opts.model_name}_download_ljp_report_docx",
             ),
             path(
                 "<path:object_id>/download/ljp_report_costs_and_participants",
                 wrap(self.download_seminar_report_costs_and_participants),
-                name="{}_{}_download_ljp_costs_participants".format(
-                    self.opts.app_label, self.opts.model_name
-                ),
+                name=f"{self.opts.app_label}_{self.opts.model_name}_download_ljp_costs_participants",
             ),
             path(
                 "<path:object_id>/download/ljp_proofs",
                 wrap(self.download_ljp_proofs),
-                name="{}_{}_download_ljp_proofs".format(self.opts.app_label, self.opts.model_name),
+                name=f"{self.opts.app_label}_{self.opts.model_name}_download_ljp_proofs",
             ),
         ]
         return custom_urls + urls

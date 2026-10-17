@@ -428,7 +428,7 @@ class MembersDocumentsApiTestCase(TestCase):
     def test_ljp_proofs_allowed(self):
         excursion = self._seminar_excursion()
         statement = Statement.objects.create(
-            short_description="Abrechnung", explanation="", night_cost=0, excursion=excursion
+            short_description="Abrechnung", explanation="", excursion=excursion
         )
         Bill.objects.create(
             statement=statement,
@@ -457,7 +457,7 @@ class MembersDocumentsApiTestCase(TestCase):
     def test_sjr_application_with_a_selected_invoice(self):
         excursion = self._seminar_excursion()
         statement = Statement.objects.create(
-            short_description="Abrechnung", explanation="", night_cost=0, excursion=excursion
+            short_description="Abrechnung", explanation="", excursion=excursion
         )
         bill = Bill.objects.create(
             statement=statement,
@@ -475,7 +475,7 @@ class MembersDocumentsApiTestCase(TestCase):
 
     def test_sjr_application_rejects_a_bill_from_another_excursion(self):
         excursion = self._seminar_excursion()
-        other = Statement.objects.create(short_description="Fremd", explanation="", night_cost=0)
+        other = Statement.objects.create(short_description="Fremd", explanation="")
         bill = Bill.objects.create(
             statement=other,
             short_description="Fremd",
@@ -493,7 +493,7 @@ class MembersDocumentsApiTestCase(TestCase):
     def test_sjr_application_rejects_a_bill_without_a_proof(self):
         excursion = self._seminar_excursion()
         statement = Statement.objects.create(
-            short_description="Abrechnung", explanation="", night_cost=0, excursion=excursion
+            short_description="Abrechnung", explanation="", excursion=excursion
         )
         bill = Bill.objects.create(statement=statement, short_description="Ohne Beleg", amount=10)
         r = self.client.post(

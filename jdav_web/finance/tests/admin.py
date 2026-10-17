@@ -13,6 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from finance.testing import also
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -68,7 +69,9 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         )
 
         self.statement = StatementUnSubmitted.objects.create(
-            short_description="Test Statement", explanation="Test explanation", night_cost=25
+            short_description="Test Statement",
+            explanation="Test explanation",
+            inputs={"night_cost": "25"},
         )
 
         # Create excursion for testing
@@ -84,7 +87,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.statement_with_excursion = StatementUnSubmitted.objects.create(
             short_description="With Excursion",
             explanation="Test explanation",
-            night_cost=25,
+            inputs={"night_cost": "25"},
             excursion=self.excursion,
         )
 
@@ -177,7 +180,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
     def test_response_add_regular_save(self):
         """Test that a regular add falls through to the default response_add"""
         statement = Statement.objects.create(
-            short_description="Plain Statement", explanation="Test", night_cost=0
+            short_description="Plain Statement", explanation="Test"
         )
         request = self.factory.post("/", data={"_save": ""})
         request.user = self.superuser
@@ -250,10 +253,12 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         self.statement_unsubmitted = StatementUnSubmitted.objects.create(
-            short_description="Submitted Statement", explanation="Test explanation", night_cost=25
+            short_description="Submitted Statement",
+            explanation="Test explanation",
+            inputs={"night_cost": "25"},
         )
         self.transaction = Transaction.objects.create(
             reference="verylonglong" * 14,
@@ -286,7 +291,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         self.statement_no_trans_error = Statement.objects.create(
             short_description="No Transactions Error",
@@ -294,7 +299,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
 
         # Create bills for generate transactions tests
@@ -487,7 +492,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.statement.save()
 
         # Add allowance recipient who is not a youth leader for this excursion
-        self.statement_no_trans_success.allowance_to.add(self.other_member)
+        also(self.statement_no_trans_success, "allowance_to", self.other_member)
 
         # Generate required transactions
         self.statement_no_trans_success.generate_transactions()
@@ -611,7 +616,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
             status=Statement.CONFIRMED,
             confirmed_by=self.member,
             confirmed_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
 
         # StatementConfirmed is a proxy model, so we can get it from the base statement
@@ -622,7 +627,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
             short_description="Unconfirmed Statement",
             explanation="Test explanation",
             status=Statement.SUBMITTED,
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
 
         # Create excursion for testing
@@ -642,7 +647,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
             confirmed_by=self.member,
             confirmed_date=timezone.now(),
             excursion=self.excursion,
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         self.statement_with_excursion = StatementConfirmed.objects.get(
             pk=confirmed_with_excursion_base.pk

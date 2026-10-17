@@ -2140,6 +2140,11 @@ export interface paths {
          *     reimburses something else gets a different form without a release. The
          *     answers go back through ``PATCH /statements/{id}`` as ``inputs``, and each
          *     one is validated against the declaration it belongs to.
+         *
+         *     ``answers`` is what the statement carries today, restricted to the keys
+         *     this form asks for — so one request is a whole form, questions and answers
+         *     together, and an answer the rules have since stopped asking for is not
+         *     handed back to be re-submitted.
          */
         get: operations["finance_api_router_statement_form"];
         put?: never;
@@ -5837,6 +5842,8 @@ export interface components {
              * @default []
              */
             allowance_to: components["schemas"]["MemberBrief"][];
+            /** Night Cost */
+            night_cost: number;
             /**
              * Bills
              * @default []
@@ -5899,12 +5906,6 @@ export interface components {
             short_description: string;
             /** Explanation */
             explanation?: string | null;
-            /**
-             * Price per night
-             * @description Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs.
-             * @default 0
-             */
-            night_cost: string;
             /**
              * Status
              * @default 0
@@ -5983,7 +5984,14 @@ export interface components {
             kind: string;
             member?: components["schemas"]["MemberBrief"] | null;
         };
-        /** StatementCreate */
+        /**
+         * StatementCreate
+         * @description A new draft. The answers come afterwards, through ``inputs``.
+         *
+         *     ``night_cost`` used to be here, because it used to be a column; a create
+         *     now says what the statement is for and nothing a section's rules might not
+         *     ask about.
+         */
         StatementCreate: {
             /** Short Description */
             short_description: string;
@@ -5994,36 +6002,26 @@ export interface components {
             explanation: string;
             /** Excursion Id */
             excursion_id?: number | null;
-            /**
-             * Night Cost
-             * @default 0
-             */
-            night_cost: number | string;
         };
         /**
          * StatementUpdate
          * @description Editable draft fields; PATCH semantics (only supplied fields applied).
          *
-         *     ``allowance_to_ids`` / ``subsidy_to_id`` / ``ljp_to_id`` mirror the admin's
-         *     ``StatementOnListInline`` (edited from the excursion): the recipients of the
-         *     allowance / subsidy / LJP contributions. Passing ``null`` clears an FK; an
-         *     omitted field is left unchanged.
+         *     ``inputs`` is the answers by declaration key, validated against what the
+         *     section's rules actually ask for (``GET .../form``). It replaces the four
+         *     fields that were here — ``night_cost``, ``allowance_to_ids``,
+         *     ``subsidy_to_id`` and ``ljp_to_id`` — which were four fields because they
+         *     were four columns on ``Statement``, and so a section whose rules ask a
+         *     fifth question had no way to be asked it. A key the rules do not ask for is
+         *     refused; a key left out is unchanged.
          */
         StatementUpdate: {
             /** Short Description */
             short_description?: string | null;
             /** Explanation */
             explanation?: string | null;
-            /** Night Cost */
-            night_cost?: number | string | null;
             /** Excursion Id */
             excursion_id?: number | null;
-            /** Allowance To Ids */
-            allowance_to_ids?: number[] | null;
-            /** Subsidy To Id */
-            subsidy_to_id?: number | null;
-            /** Ljp To Id */
-            ljp_to_id?: number | null;
             /** Inputs */
             inputs?: {
                 [key: string]: unknown;
@@ -6337,10 +6335,14 @@ export interface components {
         };
         /**
          * StatementFormOut
-         * @description The questions this statement still has to answer.
+         * @description The questions this statement still has to answer, and its answers.
          *
          *     ``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a
-         *     question once an earlier answer makes it moot.
+         *     question once an earlier answer makes it moot — and ``answers`` is
+         *     restricted to the keys that survived that, so a retired answer is not
+         *     handed back to a client to re-submit. The values are as
+         *     ``Statement.inputs`` holds them: money as a string, a person as an id, a
+         *     set of people as a list of ids.
          */
         StatementFormOut: {
             /** Statement Id */
@@ -6350,6 +6352,13 @@ export interface components {
              * @default []
              */
             inputs: components["schemas"]["InputDeclarationOut"][];
+            /**
+             * Answers
+             * @default {}
+             */
+            answers: {
+                [key: string]: unknown;
+            };
         };
         /**
          * CheckOut

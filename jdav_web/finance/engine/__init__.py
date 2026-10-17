@@ -24,6 +24,8 @@ that no test would have missed; that module is the recipe for not writing the
 next one, and the two helpers that make it cheap.
 """
 
+from .answers import coerce_input
+from .answers import typed_inputs
 from .approval import ConstraintState
 from .approval import fully_approved
 from .approval import may_sign
@@ -78,25 +80,26 @@ __all__ = [
     "RulesetInvalid",
     "RulesetRejected",
     "active_ruleset",
-    "approval_states",
     "active_version",
+    "approval_states",
     "bind",
     "build_context",
     "cents_of",
     "check_directory",
+    "coerce_input",
     "configured_directory",
+    "current_constraint_rows",
     "decimal_params",
     "engine_version",
     "evaluate",
-    "current_constraint_rows",
     "evaluate_statement",
     "freeze",
     "fully_approved",
     "import_from_directory",
+    "live_rows",
     "load",
     "manifest",
     "manifest_hash",
-    "live_rows",
     "materialise",
     "may_sign",
     "no_queries",
@@ -115,5 +118,6 @@ __all__ = [
     "statement_inputs",
     "statement_params",
     "sum_amounts",
+    "typed_inputs",
     "verify",
 ]

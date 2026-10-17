@@ -240,6 +240,9 @@ def statement_context(
         declared = tuple(ruleset.permissions) if actors else ()
     return build_context(
         statement,
+        # The ruleset is what says which stored answer is money and which is a
+        # person; without it the context would carry the raw JSON.
+        ruleset=ruleset,
         permissions=declared,
         inputs=inputs,
         params=statement_params(statement),

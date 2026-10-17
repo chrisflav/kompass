@@ -3,8 +3,9 @@
 A section's rules declare every answer they need
 (:meth:`~kompass.rules.Ruleset.inputs`), with a label, a widget type and — for
 a party-valued answer — the domain of people who may be picked. This module is
-the other side of that declaration: it renders it for a client, and it
-validates what comes back.
+the other side of that declaration: it renders it for a client — the SPA
+through ``GET …/form``, the admin's excursion inline through
+:func:`form_field` — and it validates what comes back.
 
 Two things it deliberately does rather than trusts:
 
@@ -13,11 +14,12 @@ names candidates as ids; the names a person picks from are looked up at the
 edge, so that the rules never see them.
 
 **Every value is checked against its declaration**, not against a hand-written
-list of the four columns Heidelberg happens to have. ``_resolve_recipient``
-and ``_validate_allowance_count`` in the router were exactly that list; the
-checks here are their generalisation, with the same two messages, so a section
-whose rules ask for something else gets the same treatment without anybody
-editing the API.
+list of the four columns Heidelberg used to have. ``_resolve_recipient`` and
+``_validate_allowance_count`` in the router were exactly that list, and
+``StatementOnListForm`` was the same list as three querysets; the checks here
+are their generalisation, with the same two messages, so a section whose rules
+ask for something else gets the same treatment without anybody editing the API
+or the admin.
 
 The validation is pessimistic on purpose — everything is checked before
 anything is written — because approval must never fail on arithmetic that
@@ -29,6 +31,7 @@ from decimal import Decimal
 from decimal import InvalidOperation
 from typing import Any
 
+from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from finance.rules_api import Input
@@ -91,12 +94,67 @@ def rendered(statement: Any) -> list[dict[str, Any]]:
     ]
 
 
+def party_keys(statement: Any) -> set[str]:
+    """The declared keys that name people.
+
+    An answer naming somebody is only admissible against the trip it was given
+    for: swap the excursion and last week's youth leaders are no longer
+    eligible for anything. The caller drops these rather than the four columns
+    it used to know by name.
+    """
+    return {
+        declaration.key
+        for declaration in declarations(statement)
+        if declaration.type in MEMBER_TYPES
+    }
+
+
+def form_field(declaration: Input) -> Any:
+    """``declaration`` as a Django form field, for a server-rendered form.
+
+    The admin's excursion inline is a client of the declarations like the SPA
+    is, and it used to be a ``ModelForm`` over the four columns with the
+    eligible youth leaders assigned into three querysets by hand. This is that
+    form's field list, derived: the domain of a party-valued answer becomes the
+    field's choices, so the admin cannot offer somebody the rules did not.
+
+    The values that come back are ids and numbers, never model instances, so
+    that :func:`clean_value` can check them against the same declaration the
+    API checks against and give the same message.
+    """
+    common = {
+        "label": declaration.label,
+        "required": declaration.required,
+        "help_text": declaration.help,
+    }
+    if declaration.type in MEMBER_TYPES:
+        choices = [(option["id"], option["name"]) for option in options_for(declaration)]
+        if MEMBER_TYPES[declaration.type]:
+            return forms.TypedMultipleChoiceField(choices=choices, coerce=int, **common)
+        return forms.TypedChoiceField(
+            choices=[("", "---------"), *choices], coerce=int, empty_value=None, **common
+        )
+    if declaration.type == "money":
+        return forms.DecimalField(decimal_places=2, max_digits=7, min_value=0, **common)
+    if declaration.type == "int":
+        return forms.IntegerField(max_value=declaration.max, **common)
+    if declaration.type == "bool":
+        return forms.BooleanField(**common)
+    return forms.CharField(**common)
+
+
 def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
     """Validate ``values`` against the declarations, or raise.
 
     Returns the cleaned answers, with members resolved to ids and money to
     ``Decimal``. Raises :class:`~django.core.exceptions.ValidationError` on the
     first problem, which is what the API turns into a 422.
+
+    A problem with one answer is raised **keyed by that answer**, so the 422
+    carries an ``errors`` map and a client can print "this trip only has two
+    approved youth leaders" under the question it is about rather than as a
+    toast over the whole form. The admin's form did that when it was a
+    ``ModelForm`` over four columns; the API did not.
     """
     by_key = {declaration.key: declaration for declaration in declarations(statement)}
     cleaned = {}
@@ -104,7 +162,10 @@ def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
         declaration = by_key.get(key)
         if declaration is None:
             raise ValidationError(_("These rules do not ask for %(key)s.") % {"key": key})
-        cleaned[key] = clean_value(declaration, value)
+        try:
+            cleaned[key] = clean_value(declaration, value)
+        except ValidationError as problem:
+            raise ValidationError({key: problem.messages}) from None
     return cleaned
 
 
@@ -128,11 +189,23 @@ def clean_value(declaration: Input, value: Any) -> Any:
 
 
 def _clean_members(declaration: Input, value: Any) -> Any:
-    """Who may be named: exactly the people the rules offered, no more.
+    """Who may be named: exactly the people the rules offered, each once.
 
     This is ``_resolve_recipient`` and ``_validate_allowance_count``, both at
     once and for any declaration rather than for three columns. The messages
     are the ones the admin and the API have always given.
+
+    A ``member_set`` comes back **deduplicated and in id order**, because it is
+    a set: that is what the ``ManyToManyField`` it replaced guaranteed, and
+    both halves of the guarantee move money. Without the deduplication,
+    ``{"allowance_to": [1, 1]}`` passed a bound of two and froze two obligation
+    rows paying member 1, so a youth leader could double their own allowance
+    with one ``PATCH``; the count the bound is checked against is therefore the
+    deduplicated one, since one person named twice is one recipient. Without
+    the ordering, the client's click order decided who the organisation fee was
+    charged against — Heidelberg's ``first_of(subsidy_to, *allowance_to)`` bills
+    the first element, and the SPA appends in click order while the admin sends
+    option order.
     """
     many = MEMBER_TYPES[declaration.type]
     if value is None:
@@ -144,16 +217,29 @@ def _clean_members(declaration: Input, value: Any) -> Any:
             raise ValidationError(
                 _("Only youth leaders of this excursion may receive contributions.")
             )
-    if many and declaration.max is not None and len(picked) > declaration.max:
+    if not many:
+        return int(picked[0])
+    resolved = sorted({int(member_id) for member_id in picked})
+    if declaration.max is not None and len(resolved) > declaration.max:
         raise ValidationError(
             _(
                 "This excursion only has up to %(approved_count)s approved youth "
                 "leaders, but you listed %(entered_count)s."
             )
-            % {"approved_count": str(declaration.max), "entered_count": str(len(picked))}
+            % {"approved_count": str(declaration.max), "entered_count": str(len(resolved))}
         )
-    resolved = [int(member_id) for member_id in picked]
-    return resolved if many else resolved[0]
+    return resolved
+
+
+#: The resolution and the ceiling an answer in money has to fit.
+#:
+#: Cents because that is what the engine computes in — ``quantize`` floors to
+#: them, so a third decimal place is silently dropped rather than paid — and a
+#: ceiling because an unbounded answer is a figure no section's books hold,
+#: and one that ``0021``'s reverse cannot write back into the
+#: ``max_digits=5`` column it came from.
+MONEY_PLACES = 2
+MONEY_MAX = Decimal("999999999.99")
 
 
 def _clean_money(declaration: Input, value: Any) -> Decimal:
@@ -163,9 +249,21 @@ def _clean_money(declaration: Input, value: Any) -> Decimal:
         raise ValidationError(
             _("%(label)s is not an amount of money.") % {"label": str(declaration.label)}
         ) from None
+    # `Decimal` accepts "nan" and "inf", and comparing either raises rather
+    # than answering — so they are refused as what they are, not an amount.
+    if not amount.is_finite():
+        raise ValidationError(
+            _("%(label)s is not an amount of money.") % {"label": str(declaration.label)}
+        )
     if amount < 0:
         raise ValidationError(
             _("%(label)s cannot be negative.") % {"label": str(declaration.label)}
+        )
+    places = max(0, -int(amount.normalize().as_tuple().exponent))
+    if places > MONEY_PLACES or amount > MONEY_MAX:
+        raise ValidationError(
+            _("%(label)s has to be an amount in whole cents, at most %(max)s.")
+            % {"label": str(declaration.label), "max": str(MONEY_MAX)}
         )
     return amount
 
@@ -188,20 +286,12 @@ def _clean_int(declaration: Input, value: Any) -> int:
 def stored(values: Mapping[str, Any]) -> dict[str, Any]:
     """``values`` as the ``inputs`` column keeps them: JSON, money as text.
 
-    .. warning::
-
-       ``Statement.inputs`` is **written but not read** while the four
-       Heidelberg columns exist: ``statement_inputs`` resolves the answers
-       from the columns, and the admin's forms write the columns without
-       touching this field. So it can and does drift — an admin edit leaves it
-       stale, and a key the rules stopped asking for stays in it, because this
-       merges rather than replaces.
-
-       The migration that drops those columns (step 3's second half) must
-       therefore back-fill from **the columns**, not from this field, and must
-       drop the keys no declaration asks for. Reading this field as
-       authoritative is the one way to make a stale answer win over the one a
-       person actually saved.
+    This is now the whole record: the four Heidelberg columns it used to be
+    written beside were migrated into it by ``0021`` — which read **the
+    columns**, because by then this field had been written and never read for
+    three releases and had drifted from them. Nothing writes here except
+    through :func:`clean`, so an answer in it has been checked against the
+    declaration it belongs to.
     """
     return {
         key: str(value) if isinstance(value, Decimal) else value for key, value in values.items()

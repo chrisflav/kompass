@@ -93,7 +93,6 @@ class FinanceDocumentsApiTestCase(TestCase):
         stmt = Statement.objects.create(
             short_description="Confirmed statement",
             explanation="",
-            night_cost=0,
             created_by=self.manager,
         )
         stmt.submit(self.manager)
@@ -131,7 +130,6 @@ class FinanceDocumentsApiTestCase(TestCase):
         stmt = Statement.objects.create(
             short_description="Draft",
             explanation="",
-            night_cost=0,
             created_by=self.manager,
         )
         stmt.submit(self.manager)

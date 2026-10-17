@@ -61,7 +61,6 @@ class FinanceParityApiTestCase(TestCase):
         return Statement.objects.create(
             short_description=short_description,
             explanation="",
-            night_cost=0,
             created_by=created_by,
         )
 
