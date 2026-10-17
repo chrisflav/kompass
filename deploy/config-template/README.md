@@ -76,9 +76,22 @@ those keys belongs in `rules/` as a module constant, where it is versioned
 with the rules that read it — which is arguably where a figure your section
 voted on belongs anyway.
 
-`manage.py importruleset` runs **at every container start**, so a merged rule
-change is picked up without a Kompass release and without a container restart:
-pull the repository on the host and restart the instance, or run
+> **Input keys are not free-form either, and that one can cost money.** A
+> statement still stores its answers in four columns, so `inputs` can only
+> declare `night_cost` (money), `allowance_to` (member set), `subsidy_to`
+> (member) and `ljp_to` (member). A declaration under any other key has
+> nowhere to be stored: the person is asked, the answer is dropped, and the
+> rule reads that type's empty value — `0.00`, `False`, `()`, `None` — every
+> time, with nothing raised and nothing logged. **A case will not catch it**,
+> because the case runner passes unknown keys straight through: green case,
+> production pays zero. Until Kompass #556 moves the answers into one JSON
+> field, a figure you cannot put in one of those four keys goes in `rules/` as
+> a constant instead of an input.
+
+`manage.py importruleset` runs **when the `master` container starts** — of the
+five containers the image runs, that is the only entrypoint that imports — so a
+merged rule change is picked up without a Kompass release and without rebuilding
+anything: pull the repository on the host and restart the instance, or run
 
 ```console
 docker compose exec master python jdav_web/manage.py importruleset
@@ -128,6 +141,14 @@ fuzzer builds its statements out of thin air. `mypy --strict` and `ruff check`
 need `kompass.rules`, which lives in the image, so they want the same
 `docker run` — see the workflow for the exact invocation.
 
+Note the working directories, because they are not the same. `mypy` and `ruff`
+read `pyproject.toml` and so must run **in** `/app/config`; `checkruleset` must
+run from `/app` and be given the package by absolute path. Run it from
+`/app/config` and it fails before reading a rule, with `No module named
+'rules.contrib'`: Kompass pulls in Celery, whose Django fixup puts the working
+directory at the front of `sys.path`, and your `rules/` package then shadows
+`django-rules`, which Kompass itself depends on.
+
 What **nothing** checks automatically is `approval()`: the cases compare
 transfers, errors and checks, and the fuzzer insists that every random
 statement balances, but neither one signs anything. Read that method carefully,
@@ -176,15 +197,17 @@ policy maps onto this template like this:
 
 | Rule | Where it goes |
 | --- | --- |
-| *Individualisierte* Aufwandsentschädigung | `inputs` gains a per-person amount and `transfers` stops paying one flat figure to everybody named. Mind the case-file note in `rules/__init__.py` before choosing an input key. |
-| Übernachtungs- und Fahrtkosten, individualisiert | Two more inputs and two more transfer rules, with `ctx.excursion.nights`, `kilometers` and `approach` in the context already. |
+| *Individualisierte* Aufwandsentschädigung | **Blocked on Kompass #556.** A per-person amount needs an input key per person, and there are only the four columns above — a fifth key reads `0.00` in production while its case passes. `allowance_to` can say *who*; it cannot say *how much each*. |
+| Übernachtungs- und Fahrtkosten, individualisiert | **Partly blocked on #556.** One shared price per night fits `night_cost`, and one recipient fits `subsidy_to`; `ctx.excursion.nights`, `kilometers` and `approach` are in the context already. Individualising either needs keys that cannot be stored yet. |
 | LJP wie gehabt | `ctx.excursion.ljp` carries the counts the state's regulations define, already computed. The reference ruleset's `_ljp_amount` is the worked example to read. |
 | Einreichen nach Bestätigung aller Jugendleitenden | **Not implemented by the engine.** `Check`s are preconditions for handing in, but there is no per-leader confirmation to check for, and `Constraint`s are signatures *after* submission. It needs a pre-submission stage in the engine. |
 | Abrechnung innerhalb eines Monats: erinnern, dann forcieren | **Not implemented by the engine.** There is no clock in a rule and no deadline in the context, deliberately; a reminder is a scheduled task in Kompass, not a rule. |
 
-The first three are rules to write here. The last two are Kompass features that
-do not exist yet, and writing them as rules is not possible — which is better
-to know before the first pull request than after it.
+Only the LJP row is a rule to write here today. The first two wait on #556 —
+in flight, so check it before concluding they still do — and the last two are
+Kompass features that do not exist at all, which cannot be written as rules
+however the ruleset is arranged. All four are better known before the first
+pull request than after it.
 
 The figures themselves are the section's to decide, so nobody should write
 Ludwigsburg's ruleset without Ludwigsburg.

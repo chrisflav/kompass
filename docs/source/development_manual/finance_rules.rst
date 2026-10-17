@@ -55,6 +55,17 @@ It answers four questions about one statement, and nothing else:
 Each one is given a :class:`~kompass.rules.RuleContext` — every fact about the
 statement a rule is allowed to know, as frozen values.
 
+There is a fifth method, and it matters to anyone whose questions depend on
+the answers already given: the live form asks
+:meth:`~kompass.rules.Ruleset.relevant_inputs`, not
+:meth:`~kompass.rules.Ruleset.inputs`. Its default implementation re-runs
+``inputs`` against the answers so far, which is why a ruleset that branches
+inside ``inputs`` already works — but a ruleset that overrides
+``relevant_inputs`` is overriding the method the form actually calls, while
+the case runner, the fuzzer and the stored declarations go through ``inputs``.
+Keep the two consistent, or the question a person is asked and the answer a
+rule reads come apart.
+
 
 How a ruleset reaches a running instance
 ========================================
@@ -69,8 +80,10 @@ from the settings:
    [finance]
    ruleset = "rules"   # a package directory under KOMPASS_CONFIG_DIR_PATH
 
-``manage.py importruleset`` runs at every container start, on demand from the
-admin, and — with ``[finance] ruleset_poll_minutes`` — from a periodic task. It
+``manage.py importruleset`` runs when the ``master`` container starts — one of
+the five the image runs, and the only one whose entrypoint imports; the SPA,
+the Celery worker, the beat and the LMTP containers do not — on demand from
+the admin, and, with ``[finance] ruleset_poll_minutes``, from a periodic task. It
 reads every ``*.py`` under the package, hashes the sources together with the
 section's finance parameters, and stores that as a **version**. An unchanged
 package hashes to the version that is already stored, so importing twice costs
@@ -286,8 +299,8 @@ person is shown.
      - :meth:`~kompass.rules.Inputs.text`
      - Free text. Unanswered: ``""``.
    * - ``choice``
-     - :meth:`~kompass.rules.Inputs.text`
-     - One of a set of named options. Unanswered: ``None``.
+     - :meth:`~kompass.rules.Inputs.raw`
+     - **In the vocabulary, not yet usable** — see the warning below.
    * - ``member``
      - :meth:`~kompass.rules.Inputs.member`
      - One person out of :attr:`~kompass.rules.Input.options`. Unanswered:
@@ -302,6 +315,31 @@ against the options the declaration offered, so an answer can never name
 somebody the rule did not offer. A rule cannot widen the set by returning a
 wider one from somewhere else either: the leaders in
 :attr:`~kompass.rules.Excursion.leaders` are re-checked too.
+
+Which *keys* may be declared is a separate and much tighter restriction than
+which types exist — see
+:ref:`development_manual/finance_rules/four_keys`.
+
+.. warning::
+   **Do not use** ``choice`` **yet** (**#573**). It is in the vocabulary and
+   the form renders it, but there is no way to say what may be chosen:
+   :attr:`~kompass.rules.Input.options` is ``tuple[Member, ...]`` and
+   ``finance/inputs.py::options_for`` resolves it through
+   ``Member.objects.in_bulk``, so a ``choice`` arrives with an empty option
+   list and ``clean_value`` falls through to "anything else is text" — it
+   accepts any string at all.
+
+   Worse, the unanswered value is ``None`` while
+   :meth:`~kompass.rules.Inputs.text` type-checks against ``str``, so reading
+   an unanswered ``choice`` with the accessor its type suggests raises
+   :class:`~kompass.rules.RuleError` — and because that happens inside
+   :meth:`~kompass.rules.Ruleset.transfers`, it collapses the whole evaluation
+   into one error rather than reporting a missing answer.
+
+   Until #573, a fixed set of alternatives is a ``bool`` per alternative, or a
+   ``text`` input whose value a check validates. If you must use ``choice``,
+   read it with :meth:`~kompass.rules.Inputs.raw` and test for ``None``
+   before anything else — and know that nothing validates what came in.
 
 
 The section's numbers
@@ -378,19 +416,53 @@ and never activated.
 The format is implemented in ``jdav_web/finance/engine/cases.py``, which is
 also where a new key would be added.
 
-.. note::
-   One sharp edge today: a case file's answers are coerced into the types the
-   accessors expect only for the reference ruleset's four keys
-   (``night_cost``, ``allowance_to``, ``subsidy_to``, ``ljp_to``). An answer
-   under any other key arrives as JSON wrote it, so a ``money`` answer reaches
-   the rules as a string and :meth:`~kompass.rules.Inputs.money` refuses it
-   with a :class:`~kompass.rules.RuleError`.
+.. _development_manual/finance_rules/four_keys:
 
-   Until the case runner coerces by declaration, a case that has to answer a
-   custom ``money``, ``member`` or ``member_set`` question either uses one of
-   those four key names or reads the answer with
-   :meth:`~kompass.rules.Inputs.raw`. ``int``, ``bool`` and ``text`` answers
-   round-trip through JSON unharmed.
+Only four input keys can be answered today
+------------------------------------------
+
+.. danger::
+   This is the one restriction on this page that can cost money, and it is a
+   restriction of the **running instance**, not of the case runner.
+
+   A statement does not yet store its answers in one field. It has four
+   columns, the ones the reference ruleset happens to need, and
+   ``finance/engine/context.py::statement_inputs`` returns exactly those:
+   ``night_cost``, ``allowance_to``, ``subsidy_to`` and ``ljp_to``. A
+   declaration under any other key has nowhere to be stored, so
+   ``finance/engine/evaluation.py::_answered`` substitutes that type's empty
+   value — ``0.00``, ``0``, ``False``, ``""``, ``None`` or ``()`` — on every
+   evaluation. The person is asked the question, the answer goes nowhere, and
+   the rule reads a zero. Nothing raises and nothing warns.
+
+   :meth:`~kompass.rules.Inputs.raw` does not get round it: the key is present
+   in the mapping, holding the empty value. There is nothing else to read.
+
+   **A case will not catch it**, which is what makes it dangerous.
+   ``cases.py::_inputs`` coerces those same four keys and passes any other key
+   through as JSON wrote it, so a case that answers a custom key proves
+   something the instance will never do: the case goes green and production
+   pays zero.
+
+   Until the answers move into one JSON field (step 3 of the refactor,
+   **#556**, in flight), a rule may only read those four keys — and a section
+   whose policy needs another number puts it in the ruleset as a module
+   constant, where it is versioned with the rules, rather than declaring an
+   input for it.
+
+   One consequence of the four keys being the reference ruleset's: their
+   *types* are fixed too — ``night_cost`` is ``money``, ``allowance_to`` is
+   ``member_set``, ``subsidy_to`` and ``ljp_to`` are ``member``. A declaration
+   that reuses a key with a different type gets the column's value, not the
+   declared type's.
+
+..
+   MAINTENANCE: when #556 lands — the answers moving into one JSON field —
+   this whole section shrinks to a sentence about the case runner coercing
+   only the four keys, the "which keys" sentence under the widget table goes
+   away, and the comment in `deploy/config-template/rules/__init__.py` and the
+   README's Ludwigsburg table need the same edit. #556 is in flight and may
+   land right after this page.
 
 
 Checking a ruleset
@@ -401,8 +473,15 @@ It touches no data, so it runs anywhere the image runs:
 
 .. code-block:: console
 
-   docker run --rm -v "$PWD":/app/config:ro ghcr.io/chrisflav/kompass:<tag> \
+   docker run --rm -v "$PWD":/app/config:ro \
+       -e KOMPASS_CONFIG_DIR_PATH=/app/config \
+       ghcr.io/chrisflav/kompass:<tag> \
        python jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
+
+``KOMPASS_CONFIG_DIR_PATH`` makes the fuzz use the numbers from the
+``settings.toml`` beside the rules; the cases carry their own ``params``. The
+command keeps the image's own working directory, ``/app``, which is where it
+has to run — see the warning below.
 
 ``--fuzz N`` additionally builds ``N`` random but valid statements, asks the
 ruleset what to ask the person, answers those questions at random *within the
@@ -413,13 +492,29 @@ expected figure — it is the cheapest way to find the rule that divides by a
 participant count nobody checked for zero.
 
 A section's CI runs three commands, all three inside the image the instance
-runs, so that the API module and the interpreter match production:
+runs, so that the API module and the interpreter match production. They do
+**not** share a working directory:
 
 .. code-block:: console
 
-   mypy --strict rules/
-   ruff check rules/
-   python /app/jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
+   cd /app/config && mypy --strict rules      # reads ./pyproject.toml
+   cd /app/config && ruff check rules          # reads ./pyproject.toml
+   cd /app && python jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
+
+.. warning::
+   The third command must not run from ``/app/config``. Kompass pulls in
+   Celery, whose Django fixup inserts the working directory at the front of
+   ``sys.path`` on purpose, and a configuration directory contains a
+   ``rules/`` package — which is also the top-level name of ``django-rules``,
+   a dependency and an installed app. From ``/app/config`` the section's own
+   ruleset shadows it and ``django.setup()`` dies with ``No module named
+   'rules.contrib'`` before a single rule is read.
+
+   So ``checkruleset`` runs from ``/app``, exactly as the container
+   entrypoint does, and is given the package by absolute path. ``mypy`` and
+   ``ruff`` do need ``/app/config`` as their working directory, because that
+   is where their ``pyproject.toml`` is; neither imports Django, so neither
+   is affected.
 
 The exact invocation — the mount, the environment and where ``mypy`` and
 ``ruff`` come from, since the image carries the application's dependencies and
@@ -500,6 +595,19 @@ The context
 
 .. autoclass:: Roles()
    :members:
+   :exclude-members: get
+
+   .. py:method:: get(role, default=())
+
+      The holders of ``role``, or ``default`` when nobody holds it.
+
+      Documented here rather than inherited: the signature comes from
+      :class:`~collections.abc.Mapping`, but the behaviour does not. The
+      default is ``()`` rather than ``None``, and on a context that did not
+      resolve the role assignments this **raises**
+      :class:`RuleError` instead of returning the default — which is the whole
+      point of the unresolved state, and the opposite of what
+      ``Mapping.get``'s own docstring says.
 
 Parties
 -------

@@ -64,28 +64,45 @@ jobs:
             -e MYPY_VERSION \
             "$KOMPASS_IMAGE" \
             sh -ec '
-              cd /app/config
+              # No apostrophes and no backticks anywhere below: this whole
+              # script is one single-quoted argument, so an apostrophe in a
+              # comment ends it and the rest of the block becomes shell
+              # syntax. That mistake fails the step before docker starts,
+              # with an error that says nothing about rules. "bash -n" over
+              # this block catches it.
 
-              # `--strict` against the real `kompass.rules`, which ships in
-              # the image and carries `py.typed`. The cache goes to /tmp
-              # because /app/config is mounted read-only -- as it is in
-              # production.
-              uvx --python 3.13 "mypy@$MYPY_VERSION" \
-                  --strict --cache-dir /tmp/mypy-cache rules
+              # mypy and ruff read their configuration from
+              # /app/config/pyproject.toml, so they run with that directory as
+              # the working directory -- each in a subshell, because the third
+              # command must NOT. The mypy cache goes to /tmp because
+              # /app/config is mounted read-only, as it is in production.
+              (cd /app/config && uvx --python 3.13 "mypy@$MYPY_VERSION" \
+                  --strict --cache-dir /tmp/mypy-cache rules)
 
               # The banned-import rules in pyproject.toml, which mirror what
               # the engine refuses. A violation is a lint failure here instead
               # of a rejected version in the admin.
-              uvx --python 3.13 "ruff@$RUFF_VERSION" check --no-cache rules
+              (cd /app/config && uvx --python 3.13 "ruff@$RUFF_VERSION" \
+                  check --no-cache rules)
 
               # The import whitelist, the loader, and every case in
               # rules/cases/ -- the same checks the instance gates activation
-              # on. `--fuzz` additionally runs random but valid statements
+              # on. --fuzz additionally runs random but valid statements
               # through the rules and insists that each one reports no error
               # and balances.
               #
-              # KOMPASS_CONFIG_DIR_PATH is set so that the fuzz uses this
-              # repository's own [finance] numbers. The cases carry their own
-              # `params`, so they do not depend on it.
-              python /app/jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
+              # Run from /app, exactly as the container entrypoint does, and
+              # never from /app/config: Kompass pulls in Celery, whose Django
+              # fixup inserts the working directory at the front of sys.path,
+              # and a configuration directory contains a rules/ package --
+              # which is also the top-level name of django-rules, a dependency
+              # and an installed app. From /app/config the ruleset shadows it
+              # and django.setup() dies with "No module named rules.contrib"
+              # before any rule is read.
+              #
+              # KOMPASS_CONFIG_DIR_PATH is set so that the fuzz uses the
+              # numbers from the settings.toml beside these rules. The cases
+              # carry their own params, so they do not depend on it.
+              cd /app
+              python jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
             '

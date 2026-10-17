@@ -108,19 +108,39 @@ class SectionRules(Ruleset):
                 options=leaders,
                 max=approved,
             ),
-            # The next questions your section needs go here. A `money` input
-            # for a price per night, a `member` input for whoever paid the
-            # travel costs, a `bool` input for "LJP-Antrag gestellt" -- the
-            # widget vocabulary is `money`, `int`, `bool`, `text`, `choice`,
-            # `member` and `member_set`.
+            # The next questions your section needs go here -- but read this
+            # first, because it is the one restriction that can quietly cost
+            # somebody money.
             #
-            # Note before you add one: a case file's answers are coerced into
-            # the types the accessors expect only for the reference ruleset's
-            # four keys (`night_cost`, `allowance_to`, `subsidy_to`,
-            # `ljp_to`). An answer under any other key arrives as JSON wrote
-            # it, so `ctx.inputs.money("...")` refuses a case's `"22.00"`.
-            # Until the case runner coerces by declaration, read such an
-            # answer with `ctx.inputs.raw(...)` or reuse one of those keys.
+            # A statement does not yet store its answers in one field. It has
+            # four columns, so these are the ONLY keys that can hold an
+            # answer today:
+            #
+            #     night_cost     money
+            #     allowance_to   member_set
+            #     subsidy_to     member
+            #     ljp_to         member
+            #
+            # Declare any other key and the person is asked the question, the
+            # answer is dropped, and the rule reads that type's empty value
+            # (0.00, 0, False, "", None, ()) on every single evaluation.
+            # Nothing raises and nothing is logged. `ctx.inputs.raw(...)` does
+            # not help: the key is there, holding the empty value.
+            #
+            # A case will NOT catch this -- the case runner passes unknown
+            # keys straight through, so the case goes green while production
+            # pays zero. That is why this template declares only
+            # `allowance_to`.
+            #
+            # Until Kompass #556 moves the answers into one JSON field, a
+            # figure that does not fit one of those four keys belongs below as
+            # a module constant (like APPROVER_PERMISSION), where it is
+            # versioned with the rules that read it.
+            #
+            # Also: do not use the `choice` widget yet (Kompass #573). There
+            # is no way to declare what may be chosen, nothing validates the
+            # answer, and reading an unanswered one with `ctx.inputs.text()`
+            # raises and takes the whole evaluation down with it.
         ]
 
     def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
