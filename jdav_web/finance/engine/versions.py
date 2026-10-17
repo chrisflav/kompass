@@ -143,7 +143,19 @@ def version_hash(sources: Mapping[str, str], params: Mapping[str, Any]) -> str:
 
 
 def decimal_params(params: Mapping[str, Any]) -> dict[str, Decimal]:
-    """A stored parameter mapping as :class:`~decimal.Decimal`\\ s."""
+    """A stored parameter mapping as :class:`~decimal.Decimal`\\ s.
+
+    A value that will not parse is left out rather than raising, because this
+    reads *stored* rows and a row that is already in the database has to stay
+    readable. What a rule then sees is an undeclared key, which
+    :class:`~kompass.rules.Params` refuses — so the statement is stuck with a
+    confusing reason rather than settled with a wrong number.
+
+    Which is why such a value is caught one step earlier now, at the import
+    (:func:`parameter_problems`): a typo in ``settings.toml`` is a version
+    that does not activate and says why, instead of a number that reads as
+    "that parameter does not exist" months later.
+    """
     values: dict[str, Decimal] = {}
     for key, value in params.items():
         try:
@@ -151,6 +163,27 @@ def decimal_params(params: Mapping[str, Any]) -> dict[str, Decimal]:
         except InvalidOperation:
             continue
     return values
+
+
+def parameter_problems(params: Mapping[str, Any]) -> list[str]:
+    """One message per section number that is not a number.
+
+    The section's figures are as much a part of a version as its code — the
+    hash covers both — so a figure Kompass cannot read is a reason not to
+    activate the version, exactly like a rule that does not compile. It used
+    to be dropped silently by :func:`decimal_params`, and the first anybody
+    heard of it was a statement whose rules reported a missing parameter.
+    """
+    problems = []
+    for key in sorted(params):
+        try:
+            Decimal(str(params[key]))
+        except InvalidOperation:
+            problems.append(
+                f"the section's {key} is {params[key]!r}, which is not a number — "
+                "the version cannot be activated with it"
+            )
+    return problems
 
 
 def declared_valid_from(ruleset: Ruleset) -> datetime:
@@ -312,6 +345,9 @@ def import_from_directory(
         return stored, list(stored.problems)
 
     loaded, problems = check_directory(directory)
+    # The numbers as well as the code: both are hashed into the version, so
+    # both are reasons to store a draft rather than activate it.
+    problems = [*problems, *parameter_problems(params)]
     now = timezone.now()
     try:
         declared = declared_fields(loaded, directory, name=name)
