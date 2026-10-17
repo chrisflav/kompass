@@ -22,6 +22,7 @@ from finance.models import StatementUnSubmitted
 from finance.models import StatementUnSubmittedManager
 from finance.models import Transaction
 from finance.models import TransactionIssue
+from finance.rules_api import Member as RuleMember
 from finance.testing import also
 from finance.testing import answer
 from finance.testing import without
@@ -686,21 +687,58 @@ class StatementTestCase(TestCase):
         self.assertEqual(blank.allowance_to, [])
         self.assertEqual(blank.allowances_paid, 0)
 
-    def test_an_answer_naming_somebody_who_is_gone_names_nobody(self):
-        """What ``SET_NULL`` and a cascading through row used to do.
+    def test_deleting_a_member_takes_them_out_of_every_answer(self):
+        """What ``SET_NULL`` and a cascading through row used to do for free.
 
-        An id in JSON outlives the member it names, so the read drops them
-        rather than raising on a page that only wanted to print a name.
+        JSON has no such mechanism, so it is a receiver now
+        (:mod:`finance.signals`) — and it has to be, because the two sides
+        otherwise disagree: ``answer_members`` drops an id with no member row
+        while the rules keep naming it, and the next materialisation writes an
+        ``Obligation`` whose ``destination_member_id`` has no row behind it. The
+        foreign key has a real constraint, so on MariaDB that is a 500 on the
+        next save.
+
+        Neuter it — disconnect the receiver — and the three assertions below go
+        red, the last one because the rules still resolve a transfer to a member
+        who is gone.
         """
         ghost = Member.objects.create(
             prename="Weg", lastname="Gewesen", email=settings.TEST_MAIL, gender=0
         )
+        self.st3.excursion.jugendleiter.add(ghost)
         answer(
-            self.st6,
+            self.st3,
             subsidy_to=ghost.pk,
+            ljp_to=ghost.pk,
             allowance_to=sorted([ghost.pk, self.fritz.pk]),
         )
         ghost.delete()
+        self.st3.refresh_from_db()
+        self.assertIsNone(self.st3.inputs["subsidy_to"])
+        self.assertIsNone(self.st3.inputs["ljp_to"])
+        self.assertEqual(self.st3.inputs["allowance_to"], [self.fritz.pk])
+        # And the rules agree with the readout, which is the point: nobody the
+        # engine names is missing from the database.
+        named = {
+            transfer.destination.id
+            for transfer in self.st3.rule_result.transfers
+            if isinstance(transfer.destination, RuleMember)
+        }
+        self.assertNotIn(ghost.pk, named)
+
+    def test_an_answer_naming_somebody_who_is_gone_names_nobody(self):
+        """Belt and braces for a row the receiver never saw.
+
+        A statement written before the receiver existed, or one the receiver
+        could not prune because its ruleset would not load, still has to render
+        rather than raise on a page that only wanted to print a name.
+        """
+        ghost = Member.objects.create(
+            prename="Nie", lastname="Geputzt", email=settings.TEST_MAIL, gender=0
+        )
+        gone = ghost.pk
+        ghost.delete()
+        answer(self.st6, subsidy_to=gone, allowance_to=[gone, self.fritz.pk])
         self.assertIsNone(self.st6.subsidy_to)
         self.assertEqual(self.st6.allowance_to, [self.fritz])
         # The count is the record, not what is left of it: the statement still

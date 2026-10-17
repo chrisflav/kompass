@@ -1,10 +1,13 @@
 """Cases: a ruleset's own tests, as data beside it.
 
 A case is one JSON file holding a whole context — parameters, answers, bills, a
-trip — and what the rules are expected to make of it. It needs no database, no
-fixtures and no Django, which is the point: a section can run its cases in its
-own repository's CI against the image it deploys, and Kompass runs the
-reference ruleset's cases in its suite.
+trip — and what the rules are expected to make of it. It needs no database and
+no fixtures, which is the point: a section can run its cases in its own
+repository's CI against the image it deploys, and Kompass runs the reference
+ruleset's cases in its suite. It is run *inside* that image rather than beside
+it: this module reaches Django through the query guard and through
+:mod:`finance.engine`'s package import, so "no fixtures" is the claim and "no
+Django" is not.
 
 JSON rather than YAML because Kompass has no YAML library and this refactor
 adds no dependency. Money is written as a string (``"42.69"``) so that a case

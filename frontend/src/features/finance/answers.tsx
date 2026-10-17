@@ -10,9 +10,13 @@ type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
 // with those names. The section's rules declare what to ask
 // (`Ruleset.inputs`), `GET /api/finance/statements/{id}/form` serves the
 // declarations with the people a party-valued answer may name already
-// resolved, and this renders whatever comes back. Seven types, each a control
-// the UI kit already has; a section whose rules ask something else gets asked
-// it without a line changing here.
+// resolved, and this renders whatever comes back: a section whose rules ask
+// something else gets asked it without a line changing here.
+//
+// Six of the seven types get the control they want. `choice` gets a free-text
+// input, because `Input.options` carries `Member`s and there is no way for a
+// declaration to name a list of non-member choices — taxis #573. Rendering a
+// `<select>` with nothing to put in it would be worse.
 
 /** The answers a statement carries, as `GET …/form` hands them over. */
 export type Answers = Record<string, unknown>;

@@ -1161,9 +1161,11 @@ class ContextTestCase(TestCase):
         self.assertEqual(ctx.inputs.text("note"), "eine Zeile")
         self.assertEqual(ctx.inputs.text("pick"), "a")
         self.assertEqual(ctx.inputs.member("subsidy_to"), Member(MemberId(self.member.pk)))
+        # Sorted, because a set is a set: the order decides who a rule bills,
+        # and `statement_inputs` sorted by primary key before the columns went.
         self.assertEqual(
             ctx.inputs.members("allowance_to"),
-            (Member(MemberId(other.pk)), Member(MemberId(self.member.pk))),
+            tuple(Member(MemberId(pk)) for pk in sorted([other.pk, self.member.pk])),
         )
 
     def test_a_question_that_was_never_answered_reads_as_its_types_empty(self):

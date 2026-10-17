@@ -542,7 +542,18 @@ def build(scenario):
     if scenario.ljp and leaders:
         answers["ljp_to"] = leaders[-1].pk
     if scenario.allowance_to:
-        answers["allowance_to"] = sorted(leader.pk for leader in leaders[: scenario.allowance_to])
+        # **Reversed on purpose.** The legacy reference this suite compares
+        # against bills the organisation fee to `sorted(allowance_to)[0]`,
+        # because `allowance_to.order_by("pk")[0]` is what the column did; the
+        # engine bills `first_of(*allowance_to)`, the first element as the
+        # answer holds it. Writing the ids already sorted made the two agree
+        # whether or not anything normalised the order, so this suite
+        # structurally could not see the normalisation go missing — and it did
+        # go missing when the column became a list. Written backwards, the
+        # agreement is evidence.
+        answers["allowance_to"] = [
+            leader.pk for leader in reversed(leaders[: scenario.allowance_to])
+        ]
     statement.inputs = answers
     statement.save()
     return statement

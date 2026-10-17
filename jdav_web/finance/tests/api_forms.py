@@ -32,6 +32,8 @@ from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
 from finance.rules_api import Input
+from finance.rules_api import Member as RuleMember
+from finance.rules_api import MemberId
 from finance.testing import answer
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
@@ -183,6 +185,140 @@ class FinanceFormApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 422, r.content)
         self.assertIn("Jugendleiter", " ".join(r.json()["errors"]["subsidy_to"]))
+
+    def _leaders(self, count):
+        """``count`` extra youth leaders on the excursion, by ascending id."""
+        extra = []
+        for index in range(count):
+            _user, member = make_member_user(f"fextra{index}")
+            self.excursion.jugendleiter.add(member)
+            extra.append(member)
+        return extra
+
+    def test_naming_the_same_person_twice_pays_them_once(self):
+        """A set is a set, and the money says so.
+
+        The ``ManyToManyField`` this replaced collapsed duplicates behind a
+        unique constraint, so this was unreachable before. Without the
+        deduplication ``[leader, leader]`` passes a bound of two — two ≤ two —
+        and ``submit`` freezes two obligation rows paying the same person,
+        which is a youth leader doubling their own allowance with one
+        ``PATCH``. Neuter it (``sorted(int(pk) for pk in picked)``) and the
+        transfer count below goes from one to two.
+        """
+        self._leaders(1)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"allowance_to": [self.leader.pk, self.leader.pk]}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.statement.refresh_from_db()
+        paid = [
+            transfer
+            for transfer in self.statement.rule_result.of_category("allowance")
+            if transfer.destination == RuleMember(MemberId(self.leader.pk))
+        ]
+        self.assertEqual(len(paid), 1, "the same person was paid twice")
+        self.assertEqual(self.statement.inputs["allowance_to"], [self.leader.pk])
+
+    def test_the_order_people_were_picked_in_does_not_decide_who_pays(self):
+        """Whoever is billed the organisation fee is not a click order.
+
+        Heidelberg charges it to ``first_of(subsidy_to, *allowance_to)``, so the
+        first element of the set decides. The SPA appends in click order and the
+        admin sends option order, and before the columns were dropped
+        ``statement_inputs`` sorted by primary key unconditionally — so the two
+        orders have to come out the same. Neuter the sort in either
+        ``_clean_members`` or ``coerce_input`` and the two assertions below
+        disagree.
+        """
+        other = self._leaders(1)[0]
+        pair = sorted([self.leader.pk, other.pk])
+        paid = []
+        for order in (pair, list(reversed(pair))):
+            with self.subTest(order=order):
+                r = self.client.patch(
+                    "/api/finance/statements/{}".format(self.statement.pk),
+                    data={"inputs": {"allowance_to": order}},
+                    content_type="application/json",
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 200, r.content)
+                statement = Statement.objects.get(pk=self.statement.pk)
+                paid.append(
+                    [
+                        transfer.destination.id
+                        for transfer in statement.rule_result.of_category("allowance")
+                    ]
+                )
+                # Stored canonically too, so the two UIs show the same
+                # selection back and `/form` echoes one order rather than
+                # whichever one last arrived. Guarded separately because the
+                # read side would otherwise hide it: `coerce_input` sorts as
+                # well, so the transfers above come out right either way.
+                self.assertEqual(statement.inputs["allowance_to"], pair)
+                r = self.client.get(
+                    "/api/finance/statements/{}/form".format(self.statement.pk),
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.json()["answers"]["allowance_to"], pair)
+        self.assertEqual(paid[0], paid[1], "the click order reached the rules")
+        self.assertEqual(paid[0], pair, "ascending ids, as the column always gave")
+
+    def test_an_amount_finer_than_a_cent_or_larger_than_the_books(self):
+        """What the engine cannot pay and the books cannot hold.
+
+        ``quantize`` floors to cents, so a third decimal place is dropped
+        rather than paid, and an unbounded amount is one ``0021``'s reverse
+        cannot write back into the ``max_digits=5`` column it came from.
+        """
+        for value in ("1.234", "1000000000.00", "nan", "inf"):
+            with self.subTest(value=value):
+                r = self.client.patch(
+                    "/api/finance/statements/{}".format(self.statement.pk),
+                    data={"inputs": {"night_cost": value}},
+                    content_type="application/json",
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 422, r.content)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"night_cost": "999999999.99"}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_an_answer_that_no_longer_fits_its_type_is_an_error_not_a_crash(self):
+        """A section changed a question; the old answer is still stored.
+
+        That is the thing this whole feature exists for, so it must not be a
+        500 — least of all on ``/form``, which is the only way to put a new
+        answer in. Neuter the ``except`` in ``coerce_input`` and all three
+        requests below become unhandled ``InvalidOperation``.
+        """
+        # With a subsidy recipient, because that is the rule that reads the
+        # price per night — an answer nothing reads is inert, which is itself
+        # worth knowing.
+        answer(
+            self.statement,
+            night_cost={"was": "once a number"},
+            subsidy_to=self.leader.pk,
+        )
+        for path in ("", "/form", "/preflight"):
+            with self.subTest(path=path):
+                r = self.client.get(
+                    "/api/finance/statements/{}{}".format(self.statement.pk, path),
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 200, r.content)
+        # And it is reported as what it is, on the statement, by the rules.
+        self.assertTrue(
+            any("night_cost" in error for error in self.statement.rule_result.errors),
+            self.statement.rule_result.errors,
+        )
 
     def test_an_answer_naming_somebody_the_rules_did_not_offer(self):
         r = self.client.patch(

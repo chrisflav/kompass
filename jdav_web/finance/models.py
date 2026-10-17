@@ -60,6 +60,14 @@ class Ledger(models.Model):
         verbose_name_plural = _("Ledgers")
 
 
+def _as_id(value) -> int | None:
+    """``value`` as a member id, or ``None`` when it is not one at all."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class TransactionIssue:
     def __init__(self, member, current, target):
         self.member, self.current, self.target = member, current, target
@@ -231,13 +239,22 @@ class Statement(CommonModel):
         return dict(self.inputs or {})
 
     def answer_member_ids(self, key: str) -> list[int]:
-        """The member ids answering ``key``, in the order they were picked."""
+        """The member ids answering ``key``, in the order they were stored.
+
+        Anything in there that is not an id is skipped rather than raised on,
+        for the same reason :func:`finance.engine.answers.coerce_input` hands a
+        value that does not fit through: a section may change what a question
+        asks for while statements still hold the old answer, and a page that
+        only wanted to print a name must not be the thing that breaks. The
+        *rules* refuse it — the typed accessor raises and ``evaluate`` reports
+        it — so nothing is paid on a figure this invented.
+        """
         value = self.answers.get(key)
         if value is None:
             return []
         if not isinstance(value, list):
             value = [value]
-        return [int(pk) for pk in value]
+        return [pk for pk in (_as_id(entry) for entry in value) if pk is not None]
 
     def answer_members(self, key: str) -> list[Member]:
         """The members answering ``key``, in one bulk lookup: ids are the record.
@@ -258,8 +275,14 @@ class Statement(CommonModel):
 
     @property
     def night_cost(self) -> Decimal:
-        """What a night cost per youth leader, as answered."""
-        return cvt_to_decimal(self.answers.get("night_cost") or 0)
+        """What a night cost per youth leader, as answered — zero if not an amount.
+
+        See :meth:`answer_member_ids`: a readout renders, the rules refuse.
+        """
+        try:
+            return cvt_to_decimal(self.answers.get("night_cost") or 0)
+        except (TypeError, ValueError, ArithmeticError):
+            return Decimal(0)
 
     @property
     def allowance_to(self) -> list[Member]:

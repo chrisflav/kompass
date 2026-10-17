@@ -189,11 +189,23 @@ def clean_value(declaration: Input, value: Any) -> Any:
 
 
 def _clean_members(declaration: Input, value: Any) -> Any:
-    """Who may be named: exactly the people the rules offered, no more.
+    """Who may be named: exactly the people the rules offered, each once.
 
     This is ``_resolve_recipient`` and ``_validate_allowance_count``, both at
     once and for any declaration rather than for three columns. The messages
     are the ones the admin and the API have always given.
+
+    A ``member_set`` comes back **deduplicated and in id order**, because it is
+    a set: that is what the ``ManyToManyField`` it replaced guaranteed, and
+    both halves of the guarantee move money. Without the deduplication,
+    ``{"allowance_to": [1, 1]}`` passed a bound of two and froze two obligation
+    rows paying member 1, so a youth leader could double their own allowance
+    with one ``PATCH``; the count the bound is checked against is therefore the
+    deduplicated one, since one person named twice is one recipient. Without
+    the ordering, the client's click order decided who the organisation fee was
+    charged against — Heidelberg's ``first_of(subsidy_to, *allowance_to)`` bills
+    the first element, and the SPA appends in click order while the admin sends
+    option order.
     """
     many = MEMBER_TYPES[declaration.type]
     if value is None:
@@ -205,16 +217,29 @@ def _clean_members(declaration: Input, value: Any) -> Any:
             raise ValidationError(
                 _("Only youth leaders of this excursion may receive contributions.")
             )
-    if many and declaration.max is not None and len(picked) > declaration.max:
+    if not many:
+        return int(picked[0])
+    resolved = sorted({int(member_id) for member_id in picked})
+    if declaration.max is not None and len(resolved) > declaration.max:
         raise ValidationError(
             _(
                 "This excursion only has up to %(approved_count)s approved youth "
                 "leaders, but you listed %(entered_count)s."
             )
-            % {"approved_count": str(declaration.max), "entered_count": str(len(picked))}
+            % {"approved_count": str(declaration.max), "entered_count": str(len(resolved))}
         )
-    resolved = [int(member_id) for member_id in picked]
-    return resolved if many else resolved[0]
+    return resolved
+
+
+#: The resolution and the ceiling an answer in money has to fit.
+#:
+#: Cents because that is what the engine computes in — ``quantize`` floors to
+#: them, so a third decimal place is silently dropped rather than paid — and a
+#: ceiling because an unbounded answer is a figure no section's books hold,
+#: and one that ``0021``'s reverse cannot write back into the
+#: ``max_digits=5`` column it came from.
+MONEY_PLACES = 2
+MONEY_MAX = Decimal("999999999.99")
 
 
 def _clean_money(declaration: Input, value: Any) -> Decimal:
@@ -224,9 +249,21 @@ def _clean_money(declaration: Input, value: Any) -> Decimal:
         raise ValidationError(
             _("%(label)s is not an amount of money.") % {"label": str(declaration.label)}
         ) from None
+    # `Decimal` accepts "nan" and "inf", and comparing either raises rather
+    # than answering — so they are refused as what they are, not an amount.
+    if not amount.is_finite():
+        raise ValidationError(
+            _("%(label)s is not an amount of money.") % {"label": str(declaration.label)}
+        )
     if amount < 0:
         raise ValidationError(
             _("%(label)s cannot be negative.") % {"label": str(declaration.label)}
+        )
+    places = max(0, -int(amount.normalize().as_tuple().exponent))
+    if places > MONEY_PLACES or amount > MONEY_MAX:
+        raise ValidationError(
+            _("%(label)s has to be an amount in whole cents, at most %(max)s.")
+            % {"label": str(declaration.label), "max": str(MONEY_MAX)}
         )
     return amount
 

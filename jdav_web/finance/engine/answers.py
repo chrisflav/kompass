@@ -6,10 +6,13 @@ that raises on the wrong type. Which key is money and which is a person is the
 *ruleset's declaration* and nothing else's, so this module takes the
 declarations and the JSON and puts them together.
 
-No Django here, deliberately. The statement path reaches this through
-:mod:`finance.engine.context`, which does know Django; a case file's path
-reaches it through :mod:`finance.engine.cases`, which knows none and must keep
-not knowing any, because a section runs its cases in its own repository's CI.
+Its own module so that the two paths into it share one implementation: a
+statement's answers come through :mod:`finance.engine.context`, which reads the
+ORM, and a case file's come through :mod:`finance.engine.cases`, which reads no
+database at all. Nothing here imports anything but the typed API — though that
+is not the same as being importable without Django, which neither this module
+nor ``cases`` is: both live in :mod:`finance.engine`, whose package import
+reaches the models.
 """
 
 from collections.abc import Iterable
@@ -34,9 +37,32 @@ def coerce_input(declaration: Input, value: Any) -> object:
 
     Money goes through ``str`` on its way to :class:`~decimal.Decimal`, so a
     JSON number never arrives as its binary expansion.
+
+    **A value that does not fit is handed through untouched**, not raised on.
+    A section may change what a question asks for while statements still hold
+    an answer under that key — which is the whole point of the feature — and
+    ``inputs`` keeps a retired key rather than pruning it. Raising here would
+    make every read of that statement a 500, including the ``/form`` request
+    that is the only way to put a new answer in. Handed through, the rule's own
+    typed accessor raises :class:`kompass.rules.RuleError` instead, which
+    :func:`finance.engine.evaluation.evaluate` reports as an error on the
+    statement.
     """
+    try:
+        return _fitted(declaration, value)
+    except (TypeError, ValueError, ArithmeticError):
+        return value
+
+
+def _fitted(declaration: Input, value: Any) -> object:
     if declaration.type == "member_set":
-        return tuple(Member(MemberId(int(pk))) for pk in value or ())
+        # Sorted and deduplicated, because a set is a set: this is what the
+        # `ManyToManyField` it replaced guaranteed, and `statement_inputs`
+        # sorted by primary key before the columns were dropped. The order
+        # decides who a rule bills — Heidelberg's organisation fee goes to
+        # `first_of(subsidy_to, *allowance_to)` — so it is canonical wherever
+        # the answer is read, not only where it is written.
+        return tuple(Member(MemberId(pk)) for pk in sorted({int(pk) for pk in value or ()}))
     if declaration.type == "member":
         return None if value is None else Member(MemberId(int(value)))
     if declaration.type == "money":
