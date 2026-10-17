@@ -62,7 +62,7 @@
     <tr>
         <th>{% trans "IBAN valid" %}</th>
     </tr>
-    {% for member in statement.allowance_to.all %}
+    {% for member in statement.allowance_to %}
     <tr>
         <td>{{ member.name }}</td>
         <td>{{ member.iban_valid|render_bool }}</td>

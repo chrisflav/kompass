@@ -23,6 +23,8 @@ from django.utils.translation import gettext_lazy as _
 from finance.models import Bill
 from finance.models import Statement
 from finance.models import Transaction
+from finance.tests.answers import also
+from finance.tests.answers import answer
 from members.models import DIVERSE
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
@@ -95,10 +97,7 @@ class FinanceApiTestCase(TestCase):
 
     def make_statement(self, created_by, short_description="A statement"):
         return Statement.objects.create(
-            short_description=short_description,
-            explanation="",
-            night_cost=0,
-            created_by=created_by,
+            short_description=short_description, explanation="", created_by=created_by
         )
 
     def make_excursion(self, name, *leaders):
@@ -420,9 +419,9 @@ class FinanceApiTestCase(TestCase):
         old_trip = self.make_excursion("Old", self.owner)
         stmt = self.make_statement(self.owner)
         stmt.excursion = old_trip
-        stmt.subsidy_to = self.owner
+        answer(stmt, subsidy_to=self.owner.pk)
         stmt.save()
-        stmt.allowance_to.add(self.owner)
+        also(stmt, "allowance_to", self.owner)
 
         new_trip = self.make_excursion("New", self.other)
         r = self.client.patch(
@@ -435,7 +434,7 @@ class FinanceApiTestCase(TestCase):
         stmt.refresh_from_db()
         # The old recipients don't lead the new trip, so they cannot stay.
         self.assertIsNone(stmt.subsidy_to)
-        self.assertEqual(list(stmt.allowance_to.all()), [])
+        self.assertEqual(stmt.allowance_to, [])
 
     def test_update_validates_recipients_against_the_incoming_excursion(self):
         """A combined change must not check the recipients against the outgoing
@@ -447,7 +446,7 @@ class FinanceApiTestCase(TestCase):
 
         r = self.client.patch(
             "/api/finance/statements/{}".format(stmt.pk),
-            data={"excursion_id": new_trip.pk, "subsidy_to_id": self.owner.pk},
+            data={"excursion_id": new_trip.pk, "inputs": {"subsidy_to": self.owner.pk}},
             content_type="application/json",
             **self.auth(self.owner_user),
         )
@@ -463,7 +462,7 @@ class FinanceApiTestCase(TestCase):
 
         r = self.client.patch(
             "/api/finance/statements/{}".format(stmt.pk),
-            data={"excursion_id": new_trip.pk, "subsidy_to_id": self.other.pk},
+            data={"excursion_id": new_trip.pk, "inputs": {"subsidy_to": self.other.pk}},
             content_type="application/json",
             **self.auth(self.owner_user),
         )
@@ -597,7 +596,6 @@ class FinanceApiTestCase(TestCase):
             data={
                 "short_description": "Erste",
                 "explanation": "",
-                "night_cost": 0,
                 "excursion_id": excursion.pk,
             },
             content_type="application/json",
@@ -610,7 +608,6 @@ class FinanceApiTestCase(TestCase):
             data={
                 "short_description": "Zweite",
                 "explanation": "",
-                "night_cost": 0,
                 "excursion_id": excursion.pk,
             },
             content_type="application/json",
@@ -644,12 +641,12 @@ class FinanceApiTestCase(TestCase):
         statement.save()
         r = self.client.patch(
             "/api/finance/statements/{}".format(statement.pk),
-            data={"allowance_to_ids": [self.owner.pk, self.other.pk]},
+            data={"inputs": {"allowance_to": [self.owner.pk, self.other.pk]}},
             content_type="application/json",
             **self.auth(self.owner_user),
         )
         self.assertEqual(r.status_code, 422, r.content)
-        self.assertEqual(list(statement.allowance_to.all()), [])
+        self.assertEqual(statement.allowance_to, [])
 
     def test_submit_an_already_submitted_statement_is_refused(self):
         statement = self.make_statement(self.manager)
@@ -665,7 +662,7 @@ class FinanceApiTestCase(TestCase):
         statement = self.make_statement(self.owner)
         statement.excursion = excursion
         statement.save()
-        statement.allowance_to.set([self.owner])
+        answer(statement, allowance_to=[self.owner.pk])
         r = self.client.post(
             "/api/finance/statements/{}/submit".format(statement.pk),
             **self.auth(self.owner_user),
@@ -696,7 +693,7 @@ class FinanceApiTestCase(TestCase):
         excursion = self.make_excursion("Hochtour", self.owner)
         statement = self.make_statement(self.owner)
         statement.excursion = excursion
-        statement.subsidy_to = self.owner
+        answer(statement, subsidy_to=self.owner.pk)
         statement.save()
         r = self.client.get(
             "/api/finance/statements/{}/overview".format(statement.pk),
@@ -820,11 +817,11 @@ class FinanceApiTestCase(TestCase):
         excursion = self.make_excursion("Hochtour", self.owner)
         statement = self.make_statement(self.owner)
         statement.excursion = excursion
-        statement.ljp_to = self.owner
+        answer(statement, ljp_to=self.owner.pk)
         statement.save()
         r = self.client.patch(
             "/api/finance/statements/{}".format(statement.pk),
-            data={"ljp_to_id": None},
+            data={"inputs": {"ljp_to": None}},
             content_type="application/json",
             **self.auth(self.owner_user),
         )
@@ -839,21 +836,21 @@ class FinanceApiTestCase(TestCase):
         statement.save()
         r = self.client.patch(
             "/api/finance/statements/{}".format(statement.pk),
-            data={"ljp_to_id": self.owner.pk, "allowance_to_ids": []},
+            data={"inputs": {"ljp_to": self.owner.pk, "allowance_to": []}},
             content_type="application/json",
             **self.auth(self.owner_user),
         )
         self.assertEqual(r.status_code, 200, r.content)
         statement.refresh_from_db()
         self.assertEqual(statement.ljp_to, self.owner)
-        self.assertEqual(list(statement.allowance_to.all()), [])
+        self.assertEqual(statement.allowance_to, [])
 
     def test_submit_refuses_ljp_claims_when_a_bill_has_no_proof(self):
         # Claiming LJP contributions means every bill has to be evidenced.
         excursion = self.make_excursion("Hochtour", self.owner)
         statement = self.make_statement(self.owner)
         statement.excursion = excursion
-        statement.ljp_to = self.owner
+        answer(statement, ljp_to=self.owner.pk)
         statement.save()
         Bill.objects.create(
             statement=statement, short_description="Ohne Beleg", amount=10, paid_by=self.owner

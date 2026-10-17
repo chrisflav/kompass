@@ -30,9 +30,11 @@ from .approval import may_sign
 from .approval import resolve_eligibility
 from .approval import states as approval_states
 from .context import build_context
+from .context import coerce_input
 from .context import parameters
 from .context import permission_holders
 from .context import statement_inputs
+from .context import typed_inputs
 from .errors import EngineError
 from .errors import QueryDuringEvaluation
 from .errors import RulesetInvalid
@@ -78,25 +80,26 @@ __all__ = [
     "RulesetInvalid",
     "RulesetRejected",
     "active_ruleset",
-    "approval_states",
     "active_version",
+    "approval_states",
     "bind",
     "build_context",
     "cents_of",
     "check_directory",
+    "coerce_input",
     "configured_directory",
+    "current_constraint_rows",
     "decimal_params",
     "engine_version",
     "evaluate",
-    "current_constraint_rows",
     "evaluate_statement",
     "freeze",
     "fully_approved",
     "import_from_directory",
+    "live_rows",
     "load",
     "manifest",
     "manifest_hash",
-    "live_rows",
     "materialise",
     "may_sign",
     "no_queries",
@@ -115,5 +118,6 @@ __all__ = [
     "statement_inputs",
     "statement_params",
     "sum_amounts",
+    "typed_inputs",
     "verify",
 ]

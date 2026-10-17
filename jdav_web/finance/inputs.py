@@ -29,6 +29,7 @@ from decimal import Decimal
 from decimal import InvalidOperation
 from typing import Any
 
+from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from finance.rules_api import Input
@@ -91,12 +92,67 @@ def rendered(statement: Any) -> list[dict[str, Any]]:
     ]
 
 
+def party_keys(statement: Any) -> set[str]:
+    """The declared keys that name people.
+
+    An answer naming somebody is only admissible against the trip it was given
+    for: swap the excursion and last week's youth leaders are no longer
+    eligible for anything. The caller drops these rather than the four columns
+    it used to know by name.
+    """
+    return {
+        declaration.key
+        for declaration in declarations(statement)
+        if declaration.type in MEMBER_TYPES
+    }
+
+
+def form_field(declaration: Input) -> Any:
+    """``declaration`` as a Django form field, for a server-rendered form.
+
+    The admin's excursion inline is a client of the declarations like the SPA
+    is, and it used to be a ``ModelForm`` over the four columns with the
+    eligible youth leaders assigned into three querysets by hand. This is that
+    form's field list, derived: the domain of a party-valued answer becomes the
+    field's choices, so the admin cannot offer somebody the rules did not.
+
+    The values that come back are ids and numbers, never model instances, so
+    that :func:`clean_value` can check them against the same declaration the
+    API checks against and give the same message.
+    """
+    common = {
+        "label": declaration.label,
+        "required": declaration.required,
+        "help_text": declaration.help,
+    }
+    if declaration.type in MEMBER_TYPES:
+        choices = [(option["id"], option["name"]) for option in options_for(declaration)]
+        if MEMBER_TYPES[declaration.type]:
+            return forms.TypedMultipleChoiceField(choices=choices, coerce=int, **common)
+        return forms.TypedChoiceField(
+            choices=[("", "---------"), *choices], coerce=int, empty_value=None, **common
+        )
+    if declaration.type == "money":
+        return forms.DecimalField(decimal_places=2, max_digits=7, min_value=0, **common)
+    if declaration.type == "int":
+        return forms.IntegerField(max_value=declaration.max, **common)
+    if declaration.type == "bool":
+        return forms.BooleanField(**common)
+    return forms.CharField(**common)
+
+
 def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
     """Validate ``values`` against the declarations, or raise.
 
     Returns the cleaned answers, with members resolved to ids and money to
     ``Decimal``. Raises :class:`~django.core.exceptions.ValidationError` on the
     first problem, which is what the API turns into a 422.
+
+    A problem with one answer is raised **keyed by that answer**, so the 422
+    carries an ``errors`` map and a client can print "this trip only has two
+    approved youth leaders" under the question it is about rather than as a
+    toast over the whole form. The admin's form did that when it was a
+    ``ModelForm`` over four columns; the API did not.
     """
     by_key = {declaration.key: declaration for declaration in declarations(statement)}
     cleaned = {}
@@ -104,7 +160,10 @@ def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
         declaration = by_key.get(key)
         if declaration is None:
             raise ValidationError(_("These rules do not ask for %(key)s.") % {"key": key})
-        cleaned[key] = clean_value(declaration, value)
+        try:
+            cleaned[key] = clean_value(declaration, value)
+        except ValidationError as problem:
+            raise ValidationError({key: problem.messages}) from None
     return cleaned
 
 
@@ -188,20 +247,12 @@ def _clean_int(declaration: Input, value: Any) -> int:
 def stored(values: Mapping[str, Any]) -> dict[str, Any]:
     """``values`` as the ``inputs`` column keeps them: JSON, money as text.
 
-    .. warning::
-
-       ``Statement.inputs`` is **written but not read** while the four
-       Heidelberg columns exist: ``statement_inputs`` resolves the answers
-       from the columns, and the admin's forms write the columns without
-       touching this field. So it can and does drift — an admin edit leaves it
-       stale, and a key the rules stopped asking for stays in it, because this
-       merges rather than replaces.
-
-       The migration that drops those columns (step 3's second half) must
-       therefore back-fill from **the columns**, not from this field, and must
-       drop the keys no declaration asks for. Reading this field as
-       authoritative is the one way to make a stale answer win over the one a
-       person actually saved.
+    This is now the whole record: the four Heidelberg columns it used to be
+    written beside were migrated into it by ``0021`` — which read **the
+    columns**, because by then this field had been written and never read for
+    three releases and had drifted from them. Nothing writes here except
+    through :func:`clean`, so an answer in it has been checked against the
+    declaration it belongs to.
     """
     return {
         key: str(value) if isinstance(value, Decimal) else value for key, value in values.items()

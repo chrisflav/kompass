@@ -175,7 +175,7 @@ class VerifyRulesetsCommandTestCase(TestCase):
         member = Member.objects.create(
             prename="Anna", lastname="Test", email="a@localhost", gender=MALE
         )
-        statement = Statement.objects.create(short_description="Alt", night_cost=0)
+        statement = Statement.objects.create(short_description="Alt")
         Bill.objects.create(
             statement=statement,
             short_description="Seil",
@@ -301,7 +301,7 @@ class RulesetAdminTestCase(TestCase):
         # picks the OIDC backend and the session-refresh middleware sends the
         # request off to the provider. This is how the other admin tests do it.
         self.assertTrue(self.client.login(username="treasurer", password="secret"))
-        self.statement = Statement.objects.create(short_description="Admin", night_cost=0)
+        self.statement = Statement.objects.create(short_description="Admin")
         Bill.objects.create(
             statement=self.statement,
             short_description="Seil",

@@ -147,6 +147,49 @@ class Querying(Ruleset):
         return [], [f"{Statement.objects.count()} statements"]
 
 
+class QueryingDeclarations(Ruleset):
+    """A ruleset that reaches for the database while declaring its form.
+
+    ``inputs`` is a call into a section's own code like ``transfers`` is, so it
+    runs inside the query guard; this is what proves it does.
+    """
+
+    name = "querying-declarations"
+
+    def inputs(self, ctx):
+        Statement.objects.count()
+        return [Input("night_cost", "Preis pro Nacht", "money", required=False)]
+
+    def transfers(self, ctx):
+        return [], []
+
+
+class EveryWidgetRules(Ruleset):
+    """One declaration of each type in the widget vocabulary.
+
+    The reference ruleset asks for money, a person and a set of people; the
+    other four types have no section in tree that uses them, and the coercion
+    from what ``Statement.inputs`` stores to what a rule reads has to be right
+    for all seven.
+    """
+
+    name = "every-widget"
+
+    def inputs(self, ctx):
+        return [
+            Input("night_cost", "Geld", "money", required=False),
+            Input("nights", "Ganze Zahl", "int", required=False, max=9),
+            Input("catered", "Ja oder nein", "bool", required=False),
+            Input("note", "Text", "text", required=False),
+            Input("pick", "Auswahl", "choice", required=False),
+            Input("subsidy_to", "Eine Person", "member", required=False),
+            Input("allowance_to", "Mehrere Personen", "member_set", required=False),
+        ]
+
+    def transfers(self, ctx):
+        return [], []
+
+
 # --- the typed API ---------------------------------------------------------
 
 
@@ -384,7 +427,7 @@ class QueryGuardTestCase(TestCase):
         self.assertIn("must not query the database", result.errors[0])
 
     def test_evaluating_a_statement_makes_no_query_at_all(self):
-        statement = Statement.objects.create(short_description="Still", night_cost=0)
+        statement = Statement.objects.create(short_description="Still")
         rules = active_ruleset()
         ctx = build_context(statement)
         with self.assertNumQueries(0):
@@ -987,7 +1030,9 @@ class ContextTestCase(TestCase):
         self.member = MemberModel.objects.create(
             prename="Kontext", lastname="Test", birth_date=None, email="k@localhost", gender=MALE
         )
-        self.statement = Statement.objects.create(short_description="Kontext", night_cost="12.50")
+        self.statement = Statement.objects.create(
+            short_description="Kontext", inputs={"night_cost": "12.50"}
+        )
 
     def test_money_arrives_as_a_decimal_of_the_text_not_of_the_float(self):
         self.assertEqual(to_decimal(0.15), Decimal("0.15"))
@@ -1013,7 +1058,7 @@ class ContextTestCase(TestCase):
             costs_covered=True,
             paid_by=self.member,
         )
-        ctx = build_context(self.statement)
+        ctx = build_context(self.statement, ruleset=active_ruleset())
         self.assertIsNone(ctx.excursion)
         self.assertEqual(ctx.version, CONTEXT_VERSION)
         self.assertEqual(
@@ -1066,6 +1111,94 @@ class ContextTestCase(TestCase):
     def test_answers_can_be_handed_in_for_a_dry_run(self):
         ctx = build_context(self.statement, inputs={"night_cost": Decimal("1.00")})
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("1.00"))
+
+    def test_a_stored_answer_is_typed_by_the_declaration_that_asked_for_it(self):
+        """``inputs`` is JSON; a rule reads ``Decimal``, ``Member``, ``bool``.
+
+        Which key is which is the ruleset's declaration and nothing else's, so
+        the whole widget vocabulary is exercised against one. Neuter it — let
+        ``build_context`` hand the raw JSON through — and every assertion below
+        goes red with a ``RuleError``.
+        """
+        other = MemberModel.objects.create(
+            prename="Zweit", lastname="Person", email="z@localhost", gender=MALE
+        )
+        answers = {
+            "night_cost": "12.50",
+            "nights": 3,
+            "catered": True,
+            "note": "eine Zeile",
+            "pick": "a",
+            "subsidy_to": self.member.pk,
+            "allowance_to": [other.pk, self.member.pk],
+        }
+        self.statement.inputs = answers
+        self.statement.save()
+        ctx = build_context(self.statement, ruleset=EveryWidgetRules())
+        self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
+        self.assertEqual(ctx.inputs.number("nights"), 3)
+        self.assertIs(ctx.inputs.flag("catered"), True)
+        self.assertEqual(ctx.inputs.text("note"), "eine Zeile")
+        self.assertEqual(ctx.inputs.text("pick"), "a")
+        self.assertEqual(ctx.inputs.member("subsidy_to"), Member(MemberId(self.member.pk)))
+        self.assertEqual(
+            ctx.inputs.members("allowance_to"),
+            (Member(MemberId(other.pk)), Member(MemberId(self.member.pk))),
+        )
+
+    def test_a_question_that_was_never_answered_reads_as_its_types_empty(self):
+        blank = Statement.objects.create(short_description="Unbeantwortet")
+        ctx = build_context(blank, ruleset=EveryWidgetRules())
+        self.assertEqual(ctx.inputs.money("night_cost"), Decimal("0"))
+        self.assertEqual(ctx.inputs.number("nights"), 0)
+        self.assertIs(ctx.inputs.flag("catered"), False)
+        self.assertEqual(ctx.inputs.text("note"), "")
+        self.assertIsNone(ctx.inputs.member("subsidy_to"))
+        self.assertEqual(ctx.inputs.members("allowance_to"), ())
+
+    def test_an_answer_no_declaration_asks_for_is_not_an_answer(self):
+        """A key the rules stopped asking for does not reach a rule.
+
+        ``Statement.inputs`` outlives a change to the questions, and a rule
+        that read a retired key by mistake must fail loudly rather than get the
+        stale value.
+        """
+        self.statement.inputs = {"night_cost": "1.00", "retired": "alt"}
+        self.statement.save()
+        ctx = build_context(self.statement, ruleset=EveryWidgetRules())
+        self.assertNotIn("retired", ctx.inputs.declared())
+        with self.assertRaises(RuleError):
+            ctx.inputs.raw("retired")
+
+    def test_without_a_ruleset_the_answers_are_the_column_as_it_is(self):
+        """Nobody but the rules can type them, so nothing else pretends to."""
+        ctx = build_context(self.statement)
+        self.assertEqual(ctx.inputs.raw("night_cost"), "12.50")
+
+    def test_asking_the_rules_what_to_ask_happens_inside_the_guard(self):
+        """Declaring the form is a call into a section's own code.
+
+        Both directions, per :mod:`finance.tests.harness`: inside the guard the
+        query refuses, and with the guard lifted at the line that installs it
+        the same call goes through — which is what says the refusal came from
+        the guard rather than from a query that would have failed anyway.
+        """
+        with self.assertRaises(QueryDuringEvaluation):
+            build_context(self.statement, ruleset=QueryingDeclarations())
+        with guard_lifted("finance.engine.context"):
+            ctx = build_context(self.statement, ruleset=QueryingDeclarations())
+        self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
+
+    def test_a_statement_that_has_not_been_saved_yet_has_no_bills(self):
+        """The admin's excursion inline renders a form before there is a row.
+
+        Its fields come from the declarations, so a context has to be buildable
+        for a statement with no primary key — and asking Django for the reverse
+        relation of an unsaved row raises rather than answering empty.
+        """
+        ctx = build_context(Statement(short_description="Noch nichts"))
+        self.assertEqual(ctx.bills, ())
+        self.assertIsNone(ctx.statement.id)
 
     def test_who_holds_a_permission_is_resolved_against_the_real_system(self):
         codename = "process_statementsubmitted"

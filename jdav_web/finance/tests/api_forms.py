@@ -6,9 +6,9 @@ them what is still wrong, ``/approval`` asks them who has to sign — and the
 each against the declaration it belongs to rather than against a hand-written
 list of the four columns Heidelberg happens to have.
 
-The columns are still the source of truth, and these tests say so: an answer
-that arrives as ``inputs`` lands in the column the rules read, and in the
-``inputs`` field beside it.
+``Statement.inputs`` is the whole record now: the four Heidelberg columns were
+migrated into it by ``0021`` and dropped by ``0022``, so an answer that arrives
+here is stored under the key the rules declared and read back from there.
 """
 
 import datetime
@@ -30,6 +30,7 @@ from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
 from finance.rules_api import Input
+from finance.tests.answers import answer
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MUSKELKRAFT_ANREISE
@@ -67,10 +68,7 @@ class FinanceFormApiTestCase(TestCase):
             _user, participant = make_member_user(f"fteil{index}")
             NewMemberOnList.objects.create(member=participant, memberlist=self.excursion)
         self.statement = Statement.objects.create(
-            short_description="Formular",
-            night_cost=0,
-            excursion=self.excursion,
-            created_by=self.owner,
+            short_description="Formular", excursion=self.excursion, created_by=self.owner
         )
 
     def auth(self, user):
@@ -103,9 +101,7 @@ class FinanceFormApiTestCase(TestCase):
         self.assertIn("Übernachtung", body["inputs"][0]["label"])
 
     def test_a_statement_without_a_trip_offers_nobody(self):
-        statement = Statement.objects.create(
-            short_description="Ohne Fahrt", night_cost=0, created_by=self.owner
-        )
+        statement = Statement.objects.create(short_description="Ohne Fahrt", created_by=self.owner)
         r = self.client.get(
             "/api/finance/statements/{}/form".format(statement.pk),
             **self.auth(self.owner_user),
@@ -116,7 +112,22 @@ class FinanceFormApiTestCase(TestCase):
 
     # --- the answers ------------------------------------------------------
 
-    def test_an_answer_lands_in_the_column_the_rules_read(self):
+    def test_the_form_hands_back_the_answers_it_asks_about(self):
+        answer(self.statement, night_cost="12.50", subsidy_to=self.leader.pk, retired="alt")
+        r = self.client.get(
+            "/api/finance/statements/{}/form".format(self.statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        answers = r.json()["answers"]
+        self.assertEqual(answers["night_cost"], "12.50")
+        self.assertEqual(answers["subsidy_to"], self.leader.pk)
+        self.assertIsNone(answers["ljp_to"])
+        # A key the rules do not ask for is not handed back to be re-submitted
+        # — which it would then be refused for.
+        self.assertNotIn("retired", answers)
+
+    def test_an_answer_lands_under_the_key_the_rules_declared(self):
         r = self.client.patch(
             "/api/finance/statements/{}".format(self.statement.pk),
             data={
@@ -132,13 +143,44 @@ class FinanceFormApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.statement.refresh_from_db()
+        self.assertEqual(self.statement.inputs["night_cost"], "12.50")
+        self.assertEqual(self.statement.inputs["allowance_to"], [self.leader.pk])
+        self.assertEqual(self.statement.inputs["subsidy_to"], self.leader.pk)
+        self.assertEqual(self.statement.inputs["ljp_to"], self.leader.pk)
+        # And read back by the accessors the pages that narrate the payout use.
         self.assertEqual(self.statement.night_cost, Decimal("12.50"))
         self.assertEqual(self.statement.subsidy_to, self.leader)
         self.assertEqual(self.statement.ljp_to, self.leader)
-        self.assertEqual(list(self.statement.allowance_to.all()), [self.leader])
-        # And beside the columns, under the keys the rules use.
-        self.assertEqual(self.statement.inputs["night_cost"], "12.50")
-        self.assertEqual(self.statement.inputs["allowance_to"], [self.leader.pk])
+        self.assertEqual(self.statement.allowance_to, [self.leader])
+
+    def test_an_answer_this_request_leaves_out_is_left_alone(self):
+        answer(self.statement, subsidy_to=self.leader.pk)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"night_cost": "3.00"}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.statement.refresh_from_db()
+        self.assertEqual(self.statement.inputs["subsidy_to"], self.leader.pk)
+
+    def test_a_refusal_names_the_answer_it_is_about(self):
+        """The 422 carries an ``errors`` map keyed by the declaration.
+
+        Neuter it — raise the message without the key — and this goes red while
+        ``test_an_answer_naming_somebody_the_rules_did_not_offer`` stays green,
+        which is the difference between a message on the field and a toast over
+        the whole form.
+        """
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"subsidy_to": self.owner.pk}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertIn("Jugendleiter", " ".join(r.json()["errors"]["subsidy_to"]))
 
     def test_an_answer_naming_somebody_the_rules_did_not_offer(self):
         r = self.client.patch(
@@ -195,7 +237,7 @@ class FinanceFormApiTestCase(TestCase):
             amount=Decimal("10.00"),
             costs_covered=True,
         )
-        self.statement.ljp_to = self.leader
+        answer(self.statement, ljp_to=self.leader.pk)
         self.statement.save()
         r = self.client.get(
             "/api/finance/statements/{}/preflight".format(self.statement.pk),

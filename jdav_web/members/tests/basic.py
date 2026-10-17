@@ -20,7 +20,6 @@ from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core import mail
-from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
@@ -30,10 +29,11 @@ from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 from finance.models import Bill
 from finance.models import Statement
+from finance.tests.answers import also
+from finance.tests.answers import answer
 from mailer.models import EmailAddress
 from mailer.models import Message
 from members.admin import AgeFilter
@@ -51,7 +51,8 @@ from members.admin import MemberTrainingAdmin
 from members.admin import MemberUnconfirmedAdmin
 from members.admin import MemberWaitingListAdmin
 from members.admin import ParticipantFilter
-from members.admin import StatementOnListForm
+from members.admin import statement_answer_form
+from members.admin import StatementOnListInline
 from members.excel import generate_ljp_vbk
 from members.models import ActivityCategory
 from members.models import AUSBILDUNGS_TOUR
@@ -266,9 +267,9 @@ class MemberTestCase(BasicMemberTestCase):
         )
 
     def test_filter_statements_by_permissions(self):
-        st1 = Statement.objects.create(night_cost=42, subsidy_to=None, created_by=self.fritz)
-        st2 = Statement.objects.create(night_cost=42, subsidy_to=None, excursion=self.ex)
-        Statement.objects.create(night_cost=42, subsidy_to=None)
+        st1 = Statement.objects.create(created_by=self.fritz, inputs={"night_cost": "42"})
+        st2 = Statement.objects.create(excursion=self.ex, inputs={"night_cost": "42"})
+        Statement.objects.create(inputs={"night_cost": "42"})
         qs = Statement.objects.all()
         self.assertQuerySetEqual(
             self.fritz.filter_statements_by_permissions(qs), [st1, st2], ordered=False
@@ -1530,7 +1531,7 @@ class FreizeitTestCase(BasicMemberTestCase):
             date=timezone.localtime(),
         )
         self.ex2.jugendleiter.add(self.fritz)
-        self.st = Statement.objects.create(excursion=self.ex2, night_cost=42, subsidy_to=None)
+        self.st = Statement.objects.create(excursion=self.ex2, inputs={"night_cost": "42"})
         self.ex2.save()
         # this excursion is used in the other tests
         self.ex3 = Freizeit.objects.create(
@@ -1696,7 +1697,7 @@ class FreizeitTestCase(BasicMemberTestCase):
 
     def test_payable_ljp_contributions(self):
         self.assertGreaterEqual(self.ex2.payable_ljp_contributions, 0)
-        self.st.ljp_to = self.fritz
+        answer(self.st, ljp_to=self.fritz.pk)
         self.assertGreaterEqual(self.ex2.payable_ljp_contributions, 0)
 
     def test_get_tour_type(self):
@@ -1872,7 +1873,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
             email=settings.TEST_MAIL,
             gender=MALE,
         )
-        self.st = Statement.objects.create(night_cost=11, subsidy_to=fr)
+        self.st = Statement.objects.create(inputs={"night_cost": "11", "subsidy_to": fr.pk})
         file = SimpleUploadedFile("proof.pdf", b"file_content", content_type="application/pdf")
         self.bill = Bill.objects.create(
             statement=self.st,
@@ -1899,7 +1900,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
             excursion=self.ex2,
         )
         self.st_ljp = Statement.objects.create(
-            night_cost=11, subsidy_to=fr, ljp_to=fr, excursion=self.ex2
+            excursion=self.ex2, inputs={"night_cost": "11", "subsidy_to": fr.pk, "ljp_to": fr.pk}
         )
         self.bill_no_proof = Bill.objects.create(
             statement=self.st_ljp,
@@ -2145,7 +2146,7 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         )
 
         # invalidate allowance_to
-        self.st_ljp.allowance_to.add(self.yl1)
+        also(self.st_ljp, "allowance_to", self.yl1)
 
         response = c.post(url, data={"apply": ""}, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -2170,8 +2171,8 @@ class FreizeitAdminTestCase(AdminTestCase, PDFActionMixin):
         response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         # submit succeeds after fixing allowance_to
-        self.st.allowance_to.add(self.yl1)
-        self.st.allowance_to.add(self.yl2)
+        also(self.st, "allowance_to", self.yl1)
+        also(self.st, "allowance_to", self.yl2)
         response = c.post(url, data={"apply": ""})
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
@@ -3517,40 +3518,92 @@ class StatementOnListFormTestCase(BasicMemberTestCase):
         )
         self.ex.jugendleiter.add(self.fritz)
         self.ex.save()
-        self.st = Statement.objects.create(excursion=self.ex, night_cost=42, subsidy_to=None)
-        self.st.allowance_to.add(self.fritz)
+        self.st = Statement.objects.create(excursion=self.ex, inputs={"night_cost": "42"})
+        also(self.st, "allowance_to", self.fritz)
         self.st.save()
 
-    def test_clean(self):
-        form = StatementOnListForm(parent_obj=self.ex, instance=self.st)
-        # should not raise any error
-        form.cleaned_data = {"excursion": self.ex, "allowance_to": None}
-        form.clean()
+    def form(self, **kwargs):
+        """The derived form for this excursion's statement."""
+        return statement_answer_form(self.st)(parent_obj=self.ex, instance=self.st, **kwargs)
 
-        # should raise Validation error because too many allowance_to are listed
-        form.cleaned_data = {
-            "excursion": self.ex,
-            "allowance_to": Member.objects.filter(pk=self.fritz.pk),
-        }
+    def test_the_fields_are_the_questions_the_rules_ask(self):
+        """Not four columns any more: whatever the section's rules declare.
+
+        Neuter it — put ``fields = ["night_cost", ...]`` back on the form —
+        and this goes red on the labels, which are the ruleset's own German
+        rather than a model's ``verbose_name``.
+        """
+        form = self.form()
+        self.assertEqual(
+            list(form.fields),
+            ["night_cost", "allowance_to", "subsidy_to", "ljp_to"],
+        )
+        self.assertEqual(form.fields["night_cost"].label, "Preis pro Übernachtung")
+        self.assertIn("Übernachtung", form.fields["night_cost"].help_text)
+        # Only the youth leaders of this excursion are offered, which is the
+        # domain the declaration carries rather than a queryset assigned here.
+        self.assertEqual(
+            [choice[0] for choice in form.fields["subsidy_to"].choices],
+            ["", self.fritz.pk],
+        )
+        # The answer the statement carries seeds the field.
+        self.assertEqual(form.initial["night_cost"], "42")
+
+    def test_an_answer_is_saved_under_the_key_the_rules_declared(self):
+        form = self.form(
+            data={
+                "night_cost": "27.00",
+                "allowance_to": [],
+                "subsidy_to": str(self.fritz.pk),
+                "ljp_to": "",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.st.refresh_from_db()
+        self.assertEqual(self.st.inputs["night_cost"], "27.00")
+        self.assertEqual(self.st.inputs["subsidy_to"], self.fritz.pk)
+        self.assertIsNone(self.st.inputs["ljp_to"])
+        self.assertEqual(self.st.inputs["allowance_to"], [])
+
+    def test_too_many_recipients_is_an_error_on_that_answer(self):
         self.assertGreater(1, self.ex.approved_staff_count)
-        self.assertRaises(ValidationError, form.clean)
+        form = self.form(
+            data={
+                "night_cost": "0",
+                "allowance_to": [str(self.fritz.pk)],
+                "subsidy_to": "",
+                "ljp_to": "",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("anerkannte", " ".join(form.errors["allowance_to"]))
 
-    @override_settings(MAX_NIGHT_COST=13)
-    def test_night_cost_help_text(self):
-        # the model's help_text is exported into the OpenAPI schema, so it has
-        # to read the same in every deployment - interpolating settings into it
-        # would resolve it while the model is imported, which is what this
-        # compares against the literal wording
-        field = Statement._meta.get_field("night_cost")
-        with translation.override(None):
-            self.assertEqual(
-                str(field.help_text),
-                "Price for the overnight stay of a youth leader. This is required for the "
-                "calculation of the subsidies for night costs.",
-            )
-        # only the form names the configured maximum
-        form = StatementOnListForm(parent_obj=self.ex, instance=self.st)
-        self.assertIn("13", form.fields["night_cost"].help_text)
+    def test_the_inline_asks_the_declarations_for_its_fields(self):
+        """Including for an excursion that has no statement yet.
+
+        The inline renders an empty form (``extra = 1``), so the questions have
+        to be derivable before there is a row to ask them of.
+        """
+        inline = StatementOnListInline(Freizeit, AdminSite())
+        request = RequestFactory().get("/")
+        request.user = User.objects.create_superuser("inline-admin", "a@localhost", "pw")
+        self.assertEqual(
+            inline.get_fields(request, self.ex),
+            ["night_cost", "allowance_to", "subsidy_to", "ljp_to"],
+        )
+        bare = Freizeit.objects.create(
+            name="Ohne Abrechnung",
+            kilometers_traveled=1,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        self.assertEqual(
+            inline.get_fields(request, bare),
+            ["night_cost", "allowance_to", "subsidy_to", "ljp_to"],
+        )
+        self.assertIsNotNone(inline.get_formset(request, bare))
 
 
 class KlettertreffAdminTestCase(AdminTestCase):

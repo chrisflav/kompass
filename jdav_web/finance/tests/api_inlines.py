@@ -88,7 +88,6 @@ class FinanceTransactionInlineApiTestCase(TestCase):
         statement = Statement.objects.create(
             short_description="A statement",
             explanation="",
-            night_cost=0,
             created_by=self.owner,
             status=status,
         )

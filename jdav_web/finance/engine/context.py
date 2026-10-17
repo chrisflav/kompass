@@ -28,6 +28,7 @@ from django.db.models import Q
 from finance.rules_api import Bill
 from finance.rules_api import CONTEXT_VERSION
 from finance.rules_api import Excursion
+from finance.rules_api import Input
 from finance.rules_api import Inputs
 from finance.rules_api import LJP
 from finance.rules_api import LJPGoal
@@ -44,6 +45,8 @@ from members.models import LJPProposal
 from members.models import Member as MemberModel
 from members.models import MUSKELKRAFT_ANREISE
 from members.models import OEFFENTLICHE_ANREISE
+
+from .guard import no_queries
 
 #: The settings a ruleset's parameters are taken from, until a ruleset brings
 #: its own (step 2 of the refactor). These are exactly the keys
@@ -129,6 +132,13 @@ def permission_holders(codenames: Iterable[str]) -> dict[str, tuple[Member, ...]
 
 
 def _bills(statement: Any) -> tuple[Bill, ...]:
+    # A statement that has not been saved yet has no bills, and asking Django
+    # for the reverse relation of an unsaved row raises rather than answering
+    # empty. The admin's excursion inline renders a form for a statement that
+    # does not exist yet, and that form's fields come from the declarations —
+    # so a context has to be buildable before there is a row.
+    if statement.pk is None:
+        return ()
     return tuple(
         Bill(
             id=bill.pk,
@@ -192,27 +202,59 @@ def _excursion(excursion: Any) -> Excursion:
 
 
 def statement_inputs(statement: Any) -> dict[str, object]:
-    """The answers a statement carries today, by input key.
+    """The answers a statement carries, by input key, as it stores them.
 
-    Until the statement keeps its answers in one JSON field (step 3 of the
-    refactor), they are four columns the Heidelberg rules happen to need. A
-    ruleset that declares other keys reads them as empty; a column no ruleset
-    declares is dropped before evaluation.
+    ``Statement.inputs`` is JSON, so the values are JSON: a money answer is a
+    string, a person is an id, a set of people is a list of ids. Nothing here
+    knows which key means which, because that is the ruleset's declaration to
+    make — :func:`typed_inputs` turns these into the types a rule reads once
+    the declarations are in hand.
+    """
+    return dict(statement.inputs or {})
+
+
+def coerce_input(declaration: Input, value: Any) -> object:
+    """One stored answer, as the type its declaration promises.
+
+    The other half of :func:`finance.inputs.clean_value`: that one takes what a
+    client sent and makes it storable, this one takes what was stored and makes
+    it readable by a rule. The vocabulary is the same seven types, and an
+    unanswered question reads as its type's empty value — ``0.00`` for money,
+    ``None`` for a person, ``()`` for a set of them — because
+    :class:`kompass.rules.Inputs` promises exactly that.
+    """
+    if declaration.type == "member_set":
+        return tuple(Member(MemberId(int(pk))) for pk in value or ())
+    if declaration.type == "member":
+        return None if value is None else member_of(int(value))
+    if declaration.type == "money":
+        return decimal(value if value is not None else 0)
+    if declaration.type == "int":
+        return int(value if value is not None else 0)
+    if declaration.type == "bool":
+        return bool(value)
+    return "" if value is None else str(value)
+
+
+def typed_inputs(declarations: Iterable[Input], answers: Mapping[str, Any]) -> dict[str, object]:
+    """``answers`` restricted to ``declarations`` and typed by them.
+
+    Restricted, because a key no declaration asks for is not an answer any
+    more: the rules stopped asking, and :class:`kompass.rules.Inputs` would
+    hand it to a rule that read it by mistake. Typed, because a rule reads
+    ``ctx.inputs.money(...)`` and gets a :class:`~decimal.Decimal` or a
+    :class:`kompass.rules.RuleError`, never a string that looks like one.
     """
     return {
-        "night_cost": decimal(statement.night_cost),
-        "allowance_to": tuple(
-            Member(MemberId(pk))
-            for pk in sorted(member.pk for member in statement.allowance_to.all())
-        ),
-        "subsidy_to": member_of(statement.subsidy_to_id),
-        "ljp_to": member_of(statement.ljp_to_id),
+        declaration.key: coerce_input(declaration, answers.get(declaration.key))
+        for declaration in declarations
     }
 
 
 def build_context(
     statement: Any,
     *,
+    ruleset: Any = None,
     permissions: Iterable[str] = (),
     inputs: Mapping[str, object] | None = None,
     params: Mapping[str, Decimal] | None = None,
@@ -223,7 +265,16 @@ def build_context(
     ``permissions`` are the codenames the ruleset declared
     (:attr:`kompass.rules.Ruleset.permissions`); they are resolved here because
     a rule cannot query for them itself. ``inputs`` overrides the answers the
-    statement carries, which is what a dry run against unsaved answers needs.
+    statement carries, which is what a dry run against unsaved answers needs —
+    and an override arrives in the types a rule reads, so it is passed through
+    untouched.
+
+    ``ruleset`` is what turns the stored JSON answers into those types. It
+    cannot be skipped by asking the statement, because which key is money and
+    which is a person is the ruleset's declaration and nothing else's; left
+    out, the context carries the answers exactly as the column holds them,
+    which is what the form endpoint's first pass wants and no rule does.
+
     ``params`` and ``roles`` are passed in by
     :mod:`finance.engine.statements`, which reads them from the statement's own
     ruleset snapshot and from the dated role assignments. Left out, the
@@ -233,18 +284,17 @@ def build_context(
     (see :class:`kompass.rules.Roles`).
     """
     excursion = statement.excursion
-    return RuleContext(
-        version=CONTEXT_VERSION,
-        params=Params(parameters(statement) if params is None else dict(params)),
-        inputs=Inputs(statement_inputs(statement) if inputs is None else dict(inputs)),
-        bills=_bills(statement),
-        excursion=None if excursion is None else _excursion(excursion),
-        statement=StatementInfo(
+    around: dict[str, Any] = {
+        "version": CONTEXT_VERSION,
+        "params": Params(parameters(statement) if params is None else dict(params)),
+        "bills": _bills(statement),
+        "excursion": None if excursion is None else _excursion(excursion),
+        "statement": StatementInfo(
             id=statement.pk,
             creator=member_of(statement.created_by_id),
             submitter=member_of(statement.submitted_by_id),
         ),
-        roles=(
+        "roles": (
             Roles.unresolved()
             if roles is None
             else Roles(
@@ -254,5 +304,19 @@ def build_context(
                 }
             )
         ),
-        permissions=permission_holders(permissions),
-    )
+        "permissions": permission_holders(permissions),
+    }
+    stored = statement_inputs(statement)
+    context = RuleContext(inputs=Inputs(stored if inputs is None else dict(inputs)), **around)
+    if ruleset is None or inputs is not None:
+        return context
+    # Asking the ruleset which answers it declares is a call into a section's
+    # own code, so it happens inside the guard like every other one — and it
+    # happens *after* everything above, which is the last query this context
+    # needs. The answers it is asked against are the untyped ones: a ruleset
+    # that branches on an answer while declaring the questions reads them with
+    # `raw`, or branches in `relevant_inputs`, which runs against the typed
+    # context this returns.
+    with no_queries():
+        declarations = ruleset.inputs(context)
+    return RuleContext(inputs=Inputs(typed_inputs(declarations, stored)), **around)

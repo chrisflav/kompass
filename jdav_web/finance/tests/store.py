@@ -216,7 +216,7 @@ class RoleAssignmentTestCase(TestCase):
     def test_the_rules_see_the_roles_in_force(self):
         member = a_member()
         RoleAssignment.objects.create(role="kassenwart", member=member)
-        statement = Statement.objects.create(short_description="Rollen", night_cost=0)
+        statement = Statement.objects.create(short_description="Rollen")
         # Who may act is resolved for the approval step, not for the
         # arithmetic — see `statement_context`.
         context = statement_context(statement, active_ruleset(), actors=True)
@@ -236,7 +236,7 @@ class RoleAssignmentTestCase(TestCase):
 class ObligationModelTestCase(TestCase):
     def test_a_row_reads_as_money_and_names_its_parties(self):
         member = a_member()
-        statement = Statement.objects.create(short_description="Zeilen", night_cost=0)
+        statement = Statement.objects.create(short_description="Zeilen")
         row = Obligation.objects.create(
             statement=statement,
             source_kind="section",
@@ -260,7 +260,7 @@ class ObligationModelTestCase(TestCase):
 
     def test_a_constraint_names_who_may_sign(self):
         member = a_member()
-        statement = Statement.objects.create(short_description="Freigabe", night_cost=0)
+        statement = Statement.objects.create(short_description="Freigabe")
         constraint = ApprovalConstraint.objects.create(
             statement=statement, name="Freigabe", required=1, eligible_member_ids=[member.pk]
         )
@@ -523,14 +523,14 @@ class BindingTestCase(TestCase):
     def test_a_statement_is_bound_when_it_is_created(self):
         version = active_version()
         self.assertIsNotNone(version, "the migration imported one")
-        statement = Statement.objects.create(short_description="Gebunden", night_cost=0)
+        statement = Statement.objects.create(short_description="Gebunden")
         self.assertEqual(statement.ruleset, version)
         self.assertEqual(statement.ruleset_hash, version.hash)
         self.assertEqual(statement.ruleset_snapshot["params"], version.params)
         self.assertEqual(ruleset_for(statement).name, "heidelberg")
 
     def test_a_new_version_does_not_reach_a_statement_that_exists(self):
-        statement = Statement.objects.create(short_description="Alt", night_cost=0)
+        statement = Statement.objects.create(short_description="Alt")
         before = statement.ruleset_hash
         with override_settings(ALLOWANCE_PER_DAY=99):
             import_from_directory(reference_directory())
@@ -539,7 +539,7 @@ class BindingTestCase(TestCase):
         self.assertEqual(statement_params(statement)["ALLOWANCE_PER_DAY"], Decimal("22"))
         # A statement created now gets the new version.
         self.assertEqual(
-            statement_params(Statement.objects.create(short_description="Neu", night_cost=0))[
+            statement_params(Statement.objects.create(short_description="Neu"))[
                 "ALLOWANCE_PER_DAY"
             ],
             Decimal("99"),
@@ -547,7 +547,7 @@ class BindingTestCase(TestCase):
 
     def test_without_a_version_nothing_is_bound(self):
         RuleSet.objects.all().delete()
-        statement = Statement(short_description="Ungebunden", night_cost=0)
+        statement = Statement(short_description="Ungebunden")
         self.assertFalse(bind(statement))
         statement.save()
         self.assertIsNone(statement.ruleset_id)
@@ -559,7 +559,7 @@ class BindingTestCase(TestCase):
         a_version()
         with self.assertLogs("finance.engine.statements", level="WARNING"):
             self.assertEqual(active_ruleset().name, "heidelberg")
-        statement = Statement.objects.create(short_description="Kaputt", night_cost=0)
+        statement = Statement.objects.create(short_description="Kaputt")
         self.assertEqual(statement.ruleset_snapshot["sources"], BROKEN_SOURCES)
         with self.assertLogs("finance.engine.statements", level="WARNING"):
             self.assertEqual(ruleset_for(statement).name, "heidelberg")
@@ -573,7 +573,7 @@ class BindingTestCase(TestCase):
         RuleSet.objects.all().delete()
         a_version(sources=sources)
         with self.assertLogs("finance.engine.statements", level="WARNING"):
-            statement = Statement.objects.create(short_description="Weg", night_cost=0)
+            statement = Statement.objects.create(short_description="Weg")
         with self.assertLogs("finance.engine.statements", level="WARNING"):
             self.assertEqual(ruleset_for(statement).name, "heidelberg")
         with self.assertLogs("finance.engine.statements", level="WARNING"):
@@ -612,7 +612,7 @@ class BindingTestCase(TestCase):
 class MaterialisationTestCase(TestCase):
     def setUp(self):
         self.member = a_member()
-        self.statement = Statement.objects.create(short_description="Zeilen", night_cost=0)
+        self.statement = Statement.objects.create(short_description="Zeilen")
         Bill.objects.create(
             statement=self.statement,
             short_description="Seil",
@@ -673,7 +673,7 @@ class MaterialisationTestCase(TestCase):
         self.assertEqual(len(live), 2)
         self.assertIn("superseded", str(superseded[0]))
         # A draft's rows are a working copy and are simply replaced.
-        draft = Statement.objects.create(short_description="Entwurf", night_cost=0)
+        draft = Statement.objects.create(short_description="Entwurf")
         Bill.objects.create(
             statement=draft,
             short_description="Seil",
@@ -750,7 +750,7 @@ class MaterialisationTestCase(TestCase):
 class VerifyTestCase(TestCase):
     def setUp(self):
         self.member = a_member()
-        self.statement = Statement.objects.create(short_description="Prüfung", night_cost=0)
+        self.statement = Statement.objects.create(short_description="Prüfung")
         Bill.objects.create(
             statement=self.statement,
             short_description="Seil",
@@ -809,7 +809,7 @@ class VerifyTestCase(TestCase):
         self.assertEqual(verify(Statement.objects.all(), sample=0), [])
 
     def test_a_draft_is_not_replayed(self):
-        draft = Statement.objects.create(short_description="Entwurf", night_cost=0)
+        draft = Statement.objects.create(short_description="Entwurf")
         Transaction.objects.create(
             reference="x", amount=Decimal("1.00"), member=self.member, statement=draft
         )
@@ -1012,7 +1012,7 @@ class GuardedCallsTestCase(TestCase):
             row, problems = import_from_directory(package, name="nosy")
             self.assertEqual(problems, [], "no banned name appears in it")
             self.assertEqual(active_version(), row)
-            statement = Statement.objects.create(short_description="Wach", night_cost=0)
+            statement = Statement.objects.create(short_description="Wach")
         constraint = statement.approval_constraint_set.get()
         self.assertIn("must not query the database", constraint.error)
         self.assertEqual(constraint.eligible_member_ids, [])
@@ -1098,7 +1098,7 @@ class GuardedCallsTestCase(TestCase):
             # the database before the check existed: a draft save degrades to
             # an unresolved constraint instead of raising out of `materialise`.
             activate(row)
-            statement = Statement.objects.create(short_description="Neugierig", night_cost=0)
+            statement = Statement.objects.create(short_description="Neugierig")
             constraint = statement.approval_constraint_set.get()
             self.assertEqual(constraint.name, UNRESOLVED)
             self.assertIn("must not query the database", constraint.error)
@@ -1128,7 +1128,7 @@ class GuardedCallsTestCase(TestCase):
         when the rules worked, and they are never more permissive than a fresh
         resolution would be.
         """
-        statement = Statement.objects.create(short_description="Alt", night_cost=0)
+        statement = Statement.objects.create(short_description="Alt")
         statement.submit(submitter=None)
         statement = Statement.objects.get(pk=statement.pk)
         with patch(
@@ -1161,7 +1161,7 @@ class ReplayComparesWhoWasPaidTestCase(TestCase):
     def setUp(self):
         self.anna = a_member("Anna")
         self.bernd = a_member("Bernd")
-        self.statement = Statement.objects.create(short_description="Wem", night_cost=0)
+        self.statement = Statement.objects.create(short_description="Wem")
         Bill.objects.create(
             statement=self.statement,
             short_description="Seil",

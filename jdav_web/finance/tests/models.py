@@ -22,6 +22,9 @@ from finance.models import StatementUnSubmitted
 from finance.models import StatementUnSubmittedManager
 from finance.models import Transaction
 from finance.models import TransactionIssue
+from finance.tests.answers import also
+from finance.tests.answers import answer
+from finance.tests.answers import without
 from members.models import DIVERSE
 from members.models import FAHRGEMEINSCHAFT_ANREISE
 from members.models import Freizeit
@@ -79,7 +82,7 @@ class StatementTestCase(TestCase):
         self.personal_account = Ledger.objects.create(name="personal account")
 
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         Bill.objects.create(
             statement=self.st,
@@ -97,7 +100,7 @@ class StatementTestCase(TestCase):
             statement=self.st,
         )
 
-        self.st2 = Statement.objects.create(short_description="Actual expenses", night_cost=0)
+        self.st2 = Statement.objects.create(short_description="Actual expenses")
         Bill.objects.create(
             statement=self.st2,
             short_description="food",
@@ -115,7 +118,7 @@ class StatementTestCase(TestCase):
             difficulty=1,
         )
         self.st3 = Statement.objects.create(
-            night_cost=self.night_cost, excursion=ex, subsidy_to=self.fritz
+            excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
         )
         for i in range(self.participant_count):
             m = Member.objects.create(
@@ -146,7 +149,7 @@ class StatementTestCase(TestCase):
             m.group.add(self.jl)
             ex.jugendleiter.add(m)
             if i < self.allowance_to_count:
-                self.st3.allowance_to.add(m)
+                also(self.st3, "allowance_to", m)
 
         # Create a small excursion with < 5 theoretic LJP participants for LJP contribution test
         small_ex = Freizeit.objects.create(
@@ -176,7 +179,7 @@ class StatementTestCase(TestCase):
         small_ex.ljpproposal = ljp_proposal
         small_ex.save()
 
-        self.st_small = Statement.objects.create(night_cost=10, excursion=small_ex)
+        self.st_small = Statement.objects.create(excursion=small_ex, inputs={"night_cost": "10"})
 
         ex = Freizeit.objects.create(
             name="Wild trip 2",
@@ -186,7 +189,7 @@ class StatementTestCase(TestCase):
             difficulty=2,
         )
         self.st4 = Statement.objects.create(
-            night_cost=self.night_cost, excursion=ex, subsidy_to=self.fritz
+            excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
         )
         for i in range(2):
             m = Member.objects.create(
@@ -210,7 +213,9 @@ class StatementTestCase(TestCase):
             end=timezone.datetime(2024, 1, 5, 17, 0, 0, tzinfo=base.tzinfo),
         )
 
-        self.st5 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
+        self.st5 = Statement.objects.create(
+            excursion=ex, inputs={"night_cost": str(self.night_cost)}
+        )
 
         for i in range(9):
             m = Member.objects.create(
@@ -260,7 +265,7 @@ class StatementTestCase(TestCase):
             refunded=False,
         )
 
-        self.st6 = Statement.objects.create(night_cost=self.night_cost)
+        self.st6 = Statement.objects.create(inputs={"night_cost": str(self.night_cost)})
         Bill.objects.create(statement=self.st6, amount="42", costs_covered=True)
 
     def test_org_fee(self):
@@ -287,7 +292,7 @@ class StatementTestCase(TestCase):
         self.assertIsNone(self.st5.org_fee_payant)
 
         # now collect subsidies
-        self.st5.subsidy_to = self.fritz
+        answer(self.st5, subsidy_to=self.fritz.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -295,8 +300,8 @@ class StatementTestCase(TestCase):
         )
 
         # now collect allowances
-        self.st5.allowance_to.add(self.fritz)
-        self.st5.subsidy_to = None
+        also(self.st5, "allowance_to", self.fritz)
+        answer(self.st5, subsidy_to=None)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -304,7 +309,7 @@ class StatementTestCase(TestCase):
         )
 
         # now collect both
-        self.st5.subsidy_to = self.fritz
+        answer(self.st5, subsidy_to=self.fritz.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -318,8 +323,8 @@ class StatementTestCase(TestCase):
         )
 
         # return to previous state
-        self.st5.subsidy_to = None
-        self.st5.allowance_to.remove(self.fritz)
+        answer(self.st5, subsidy_to=None)
+        without(self.st5, "allowance_to", self.fritz)
 
     def test_org_fee_zero_for_ljp_qualification(self):
         """Test that total_org_fee returns 0 for LJP_QUALIFICATION proposals.
@@ -333,7 +338,7 @@ class StatementTestCase(TestCase):
         proposal.save()
 
         # Set subsidy_to so we pass the first condition and reach line 568
-        self.st_small.subsidy_to = self.fritz
+        answer(self.st_small, subsidy_to=self.fritz.pk)
         self.st_small.save()
 
         # total_org_fee should be 0 for LJP_QUALIFICATION proposals (line 568)
@@ -342,7 +347,7 @@ class StatementTestCase(TestCase):
         # Restore original state
         proposal.goal = original_goal
         proposal.save()
-        self.st_small.subsidy_to = None
+        answer(self.st_small, subsidy_to=None)
         self.st_small.save()
 
     def test_ljp_payment(self):
@@ -371,7 +376,7 @@ class StatementTestCase(TestCase):
         )
 
         # now we want to pay out the LJP contributions
-        self.st5.ljp_to = self.fritz
+        answer(self.st5, ljp_to=self.fritz.pk)
         self.assertEqual(
             self.st5.paid_ljp_contributions,
             expected_ljp,
@@ -393,7 +398,7 @@ class StatementTestCase(TestCase):
             "LJP contributions should be less than or equal to the costs paid by trip organisers",
         )
 
-        self.st5.ljp_to = None
+        answer(self.st5, ljp_to=None)
 
     def test_staff_count(self):
         self.assertEqual(
@@ -627,7 +632,7 @@ class StatementTestCase(TestCase):
         m2 = self.st3.excursion.jugendleiter.all()[self.allowance_to_count]
 
         # now remove one, so allowance_to should be reduced by one
-        self.st3.allowance_to.remove(m1)
+        without(self.st3, "allowance_to", m1)
         self.assertEqual(self.st3.allowances_paid, self.allowance_to_count - 1)
         # but still valid
         self.assertTrue(self.st3.allowance_to_valid)
@@ -636,14 +641,14 @@ class StatementTestCase(TestCase):
         self.assertLess(self.st3.real_per_yl, self.st3.total_per_yl)
 
         # adding a foreign yl adds the number of allowances_paid
-        self.st3.allowance_to.add(self.fritz)
+        also(self.st3, "allowance_to", self.fritz)
         self.assertEqual(self.st3.allowances_paid, self.allowance_to_count)
         # but invalidates `allowance_to`
         self.assertFalse(self.st3.allowance_to_valid)
 
         # remove the foreign yl and add too many yls
-        self.st3.allowance_to.remove(self.fritz)
-        self.st3.allowance_to.add(m1, m2)
+        without(self.st3, "allowance_to", self.fritz)
+        also(self.st3, "allowance_to", m1, m2)
         self.assertEqual(self.st3.allowances_paid, self.allowance_to_count + 1)
         # should be invalid
         self.assertFalse(self.st3.allowance_to_valid)
@@ -653,6 +658,54 @@ class StatementTestCase(TestCase):
             trans.ledger = self.personal_account
             trans.save()
         self.assertEqual(self.st3.validity, Statement.INVALID_ALLOWANCE_TO)
+
+    def test_the_answers_are_read_from_one_field_by_the_rules_own_keys(self):
+        """What the four columns used to be, as a reading of ``inputs``.
+
+        The pages that narrate the Heidelberg payout still name its recipients,
+        and these are the accessors they do it through.
+        """
+        answer(
+            self.st6,
+            night_cost="9.50",
+            subsidy_to=self.fritz.pk,
+            ljp_to=self.fritz.pk,
+            allowance_to=[self.fritz.pk],
+        )
+        self.assertEqual(self.st6.night_cost, Decimal("9.50"))
+        self.assertEqual(self.st6.subsidy_to, self.fritz)
+        self.assertEqual(self.st6.ljp_to, self.fritz)
+        self.assertEqual(self.st6.allowance_to, [self.fritz])
+        self.assertEqual(self.st6.allowances_paid, 1)
+
+    def test_a_statement_that_answered_nothing_reads_as_nobody_and_zero(self):
+        blank = Statement.objects.create(short_description="Leer")
+        self.assertEqual(blank.night_cost, Decimal(0))
+        self.assertIsNone(blank.subsidy_to)
+        self.assertIsNone(blank.ljp_to)
+        self.assertEqual(blank.allowance_to, [])
+        self.assertEqual(blank.allowances_paid, 0)
+
+    def test_an_answer_naming_somebody_who_is_gone_names_nobody(self):
+        """What ``SET_NULL`` and a cascading through row used to do.
+
+        An id in JSON outlives the member it names, so the read drops them
+        rather than raising on a page that only wanted to print a name.
+        """
+        ghost = Member.objects.create(
+            prename="Weg", lastname="Gewesen", email=settings.TEST_MAIL, gender=0
+        )
+        answer(
+            self.st6,
+            subsidy_to=ghost.pk,
+            allowance_to=sorted([ghost.pk, self.fritz.pk]),
+        )
+        ghost.delete()
+        self.assertIsNone(self.st6.subsidy_to)
+        self.assertEqual(self.st6.allowance_to, [self.fritz])
+        # The count is the record, not what is left of it: the statement still
+        # claims two allowances, and `allowance_to_valid` is what judges that.
+        self.assertEqual(self.st6.allowances_paid, 2)
 
     def test_total_pretty(self):
         self.assertEqual(self.st3.total_pretty(), "{}€".format(self.st3.total))
@@ -670,7 +723,9 @@ class StatementTestCase(TestCase):
     def test_euro_per_km_no_excursion(self):
         """Test euro_per_km when no excursion is associated"""
         statement = Statement.objects.create(
-            short_description="Test Statement", explanation="Test explanation", night_cost=25
+            short_description="Test Statement",
+            explanation="Test explanation",
+            inputs={"night_cost": "25"},
         )
         self.assertEqual(statement.euro_per_km, 0)
 
@@ -679,8 +734,8 @@ class StatementTestCase(TestCase):
         statement = Statement.objects.create(
             short_description="Test Statement",
             explanation="Test explanation",
-            night_cost=25,
             created_by=self.fritz,
+            inputs={"night_cost": "25"},
         )
 
         self.assertFalse(statement.submitted)
@@ -710,7 +765,7 @@ class StatementTestCase(TestCase):
         statement = Statement.objects.create(
             short_description="Snapshot Statement",
             explanation="Snapshot test",
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         created_under = statement.ruleset_snapshot["params"]["ALLOWANCE_PER_DAY"]
         self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), Decimal(created_under))
@@ -741,7 +796,7 @@ class StatementTestCase(TestCase):
         fallback has to be the old one: the ``settings_snapshot`` of a
         submitted statement, the live settings while a draft.
         """
-        statement = Statement.objects.create(short_description="Unbound", night_cost=0)
+        statement = Statement.objects.create(short_description="Unbound")
         Statement.objects.filter(pk=statement.pk).update(
             ruleset=None, ruleset_hash="", ruleset_snapshot={}
         )
@@ -768,7 +823,7 @@ class StatementTestCase(TestCase):
         self.assertIsInstance(issues, list)
 
     def test_transaction_issues_with_ljp(self):
-        self.st3.ljp_to = self.fritz
+        answer(self.st3, ljp_to=self.fritz.pk)
         self.st3.save()
         issues = self.st3.transaction_issues
         self.assertIsInstance(issues, list)
@@ -776,7 +831,7 @@ class StatementTestCase(TestCase):
     def test_generate_transactions_org_fee(self):
         # Ensure conditions for org fee are met: need subsidy_to or allowances
         # and participants >= 27 years old
-        self.st4.subsidy_to = self.fritz
+        answer(self.st4, subsidy_to=self.fritz.pk)
         self.st4.save()
 
         # Verify org fee is calculated
@@ -794,7 +849,7 @@ class StatementTestCase(TestCase):
         self.assertIsNotNone(org_fee_transaction)
 
     def test_generate_transactions_ljp(self):
-        self.st3.ljp_to = self.fritz
+        answer(self.st3, ljp_to=self.fritz.pk)
         self.st3.save()
         initial_count = Transaction.objects.count()
         self.st3.generate_transactions()
@@ -811,7 +866,7 @@ class StatementTestCase(TestCase):
         self.assertEqual(subsidies_paid, expected)
 
     def test_ljp_contributions_low_participant_count(self):
-        self.st_small.ljp_to = self.fritz
+        answer(self.st_small, ljp_to=self.fritz.pk)
         self.st_small.save()
 
         # Verify that the small excursion has < 5 theoretic LJP participants
@@ -841,19 +896,13 @@ class LedgerTestCase(TestCase):
 class ManagerTestCase(TestCase):
     def setUp(self):
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         self.st_submitted = Statement.objects.create(
-            short_description="A statement",
-            explanation="Important!",
-            night_cost=0,
-            status=Statement.SUBMITTED,
+            short_description="A statement", explanation="Important!", status=Statement.SUBMITTED
         )
         self.st_confirmed = Statement.objects.create(
-            short_description="A statement",
-            explanation="Important!",
-            night_cost=0,
-            status=Statement.CONFIRMED,
+            short_description="A statement", explanation="Important!", status=Statement.CONFIRMED
         )
 
     def test_get_queryset(self):
@@ -884,7 +933,7 @@ class ManagerTestCase(TestCase):
 class TransactionTestCase(TestCase):
     def setUp(self):
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         self.personal_account = Ledger.objects.create(name="personal account")
         self.fritz = Member.objects.create(
@@ -965,7 +1014,7 @@ class TransactionTestCase(TestCase):
 class BillTestCase(TestCase):
     def setUp(self):
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         self.bill = Bill.objects.create(statement=self.st, short_description="foobar")
 
