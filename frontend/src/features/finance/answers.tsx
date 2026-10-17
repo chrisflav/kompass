@@ -3,21 +3,19 @@ import type { components } from "../../api/schema";
 
 type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
 
+// The widget vocabulary, as a renderer.
+//
+// The reimbursement step used to hardcode four fields — a number for the price
+// per night and three member pickers — because `Statement` had four columns
+// with those names. The section's rules declare what to ask
+// (`Ruleset.inputs`), `GET /api/finance/statements/{id}/form` serves the
+// declarations with the people a party-valued answer may name already
+// resolved, and this renders whatever comes back. Seven types, each a control
+// the UI kit already has; a section whose rules ask something else gets asked
+// it without a line changing here.
+
 /** The answers a statement carries, as `GET …/form` hands them over. */
 export type Answers = Record<string, unknown>;
-
-/**
- * The widget vocabulary, as a renderer.
- *
- * The reimbursement step used to hardcode four fields — a number for the price
- * per night and three member pickers — because `Statement` had four columns
- * with those names. The section's rules now declare what to ask
- * (`Ruleset.inputs`), `GET /api/finance/statements/{id}/form` serves the
- * declarations with the people a party-valued answer may name already resolved,
- * and this renders whatever comes back. Seven types, each a control the UI kit
- * already has; a section whose rules ask something else gets asked it without a
- * line changing here.
- */
 
 /** Types whose control is typed into, so a keystroke must not be a request. */
 export const TYPED_INTO = new Set(["money", "int", "text", "choice"]);
