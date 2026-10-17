@@ -112,6 +112,7 @@ class RuleSetAdmin(ExtraButtonsMixin, admin.ModelAdmin):
         "valid_to",
         "imported_at",
         "activated_at",
+        "retired_at",
         "cases_passed_at",
         "supersedes",
         "params",

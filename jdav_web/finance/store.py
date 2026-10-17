@@ -9,8 +9,11 @@ years later: *under which rules was this settled, and what did they say?*
     version is a *new row* that points at the one it supersedes, never an
     update: that is the difference between valid time (``valid_from`` /
     ``valid_to``, when the rules applied) and transaction time
-    (``imported_at`` / ``activated_at``, when the system learned of them), and
-    an auditor needs both.
+    (``imported_at`` / ``activated_at`` / ``retired_at``, when Kompass was
+    told), and an auditor needs both. The two can differ by months — a section
+    resolves new rates in March and gets round to telling Kompass in May — and
+    a row records all four instants, so that *what was in force* and *what
+    Kompass applied at the time* are separately answerable years later.
 :class:`RoleAssignment`
     Who held which section role, with dates. The source of ``ctx.roles``.
 :class:`Obligation`
@@ -46,7 +49,9 @@ from members.models import Member
 
 #: The fields of a :class:`RuleSet` row that may never change once it is
 #: saved. Everything else about a version is lifecycle — when it was
-#: activated, when it was closed, whether its cases passed.
+#: activated, when it was closed, whether its cases passed. ``valid_from`` is
+#: on the list: *when* a version's rules applied from is part of what the row
+#: says, so a correction to it is a new row like any other.
 IMMUTABLE_FIELDS = (
     "name",
     "hash",
@@ -77,14 +82,32 @@ class RuleSetManager(models.Manager):
     def active(self, when=None):
         """The version in force at ``when`` (default: now), or ``None``.
 
-        In force means: activated, its validity has started, and its validity
-        has not been closed by a successor. Where two rows could answer, the
-        one whose validity started last wins — which is what a correction with
-        the same valid range is for.
+        In force is a question about **valid time**: the version whose
+        validity had started by ``when`` and had not ended. Asked with a past
+        ``when`` it is the as-of-today answer to "which rules applied then",
+        which is not the same as "which rules Kompass applied then" — for that,
+        read :attr:`RuleSet.imported_at` and :attr:`RuleSet.retired_at`, and
+        see the module docstring on why both exist.
+
+        Where two rows could answer, the one whose validity started last wins,
+        and :attr:`RuleSet.imported_at` breaks a tie — which is what a
+        correction with the same valid range is for: the later knowledge wins.
+
+        A **draft** never answers, and nothing else is excluded by its state.
+        That is the whole of the filter, and it has to be: requiring
+        ``state=ACTIVE`` meant a staged change — the one feature validity and
+        activation are separate fields *for* — left nothing in force at all
+        between the import and the date it takes effect, because activating
+        the staged row closes its predecessor's validity at that future date
+        and marks it ``RETIRED`` there and then. A statement created in that
+        window bound to no version and was settled against the reference
+        ruleset and the live settings. The state column says how an import
+        ended; the dates say what applied when.
         """
         moment = timezone.now() if when is None else when
         return (
-            self.filter(state=RuleSet.ACTIVE, valid_from__lte=moment)
+            self.exclude(state=RuleSet.DRAFT)
+            .filter(valid_from__lte=moment)
             .filter(Q(valid_to__isnull=True) | Q(valid_to__gt=moment))
             .order_by("-valid_from", "-imported_at")
             .first()
@@ -153,6 +176,18 @@ class RuleSet(models.Model):
     activated_at = models.DateTimeField(
         verbose_name=_("Activated on"), null=True, blank=True, default=None
     )
+    retired_at = models.DateTimeField(
+        verbose_name=_("Retired on"),
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "When Kompass stopped applying this version — transaction time, beside "
+            "'Valid to', which is when its rules ceased to be in force. The two are "
+            "the same instant unless a correction was backdated, and then the "
+            "difference is the whole record."
+        ),
+    )
     cases_passed_at = models.DateTimeField(
         verbose_name=_("Cases passed on"), null=True, blank=True, default=None
     )
@@ -220,22 +255,37 @@ class RuleSet(models.Model):
         }
 
     def retire(self, when=None):
-        """Close this version's validity, because a successor took over."""
-        self.valid_to = timezone.now() if when is None else when
-        self.state = RuleSet.RETIRED
-        self.save(update_fields=["valid_to", "state"])
+        """Close this version's validity, because a successor took over.
 
-    def activate(self):
-        """Put this version in force.
+        ``when`` is **valid** time: the instant the rules stopped applying,
+        which is the successor's ``valid_from`` and may be in the past (a
+        backdated correction) or in the future (a staged change).
+        :attr:`retired_at` is transaction time and is always now, because now
+        is when Kompass was told. Recording only one of the two is what made a
+        backdated correction unrepresentable: the row said the rules ended in
+        March and nothing said that Kompass went on applying them until May.
+        """
+        self.valid_to = timezone.now() if when is None else when
+        self.retired_at = timezone.now()
+        self.state = RuleSet.RETIRED
+        self.save(update_fields=["valid_to", "retired_at", "state"])
+
+    def activate(self, until=None):
+        """Put this version in force, up to ``until`` where its interval ends.
 
         From now, or from :attr:`valid_from` where that is in the future: a
         staged change is activated once and takes effect on its own date,
         which is why activation and validity are separate fields rather than
         one timestamp.
+
+        ``until`` is for the one case where a version is in force for a
+        *closed* interval from the moment it is stored: a correction
+        backdated into a gap that a later version already ends. Left out, the
+        version is open-ended, which is every ordinary import.
         """
         self.state = RuleSet.ACTIVE
         self.activated_at = timezone.now()
-        self.valid_to = None
+        self.valid_to = until
         self.save(update_fields=["state", "activated_at", "valid_to"])
 
 
