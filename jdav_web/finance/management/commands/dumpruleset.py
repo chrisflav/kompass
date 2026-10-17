@@ -33,9 +33,19 @@ class Command(BaseCommand):
                 )
             self.stdout.write(source)
             return
+        # Valid time on one line, transaction time on the next, and labelled
+        # as such: the two differ whenever a correction was backdated, and
+        # telling them apart is most of what somebody reads a stored version
+        # for two years later (#560).
+        retired = f"{row.retired_at:%Y-%m-%d %H:%M}" if row.retired_at else "—"
         self.stdout.write(f"{row} [{row.get_state_display()}]")
-        self.stdout.write(f"  valid {row.valid_from:%Y-%m-%d %H:%M} to {row.valid_to or '—'}")
-        self.stdout.write(f"  imported {row.imported_at:%Y-%m-%d %H:%M} into {row.engine_version}")
+        self.stdout.write(
+            f"  in force {row.valid_from:%Y-%m-%d %H:%M} to {row.valid_to or '—'} (valid time)"
+        )
+        self.stdout.write(
+            f"  applied from {row.imported_at:%Y-%m-%d %H:%M} to {retired} (transaction time), "
+            f"into {row.engine_version}"
+        )
         self.stdout.write(
             f"  revision {row.revision or '—'}, context version {row.context_version}"
         )
