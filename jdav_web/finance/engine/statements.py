@@ -52,8 +52,6 @@ from .approval import resolve_eligibility
 from .context import build_context
 from .context import parameters
 from .context import permission_holders
-from .errors import RulesetInvalid
-from .errors import RulesetRejected
 from .evaluation import evaluate
 from .evaluation import party_key
 from .evaluation import Result
@@ -711,8 +709,16 @@ def verify(statements: Any, *, sample: int = 10) -> list[str]:
         snapshot = statement.ruleset_snapshot or {}
         try:
             ruleset = ruleset_from_sources(snapshot.get("sources", {}))
-        except (RulesetInvalid, RulesetRejected) as refused:
-            problems.append(f"statement {statement.pk}: {refused}")
+        except Exception as refused:
+            # A snapshot that will not load is a *finding*, however it fails.
+            # Narrower, the two refusal types were reported and everything
+            # else — a renamed `kompass.rules`, a section's own exception —
+            # came out of this loop: the command died with a traceback instead
+            # of the `CommandError` that lists what is wrong, and
+            # `tasks.verify_rulesets`, which is this function and nothing
+            # else, errored having audited nothing. Reporting keeps both: the
+            # command is still loud, because a non-empty list raises there.
+            problems.append(f"statement {statement.pk}: {type(refused).__name__}: {refused}")
             continue
         result = evaluate(ruleset, statement_context(statement, ruleset))
         # Who, as well as how much: rows naming member A against a replay

@@ -788,6 +788,18 @@ class VerifyTestCase(TestCase):
         problems = verify(Statement.objects.all())
         self.assertTrue(any("does not export" in p for p in problems))
 
+    def test_a_snapshot_that_will_not_load_at_all_is_a_finding_too(self):
+        """However it fails to load: a finding, never an exception.
+
+        The replay is the audit, and an audit that stops at the first thing it
+        cannot read has audited nothing after it. See the command and the beat
+        task in ``finance.tests.commands`` for what that cost.
+        """
+        snapshot = dict(self.statement.ruleset_snapshot, sources=RENAMED_API_SOURCES)
+        Statement.objects.filter(pk=self.statement.pk).update(ruleset_snapshot=snapshot)
+        problems = verify(Statement.objects.all())
+        self.assertTrue(any("ImportError" in p and "Gone" in p for p in problems))
+
     def test_rows_back_filled_from_transactions_are_not_replayed(self):
         self.statement.obligation_set.all().update(rule_id="legacy")
         self.assertEqual(verify(Statement.objects.all()), [])
