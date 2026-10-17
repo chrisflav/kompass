@@ -518,6 +518,7 @@ class ImportTestCase(TestCase):
         self.assertLess(march.valid_from, march.imported_at, "valid time before transaction time")
         january.refresh_from_db()
         self.assertEqual(january.valid_to, march.valid_from, "its rules ended in March")
+        self.assertIsNotNone(january.retired_at, "when Kompass was told is on the record")
         self.assertLess(january.valid_to, january.retired_at, "and Kompass applied them until now")
         # Nothing was in force after March, so the correction is in force now.
         self.assertEqual(active_version(), march)
@@ -603,6 +604,27 @@ class ImportTestCase(TestCase):
         self.assertEqual(statement.ruleset_id, current.pk, "and a new statement is bound to it")
         later = staged.valid_from + timezone.timedelta(days=1)
         self.assertEqual(RuleSet.objects.active(when=later), staged)
+
+    def test_a_number_the_section_wrote_wrong_is_a_draft_rather_than_a_hole(self):
+        """A parameter that is not a number stops the version, loudly.
+
+        ``decimal_params`` dropped a value it could not read, so a typo in
+        ``settings.toml`` — a decimal comma, a figure in quotes — reached the
+        rules as *that parameter does not exist*. The number is as much part
+        of a version as the code, since the hash covers both, so it is a
+        reason not to activate the version: the previous one stays in force
+        and the problem is on the draft, where the admin and the hourly
+        import task both show it.
+        """
+        RuleSet.objects.all().delete()
+        current, problems = import_from_directory(reference_directory())
+        self.assertEqual(problems, [])
+        with override_settings(ALLOWANCE_PER_DAY="22,50"):
+            row, problems = import_from_directory(reference_directory())
+        self.assertEqual(row.state, RuleSet.DRAFT)
+        self.assertTrue(any("ALLOWANCE_PER_DAY" in problem for problem in problems), problems)
+        self.assertTrue(any("not a number" in problem for problem in problems), problems)
+        self.assertEqual(active_version(), current, "the previous version stays in force")
 
     def test_a_name_that_queries_is_a_draft_rather_than_a_free_cursor(self):
         """The import read two fields off the loaded object, past the guard.
