@@ -19,6 +19,7 @@ from django.core.management.base import CommandError
 from django.test import override_settings
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django_celery_beat.models import PeriodicTask
 from finance.engine import reference_directory
@@ -211,6 +212,28 @@ class DumpRulesetCommandTestCase(TestCase):
         self.assertIn(row.short_hash, printed)
         self.assertIn("ALLOWANCE_PER_DAY = 22", printed)
         self.assertIn("__init__.py", printed)
+        # Both times, labelled: an auditor reading a version from two years
+        # ago needs when its rules were in force *and* when Kompass applied
+        # them, which are the same instant only until a correction is
+        # backdated (#560).
+        self.assertIn("(valid time)", printed)
+        self.assertIn("(transaction time)", printed)
+        self.assertIn("to —", printed, "an active version has neither end")
+
+    def test_dumping_a_version_that_is_no_longer_applied(self):
+        """The two ends, and they are not the same date.
+
+        The version was in force until the correction's own date and Kompass
+        went on applying it until the import — which is the pair that one
+        column could not hold.
+        """
+        row = active_version()
+        row.retire(when=timezone.now() - timezone.timedelta(days=60))
+        out = StringIO()
+        call_command("dumpruleset", row.short_hash, stdout=out)
+        printed = out.getvalue()
+        self.assertIn(f"to {row.valid_to}", printed)
+        self.assertIn(f"to {row.retired_at:%Y-%m-%d %H:%M} (transaction time)", printed)
 
     def test_dumping_one_file_of_a_version(self):
         row = active_version()

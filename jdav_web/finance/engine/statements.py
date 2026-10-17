@@ -436,6 +436,12 @@ def _decisions_so_far(statement: Any) -> dict[str, dict[str, Any]]:
     copy of the decision beside the eligible set and the amounts it was taken
     against, so the chain reads as what happened rather than as the latest
     state alone.
+
+    What is carried is the answer to *that step*, by name, and a step the rules
+    ask for differently after the re-freeze carries it too — a quorum that grew
+    with the payout, say. Nothing is paid on the strength of it: the gate
+    counts signatures afresh every time (``recorded=False``), and the column is
+    read only for a statement that has settled or has not been handed in.
     """
     decisions: dict[str, dict[str, Any]] = {}
     rows = ApprovalConstraint.all_objects.filter(statement=statement).order_by("pk")
