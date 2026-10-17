@@ -52,8 +52,6 @@ from .approval import resolve_eligibility
 from .context import build_context
 from .context import parameters
 from .context import permission_holders
-from .errors import RulesetInvalid
-from .errors import RulesetRejected
 from .evaluation import evaluate
 from .evaluation import party_key
 from .evaluation import Result
@@ -87,14 +85,63 @@ def active_ruleset() -> Ruleset:
     — the reference ruleset that ships in the image. A stored version that no
     longer loads is a loud warning and the same fallback: a section's broken
     rules must not take its finance pages down.
+
+    *However* it fails to load, which is the whole of the promise and was not
+    the whole of the code. Catching only the two exceptions a *refused*
+    snapshot raises left every other way a module body can fail — a section's
+    own ``ValueError``, and the realistic one, an ``ImportError`` from a
+    Kompass upgrade that renamed something in ``kompass.rules`` — to propagate
+    out of here and 500 the page that asked.
+    """
+    return _active_with_identity()[0]
+
+
+def _active_with_identity() -> tuple[Ruleset, str]:
+    """The ruleset in force, and the identity of what *actually* loaded.
+
+    ``""`` whenever the answer comes from the reference ruleset — because
+    nothing has been imported, **or** because the active version would not
+    load and the fallback took over. One caller depends on telling those two
+    apart from a version that loaded, and it depends on it for a right rather
+    than for tidiness: :func:`_rows_from_the_same_rules` re-resolves a
+    statement's eligibility only while the rules answering are the rules its
+    rows were frozen under, and that check is a hash comparison. Reporting the
+    active row's hash for an answer the *reference* ruleset gave passes it with
+    the wrong rules — and the reference ruleset names ``Freigabe``, which is
+    the step name every section that starts from it and narrows the group
+    keeps, so the merge in :func:`current_constraint_rows` would take the
+    reference ruleset's group for the section's own: a statement a section
+    reserved for its treasurer, signable by everybody holding the capability.
+    The frozen forbids stay sticky and the quorum stays frozen; it is exactly
+    *who may sign* that would widen. Reported as ``""``, the bound fails, and
+    the frozen rows stand — which is what degrading has to mean.
+
+    The property this establishes is worth stating as one line, because it is
+    stronger than the case it was written for: **a snapshot that will not load
+    now means no re-resolution at all.** Either the active version loaded, and
+    its hash differs from the hash the rows were frozen under — or it is the
+    same ``(sources, params)`` as the snapshot, by construction, in which case
+    it did not load either and the identity is ``""``. Both ways the bound in
+    :func:`_rows_from_the_same_rules` fails, and no third way exists.
     """
     row = active_version()
     if row is not None:
         try:
-            return ruleset_from_sources(row.sources)
-        except (RulesetInvalid, RulesetRejected):
-            logger.warning("the active ruleset %s cannot be loaded; using the reference", row)
-    return reference_ruleset
+            return ruleset_from_sources(row.sources), str(row.hash)
+        except Exception as problem:
+            # `error` rather than `warning`: the consequence is instance-wide
+            # — every statement created from now on is settled against the
+            # reference ruleset — and `tasks.import_ruleset` already shouts at
+            # this level for a version that did not activate.
+            logger.error(
+                "the active ruleset %s cannot be loaded (%s: %s); the reference ruleset is "
+                "answering for it",
+                row,
+                type(problem).__name__,
+                problem,
+                exc_info=True,
+            )
+    return reference_ruleset, ""
 
 
 def ruleset_for(statement: Any) -> Ruleset:
@@ -110,9 +157,11 @@ def loaded_ruleset(statement: Any) -> tuple[Ruleset, str]:
     """The ruleset to use for ``statement``, and the version it came from.
 
     The second element is the identity of what was *actually loaded*: the
-    snapshot's hash when the statement's own closure was used, and the active
-    version's hash (or ``""`` for the ruleset that ships in the image) when it
-    could not be and the fallback took over.
+    snapshot's hash when the statement's own closure was used, the active
+    version's hash when that answered instead, and ``""`` when neither could
+    be loaded and the reference ruleset answered. Taking the last of those
+    literally is what makes the sentence true, and
+    :func:`_active_with_identity` says what it costs when it is not.
 
     The fallback is deliberate — a statement whose stored closure no longer
     loads must still render, generate transactions and print — but it means
@@ -128,13 +177,23 @@ def loaded_ruleset(statement: Any) -> tuple[Ruleset, str]:
     if sources:
         try:
             return ruleset_from_sources(sources), str(snapshot.get("hash", ""))
-        except (RulesetInvalid, RulesetRejected):
+        except Exception as problem:
+            # Every way a stored closure can fail to load, not only the two a
+            # refusal raises: a module body is a section's own code and may
+            # raise anything, and an old snapshot meets a renamed
+            # `kompass.rules` with an `ImportError`. Narrower, this function
+            # was total on one path (`_rows_from_the_same_rules` wrapped it)
+            # and a 500 on every other — the draft save, the form, the
+            # printout — for the one kind of failure the fallback exists for.
             logger.warning(
-                "statement %s carries a snapshot that cannot be loaded; using the active ruleset",
+                "statement %s carries a snapshot that cannot be loaded (%s: %s); "
+                "using the version in force",
                 statement.pk,
+                type(problem).__name__,
+                problem,
+                exc_info=True,
             )
-    row = active_version()
-    return active_ruleset(), str(row.hash) if row is not None else ""
+    return _active_with_identity()
 
 
 def statement_params(statement: Any) -> dict[str, Decimal]:
@@ -284,6 +343,17 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
         return ()
     members = MemberModel.objects.in_bulk([party.id for party in result.members()])
     names = {pk: member.name for pk, member in members.items()}
+    # The hash the statement was *asked* to settle under, which is not always
+    # the hash of the rules that have just answered: a statement created while
+    # the active version does not load gets its rows stamped with the section's
+    # version and resolved by the reference ruleset. Inert where it would
+    # matter — the identity `_active_with_identity` reports is then `""`, so
+    # the bound in `_rows_from_the_same_rules` fails and these rows are read
+    # rather than re-resolved for as long as the version stays unloadable —
+    # logged at ERROR when it happens, and reported by `verify`, which replays
+    # from the snapshot and says it cannot load it instead of dying on it. A
+    # deliberate trade against the alternative, which is the outage this
+    # fallback exists to prevent; recorded on #555 rather than changed here.
     version = (statement.ruleset_snapshot or {}).get("hash", "")
     frozen = timezone.now() if freeze else None
     rows = [
@@ -346,12 +416,13 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
     than about the form somebody filled in.
 
     A ruleset that **fails** here — a forbid whose predicate raises, a rule
-    that tries to query — yields constraints that carry the reason and name
-    nobody. That is deliberate: the alternatives are to persist nothing, which
-    would leave a statement with no constraints at all and therefore payable
-    without a signature, or to resolve it permissively, which is the bug this
-    whole module is written against. A broken rule makes a payout *stuck*, and
-    stuck is the safe direction.
+    that tries to query, a ``permissions`` declaration that does — yields
+    constraints that carry the reason and name nobody. That is deliberate: the
+    alternatives are to persist nothing, which would leave a statement with no
+    constraints at all and therefore payable without a signature, or to
+    resolve it permissively, which is the bug this whole module is written
+    against. A broken rule makes a payout *stuck*, and stuck is the safe
+    direction.
 
     The failure is recorded **per constraint**, and that matters: collapsing
     the whole list into one unresolved row turned a board's two signatures into
@@ -360,8 +431,19 @@ def resolve_constraints(statement: Any, result: Result) -> list[dict[str, Any]]:
     not resolve is replaced by the reason it could not.
     """
     ruleset = ruleset_for(statement)
-    context = statement_context(statement, ruleset, actors=True)
     try:
+        # Building the context is inside the `try` as well, because it is a
+        # call into the section's rules too: it reads `ruleset.permissions` to
+        # resolve who may act, and a `property` there is code, guarded like
+        # the rest of it. Outside, one such property raised
+        # `QueryDuringEvaluation` out of `materialise` and therefore out of
+        # *every draft save* in the section — while the identical failure at
+        # signing time already degraded, and while such a ruleset reaches
+        # ACTIVE because nothing read `permissions` at import. Loud on one
+        # path and silent on the other is the one answer that cannot be
+        # right; the import says so now (`check_directory`) and the save ends
+        # up where this docstring already promised.
+        context = statement_context(statement, ruleset, actors=True)
         # Inside the guard, like `transfers` and `checks`: a rule that resolved
         # its eligible set with a query would freeze today's membership into
         # rows that replay differently in two years.
@@ -521,17 +603,16 @@ def _rows_from_the_same_rules(
     """
     version = {row.rule_version for row in frozen}
     try:
-        # `loaded_ruleset` is inside the `try` rather than above it, because
-        # it is not the total function it reads like: it catches the two
-        # exceptions a *refused* snapshot raises, and a snapshot whose module
-        # body raises anything else — a section's own `ValueError` at import
-        # time — comes straight out of it. Called out here, that propagated
-        # through `live_approval_states` and answered the approval page and
-        # the `/approval` endpoint with a 500, which is the one thing
-        # `active_ruleset` promises not to do: a section's broken rules must
-        # not take its finance pages down. Inside, a snapshot that will not
-        # load degrades to the frozen rows, like every other way re-resolving
-        # can fail.
+        # `loaded_ruleset` is inside the `try` rather than above it, and stays
+        # there now that it degrades on its own (#553): the reason it was
+        # moved in was that it caught only the two exceptions a *refused*
+        # snapshot raises, so a module body raising anything else came
+        # straight out of it, through `live_approval_states`, and answered the
+        # approval page and the `/approval` endpoint with a 500. That is fixed
+        # at the source, where the other callers needed it too; keeping the
+        # call in here is what makes this function's own promise — degrade to
+        # the frozen rows, however re-resolving fails — not depend on which
+        # of the two places the failure comes from.
         ruleset, loaded = loaded_ruleset(statement)
         if version != {loaded} or not loaded:
             logger.warning(
@@ -648,8 +729,16 @@ def verify(statements: Any, *, sample: int = 10) -> list[str]:
         snapshot = statement.ruleset_snapshot or {}
         try:
             ruleset = ruleset_from_sources(snapshot.get("sources", {}))
-        except (RulesetInvalid, RulesetRejected) as refused:
-            problems.append(f"statement {statement.pk}: {refused}")
+        except Exception as refused:
+            # A snapshot that will not load is a *finding*, however it fails.
+            # Narrower, the two refusal types were reported and everything
+            # else — a renamed `kompass.rules`, a section's own exception —
+            # came out of this loop: the command died with a traceback instead
+            # of the `CommandError` that lists what is wrong, and
+            # `tasks.verify_rulesets`, which is this function and nothing
+            # else, errored having audited nothing. Reporting keeps both: the
+            # command is still loud, because a non-empty list raises there.
+            problems.append(f"statement {statement.pk}: {type(refused).__name__}: {refused}")
             continue
         result = evaluate(ruleset, statement_context(statement, ruleset))
         # Who, as well as how much: rows naming member A against a replay

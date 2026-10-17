@@ -159,6 +159,48 @@ class VerifyRulesetsCommandTestCase(TestCase):
         self.assertIn("problems with what is stored", str(caught.exception))
         self.assertIn("do not match the stored manifest", err.getvalue())
 
+    def test_a_snapshot_that_will_not_load_is_reported_rather_than_raised(self):
+        """The audit's two callers, and why the narrow catch was wrong for both.
+
+        ``verify`` is the whole body of ``finance.tasks.verify_rulesets``,
+        daily from beat, as well as of this command. Catching only the two
+        exceptions a *refused* snapshot raises let everything else out of the
+        replay loop — the renamed ``kompass.rules`` of #553 among them — so
+        the command died with a traceback instead of listing what is wrong,
+        and the task errored having audited **nothing**: the one detector that
+        would notice a settled statement whose rows no longer mean what they
+        say. Reported, the command is still loud, because a non-empty list is
+        a ``CommandError`` here.
+        """
+        member = Member.objects.create(
+            prename="Anna", lastname="Test", email="a@localhost", gender=MALE
+        )
+        statement = Statement.objects.create(short_description="Alt", night_cost=0)
+        Bill.objects.create(
+            statement=statement,
+            short_description="Seil",
+            amount=Decimal("10.00"),
+            costs_covered=True,
+            paid_by=member,
+        )
+        statement.submit(submitter=member)
+        statement.status = Statement.CONFIRMED
+        statement.save()
+        Statement.objects.filter(pk=statement.pk).update(
+            ruleset_snapshot=dict(
+                statement.ruleset_snapshot,
+                sources={"__init__.py": "from kompass.rules import Gone\n"},
+            )
+        )
+        err = StringIO()
+        with self.assertRaises(CommandError) as caught:
+            call_command("verifyrulesets", stderr=err)
+        self.assertIn("problems with what is stored", str(caught.exception))
+        self.assertIn("ImportError", err.getvalue())
+        self.assertIn("Gone", err.getvalue())
+        with self.assertLogs("finance.tasks", level="ERROR"):
+            self.assertGreater(verify_rulesets(), 0, "and beat gets an answer at all")
+
 
 class DumpRulesetCommandTestCase(TestCase):
     def test_dumping_a_version(self):

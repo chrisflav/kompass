@@ -248,14 +248,15 @@ class FinanceFormApiTestCase(TestCase):
     def test_the_approval_endpoint_survives_a_snapshot_whose_body_raises(self):
         """A section's broken rules must not take its finance pages down.
 
-        `loaded_ruleset` catches the two exceptions a *refused* snapshot
-        raises, and a snapshot whose module body raises anything else — the
-        section's own `ValueError` at import time, which is what a bad
-        configuration repository looks like once it is stored — comes straight
-        out of it. The call sat outside `_rows_from_the_same_rules`'s own
-        `try`, so the gate propagated it and this endpoint and the admin's
-        approval page answered 500 instead of falling back to the frozen rows
-        they are built around.
+        A snapshot whose module body raises — the section's own `ValueError`
+        at import time, which is what a bad configuration repository looks
+        like once it is stored — used to come straight out of
+        `loaded_ruleset`, which caught only the two exceptions a *refused*
+        snapshot raises. With the call also sitting outside
+        `_rows_from_the_same_rules`' own `try`, the gate propagated it, and
+        this endpoint and the admin's approval page answered 500 instead of
+        falling back to the frozen rows they are built around. Both halves are
+        fixed (#547, #553); this is the page, asserted from outside.
         """
         self.statement.submit(self.owner)
         statement = Statement.objects.get(pk=self.statement.pk)

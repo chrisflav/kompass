@@ -665,6 +665,35 @@ class Statement(CommonModel):
         ``user`` is recorded so that an administrator with no member record is
         still *one* person rather than an anonymous tally that can reach any
         quorum by clicking twice.
+
+        Each constraint's ``satisfied`` column is written here **once** — by
+        the first of these calls that finds the step satisfied — and no later
+        signature writes it again. It is a record and not a cache of the gate:
+        re-syncing every row to today's answer on every signature made the
+        column say, of a step that was signed, that it was not — a signer who
+        has since lost the capability stops advancing the step at the *gate*,
+        which is what the gate is for, and the next signature on any other
+        step then wrote that verdict over the record of hers. The ``Approval``
+        row she left is the trail that matters and it stood all along, so
+        nothing was ever paid out wrongly; what §6's appeal to the GoBD's
+        *Unveränderbarkeit* cannot live with is the record being edited at all.
+
+        "The first call that finds it satisfied" rather than "the signature
+        that satisfied it", because those differ in exactly the case above: a
+        step the gate has stopped counting is not recorded by the signature
+        that reached its quorum.
+
+        And **once here** is the honest scope. The rows themselves are
+        rewritten elsewhere: :func:`finance.engine.statements.
+        _materialise_constraints` deletes and recreates them whenever a
+        submitted statement is re-frozen, which is the one edit left open
+        after submission — the finance officer covering a bill, reaching it
+        through ``Bill.save`` → ``_refresh_statement`` → ``freeze``. That
+        resets the columns and, worse, drops a recorded override: who went
+        ahead anyway, and why. That is a separate defect (#555), and the
+        contrast is ``_retire_rows`` beside it, which *supersedes* frozen
+        obligations rather than deleting them, for the reason this paragraph
+        has already given.
         """
         if not self.submitted or self.confirmed:
             return False
@@ -672,10 +701,12 @@ class Statement(CommonModel):
             Approval.objects.create(statement=self, member=member, user=user, note=note)
         self.__dict__.pop("_live_states", None)
         states = self.live_approval_states
-        for row in self.approval_constraint_set.all():
+        # Only the rows that have not been answered yet, so that the write can
+        # go one way and the column cannot be revised.
+        for row in self.approval_constraint_set.filter(satisfied=False):
             state = next((s for s in states if s.name == row.name), None)
-            if state is not None and row.satisfied != state.satisfied:
-                row.satisfied = state.satisfied
+            if state is not None and state.satisfied:
+                row.satisfied = True
                 row.save(update_fields=["satisfied"])
         if not fully_approved(states):
             return False
