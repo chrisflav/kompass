@@ -4,6 +4,7 @@ import django.test
 from django.conf import settings
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
+from django.utils import timezone
 from finance.engine.versions import version_hash
 
 
@@ -378,3 +379,67 @@ class AnswersFromColumnsMigrationTestCase(django.test.TransactionTestCase):
         filled = Statement.objects.get(pk=self.filled.pk)
         self.assertIsNone(filled.subsidy_to_id)
         self.assertEqual([member.pk for member in filled.allowance_to.all()], [self.bodo.pk])
+
+
+class RetiredAtMigrationTestCase(django.test.TransactionTestCase):
+    """``retired_at`` is back-filled from the import that closed the row.
+
+    Before a backdated ``valid_from`` was possible, a version's ``valid_to``
+    was both "its rules ended here" and "Kompass was told here", so the two
+    can be separated for existing rows without guessing: the successor's
+    ``imported_at`` *is* the moment Kompass stopped applying the older
+    version. Where no successor is recorded, the column stays ``NULL`` —
+    "not recorded" rather than a timestamp nobody can stand behind.
+    """
+
+    app = "finance"
+    migrate_from = [("finance", "0021_approval_constraint_superseded")]
+    migrate_to = [("finance", "0022_ruleset_retired_at")]
+
+    def setUp(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+        RuleSet = old_apps.get_model(self.app, "RuleSet")
+        now = timezone.now()
+        self.replaced = RuleSet.objects.create(
+            name="januar",
+            hash="a" * 64,
+            state=2,
+            valid_from=now - timezone.timedelta(days=120),
+            valid_to=now - timezone.timedelta(days=60),
+        )
+        self.successor = RuleSet.objects.create(
+            name="maerz",
+            hash="b" * 64,
+            state=1,
+            valid_from=now - timezone.timedelta(days=60),
+            supersedes=self.replaced,
+        )
+        # `imported_at` is `auto_now_add`, so it is moved afterwards: the
+        # point of the fixture is that the two instants differ.
+        self.told_on = now - timezone.timedelta(days=59)
+        RuleSet.objects.filter(pk=self.successor.pk).update(imported_at=self.told_on)
+        self.in_force = RuleSet.objects.create(name="jetzt", hash="c" * 64, state=1)
+        self.orphan = RuleSet.objects.create(
+            name="ohne-nachfolger",
+            hash="d" * 64,
+            state=2,
+            valid_from=now - timezone.timedelta(days=10),
+            valid_to=now - timezone.timedelta(days=5),
+        )
+
+    def test_when_kompass_stopped_applying_each_version(self):
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()
+        executor.migrate(self.migrate_to)
+        apps = executor.loader.project_state(self.migrate_to).apps
+        RuleSet = apps.get_model(self.app, "RuleSet")
+        replaced = RuleSet.objects.get(pk=self.replaced.pk)
+        self.assertEqual(replaced.retired_at, self.told_on)
+        self.assertLess(replaced.valid_to, replaced.retired_at)
+        self.assertIsNone(RuleSet.objects.get(pk=self.in_force.pk).retired_at)
+        self.assertIsNone(
+            RuleSet.objects.get(pk=self.orphan.pk).retired_at,
+            "not recorded, rather than a timestamp nobody can stand behind",
+        )

@@ -671,6 +671,22 @@ class Ruleset(ABC):
     #: The :data:`CONTEXT_VERSION` this ruleset was written against. Kompass
     #: refuses to load a ruleset written against a newer context.
     context_version: int = CONTEXT_VERSION
+    #: The date these rules were **in force** from, ISO 8601
+    #: (``"2026-03-01"``), empty for "from the moment Kompass is told".
+    #:
+    #: It is valid time, and it may be in the past: a section that resolved
+    #: new rates in March and imports them in May says ``"2026-03-01"``, and
+    #: the record then carries both when the rules applied and when Kompass
+    #: learned of them. A date in the future stages a change that is already
+    #: agreed. This declaration is the *authority* for either, which is why it
+    #: lives in the ruleset package rather than in a command-line flag: the
+    #: package is reviewed and committed, and it is the versioned
+    #: documentation of the procedure an auditor asks for.
+    #:
+    #: Backdating records; it does not re-settle. A statement is bound to the
+    #: rules it was created under, and no version imported afterwards — with
+    #: whatever date — changes what it settled under.
+    valid_from: str = ""
     #: Permission codenames the rules read with
     #: :meth:`RuleContext.permission_holders`. The engine resolves these before
     #: evaluation, because the rules cannot query the database themselves.
