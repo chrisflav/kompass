@@ -272,8 +272,8 @@ def build_context(
     ``ruleset`` is what turns the stored JSON answers into those types. It
     cannot be skipped by asking the statement, because which key is money and
     which is a person is the ruleset's declaration and nothing else's; left
-    out, the context carries the answers exactly as the column holds them,
-    which is what the form endpoint's first pass wants and no rule does.
+    out, the context carries the answers exactly as ``Statement.inputs`` holds
+    them, which is what the declarations' own pass wants and no rule does.
 
     ``params`` and ``roles`` are passed in by
     :mod:`finance.engine.statements`, which reads them from the statement's own

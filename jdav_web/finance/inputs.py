@@ -3,8 +3,9 @@
 A section's rules declare every answer they need
 (:meth:`~kompass.rules.Ruleset.inputs`), with a label, a widget type and — for
 a party-valued answer — the domain of people who may be picked. This module is
-the other side of that declaration: it renders it for a client, and it
-validates what comes back.
+the other side of that declaration: it renders it for a client — the SPA
+through ``GET …/form``, the admin's excursion inline through
+:func:`form_field` — and it validates what comes back.
 
 Two things it deliberately does rather than trusts:
 
@@ -13,11 +14,12 @@ names candidates as ids; the names a person picks from are looked up at the
 edge, so that the rules never see them.
 
 **Every value is checked against its declaration**, not against a hand-written
-list of the four columns Heidelberg happens to have. ``_resolve_recipient``
-and ``_validate_allowance_count`` in the router were exactly that list; the
-checks here are their generalisation, with the same two messages, so a section
-whose rules ask for something else gets the same treatment without anybody
-editing the API.
+list of the four columns Heidelberg used to have. ``_resolve_recipient`` and
+``_validate_allowance_count`` in the router were exactly that list, and
+``StatementOnListForm`` was the same list as three querysets; the checks here
+are their generalisation, with the same two messages, so a section whose rules
+ask for something else gets the same treatment without anybody editing the API
+or the admin.
 
 The validation is pessimistic on purpose — everything is checked before
 anything is written — because approval must never fail on arithmetic that

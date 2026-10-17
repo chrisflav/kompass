@@ -128,8 +128,8 @@ function Approval({
       onError: (e: Error) => {
         // A refused override answers 422 with the reason it was refused — the
         // dialog says so rather than closing as though it had worked.
-        if (e instanceof ApiError) setErrors(e.fieldErrors.__all__ ?? [e.message]);
-        else setErrors([e.message]);
+        const refusal = e instanceof ApiError ? e.fieldErrors.__all__ : undefined;
+        setErrors(refusal ?? [e.message]);
         toast.error(e.message);
       },
     },

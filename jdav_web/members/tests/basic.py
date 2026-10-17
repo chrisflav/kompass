@@ -3566,6 +3566,20 @@ class StatementOnListFormTestCase(BasicMemberTestCase):
         self.assertIsNone(self.st.inputs["ljp_to"])
         self.assertEqual(self.st.inputs["allowance_to"], [])
 
+    def test_a_value_the_field_already_rejected_is_not_asked_about_twice(self):
+        """The field's own error stands; the declaration is not asked again.
+
+        ``DecimalField`` has already said "enter a number", and running
+        ``clean_value`` over the ``None`` it left behind would add "is not an
+        amount of money" under the same answer.
+        """
+        form = self.form(
+            data={"night_cost": "zwölf", "allowance_to": [], "subsidy_to": "", "ljp_to": ""}
+        )
+        self.assertFalse(form.is_valid())
+        self.assertEqual(len(form.errors["night_cost"]), 1)
+        self.assertNotIn("night_cost", form.answers)
+
     def test_too_many_recipients_is_an_error_on_that_answer(self):
         self.assertGreater(1, self.ex.approved_staff_count)
         form = self.form(
