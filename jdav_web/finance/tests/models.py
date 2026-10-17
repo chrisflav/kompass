@@ -712,7 +712,13 @@ class StatementTestCase(TestCase):
             ljp_to=ghost.pk,
             allowance_to=sorted([ghost.pk, self.fritz.pk]),
         )
+        # A statement that names them in a *set* and nowhere else, because
+        # finding them there is a separate branch: the scalar answers above are
+        # looked at first and would otherwise be the only ones that ever match.
+        answer(self.st6, allowance_to=[ghost.pk])
         ghost.delete()
+        self.st6.refresh_from_db()
+        self.assertEqual(self.st6.inputs["allowance_to"], [])
         self.st3.refresh_from_db()
         self.assertIsNone(self.st3.inputs["subsidy_to"])
         self.assertIsNone(self.st3.inputs["ljp_to"])
@@ -744,6 +750,12 @@ class StatementTestCase(TestCase):
         # The count is the record, not what is left of it: the statement still
         # claims two allowances, and `allowance_to_valid` is what judges that.
         self.assertEqual(self.st6.allowances_paid, 2)
+        # And something in there that is not an id at all — a question that used
+        # to ask for text and now asks for a person — is skipped rather than
+        # raised on, for the same reason.
+        answer(self.st6, subsidy_to="niemand", allowance_to=[self.fritz.pk, {"wer": "?"}])
+        self.assertIsNone(self.st6.subsidy_to)
+        self.assertEqual(self.st6.allowance_to, [self.fritz])
 
     def test_total_pretty(self):
         self.assertEqual(self.st3.total_pretty(), "{}€".format(self.st3.total))
