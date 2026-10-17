@@ -1,0 +1,105 @@
+# The checks this configuration repository runs over its own finance rules.
+#
+# There is no package here and nothing to install: `[project]` is deliberately
+# absent, because `rules/` is not a library. This file exists so that `mypy`
+# and `ruff` are configured once and the same way in CI, in an editor and by
+# hand, and so that a rule that would be refused by a running Kompass is
+# refused here first -- in a pull request, with a file and a line.
+#
+# `.github/workflows/check-rules.yml` runs both of them, and `checkruleset`,
+# inside the Kompass image.
+
+# `mypy --strict` over the rules, against the real `kompass.rules`.
+#
+# This is worth more here than in most projects, because the API is typed for
+# it: `ctx.inputs.money("night_cost")` is a `Decimal`, a `Transfer`'s
+# destination is a party and not an id, and `ctx.excursion` may be `None` on a
+# statement that settles a purchase rather than a trip. Each of those is a file
+# and a line here instead of an error on somebody's statement.
+#
+# `kompass.rules` ships inside the Kompass image (it carries `py.typed`), so
+# the workflow sets `MYPYPATH=/app/jdav_web` and runs mypy in the same image
+# the instance runs -- which is also how the API module and the interpreter are
+# guaranteed to match production. Running `mypy` outside the image cannot
+# resolve the import, and that is not a reason to add
+# `ignore_missing_imports`: an unresolved `kompass.rules` would make every type
+# in these rules `Any` and the check worthless.
+[tool.mypy]
+python_version = "3.13"
+files = ["rules"]
+strict = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# TID251/TID253 are the banned-import rules below. S102 and S307 are `exec`
+# and `eval`, the two banned builtins `ruff` can see. The rest is the smallest
+# set that is worth having: `F` (real errors), `E`/`W` (style), `I` (import
+# order), `UP` (no outdated spellings).
+select = ["E", "F", "I", "S102", "S307", "TID251", "TID253", "UP", "W"]
+
+[tool.ruff.lint.isort]
+# One import per line, as in Kompass itself: a ruleset's imports are the first
+# thing a reviewer reads, and a diff that adds one touches one line.
+force-single-line = true
+case-sensitive = false
+order-by-type = false
+
+[tool.ruff.lint.flake8-tidy-imports]
+# `ban-relative-imports` is left at its default, `"parents"`: a ruleset's own
+# submodules are imported relatively (`from .travel import reimbursement`) and
+# the engine allows exactly that, while an import reaching *above* the package
+# (`from ..secrets import ...`) is both nonsense here and refused there.
+#
+# The clock and the rest of the standard library a ruleset does not get. The
+# engine refuses these at any scope -- this rule only catches the module-level
+# `import`, which is the only kind a ruleset can have, since `importlib` is
+# banned below and there is no lazy import without it.
+banned-module-level-imports = [
+    "csv",
+    "datetime",
+    "json",
+    "logging",
+    "pathlib",
+    "random",
+    "re",
+    "shutil",
+    "tempfile",
+    "threading",
+    "time",
+    "urllib",
+]
+
+# What a ruleset may import, as `ruff` can express it.
+#
+# The engine enforces a *whitelist*: a ruleset may import itself,
+# `kompass.rules`, `__future__`, and `decimal`, `math`, `dataclasses`,
+# `typing`, `enum`, `fractions`, `itertools`, `functools` and `collections`.
+# Everything else is refused at import time, with a file and a line.
+#
+# `flake8-tidy-imports` cannot express a whitelist, so what follows is the
+# engine's own blacklist plus the usual temptations -- the clock, the
+# filesystem, the network, the ORM. It is therefore *narrower* than the engine:
+# a ruleset that imports some other standard-library module passes `ruff` and
+# is still rejected on import. The authority is `checkruleset`, which runs in
+# the same workflow and does enforce the whitelist; these rules exist so that
+# the common mistakes are named in the pull request rather than in the admin.
+#
+# Banned at *any* scope, because the engine refuses them wherever they appear.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os".msg = "A ruleset has no environment and no filesystem; everything it may read is in its RuleContext."
+"sys".msg = "A ruleset has no interpreter to reach into; everything it may read is in its RuleContext."
+"subprocess".msg = "A ruleset runs nothing."
+"socket".msg = "A ruleset talks to nothing."
+"requests".msg = "A ruleset talks to nothing."
+"importlib".msg = "A ruleset imports kompass.rules, the allowed standard-library modules, and its own submodules."
+"django".msg = "A ruleset may not query the database; the engine refuses every ordinary route to it while rules run."
+
+# Not here, and not an oversight: `open`, `getattr`, `setattr`, `globals`,
+# `locals`, `vars`, `dir` and `compile` are *builtins*, and `banned-api` only
+# resolves imported names, so listing them would be configuration that reads
+# like a guarantee and catches nothing. `exec` and `eval` are covered by S102
+# and S307 above. The rest is `checkruleset`'s job -- it refuses every one of
+# them by name -- and at runtime they are simply absent: the loader executes a
+# ruleset with a restricted set of builtins that does not include them.

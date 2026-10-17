@@ -1,0 +1,213 @@
+# Finance rules for a JDAV section
+
+This is the template for a section's **configuration repository**: the
+directory a Kompass instance mounts read-only, and the place a section's own
+finance rules live. Copy it, make it your own repository, and the statements
+your instance settles are settled under rules you wrote and reviewed.
+
+> **If you skip this, your section settles its statements under Heidelberg's
+> rules.** With `[finance] ruleset` unset, the reference ruleset that ships in
+> the Kompass image applies — Heidelberg's allowance per day, its organisation
+> fee for participants from 27, its LJP arithmetic, its single signature from
+> the finance department. Nothing fails and nothing warns. The statements
+> resolve, the books add up, and the figures are somebody else's.
+
+```
+.
+├── .github/workflows/check-rules.yml   mypy, ruff and checkruleset, in the image
+├── pyproject.toml                      how those three are configured
+├── rules/
+│   ├── __init__.py                     your rules
+│   └── cases/*.json                    your worked examples; these gate activation
+└── settings.toml                       the instance's settings (not in the template)
+```
+
+Copy it with `cp -a`, not `cp -r *`: `.github/` is a hidden directory and is
+easy to leave behind.
+
+## Getting started
+
+1. Copy this directory into your configuration repository, beside the
+   `settings.toml` your instance already uses.
+2. In `rules/__init__.py`, rename `SectionRules`, set `name`, and make
+   `transfers` say what your section actually reimburses.
+3. Write a case for each thing it should do, in `rules/cases/`. The three that
+   are here are real and they pass — start by changing their figures to yours.
+4. Add to `settings.toml`:
+
+   ```toml
+   [finance]
+   ruleset = "rules"        # the package directory, relative to this directory
+   allowance_per_day = 22   # the numbers your rules read as ctx.params.*
+   ```
+5. Open a pull request. The workflow checks it. Merge it, pull it on the host,
+   and the next statement is settled under the new rules.
+
+The full reference — every type in `kompass.rules`, the widget vocabulary, the
+cases format and the rules of the road — is the **"A section's finance rules"**
+page of the Kompass documentation. This README is the deployment half of it.
+
+## How the instance reads it
+
+Your instance is the stock Kompass image with this directory mounted
+read-only:
+
+```yaml
+# docker-compose.yaml
+services:
+  master:
+    image: ghcr.io/chrisflav/kompass:latest
+    environment:
+      - KOMPASS_CONFIG_DIR_PATH=/app/config/
+    volumes:
+      - ./config:/app/config:ro
+```
+
+`settings.toml` is read from that mount at start, and `[finance] ruleset =
+"rules"` names the package beside it. The section's numbers come from there
+too: `[finance] allowance_per_day`, `max_night_cost`, `aid_per_km_train`,
+`aid_per_km_car` and `org_fee`, plus `[LJP] contribution_per_day` and `tax`,
+are what your rules read as `ctx.params.ALLOWANCE_PER_DAY`,
+`ctx.params.EXCURSION_ORG_FEE`, `ctx.params.LJP_TAX` and so on.
+
+**Parameter names are not free-form.** That list is fixed, so
+`ctx.params.WHATEVER_YOU_LIKE` does not work: a number that is not one of
+those keys belongs in `rules/` as a module constant, where it is versioned
+with the rules that read it — which is arguably where a figure your section
+voted on belongs anyway.
+
+> **Input keys are not free-form either, and that one can cost money.** A
+> statement still stores its answers in four columns, so `inputs` can only
+> declare `night_cost` (money), `allowance_to` (member set), `subsidy_to`
+> (member) and `ljp_to` (member). A declaration under any other key has
+> nowhere to be stored: the person is asked, the answer is dropped, and the
+> rule reads that type's empty value — `0.00`, `False`, `()`, `None` — every
+> time, with nothing raised and nothing logged. **A case will not catch it**,
+> because the case runner passes unknown keys straight through: green case,
+> production pays zero. Until Kompass #556 moves the answers into one JSON
+> field, a figure you cannot put in one of those four keys goes in `rules/` as
+> a constant instead of an input.
+
+`manage.py importruleset` runs **when the `master` container starts** — of the
+five containers the image runs, that is the only entrypoint that imports — so a
+merged rule change is picked up without a Kompass release and without rebuilding
+anything: pull the repository on the host and restart the instance, or run
+
+```console
+docker compose exec master python jdav_web/manage.py importruleset
+```
+
+and the next statement created uses the new rules. You can also have Kompass
+poll the directory (`[finance] ruleset_poll_minutes = 60`), or press "Import
+from configuration" in the admin.
+
+Every import hashes the sources together with the parameters. An unchanged
+directory hashes to the version already stored, so importing twice costs a hash
+and changes nothing.
+
+### When the checks fail
+
+The import runs the same checks your CI ran: the import whitelist, the loader,
+and every case in `rules/cases/`. If one of them fails:
+
+- the version is stored as a **draft** and is not activated,
+- the **previous version stays active** — statements keep settling under the
+  rules that were in force,
+- the command **exits non-zero and says what is wrong**, in the container log
+  and in the admin's list of versions,
+- and **the container still serves**. A typo in a rule is not a reason to take
+  a section's finances offline. It is a reason to shout.
+
+So a broken rule change is loud and inert rather than quiet and live. That is
+also why the cases matter: they are the gate, and a rule change without a case
+is a rule change nothing checked.
+
+A statement keeps the version it was created under — its own copy of the
+sources and of the numbers — so changing a rule never moves a figure that has
+already been settled.
+
+## Checking rules by hand
+
+The workflow runs three commands in the image. You can run the same three:
+
+```console
+docker run --rm -v "$PWD":/app/config:ro -e KOMPASS_CONFIG_DIR_PATH=/app/config \
+    ghcr.io/chrisflav/kompass:latest \
+    python jdav_web/manage.py checkruleset /app/config/rules --fuzz 200
+```
+
+`checkruleset` touches no data: the whitelist and the cases are pure, and the
+fuzzer builds its statements out of thin air. `mypy --strict` and `ruff check`
+need `kompass.rules`, which lives in the image, so they want the same
+`docker run` — see the workflow for the exact invocation.
+
+Note the working directories, because they are not the same. `mypy` and `ruff`
+read `pyproject.toml` and so must run **in** `/app/config`; `checkruleset` must
+run from `/app` and be given the package by absolute path. Run it from
+`/app/config` and it fails before reading a rule, with `No module named
+'rules.contrib'`: Kompass pulls in Celery, whose Django fixup puts the working
+directory at the front of `sys.path`, and your `rules/` package then shadows
+`django-rules`, which Kompass itself depends on.
+
+What **nothing** checks automatically is `approval()`: the cases compare
+transfers, errors and checks, and the fuzzer insists that every random
+statement balances, but neither one signs anything. Read that method carefully,
+and try it on the real instance with a statement that is not somebody's actual
+reimbursement.
+
+## The image tag is a placeholder
+
+`.github/workflows/check-rules.yml` pins `ghcr.io/chrisflav/kompass:latest`,
+and `latest` tracks Kompass's `main` branch. It is a moving target: the image
+that checked your rules this morning is not necessarily the one your instance
+runs.
+
+Immutable, versioned release tags are not published yet (Kompass issues #535
+and #538). Until they are, pin a **digest** — `docker buildx imagetools
+inspect ghcr.io/chrisflav/kompass:latest` prints one, and
+`ghcr.io/chrisflav/kompass@sha256:…` is immutable — and re-pin it deliberately,
+the way you would a release tag. The workflow says the same thing where you
+have to change it.
+
+## Writing the rules
+
+Three things are worth knowing before the first rule, and the documentation
+page has the rest:
+
+- **A rule may read only its `RuleContext`.** No database (the engine refuses
+  every ordinary route to it while rules run), no clock, no files, no other
+  statements, no balances. Every amount is a `Decimal` with at most two decimal
+  places; the engine refuses anything finer, because how to round is your
+  section's decision.
+- **A ruleset does not compute the participants' contributions.** It declares
+  the residual party in `balance`, and the engine appends the one transfer that
+  makes the books add up. That is why a case's last expected transfer is the
+  balance.
+- **The import whitelist is a lint, not a sandbox.** Whoever can write this
+  repository already holds the instance's database password, so executing
+  Python from here grants no new privilege. What the whitelist catches is the
+  accident — a rule that reads the clock or imports half of Kompass is a rule
+  whose answer can change behind an old statement's back.
+
+### For Ludwigsburg, concretely
+
+The next ruleset to write is Ludwigsburg's, whose instance has none and is
+therefore settling under Heidelberg's rules today. What is recorded of its
+policy maps onto this template like this:
+
+| Rule | Where it goes |
+| --- | --- |
+| *Individualisierte* Aufwandsentschädigung | **Blocked on Kompass #556.** A per-person amount needs an input key per person, and there are only the four columns above — a fifth key reads `0.00` in production while its case passes. `allowance_to` can say *who*; it cannot say *how much each*. |
+| Übernachtungs- und Fahrtkosten, individualisiert | **Partly blocked on #556.** One shared price per night fits `night_cost`, and one recipient fits `subsidy_to`; `ctx.excursion.nights`, `kilometers` and `approach` are in the context already. Individualising either needs keys that cannot be stored yet. |
+| LJP wie gehabt | `ctx.excursion.ljp` carries the counts the state's regulations define, already computed. The reference ruleset's `_ljp_amount` is the worked example to read. |
+| Einreichen nach Bestätigung aller Jugendleitenden | **Not implemented by the engine.** `Check`s are preconditions for handing in, but there is no per-leader confirmation to check for, and `Constraint`s are signatures *after* submission. It needs a pre-submission stage in the engine. |
+| Abrechnung innerhalb eines Monats: erinnern, dann forcieren | **Not implemented by the engine.** There is no clock in a rule and no deadline in the context, deliberately; a reminder is a scheduled task in Kompass, not a rule. |
+
+Only the LJP row is a rule to write here today. The first two wait on #556 —
+in flight, so check it before concluding they still do — and the last two are
+Kompass features that do not exist at all, which cannot be written as rules
+however the ruleset is arranged. All four are better known before the first
+pull request than after it.
+
+The figures themselves are the section's to decide, so nobody should write
+Ludwigsburg's ruleset without Ludwigsburg.

@@ -364,6 +364,29 @@ or texts used in automatically generated emails. Here we will explain how to con
   - ``templates/startpage/faq_content``: group registration FAQ
   - ``templates/startpage/group_introduction``: introductory text placed above the group listing
 
+- Finance rules: How the section settles a statement — what an allowance is, who gets it, what the
+  participants contribute, who has to sign — is a Python package in the config directory, named
+  from the ``settings.toml``:
+
+  .. code-block:: toml
+
+     [finance]
+     ruleset = "rules"   # a package directory under KOMPASS_CONFIG_DIR_PATH
+
+  ``manage.py importruleset`` runs when the ``master`` container starts — the only one of the five
+  containers whose entrypoint imports — so a rule change needs neither a Kompass release nor a
+  rebuild. A package that fails its checks or its cases is stored as a draft,
+  the previous version stays active, the command says so loudly and the container keeps serving.
+
+  ``deploy/config-template/`` in this repository is the directory to copy, and
+  :ref:`development_manual/finance_rules` is the reference for writing the rules themselves.
+
+  .. warning::
+     With ``[finance] ruleset`` unset, the **reference Heidelberg ruleset** that ships in the image
+     applies. For any section that is not Heidelberg that is the wrong answer, and a silent one:
+     the statements resolve, the books add up, and the figures are somebody else's. A section that
+     deploys without a ruleset settles its statements under Heidelberg's rules.
+
 .. rubric:: Footnotes
 
 .. [#ip-address] The choice of the subnet ``10.26.42.0/24`` is arbitrarily chosen
