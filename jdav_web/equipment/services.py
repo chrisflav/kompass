@@ -914,11 +914,19 @@ def inspect(part, result, by, date=None, comment="", photo=None):
 def delete_part(part):
     """Remove ``part`` from the stock together with everything recorded about it.
 
-    The reservations still ahead get another piece where one is free; the pieces
-    built into it stay where they are, on their own.
+    A piece out on a loan is taken back first: its loan is the only one its
+    components are lent on. The reservations still ahead get another piece where
+    one is free; the pieces built into it stay where they are, on their own. A
+    loan of nothing but this piece goes with it.
     """
+    if open_loan_line(part) is not None:
+        raise ValidationError(_("A piece out on loan has to be taken back before it is deleted."))
     _release(part)
+    loans = list(Loan.objects.filter(lines__part=part).distinct())
     part.delete()
+    for loan in loans:
+        if not loan.lines.exists() and not loan.lent_sizes.exists():
+            loan.delete()
 
 
 def _release(part):
@@ -938,7 +946,7 @@ def _release(part):
 
 
 def _drop_retired(reservation, part):
-    """Tell the borrower of ``reservation`` that ``part``, retired or deleted, left it without a replacement.
+    """Tell the borrower of ``reservation`` that ``part`` left the stock without a replacement.
 
     A reservation left with nothing is cancelled.
     """
@@ -950,7 +958,9 @@ def _drop_retired(reservation, part):
         reservation.save(update_fields=["status"])
     _mail(
         reservation.borrower,
-        _("Material reservation cancelled") if cancelled else _("Reserved material retired"),
+        _("Material reservation cancelled")
+        if cancelled
+        else _("Reserved material no longer available"),
         settings.MATERIAL_PIECE_RETIRED_TEXT.format(
             name=reservation.borrower.prename,
             part=part,

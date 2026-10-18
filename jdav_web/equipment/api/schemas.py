@@ -219,11 +219,12 @@ class PartReservation(Schema):
 
 
 class PartHistory(Schema):
-    """How often a piece has been lent, reserved and inspected."""
+    """What deleting a piece erases: its loans, past reservations, inspections and handovers."""
 
     loans: int
     reservations: int
     inspections: int
+    handovers: int
 
 
 class PartOut(PartBrief):

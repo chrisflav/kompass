@@ -505,8 +505,8 @@ MATERIAL_PIECE_RETIRED_TEXT = get_text(
     "material_piece_retired",
     default="""Hallo {name},
 
-{part} aus deiner Reservierung vom {start} bis zum {end} wurde ausgemustert, und
-kein anderes Teil ist in diesem Zeitraum frei. Deine Reservierung umfasst jetzt noch:
+{part} aus deiner Reservierung vom {start} bis zum {end} wurde aus dem Bestand
+genommen, und kein anderes Teil ist in diesem Zeitraum frei. Deine Reservierung umfasst jetzt noch:
 
 {parts}
 

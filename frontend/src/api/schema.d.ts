@@ -7502,7 +7502,7 @@ export interface components {
         };
         /**
          * PartHistory
-         * @description How often a piece has been lent, reserved and inspected.
+         * @description What deleting a piece erases: its loans, past reservations, inspections and handovers.
          */
         PartHistory: {
             /** Loans */
@@ -7511,6 +7511,8 @@ export interface components {
             reservations: number;
             /** Inspections */
             inspections: number;
+            /** Handovers */
+            handovers: number;
         };
         /** PartOut */
         PartOut: {

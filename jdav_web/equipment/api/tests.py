@@ -286,7 +286,9 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         self.assertEqual(data["inspections"][0]["result"], "ok")
         self.assertEqual(data["inspections"][0]["inspector"]["name"], "Ida Test")
         self.assertEqual(data["next_inspection"], (TODAY + timedelta(days=365)).isoformat())
-        self.assertEqual(data["history"], {"loans": 0, "reservations": 1, "inspections": 1})
+        self.assertEqual(
+            data["history"], {"loans": 0, "reservations": 0, "inspections": 1, "handovers": 1}
+        )
         self.slings[2].parent = self.slings[0]
         self.slings[2].save()
         r = self.get("ida", "/parts/{}".format(self.slings[2].pk))
@@ -298,6 +300,8 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         path = "/parts/{}".format(self.harness.pk)
         self.assertEqual(self.delete("alice", path).status_code, 403)
         self.assertEqual(self.delete("dirk", path).status_code, 403)
+        self.assertEqual(self.delete("ida", path).status_code, 422)
+        services.return_parts([self.harness], self.inventory, location=self.cupboard)
         self.assertEqual(self.delete("ida", path).status_code, 200)
         self.assertFalse(Part.objects.filter(pk=self.harness.pk).exists())
         self.assertEqual(self.delete("ida", path).status_code, 404)

@@ -19874,7 +19874,7 @@
         "type": "object"
       },
       "PartHistory": {
-        "description": "How often a piece has been lent, reserved and inspected.",
+        "description": "What deleting a piece erases: its loans, past reservations, inspections and handovers.",
         "properties": {
           "loans": {
             "title": "Loans",
@@ -19887,12 +19887,17 @@
           "inspections": {
             "title": "Inspections",
             "type": "integer"
+          },
+          "handovers": {
+            "title": "Handovers",
+            "type": "integer"
           }
         },
         "required": [
           "loans",
           "reservations",
-          "inspections"
+          "inspections",
+          "handovers"
         ],
         "title": "PartHistory",
         "type": "object"

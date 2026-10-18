@@ -527,7 +527,7 @@ class InspectionTestCase(MaterialFixture, TestCase):
         dropped.refresh_from_db()
         self.assertEqual(dropped.status, Reservation.CANCELLED)
         self.assertEqual(mail.outbox[-1].subject, "Material reservation cancelled")
-        self.assertIn("ausgemustert", mail.outbox[-1].body)
+        self.assertIn("wurde aus dem Bestand", mail.outbox[-1].body)
 
     def test_retire_tells_the_borrower_what_is_left(self):
         reservation = services.reserve(
@@ -539,7 +539,7 @@ class InspectionTestCase(MaterialFixture, TestCase):
         self.assertEqual(reservation.status, Reservation.CONFIRMED)
         self.assertEqual(list(reservation.parts.all()), [self.slings[0]])
         self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
-        self.assertEqual(mail.outbox[0].subject, "Reserved material retired")
+        self.assertEqual(mail.outbox[0].subject, "Reserved material no longer available")
         self.assertIn(str(self.harness), mail.outbox[0].body)
         self.assertIn("- {}".format(self.slings[0]), mail.outbox[0].body)
 
@@ -554,14 +554,27 @@ class DeletePartTestCase(MaterialFixture, TestCase):
 
     def test_deletes_the_history_with_the_piece(self):
         services.lend(self.alice, [self.harness], self.bob, due=days(3))
+        services.lend(self.alice, [self.slings[0], self.slings[1]], self.bob, due=days(3))
+        services.return_parts([self.harness, self.slings[0]], self.bob, location=self.cupboard)
         services.inspect(self.harness, Inspection.OK, self.bob)
-        loan = Loan.objects.get()
+        harness_id = self.harness.pk
         services.delete_part(self.harness)
-        self.assertFalse(Part.objects.filter(pk=self.harness.pk).exists())
-        self.assertFalse(CustodyEvent.objects.exists())
+        services.delete_part(self.slings[0])
+        self.assertFalse(Part.objects.filter(pk=harness_id).exists())
+        self.assertFalse(CustodyEvent.objects.filter(part_id=harness_id).exists())
         self.assertFalse(Inspection.objects.exists())
-        # The loan it was out on is no longer open.
-        self.assertNotIn(loan, services.open_loans())
+        # A loan of nothing but the piece goes with it; one of more stays.
+        self.assertEqual(
+            list(Loan.objects.get().lines.values_list("part", flat=True)), [self.slings[1].pk]
+        )
+
+    def test_refuses_a_piece_out_on_loan(self):
+        self.slings[1].parent = self.slings[0]
+        self.slings[1].save()
+        services.lend(self.alice, [self.slings[0]], self.bob, due=days(3))
+        with self.assertRaises(ValidationError):
+            services.delete_part(self.slings[0])
+        self.assertTrue(Part.objects.filter(pk=self.slings[0].pk).exists())
 
     def test_moves_or_drops_reservations(self):
         moved = services.reserve(self.alice, days(1), days(2), [Line(self.sling_type, 1)])

@@ -59,11 +59,12 @@ function count(n: number, one: string, many: string) {
 
 /** What deleting the piece would erase, as a list for the warning; empty if nothing. */
 function historyText(part: PartOut): string {
-  const h = part.history ?? { loans: 0, reservations: 0, inspections: 0 };
+  const h = part.history ?? { loans: 0, reservations: 0, inspections: 0, handovers: 0 };
   return [
     h.loans > 0 && count(h.loans, "Ausleihe", "Ausleihen"),
-    h.reservations > 0 && count(h.reservations, "Reservierung", "Reservierungen"),
+    h.reservations > 0 && count(h.reservations, "vergangene Reservierung", "vergangene Reservierungen"),
     h.inspections > 0 && count(h.inspections, "Prüfung", "Prüfungen"),
+    h.handovers > 0 && count(h.handovers, "Übergabe", "Übergaben"),
   ]
     .filter(Boolean)
     .join(", ");
@@ -168,19 +169,24 @@ function PartDetailBody({ part }: { part: PartOut }) {
       invalidate: [MATERIAL],
       onSuccess: () => {
         toast.success("Teil gelöscht.");
+        cart.remove(`p${part.id}`);
         navigate(`${BASE}/types/${part.product_type.id}`);
       },
       onError: (e) => toast.error(errorText(e)),
     },
   );
   const confirmRemove = async () => {
+    // Its loan is the only one its components are lent on, so it comes back first.
+    if (part.lent_until !== null) {
+      toast.error("Ein verliehenes Teil muss vor dem Löschen zurückgenommen werden.");
+      return;
+    }
     const history = historyText(part);
     const ok = history
       ? await confirm({
           title: "Teil mit Verlauf löschen?",
           message: [
-            `Mit dem Teil werden auch ${history} und alle Übergaben gelöscht.`,
-            part.lent_until !== null && "Es ist gerade verliehen.",
+            `Mit dem Teil wird sein Verlauf gelöscht: ${history}. Kommende Reservierungen bekommen, wenn möglich, ein anderes Teil.`,
             part.status !== "retired" &&
               "Wird das Teil nicht mehr benutzt, sondere es besser über eine Prüfung aus. Dann bleibt der Verlauf erhalten.",
           ]

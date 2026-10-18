@@ -10,6 +10,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from equipment import services
 from equipment.models import Approval
+from equipment.models import CustodyEvent
 from equipment.models import LentSize
 from equipment.models import LoanLine
 from equipment.models import Part
@@ -118,8 +119,14 @@ def part_detail(part, manager):
             "history": (
                 {
                     "loans": part.loan_lines.count(),
-                    "reservations": part.reservedpart_set.count(),
+                    # Those still ahead get another piece rather than being lost.
+                    "reservations": part.reservedpart_set.filter(
+                        reservation__end__lt=today
+                    ).count(),
                     "inspections": part.inspections.count(),
+                    "handovers": part.custody.filter(
+                        kind=CustodyEvent.TRANSFER, to_member__isnull=False
+                    ).count(),
                 }
                 if manager
                 else None
