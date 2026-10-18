@@ -35,14 +35,10 @@ const FIELD_HELP: Record<string, Record<string, string>> = {
     ljp_category: "Die offizielle Spielart für LJP Anträge mit dieser Aktivität.",
   },
   statement: {
-    allowance_to:
-      "Die Jugendleiter*innen an die eine Aufwandsentschädigung ausgezahlt werden soll.",
-    subsidy_to:
-      "Die Person, die die Übernachtungs- und Fahrtkostenzuschüsse erhalten soll. Dies ist in der Regel die Person, die sie bezahlt hat.",
-    ljp_to:
-      "Die Person, die die LJP-Zuschüsse für die Teilnehmenden erhalten soll. Nur auswählen, wenn ein LJP-Antrag abgegeben wird.",
-    night_cost:
-      "Laut Preisliste für eine*n Jugendleiter*in. Angabe wird benötigt für die Berechnung von Zuschüssen aus dem Jugendetat.",
+    // The four answers a statement used to carry as columns are not here any
+    // more: the section's rules declare them, with their own help text, and
+    // `GET /api/finance/statements/{id}/form` serves it. A recovered Django
+    // `help_text` could only ever describe one section's questions.
     settings_snapshot: "Gültige Finanzregeln bei Einreichung bzw. Bestätigung",
   },
   emailaddress: {

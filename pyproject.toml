@@ -71,6 +71,7 @@ files = [
     "jdav_web/finance/inputs.py",
     "jdav_web/finance/parties.py",
     "jdav_web/finance/rules.py",
+    "jdav_web/finance/signals.py",
     "jdav_web/finance/rules_api.py",
     "jdav_web/finance/rulesets",
     "jdav_web/kompass",
@@ -98,7 +99,9 @@ follow_imports = "skip"
 # therefore `Any`, which `--strict` reports as "untyped decorator makes function
 # untyped" on every one of them. The bodies are checked; only the decorators are
 # exempted here, and saying so in the configuration is better than four
-# `# type: ignore` comments in the module.
+# `# type: ignore` comments. `finance.signals` was listed too while it used
+# django's `@receiver`; it connects its receiver by hand now, for the proxy as
+# well as for the model, so it needs no exemption.
 [[tool.mypy.overrides]]
 module = ["finance.rules"]
 disallow_untyped_decorators = false

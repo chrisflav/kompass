@@ -244,7 +244,7 @@ def excursion_ljp_proofs(request, excursion_id: int):
         total_bills=statement.total_bills_theoretic,
         total_allowance=statement.total_allowance,
         total_theoretic=statement.total_theoretic,
-        allowance_to=statement.allowance_to.all(),
+        allowance_to=statement.allowance_to,
         allowance_per_yl=statement.allowance_per_yl,
         settings=settings,
     )

@@ -29,6 +29,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from finance.inputs import clean as clean_inputs
+from finance.inputs import party_keys
 from finance.inputs import rendered as rendered_inputs
 from finance.inputs import stored as stored_inputs
 from finance.models import Bill
@@ -84,21 +85,6 @@ def validate_proof(upload):
 _UNSET = object()
 
 
-def _resolve_recipient(statement, member_id):
-    """Resolve a statement recipient id to a Member, or ``None`` when cleared.
-
-    Mirrors ``StatementOnListForm``: recipients must be youth leaders of the
-    statement's excursion (a statement without an excursion accepts none).
-    """
-    if member_id is None:
-        return None
-    member = get_object_or_404(Member, pk=member_id)
-    excursion = statement.excursion
-    if excursion is None or not excursion.jugendleiter.filter(pk=member.pk).exists():
-        raise ValidationError(_("Only youth leaders of this excursion may receive contributions."))
-    return member
-
-
 def _authorize_bill_change(request, bill):
     """Authorize editing ``bill``, honouring the finance officer's review right.
 
@@ -116,23 +102,6 @@ def _authorize_bill_change(request, bill):
     if request.user.has_perm("finance.change_obj_statement", bill.statement):
         return
     authorize(request, "finance.change_obj_billonstatementproxy", bill.statement)
-
-
-def _validate_allowance_count(statement, members):
-    """Replicate ``StatementOnListForm.clean``: allowance recipients must not
-    exceed the excursion's approved youth-leader count."""
-    excursion = statement.excursion
-    if excursion is not None and len(members) > excursion.approved_staff_count:
-        raise ValidationError(
-            _(
-                "This excursion only has up to %(approved_count)s approved youth "
-                "leaders, but you listed %(entered_count)s."
-            )
-            % {
-                "approved_count": str(excursion.approved_staff_count),
-                "entered_count": str(len(members)),
-            }
-        )
 
 
 # --- enums / choices ------------------------------------------------------
@@ -161,12 +130,9 @@ def list_statements(request):
     # Every row computes its total from its bills, allowances and excursion, so
     # those relations are loaded in bulk rather than once per statement.
     queryset = (
-        Statement.objects.select_related(
-            "created_by", "subsidy_to", "ljp_to", "excursion", "excursion__ljpproposal"
-        )
+        Statement.objects.select_related("created_by", "excursion", "excursion__ljpproposal")
         .prefetch_related(
             "bill_set",
-            "allowance_to",
             # A submitted statement's total is read off its frozen rows.
             "obligation_set",
             "created_by__group",
@@ -193,7 +159,6 @@ def create_statement(request, payload: StatementCreate):
     statement = Statement.objects.create(
         short_description=payload.short_description,
         explanation=payload.explanation,
-        night_cost=payload.night_cost,
         excursion=excursion,
         created_by=get_member(request),
     )
@@ -253,7 +218,7 @@ def statement_finance_overview(request, statement_id: int):
         "transportation_per_yl": statement.transportation_per_yl,
         "allowances_paid": statement.allowances_paid,
         "real_staff_count": statement.real_staff_count,
-        "allowance_to": [recipient(m) for m in statement.allowance_to.all()],
+        "allowance_to": [recipient(m) for m in statement.allowance_to],
         "allowance_to_valid": statement.allowance_to_valid,
         "subsidy_to": recipient(statement.subsidy_to),
         "total_subsidies": statement.total_subsidies,
@@ -287,69 +252,37 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
     if statement.submitted:
         raise ValidationError(_("Submitted statements can no longer be edited."))
     data = payload.dict(exclude_unset=True)
-    # The recipient relations mirror the admin's ``StatementOnListInline``
-    # (allowance_to / subsidy_to / ljp_to); apply them separately from the scalars.
-    allowance_to_ids = data.pop("allowance_to_ids", _UNSET)
-    subsidy_to_id = data.pop("subsidy_to_id", _UNSET)
-    ljp_to_id = data.pop("ljp_to_id", _UNSET)
     excursion_id = data.pop("excursion_id", _UNSET)
-    # Answers by declaration key. They are validated against what the rules
-    # actually ask for and then applied to the columns the rules still read, so
-    # a client may speak either language and get the same statement.
+    # The answers, by declaration key. There is no second language any more:
+    # `allowance_to_ids`, `subsidy_to_id`, `ljp_to_id` and `night_cost` were
+    # four fields here because they were four columns there, and a section
+    # whose rules ask a fifth question had no way to be asked it.
     answers = data.pop("inputs", _UNSET)
-    # The excursion is applied to the in-memory instance FIRST, because every
-    # recipient is validated against ``statement.excursion``. Resolving the
-    # recipients before the swap would check them against the outgoing
-    # excursion and accept youth leaders who don't lead the incoming one.
+    # The excursion is applied to the in-memory instance FIRST, because the
+    # declarations are derived from it: who may be named is who leads *this*
+    # trip. Validating before the swap would check an answer against the
+    # outgoing excursion and accept a youth leader who doesn't lead the
+    # incoming one.
     excursion_changed = False
     if excursion_id is not _UNSET:
         excursion = get_object_or_404(Freizeit, pk=excursion_id) if excursion_id else None
         excursion_changed = excursion != statement.excursion
         statement.excursion = excursion
-    # Resolve + validate every recipient BEFORE writing anything, and wrap the
-    # writes in a transaction, so a rejected recipient never leaves a partial
-    # update behind (mirrors the admin form validating in ``clean``).
-    cleaned = {}
-    if answers is not _UNSET and answers:
-        cleaned = clean_inputs(statement, answers)
-        # Whatever the declarations call them, the four Heidelberg answers are
-        # still kept in their columns; everything else lives in `inputs` alone.
-        if "night_cost" in cleaned:
-            data["night_cost"] = cleaned["night_cost"]
-        if "subsidy_to" in cleaned:
-            subsidy_to_id = cleaned["subsidy_to"]
-        if "ljp_to" in cleaned:
-            ljp_to_id = cleaned["ljp_to"]
-        if "allowance_to" in cleaned:
-            allowance_to_ids = cleaned["allowance_to"]
-    subsidy_to = (
-        _resolve_recipient(statement, subsidy_to_id) if subsidy_to_id is not _UNSET else _UNSET
-    )
-    ljp_to = _resolve_recipient(statement, ljp_to_id) if ljp_to_id is not _UNSET else _UNSET
-    allowance_members = None
-    if allowance_to_ids is not _UNSET and allowance_to_ids is not None:
-        allowance_members = [_resolve_recipient(statement, mid) for mid in allowance_to_ids]
-        _validate_allowance_count(statement, allowance_members)
+    # Validate everything BEFORE writing anything, and wrap the writes in a
+    # transaction, so a rejected answer never leaves a partial update behind
+    # (mirrors the admin form validating in ``clean``).
+    cleaned = clean_inputs(statement, answers) if answers is not _UNSET and answers else {}
+    kept = statement.answers
+    if excursion_changed:
+        # An answer naming somebody belonged to the previous trip and is not
+        # admissible against this one, so it goes unless this request restated
+        # it. Which answers those are is the declarations' business, not a list
+        # of three keys the API happens to know.
+        kept = {key: value for key, value in kept.items() if key not in party_keys(statement)}
     with transaction.atomic():
         set_scalar_fields(statement, data, list(data.keys()))
-        # Recipients carried over from the previous excursion are no longer
-        # admissible, so drop the ones this request didn't explicitly restate.
-        if excursion_changed:
-            if subsidy_to is _UNSET:
-                statement.subsidy_to = None
-            if ljp_to is _UNSET:
-                statement.ljp_to = None
-        if subsidy_to is not _UNSET:
-            statement.subsidy_to = subsidy_to
-        if ljp_to is not _UNSET:
-            statement.ljp_to = ljp_to
-        if cleaned:
-            statement.inputs = dict(statement.inputs or {}, **stored_inputs(cleaned))
+        statement.inputs = dict(kept, **stored_inputs(cleaned))
         statement.save()
-        if allowance_members is not None:
-            statement.allowance_to.set(allowance_members)
-        elif excursion_changed:
-            statement.allowance_to.clear()
     statement.refresh_from_db()
     return statement
 
@@ -627,9 +560,22 @@ def statement_form(request, statement_id: int):
     reimburses something else gets a different form without a release. The
     answers go back through ``PATCH /statements/{id}`` as ``inputs``, and each
     one is validated against the declaration it belongs to.
+
+    ``answers`` is what the statement carries today, restricted to the keys
+    this form asks for — so one request is a whole form, questions and answers
+    together, and an answer the rules have since stopped asking for is not
+    handed back to be re-submitted.
     """
     statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
-    return {"statement_id": statement.pk, "inputs": rendered_inputs(statement)}
+    declarations = rendered_inputs(statement)
+    carried = statement.answers
+    return {
+        "statement_id": statement.pk,
+        "inputs": declarations,
+        "answers": {
+            declaration["key"]: carried.get(declaration["key"]) for declaration in declarations
+        },
+    }
 
 
 @router.get("/statements/{statement_id}/preflight", response=PreflightOut)

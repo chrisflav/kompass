@@ -62,6 +62,7 @@ const FULL_STATEMENT: Record<string, unknown> = {
   transportation_per_yl: 0,
   total_nights: 0,
   nights_per_yl: 0,
+  transfers: [],
   real_night_cost: 0,
   euro_per_km: 0.3,
   total_per_yl: 0,

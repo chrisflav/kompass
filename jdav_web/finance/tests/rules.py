@@ -57,11 +57,10 @@ class FinanceRulesTestCase(TestCase):
         self.statement = Statement.objects.create(
             short_description="Test Statement",
             explanation="Test explanation",
-            night_cost=27,
+            inputs={"night_cost": "27", "allowance_to": [self.member1.pk]},
             created_by=self.member1,
             excursion=self.freizeit,
         )
-        self.statement.allowance_to.add(self.member1)
 
     def test_is_creator_true(self):
         """Test is_creator predicate returns True when user created the statement"""
@@ -112,7 +111,7 @@ class FinanceRulesTestCase(TestCase):
         statement_no_excursion = Statement.objects.create(
             short_description="Test Statement No Excursion",
             explanation="Test explanation",
-            night_cost=27,
+            inputs={"night_cost": "27"},
             created_by=self.member1,
             excursion=None,
         )

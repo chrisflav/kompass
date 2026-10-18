@@ -33,13 +33,15 @@ class StatementListQueryCountTestCase(QueryCountMixin, TestCase):
         statement = Statement.objects.create(
             short_description="Abrechnung",
             explanation="",
-            night_cost=20,
             excursion=excursion,
             created_by=leaders[0],
-            subsidy_to=leaders[0],
-            ljp_to=leaders[1] if with_ljp else None,
+            inputs={
+                "night_cost": "20",
+                "subsidy_to": leaders[0].pk,
+                "ljp_to": leaders[1].pk if with_ljp else None,
+                "allowance_to": sorted(leader.pk for leader in leaders),
+            },
         )
-        statement.allowance_to.set(leaders)
         for covered in (True, False):
             Bill.objects.create(
                 statement=statement,
@@ -79,7 +81,7 @@ class StatementListQueryCountTestCase(QueryCountMixin, TestCase):
         self.assertEqual(
             {s["id"]: s["total"] for s in body}, {s.pk: float(s.total) for s in statements}
         )
-        ljp = [s for s in statements if s.ljp_to_id]
+        ljp = [s for s in statements if s.inputs.get("ljp_to")]
         self.assertEqual(len(ljp), 3)
         self.assertTrue(all(s.excursion.total_seminar_days == 1.5 for s in ljp))
         self.assertTrue(all(s.paid_ljp_contributions > 0 for s in ljp))

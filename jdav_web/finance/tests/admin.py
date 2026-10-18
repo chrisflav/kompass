@@ -13,6 +13,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from finance.testing import also
+from finance.testing import answer
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -68,7 +70,9 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         )
 
         self.statement = StatementUnSubmitted.objects.create(
-            short_description="Test Statement", explanation="Test explanation", night_cost=25
+            short_description="Test Statement",
+            explanation="Test explanation",
+            inputs={"night_cost": "25"},
         )
 
         # Create excursion for testing
@@ -84,7 +88,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
         self.statement_with_excursion = StatementUnSubmitted.objects.create(
             short_description="With Excursion",
             explanation="Test explanation",
-            night_cost=25,
+            inputs={"night_cost": "25"},
             excursion=self.excursion,
         )
 
@@ -177,7 +181,7 @@ class StatementUnSubmittedAdminTestCase(AdminTestCase):
     def test_response_add_regular_save(self):
         """Test that a regular add falls through to the default response_add"""
         statement = Statement.objects.create(
-            short_description="Plain Statement", explanation="Test", night_cost=0
+            short_description="Plain Statement", explanation="Test"
         )
         request = self.factory.post("/", data={"_save": ""})
         request.user = self.superuser
@@ -250,10 +254,12 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         self.statement_unsubmitted = StatementUnSubmitted.objects.create(
-            short_description="Submitted Statement", explanation="Test explanation", night_cost=25
+            short_description="Submitted Statement",
+            explanation="Test explanation",
+            inputs={"night_cost": "25"},
         )
         self.transaction = Transaction.objects.create(
             reference="verylonglong" * 14,
@@ -286,7 +292,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         self.statement_no_trans_error = Statement.objects.create(
             short_description="No Transactions Error",
@@ -294,7 +300,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             status=Statement.SUBMITTED,
             submitted_by=self.member,
             submitted_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
 
         # Create bills for generate transactions tests
@@ -487,7 +493,7 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
         self.statement.save()
 
         # Add allowance recipient who is not a youth leader for this excursion
-        self.statement_no_trans_success.allowance_to.add(self.other_member)
+        also(self.statement_no_trans_success, "allowance_to", self.other_member)
 
         # Generate required transactions
         self.statement_no_trans_success.generate_transactions()
@@ -512,6 +518,41 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             )
         )
         self.assertTrue(any(expected_text in str(msg) for msg in messages))
+
+    def test_overview_view_confirm_a_statement_the_rules_cannot_settle(self):
+        """The sixth validity state, and the one branch that had no arm.
+
+        ``UNRESOLVED`` went into the enum and not into this dispatch, so it
+        fell into the ``else``: an internal-bug line in the log and a redirect
+        to the changelist **with no message at all**, which is fail-closed and
+        silent. A treasurer has to be told which answer the rules choked on,
+        and ``validity_display`` is the only thing here that can say it. Neuter
+        it — take the branch out again — and this goes red on an empty message
+        list.
+        """
+        # An answer that no longer fits the declaration that asked for it,
+        # read by a rule — which is the state this exists for. No bills and no
+        # transactions, because `UNRESOLVED` is asked *last*: a statement whose
+        # arithmetic also disagrees gets the more specific message, which is
+        # the right way round and leaves this one reachable only like this.
+        self.excursion.jugendleiter.add(self.member)
+        statement = Statement.objects.create(
+            short_description="Unauflösbar",
+            excursion=self.excursion,
+            status=Statement.SUBMITTED,
+            submitted_by=self.member,
+            submitted_date=timezone.now(),
+        )
+        answer(statement, night_cost={"war": "mal eine Zahl"}, subsidy_to=self.member.pk)
+        self.assertEqual(statement.validity, Statement.UNRESOLVED)
+
+        url = reverse("admin:finance_statement_overview", args=(statement.pk,))
+        c = self._login("superuser")
+        response = c.post(url, follow=True, data={"confirm": ""})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        messages = list(get_messages(response.wsgi_request))
+        expected = str(statement.validity_display)
+        self.assertTrue(any(expected in str(message) for message in messages), messages)
 
     def test_overview_view_reject(self):
         """Test overview_view reject statement"""
@@ -611,7 +652,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
             status=Statement.CONFIRMED,
             confirmed_by=self.member,
             confirmed_date=timezone.now(),
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
 
         # StatementConfirmed is a proxy model, so we can get it from the base statement
@@ -622,7 +663,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
             short_description="Unconfirmed Statement",
             explanation="Test explanation",
             status=Statement.SUBMITTED,
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
 
         # Create excursion for testing
@@ -642,7 +683,7 @@ class StatementConfirmedAdminTestCase(AdminTestCase):
             confirmed_by=self.member,
             confirmed_date=timezone.now(),
             excursion=self.excursion,
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         self.statement_with_excursion = StatementConfirmed.objects.get(
             pk=confirmed_with_excursion_base.pk

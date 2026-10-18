@@ -312,6 +312,20 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
                         args=(statement.pk,),
                     )
                 )
+            elif res == Statement.UNRESOLVED:
+                # The sixth state, and the reason it needs a branch of its own:
+                # the `else` below logs an internal bug and redirects with no
+                # message at all, so a treasurer pressing *Confirm* landed back
+                # on the list with nothing said. The rules' own account of what
+                # they could not settle is what `validity_display` carries, and
+                # it is the only thing here that can name the broken answer.
+                messages.error(request, statement.validity_display)
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:{}_{}_overview".format(self.opts.app_label, self.opts.model_name),
+                        args=(statement.pk,),
+                    )
+                )
             elif res == Statement.INVALID_TOTAL:  # pragma: no cover
                 logger.error(f"INVALID_TOTAL reached on {statement}.")
                 messages.error(

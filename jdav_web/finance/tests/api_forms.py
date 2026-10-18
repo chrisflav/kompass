@@ -6,9 +6,9 @@ them what is still wrong, ``/approval`` asks them who has to sign — and the
 each against the declaration it belongs to rather than against a hand-written
 list of the four columns Heidelberg happens to have.
 
-The columns are still the source of truth, and these tests say so: an answer
-that arrives as ``inputs`` lands in the column the rules read, and in the
-``inputs`` field beside it.
+``Statement.inputs`` is the whole record now: the four Heidelberg columns were
+migrated into it by ``0021`` and dropped by ``0022``, so an answer that arrives
+here is stored under the key the rules declared and read back from there.
 """
 
 import datetime
@@ -16,6 +16,7 @@ import uuid
 from decimal import Decimal
 from unittest.mock import patch
 
+from django import forms
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from django.test import TestCase
@@ -26,10 +27,14 @@ from finance.api.tests import Application
 from finance.api.tests import grant
 from finance.api.tests import make_member_user
 from finance.inputs import clean_value
+from finance.inputs import form_field
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
 from finance.rules_api import Input
+from finance.rules_api import Member as RuleMember
+from finance.rules_api import MemberId
+from finance.testing import answer
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MUSKELKRAFT_ANREISE
@@ -67,10 +72,7 @@ class FinanceFormApiTestCase(TestCase):
             _user, participant = make_member_user(f"fteil{index}")
             NewMemberOnList.objects.create(member=participant, memberlist=self.excursion)
         self.statement = Statement.objects.create(
-            short_description="Formular",
-            night_cost=0,
-            excursion=self.excursion,
-            created_by=self.owner,
+            short_description="Formular", excursion=self.excursion, created_by=self.owner
         )
 
     def auth(self, user):
@@ -103,9 +105,7 @@ class FinanceFormApiTestCase(TestCase):
         self.assertIn("Übernachtung", body["inputs"][0]["label"])
 
     def test_a_statement_without_a_trip_offers_nobody(self):
-        statement = Statement.objects.create(
-            short_description="Ohne Fahrt", night_cost=0, created_by=self.owner
-        )
+        statement = Statement.objects.create(short_description="Ohne Fahrt", created_by=self.owner)
         r = self.client.get(
             "/api/finance/statements/{}/form".format(statement.pk),
             **self.auth(self.owner_user),
@@ -116,7 +116,22 @@ class FinanceFormApiTestCase(TestCase):
 
     # --- the answers ------------------------------------------------------
 
-    def test_an_answer_lands_in_the_column_the_rules_read(self):
+    def test_the_form_hands_back_the_answers_it_asks_about(self):
+        answer(self.statement, night_cost="12.50", subsidy_to=self.leader.pk, retired="alt")
+        r = self.client.get(
+            "/api/finance/statements/{}/form".format(self.statement.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        answers = r.json()["answers"]
+        self.assertEqual(answers["night_cost"], "12.50")
+        self.assertEqual(answers["subsidy_to"], self.leader.pk)
+        self.assertIsNone(answers["ljp_to"])
+        # A key the rules do not ask for is not handed back to be re-submitted
+        # — which it would then be refused for.
+        self.assertNotIn("retired", answers)
+
+    def test_an_answer_lands_under_the_key_the_rules_declared(self):
         r = self.client.patch(
             "/api/finance/statements/{}".format(self.statement.pk),
             data={
@@ -132,13 +147,220 @@ class FinanceFormApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.statement.refresh_from_db()
+        self.assertEqual(self.statement.inputs["night_cost"], "12.50")
+        self.assertEqual(self.statement.inputs["allowance_to"], [self.leader.pk])
+        self.assertEqual(self.statement.inputs["subsidy_to"], self.leader.pk)
+        self.assertEqual(self.statement.inputs["ljp_to"], self.leader.pk)
+        # And read back by the accessors the pages that narrate the payout use.
         self.assertEqual(self.statement.night_cost, Decimal("12.50"))
         self.assertEqual(self.statement.subsidy_to, self.leader)
         self.assertEqual(self.statement.ljp_to, self.leader)
-        self.assertEqual(list(self.statement.allowance_to.all()), [self.leader])
-        # And beside the columns, under the keys the rules use.
-        self.assertEqual(self.statement.inputs["night_cost"], "12.50")
+        self.assertEqual(self.statement.allowance_to, [self.leader])
+
+    def test_an_answer_this_request_leaves_out_is_left_alone(self):
+        answer(self.statement, subsidy_to=self.leader.pk)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"night_cost": "3.00"}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.statement.refresh_from_db()
+        self.assertEqual(self.statement.inputs["subsidy_to"], self.leader.pk)
+
+    def test_a_refusal_names_the_answer_it_is_about(self):
+        """The 422 carries an ``errors`` map keyed by the declaration.
+
+        Neuter it — raise the message without the key — and this goes red while
+        ``test_an_answer_naming_somebody_the_rules_did_not_offer`` stays green,
+        which is the difference between a message on the field and a toast over
+        the whole form.
+        """
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"subsidy_to": self.owner.pk}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertIn("Jugendleiter", " ".join(r.json()["errors"]["subsidy_to"]))
+
+    def _leaders(self, count):
+        """``count`` extra youth leaders on the excursion, by ascending id."""
+        extra = []
+        for index in range(count):
+            _user, member = make_member_user(f"fextra{index}")
+            self.excursion.jugendleiter.add(member)
+            extra.append(member)
+        return extra
+
+    def test_naming_the_same_person_twice_pays_them_once(self):
+        """A set is a set, and the money says so.
+
+        The ``ManyToManyField`` this replaced collapsed duplicates behind a
+        unique constraint, so this was unreachable before. Without the
+        deduplication ``[leader, leader]`` passes a bound of two — two ≤ two —
+        and ``submit`` freezes two obligation rows paying the same person,
+        which is a youth leader doubling their own allowance with one
+        ``PATCH``. Neuter it (``sorted(int(pk) for pk in picked)``) and the
+        transfer count below goes from one to two.
+        """
+        self._leaders(1)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"allowance_to": [self.leader.pk, self.leader.pk]}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.statement.refresh_from_db()
+        paid = [
+            transfer
+            for transfer in self.statement.rule_result.of_category("allowance")
+            if transfer.destination == RuleMember(MemberId(self.leader.pk))
+        ]
+        self.assertEqual(len(paid), 1, "the same person was paid twice")
         self.assertEqual(self.statement.inputs["allowance_to"], [self.leader.pk])
+
+    def test_the_order_people_were_picked_in_does_not_decide_who_pays(self):
+        """Whoever is billed the organisation fee is not a click order.
+
+        Heidelberg charges it to ``first_of(subsidy_to, *allowance_to)``, so the
+        first element of the set decides. The SPA appends in click order and the
+        admin sends option order, and before the columns were dropped
+        ``statement_inputs`` sorted by primary key unconditionally — so the two
+        orders have to come out the same. Neuter the sort in either
+        ``_clean_members`` or ``coerce_input`` and the two assertions below
+        disagree.
+        """
+        other = self._leaders(1)[0]
+        pair = sorted([self.leader.pk, other.pk])
+        paid = []
+        for order in (pair, list(reversed(pair))):
+            with self.subTest(order=order):
+                r = self.client.patch(
+                    "/api/finance/statements/{}".format(self.statement.pk),
+                    data={"inputs": {"allowance_to": order}},
+                    content_type="application/json",
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 200, r.content)
+                statement = Statement.objects.get(pk=self.statement.pk)
+                paid.append(
+                    [
+                        transfer.destination.id
+                        for transfer in statement.rule_result.of_category("allowance")
+                    ]
+                )
+                # Stored canonically too, so the two UIs show the same
+                # selection back and `/form` echoes one order rather than
+                # whichever one last arrived. Guarded separately because the
+                # read side would otherwise hide it: `coerce_input` sorts as
+                # well, so the transfers above come out right either way.
+                self.assertEqual(statement.inputs["allowance_to"], pair)
+                r = self.client.get(
+                    "/api/finance/statements/{}/form".format(self.statement.pk),
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.json()["answers"]["allowance_to"], pair)
+        self.assertEqual(paid[0], paid[1], "the click order reached the rules")
+        self.assertEqual(paid[0], pair, "ascending ids, as the column always gave")
+
+    def test_an_amount_finer_than_a_cent_or_larger_than_the_books(self):
+        """What the engine cannot pay and the books cannot hold.
+
+        ``quantize`` floors to cents, so a third decimal place is dropped
+        rather than paid, and an unbounded amount is one ``0021``'s reverse
+        cannot write back into the ``max_digits=5`` column it came from.
+
+        ``"1E+1000000"`` is the exponent form of the same thing and belongs
+        here because it took a different route: ``normalize()`` applies the
+        decimal context and raised ``Overflow``, an ``ArithmeticError`` that is
+        not an ``InvalidOperation``, so it came out as a 500. Money is sent as
+        text on this API, so there is nothing exotic about it. ``1e400`` is an
+        ordinary JSON *number* that arrives as ``float('inf')``.
+        """
+        for value in ("1.234", "100000.00", "nan", "inf", "1E+1000000", 1e400):
+            with self.subTest(value=value):
+                r = self.client.patch(
+                    "/api/finance/statements/{}".format(self.statement.pk),
+                    data={"inputs": {"night_cost": value}},
+                    content_type="application/json",
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 422, r.content)
+        r = self.client.patch(
+            "/api/finance/statements/{}".format(self.statement.pk),
+            data={"inputs": {"night_cost": "99999.99"}},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_an_answer_that_no_longer_fits_its_type_is_an_error_not_a_crash(self):
+        """A section changed a question; the old answer is still stored.
+
+        That is the thing this whole feature exists for, so it must not be a
+        500 — least of all on ``/form``, which is the only way to put a new
+        answer in. Neuter the ``except`` in ``coerce_input`` and all three
+        requests below become unhandled ``InvalidOperation``.
+        """
+        # With a subsidy recipient, because that is the rule that reads the
+        # price per night — an answer nothing reads is inert, which is itself
+        # worth knowing.
+        answer(
+            self.statement,
+            night_cost={"was": "once a number"},
+            subsidy_to=self.leader.pk,
+        )
+        for path in ("", "/form", "/preflight"):
+            with self.subTest(path=path):
+                r = self.client.get(
+                    "/api/finance/statements/{}{}".format(self.statement.pk, path),
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 200, r.content)
+        # And it is reported as what it is, on the statement, by the rules.
+        self.assertTrue(
+            any("night_cost" in error for error in self.statement.rule_result.errors),
+            self.statement.rule_result.errors,
+        )
+
+    def test_an_answer_that_is_not_a_person_at_all_is_refused_not_a_crash(self):
+        """A 422, which is what pydantic used to give for these.
+
+        ``subsidy_to_id`` was typed as an ``int`` on the schema, so anything
+        else never reached the code. The answers arrive as a free-form ``dict``
+        now and this is the only thing that looks at them, so the shapes a
+        client can send have to come back as refusals rather than as 500s.
+        Neuter ``_as_member`` — ``int(value)`` bare — and every row below
+        becomes an unhandled ``ValueError`` or ``TypeError``. The last two are
+        there because the seven before them are all *non-numeric*, which is how
+        a number that overflows got through: ``1e400`` is ordinary JSON and
+        arrives as ``float('inf')``, whose ``int()`` raises ``OverflowError``,
+        which is neither of the two that were caught.
+        """
+        cases = [
+            {"subsidy_to": "abc"},
+            {"subsidy_to": [1]},
+            {"subsidy_to": {"a": 1}},
+            {"allowance_to": [None]},
+            {"allowance_to": [[1]]},
+            {"allowance_to": {"a": 1}},
+            {"allowance_to": "abc"},
+            {"subsidy_to": 1e400},
+            {"allowance_to": [1e400]},
+        ]
+        for answers in cases:
+            with self.subTest(answers=answers):
+                r = self.client.patch(
+                    "/api/finance/statements/{}".format(self.statement.pk),
+                    data={"inputs": answers},
+                    content_type="application/json",
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 422, r.content)
 
     def test_an_answer_naming_somebody_the_rules_did_not_offer(self):
         r = self.client.patch(
@@ -195,7 +417,7 @@ class FinanceFormApiTestCase(TestCase):
             amount=Decimal("10.00"),
             costs_covered=True,
         )
-        self.statement.ljp_to = self.leader
+        answer(self.statement, ljp_to=self.leader.pk)
         self.statement.save()
         r = self.client.get(
             "/api/finance/statements/{}/preflight".format(self.statement.pk),
@@ -516,6 +738,13 @@ class InputValueTestCase(SimpleTestCase):
             clean_value(declaration, "drei")
         with self.assertRaises(ValidationError):
             clean_value(declaration, 8)
+        # A number that *overflows* rather than failing to parse: `1e400` is
+        # ordinary JSON and arrives as `float('inf')`, whose `int()` raises
+        # `OverflowError`. No ruleset in tree declares an `int` yet, so this is
+        # the only place the gap could be shown — which is why it is shown
+        # here rather than left for the section that declares the first one.
+        with self.assertRaises(ValidationError):
+            clean_value(declaration, 1e400)
 
     def test_a_flag_and_a_line_of_text(self):
         self.assertIs(clean_value(Input("f", "F", "bool"), "ja"), True)
@@ -532,3 +761,36 @@ class InputValueTestCase(SimpleTestCase):
         self.assertIsNone(clean_value(Input("m", "M", "member"), None))
         self.assertEqual(clean_value(Input("s", "S", "member_set"), None), [])
         self.assertEqual(clean_value(Input("c", "C", "money"), None), Decimal("0"))
+
+
+class FormFieldTestCase(SimpleTestCase):
+    """Each type as the control a server-rendered form shows for it.
+
+    Same reason ``clean_value`` is checked without a statement: the admin's
+    excursion inline builds its fields from the declarations, and four of the
+    seven types have no section in tree that asks for them yet.
+    """
+
+    def test_every_type_becomes_a_field_that_says_what_it_wants(self):
+        cases = {
+            "money": forms.DecimalField,
+            "int": forms.IntegerField,
+            "bool": forms.BooleanField,
+            "text": forms.CharField,
+            "choice": forms.CharField,
+            "member": forms.TypedChoiceField,
+            "member_set": forms.TypedMultipleChoiceField,
+        }
+        for input_type, expected in cases.items():
+            with self.subTest(type=input_type):
+                field = form_field(Input("k", "Frage", input_type, help="Hilfe"))
+                self.assertIsInstance(field, expected)
+                self.assertEqual(field.label, "Frage")
+                self.assertEqual(field.help_text, "Hilfe")
+
+    def test_a_bound_whole_number_carries_its_bound(self):
+        self.assertEqual(form_field(Input("n", "N", "int", max=9)).max_value, 9)
+
+    def test_a_person_may_be_left_unanswered(self):
+        field = form_field(Input("m", "M", "member", required=False))
+        self.assertIsNone(field.clean(""))

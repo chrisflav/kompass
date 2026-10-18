@@ -60,6 +60,19 @@ class Ledger(models.Model):
         verbose_name_plural = _("Ledgers")
 
 
+def _as_id(value) -> int | None:
+    """``value`` as a member id, or ``None`` when it is not one at all.
+
+    ``OverflowError`` for the same reason as in :func:`finance.inputs._as_member`:
+    a JSON ``1e400`` is ``float('inf')`` by the time it gets here, and this is a
+    readout, so it has to answer rather than raise.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 class TransactionIssue:
     def __init__(self, member, current, target):
         self.member, self.current, self.target = member, current, target
@@ -75,13 +88,14 @@ class StatementManager(models.Manager):
 
 
 class Statement(CommonModel):
-    MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, INVALID_ALLOWANCE_TO, INVALID_TOTAL, VALID = (
-        0,
-        1,
-        2,
-        3,
-        4,
-    )
+    (
+        MISSING_LEDGER,
+        NON_MATCHING_TRANSACTIONS,
+        INVALID_ALLOWANCE_TO,
+        INVALID_TOTAL,
+        VALID,
+        UNRESOLVED,
+    ) = (0, 1, 2, 3, 4, 5)
     UNSUBMITTED, SUBMITTED, CONFIRMED = 0, 1, 2
     STATUS_CHOICES = [
         (UNSUBMITTED, _("In preparation")),
@@ -103,57 +117,14 @@ class Statement(CommonModel):
         on_delete=models.SET_NULL,
     )
 
-    allowance_to = models.ManyToManyField(
-        Member,
-        verbose_name=_("Pay allowance to"),
-        related_name="receives_allowance_for_statements",
-        blank=True,
-        help_text=_("The youth leaders to which an allowance should be paid."),
-    )
-    subsidy_to = models.ForeignKey(
-        Member,
-        verbose_name=_("Pay subsidy to"),
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="receives_subsidy_for_statements",
-        help_text=_(
-            "The person that should receive the subsidy for night and travel costs. Typically the person who paid for them."
-        ),
-    )
-
-    ljp_to = models.ForeignKey(
-        Member,
-        verbose_name=_("Pay ljp contributions to"),
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="receives_ljp_for_statements",
-        help_text=_(
-            "The person that should receive the ljp contributions for the participants. Should be only selected if an ljp request was submitted."
-        ),
-    )
-
-    night_cost = models.DecimalField(
-        verbose_name=_("Price per night"),
-        default=0,
-        decimal_places=2,
-        max_digits=5,
-        # the help_text stays free of settings so that it is the same in every
-        # deployment, the admin form names the configured maximum
-        help_text=_(
-            "Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs."
-        ),
-    )
-
     inputs = models.JSONField(
         verbose_name=_("Answers"),
         default=dict,
         blank=True,
         help_text=_(
-            "The answers to the questions the section's rules ask, by key. The "
-            "four columns above are still the ones the rules read; this is "
-            "written beside them until they are migrated into it."
+            "The answers to the questions the section's rules ask, by key. "
+            "Which questions those are is the ruleset's declaration, so this "
+            "is the only place a statement keeps them."
         ),
     )
 
@@ -249,6 +220,90 @@ class Statement(CommonModel):
 
     def __str__(self):
         return str(self.title)
+
+    # --- the answers ------------------------------------------------------
+    #
+    # ``night_cost``, ``allowance_to``, ``subsidy_to`` and ``ljp_to`` were four
+    # columns on this table, which is to say that the shape of the Heidelberg
+    # regulation was the shape of the schema: a section whose rules ask a fifth
+    # question had nowhere to put the answer and no way to be asked it. They
+    # are now four keys in ``inputs``, declared by the ruleset that reads them
+    # (:meth:`kompass.rules.Ruleset.inputs`) and validated against that
+    # declaration on the way in (:func:`finance.inputs.clean`).
+    #
+    # What stays here are *read* accessors, for the pages that still narrate
+    # the Heidelberg payout — the excursion's finance overview, the submitted
+    # statement's admin page, the LJP proof — plus the derived figures those
+    # pages print. They are deliberately read-only: an answer is written by the
+    # one path that checks it against the declaration, and a writable
+    # ``statement.subsidy_to = somebody`` is how the field drifted from the
+    # rules in the first place.
+
+    @property
+    def answers(self) -> dict:
+        """The answers this statement carries, by input key, as JSON."""
+        return dict(self.inputs or {})
+
+    def answer_member_ids(self, key: str) -> list[int]:
+        """The member ids answering ``key``, in the order they were stored.
+
+        Anything in there that is not an id is skipped rather than raised on,
+        for the same reason :func:`finance.engine.answers.coerce_input` hands a
+        value that does not fit through: a section may change what a question
+        asks for while statements still hold the old answer, and a page that
+        only wanted to print a name must not be the thing that breaks. The
+        *rules* refuse it — the typed accessor raises and ``evaluate`` reports
+        it — so nothing is paid on a figure this invented.
+        """
+        value = self.answers.get(key)
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            value = [value]
+        return [pk for pk in (_as_id(entry) for entry in value) if pk is not None]
+
+    def answer_members(self, key: str) -> list[Member]:
+        """The members answering ``key``, in one bulk lookup: ids are the record.
+
+        A member who has since been deleted drops out rather than raising,
+        which is what the ``SET_NULL`` on the old columns did.
+        """
+        ids = self.answer_member_ids(key)
+        if not ids:
+            return []
+        by_id = Member.objects.in_bulk(ids)
+        return [by_id[pk] for pk in ids if pk in by_id]
+
+    def answer_member(self, key: str) -> Member | None:
+        """The one member answering ``key``, or ``None``."""
+        members = self.answer_members(key)
+        return members[0] if members else None
+
+    @property
+    def night_cost(self) -> Decimal:
+        """What a night cost per youth leader, as answered — zero if not an amount.
+
+        See :meth:`answer_member_ids`: a readout renders, the rules refuse.
+        """
+        try:
+            return cvt_to_decimal(self.answers.get("night_cost") or 0)
+        except (TypeError, ValueError, ArithmeticError):
+            return Decimal(0)
+
+    @property
+    def allowance_to(self) -> list[Member]:
+        """Who receives an allowance, as answered."""
+        return self.answer_members("allowance_to")
+
+    @property
+    def subsidy_to(self) -> Member | None:
+        """Who receives the travel and overnight subsidy, as answered."""
+        return self.answer_member("subsidy_to")
+
+    @property
+    def ljp_to(self) -> Member | None:
+        """Who receives the LJP contributions, as answered."""
+        return self.answer_member("ljp_to")
 
     def _get_setting(self, key: str) -> Decimal:
         """The section's number for ``key``, as it applies to this statement.
@@ -377,7 +432,7 @@ class Statement(CommonModel):
         what a section with its own categories gets.
         """
         if transfer.category == "bill":
-            return "{}: {}".format(str(self), transfer.label)
+            return f"{self!s}: {transfer.label}"
         excursion = self.excursion
         if excursion is not None:
             if transfer.category == "allowance":
@@ -514,14 +569,18 @@ class Statement(CommonModel):
 
     @property
     def allowance_to_valid(self):
-        """Checks if the configured `allowance_to` field matches the regulations."""
+        """Whether the answered allowance recipients match the regulations.
+
+        Asked of the answered ids rather than of the members behind them, so
+        the statement list can ask it per row without a query each.
+        """
         if self.allowances_paid > self.real_staff_count:
             # it is allowed that less allowances are utilized than youth leaders are enlisted
             return False
         if self.excursion is not None:
-            yls = self.excursion.jugendleiter.all()
-            for yl in self.allowance_to.all():
-                if yl not in yls:
+            leaders = {yl.pk for yl in self.excursion.jugendleiter.all()}
+            for member_id in self.answer_member_ids("allowance_to"):
+                if member_id not in leaders:
                     return False
         return True
 
@@ -551,6 +610,21 @@ class Statement(CommonModel):
           The members receiving allowance don't match the regulations.
         - `Statement.INVALID_TOTAL`:
           The total amount of transactions differs from the calculated total payout.
+        - `Statement.UNRESOLVED`:
+          The section's rules could not resolve the statement at all, so there
+          is no payout to compare anything against.
+
+        ``UNRESOLVED`` is asked **last**, after every more specific diagnosis.
+        A covered bill with nobody to pay back is a rule error *and* a total
+        that does not match, and "the total differs" is the more useful of the
+        two sentences to show. What is left for this to catch is the case with
+        no other symptom at all: an answer that no longer fits the type its
+        declaration promises reads as its type's empty value in the readouts —
+        deliberately, so the page renders and somebody can reach the form — and
+        then every figure is zero, the arithmetic agrees with itself, and the
+        statement used to report "everything is correct", which is exactly when
+        it is not. `confirm` refuses on `is_valid`, so this is also what keeps
+        money from moving on a statement the rules could not settle.
         """
         if not self.transactions_match_expenses:
             return Statement.NON_MATCHING_TRANSACTIONS
@@ -560,8 +634,9 @@ class Statement(CommonModel):
             return Statement.INVALID_ALLOWANCE_TO
         if not self.total_valid:
             return Statement.INVALID_TOTAL
-        else:
-            return Statement.VALID
+        if self.rule_result.errors:
+            return Statement.UNRESOLVED
+        return Statement.VALID
 
     def is_valid(self):
         return self.validity == Statement.VALID
@@ -588,6 +663,9 @@ class Statement(CommonModel):
                 "The total of all transactions differs from the calculated total payout."
             ),
             Statement.VALID: _("Everything is correct."),
+            Statement.UNRESOLVED: _(
+                "The section's rules could not settle this statement. Check the answers it gives."
+            ),
         }[self.validity]
 
     def _signatures(self):
@@ -937,7 +1015,7 @@ class Statement(CommonModel):
 
     @property
     def allowances_paid(self):
-        return self.allowance_to.count()
+        return len(self.answer_member_ids("allowance_to"))
 
     @property
     def total_allowance(self):
@@ -950,7 +1028,7 @@ class Statement(CommonModel):
 
     @property
     def real_night_cost(self):
-        return min(cvt_to_decimal(self.night_cost), self._get_setting("MAX_NIGHT_COST"))
+        return min(self.night_cost, self._get_setting("MAX_NIGHT_COST"))
 
     @property
     def nights_per_yl(self):
@@ -1071,7 +1149,7 @@ class Statement(CommonModel):
         return self.total_bills_theoretic + self.total_allowance
 
     def total_pretty(self):
-        return "{}€".format(self.total)
+        return f"{self.total}€"
 
     total_pretty.short_description = _("Total")
     total_pretty.admin_order_field = "total"
@@ -1115,10 +1193,7 @@ class Statement(CommonModel):
                 "theoretical_total_staff": self.theoretical_total_staff,
                 "real_staff_count": self.real_staff_count,
                 "total_subsidies": self.total_subsidies,
-                "subsidy_to": self.subsidy_to,
-                "allowance_to": self.allowance_to,
                 "paid_ljp_contributions": self.paid_ljp_contributions,
-                "ljp_to": self.ljp_to,
                 "theoretic_ljp_participant_count": self.excursion.theoretic_ljp_participant_count,
                 "ljp_participant_count": self.excursion.ljp_participant_count,
                 "participant_count": self.excursion.participant_count,
@@ -1259,7 +1334,7 @@ class Bill(CommonModel):
     )
 
     def __str__(self):
-        return "{} ({}€)".format(self.short_description, self.amount)
+        return f"{self.short_description} ({self.amount}€)"
 
     def save(self, *args, **kwargs):
         """Save, and keep the statement's materialised payout in step.
@@ -1290,7 +1365,7 @@ class Bill(CommonModel):
             materialise(statement)
 
     def pretty_amount(self):
-        return "{}€".format(self.amount)
+        return f"{self.amount}€"
 
     pretty_amount.admin_order_field = "amount"
     pretty_amount.short_description = _("Amount")
@@ -1372,7 +1447,7 @@ class Transaction(models.Model):
     )
 
     def __str__(self):
-        return "T#{}".format(self.pk)
+        return f"T#{self.pk}"
 
     @staticmethod
     def escape_reference(reference):

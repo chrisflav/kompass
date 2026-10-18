@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -8,6 +9,8 @@ from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from finance import signals
+from finance.engine import build_context
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
 from finance.models import Bill
@@ -22,6 +25,11 @@ from finance.models import StatementUnSubmitted
 from finance.models import StatementUnSubmittedManager
 from finance.models import Transaction
 from finance.models import TransactionIssue
+from finance.rules_api import Member as RuleMember
+from finance.rulesets.heidelberg import HeidelbergRules
+from finance.testing import also
+from finance.testing import answer
+from finance.testing import without
 from members.models import DIVERSE
 from members.models import FAHRGEMEINSCHAFT_ANREISE
 from members.models import Freizeit
@@ -31,8 +39,20 @@ from members.models import Intervention
 from members.models import LJPProposal
 from members.models import MALE
 from members.models import Member
+from members.models import MemberUnconfirmedProxy
 from members.models import MUSKELKRAFT_ANREISE
 from members.models import NewMemberOnList
+
+
+class NarrowedForm(HeidelbergRules):
+    """Heidelberg with one question taken off the form but still read.
+
+    Which is the asymmetry taxis #579 is about: ``relevant_inputs`` narrows
+    what a person is asked while ``inputs`` keeps naming what the rules read.
+    """
+
+    def relevant_inputs(self, ctx):
+        return [declaration for declaration in self.inputs(ctx) if declaration.key != "subsidy_to"]
 
 
 # Create your tests here.
@@ -79,7 +99,7 @@ class StatementTestCase(TestCase):
         self.personal_account = Ledger.objects.create(name="personal account")
 
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         Bill.objects.create(
             statement=self.st,
@@ -97,7 +117,7 @@ class StatementTestCase(TestCase):
             statement=self.st,
         )
 
-        self.st2 = Statement.objects.create(short_description="Actual expenses", night_cost=0)
+        self.st2 = Statement.objects.create(short_description="Actual expenses")
         Bill.objects.create(
             statement=self.st2,
             short_description="food",
@@ -115,7 +135,7 @@ class StatementTestCase(TestCase):
             difficulty=1,
         )
         self.st3 = Statement.objects.create(
-            night_cost=self.night_cost, excursion=ex, subsidy_to=self.fritz
+            excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
         )
         for i in range(self.participant_count):
             m = Member.objects.create(
@@ -146,7 +166,7 @@ class StatementTestCase(TestCase):
             m.group.add(self.jl)
             ex.jugendleiter.add(m)
             if i < self.allowance_to_count:
-                self.st3.allowance_to.add(m)
+                also(self.st3, "allowance_to", m)
 
         # Create a small excursion with < 5 theoretic LJP participants for LJP contribution test
         small_ex = Freizeit.objects.create(
@@ -176,7 +196,7 @@ class StatementTestCase(TestCase):
         small_ex.ljpproposal = ljp_proposal
         small_ex.save()
 
-        self.st_small = Statement.objects.create(night_cost=10, excursion=small_ex)
+        self.st_small = Statement.objects.create(excursion=small_ex, inputs={"night_cost": "10"})
 
         ex = Freizeit.objects.create(
             name="Wild trip 2",
@@ -186,7 +206,7 @@ class StatementTestCase(TestCase):
             difficulty=2,
         )
         self.st4 = Statement.objects.create(
-            night_cost=self.night_cost, excursion=ex, subsidy_to=self.fritz
+            excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
         )
         for i in range(2):
             m = Member.objects.create(
@@ -210,7 +230,9 @@ class StatementTestCase(TestCase):
             end=timezone.datetime(2024, 1, 5, 17, 0, 0, tzinfo=base.tzinfo),
         )
 
-        self.st5 = Statement.objects.create(night_cost=self.night_cost, excursion=ex)
+        self.st5 = Statement.objects.create(
+            excursion=ex, inputs={"night_cost": str(self.night_cost)}
+        )
 
         for i in range(9):
             m = Member.objects.create(
@@ -260,7 +282,7 @@ class StatementTestCase(TestCase):
             refunded=False,
         )
 
-        self.st6 = Statement.objects.create(night_cost=self.night_cost)
+        self.st6 = Statement.objects.create(inputs={"night_cost": str(self.night_cost)})
         Bill.objects.create(statement=self.st6, amount="42", costs_covered=True)
 
     def test_org_fee(self):
@@ -287,7 +309,7 @@ class StatementTestCase(TestCase):
         self.assertIsNone(self.st5.org_fee_payant)
 
         # now collect subsidies
-        self.st5.subsidy_to = self.fritz
+        answer(self.st5, subsidy_to=self.fritz.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -295,8 +317,8 @@ class StatementTestCase(TestCase):
         )
 
         # now collect allowances
-        self.st5.allowance_to.add(self.fritz)
-        self.st5.subsidy_to = None
+        also(self.st5, "allowance_to", self.fritz)
+        answer(self.st5, subsidy_to=None)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -304,7 +326,7 @@ class StatementTestCase(TestCase):
         )
 
         # now collect both
-        self.st5.subsidy_to = self.fritz
+        answer(self.st5, subsidy_to=self.fritz.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -318,8 +340,8 @@ class StatementTestCase(TestCase):
         )
 
         # return to previous state
-        self.st5.subsidy_to = None
-        self.st5.allowance_to.remove(self.fritz)
+        answer(self.st5, subsidy_to=None)
+        without(self.st5, "allowance_to", self.fritz)
 
     def test_org_fee_zero_for_ljp_qualification(self):
         """Test that total_org_fee returns 0 for LJP_QUALIFICATION proposals.
@@ -333,7 +355,7 @@ class StatementTestCase(TestCase):
         proposal.save()
 
         # Set subsidy_to so we pass the first condition and reach line 568
-        self.st_small.subsidy_to = self.fritz
+        answer(self.st_small, subsidy_to=self.fritz.pk)
         self.st_small.save()
 
         # total_org_fee should be 0 for LJP_QUALIFICATION proposals (line 568)
@@ -342,7 +364,7 @@ class StatementTestCase(TestCase):
         # Restore original state
         proposal.goal = original_goal
         proposal.save()
-        self.st_small.subsidy_to = None
+        answer(self.st_small, subsidy_to=None)
         self.st_small.save()
 
     def test_ljp_payment(self):
@@ -371,7 +393,7 @@ class StatementTestCase(TestCase):
         )
 
         # now we want to pay out the LJP contributions
-        self.st5.ljp_to = self.fritz
+        answer(self.st5, ljp_to=self.fritz.pk)
         self.assertEqual(
             self.st5.paid_ljp_contributions,
             expected_ljp,
@@ -393,7 +415,7 @@ class StatementTestCase(TestCase):
             "LJP contributions should be less than or equal to the costs paid by trip organisers",
         )
 
-        self.st5.ljp_to = None
+        answer(self.st5, ljp_to=None)
 
     def test_staff_count(self):
         self.assertEqual(
@@ -627,7 +649,7 @@ class StatementTestCase(TestCase):
         m2 = self.st3.excursion.jugendleiter.all()[self.allowance_to_count]
 
         # now remove one, so allowance_to should be reduced by one
-        self.st3.allowance_to.remove(m1)
+        without(self.st3, "allowance_to", m1)
         self.assertEqual(self.st3.allowances_paid, self.allowance_to_count - 1)
         # but still valid
         self.assertTrue(self.st3.allowance_to_valid)
@@ -636,14 +658,14 @@ class StatementTestCase(TestCase):
         self.assertLess(self.st3.real_per_yl, self.st3.total_per_yl)
 
         # adding a foreign yl adds the number of allowances_paid
-        self.st3.allowance_to.add(self.fritz)
+        also(self.st3, "allowance_to", self.fritz)
         self.assertEqual(self.st3.allowances_paid, self.allowance_to_count)
         # but invalidates `allowance_to`
         self.assertFalse(self.st3.allowance_to_valid)
 
         # remove the foreign yl and add too many yls
-        self.st3.allowance_to.remove(self.fritz)
-        self.st3.allowance_to.add(m1, m2)
+        without(self.st3, "allowance_to", self.fritz)
+        also(self.st3, "allowance_to", m1, m2)
         self.assertEqual(self.st3.allowances_paid, self.allowance_to_count + 1)
         # should be invalid
         self.assertFalse(self.st3.allowance_to_valid)
@@ -653,6 +675,282 @@ class StatementTestCase(TestCase):
             trans.ledger = self.personal_account
             trans.save()
         self.assertEqual(self.st3.validity, Statement.INVALID_ALLOWANCE_TO)
+
+    def test_the_answers_are_read_from_one_field_by_the_rules_own_keys(self):
+        """What the four columns used to be, as a reading of ``inputs``.
+
+        The pages that narrate the Heidelberg payout still name its recipients,
+        and these are the accessors they do it through.
+        """
+        answer(
+            self.st6,
+            night_cost="9.50",
+            subsidy_to=self.fritz.pk,
+            ljp_to=self.fritz.pk,
+            allowance_to=[self.fritz.pk],
+        )
+        self.assertEqual(self.st6.night_cost, Decimal("9.50"))
+        self.assertEqual(self.st6.subsidy_to, self.fritz)
+        self.assertEqual(self.st6.ljp_to, self.fritz)
+        self.assertEqual(self.st6.allowance_to, [self.fritz])
+        self.assertEqual(self.st6.allowances_paid, 1)
+
+    def test_a_statement_that_answered_nothing_reads_as_nobody_and_zero(self):
+        blank = Statement.objects.create(short_description="Leer")
+        self.assertEqual(blank.night_cost, Decimal(0))
+        self.assertIsNone(blank.subsidy_to)
+        self.assertIsNone(blank.ljp_to)
+        self.assertEqual(blank.allowance_to, [])
+        self.assertEqual(blank.allowances_paid, 0)
+
+    def test_deleting_a_member_takes_them_out_of_every_answer(self):
+        """What ``SET_NULL`` and a cascading through row used to do for free.
+
+        JSON has no such mechanism, so it is a receiver now
+        (:mod:`finance.signals`) — and it has to be, because the two sides
+        otherwise disagree: ``answer_members`` drops an id with no member row
+        while the rules keep naming it, and the next materialisation writes an
+        ``Obligation`` whose ``destination_member_id`` has no row behind it. The
+        foreign key has a real constraint, so on MariaDB that is a 500 on the
+        next save.
+
+        Neuter it — disconnect the receiver — and the three assertions below go
+        red, the last one because the rules still resolve a transfer to a member
+        who is gone. Bind it to ``Member`` alone and the proxy half goes red,
+        which is the delete the admin actually performs.
+        """
+        ghost = Member.objects.create(
+            prename="Weg", lastname="Gewesen", email=settings.TEST_MAIL, gender=0
+        )
+        self.st3.excursion.jugendleiter.add(ghost)
+        answer(
+            self.st3,
+            subsidy_to=ghost.pk,
+            ljp_to=ghost.pk,
+            allowance_to=sorted([ghost.pk, self.fritz.pk]),
+        )
+        # A statement that names them in a *set* and nowhere else, because
+        # finding them there is a separate branch: the scalar answers above are
+        # looked at first and would otherwise be the only ones that ever match.
+        answer(self.st6, allowance_to=[ghost.pk])
+        ghost.delete()
+        self.st6.refresh_from_db()
+        self.assertEqual(self.st6.inputs["allowance_to"], [])
+        self.st3.refresh_from_db()
+        self.assertIsNone(self.st3.inputs["subsidy_to"])
+        self.assertIsNone(self.st3.inputs["ljp_to"])
+        self.assertEqual(self.st3.inputs["allowance_to"], [self.fritz.pk])
+        # And the rules agree with the readout, which is the point: nobody the
+        # engine names is missing from the database.
+        named = {
+            transfer.destination.id
+            for transfer in self.st3.rule_result.transfers
+            if isinstance(transfer.destination, RuleMember)
+        }
+        self.assertNotIn(ghost.pk, named)
+        # And once more through the proxy, because that is the delete a section
+        # performs: `MemberUnconfirmedProxy` is the admin's *Unconfirmed
+        # registrations*, `Member.demote_to_waiter()` ends in `self.delete()` on
+        # one of those, and django's collector sends `post_delete` with
+        # `sender = objs[0].__class__`. So a receiver bound to `Member` alone
+        # never ran for a member whose mail confirmation was still pending —
+        # the default state after registration — while `SET_NULL` and the m2m
+        # cascade this replaces went through the proxy quite happily.
+        pending = Member.objects.create(
+            prename="Noch",
+            lastname="Unbestaetigt",
+            email=settings.TEST_MAIL,
+            gender=0,
+            confirmed=False,
+        )
+        self.st3.excursion.jugendleiter.add(pending)
+        answer(self.st3, subsidy_to=pending.pk, allowance_to=[pending.pk])
+        MemberUnconfirmedProxy.objects.get(pk=pending.pk).delete()
+        self.st3.refresh_from_db()
+        self.assertIsNone(self.st3.inputs["subsidy_to"])
+        self.assertEqual(self.st3.inputs["allowance_to"], [])
+
+    def test_a_statement_handed_in_mid_prune_is_still_left_alone(self):
+        """The scan is a read and the prune is a write, so the status is asked twice.
+
+        Without the second question a statement submitted between the two would
+        be pruned on the strength of the first — and ``save()``'s own guard
+        cannot catch it either, since it reads the status off the instance the
+        loop already fetched. The window is modelled where it actually is:
+        between the scan's query and the fetch's, by handing the statement in
+        while the scan's rows are being sifted. Neuter it (drop ``status`` from
+        the second filter) and the frozen answer is rewritten.
+        """
+        ghost = Member.objects.create(
+            prename="Dazwischen", lastname="Rein", email=settings.TEST_MAIL, gender=0
+        )
+        self.st3.excursion.jugendleiter.add(ghost)
+        answer(self.st3, subsidy_to=ghost.pk)
+        # Read before the delete: django sets `pk` to `None` on the instance it
+        # deleted, so comparing against `ghost.pk` afterwards would assert that
+        # the answer is `None` — which is what the neutered code writes.
+        gone, statement_id = ghost.pk, self.st3.pk
+
+        sift = signals._mentions
+
+        def hand_in(answers, member_id):
+            Statement.objects.filter(pk=statement_id).update(status=Statement.SUBMITTED)
+            return sift(answers, member_id)
+
+        with patch.object(signals, "_mentions", side_effect=hand_in):
+            ghost.delete()
+        self.st3.refresh_from_db()
+        self.assertEqual(self.st3.inputs["subsidy_to"], gone)
+
+    def test_deleting_a_member_leaves_a_handed_in_statement_alone(self):
+        """A frozen statement is not the receiver's business, and must not be.
+
+        It is already safe: ``Obligation``'s member columns are ``SET_NULL``
+        and ``destination_name`` is copied onto the row so the record stays
+        readable without the member. Pruning it instead would reach past every
+        freeze — ``update_statement`` refuses any edit, the admin's fields are
+        read-only, a confirmed statement may not be touched at all — and the
+        next edit that *is* allowed, a treasurer marking a bill covered,
+        re-materialises the live rows, so the deleted person's allowance and
+        subsidy would quietly stop being owed and the participants' share
+        would be re-struck.
+
+        Neuter it — drop the ``status=UNSUBMITTED`` filter — and all four
+        assertions below go red, the last two by the figures moving.
+        """
+        ghost = Member.objects.create(
+            prename="Weg", lastname="Eingereicht", email=settings.TEST_MAIL, gender=0
+        )
+        self.st3.excursion.jugendleiter.add(ghost)
+        answer(self.st3, subsidy_to=ghost.pk, allowance_to=[ghost.pk])
+        gone, named = ghost.pk, ghost.name
+        self.st3.submit(self.fritz)
+
+        def live():
+            return self.st3.obligation_set.filter(superseded_at=None)
+
+        frozen = {(row.destination_name, row.amount_cents) for row in live()}
+        owed = self.st3.total
+        self.assertEqual(live().filter(destination_member_id=gone).count(), 2)
+
+        ghost.delete()
+
+        self.st3.refresh_from_db()
+        self.assertEqual(self.st3.inputs["subsidy_to"], gone)
+        self.assertEqual(self.st3.inputs["allowance_to"], [gone])
+        # Every row still owes the same amount to the same name. The deleted
+        # member's two rows kept theirs through `SET_NULL` plus the copied
+        # `destination_name`, which is the mechanism that makes pruning a
+        # handed-in statement unnecessary in the first place.
+        self.assertEqual({(row.destination_name, row.amount_cents) for row in live()}, frozen)
+        self.assertEqual(live().filter(destination_name=named).count(), 2)
+        self.assertEqual(
+            list(
+                live()
+                .filter(destination_name=named)
+                .values_list("destination_member_id", flat=True)
+            ),
+            [None, None],
+        )
+        self.assertEqual(self.st3.total, owed)
+
+    def test_a_ruleset_that_raises_does_not_make_members_undeletable(self):
+        """Asking the rules runs inside the deletion's own transaction.
+
+        So a section's bug must not propagate: it would poison that
+        transaction, roll the deletion back and leave the member in place.
+        Neuter the ``try`` in ``signals._party_keys`` and this raises instead,
+        with the member still there.
+        """
+        ghost = Member.objects.create(
+            prename="Kaputt", lastname="Regeln", email=settings.TEST_MAIL, gender=0
+        )
+        answer(self.st6, subsidy_to=ghost.pk)
+        gone = ghost.pk
+        with patch("finance.signals.party_keys", side_effect=RuntimeError("a section's bug")):
+            ghost.delete()
+        self.assertFalse(Member.objects.filter(pk=gone).exists())
+        # The id stays in the draft, which is the harmless half: the readout
+        # drops it and nothing has frozen it.
+        self.st6.refresh_from_db()
+        self.assertEqual(self.st6.inputs["subsidy_to"], gone)
+        self.assertIsNone(self.st6.subsidy_to)
+
+    def test_a_question_only_the_engine_still_reads_is_pruned_too(self):
+        """``party_keys`` asks ``inputs``, not ``relevant_inputs``.
+
+        A ruleset may narrow the second to take a question off the form. The
+        engine goes on reading the first, so pruning by the form's set would
+        skip exactly the key whose dangling id this exists to remove — and
+        ``materialise`` would then write an obligation against a member row
+        that is gone. Neuter it (ask ``relevant_inputs``) and the id survives.
+        """
+        ghost = Member.objects.create(
+            prename="Nur", lastname="Engine", email=settings.TEST_MAIL, gender=0
+        )
+        self.st3.excursion.jugendleiter.add(ghost)
+        answer(self.st3, subsidy_to=ghost.pk)
+        # The stub has to narrow the form for this to prove anything, so assert
+        # its premise rather than trust it: the key is off `relevant_inputs`
+        # and still on `inputs`, which is the one the engine reads.
+        narrowed, context = NarrowedForm(), build_context(self.st3)
+        self.assertNotIn("subsidy_to", [asked.key for asked in narrowed.relevant_inputs(context)])
+        self.assertIn("subsidy_to", [asked.key for asked in narrowed.inputs(context)])
+        # Patched where the receiver reads it, not on the imported class: a
+        # statement's ruleset is exec'd from its own stored sources under a
+        # hash-named package, so `HeidelbergRules` there is a different class
+        # object and patching this one would have proved nothing.
+        with patch("finance.inputs.ruleset_for", return_value=NarrowedForm()):
+            ghost.delete()
+        self.st3.refresh_from_db()
+        self.assertIsNone(self.st3.inputs["subsidy_to"])
+
+    def test_a_statement_the_rules_cannot_settle_does_not_read_as_correct(self):
+        """The readout has to say so, because every figure in it reads as zero.
+
+        An answer that no longer fits its declaration is handed through to the
+        rules on purpose, so the page renders and somebody can reach the form —
+        but the money figures are recomputed from it in Python and come out at
+        zero, the arithmetic then agrees with itself, and the statement used to
+        report "everything is correct" and let itself be confirmed. Neuter the
+        ``rule_result.errors`` check in ``validity`` and both assertions go red.
+        """
+        answer(self.st3, night_cost={"was": "once a number"})
+        self.assertEqual(self.st3.validity, Statement.UNRESOLVED)
+        self.assertFalse(self.st3.is_valid())
+        self.assertNotEqual(str(self.st3.validity_display), str(_("Everything is correct.")))
+
+    def test_an_answer_naming_somebody_who_is_gone_names_nobody(self):
+        """Belt and braces for a row the receiver never saw.
+
+        A statement written before the receiver existed, or one the receiver
+        could not prune because its ruleset would not load, still has to render
+        rather than raise on a page that only wanted to print a name.
+        """
+        ghost = Member.objects.create(
+            prename="Nie", lastname="Geputzt", email=settings.TEST_MAIL, gender=0
+        )
+        gone = ghost.pk
+        ghost.delete()
+        answer(self.st6, subsidy_to=gone, allowance_to=[gone, self.fritz.pk])
+        self.assertIsNone(self.st6.subsidy_to)
+        self.assertEqual(self.st6.allowance_to, [self.fritz])
+        # The count is the record, not what is left of it: the statement still
+        # claims two allowances, and `allowance_to_valid` is what judges that.
+        self.assertEqual(self.st6.allowances_paid, 2)
+        # And something in there that is not an id at all — a question that used
+        # to ask for text and now asks for a person — is skipped rather than
+        # raised on, for the same reason.
+        answer(self.st6, subsidy_to="niemand", allowance_to=[self.fritz.pk, {"wer": "?"}])
+        self.assertIsNone(self.st6.subsidy_to)
+        self.assertEqual(self.st6.allowance_to, [self.fritz])
+        # And a number that *overflows* rather than failing to parse, which is
+        # `OverflowError` and was not in the list `_as_id` caught: `1e400` is
+        # ordinary JSON. On an unsaved statement, because the reader is the
+        # point and a JSON column need not accept an infinity at all.
+        inert = Statement(inputs={"subsidy_to": float("inf"), "allowance_to": [float("inf")]})
+        self.assertIsNone(inert.subsidy_to)
+        self.assertEqual(inert.allowance_to, [])
 
     def test_total_pretty(self):
         self.assertEqual(self.st3.total_pretty(), "{}€".format(self.st3.total))
@@ -670,7 +968,9 @@ class StatementTestCase(TestCase):
     def test_euro_per_km_no_excursion(self):
         """Test euro_per_km when no excursion is associated"""
         statement = Statement.objects.create(
-            short_description="Test Statement", explanation="Test explanation", night_cost=25
+            short_description="Test Statement",
+            explanation="Test explanation",
+            inputs={"night_cost": "25"},
         )
         self.assertEqual(statement.euro_per_km, 0)
 
@@ -679,8 +979,8 @@ class StatementTestCase(TestCase):
         statement = Statement.objects.create(
             short_description="Test Statement",
             explanation="Test explanation",
-            night_cost=25,
             created_by=self.fritz,
+            inputs={"night_cost": "25"},
         )
 
         self.assertFalse(statement.submitted)
@@ -710,7 +1010,7 @@ class StatementTestCase(TestCase):
         statement = Statement.objects.create(
             short_description="Snapshot Statement",
             explanation="Snapshot test",
-            night_cost=25,
+            inputs={"night_cost": "25"},
         )
         created_under = statement.ruleset_snapshot["params"]["ALLOWANCE_PER_DAY"]
         self.assertEqual(statement._get_setting("ALLOWANCE_PER_DAY"), Decimal(created_under))
@@ -741,7 +1041,7 @@ class StatementTestCase(TestCase):
         fallback has to be the old one: the ``settings_snapshot`` of a
         submitted statement, the live settings while a draft.
         """
-        statement = Statement.objects.create(short_description="Unbound", night_cost=0)
+        statement = Statement.objects.create(short_description="Unbound")
         Statement.objects.filter(pk=statement.pk).update(
             ruleset=None, ruleset_hash="", ruleset_snapshot={}
         )
@@ -768,7 +1068,7 @@ class StatementTestCase(TestCase):
         self.assertIsInstance(issues, list)
 
     def test_transaction_issues_with_ljp(self):
-        self.st3.ljp_to = self.fritz
+        answer(self.st3, ljp_to=self.fritz.pk)
         self.st3.save()
         issues = self.st3.transaction_issues
         self.assertIsInstance(issues, list)
@@ -776,7 +1076,7 @@ class StatementTestCase(TestCase):
     def test_generate_transactions_org_fee(self):
         # Ensure conditions for org fee are met: need subsidy_to or allowances
         # and participants >= 27 years old
-        self.st4.subsidy_to = self.fritz
+        answer(self.st4, subsidy_to=self.fritz.pk)
         self.st4.save()
 
         # Verify org fee is calculated
@@ -794,7 +1094,7 @@ class StatementTestCase(TestCase):
         self.assertIsNotNone(org_fee_transaction)
 
     def test_generate_transactions_ljp(self):
-        self.st3.ljp_to = self.fritz
+        answer(self.st3, ljp_to=self.fritz.pk)
         self.st3.save()
         initial_count = Transaction.objects.count()
         self.st3.generate_transactions()
@@ -811,7 +1111,7 @@ class StatementTestCase(TestCase):
         self.assertEqual(subsidies_paid, expected)
 
     def test_ljp_contributions_low_participant_count(self):
-        self.st_small.ljp_to = self.fritz
+        answer(self.st_small, ljp_to=self.fritz.pk)
         self.st_small.save()
 
         # Verify that the small excursion has < 5 theoretic LJP participants
@@ -841,19 +1141,13 @@ class LedgerTestCase(TestCase):
 class ManagerTestCase(TestCase):
     def setUp(self):
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         self.st_submitted = Statement.objects.create(
-            short_description="A statement",
-            explanation="Important!",
-            night_cost=0,
-            status=Statement.SUBMITTED,
+            short_description="A statement", explanation="Important!", status=Statement.SUBMITTED
         )
         self.st_confirmed = Statement.objects.create(
-            short_description="A statement",
-            explanation="Important!",
-            night_cost=0,
-            status=Statement.CONFIRMED,
+            short_description="A statement", explanation="Important!", status=Statement.CONFIRMED
         )
 
     def test_get_queryset(self):
@@ -884,7 +1178,7 @@ class ManagerTestCase(TestCase):
 class TransactionTestCase(TestCase):
     def setUp(self):
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         self.personal_account = Ledger.objects.create(name="personal account")
         self.fritz = Member.objects.create(
@@ -965,7 +1259,7 @@ class TransactionTestCase(TestCase):
 class BillTestCase(TestCase):
     def setUp(self):
         self.st = Statement.objects.create(
-            short_description="A statement", explanation="Important!", night_cost=0
+            short_description="A statement", explanation="Important!"
         )
         self.bill = Bill.objects.create(statement=self.st, short_description="foobar")
 

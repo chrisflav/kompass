@@ -3,6 +3,7 @@ import { Route } from "react-router-dom";
 import { BillDetailPage, BillsList } from "./Bills";
 import { LedgerDetailPage, LedgersList } from "./Ledgers";
 import { StatementDetailPage, StatementsList } from "./Statements";
+import { StatementApprovalPage } from "./StatementApproval";
 import { StatementFlowPage } from "./StatementFlow";
 import { StatementReviewPage } from "./StatementReview";
 import { TransactionDetailPage, TransactionsList } from "./Transactions";
@@ -14,7 +15,9 @@ import { TransactionDetailPage, TransactionsList } from "./Transactions";
 // pipeline (?stage=expenses → bookings → payout). `/:id` stays the record view
 // for everything else — full fieldsets, inlines and the summary PDF. Plus Belege
 // (Bill) list/detail/create incl. proof upload; Buchungen (Transaction, read
-// only); Konten (Ledger) CRUD.
+// only); Konten (Ledger) CRUD. `/:id/approval` renders the approval record —
+// which constraint the section's rules asked for, who may still sign it, who
+// was excluded and why, and who signed.
 export const financeRoutes = (
   <>
     <Route path="finance/statements" element={<StatementsList />} />
@@ -22,6 +25,7 @@ export const financeRoutes = (
     <Route path="finance/statements/:id" element={<StatementDetailPage />} />
     <Route path="finance/statements/:id/edit" element={<StatementFlowPage />} />
     <Route path="finance/statements/:id/review" element={<StatementReviewPage />} />
+    <Route path="finance/statements/:id/approval" element={<StatementApprovalPage />} />
     <Route path="finance/bills" element={<BillsList />} />
     <Route path="finance/bills/:id" element={<BillDetailPage />} />
     <Route path="finance/transactions" element={<TransactionsList />} />

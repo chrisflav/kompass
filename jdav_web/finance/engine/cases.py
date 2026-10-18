@@ -1,15 +1,21 @@
 """Cases: a ruleset's own tests, as data beside it.
 
 A case is one JSON file holding a whole context — parameters, answers, bills, a
-trip — and what the rules are expected to make of it. It needs no database, no
-fixtures and no Django, which is the point: a section can run its cases in its
-own repository's CI against the image it deploys, and Kompass runs the
-reference ruleset's cases in its suite.
+trip — and what the rules are expected to make of it. It needs no database and
+no fixtures, which is the point: a section can run its cases in its own
+repository's CI against the image it deploys, and Kompass runs the reference
+ruleset's cases in its suite. It is run *inside* that image rather than beside
+it: this module reaches Django through the query guard and through
+:mod:`finance.engine`'s package import, so "no fixtures" is the claim and "no
+Django" is not.
 
 JSON rather than YAML because Kompass has no YAML library and this refactor
 adds no dependency. Money is written as a string (``"42.69"``) so that a case
 file never carries a binary float. Parties are written as ``"SECTION"``,
-``"PARTICIPANTS"`` or a member id.
+``"PARTICIPANTS"`` or a member id. An answer in ``inputs`` is written as JSON
+and typed by the declaration that asks for it when the case runs
+(:func:`answered`), so a case can answer any input a ruleset declares and not
+only the four the reference ruleset happens to.
 
 A case file::
 
@@ -42,6 +48,7 @@ import json
 from collections.abc import Iterable
 from collections.abc import Mapping
 from dataclasses import dataclass
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -64,7 +71,9 @@ from finance.rules_api import SECTION
 from finance.rules_api import StatementInfo
 from finance.rules_api import Transfer
 
+from .answers import typed_inputs
 from .evaluation import evaluate
+from .guard import no_queries
 
 
 def party(value: Any) -> Party:
@@ -89,19 +98,6 @@ def _members(values: Iterable[Any]) -> tuple[Member, ...]:
 
 def _maybe_member(value: Any) -> Member | None:
     return None if value is None else Member(MemberId(int(value)))
-
-
-def _inputs(values: Mapping[str, Any]) -> Inputs:
-    answers: dict[str, object] = {
-        "night_cost": Decimal(str(values.get("night_cost", "0.00"))),
-        "allowance_to": _members(values.get("allowance_to", ())),
-        "subsidy_to": _maybe_member(values.get("subsidy_to")),
-        "ljp_to": _maybe_member(values.get("ljp_to")),
-    }
-    for key, value in values.items():
-        if key not in answers:
-            answers[key] = value
-    return Inputs(answers)
 
 
 def _bills(entries: Iterable[Mapping[str, Any]]) -> tuple[Bill, ...]:
@@ -159,6 +155,11 @@ class Case:
 
     name: str
     context: RuleContext
+    #: The answers as the file wrote them, untyped. They are typed by the
+    #: ruleset's own declarations when the case is run, not when it is parsed:
+    #: which key is money and which is a person is the ruleset's to say, and a
+    #: case file is parsed without one.
+    answers: Mapping[str, Any]
     transfers: tuple[tuple[str, str, str, str], ...]
     errors: tuple[str, ...]
     checks: tuple[bool, ...] | None
@@ -167,10 +168,11 @@ class Case:
 def parse_case(data: Mapping[str, Any], *, name: str) -> Case:
     """A case from the mapping a case file holds."""
     expected = data.get("expect", {})
+    answers: Mapping[str, Any] = data.get("inputs", {})
     context = RuleContext(
         version=CONTEXT_VERSION,
         params=Params({key: Decimal(str(value)) for key, value in data.get("params", {}).items()}),
-        inputs=_inputs(data.get("inputs", {})),
+        inputs=Inputs(dict(answers)),
         bills=_bills(data.get("bills", ())),
         excursion=_excursion(data.get("excursion")),
         statement=StatementInfo(
@@ -188,6 +190,7 @@ def parse_case(data: Mapping[str, Any], *, name: str) -> Case:
     return Case(
         name=str(data.get("name", name)),
         context=context,
+        answers=answers,
         transfers=tuple(
             (str(row[0]), str(row[1]), str(row[2]), str(row[3]))
             for row in expected.get("transfers", ())
@@ -214,12 +217,35 @@ def _rendered(transfer: Transfer) -> tuple[str, str, str, str]:
     )
 
 
+def answered(ruleset: Ruleset, case: Case) -> RuleContext:
+    """``case``'s context with its answers typed by ``ruleset``'s declarations.
+
+    A case file is JSON, so every answer in it arrives as JSON: money as text,
+    a person as an id. This used to be coerced by *name* — four keys the
+    Heidelberg rules happen to declare, and everything else passed through — so
+    a case answering any other ``money`` input handed the rules a ``str`` and
+    ``ctx.inputs.money()`` raised, and a ``member`` input arrived as a bare
+    ``int``. Which only ever worked because the reference ruleset's cases use
+    exactly those four keys.
+
+    It matters more than it looks: cases gate activation, so until a case can
+    express a custom input, the one mechanism that would catch a custom input
+    being mishandled is the one that cannot.
+    """
+    # Inside the guard like every other call into a section's own code, and
+    # before `evaluate` opens its own: declaring the form is as much the
+    # ruleset's code as resolving the transfers.
+    with no_queries():
+        declarations = ruleset.inputs(case.context)
+    return replace(case.context, inputs=Inputs(typed_inputs(declarations, case.answers)))
+
+
 def run_case(ruleset: Ruleset, case: Case) -> list[str]:
     """What ``case`` got wrong, as one message per difference.
 
     An empty list is a passing case.
     """
-    result = evaluate(ruleset, case.context)
+    result = evaluate(ruleset, answered(ruleset, case))
     failures: list[str] = []
     produced = tuple(_rendered(transfer) for transfer in result.transfers)
     if produced != case.transfers:

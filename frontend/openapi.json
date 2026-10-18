@@ -5430,7 +5430,7 @@
             }
           }
         },
-        "description": "The questions the section's rules ask about this statement.\n\nDerived from the rules rather than written beside them, so a section that\nreimburses something else gets a different form without a release. The\nanswers go back through ``PATCH /statements/{id}`` as ``inputs``, and each\none is validated against the declaration it belongs to.",
+        "description": "The questions the section's rules ask about this statement.\n\nDerived from the rules rather than written beside them, so a section that\nreimburses something else gets a different form without a release. The\nanswers go back through ``PATCH /statements/{id}`` as ``inputs``, and each\none is validated against the declaration it belongs to.\n\n``answers`` is what the statement carries today, restricted to the keys\nthis form asks for — so one request is a whole form, questions and answers\ntogether, and an answer the rules have since stopped asking for is not\nhanded back to be re-submitted.",
         "tags": [
           "finance"
         ],
@@ -15531,6 +15531,10 @@
             "title": "Allowance To",
             "type": "array"
           },
+          "night_cost": {
+            "title": "Night Cost",
+            "type": "number"
+          },
           "bills": {
             "default": [],
             "items": {
@@ -15659,13 +15663,6 @@
             ],
             "title": "Explanation"
           },
-          "night_cost": {
-            "default": 0,
-            "description": "Price for the overnight stay of a youth leader. This is required for the calculation of the subsidies for night costs.",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Price per night",
-            "type": "string"
-          },
           "status": {
             "default": 0,
             "title": "Status",
@@ -15705,6 +15702,7 @@
           "is_valid",
           "validity",
           "validity_display",
+          "night_cost",
           "total",
           "total_bills",
           "total_bills_theoretic",
@@ -15834,6 +15832,7 @@
         "type": "object"
       },
       "StatementCreate": {
+        "description": "A new draft. The answers come afterwards, through ``inputs``.\n\n``night_cost`` used to be here, because it used to be a column; a create\nnow says what the statement is for and nothing a section's rules might not\nask about.",
         "properties": {
           "short_description": {
             "title": "Short Description",
@@ -15854,19 +15853,6 @@
               }
             ],
             "title": "Excursion Id"
-          },
-          "night_cost": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-                "type": "string"
-              }
-            ],
-            "default": "0",
-            "title": "Night Cost"
           }
         },
         "required": [
@@ -15876,7 +15862,7 @@
         "type": "object"
       },
       "StatementUpdate": {
-        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).\n\n``allowance_to_ids`` / ``subsidy_to_id`` / ``ljp_to_id`` mirror the admin's\n``StatementOnListInline`` (edited from the excursion): the recipients of the\nallowance / subsidy / LJP contributions. Passing ``null`` clears an FK; an\nomitted field is left unchanged.",
+        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).\n\n``inputs`` is the answers by declaration key, validated against what the\nsection's rules actually ask for (``GET .../form``). It replaces the four\nfields that were here — ``night_cost``, ``allowance_to_ids``,\n``subsidy_to_id`` and ``ljp_to_id`` — which were four fields because they\nwere four columns on ``Statement``, and so a section whose rules ask a\nfifth question had no way to be asked it. A key the rules do not ask for is\nrefused; a key left out is unchanged.",
         "properties": {
           "short_description": {
             "anyOf": [
@@ -15900,21 +15886,6 @@
             ],
             "title": "Explanation"
           },
-          "night_cost": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Night Cost"
-          },
           "excursion_id": {
             "anyOf": [
               {
@@ -15925,42 +15896,6 @@
               }
             ],
             "title": "Excursion Id"
-          },
-          "allowance_to_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Allowance To Ids"
-          },
-          "subsidy_to_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subsidy To Id"
-          },
-          "ljp_to_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ljp To Id"
           },
           "inputs": {
             "anyOf": [
@@ -16753,7 +16688,7 @@
         "type": "object"
       },
       "StatementFormOut": {
-        "description": "The questions this statement still has to answer.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot.",
+        "description": "The questions this statement still has to answer, and its answers.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot — and ``answers`` is\nrestricted to the keys that survived that, so a retired answer is not\nhanded back to a client to re-submit. The values are as\n``Statement.inputs`` holds them: money as a string, a person as an id, a\nset of people as a list of ids.",
         "properties": {
           "statement_id": {
             "title": "Statement Id",
@@ -16766,6 +16701,12 @@
             },
             "title": "Inputs",
             "type": "array"
+          },
+          "answers": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Answers",
+            "type": "object"
           }
         },
         "required": [

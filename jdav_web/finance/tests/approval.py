@@ -685,7 +685,7 @@ class HeidelbergApprovalTestCase(TestCase):
     def setUp(self):
         self.user, self.treasurer = a_user("kasse", permitted=True)
         self.other_user, self.other = a_user("andere")
-        self.statement = Statement.objects.create(short_description="Freigabe", night_cost=0)
+        self.statement = Statement.objects.create(short_description="Freigabe")
         Bill.objects.create(
             statement=self.statement,
             short_description="Seil",
@@ -739,7 +739,7 @@ class HeidelbergApprovalTestCase(TestCase):
         self.assertFalse(self.statement.approval_constraint_set.get().satisfied)
 
     def test_a_draft_has_nothing_to_approve_and_is_not_approved(self):
-        draft = Statement.objects.create(short_description="Entwurf", night_cost=0)
+        draft = Statement.objects.create(short_description="Entwurf")
         self.assertFalse(draft.fully_approved)
         self.assertFalse(draft.may_be_approved_by(self.treasurer))
         self.assertFalse(draft.approve(self.treasurer))
@@ -751,7 +751,7 @@ class HeidelbergApprovalTestCase(TestCase):
         that is known to be wrong would make the record say something false —
         so there is nothing to pay out, whoever signs.
         """
-        statement = Statement.objects.create(short_description="Ohne", night_cost=0)
+        statement = Statement.objects.create(short_description="Ohne")
         Bill.objects.create(
             statement=statement,
             short_description="Seil",
@@ -767,7 +767,7 @@ class HeidelbergApprovalTestCase(TestCase):
         self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
 
     def test_a_statement_that_is_not_submitted_cannot_be_signed(self):
-        draft = Statement.objects.create(short_description="Entwurf", night_cost=0)
+        draft = Statement.objects.create(short_description="Entwurf")
         self.assertFalse(draft.approve(self.treasurer))
         self.assertFalse(draft.may_be_approved_by(self.treasurer))
         self.assertFalse(draft.override_approval("Freigabe", self.treasurer, "weil"))
@@ -916,7 +916,7 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.directory.cleanup()
 
     def statement_for(self, amount, payer):
-        statement = Statement.objects.create(short_description="Gross", night_cost=0)
+        statement = Statement.objects.create(short_description="Gross")
         Bill.objects.create(
             statement=statement,
             short_description="Bus",
@@ -1447,7 +1447,7 @@ class BootstrapAccountTestCase(TestCase):
         payee = Member.objects.create(
             prename="Anna", lastname="Test", email="a@localhost", gender=MALE
         )
-        statement = Statement.objects.create(short_description="Erste", night_cost=0)
+        statement = Statement.objects.create(short_description="Erste")
         Bill.objects.create(
             statement=statement,
             short_description="Seil",
