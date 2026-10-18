@@ -60,11 +60,33 @@ the answers already given: the live form asks
 :meth:`~kompass.rules.Ruleset.relevant_inputs`, not
 :meth:`~kompass.rules.Ruleset.inputs`. Its default implementation re-runs
 ``inputs`` against the answers so far, which is why a ruleset that branches
-inside ``inputs`` already works — but a ruleset that overrides
-``relevant_inputs`` is overriding the method the form actually calls, while
-the case runner, the fuzzer and the stored declarations go through ``inputs``.
-Keep the two consistent, or the question a person is asked and the answer a
-rule reads come apart.
+inside ``inputs`` already works.
+
+The two have different jobs, and it is worth saying which is authoritative for
+what, because a ruleset that overrides ``relevant_inputs`` is overriding only
+one of them:
+
+``inputs`` **says what may be read.** It is the whole vocabulary: every key a
+rule may ask for, every key an answer may be *stored* under, and the list the
+case runner, the fuzzer and the deleted-member cleanup all go through. A rule
+that reads a key ``inputs`` never declared raises
+:class:`~kompass.rules.RuleError`.
+
+``relevant_inputs`` **says what is being asked.** It is the form, and it is the
+set an answer has to be in to count. A question it leaves out is off the form,
+``clean`` refuses an answer for it, and — since this was settled (taxis
+**#579**) — the rules read it as *unanswered*: the type's empty value, exactly
+as if nobody had filled it in yet, whatever is still stored under the key.
+
+So **what the form does not ask, the rules read as unanswered.** Retiring a
+question therefore stops it moving money, which is the point: before, the
+stored answer went on reaching the rules from behind a form that no longer
+showed it and a ``clean`` that no longer accepted it, and the only way out was
+an admin editing JSON. Reading a retired key is *not* an error — it reads
+empty — because a traceback about a question nobody can see is worse than a
+zero a rule can handle. ``relevant_inputs`` should narrow ``inputs`` rather
+than widen it; a key only ``relevant_inputs`` names is resolved, but nothing
+else in Kompass will know about it.
 
 
 How a ruleset reaches a running instance
@@ -299,8 +321,9 @@ person is shown.
      - :meth:`~kompass.rules.Inputs.text`
      - Free text. Unanswered: ``""``.
    * - ``choice``
-     - :meth:`~kompass.rules.Inputs.raw`
-     - **In the vocabulary, not yet usable** — see the warning below.
+     - :meth:`~kompass.rules.Inputs.text`
+     - One of the named alternatives in :attr:`~kompass.rules.Input.choices`,
+       as its ``value``. Unanswered: ``""``.
    * - ``member``
      - :meth:`~kompass.rules.Inputs.member`
      - One person out of :attr:`~kompass.rules.Input.options`. Unanswered:
@@ -312,34 +335,164 @@ person is shown.
 
 For ``member`` and ``member_set``, the engine re-validates a submitted answer
 against the options the declaration offered, so an answer can never name
-somebody the rule did not offer. A rule cannot widen the set by returning a
-wider one from somewhere else either: the leaders in
-:attr:`~kompass.rules.Excursion.leaders` are re-checked too.
+somebody the rule did not offer. A ``choice`` is re-validated against its own
+:attr:`~kompass.rules.Input.choices` in exactly the same way, so an answer can
+never be a value the rule did not offer either.
 
-Which *keys* may be declared is a separate and much tighter restriction than
-which types exist — see
-:ref:`development_manual/finance_rules/four_keys`.
+The key is free: a statement stores its answers in one JSON field, so any key
+a ruleset declares can hold an answer, and the four the reference ruleset
+happens to use have no special status.
 
-.. warning::
-   **Do not use** ``choice`` **yet** (**#573**). It is in the vocabulary and
-   the form renders it, but there is no way to say what may be chosen:
-   :attr:`~kompass.rules.Input.options` is ``tuple[Member, ...]`` and
-   ``finance/inputs.py::options_for`` resolves it through
-   ``Member.objects.in_bulk``, so a ``choice`` arrives with an empty option
-   list and ``clean_value`` falls through to "anything else is text" — it
-   accepts any string at all.
+A declaration the engine cannot serve is refused where it is written, with
+:class:`~kompass.rules.RuleError` — a ``choice`` with no choices, a
+:attr:`~kompass.rules.Input.source` naming a field the context does not have, an
+:attr:`~kompass.rules.Input.options_source` on a question that names no people.
+Inside ``inputs`` that becomes an error on the statement with a traceback at
+the line in your rules, and in your own CI it fails a case before the version
+is ever activated. The alternative, which is what ``choice`` used to do, is a
+question that reaches somebody's form with nothing behind it.
 
-   Worse, the unanswered value is ``None`` while
-   :meth:`~kompass.rules.Inputs.text` type-checks against ``str``, so reading
-   an unanswered ``choice`` with the accessor its type suggests raises
-   :class:`~kompass.rules.RuleError` — and because that happens inside
-   :meth:`~kompass.rules.Ruleset.transfers`, it collapses the whole evaluation
-   into one error rather than reporting a missing answer.
+.. _development_manual/finance_rules/choices:
 
-   Until #573, a fixed set of alternatives is a ``bool`` per alternative, or a
-   ``text`` input whose value a check validates. If you must use ``choice``,
-   read it with :meth:`~kompass.rules.Inputs.raw` and test for ``None``
-   before anything else — and know that nothing validates what came in.
+A choice names its own alternatives
+-----------------------------------
+
+A ``choice`` has to say what may be chosen, as :class:`~kompass.rules.Choice`
+values. The ``value`` is what is stored and what a rule reads; the ``label`` is
+what the person picking it is shown, so a section can reword the question
+without touching the rules or re-settling anything::
+
+    Input(
+        "regime",
+        "Nach welchem Regelwerk?",
+        "choice",
+        choices=(
+            Choice("ehrenamt", "Ehrenamtspauschale"),
+            Choice("tourenleitung", "Tourenleitung"),
+        ),
+    )
+
+    # and in `transfers`
+    rate = RATES[ctx.inputs.text("regime")] if ctx.inputs.text("regime") else ZERO
+
+An unanswered ``choice`` reads as ``""``, like an unanswered ``text`` — so a
+rule reading one on a form somebody is halfway through gets an empty string,
+not an exception.
+
+.. _development_manual/finance_rules/derived:
+
+Derived inputs: a figure the statement already knows
+----------------------------------------------------
+
+Some of what a rule needs is not a question at all. The kilometres are on the
+excursion; asking a person to type them again invites two numbers that disagree.
+A declaration may therefore name where its value comes from::
+
+    Input("kilometers", "Gefahrene Kilometer", "int", required=False,
+          source="excursion.kilometers")
+
+**With an excursion whose source resolves,** the engine supplies the value. The
+declaration comes back with :attr:`~kompass.rules.Input.derived` set, the form
+shows the figure rather than an empty field, and submitting a value for the key
+is **refused** — a ``422`` keyed by that question. Wrong kilometres are
+corrected on the trip.
+
+**Without an excursion, or with nothing recorded,** it is an ordinary question
+whose answer is stored like any other.
+
+Either way the rule reads it the same way::
+
+    kilometers = ctx.inputs.number("kilometers")
+
+That is the whole point. Before, the same quantity lived in two places
+depending on provenance — ``ctx.excursion.kilometers`` off the trip, everything
+else out of ``inputs`` — so a ruleset serving statements both with and without
+an excursion had to branch on ``ctx.excursion is None`` and read a different
+place in each arm. One declaration and one accessor replace that.
+
+**A derived value is not stored.** It is resolved again every time a context is
+built, never written to ``Statement.inputs``. That is a decision rather than an
+omission: a stored copy would be a second figure to go stale when the trip is
+corrected, there would then be a question about which of the two is right, and
+re-seeding it would need a rule nobody has written. There is no second copy —
+the excursion is the record.
+
+A ``source`` is ``"<root>.<field>"``, one field deep. The roots are
+:data:`~kompass.rules.SOURCE_ROOTS`: ``excursion`` and ``statement``. The field
+has to be a real field of what that root holds — a field of
+:class:`~kompass.rules.Excursion` or of :class:`~kompass.rules.StatementInfo` —
+and anything else is refused where it is written, with the list of fields that
+do exist. There is no deeper path, no callable from the ruleset and no
+``getattr`` chain over arbitrary objects: the engine looks up one named field of
+one frozen dataclass it built itself, which is what keeps the query guard's
+story intact. A figure further in than one field —
+``ctx.excursion.ljp.participant_count`` — is read off the context by the rule
+that wants it, which needs no declaration at all.
+
+The value arrives as the type the field holds, coerced like a stored answer:
+``excursion.kilometers`` is a whole number, ``excursion.duration`` is money,
+``statement.creator`` is a :class:`~kompass.rules.Member`,
+``excursion.leaders`` is a set of them. Match the widget to the field; naming a
+field that holds a whole nested structure is a mistake the form will show you
+as text.
+
+.. _development_manual/finance_rules/options:
+
+Where a party-valued question's people come from
+------------------------------------------------
+
+``member`` and ``member_set`` need a domain, and a ruleset that has an excursion
+can simply write one: ``options=ctx.excursion.leaders``. A statement that
+settles a purchase rather than a trip has no leaders — and so, until this, no
+way to pay anybody at all.
+
+A declaration may instead name where the engine should take them from::
+
+    Input("paid_to", "Auslagen an", "member", required=False,
+          options_source="bills.payers")
+
+The vocabulary is :data:`~kompass.rules.OPTION_SOURCES`, and it is a fixed list
+rather than a path on purpose: this is the one declaration where a mistake costs
+money, so every name in it is a set the *statement itself* carries.
+
+``excursion.leaders``
+    the trip's youth leaders — what a trip-shaped ruleset writes by hand.
+``excursion.participants``
+    everybody on the trip's member list, leaders included.
+``bills.payers``
+    whoever paid one of this statement's receipts. The answer for a purchase.
+``statement.creator``, ``statement.submitter``
+    the two people the statement names itself.
+
+No spelling of it reaches somebody the statement does not already mention, and
+"every member in the section" is not reachable. The engine fills
+:attr:`~kompass.rules.Input.options` in, deduplicated and in id order, and the
+submitted answer is then re-validated against it like any other. Say it once:
+a declaration that both lists its options and names a source for them is
+refused.
+
+.. _development_manual/finance_rules/steps:
+
+Steps: which questions belong together
+--------------------------------------
+
+The declarations are a flat list, so a client can only lay them out as one long
+form. ``step`` is a short label that says otherwise::
+
+    Input("regime", "Regelwerk", "choice", step="Grundlagen", choices=...)
+    Input("kilometers", "Kilometer", "int", step="Fahrt", source=...)
+    Input("paid_to", "Auslagen an", "member", step="Fahrt", options_source=...)
+
+``GET …/form`` then serves ``steps`` as well as ``inputs``: a label and the
+keys in it, in declaration order, with the steps in the order their labels
+first appear. Every key is in exactly one step, and a ruleset that names none
+comes back as a single step with an empty label — so a client can render the
+grouping unconditionally.
+
+That is all it is. There is no page state, no "next", no notion of a step being
+complete: which questions belong together is the section's business, how to
+present them is the client's, and a wizard in the backend would be Kompass
+deciding both.
 
 
 The section's numbers
@@ -416,53 +569,36 @@ and never activated.
 The format is implemented in ``jdav_web/finance/engine/cases.py``, which is
 also where a new key would be added.
 
-.. _development_manual/finance_rules/four_keys:
+.. _development_manual/finance_rules/derived_cases:
 
-Only four input keys can be answered today
-------------------------------------------
+What a case cannot prove about a derived input
+----------------------------------------------
 
-.. danger::
-   This is the one restriction on this page that can cost money, and it is a
-   restriction of the **running instance**, not of the case runner.
+A case answers questions, and a derived question is not answered: the engine
+resolves it from the context the case file describes. So writing ``kilometers``
+into a case's ``inputs`` proves nothing — the engine will supply
+``excursion.kilometers`` over it, exactly as it does on a real statement. Put
+the figure where the rule will read it from::
 
-   A statement does not yet store its answers in one field. It has four
-   columns, the ones the reference ruleset happens to need, and
-   ``finance/engine/context.py::statement_inputs`` returns exactly those:
-   ``night_cost``, ``allowance_to``, ``subsidy_to`` and ``ljp_to``. A
-   declaration under any other key has nowhere to be stored, so
-   ``finance/engine/evaluation.py::_answered`` substitutes that type's empty
-   value — ``0.00``, ``0``, ``False``, ``""``, ``None`` or ``()`` — on every
-   evaluation. The person is asked the question, the answer goes nowhere, and
-   the rule reads a zero. Nothing raises and nothing warns.
+    {
+      "name": "travel at the volunteer rate",
+      "inputs": {"regime": "ehrenamt", "paid_to": 7},
+      "excursion": {"kilometers": 100, "leaders": [7]},
+      "bills": [{"amount": "40.00", "payer": 7}],
+      "expect": {"transfers": [["SECTION", "7", "20.00", "travel"],
+                               ["PARTICIPANTS", "SECTION", "20.00",
+                                "participant_contribution"]]}
+    }
 
-   :meth:`~kompass.rules.Inputs.raw` does not get round it: the key is present
-   in the mapping, holding the empty value. There is nothing else to read.
+A case **can** prove the other half, and it is the half worth a case: leave
+``excursion`` out and the same declaration is an ordinary question, so a case
+with ``"inputs": {"kilometers": 250}`` and no trip is the statement that
+settles a purchase. Both arms of one declaration, in two files.
 
-   **A case will not catch it**, which is what makes it dangerous.
-   ``cases.py::_inputs`` coerces those same four keys and passes any other key
-   through as JSON wrote it, so a case that answers a custom key proves
-   something the instance will never do: the case goes green and production
-   pays zero.
-
-   Until the answers move into one JSON field (step 3 of the refactor,
-   **#556**, in flight), a rule may only read those four keys — and a section
-   whose policy needs another number puts it in the ruleset as a module
-   constant, where it is versioned with the rules, rather than declaring an
-   input for it.
-
-   One consequence of the four keys being the reference ruleset's: their
-   *types* are fixed too — ``night_cost`` is ``money``, ``allowance_to`` is
-   ``member_set``, ``subsidy_to`` and ``ljp_to`` are ``member``. A declaration
-   that reuses a key with a different type gets the column's value, not the
-   declared type's.
-
-..
-   MAINTENANCE: when #556 lands — the answers moving into one JSON field —
-   this whole section shrinks to a sentence about the case runner coercing
-   only the four keys, the "which keys" sentence under the widget table goes
-   away, and the comment in `deploy/config-template/rules/__init__.py` and the
-   README's Ludwigsburg table need the same edit. #556 is in flight and may
-   land right after this page.
+Option sources are resolved for a case too, from the same context — the
+``bills`` above are where ``options_source="bills.payers"`` finds member 7 —
+so a case that answers a party-valued question is checked against the people
+the instance would really have offered.
 
 
 Checking a ruleset
@@ -654,6 +790,9 @@ What a ruleset returns
 .. autoclass:: Input
    :members:
 
+.. autoclass:: Choice
+   :members:
+
 .. py:data:: InputType
    :value: Literal["money", "int", "bool", "text", "choice", "member", "member_set"]
 
@@ -661,6 +800,22 @@ What a ruleset returns
    presentation, not rule structure: see
    :ref:`development_manual/finance_rules/widgets` for what each one is and
    how its answer is read.
+
+.. py:data:: SOURCE_ROOTS
+   :value: ("excursion", "statement")
+
+   The context fields an :attr:`Input.source` may start at. A source is
+   ``"<root>.<field>"``, one field deep, and the field has to be a real field
+   of what that root holds — see
+   :ref:`development_manual/finance_rules/derived`.
+
+.. py:data:: OPTION_SOURCES
+   :value: ("excursion.leaders", "excursion.participants", "bills.payers", "statement.creator", "statement.submitter")
+
+   Where an :attr:`Input.options_source` may take a party-valued question's
+   people from. A fixed vocabulary rather than a path, so that no spelling of
+   it reaches somebody the statement does not already mention — see
+   :ref:`development_manual/finance_rules/options`.
 
 .. autoclass:: Check
    :members:
