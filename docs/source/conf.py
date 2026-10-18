@@ -3,9 +3,17 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import sys
 from dataclasses import asdict
+from pathlib import Path
 
 from sphinxawesome_theme import ThemeOptions
+
+# `kompass.rules` — the API a section's finance rules are written against — is
+# documented from its own docstrings, which were written for a rule author. It
+# lives in the Django project directory, so that directory has to be importable
+# here as it is at runtime.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "jdav_web"))
 
 # -- Project information -------------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -18,12 +26,27 @@ copyright = f"2025, {author}"
 # -- General configuration -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = ["sphinx.ext.autodoc"]
 
 templates_path = ["_templates"]
 exclude_patterns = []
 
 language = "de"
+
+# -- Options for autodoc -------------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
+
+# Declaration order, not alphabetical: the rules API is documented to be read
+# top to bottom, and `Ruleset.inputs` before `Ruleset.transfers` is the order a
+# ruleset is written in.
+autodoc_member_order = "bysource"
+
+# Nothing is mocked, and `kompass.rules` is why that is possible: the module
+# imports the standard library and nothing else, no Django and no models, so
+# autodoc importing it is as cheap and as side-effect-free as a ruleset
+# importing it. Anything added here would be a sign that the rules API had
+# grown a dependency a section's rules cannot have either.
+autodoc_mock_imports = []
 
 # -- Options for HTML output ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

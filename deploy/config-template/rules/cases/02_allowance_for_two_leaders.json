@@ -1,0 +1,28 @@
+{
+  "name": "two of three leaders claim the allowance, and the participants cover it",
+  "params": {"ALLOWANCE_PER_DAY": "22"},
+  "inputs": {"allowance_to": [1, 2]},
+  "excursion": {
+    "duration": "2.0",
+    "nights": 1,
+    "kilometers": 120,
+    "approach": "public",
+    "leaders": [1, 2, 3],
+    "staff_count": 3,
+    "approved_staff_count": 2,
+    "participants": [
+      {"member": 10, "age": 15, "age_at_start": 15},
+      {"member": 11, "age": 16, "age_at_start": 15},
+      {"member": 1, "age": 24, "age_at_start": 24, "is_leader": true}
+    ]
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "44.00", "allowance"],
+      ["SECTION", "2", "44.00", "allowance"],
+      ["PARTICIPANTS", "SECTION", "88.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true]
+  }
+}
