@@ -6,6 +6,7 @@ import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,6 +17,7 @@ from django.test import override_settings
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from django.utils import translation
 from equipment import services
 from equipment.models import CustodyEvent
 from equipment.models import Deficit
@@ -33,6 +35,14 @@ Application = get_application_model()
 AccessToken = get_access_token_model()
 
 BASE = "/api/material"
+
+
+def site_text(message, **values):
+    """``message`` as the API says it: in the site's language, which /api/ is pinned to."""
+    with translation.override(settings.LANGUAGE_CODE):
+        return translation.gettext(message) % values if values else translation.gettext(message)
+
+
 TODAY = timezone.localdate()
 
 
@@ -678,7 +688,14 @@ class LendingRulesApiTestCase(ApiMixin, TestCase):
         body = {"parts": [self.crampons[0].pk], "due": days(3)}
         r = self.post("alice", "/loans", body)
         self.assertEqual(r.status_code, 422)
-        self.assertIn("belongs to Hochtour", r.json()["detail"][0])
+        self.assertEqual(
+            r.json()["detail"][0],
+            site_text(
+                "%(part)s belongs to %(group)s. Reserve it and wait for the group's approval.",
+                part=self.crampons[0],
+                group="Hochtour",
+            ),
+        )
         r = self.post("alice", "/loans", {"parts": [self.crampons[0].pk], "permanent": True})
         self.assertEqual(r.status_code, 422)
         self.assertEqual(self.post("carol", "/loans", body).status_code, 200)
@@ -716,7 +733,8 @@ class LendingRulesApiTestCase(ApiMixin, TestCase):
             "alice", "/parts/transfer", {"parts": [self.slings[0].pk], "member": self.carol.pk}
         )
         self.assertEqual(
-            r.json()["warnings"], ["{} stays on loan until {}.".format(self.slings[0], day(3))]
+            r.json()["warnings"],
+            [site_text("%(part)s stays on loan until %(due)s.", part=self.slings[0], due=day(3))],
         )
         self.assertFalse(loan.is_open)
         self.assertEqual([loan["due"] for loan in self.get("carol", "/loans").json()], [days(3)])
@@ -744,13 +762,22 @@ class LendingRulesApiTestCase(ApiMixin, TestCase):
         services.lend(self.carol, [self.crampons[0]], self.carol, due=day(1))
         r = self.post("carol", "/returns", {"parts": [self.crampons[0].pk]})
         self.assertEqual(r.status_code, 422)
-        self.assertIn("has no home location", r.json()["detail"][0])
+        self.assertEqual(
+            r.json()["detail"][0],
+            site_text(
+                "%(part)s has no home location. Choose where it is returned to.",
+                part=self.crampons[0],
+            ),
+        )
 
     def test_deleting_a_type_with_a_used_size(self):
         services.reserve(self.alice, day(1), day(1), [Line(size=self.size1)])
         r = self.delete("ida", "/types/{}".format(self.friends_type.pk))
         self.assertEqual(r.status_code, 422)
-        self.assertIn("Set its stock to 0", r.json()["detail"][0])
+        self.assertEqual(
+            r.json()["detail"][0],
+            site_text("A size of this type has been reserved or lent. Set its stock to 0 instead."),
+        )
 
     def test_a_wish_ends_after_it_starts(self):
         r = self.post(
@@ -777,7 +804,7 @@ class LendingRulesApiTestCase(ApiMixin, TestCase):
         with patch("equipment.api.router.render_tex", return_value=HttpResponse("pdf")) as render:
             self.assertEqual(self.get("dirk", "/loans/{}/receipt".format(loan.pk)).status_code, 200)
         tex = render_to_string("equipment/loan_receipt.tex", render.call_args.args[2])
-        self.assertIn("a deleted member", tex)
+        self.assertIn(site_text("a deleted member"), tex)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
