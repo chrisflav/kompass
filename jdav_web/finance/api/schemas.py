@@ -464,15 +464,36 @@ class InputOptionOut(Schema):
     name: str
 
 
+class InputChoiceOut(Schema):
+    """One alternative a ``choice`` answer may be.
+
+    ``value`` is what goes back in ``inputs`` and what the rules read;
+    ``label`` is what the person picking it is shown.
+    """
+
+    value: str
+    label: str
+
+
 class InputDeclarationOut(Schema):
     """One question the section's rules ask about a statement.
 
     Derived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks
     for something else gets a different form without anybody editing the API.
     ``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,
-    ``choice``, ``member``, ``member_set`` — and ``options`` is the domain a
+    ``choice``, ``member``, ``member_set``. ``options`` is the domain a
     party-valued answer may be picked from, resolved to names here because the
-    rules themselves never see them.
+    rules themselves never see them; ``choices`` is the same thing for a
+    ``choice``.
+
+    ``derived`` says the engine supplies this answer itself, from the
+    statement's own data — the kilometres off the excursion rather than off a
+    person. The value is in ``answers`` like any other, and
+    ``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading
+    of the trip, and a wrong one is corrected on the trip.
+
+    ``step`` is the label of the group the question belongs to; see
+    ``StatementFormOut.steps``.
     """
 
     key: str
@@ -482,21 +503,46 @@ class InputDeclarationOut(Schema):
     help: str = ""
     max: int | None = None
     options: list[InputOptionOut] = []
+    choices: list[InputChoiceOut] = []
+    step: str = ""
+    derived: bool = False
+
+
+class FormStepOut(Schema):
+    """One group of questions the rules said belong together.
+
+    A label and the keys in it, in declaration order. Nothing more: there is no
+    page state here and no notion of a step being finished — which questions
+    belong together is the section's business, and how to lay them out is the
+    client's.
+    """
+
+    label: str
+    keys: list[str] = []
 
 
 class StatementFormOut(Schema):
     """The questions this statement still has to answer, and its answers.
 
     ``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a
-    question once an earlier answer makes it moot — and ``answers`` is
-    restricted to the keys that survived that, so a retired answer is not
-    handed back to a client to re-submit. The values are as
-    ``Statement.inputs`` holds them: money as a string, a person as an id, a
-    set of people as a list of ids.
+    question once an earlier answer makes it moot — and since taxis #579 that
+    is also the question the *rules* are asked, so a question that is not here
+    is one no rule reads either. ``answers`` is restricted to the keys that
+    survived, so a retired answer is not handed back to be re-submitted.
+
+    The values are as ``Statement.inputs`` holds them: money as a string, a
+    person as an id, a set of people as a list of ids. A ``derived`` answer is
+    in the same shape, but it is resolved from the statement's own data on
+    every request rather than read out of storage — nothing stores it.
+
+    ``steps`` partitions ``inputs`` into the groups the ruleset named, in
+    order; every key appears in exactly one, and a form whose rules named no
+    steps comes back as a single step with an empty label.
     """
 
     statement_id: int
     inputs: list[InputDeclarationOut] = []
+    steps: list[FormStepOut] = []
     answers: dict[str, Any] = {}
 
 

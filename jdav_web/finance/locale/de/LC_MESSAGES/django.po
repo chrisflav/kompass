@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 18:22+0200\n"
+"POT-Creation-Date: 2026-10-18 22:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -280,6 +280,17 @@ msgstr "Finanzen"
 #, python-format
 msgid "These rules do not ask for %(key)s."
 msgstr "Diese Regeln fragen %(key)s nicht ab."
+
+#, python-format
+msgid ""
+"%(label)s is taken from the statement's own data and cannot be answered here."
+msgstr ""
+"%(label)s wird aus den Daten der Abrechnung übernommen und kann hier nicht "
+"beantwortet werden."
+
+#, python-format
+msgid "%(label)s is not one of the options offered."
+msgstr "%(label)s ist keine der angebotenen Auswahlmöglichkeiten."
 
 msgid "Only youth leaders of this excursion may receive contributions."
 msgstr "Nur Jugendleiter*innen dieser Ausfahrt können Zuschüsse erhalten."
