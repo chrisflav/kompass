@@ -23,6 +23,7 @@ period.
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date
 from datetime import timedelta
 
 from django.conf import settings
@@ -99,10 +100,18 @@ def blocking_reservations(start, end):
     )
 
 
+def _still_out(start):
+    """Open loans that reach into a period from ``start``: due then or later, or overdue.
+
+    An overdue piece or size is not back, so it counts as taken until it is.
+    """
+    return Q(loan__due__gte=start) | Q(loan__due__lt=timezone.localdate())
+
+
 def blocked_part_ids(start, end):
     """Ids of pieces that are reserved or lent somewhere in ``start``–``end``."""
     reserved = blocking_reservations(start, end)
-    lent = LoanLine.objects.filter(returned_at__isnull=True, loan__due__gte=start)
+    lent = LoanLine.objects.filter(_still_out(start), returned_at__isnull=True)
     return set(reserved.values_list("part_id", flat=True)) | set(
         lent.values_list("part_id", flat=True)
     )
@@ -141,18 +150,28 @@ def sizes_taken(start, end, exclude_reservation=None):
     intervals = list(
         reserved.values_list("size_id", "reservation__start", "reservation__end", "quantity")
     )
-    lent = LentSize.objects.filter(returned_at__isnull=True, loan__due__gte=start)
+    today = timezone.localdate()
+    lent = LentSize.objects.filter(_still_out(start), returned_at__isnull=True)
     for size_id, due, quantity, returned in lent.values_list(
         "size_id", "loan__due", "quantity", "returned"
     ):
-        intervals.append((size_id, start, due, quantity - returned))
+        last = end if due < today else due
+        intervals.append((size_id, start, last, quantity - returned))
     return _peak(intervals, start, end)
 
 
 def open_loan_line(part):
     return (
-        LoanLine.objects.filter(part=part, returned_at__isnull=True).select_related("loan").first()
+        LoanLine.objects.filter(part=part, returned_at__isnull=True)
+        .select_related("loan__borrower")
+        .first()
     )
+
+
+def open_loan_lines(parts):
+    """Per piece id: the open loan line of each of ``parts`` that is out on a loan."""
+    lines = LoanLine.objects.filter(part__in=parts, returned_at__isnull=True)
+    return {line.part_id: line for line in lines.select_related("loan")}
 
 
 def open_loan_dues(part_ids=None):
@@ -308,9 +327,38 @@ def allocate(lines, start, end, borrower):
 
 
 def _lock(parts, sizes=()):
-    """Lock the rows of ``parts`` and ``sizes`` (and so serialise bookings on them) until the transaction ends."""
-    list(Part.objects.select_for_update().filter(pk__in=[p.pk for p in parts]))
+    """Lock the rows of ``parts`` and ``sizes`` (and so serialise bookings on them) until the transaction ends.
+
+    The custody and status of ``parts`` are read again once locked, so what
+    follows acts on the current state, not the one read before the lock.
+    """
+    locked = {
+        p.pk: p for p in Part.objects.select_for_update().filter(pk__in=[p.pk for p in parts])
+    }
+    for part in parts:
+        current = locked[part.pk]
+        part.holder_id = current.holder_id
+        part.location_id = current.location_id
+        part.status = current.status
     list(Size.objects.select_for_update().filter(pk__in=[s.pk for s in sizes]))
+
+
+def _lock_reservation(reservation):
+    """Lock ``reservation`` until the transaction ends, and read its current status."""
+    reservation.status = (
+        Reservation.objects.select_for_update()
+        .values_list("status", flat=True)
+        .get(pk=reservation.pk)
+    )
+
+
+def _top_levels(parts):
+    """The pieces that move for ``parts``: each one's outermost assembly, once."""
+    pieces = {}
+    for part in parts:
+        piece = part.top_level
+        pieces.setdefault(piece.pk, piece)
+    return list(pieces.values())
 
 
 def _approval_groups(parts, sizes, own):
@@ -385,7 +433,12 @@ def reserve(borrower, start, end, lines, by=None, note=""):
 
 @transaction.atomic
 def decide(reservation, group, approved, by, comment=""):
-    """Record ``group``'s decision on ``reservation``."""
+    """Record ``group``'s decision on ``reservation``.
+
+    The reservation is locked first, so of two decisions at once the second
+    sees the first, and the last approval confirms the reservation.
+    """
+    _lock_reservation(reservation)
     if reservation.status != Reservation.REQUESTED:
         raise ValidationError(_("This reservation is no longer waiting for a decision."))
     approval = reservation.approvals.filter(group=group, approved__isnull=True).first()
@@ -407,7 +460,9 @@ def decide(reservation, group, approved, by, comment=""):
     return reservation
 
 
+@transaction.atomic
 def cancel(reservation):
+    _lock_reservation(reservation)
     if reservation.status not in Reservation.BLOCKING:
         raise ValidationError(_("Only an open reservation can be cancelled."))
     reservation.status = Reservation.CANCELLED
@@ -434,13 +489,15 @@ def _reallocate(reserved_part, start, end, avoid):
     return True
 
 
-def _claim(part, start, end, reservation=None):
+def _claim(part, start, end, reservation=None, avoid=()):
     """Make ``part`` free for ``start``–``end``, taking it from another reservation if allowed.
 
     A piece allocated to ``reservation`` itself is fine. One allocated, unpinned, to
-    another reservation is replaced there by another free piece. Raises
+    another reservation is replaced there by another free piece, never by one of
+    ``avoid`` (the pieces handed out together with ``part``). Raises
     :class:`Conflict` otherwise.
     """
+    avoid = set(avoid) | {part.pk}
     others = (
         blocking_reservations(start, end)
         .filter(part=part)
@@ -449,7 +506,7 @@ def _claim(part, start, end, reservation=None):
     if reservation is not None:
         others = others.exclude(reservation=reservation)
     for reserved in others:
-        if reserved.pinned or not _reallocate(reserved, start, end, {part.pk}):
+        if reserved.pinned or not _reallocate(reserved, start, end, avoid):
             raise Conflict(
                 [
                     _("%(part)s is reserved by %(name)s from %(start)s to %(end)s.")
@@ -498,7 +555,7 @@ def _move(part, kind, by, member=None, location=None, loan=None):
 
 
 @transaction.atomic
-def lend(borrower, parts, by, due=None, reservation=None, sizes=(), permanent=False):
+def lend(borrower, parts, by, due=None, reservation=None, sizes=(), permanent=False, desk=False):
     """Hand ``parts`` and ``sizes`` (``(size, quantity)`` pairs) to ``borrower``. Returns the loan.
 
     With a reservation the loan is due at its end, and pieces of a type the
@@ -508,10 +565,15 @@ def lend(borrower, parts, by, due=None, reservation=None, sizes=(), permanent=Fa
     ``permanent`` hands the pieces over for good instead: the borrower then
     holds them without a loan (see :func:`transfer`), and None is returned.
     Counted sizes cannot be handed over for good.
+
+    Unless the ``desk`` lends, material of a group that is not the borrower's
+    own needs that group's approval: it must be covered by ``reservation``.
     """
     today = timezone.localdate()
-    if reservation is not None and reservation.status != Reservation.CONFIRMED:
-        raise ValidationError(_("Only a confirmed reservation can be picked up."))
+    if reservation is not None:
+        _lock_reservation(reservation)
+        if reservation.status != Reservation.CONFIRMED:
+            raise ValidationError(_("Only a confirmed reservation can be picked up."))
     if permanent:
         if any(quantity > 0 for _size, quantity in sizes):
             raise ValidationError(_("Counted material can only be lent with a return date."))
@@ -519,11 +581,7 @@ def lend(borrower, parts, by, due=None, reservation=None, sizes=(), permanent=Fa
         due = reservation.end
     if not permanent and (due is None or due < today):
         raise ValidationError(_("Give a return date that is not in the past."))
-    pieces = []
-    for part in parts:
-        piece = part.top_level
-        if piece.pk not in {p.pk for p in pieces}:
-            pieces.append(piece)
+    pieces = _top_levels(parts)
     wanted = Counter()
     by_pk = {}
     for size, quantity in sizes:
@@ -534,6 +592,12 @@ def lend(borrower, parts, by, due=None, reservation=None, sizes=(), permanent=Fa
         raise ValidationError(_("Nothing was selected."))
     _lock(pieces, by_pk.values())
     problems = []
+    if not desk:
+        for material in _without_approval(borrower, pieces, wanted, by_pk, reservation):
+            problems.append(
+                _("%(part)s belongs to %(group)s. Reserve it and wait for the group's approval.")
+                % {"part": material, "group": material.group.name}
+            )
     taken = sizes_taken(today, due, exclude_reservation=reservation) if wanted else {}
     for pk, quantity in wanted.items():
         size = by_pk[pk]
@@ -551,19 +615,21 @@ def lend(borrower, parts, by, due=None, reservation=None, sizes=(), permanent=Fa
         if line is not None:
             problems.append(
                 _("%(part)s is still lent to %(name)s.")
-                % {"part": piece, "name": line.loan.borrower.name}
+                % {"part": piece, "name": line.loan.borrower_name}
             )
     if problems:
         raise Conflict(problems)
     if reservation is not None:
         _swap_into(reservation, pieces)
+    together = {piece.pk for piece in pieces}
+    # Taken for good, a piece is held from today on with no end.
+    for piece in pieces:
+        _claim(piece, today, date.max if permanent else due, reservation, together)
     if permanent:
         for piece in pieces:
             _move(piece, CustodyEvent.TRANSFER, by, member=borrower)
         _fulfil(reservation)
         return None
-    for piece in pieces:
-        _claim(piece, today, due, reservation)
     loan = Loan.objects.create(borrower=borrower, reservation=reservation, due=due, created_by=by)
     for piece in pieces:
         LoanLine.objects.create(loan=loan, part=piece)
@@ -574,6 +640,42 @@ def lend(borrower, parts, by, due=None, reservation=None, sizes=(), permanent=Fa
     return loan
 
 
+def _without_approval(borrower, pieces, wanted, sizes, reservation):
+    """The pieces and sizes of a loan that need an approval ``borrower`` has not got.
+
+    Material of a group that is not the borrower's own is covered only by their
+    confirmed ``reservation``: a piece allocated to it, a piece of the same type
+    and group standing in for an allocated one, or no more of a size than it
+    reserved. ``wanted`` counts the pieces taken per size id, ``sizes`` maps
+    size ids to sizes.
+    """
+    own = member_group_ids(borrower)
+    allocated, reserved = [], {}
+    if reservation is not None:
+        allocated = list(reservation.reservedpart_set.select_related("part"))
+        reserved = dict(reservation.reserved_sizes.values_list("size_id", "quantity"))
+    picked = {p.pk for p in pieces}
+    allocated_ids = {rp.part_id for rp in allocated}
+    spare = Counter(
+        (rp.part.product_type_id, rp.part.group_id)
+        for rp in allocated
+        if rp.part_id not in picked and not rp.pinned
+    )
+    missing = []
+    for piece in pieces:
+        if not needs_approval(piece, own) or piece.pk in allocated_ids:
+            continue
+        key = (piece.product_type_id, piece.group_id)
+        if spare[key] > 0:
+            spare[key] -= 1
+        else:
+            missing.append(piece)
+    for pk, quantity in wanted.items():
+        if needs_approval(sizes[pk], own) and quantity > reserved.get(pk, 0):
+            missing.append(sizes[pk])
+    return missing
+
+
 def _fulfil(reservation):
     if reservation is not None:
         reservation.status = Reservation.FULFILLED
@@ -581,14 +683,19 @@ def _fulfil(reservation):
 
 
 def _swap_into(reservation, pieces):
-    """Let pieces picked at pickup stand in for the reservation's allocated pieces of their type."""
+    """Let pieces picked at pickup stand in for the reservation's allocated pieces of their type.
+
+    An allocated piece of the same owner group is replaced first.
+    """
     allocated = list(reservation.reservedpart_set.select_related("part"))
     picked = {p.pk for p in pieces}
     spare = [rp for rp in allocated if rp.part_id not in picked and not rp.pinned]
     for piece in pieces:
         if piece.pk in {rp.part_id for rp in allocated}:
             continue
-        match = next((rp for rp in spare if rp.part.product_type_id == piece.product_type_id), None)
+        same_type = [rp for rp in spare if rp.part.product_type_id == piece.product_type_id]
+        same_group = [rp for rp in same_type if rp.part.group_id == piece.group_id]
+        match = (same_group or same_type or [None])[0]
         if match is not None:
             spare.remove(match)
             match.part = piece
@@ -597,13 +704,22 @@ def _swap_into(reservation, pieces):
 
 @transaction.atomic
 def return_parts(parts, by, location=None, flagged=()):
-    """Take ``parts`` back, to ``location`` or each piece's home location."""
-    flagged_ids = {p.pk for p in flagged}
-    returned = []
-    for part in parts:
-        piece = part.top_level
-        if piece.pk in {p.pk for p in returned}:
-            continue
+    """Take ``parts`` back, to ``location`` or each piece's home location.
+
+    A piece without a home location needs ``location``: a returned piece is
+    always somewhere.
+    """
+    # A flagged component flags the piece it is built into.
+    flagged_ids = {p.top_level.pk for p in flagged}
+    pieces = _top_levels(parts)
+    _lock(pieces)
+    for piece in pieces:
+        if location is None and piece.home_location is None:
+            raise ValidationError(
+                _("%(part)s has no home location. Choose where it is returned to.")
+                % {"part": piece}
+            )
+    for piece in pieces:
         line = open_loan_line(piece)
         if line is not None:
             line.returned_at = timezone.now()
@@ -615,18 +731,25 @@ def return_parts(parts, by, location=None, flagged=()):
             location=location or piece.home_location,
             loan=line.loan if line else None,
         )
-        if piece.pk in flagged_ids or part.pk in flagged_ids:
+        if piece.pk in flagged_ids:
             piece.status = Part.INSPECTION_DUE
             piece.save(update_fields=["status"])
-        returned.append(piece)
-    return returned
+    return pieces
 
 
 @transaction.atomic
 def return_sizes(returns):
     """Take back ``(lent size, quantity)`` pairs. Returns the lent sizes that changed."""
+    locked = {
+        lent.pk: lent
+        for lent in LentSize.objects.select_for_update().filter(
+            pk__in=[lent.pk for lent, _quantity in returns]
+        )
+    }
     changed = []
     for lent, quantity in returns:
+        current = locked[lent.pk]
+        lent.returned, lent.returned_at = current.returned, current.returned_at
         quantity = min(quantity, lent.outstanding)
         if quantity <= 0:
             continue
@@ -646,23 +769,54 @@ def _close_loan_lines(pieces):
 
 
 @transaction.atomic
-def hand_over(parts, by, member=None, location=None, due=None, sizes=()):
+def hand_over(parts, by, member=None, location=None, due=None, sizes=(), keep_loans=False):
     """Hand ``parts`` to ``member`` or put them at ``location``. Returns warnings.
 
     With ``due`` the member borrows them until then, together with ``sizes``.
     Without, the member has them for good: they stay bookable, and the member
     is asked to bring them back when someone reserves them. Open loans of the
     pieces end first, so the one handing them on is no longer their borrower.
+
+    ``keep_loans`` keeps a lent piece on loan when it goes to a member without
+    ``due``: the member takes the loan over until its due date, so passing a
+    piece on cannot end the duty to bring it back.
     """
+    pieces = _top_levels(parts)
+    _lock(pieces)
     if due is None:
         if any(quantity > 0 for _size, quantity in sizes):
             raise ValidationError(_("Counted material can only be lent with a return date."))
-        return transfer(parts, by, member=member, location=location)
+        warnings = []
+        if keep_loans and member is not None:
+            pieces, warnings = _pass_loans_on(pieces, by, member)
+            if not pieces:
+                return warnings
+        return warnings + transfer(pieces, by, member=member, location=location)
     if member is None:
         raise ValidationError(_("Only a person can borrow material."))
-    _close_loan_lines([part.top_level for part in parts])
-    lend(member, parts, by, due=due, sizes=sizes)
+    _close_loan_lines(pieces)
+    lend(member, pieces, by, due=due, sizes=sizes, desk=True)
     return []
+
+
+def _pass_loans_on(pieces, by, member):
+    """Lend the lent ones of ``pieces`` to ``member`` until they are due. Returns the others, and warnings."""
+    today = timezone.localdate()
+    dues = open_loan_dues([p.pk for p in pieces])
+    lent, rest, warnings = {}, [], []
+    for piece in pieces:
+        if piece.pk in dues:
+            lent.setdefault(max(dues[piece.pk], today), []).append(piece)
+        else:
+            rest.append(piece)
+    for due, group in sorted(lent.items()):
+        _close_loan_lines(group)
+        lend(member, group, by, due=due, desk=True)
+        warnings += [
+            _("%(part)s stays on loan until %(due)s.") % {"part": piece, "due": due}
+            for piece in group
+        ]
+    return rest, warnings
 
 
 @transaction.atomic
@@ -673,12 +827,10 @@ def transfer(parts, by, member=None, location=None):
     """
     if (member is None) == (location is None):
         raise ValidationError(_("Choose either a member or a location."))
-    warnings, pieces = [], []
+    warnings = []
     soon = timezone.localdate() + timedelta(days=7)
-    for part in parts:
-        piece = part.top_level
-        if piece.pk not in {p.pk for p in pieces}:
-            pieces.append(piece)
+    pieces = _top_levels(parts)
+    _lock(pieces)
     _close_loan_lines(pieces)
     for piece in pieces:
         reserved = (
@@ -752,17 +904,46 @@ def inspect(part, result, by, date=None, comment="", photo=None):
             by=by,
         )
         today = timezone.localdate()
+        shrunk = {}
         for reserved in ReservedPart.objects.filter(
             part=part, reservation__status__in=Reservation.BLOCKING, reservation__end__gte=today
-        ).select_related("reservation", "part__product_type"):
+        ).select_related("reservation__borrower", "part__product_type"):
             if not _reallocate(
                 reserved, reserved.reservation.start, reserved.reservation.end, {part.pk}
             ):
                 reserved.delete()
+                shrunk[reserved.reservation.pk] = reserved.reservation
+        for reservation in shrunk.values():
+            _drop_retired(reservation, part)
     elif part.status == Part.INSPECTION_DUE:
         part.status = Part.ACTIVE
         part.save(update_fields=["status"])
     return inspection
+
+
+def _drop_retired(reservation, part):
+    """Tell the borrower of ``reservation`` that the retired ``part`` left it without a replacement.
+
+    A reservation left with nothing is cancelled.
+    """
+    cancelled = (
+        not reservation.reservedpart_set.exists() and not reservation.reserved_sizes.exists()
+    )
+    if cancelled:
+        reservation.status = Reservation.CANCELLED
+        reservation.save(update_fields=["status"])
+    _mail(
+        reservation.borrower,
+        _("Material reservation cancelled") if cancelled else _("Reserved material retired"),
+        settings.MATERIAL_PIECE_RETIRED_TEXT.format(
+            name=reservation.borrower.prename,
+            part=part,
+            start=reservation.start,
+            end=reservation.end,
+            parts=_reservation_text(reservation) or "-",
+            link=material_link("/mine"),
+        ),
+    )
 
 
 # --- mails -------------------------------------------------------------------
@@ -884,7 +1065,8 @@ def send_notices(today=None):
     today = today or timezone.localdate()
     counts = {"declined": 0, "holders": 0, "pickups": 0, "returns": 0}
 
-    for reservation in Reservation.objects.filter(status=Reservation.REQUESTED, start__lte=today):
+    # Leaders may decide until the first day of the period is over.
+    for reservation in Reservation.objects.filter(status=Reservation.REQUESTED, start__lt=today):
         reservation.status = Reservation.DECLINED
         reservation.save(update_fields=["status"])
         notify_decision(reservation, approved=False, comment=_("No answer before the start."))
@@ -931,7 +1113,13 @@ def send_notices(today=None):
             counts["pickups"] += 1
 
     tomorrow = today + timedelta(days=1)
-    for loan in open_loans().filter(due__lte=tomorrow).exclude(last_reminder=today):
+    # The loan of a deleted member stays on record, but there is no one to remind.
+    for loan in (
+        open_loans()
+        .filter(due__lte=tomorrow, borrower__isnull=False)
+        .exclude(last_reminder=today)
+        .select_related("borrower")
+    ):
         parts = [line.part for line in loan.lines.filter(returned_at__isnull=True)]
         sizes = [
             (lent.size, lent.outstanding)

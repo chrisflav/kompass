@@ -9,14 +9,18 @@ from unittest.mock import patch
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.test import override_settings
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from equipment import services
 from equipment.models import CustodyEvent
 from equipment.models import Deficit
 from equipment.models import Inspection
+from equipment.models import Loan
 from equipment.models import Part
 from equipment.models import Size
 from equipment.models import Tag
@@ -152,6 +156,11 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         self.assertEqual(r.json()["address"], "Fels")
         self.assertEqual(self.delete("ida", "/locations/{}".format(location_id)).status_code, 200)
         self.assertEqual(self.post("alice", "/locations", {"name": "X"}).status_code, 403)
+
+    def test_recipients_are_all_members(self):
+        names = [m["name"] for m in self.get("alice", "/recipients").json()]
+        self.assertIn(self.carol.name, names)
+        self.assertIn(self.bob.name, names)
 
     # --- catalogue -------------------------------------------------------
 
@@ -655,3 +664,164 @@ class SizeApiTestCase(ApiMixin, TestCase):
         self.assertEqual((r.status_code, r.json()), (200, None))
         self.slings[0].refresh_from_db()
         self.assertEqual(self.slings[0].holder, self.alice)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class LendingRulesApiTestCase(ApiMixin, TestCase):
+    """Who may take, pass on and hand back what."""
+
+    def setUp(self):
+        super().setUp()
+        self.setUpSizes()
+
+    def test_taking_another_groups_material_needs_approval(self):
+        body = {"parts": [self.crampons[0].pk], "due": days(3)}
+        r = self.post("alice", "/loans", body)
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("belongs to Hochtour", r.json()["detail"][0])
+        r = self.post("alice", "/loans", {"parts": [self.crampons[0].pk], "permanent": True})
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(self.post("carol", "/loans", body).status_code, 200)
+        r = self.post(
+            "dirk",
+            "/loans",
+            {"parts": [self.crampons[1].pk], "due": days(3), "borrower": self.alice.pk},
+        )
+        self.assertEqual(r.status_code, 200)
+
+    def test_picking_up_an_approved_request(self):
+        reservation = services.reserve(self.alice, TODAY, day(2), [Line(self.crampon_type, 1)])
+        services.decide(reservation, self.hochtour, True, self.carol)
+        piece = reservation.parts.get()
+        r = self.post("alice", "/loans", {"parts": [piece.pk], "reservation": reservation.pk})
+        self.assertEqual(r.status_code, 200)
+
+    def test_a_borrower_cannot_keep_a_loan_by_handing_it_to_themselves(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=day(3))
+        body = {"parts": [self.slings[0].pk], "member": self.alice.pk}
+        r = self.post("alice", "/parts/transfer", body)
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(
+            self.post("alice", "/parts/transfer", {**body, "due": days(9)}).status_code, 422
+        )
+        self.assertTrue(loan.is_open)
+        # The desk may end a loan by handing a piece over for good.
+        self.assertEqual(self.post("dirk", "/parts/transfer", body).status_code, 200)
+        self.assertFalse(loan.is_open)
+        self.assertFalse(Loan.objects.filter(pk__gt=loan.pk).exists())
+
+    def test_a_lent_piece_passed_on_stays_on_loan(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=day(3))
+        r = self.post(
+            "alice", "/parts/transfer", {"parts": [self.slings[0].pk], "member": self.carol.pk}
+        )
+        self.assertEqual(
+            r.json()["warnings"], ["{} stays on loan until {}.".format(self.slings[0], day(3))]
+        )
+        self.assertFalse(loan.is_open)
+        self.assertEqual([loan["due"] for loan in self.get("carol", "/loans").json()], [days(3)])
+        # Passed on with a date, the loan runs until then.
+        r = self.post(
+            "carol",
+            "/parts/transfer",
+            {"parts": [self.slings[0].pk], "member": self.bob.pk, "due": days(5)},
+        )
+        self.assertEqual(r.json(), {"warnings": []})
+        self.assertEqual([loan["due"] for loan in self.get("bob", "/loans").json()], [days(5)])
+
+    def test_only_the_borrower_passes_on_a_lent_piece(self):
+        loan = services.lend(self.alice, [self.harness], self.alice, due=day(3))
+        body = {"parts": [self.harness.pk], "location": self.cupboard.pk}
+        # Bob leads the group that owns it, but Alice has it on loan.
+        r = self.post("bob", "/parts/transfer", body)
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(loan.is_open)
+        # The material team may take it back.
+        self.assertEqual(self.post("ida", "/parts/transfer", body).status_code, 200)
+        self.assertFalse(loan.is_open)
+
+    def test_returning_needs_a_place(self):
+        services.lend(self.carol, [self.crampons[0]], self.carol, due=day(1))
+        r = self.post("carol", "/returns", {"parts": [self.crampons[0].pk]})
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("has no home location", r.json()["detail"][0])
+
+    def test_deleting_a_type_with_a_used_size(self):
+        services.reserve(self.alice, day(1), day(1), [Line(size=self.size1)])
+        r = self.delete("ida", "/types/{}".format(self.friends_type.pk))
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("Set its stock to 0", r.json()["detail"][0])
+
+    def test_a_wish_ends_after_it_starts(self):
+        r = self.post(
+            "alice", "/deficits", {"text": "Seilsack", "wanted_from": days(3), "wanted_to": days(1)}
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("wanted_to", r.json()["errors"])
+
+    def test_receipt_counts_local_days(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=day(1))
+        # Half past midnight here is still the day before in UTC.
+        loan.out_at = timezone.make_aware(datetime.datetime.combine(TODAY, datetime.time(0, 30)))
+        loan.save()
+        with patch("equipment.api.router.render_tex", return_value=HttpResponse("pdf")) as render:
+            self.get("alice", "/loans/{}/receipt".format(loan.pk))
+        self.assertEqual(render.call_args.args[2]["days"], 2)
+
+    def test_the_loan_of_a_deleted_member(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=TODAY)
+        self.alice.delete()
+        data = self.get("dirk", "/loans", scope="all").json()
+        self.assertEqual([(row["id"], row["borrower"]) for row in data], [(loan.pk, None)])
+        self.assertIsNone(self.get("dirk", "/desk").json()["due"][0]["borrower"])
+        with patch("equipment.api.router.render_tex", return_value=HttpResponse("pdf")) as render:
+            self.assertEqual(self.get("dirk", "/loans/{}/receipt".format(loan.pk)).status_code, 200)
+        tex = render_to_string("equipment/loan_receipt.tex", render.call_args.args[2])
+        self.assertIn("a deleted member", tex)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class QueryCountApiTestCase(ApiMixin, TestCase):
+    """The lists ask the database a fixed number of times, however many rows they show."""
+
+    def setUp(self):
+        super().setUp()
+        self.setUpSizes()
+        self.rows = 0
+
+    def add_row(self):
+        i = self.rows
+        self.rows += 1
+        services.reserve(
+            self.alice,
+            day(10 * i + 1),
+            day(10 * i + 2),
+            [Line(self.sling_type, 1), Line(self.crampon_type, 1), Line(size=self.size1)],
+        )
+        services.lend(self.bob, [self.slings[i]], self.bob, due=TODAY, sizes=[(self.size2, 1)])
+
+    def count(self, name, path, **params):
+        headers = self.auth(name)
+        with CaptureQueriesContext(connection) as context:
+            r = self.client.get(BASE + path, params, **headers)
+        self.assertEqual(r.status_code, 200)
+        return len(context)
+
+    def counts(self):
+        return {
+            "reservations": self.count("alice", "/reservations"),
+            "all reservations": self.count("dirk", "/reservations", scope="all"),
+            "mine": self.count("alice", "/mine"),
+            "desk": self.count("dirk", "/desk"),
+            "loans": self.count("dirk", "/loans", scope="all"),
+            "type": self.count("alice", "/types/{}".format(self.sling_type.pk)),
+        }
+
+    def test_queries_do_not_grow_with_rows(self):
+        self.add_row()
+        one = self.counts()
+        self.add_row()
+        self.add_row()
+        self.assertEqual(len(self.get("alice", "/reservations").json()), 3)
+        self.assertEqual(len(self.get("dirk", "/desk").json()["due"]), 3)
+        self.assertEqual(self.counts(), one)

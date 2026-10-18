@@ -500,3 +500,21 @@ Bitte bring es zurück und trage die Rückgabe hier ein:
 Viele Grüße
 Dein KOMPASS""",
 )
+
+MATERIAL_PIECE_RETIRED_TEXT = get_text(
+    "material_piece_retired",
+    default="""Hallo {name},
+
+{part} aus deiner Reservierung vom {start} bis zum {end} wurde ausgemustert, und
+kein anderes Teil ist in diesem Zeitraum frei. Deine Reservierung umfasst jetzt noch:
+
+{parts}
+
+Ist nichts mehr übrig, ist die Reservierung storniert. Vielleicht findest du
+anderes Material hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)

@@ -71,6 +71,7 @@ from .schemas import ProductTypeIn
 from .schemas import ProductTypeOut
 from .schemas import ProductTypeUpdate
 from .schemas import PsaRow
+from .schemas import Ref
 from .schemas import ReservationCheckOut
 from .schemas import ReservationIn
 from .schemas import ReservationOut
@@ -210,6 +211,18 @@ def list_locations(request):
     return [_location(location) for location in Location.objects.all()]
 
 
+@router.get("/recipients", response=list[Ref])
+def list_recipients(request):
+    """Everyone material can be handed over to: the names of all confirmed members.
+
+    Unlike /members/ this is not narrowed to the members one may see, since a
+    holder may pass a piece on to any member.
+    """
+    get_member(request)
+    members = Member.objects.order_by("prename", "lastname").only("prename", "lastname")
+    return [serialize.ref(m) for m in members]
+
+
 @router.post("/locations", response=LocationOut)
 def create_location(request, payload: LocationIn):
     authorize(request, INVENTORY)
@@ -304,7 +317,12 @@ def delete_type(request, type_id: int):
     product_type = get_object_or_404(ProductType, pk=type_id)
     if product_type.parts.exists():
         raise Forbidden(_("A type that still has pieces cannot be deleted."))
-    product_type.delete()
+    try:
+        product_type.delete()
+    except ProtectedError:
+        raise ValidationError(
+            _("A size of this type has been reserved or lent. Set its stock to 0 instead.")
+        ) from None
     return {"success": True}
 
 
@@ -389,23 +407,43 @@ def transfer_parts(request, payload: TransferIn):
     Members hand over what they hold and what their groups own; the material
     team anything, including counted sizes.
     """
+    # A piece out on loan is passed on only by the one who has it or the
+    # material team, never to oneself, and stays on loan with its due date
+    # unless a date is given: only the desk ends a loan by handing it over for good.
     member = get_member(request)
     parts = _parts(payload.parts)
     sizes = [(get_object_or_404(Size, pk=s.size), s.quantity) for s in payload.sizes]
+    lending = _can(request, LENDING)
+    lent = services.open_loan_lines([part.top_level for part in parts])
     if not _manager(request):
         if sizes:
             raise Forbidden(_("Only the material team hands out counted material."))
         led = set(member.leited_groups.values_list("pk", flat=True))
         for part in parts:
             piece = part.top_level
-            if piece.holder_id != member.pk and (
+            line = lent.get(piece.pk)
+            if line is not None:
+                if member.pk not in (piece.holder_id, line.loan.borrower_id):
+                    raise Forbidden(
+                        _("%(part)s is lent to someone else. Only they can pass it on.")
+                        % {"part": piece}
+                    )
+            elif piece.holder_id != member.pk and (
                 piece.group_id is None or piece.group_id not in led
             ):
                 raise Forbidden(_("You can only pass on material you hold or your groups own."))
     target = _optional(Member, payload.member)
     location = _optional(Location, payload.location)
+    if lent and not lending and target is not None and target.pk == member.pk:
+        raise ValidationError(_("Material on loan cannot be handed over to yourself."))
     warnings = services.hand_over(
-        parts, member, member=target, location=location, due=payload.due, sizes=sizes
+        parts,
+        member,
+        member=target,
+        location=location,
+        due=payload.due,
+        sizes=sizes,
+        keep_loans=not lending,
     )
     return {"warnings": warnings}
 
@@ -663,7 +701,7 @@ def list_reservations(
             Q(reservedpart__part__product_type=product_type)
             | Q(reserved_sizes__size__product_type=product_type)
         ).distinct()
-    return [serialize.reservation(r, led) for r in reservations]
+    return serialize.reservations(reservations, led)
 
 
 def _visible_reservation(request, member, reservation_id):
@@ -729,6 +767,7 @@ def create_loan(request, payload: LoanIn):
         reservation=reservation,
         sizes=sizes,
         permanent=payload.permanent,
+        desk=_can(request, LENDING),
     )
     return serialize.loan(loan) if loan is not None else None
 
@@ -743,7 +782,7 @@ def list_loans(request, scope: str = "mine", open: bool = True):
         loans = loans.filter(borrower=member)
     if open:
         loans = loans.filter(pk__in=services.open_loans())
-    return [serialize.loan(loan) for loan in loans]
+    return serialize.loans(loans)
 
 
 @router.get("/loans/{loan_id}/receipt")
@@ -754,7 +793,7 @@ def loan_receipt(request, loan_id: int):
     if loan.borrower_id != member.pk:
         authorize(request, LENDING)
     lines = list(loan.lines.select_related("part__product_type"))
-    rate_days = (loan.due - loan.out_at.date()).days + 1
+    rate_days = (loan.due - timezone.localdate(loan.out_at)).days + 1
     rows = []
     for line in lines:
         rate = line.part.product_type.daily_rate
@@ -845,7 +884,7 @@ def mine(request):
     held_sizes.sort(key=lambda s: (not s["overdue"], s["due"], s["size"]["name"]))
     reservations = Reservation.objects.filter(
         borrower=member, status__in=Reservation.BLOCKING, end__gte=today
-    )
+    ).select_related("borrower")
     led = _led_group_ids(request, member)
     to_decide = (
         Reservation.objects.filter(
@@ -859,7 +898,7 @@ def mine(request):
     return {
         "held": held,
         "held_sizes": held_sizes,
-        "reservations": [serialize.reservation(r, led) for r in reservations],
+        "reservations": serialize.reservations(reservations, led),
         "to_decide": to_decide,
     }
 
@@ -879,20 +918,18 @@ def desk(request):
     )
     dues = services.open_loan_dues([p.pk for p in to_inspect])
     return {
-        "pickups": [
-            serialize.reservation(r, led)
-            for r in Reservation.objects.filter(
+        "pickups": serialize.reservations(
+            Reservation.objects.filter(
                 status=Reservation.CONFIRMED, start__lte=today + timedelta(days=1)
-            ).select_related("borrower")
-        ],
-        "due": [serialize.loan(loan) for loan in open_loans.filter(due=today)],
-        "overdue": [serialize.loan(loan) for loan in open_loans.filter(due__lt=today)],
-        "requests": [
-            serialize.reservation(r, led)
-            for r in Reservation.objects.filter(status=Reservation.REQUESTED).select_related(
-                "borrower"
-            )
-        ],
+            ).select_related("borrower"),
+            led,
+        ),
+        "due": serialize.loans(open_loans.filter(due=today)),
+        "overdue": serialize.loans(open_loans.filter(due__lt=today)),
+        "requests": serialize.reservations(
+            Reservation.objects.filter(status=Reservation.REQUESTED).select_related("borrower"),
+            led,
+        ),
         "inspection_due": [serialize.part_brief(p, dues.get(p.pk)) for p in to_inspect],
     }
 

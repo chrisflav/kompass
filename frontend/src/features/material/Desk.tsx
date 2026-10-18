@@ -56,7 +56,7 @@ function LoanTable({
       rowKey={(l) => l.id}
       empty={empty}
       columns={[
-        { header: "Wer", cell: (l) => l.borrower.name },
+        { header: "Wer", cell: (l) => l.borrower?.name ?? "—" },
         {
           header: "Was",
           cell: (l) => {

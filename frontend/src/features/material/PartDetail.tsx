@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -58,7 +58,9 @@ export function PartDetailPage() {
   const query = useApiQuery(["material", "parts", partId], () =>
     unwrap(client.GET("/api/material/parts/{part_id}", { params: { path: { part_id: partId } } })),
   );
-  return <QueryBoundary query={query}>{(part) => <PartDetailBody part={part} />}</QueryBoundary>;
+  // Keyed by the piece, so following a link to another piece starts afresh
+  // rather than keeping the edit form of this one.
+  return <QueryBoundary query={query}>{(part) => <PartDetailBody key={part.id} part={part} />}</QueryBoundary>;
 }
 
 type PartForm = {
@@ -88,16 +90,29 @@ function PartDetailBody({ part }: { part: PartOut }) {
   const me = useMe();
   const cart = useCart();
   const toast = useToast();
-  const groups = useGroups({ enabled: roles.inventory });
+  // The groups one leads, for passing on their pieces; every group for the inventory.
+  const groups = useGroups({ enabled: roles.inventory || part.group !== null });
   const locations = useLocations();
+  const formId = useId();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<PartForm>(() => toForm(part));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [dialog, setDialog] = useState<"" | "return" | "transfer" | "inspect" | "deficit">("");
 
-  const mine = part.holder !== null && part.holder.id === me.data?.member_id;
+  const memberId = me.data?.member_id ?? null;
+  const mine = part.holder !== null && part.holder.id === memberId;
   // A lent piece can still be reserved for later; a piece built into another goes with it.
   const bookable = part.status === "active" && !part.parent;
+  // Who may pass the piece on: who has it, the leaders of the group it belongs
+  // to (unless it is lent to someone else just now), and the material team.
+  const leads =
+    part.group !== null &&
+    (groups.data ?? []).some(
+      (g) => g.id === part.group!.id && g.leiters.some((l) => l.id === memberId),
+    );
+  const canHandOver = mine || roles.manager || (leads && part.lent_until === null);
+  // The material team takes back what is out with someone.
+  const canTakeBack = mine || (roles.manager && (part.holder !== null || part.lent_until !== null));
 
   const save = useApiMutation(
     (f: PartForm) =>
@@ -310,13 +325,7 @@ function PartDetailBody({ part }: { part: PartOut }) {
 
   const title = `${part.product_type.name} ${part.label}`;
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        setErrors({});
-        save.mutate(form);
-      }}
-    >
+    <>
       <PageHeader
         breadcrumbs={[
           { label: "Material", to: BASE },
@@ -329,7 +338,7 @@ function PartDetailBody({ part }: { part: PartOut }) {
               <Button variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
-              <Button type="submit" busy={save.isPending}>
+              <Button type="submit" form={formId} busy={save.isPending}>
                 Speichern
               </Button>
             </>
@@ -361,31 +370,42 @@ function PartDetailBody({ part }: { part: PartOut }) {
                 )}
               </Menu>
               {/* What one has is handed over or given back; anything else goes in the cart. */}
-              {mine ? (
-                <>
-                  <Button variant="ghost" onClick={() => setDialog("transfer")}>
-                    Übergeben
-                  </Button>
-                  <Button onClick={() => setDialog("return")}>Zurückgeben</Button>
-                </>
-              ) : (
-                bookable && (
-                  <Button
-                    onClick={() => {
-                      cart.addPart(part);
-                      toast.success(`${title} im Korb.`);
-                    }}
-                  >
-                    In den Korb
-                  </Button>
-                )
+              {canHandOver && (
+                <Button variant="ghost" onClick={() => setDialog("transfer")}>
+                  Übergeben
+                </Button>
+              )}
+              {canTakeBack && (
+                <Button variant={mine ? "primary" : "ghost"} onClick={() => setDialog("return")}>
+                  {mine ? "Zurückgeben" : "Zurücknehmen"}
+                </Button>
+              )}
+              {!mine && bookable && (
+                <Button
+                  onClick={() => {
+                    cart.addPart(part);
+                    toast.success(`${title} im Korb.`);
+                  }}
+                >
+                  In den Korb
+                </Button>
               )}
             </>
           )
         }
       />
+      {/* The cart sits beside the form, not in it: Enter in its fields does not save the piece. */}
       <WithCart>
-        <Tabs tabs={tabs} />
+        <form
+          id={formId}
+          onSubmit={(e) => {
+            e.preventDefault();
+            setErrors({});
+            save.mutate(form);
+          }}
+        >
+          <Tabs tabs={tabs} />
+        </form>
       </WithCart>
       {dialog === "deficit" && (
         <DeficitModal productType={part.product_type} onClose={() => setDialog("")} />
@@ -397,7 +417,7 @@ function PartDetailBody({ part }: { part: PartOut }) {
         <HandOverModal parts={[part]} onClose={() => setDialog("")} onDone={() => setDialog("")} />
       )}
       {dialog === "inspect" && <InspectionModal part={part} onClose={() => setDialog("")} />}
-    </form>
+    </>
   );
 }
 

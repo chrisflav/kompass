@@ -15,6 +15,7 @@ from .models import Approval
 from .models import CustodyEvent
 from .models import Deficit
 from .models import Inspection
+from .models import LentSize
 from .models import Loan
 from .models import Part
 from .models import Reservation
@@ -522,6 +523,25 @@ class InspectionTestCase(MaterialFixture, TestCase):
         self.assertEqual(piece.custody.first().kind, CustodyEvent.RETIRE)
         self.assertNotEqual(moved.parts.get(), piece)
         self.assertFalse(dropped.parts.exists())
+        # A reservation left with nothing is cancelled, and its borrower told.
+        dropped.refresh_from_db()
+        self.assertEqual(dropped.status, Reservation.CANCELLED)
+        self.assertEqual(mail.outbox[-1].subject, "Material reservation cancelled")
+        self.assertIn("ausgemustert", mail.outbox[-1].body)
+
+    def test_retire_tells_the_borrower_what_is_left(self):
+        reservation = services.reserve(
+            self.alice, days(1), days(2), [Line(part=self.harness), Line(part=self.slings[0])]
+        )
+        mail.outbox = []
+        services.inspect(self.harness, Inspection.RETIRED, self.bob)
+        reservation.refresh_from_db()
+        self.assertEqual(reservation.status, Reservation.CONFIRMED)
+        self.assertEqual(list(reservation.parts.all()), [self.slings[0]])
+        self.assertEqual(mail.outbox[0].to, ["alice@example.com"])
+        self.assertEqual(mail.outbox[0].subject, "Reserved material retired")
+        self.assertIn(str(self.harness), mail.outbox[0].body)
+        self.assertIn("- {}".format(self.slings[0]), mail.outbox[0].body)
 
     def test_invalid_result(self):
         with self.assertRaises(ValidationError):
@@ -549,7 +569,11 @@ class NoticeTestCase(MaterialFixture, TestCase):
     def test_unanswered_requests_are_declined(self):
         reservation = services.reserve(self.alice, TODAY, days(2), [Line(self.crampon_type, 1)])
         mail.outbox = []
-        counts = services.send_notices()
+        # The leaders have until the first day is over.
+        self.assertEqual(services.send_notices()["declined"], 0)
+        reservation.refresh_from_db()
+        self.assertEqual(reservation.status, Reservation.REQUESTED)
+        counts = services.send_notices(days(1))
         reservation.refresh_from_db()
         self.assertEqual(reservation.status, Reservation.DECLINED)
         self.assertEqual(counts["declined"], 1)
@@ -685,3 +709,232 @@ class SizeTestCase(MaterialFixture, TestCase):
         services.lend(self.alice, [], self.alice, due=days(1), sizes=[(self.size2, 2)])
         self.assertEqual(services.send_notices()["returns"], 1)
         self.assertIn("- 2 × Friends 2", mail.outbox[-1].body)
+
+
+class ApprovalAtLendingTestCase(MaterialFixture, TestCase):
+    """Taking another group's material needs its approval, through a confirmed reservation."""
+
+    def setUp(self):
+        self.setUpMaterial()
+        self.setUpSizes()
+
+    def test_another_groups_piece_needs_a_reservation(self):
+        with self.assertRaisesMessage(Conflict, "belongs to Hochtour"):
+            services.lend(self.alice, [self.crampons[0]], self.alice, due=days(1))
+        with self.assertRaisesMessage(Conflict, "belongs to Hochtour"):
+            services.lend(self.alice, [self.crampons[0]], self.alice, permanent=True)
+        with self.assertRaisesMessage(Conflict, "belongs to Hochtour"):
+            services.lend(self.alice, [], self.alice, due=days(1), sizes=[(self.size3, 1)])
+        # The group's own members, and the desk, need no approval.
+        services.lend(self.carol, [self.crampons[0]], self.carol, due=days(1))
+        services.lend(self.alice, [self.crampons[1]], self.bob, due=days(1), desk=True)
+
+    def approved(self, lines):
+        reservation = services.reserve(self.alice, TODAY, days(2), lines)
+        self.assertEqual(reservation.status, Reservation.REQUESTED)
+        services.decide(reservation, self.hochtour, True, self.carol)
+        reservation.refresh_from_db()
+        return reservation
+
+    def test_a_confirmed_reservation_covers_its_pieces(self):
+        reservation = self.approved([Line(self.crampon_type, 1)])
+        allocated = reservation.parts.get()
+        other = next(c for c in self.crampons if c != allocated)
+        # Only as many pieces as were approved.
+        with self.assertRaisesMessage(Conflict, "belongs to Hochtour"):
+            services.lend(self.alice, self.crampons, self.alice, reservation=reservation)
+        # Another piece of the same type and group may stand in for the allocated one.
+        loan = services.lend(self.alice, [other], self.alice, reservation=reservation)
+        self.assertEqual([line.part for line in loan.lines.all()], [other])
+
+    def test_a_confirmed_reservation_covers_its_sizes(self):
+        reservation = self.approved([Line(size=self.size3, quantity=1)])
+        self.size3.quantity = 2
+        self.size3.save()
+        with self.assertRaisesMessage(Conflict, "Friends 3 belongs to Hochtour"):
+            services.lend(
+                self.alice, [], self.alice, reservation=reservation, sizes=[(self.size3, 2)]
+            )
+        loan = services.lend(
+            self.alice, [], self.alice, reservation=reservation, sizes=[(self.size3, 1)]
+        )
+        self.assertEqual(loan.lent_sizes.get().quantity, 1)
+
+    def test_a_picked_piece_replaces_one_of_its_own_group(self):
+        section = self.make_part(self.crampon_type, location=self.cupboard)
+        reservation = self.approved([Line(self.crampon_type, 2)])
+        allocated = set(reservation.parts.all())
+        self.assertIn(section, allocated)
+        picked = next(c for c in self.crampons if c not in allocated)
+        services.lend(self.alice, [picked], self.alice, reservation=reservation)
+        self.assertEqual(set(reservation.parts.all()), {section, picked})
+
+    def test_a_stale_reservation_is_read_again(self):
+        reservation = services.reserve(self.alice, TODAY, days(1), [Line(self.sling_type, 1)])
+        stale = Reservation.objects.get(pk=reservation.pk)
+        services.lend(
+            self.alice, list(reservation.parts.all()), self.alice, reservation=reservation
+        )
+        with self.assertRaisesMessage(ValidationError, "Only a confirmed reservation"):
+            services.lend(self.alice, [self.slings[0]], self.alice, reservation=stale)
+
+
+class ClaimTestCase(MaterialFixture, TestCase):
+    def setUp(self):
+        self.setUpMaterial()
+
+    def test_taking_for_good_respects_reservations(self):
+        services.reserve(self.bob, days(1), days(2), [Line(part=self.slings[0])])
+        with self.assertRaisesMessage(Conflict, "reserved by Bob Test"):
+            services.lend(self.alice, [self.slings[0]], self.alice, permanent=True)
+        reservation = services.reserve(self.bob, days(5), days(6), [Line(self.sling_type, 1)])
+        piece = reservation.parts.get()
+        services.lend(self.alice, [piece], self.alice, permanent=True)
+        self.assertNotEqual(reservation.parts.get(), piece)
+
+    def test_a_moved_reservation_avoids_the_pieces_lent_with_it(self):
+        reservation = services.reserve(self.carol, days(1), days(2), [Line(self.sling_type, 1)])
+        # Carol's own sling is allocated; the cupboard's first sling would be next.
+        self.assertEqual(reservation.parts.get(), self.slings[3])
+        loan = services.lend(self.alice, [self.slings[3], self.slings[0]], self.alice, due=days(3))
+        lent = set(loan.lines.values_list("part", flat=True))
+        self.assertEqual(lent, {self.slings[3].pk, self.slings[0].pk})
+        self.assertNotIn(reservation.parts.get().pk, lent)
+
+
+class OverdueTestCase(MaterialFixture, TestCase):
+    """What is overdue is not back, so it stays taken until it is."""
+
+    def setUp(self):
+        self.setUpMaterial()
+        self.setUpSizes()
+
+    def test_overdue_sizes_stay_taken(self):
+        loan = services.lend(self.alice, [], self.alice, due=TODAY, sizes=[(self.size1, 2)])
+        Loan.objects.filter(pk=loan.pk).update(due=days(-2))
+        with self.assertRaisesMessage(Conflict, "Only 0 of Friends 1 are free in this period."):
+            services.lend(self.bob, [], self.bob, due=days(1), sizes=[(self.size1, 1)])
+        entry = services.availability([self.friends_type], days(5), days(6))[self.friends_type.pk]
+        self.assertEqual(entry["sizes"][self.size1.pk], 0)
+
+    def test_sizes_due_before_the_period_are_free(self):
+        services.lend(self.alice, [], self.alice, due=days(1), sizes=[(self.size1, 2)])
+        entry = services.availability([self.friends_type], days(5), days(6))[self.friends_type.pk]
+        self.assertEqual(entry["sizes"][self.size1.pk], 2)
+
+    def test_overdue_pieces_stay_blocked(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=TODAY)
+        Loan.objects.filter(pk=loan.pk).update(due=days(-2))
+        self.assertIn(self.slings[0].pk, services.blocked_part_ids(days(5), days(6)))
+        with self.assertRaisesMessage(Conflict, "already booked"):
+            services.reserve(self.bob, days(5), days(6), [Line(part=self.slings[0])])
+
+
+class PassingOnTestCase(MaterialFixture, TestCase):
+    """Passing on a lent piece without a date keeps it on loan."""
+
+    def setUp(self):
+        self.setUpMaterial()
+
+    def test_the_loan_goes_with_the_piece(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=days(3))
+        warnings = services.hand_over(
+            [self.slings[0], self.slings[1]], self.alice, member=self.bob, keep_loans=True
+        )
+        self.assertEqual(warnings, ["{} stays on loan until {}.".format(self.slings[0], days(3))])
+        self.assertFalse(loan.is_open)
+        passed = Loan.objects.get(borrower=self.bob)
+        self.assertEqual((passed.due, passed.lines.get().part), (days(3), self.slings[0]))
+        self.slings[1].refresh_from_db()
+        self.assertEqual(self.slings[1].holder, self.bob)
+        self.assertFalse(self.slings[1].loan_lines.exists())
+
+    def test_an_overdue_loan_is_due_today(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=TODAY)
+        Loan.objects.filter(pk=loan.pk).update(due=days(-1))
+        services.hand_over([self.slings[0]], self.alice, member=self.bob, keep_loans=True)
+        self.assertEqual(Loan.objects.get(borrower=self.bob).due, TODAY)
+
+    def test_a_place_takes_it_back(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=days(3))
+        services.hand_over([self.slings[0]], self.alice, location=self.cupboard, keep_loans=True)
+        self.assertFalse(loan.is_open)
+        self.assertFalse(Loan.objects.filter(borrower=self.bob).exists())
+
+
+class ReturnTestCase(MaterialFixture, TestCase):
+    def setUp(self):
+        self.setUpMaterial()
+        self.setUpSizes()
+
+    def test_a_piece_without_home_needs_a_place(self):
+        services.lend(self.carol, [self.crampons[0]], self.carol, due=days(1))
+        with self.assertRaisesMessage(ValidationError, "has no home location"):
+            services.return_parts([self.crampons[0]], self.carol)
+        services.return_parts([self.crampons[0]], self.carol, location=self.cupboard)
+        self.crampons[0].refresh_from_db()
+        self.assertEqual(
+            (self.crampons[0].holder, self.crampons[0].location), (None, self.cupboard)
+        )
+
+    def test_a_flagged_component_flags_its_piece(self):
+        services.assemble(self.slings[1], self.slings[0], self.alice)
+        services.return_parts([self.slings[0]], self.alice, flagged=[self.slings[1]])
+        self.slings[0].refresh_from_db()
+        self.assertEqual(self.slings[0].status, Part.INSPECTION_DUE)
+
+    def test_sizes_are_read_again_once_locked(self):
+        loan = services.lend(self.alice, [], self.alice, due=days(1), sizes=[(self.size1, 2)])
+        lent = loan.lent_sizes.get()
+        stale = LentSize.objects.get(pk=lent.pk)
+        services.return_sizes([(lent, 2)])
+        self.assertEqual(services.return_sizes([(stale, 2)]), [])
+        lent.refresh_from_db()
+        self.assertEqual(lent.returned, 2)
+
+
+class LockingTestCase(MaterialFixture, TestCase):
+    """Decisions act on the reservation as it is now, not as it was read."""
+
+    def setUp(self):
+        self.setUpMaterial()
+
+    def test_decide_reads_the_reservation_again(self):
+        reservation = services.reserve(self.alice, days(1), days(2), [Line(self.crampon_type, 1)])
+        stale = Reservation.objects.get(pk=reservation.pk)
+        services.cancel(reservation)
+        with self.assertRaisesMessage(ValidationError, "no longer waiting"):
+            services.decide(stale, self.hochtour, True, self.carol)
+        with self.assertRaisesMessage(ValidationError, "Only an open reservation"):
+            services.cancel(stale)
+
+
+class DeletedBorrowerTestCase(MaterialFixture, TestCase):
+    """Deleting a member keeps their loans on record, and their pieces blocked."""
+
+    def setUp(self):
+        self.setUpMaterial()
+
+    def test_the_loan_stays(self):
+        loan = services.lend(self.alice, [self.slings[0]], self.alice, due=days(1))
+        self.alice.delete()
+        loan.refresh_from_db()
+        self.assertIsNone(loan.borrower)
+        self.assertTrue(loan.is_open)
+        self.assertEqual(loan.borrower_name, "a deleted member")
+        self.assertIn("a deleted member", str(loan))
+        self.assertIn(self.slings[0].pk, services.blocked_part_ids(TODAY, days(1)))
+        with self.assertRaisesMessage(Conflict, "still lent to a deleted member"):
+            services.lend(self.bob, [self.slings[0]], self.bob, due=days(1))
+        mail.outbox = []
+        self.assertEqual(services.send_notices()["returns"], 0)
+        self.assertEqual(mail.outbox, [])
+
+
+class DeficitTestCase(TestCase):
+    def test_the_wish_ends_after_it_starts(self):
+        deficit = Deficit(text="Seilsack", wanted_from=days(3), wanted_to=days(1))
+        with self.assertRaises(ValidationError) as context:
+            deficit.full_clean()
+        self.assertIn("wanted_to", context.exception.message_dict)
+        Deficit(text="Seilsack", wanted_from=days(1), wanted_to=days(1)).full_clean()

@@ -7,7 +7,7 @@
 
 \begin{table}[H]
     \begin{tabular}{ll}
-        \large Ausleihe: & {{ loan.borrower.name|esc_all }} \\
+        \large Ausleihe: & {{ loan.borrower_name|esc_all }} \\
         \large Ausgegeben am: & {{ loan.out_at|date_short }} \\
         \large Rückgabe bis: & {{ loan.due|date_short }} \\
     \end{tabular}

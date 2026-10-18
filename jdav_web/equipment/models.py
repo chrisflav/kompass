@@ -454,11 +454,15 @@ class Approval(models.Model):
 class Loan(models.Model):
     """Pieces handed to a borrower, with the day they are due back."""
 
+    #: Empty once the borrower's member record is deleted: the loan stays on
+    #: record, and its pieces stay blocked until they are returned.
     borrower = models.ForeignKey(
         "members.Member",
         verbose_name=_("borrower"),
         related_name="material_loans",
-        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
     )
     reservation = models.ForeignKey(
         Reservation, null=True, blank=True, on_delete=models.SET_NULL, related_name="loans"
@@ -471,8 +475,15 @@ class Loan(models.Model):
     #: The last day the borrower was reminded to bring the pieces back.
     last_reminder = models.DateField(null=True, blank=True)
 
+    @property
+    def borrower_name(self):
+        """The borrower's name, or a placeholder once the member is deleted."""
+        if self.borrower is None:
+            return _("a deleted member")
+        return self.borrower.name
+
     def __str__(self):
-        return "{} {}".format(self.borrower, self.out_at.date())
+        return "{} {}".format(self.borrower_name, timezone.localdate(self.out_at))
 
     @property
     def is_open(self):
@@ -576,6 +587,10 @@ class Deficit(models.Model):
 
     def __str__(self):
         return str(self.product_type or self.text)
+
+    def clean(self):
+        if self.wanted_from and self.wanted_to and self.wanted_to < self.wanted_from:
+            raise ValidationError({"wanted_to": _("The end of the period lies before its start.")})
 
     class Meta:
         verbose_name = _("deficit")

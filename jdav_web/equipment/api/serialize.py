@@ -2,12 +2,20 @@
 
 from collections import Counter
 
+from django.db.models import Count
+from django.db.models import Prefetch
+from django.db.models import prefetch_related_objects
 from django.db.models import Q
 from django.db.models import Sum
 from django.utils import timezone
 from equipment import services
+from equipment.models import Approval
+from equipment.models import LentSize
+from equipment.models import LoanLine
 from equipment.models import Part
 from equipment.models import Reservation
+from equipment.models import ReservedPart
+from equipment.models import ReservedSize
 
 
 def ref(obj):
@@ -186,17 +194,27 @@ def type_detail(product_type, start, end, member, manager):
         .distinct()
         .order_by("start")
     )
+    reservations = list(reservations)
+    ids = [r.pk for r in reservations]
+    pieces = dict(
+        ReservedPart.objects.filter(reservation__in=ids, part__product_type=product_type)
+        .values("reservation")
+        .annotate(n=Count("pk"))
+        .values_list("reservation", "n")
+    )
+    sized = dict(
+        ReservedSize.objects.filter(reservation__in=ids, size__product_type=product_type)
+        .values("reservation")
+        .annotate(n=Sum("quantity"))
+        .values_list("reservation", "n")
+    )
     for reservation in reservations:
-        pieces = reservation.parts.filter(product_type=product_type).count()
-        sized = reservation.reserved_sizes.filter(size__product_type=product_type).aggregate(
-            n=Sum("quantity")
-        )["n"]
         calendar.append(
             {
                 "start": reservation.start,
                 "end": reservation.end,
                 "status": reservation.status,
-                "count": pieces + (sized or 0),
+                "count": pieces.get(reservation.pk, 0) + sized.get(reservation.pk, 0),
                 "borrower": ref(reservation.borrower),
             }
         )
@@ -224,10 +242,35 @@ def type_detail(product_type, start, end, member, manager):
     return data
 
 
-def reservation(obj, decidable_groups=()):
-    parts = list(obj.parts.select_related("product_type", "group", "holder", "location"))
-    dues = services.open_loan_dues([p.pk for p in parts])
-    sizes = list(obj.reserved_sizes.select_related("size__product_type", "size__group"))
+#: What :func:`reservation` reads of each reservation, fetched once for a whole list.
+RESERVATION_PREFETCH = (
+    Prefetch(
+        "parts",
+        queryset=Part.objects.select_related("product_type", "group", "holder", "location"),
+    ),
+    Prefetch(
+        "reserved_sizes",
+        queryset=ReservedSize.objects.select_related("size__product_type", "size__group"),
+    ),
+    Prefetch("approvals", queryset=Approval.objects.select_related("group", "decided_by")),
+)
+
+
+def reservations(objs, decidable_groups=()):
+    """Serialise many reservations with a fixed number of queries. Select ``borrower`` on ``objs``."""
+    objs = list(objs)
+    prefetch_related_objects(objs, *RESERVATION_PREFETCH)
+    dues = services.open_loan_dues({p.pk for obj in objs for p in obj.parts.all()})
+    return [reservation(obj, decidable_groups, dues) for obj in objs]
+
+
+def reservation(obj, decidable_groups=(), dues=None):
+    """One reservation. ``dues`` (from :func:`services.open_loan_dues`) is given by :func:`reservations`."""
+    if dues is None:
+        return reservations([obj], decidable_groups)[0]
+    parts = list(obj.parts.all())
+    sizes = list(obj.reserved_sizes.all())
+    approvals = list(obj.approvals.all())
     counts = Counter(p.product_type for p in parts)
     return {
         "id": obj.pk,
@@ -253,21 +296,40 @@ def reservation(obj, decidable_groups=()):
                 "decided_by": ref(a.decided_by),
                 "comment": a.comment,
             }
-            for a in obj.approvals.select_related("group", "decided_by")
+            for a in approvals
         ],
         "decidable_groups": sorted(
-            a.group_id
-            for a in obj.approvals.all()
-            if a.approved is None and a.group_id in decidable_groups
+            a.group_id for a in approvals if a.approved is None and a.group_id in decidable_groups
         ),
     }
 
 
+#: What :func:`loan` reads of each loan, fetched once for a whole list.
+LOAN_PREFETCH = (
+    Prefetch(
+        "lines",
+        queryset=LoanLine.objects.select_related(
+            "part__product_type", "part__group", "part__holder", "part__location"
+        ),
+    ),
+    Prefetch("lent_sizes", queryset=LentSize.objects.select_related("size__product_type")),
+)
+
+
+def loans(objs):
+    """Serialise many loans with a fixed number of queries. Select ``borrower`` on ``objs``."""
+    objs = list(objs)
+    prefetch_related_objects(objs, *LOAN_PREFETCH)
+    return [loan(obj) for obj in objs]
+
+
 def loan(obj):
+    prefetch_related_objects([obj], *LOAN_PREFETCH)
     today = timezone.localdate()
-    lines = list(obj.lines.select_related("part__product_type", "part__group", "part__holder"))
+    lines = list(obj.lines.all())
+    sizes = list(obj.lent_sizes.all())
     open_lines = [line for line in lines if line.returned_at is None]
-    open_lines += [lent for lent in obj.lent_sizes.all() if lent.returned_at is None]
+    open_lines += [lent for lent in sizes if lent.returned_at is None]
     return {
         "id": obj.pk,
         "borrower": ref(obj.borrower),
@@ -291,7 +353,7 @@ def loan(obj):
                 "quantity": lent.quantity,
                 "returned": lent.returned,
             }
-            for lent in obj.lent_sizes.select_related("size__product_type")
+            for lent in sizes
         ],
     }
 

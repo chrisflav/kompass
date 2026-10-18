@@ -24,6 +24,7 @@ import {
   period,
   StockTabs,
   useLocations,
+  useMaterialRoles,
   type LocationOut,
 } from "./shared";
 
@@ -101,15 +102,16 @@ export function Deficits() {
 
 /* --- locations ------------------------------------------------------------- */
 
-/** Where material is kept. */
+/** Where material is kept; the inventory adds, edits and removes the places. */
 export function Locations() {
+  const roles = useMaterialRoles();
   const query = useLocations();
   const [editing, setEditing] = useState<LocationOut | "new" | null>(null);
   return (
     <div>
       <PageHeader
         breadcrumbs={[{ label: "Material", to: BASE }, { label: "Bestand", to: `${BASE}/stock` }, { label: "Orte" }]}
-        actions={<Button onClick={() => setEditing("new")}>Neuer Ort</Button>}
+        actions={roles.inventory && <Button onClick={() => setEditing("new")}>Neuer Ort</Button>}
       />
       <StockTabs />
       <QueryBoundary query={query} empty="Noch keine Orte.">
@@ -117,7 +119,7 @@ export function Locations() {
           <DataTable
             rows={rows}
             rowKey={(l) => l.id}
-            onRowClick={(l) => setEditing(l)}
+            onRowClick={roles.inventory ? (l) => setEditing(l) : undefined}
             columns={[
               { header: "Name", cell: (l) => l.name },
               { header: "Adresse", cell: (l) => l.address || "—" },

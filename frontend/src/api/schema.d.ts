@@ -2574,6 +2574,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/material/recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Recipients
+         * @description Everyone material can be handed over to: the names of all confirmed members.
+         *
+         *     Unlike /members/ this is not narrowed to the members one may see, since a
+         *     holder may pass a piece on to any member.
+         */
+        get: operations["equipment_api_router_list_recipients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/material/locations/{location_id}": {
         parameters: {
             query?: never;
@@ -7787,7 +7810,7 @@ export interface components {
         LoanOut: {
             /** Id */
             id: number;
-            borrower: components["schemas"]["MemberRef"];
+            borrower: components["schemas"]["MemberRef"] | null;
             /**
              * Out At
              * Format: date-time
@@ -13512,6 +13535,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_list_recipients: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ref"][];
                 };
             };
         };

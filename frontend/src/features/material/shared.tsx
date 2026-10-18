@@ -66,16 +66,19 @@ export async function postMultipart<T>(
   return (await res.json()) as T;
 }
 
+/** "2026-07-12" for a date, from its local year, month and day (not UTC). */
+function localIso(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function isoToday(): string {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+  return localIso(new Date());
 }
 
 export function addDays(iso: string, days: number): string {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return localIso(new Date(y, m - 1, d + days));
 }
 
 /** "12.07." for a date in the current year, "12.07.2027" otherwise. */
@@ -163,30 +166,41 @@ export function linesText(reservation: Pick<ReservationOut, "lines" | "sizes">):
   ].join(", ");
 }
 
-/** A number input for a count from 0 to ``max``. */
+/**
+ * A number input for a count from ``min`` (0 by default) to ``max``. What is
+ * typed stays as it is while editing, so the field can be cleared to type a
+ * new number; it is clamped once the field is left.
+ */
 export function CountInput({
   value,
+  min = 0,
   max,
   label,
   onChange,
 }: {
   value: number;
+  min?: number;
   max?: number;
   label: string;
   onChange: (value: number) => void;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const clamp = (n: number) => Math.max(min, max === undefined ? n : Math.min(max, n));
   return (
     <input
       type="number"
       className="cart-qty"
-      min={0}
+      min={min}
       max={max}
       aria-label={label}
-      value={value}
+      value={draft ?? value}
       onChange={(e) => {
-        const n = Math.max(0, Number(e.target.value) || 0);
-        onChange(max === undefined ? n : Math.min(max, n));
+        setDraft(e.target.value);
+        if (e.target.value !== "" && !Number.isNaN(Number(e.target.value))) {
+          onChange(clamp(Number(e.target.value)));
+        }
       }}
+      onBlur={() => setDraft(null)}
     />
   );
 }
@@ -203,8 +217,9 @@ export function useTags() {
   );
 }
 
-export function useMemberOptions(enabled = true) {
-  return useApiQuery(["members"], () => unwrap(client.GET("/api/members/")), { enabled });
+/** Everyone material can be handed over to: every confirmed member, not only those one may see. */
+export function useRecipients() {
+  return useApiQuery(["material", "recipients"], () => unwrap(client.GET("/api/material/recipients")));
 }
 
 export function errorText(error: unknown): string {
@@ -276,17 +291,21 @@ export function PhotoFrame({
 
 const STOCK_TABS = [
   { to: `${BASE}/stock`, label: "Teile" },
-  { to: `${BASE}/psa`, label: "PSA-Prüfungen" },
-  { to: `${BASE}/deficits`, label: "Wunschliste" },
+  { to: `${BASE}/psa`, label: "PSA-Prüfungen", inventory: true },
+  { to: `${BASE}/deficits`, label: "Wunschliste", inventory: true },
   { to: `${BASE}/locations`, label: "Orte" },
   { to: `${BASE}/categories`, label: "Tags" },
 ];
 
-/** The material team's Bestand: its pages, one tab each. */
+/**
+ * The material team's Bestand: its pages, one tab each. The PSA register and
+ * the wishlist are the inventory's; those who only lend do not see them.
+ */
 export function StockTabs() {
+  const roles = useMaterialRoles();
   return (
     <nav className="tab-bar" aria-label="Bestand">
-      {STOCK_TABS.map((t) => (
+      {STOCK_TABS.filter((t) => !t.inventory || roles.inventory).map((t) => (
         <NavLink key={t.to} to={t.to} end className={({ isActive }) => `tab${isActive ? " active" : ""}`}>
           {t.label}
         </NavLink>
@@ -436,7 +455,8 @@ export function DeficitModal({ productType, start, end, onClose }: DeficitProps 
  * "Übergeben": hand pieces to a person, until a day or for good, or put them
  * at a place (issue #449). Until a day it is a loan with reminders; for good
  * the person just has them, and they stay bookable. At the desk (``desk``),
- * pieces are added by their ID and counted sizes can be lent too.
+ * pieces are added by their ID and counted sizes can be lent too: only to a
+ * person and until a day, as they carry no holder.
  */
 export function HandOverModal({
   parts: initial,
@@ -450,23 +470,28 @@ export function HandOverModal({
   onDone: () => void;
 }) {
   const toast = useToast();
-  const members = useMemberOptions();
+  const recipients = useRecipients();
   const locations = useLocations();
   const sizeList = useApiQuery(["material", "sizes"], () => unwrap(client.GET("/api/material/sizes")), {
     enabled: desk,
   });
   const [parts, setParts] = useState<PartBrief[]>(initial);
   const [counts, setCounts] = useState<Record<number, number>>({});
-  const [target, setTarget] = useState("");
+  const [chosen, setTarget] = useState("");
   const lentUntil = initial.map((p) => p.lent_until).find(Boolean);
   const [forGood, setForGood] = useState(!desk && !lentUntil);
-  const [due, setDue] = useState(lentUntil ?? addDays(isoToday(), 1));
+  // A lent piece is passed on until its return day, or today once that has passed.
+  const [due, setDue] = useState(() =>
+    lentUntil ? (lentUntil < isoToday() ? isoToday() : lentUntil) : addDays(isoToday(), 1),
+  );
   const [code, setCode] = useState("");
   const [sizeChoice, setSizeChoice] = useState("");
   const sizeById = new Map((sizeList.data ?? []).map((s) => [s.id, s]));
   const sizes = Object.entries(counts)
     .map(([id, quantity]) => ({ size: Number(id), quantity }))
     .filter((s) => s.quantity > 0);
+  // Counted sizes go to a person, never to a place.
+  const target = sizes.length > 0 && chosen.startsWith("l:") ? "" : chosen;
   const toPerson = target.startsWith("m:");
   // Counted sizes carry no holder, so they can only be lent until a day.
   const permanent = forGood && sizes.length === 0;
@@ -509,8 +534,10 @@ export function HandOverModal({
     },
   );
   const options = [
-    ...(members.data ?? []).map((m) => ({ value: `m:${m.id}`, label: m.name })),
-    ...(locations.data ?? []).map((l) => ({ value: `l:${l.id}`, label: `${l.name} (Ort)` })),
+    ...(recipients.data ?? []).map((m) => ({ value: `m:${m.id}`, label: m.name })),
+    ...(sizes.length > 0
+      ? []
+      : (locations.data ?? []).map((l) => ({ value: `l:${l.id}`, label: `${l.name} (Ort)` }))),
   ];
   return (
     <Modal
@@ -525,8 +552,16 @@ export function HandOverModal({
         }}
       >
         <Field label="An">
-          <Select value={target} onChange={setTarget} options={options} placeholder="Person oder Ort wählen…" />
+          <Select
+            value={target}
+            onChange={setTarget}
+            options={options}
+            placeholder={sizes.length > 0 ? "Person wählen…" : "Person oder Ort wählen…"}
+          />
         </Field>
+        {sizes.length > 0 && (
+          <p className="muted small">Größen ohne ID gehen nur an eine Person, bis zu einem Tag.</p>
+        )}
         {desk && (
           <>
             <Field label="Teile mit ID">

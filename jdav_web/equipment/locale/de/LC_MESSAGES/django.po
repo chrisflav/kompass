@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 18:37+0200\n"
+"POT-Creation-Date: 2026-10-18 19:32+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,6 +31,12 @@ msgid "A type that still has pieces cannot be deleted."
 msgstr ""
 "Ein Materialtyp, zu dem es noch Teile gibt, kann nicht gelöscht werden."
 
+msgid ""
+"A size of this type has been reserved or lent. Set its stock to 0 instead."
+msgstr ""
+"Eine Größe dieses Typs wurde schon reserviert oder verliehen. Setze ihren "
+"Bestand stattdessen auf 0."
+
 msgid "Only the material team sees every single piece."
 msgstr "Nur das Materialteam sieht jedes einzelne Teil."
 
@@ -40,10 +46,19 @@ msgstr "Zu dieser ID gibt es kein Material."
 msgid "Only the material team hands out counted material."
 msgstr "Gezähltes Material gibt nur das Materialteam aus."
 
+#, python-format
+msgid "%(part)s is lent to someone else. Only they can pass it on."
+msgstr ""
+"%(part)s ist an jemand anderen verliehen. Nur diese Person kann es "
+"weitergeben."
+
 msgid "You can only pass on material you hold or your groups own."
 msgstr ""
 "Du kannst nur Material weitergeben, das du hast oder das deinen Gruppen "
 "gehört."
+
+msgid "Material on loan cannot be handed over to yourself."
+msgstr "Ausgeliehenes Material kannst du nicht an dich selbst übergeben."
 
 msgid "Create between 1 and 200 pieces at once."
 msgstr "Lege zwischen 1 und 200 Teile auf einmal an."
@@ -312,6 +327,9 @@ msgstr "ausgegeben am"
 msgid "due"
 msgstr "zurück bis"
 
+msgid "a deleted member"
+msgstr "ein gelöschtes Mitglied"
+
 msgid "loan"
 msgstr "Ausleihe"
 
@@ -366,6 +384,9 @@ msgstr "gemeldet von"
 msgid "reported at"
 msgstr "gemeldet am"
 
+msgid "The end of the period lies before its start."
+msgstr "Das Ende des Zeitraums liegt vor seinem Beginn."
+
 msgid "deficit"
 msgstr "Defizit"
 
@@ -383,9 +404,6 @@ msgstr "%(part)s kann gerade nicht verliehen werden."
 #, python-format
 msgid "%(part)s is already booked in this period."
 msgstr "%(part)s ist in diesem Zeitraum schon vergeben."
-
-msgid "The end of the period lies before its start."
-msgstr "Das Ende des Zeitraums liegt vor seinem Beginn."
 
 msgid "The period lies in the past."
 msgstr "Der Zeitraum liegt in der Vergangenheit."
@@ -416,11 +434,26 @@ msgid "Give a return date that is not in the past."
 msgstr "Gib ein Rückgabedatum an, das nicht in der Vergangenheit liegt."
 
 #, python-format
+msgid ""
+"%(part)s belongs to %(group)s. Reserve it and wait for the group's approval."
+msgstr ""
+"%(part)s gehört %(group)s. Reserviere es und warte auf die Freigabe der "
+"Gruppe."
+
+#, python-format
 msgid "%(part)s is still lent to %(name)s."
 msgstr "%(part)s ist noch an %(name)s verliehen."
 
+#, python-format
+msgid "%(part)s has no home location. Choose where it is returned to."
+msgstr "%(part)s hat keinen Stammort. Wähle aus, wohin es zurückgegeben wird."
+
 msgid "Only a person can borrow material."
 msgstr "Nur eine Person kann Material ausleihen."
+
+#, python-format
+msgid "%(part)s stays on loan until %(due)s."
+msgstr "%(part)s bleibt bis zum %(due)s ausgeliehen."
 
 msgid "Choose either a member or a location."
 msgstr "Wähle entweder eine Person oder einen Ort."
@@ -431,6 +464,12 @@ msgstr "%(part)s ist ab %(start)s für %(name)s reserviert."
 
 msgid "A lent piece cannot be assembled."
 msgstr "Ein verliehenes Teil kann nicht verbaut werden."
+
+msgid "Material reservation cancelled"
+msgstr "Materialreservierung storniert"
+
+msgid "Reserved material retired"
+msgstr "Reserviertes Material ausgemustert"
 
 msgid "Material reserved"
 msgstr "Material reserviert"

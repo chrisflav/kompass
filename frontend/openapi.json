@@ -6657,6 +6657,38 @@
         ]
       }
     },
+    "/api/material/recipients": {
+      "get": {
+        "operationId": "equipment_api_router_list_recipients",
+        "summary": "List Recipients",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Ref"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Everyone material can be handed over to: the names of all confirmed members.\n\nUnlike /members/ this is not narrowed to the members one may see, since a\nholder may pass a piece on to any member.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/material/locations/{location_id}": {
       "put": {
         "operationId": "equipment_api_router_update_location",
@@ -20971,7 +21003,14 @@
             "type": "integer"
           },
           "borrower": {
-            "$ref": "#/components/schemas/MemberRef"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "out_at": {
             "format": "date-time",

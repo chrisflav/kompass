@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -120,6 +120,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
   const [adding, setAdding] = useState(false);
   const [deficit, setDeficit] = useState(false);
   const [sizeEditing, setSizeEditing] = useState<SizeOut | "new" | null>(null);
+  const formId = useId();
 
   // Saving sends the fields, then the manual if one was chosen in the form.
   const save = useApiMutation(
@@ -358,13 +359,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        setErrors({});
-        save.mutate(form);
-      }}
-    >
+    <>
       <PageHeader
         breadcrumbs={[{ label: "Material", to: BASE }, { label: type.name }]}
         actions={
@@ -373,7 +368,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
               <Button variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
-              <Button type="submit" busy={save.isPending}>
+              <Button type="submit" form={formId} busy={save.isPending}>
                 Speichern
               </Button>
             </>
@@ -433,7 +428,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
                 <Button
                   disabled={type.total === 0}
                   onClick={() => {
-                    cart.addType(type);
+                    cart.addType({ id: type.id, name: type.name });
                     toast.success(`${type.name} im Korb.`);
                   }}
                 >
@@ -444,8 +439,18 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
           )
         }
       />
+      {/* The cart sits beside the form, not in it: Enter in its fields does not save the type. */}
       <WithCart>
-        <Tabs tabs={tabs} />
+        <form
+          id={formId}
+          onSubmit={(e) => {
+            e.preventDefault();
+            setErrors({});
+            save.mutate(form);
+          }}
+        >
+          <Tabs tabs={tabs} />
+        </form>
       </WithCart>
       {deficit && (
         <DeficitModal productType={type} start={cart.start} end={cart.end} onClose={() => setDeficit(false)} />
@@ -459,7 +464,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
           onClose={() => setSizeEditing(null)}
         />
       )}
-    </form>
+    </>
   );
 }
 

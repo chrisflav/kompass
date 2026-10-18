@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import { delay } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -11,6 +12,7 @@ import {
   useMe,
 } from "../../test/server";
 import { currentUrl, renderRoute } from "../../test/utils";
+import { cartStorageKey } from "./cart";
 import { addDays, isoToday, shortDate } from "./shared";
 
 const TODAY = isoToday();
@@ -23,7 +25,7 @@ const TAGS = [
   { id: 1, name: "Hochtour" },
   { id: 2, name: "Höhle" },
 ];
-const GROUPS = [{ id: 5, name: "Jugend" }];
+const GROUPS = [{ id: 5, name: "Jugend", leiters: [] as { id: number; name: string }[] }];
 const MEMBERS = [
   { id: 7, name: "Hannah Beckers" },
   { id: 8, name: "Peter Lustig" },
@@ -153,12 +155,20 @@ function reservation(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** An answer of the cart's availability check. */
+const checked = (overrides: Record<string, unknown> = {}) =>
+  HttpResponse.json({ ok: true, problems: [], parts: [], sizes: [], approval_groups: [], ...overrides });
+
+/** The cart of the default test user (user 2). */
+const CART_KEY = cartStorageKey(2);
+
 beforeEach(() => {
-  localStorage.removeItem("kompass_material_cart");
+  localStorage.removeItem(CART_KEY);
   server.use(
     http.get(api("/api/material/categories"), () => HttpResponse.json(TAGS)),
     http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)),
-    http.get(api("/api/members/"), () => HttpResponse.json(MEMBERS)),
+    // Hand-overs pick from everyone, not only the members one may see.
+    http.get(api("/api/material/recipients"), () => HttpResponse.json(MEMBERS)),
     http.get(api("/api/material/locations"), () => HttpResponse.json(LOCATIONS)),
     http.get(api("/api/material/types"), () => HttpResponse.json([CARD])),
     http.get(api("/api/material/types/10"), () => HttpResponse.json(TYPE)),
@@ -233,6 +243,107 @@ describe("material — Materialbrowser", () => {
     );
     expect(await screen.findByText("Reserviert.")).toBeInTheDocument();
     await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
+  });
+
+  it("does not offer to take material along that needs another group's approval", async () => {
+    server.use(
+      http.post(api("/api/material/reservations/check"), () => checked({ approval_groups: [ref(5, "Jugend")] })),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    expect(await cart.findByText("Alles frei")).toBeInTheDocument();
+    expect(cart.getByText("Braucht die Freigabe von Jugend.")).toBeInTheDocument();
+    // It is reserved and approved first, then picked up.
+    expect(cart.getByRole("button", { name: "Jetzt mitnehmen" })).toBeDisabled();
+    expect(cart.getByText(/erst nach der Freigabe mit/)).toBeInTheDocument();
+    expect(cart.getByRole("button", { name: "Reservieren" })).toBeEnabled();
+  });
+
+  it("says so when the check fails, rather than checking for ever", async () => {
+    localStorage.setItem(
+      CART_KEY,
+      JSON.stringify({
+        start: TODAY,
+        end: TOMORROW,
+        lines: [{ key: "s99", quantity: 1, size: { id: 99, name: "9", typeName: "Friends" } }],
+      }),
+    );
+    server.use(
+      http.post(api("/api/material/reservations/check"), () =>
+        HttpResponse.json({ detail: "Not Found" }, { status: 404 }),
+      ),
+    );
+    renderRoute("/kompass/material");
+    const cart = within(await screen.findByRole("complementary", { name: "Korb" }));
+    expect(await cart.findByText(/Etwas im Korb gibt es nicht mehr/)).toBeInTheDocument();
+    expect(cart.queryByText("Prüft, ob alles frei ist…")).not.toBeInTheDocument();
+  });
+
+  it("shows the check of the cart as it is, not a slower one of before", async () => {
+    const sent: number[] = [];
+    server.use(
+      http.post(api("/api/material/reservations/check"), async ({ request }) => {
+        const { lines } = (await request.json()) as { lines: { quantity: number }[] };
+        sent.push(lines[0].quantity);
+        if (lines[0].quantity === 1) {
+          await delay(1200);
+          return checked({ ok: false, problems: ["Nur 0 × Bandschlinge sind frei."] });
+        }
+        return checked();
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    await waitFor(() => expect(sent).toEqual([1]));
+    await user.tripleClick(cart.getByLabelText("Anzahl Bandschlinge 120 cm"));
+    await user.keyboard("2");
+    expect(await cart.findByText("Alles frei")).toBeInTheDocument();
+    // The answer for one piece comes in late, and is dropped.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(cart.queryByText("Nur 0 × Bandschlinge sind frei.")).not.toBeInTheDocument();
+    expect(cart.getByText("Alles frei")).toBeInTheDocument();
+  });
+
+  it("starts a stored cart whose period has passed again from today, and keeps it per user", async () => {
+    localStorage.setItem(
+      CART_KEY,
+      JSON.stringify({
+        start: "2020-01-01",
+        end: "2020-01-03",
+        // An older cart kept the whole type.
+        lines: [{ key: "t10", quantity: 2, productType: TYPE }],
+      }),
+    );
+    localStorage.setItem(
+      cartStorageKey(3),
+      JSON.stringify({
+        start: TODAY,
+        end: TOMORROW,
+        lines: [{ key: "p9", quantity: 1, part: { id: 9, label: "S9", typeName: "Seil" } }],
+      }),
+    );
+    renderRoute("/kompass/material");
+    const cart = within(await screen.findByRole("complementary", { name: "Korb" }));
+    expect(await cart.findByLabelText("Anzahl Bandschlinge 120 cm")).toHaveValue(2);
+    expect(cart.getByLabelText("Von")).toHaveValue(TODAY);
+    expect(cart.getByLabelText("Bis")).toHaveValue(TOMORROW);
+    // Another user's cart stays theirs.
+    expect(cart.queryByText("S9")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem(CART_KEY)!)).toEqual({
+        start: TODAY,
+        end: TOMORROW,
+        lines: [{ key: "t10", quantity: 2, productType: { id: 10, name: "Bandschlinge 120 cm" } }],
+      }),
+    );
+  });
+
+  it("counts days in local dates", () => {
+    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addDays("2026-03-29", 1)).toBe("2026-03-30");
+    expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
   });
 
   it("opens a piece when its ID is searched for", async () => {
@@ -325,6 +436,21 @@ describe("material — Materialbrowser", () => {
     await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
   });
 
+  it("says where to pick up what was reserved to take along, when not picked up now", async () => {
+    server.use(
+      http.post(api("/api/material/reservations"), () => HttpResponse.json(reservation())),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
+    await user.click(screen.getByRole("button", { name: "Jetzt mitnehmen" }));
+    await user.click((await dialog()).getByRole("button", { name: "Abbrechen" }));
+    expect(await screen.findByText("Reserviert – abholen kannst du es unter Mein Material.")).toBeInTheDocument();
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
+  });
+
   it("reports a deficit", async () => {
     let body: unknown = null;
     server.use(
@@ -373,6 +499,105 @@ describe("material — Materialtyp", () => {
     await user.tripleClick(quantity);
     await user.keyboard("3");
     expect(quantity).toHaveValue(3);
+    // Only the type's ID and name are kept, not the whole type.
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem(CART_KEY)!).lines).toEqual([
+        { key: "t10", quantity: 3, productType: { id: 10, name: "Bandschlinge 120 cm" } },
+      ]),
+    );
+  });
+
+  it("lets the amount in the cart be cleared and typed anew", async () => {
+    const { user } = renderRoute("/kompass/material/types/10");
+    await screen.findByText("Genähte Schlinge");
+    await user.click(screen.getByRole("button", { name: "In den Korb" }));
+    const quantity = screen.getByLabelText("Anzahl Bandschlinge 120 cm");
+    await user.clear(quantity);
+    expect(quantity).toHaveValue(null);
+    await user.type(quantity, "4");
+    expect(quantity).toHaveValue(4);
+    // Left empty, it goes back to the last amount.
+    await user.clear(quantity);
+    await user.tab();
+    expect(quantity).toHaveValue(4);
+  });
+
+  it("offers no editing to those without the inventory's rights", async () => {
+    server.use(
+      http.get(api("/api/material/types/11"), () =>
+        HttpResponse.json({ ...TYPE, ...FRIENDS, calendar: [], parts: [] }),
+      ),
+    );
+    const { user } = renderRoute("/kompass/material/types/11");
+    await user.click(await screen.findByRole("tab", { name: "Größen (2)" }));
+    expect(screen.queryByRole("button", { name: "Größe hinzufügen" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    expect(screen.getByRole("button", { name: "Defizit melden" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
+  });
+
+  it("edits and deletes a size", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    const calls: Record<string, unknown> = {};
+    server.use(
+      http.get(api("/api/material/types/11"), () =>
+        HttpResponse.json({ ...TYPE, ...FRIENDS, calendar: [], parts: [] }),
+      ),
+      http.patch(api("/api/material/sizes/2"), async ({ request }) => {
+        calls.patch = await request.json();
+        return HttpResponse.json(size(2, "2"));
+      }),
+      http.delete(api("/api/material/sizes/2"), () => {
+        calls.delete = true;
+        return HttpResponse.json({ success: true });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/types/11");
+    await user.click(await screen.findByRole("tab", { name: "Größen (2)" }));
+    await user.click(screen.getByText("3 / 4"));
+    let d = await dialog();
+    const stock = d.getByLabelText("Bestand");
+    await user.clear(stock);
+    await user.type(stock, "5");
+    await user.click(d.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(calls.patch).toEqual({ name: "2", quantity: 5, per_set: 2, group: null, location: null }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByText("3 / 4"));
+    d = await dialog();
+    await user.click(d.getByRole("button", { name: "Löschen" }));
+    const confirmation = screen.getAllByRole("dialog")[screen.getAllByRole("dialog").length - 1];
+    await user.click(within(confirmation).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(calls.delete).toBe(true));
+    expect(await screen.findByText("Größe gelöscht.")).toBeInTheDocument();
+  });
+
+  it("does not save the type when Enter is pressed in the cart", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let patched = false;
+    server.use(
+      http.post(api("/api/material/reservations/check"), () => checked()),
+      http.patch(api("/api/material/types/10"), () => {
+        patched = true;
+        return HttpResponse.json(TYPE);
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/types/10");
+    await screen.findByText("Genähte Schlinge");
+    await user.click(screen.getByRole("button", { name: "In den Korb" }));
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    await user.type(cart.getByPlaceholderText("z. B. Ausfahrt"), "Hochtour{Enter}");
+    expect(await cart.findByText("Alles frei")).toBeInTheDocument();
+    expect(patched).toBe(false);
+    expect(screen.getByRole("button", { name: "Speichern" })).toBeInTheDocument();
+    // The page's own Speichern still saves it.
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(patched).toBe(true));
   });
 
   it("lists the sizes of a type kept by size and adds one", async () => {
@@ -491,6 +716,107 @@ describe("material — Teil", () => {
     await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
     expect(screen.getByRole("button", { name: "Defizit melden" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prüfung eintragen" })).not.toBeInTheDocument();
+  });
+
+  it("leaves edit mode when a link leads to another piece", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let patched = false;
+    server.use(
+      http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut({ parent: part(5) }))),
+      http.get(api("/api/material/parts/5"), () =>
+        HttpResponse.json(partOut({ id: 5, label: "S5", psa_id: null, note: "Rucksack" })),
+      ),
+      http.patch(api("/api/material/parts/5"), () => {
+        patched = true;
+        return HttpResponse.json(partOut());
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    expect(screen.getByDisplayValue("E1351")).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Bandschlinge 120 cm S5" }));
+    expect(await screen.findByText("Rucksack")).toBeInTheDocument();
+    expect(currentUrl()).toBe("/kompass/material/parts/5");
+    expect(screen.queryByRole("button", { name: "Speichern" })).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("E1351")).not.toBeInTheDocument();
+    expect(patched).toBe(false);
+  });
+
+  it("lets a leader of the owning group pass a piece on, but not one lent to someone else", async () => {
+    server.use(
+      http.get(api("/api/members/groups"), () =>
+        HttpResponse.json([{ ...GROUPS[0], leiters: [ref(7, "Hannah Beckers")] }]),
+      ),
+      http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut({ group: ref(5, "Jugend") }))),
+      http.get(api("/api/material/parts/2"), () =>
+        HttpResponse.json(
+          partOut({
+            id: 2,
+            label: "S2",
+            group: ref(5, "Jugend"),
+            holder: ref(8, "Peter Lustig"),
+            location: null,
+            lent_until: TOMORROW,
+          }),
+        ),
+      ),
+    );
+    const { user, unmount } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Übergeben" }));
+    const d = await dialog();
+    await user.click(d.getByRole("button", { name: "An" }));
+    expect(dropdown().getByRole("button", { name: "Peter Lustig" })).toBeInTheDocument();
+    unmount();
+
+    renderRoute("/kompass/material/parts/2");
+    expect(await screen.findByText(/an Peter Lustig verliehen/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Übergeben" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zurücknehmen" })).not.toBeInTheDocument();
+  });
+
+  it("lets the lending team take back a piece lent to someone", async () => {
+    useMe({ permissions: ["equipment.manage_lending"] });
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ holder: ref(8, "Peter Lustig"), location: null, lent_until: TOMORROW })),
+      ),
+      http.post(api("/api/material/returns"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ returned: [1] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    expect(await screen.findByRole("button", { name: "Übergeben" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zurücknehmen" }));
+    await user.click((await dialog()).getByRole("button", { name: "Rückgabe bestätigen" }));
+    await waitFor(() => expect(body).toEqual({ parts: [1], sizes: [], location: null, flagged: [] }));
+  });
+
+  it("passes an overdue piece on until a day, from today on", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ holder: ref(7, "Hannah Beckers"), location: null, lent_until: "2020-01-01" })),
+      ),
+      http.post(api("/api/material/parts/transfer"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ warnings: [] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Übergeben" }));
+    const d = await dialog();
+    await user.click(d.getByRole("button", { name: "An" }));
+    await user.click(dropdown().getByRole("button", { name: "Peter Lustig" }));
+    expect(d.getByRole("radio", { name: "dauerhaft" })).not.toBeChecked();
+    expect(d.getByLabelText("Rückgabe bis")).toHaveValue(TODAY);
+    await user.click(d.getByRole("button", { name: "Übergeben" }));
+    await waitFor(() =>
+      expect(body).toEqual({ parts: [1], sizes: [], member: 8, location: null, due: TODAY }),
+    );
   });
 
   it("records an inspection", async () => {
@@ -568,6 +894,45 @@ describe("material — Mein Material", () => {
     const menu = within(document.querySelector(".nav-dropdown") as HTMLElement);
     expect(menu.getByRole("link", { name: "Mein Material" })).toHaveClass("active");
     expect(menu.getByRole("link", { name: "Materialbrowser" })).not.toHaveClass("active");
+  });
+
+  it("marks the Bestand in the menu on its tabs", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    const { user } = renderRoute("/kompass/material/locations");
+    await user.click(await screen.findByRole("button", { name: /^Material/ }));
+    const menu = within(document.querySelector(".nav-dropdown") as HTMLElement);
+    expect(menu.getByRole("link", { name: "Bestand" })).toHaveClass("active");
+    expect(menu.getByRole("link", { name: "Materialbrowser" })).not.toHaveClass("active");
+  });
+
+  it("returns lent sizes", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({
+          held: [],
+          held_sizes: [
+            { id: 40, size: { id: 1, name: "1", product_type: ref(11, "Friends") }, quantity: 3, due: "2020-01-01", overdue: true },
+          ],
+          reservations: [],
+          to_decide: 0,
+        }),
+      ),
+      http.post(api("/api/material/returns"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ returned: [] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/mine");
+    expect(await screen.findByText("Keine Teile mit ID.")).toBeInTheDocument();
+    expect(screen.getByText(/überfällig seit/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zurückgeben" }));
+    const d = await dialog();
+    expect(d.getByLabelText("Anzahl Friends 1")).toHaveValue(3);
+    await user.click(d.getByRole("button", { name: "Rückgabe bestätigen" }));
+    await waitFor(() =>
+      expect(body).toEqual({ parts: [], sizes: [{ lent: 40, quantity: 3 }], location: null, flagged: [] }),
+    );
   });
 
   it("returns what I select, picks up a reservation and cancels one", async () => {
@@ -703,6 +1068,35 @@ describe("material — Anfragen in Mein Material", () => {
     await waitFor(() => expect(body).toEqual({ group: 5, approved: true, comment: "Viel Spaß" }));
   });
 
+  it("declines a request for my group", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/reservations"), () =>
+        HttpResponse.json([
+          reservation({
+            status: "requested",
+            approvals: [{ group: ref(5, "Jugend"), approved: null, decided_by: null, comment: "" }],
+            decidable_groups: [5],
+          }),
+        ]),
+      ),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 1 }),
+      ),
+      http.post(api("/api/material/reservations/20/decide"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(reservation({ status: "declined" }));
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/mine");
+    await user.click(await screen.findByRole("button", { name: "Ablehnen" }));
+    const d = await dialog();
+    await user.type(d.getByLabelText("Kommentar an die anfragende Person"), "Brauchen wir selbst");
+    await user.click(d.getByRole("button", { name: "Ablehnen" }));
+    await waitFor(() => expect(body).toEqual({ group: 5, approved: false, comment: "Brauchen wir selbst" }));
+    expect(await screen.findByText("Abgelehnt.")).toBeInTheDocument();
+  });
+
   it("sends the old requests page to my material", async () => {
     server.use(
       http.get(api("/api/material/mine"), () =>
@@ -783,13 +1177,19 @@ describe("material — Ausgabe", () => {
     await user.click(await screen.findByRole("button", { name: "Übergeben" }));
     const d = await dialog();
     await user.click(d.getByRole("button", { name: "An" }));
-    await user.click(dropdown().getByRole("button", { name: "Peter Lustig" }));
+    await user.click(dropdown().getByRole("button", { name: "Griffwerk (Ort)" }));
     await user.type(d.getByLabelText("Teil per ID"), "E1351");
     await user.click(d.getByRole("button", { name: "Hinzufügen" }));
     await d.findByText("E1351");
     await user.click(d.getByRole("button", { name: "Größen ohne ID" }));
     await user.click(dropdown().getByRole("button", { name: "Friends 1" }));
     expect(d.getByLabelText("Anzahl Friends 1")).toHaveValue(1);
+    // Counted sizes go to a person: the place chosen before no longer counts.
+    expect(d.getByText("Größen ohne ID gehen nur an eine Person, bis zu einem Tag.")).toBeInTheDocument();
+    expect(d.getByRole("button", { name: "Übergeben" })).toBeDisabled();
+    await user.click(d.getByRole("button", { name: "An" }));
+    expect(dropdown().queryByRole("button", { name: "Griffwerk (Ort)" })).not.toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "Peter Lustig" }));
     expect(d.getByRole("radio", { name: "dauerhaft" })).toBeDisabled();
     await user.click(d.getByRole("button", { name: "Übergeben" }));
     await waitFor(() =>
@@ -808,6 +1208,7 @@ describe("material — Ausgabe", () => {
 
 describe("material — Bestand", () => {
   it("filters the pieces and hands a selection on to a location (#449)", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
     let body: unknown = null;
     server.use(
       http.get(api("/api/material/parts"), () =>
@@ -834,6 +1235,7 @@ describe("material — Bestand", () => {
   });
 
   it("creates a new type and adds its pieces", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
     const calls: Record<string, unknown> = {};
     server.use(
       http.get(api("/api/material/parts"), () => HttpResponse.json([])),
@@ -862,6 +1264,30 @@ describe("material — Bestand", () => {
     await waitFor(() => expect(calls.parts).toMatchObject({ product_type: 11, count: 2 }));
     expect(calls.type).toMatchObject({ name: "Pickel", is_psa: false });
     expect(await screen.findByText("2 Teile angelegt.")).toBeInTheDocument();
+  });
+});
+
+describe("material — Bestand für wen", () => {
+  it("shows no inventory actions to those without its rights", async () => {
+    server.use(http.get(api("/api/material/parts"), () => HttpResponse.json([part(1)])));
+    renderRoute("/kompass/material/stock");
+    expect(await screen.findByText("Griffwerk")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Teile anlegen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "PSA-Prüfungen" })).not.toBeInTheDocument();
+  });
+
+  it("shows those who only lend the pieces and places, but not the inventory's pages", async () => {
+    useMe({ permissions: ["equipment.manage_lending"] });
+    server.use(http.get(api("/api/material/parts"), () => HttpResponse.json([part(1)])));
+    const { user } = renderRoute("/kompass/material/stock");
+    expect(await screen.findByText("Griffwerk")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Teile anlegen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "PSA-Prüfungen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Wunschliste" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Orte" }));
+    await user.click(await screen.findByText("Di 18–20"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Neuer Ort" })).not.toBeInTheDocument();
   });
 });
 
@@ -934,6 +1360,7 @@ describe("material — Wunschliste, Orte, Tags", () => {
   });
 
   it("edits and deletes a location", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
     const calls: Record<string, unknown> = {};
     server.use(
       http.put(api("/api/material/locations/3"), async ({ request }) => {

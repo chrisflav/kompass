@@ -381,7 +381,8 @@ class LentSizeOut(Schema):
 
 class LoanOut(Schema):
     id: int
-    borrower: MemberRef
+    #: None once the borrower's member record is deleted; the loan stays on record.
+    borrower: MemberRef | None
     out_at: datetime
     due: date
     reservation: int | None

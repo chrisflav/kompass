@@ -24,6 +24,7 @@ import {
   PartStatus,
   HandOverModal,
   StockTabs,
+  useMaterialRoles,
   whereabouts,
   Whereabouts,
   type PartBrief,
@@ -43,6 +44,7 @@ function options(rows: PartBrief[], pick: (p: PartBrief) => { id: number; name: 
 /** Every piece, filterable, with a batch hand-over (issue #449). */
 export function Stock() {
   const navigate = useNavigate();
+  const roles = useMaterialRoles();
   const query = useApiQuery(["material", "parts"], () => unwrap(client.GET("/api/material/parts")));
   const rows = query.data ?? [];
   const selection = useRowSelection<number>();
@@ -111,7 +113,7 @@ export function Stock() {
                 {selection.count} übergeben
               </Button>
             )}
-            <Button onClick={() => setCreating(true)}>Teile anlegen</Button>
+            {roles.inventory && <Button onClick={() => setCreating(true)}>Teile anlegen</Button>}
           </>
         }
       />

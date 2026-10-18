@@ -1,12 +1,14 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 
-import { client, unwrap } from "../../api/http";
+import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation } from "../../api/hooks";
+import { useMe } from "../../api/me";
 import { Badge, Button, Field, Modal, useToast } from "../../components/ui";
 import {
   addDays,
   BASE,
+  CountInput,
   errorText,
   isoToday,
   MATERIAL,
@@ -20,8 +22,10 @@ import {
  * The cart: what the user is about to reserve or borrow, and for when.
  *
  * A line is a type and a quantity (the server picks the pieces), one
- * specific piece, or a size of a type kept by size and a quantity. Kept in localStorage so it survives a reload; the period is
- * shared with the catalogue, whose availability it drives.
+ * specific piece, or a size of a type kept by size and a quantity. Kept in
+ * localStorage, per user, so it survives a reload but not a change of user on
+ * a shared device; the period is shared with the catalogue, whose
+ * availability it drives.
  */
 export interface CartLine {
   key: string;
@@ -48,19 +52,60 @@ interface Cart extends CartState {
   clear: () => void;
 }
 
-const STORAGE_KEY = "kompass_material_cart";
+/** Where the cart of a user is kept. */
+export function cartStorageKey(userId: number): string {
+  return `kompass_material_cart:${userId}`;
+}
 
-function load(): CartState {
+/** Where the cart was kept before it was per user; dropped, as whose it was is unknown. */
+const LEGACY_KEY = "kompass_material_cart";
+
+type Ref = { id: number; name: string };
+const isRef = (value: unknown): value is Ref =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Ref).id === "number" &&
+  typeof (value as Ref).name === "string";
+
+/**
+ * A stored line, reduced to what a line holds. Older carts kept the whole
+ * type (its pieces, calendar and sizes); anything unreadable is dropped.
+ */
+function readLine(raw: unknown): CartLine | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const l = raw as Partial<CartLine>;
+  const quantity = typeof l.quantity === "number" && l.quantity >= 1 ? Math.floor(l.quantity) : 1;
+  if (l.part && typeof l.part.id === "number") {
+    const { id, label, typeName } = l.part;
+    return { key: `p${id}`, quantity: 1, part: { id, label: String(label), typeName: String(typeName) } };
+  }
+  if (l.size && typeof l.size.id === "number") {
+    const { id, name, typeName } = l.size;
+    return { key: `s${id}`, quantity, size: { id, name: String(name), typeName: String(typeName) } };
+  }
+  if (isRef(l.productType)) {
+    const { id, name } = l.productType;
+    return { key: `t${id}`, quantity, productType: { id, name } };
+  }
+  return null;
+}
+
+function load(storageKey: string | null): CartState {
   const fallback = { lines: [], start: isoToday(), end: addDays(isoToday(), 1) };
+  if (!storageKey) return fallback;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return fallback;
-    const stored = JSON.parse(raw) as CartState;
+    const stored = JSON.parse(raw) as Partial<CartState>;
+    const lines = (Array.isArray(stored.lines) ? stored.lines : [])
+      .map(readLine)
+      .filter((l): l is CartLine => l !== null);
     // A period that has passed is no use; start again from today.
-    if (!stored.start || stored.start < isoToday()) {
-      return { ...stored, start: fallback.start, end: fallback.end };
+    if (typeof stored.start !== "string" || typeof stored.end !== "string" || stored.start < isoToday()) {
+      return { ...fallback, lines };
     }
-    return stored;
+    return { lines, start: stored.start, end: stored.end < stored.start ? stored.start : stored.end };
   } catch {
     return fallback;
   }
@@ -75,14 +120,23 @@ export function useCart(): Cart {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<CartState>(load);
+  const me = useMe();
+  const storageKey = me.data ? cartStorageKey(me.data.user_id) : null;
+  const [state, setState] = useState<CartState>(() => load(storageKey));
+  // Once the user is known (or another one signs in) their own cart is loaded.
+  const [loadedKey, setLoadedKey] = useState(storageKey);
+  if (loadedKey !== storageKey) {
+    setLoadedKey(storageKey);
+    setState(load(storageKey));
+  }
   useEffect(() => {
+    if (!storageKey) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(storageKey, JSON.stringify(state));
     } catch {
       // Storage may be unavailable (private mode); the cart then lives for the visit.
     }
-  }, [state]);
+  }, [state, storageKey]);
 
   const cart: Cart = {
     ...state,
@@ -93,7 +147,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const existing = s.lines.find((l) => l.key === key);
         const lines = existing
           ? s.lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l))
-          : [...s.lines, { key, productType, quantity }];
+          : [...s.lines, { key, productType: { id: productType.id, name: productType.name }, quantity }];
         return { ...s, lines };
       }),
     addPart: (part) =>
@@ -128,6 +182,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     clear: () => setState((s) => ({ ...s, lines: [] })),
   };
   return <CartContext.Provider value={cart}>{children}</CartContext.Provider>;
+}
+
+/** What the check said for one state of the cart, its ``fingerprint``. */
+interface CheckResult {
+  fingerprint: string;
+  problems: string[];
+  /** The groups whose material needs their approval. */
+  groups: string[];
+  error?: string;
 }
 
 /** The material routes share one cart. */
@@ -215,26 +278,50 @@ export function CartPanel() {
   const navigate = useNavigate();
   const [note, setNote] = useState("");
   const [borrowing, setBorrowing] = useState(false);
-  const [check, setCheck] = useState<{ problems: string[]; groups: string[] } | null>(null);
+  const [check, setCheck] = useState<CheckResult | null>(null);
 
   // Whether everything is free is asked as soon as the cart or its period
-  // changes, once the input settles; there is no separate "check" step.
+  // changes, once the input settles; there is no separate "check" step. Each
+  // answer carries the cart it was for, and only one for the cart as it is
+  // now is kept: a slower answer for an earlier cart cannot overwrite it.
+  const fingerprint = JSON.stringify([cart.lines.map((l) => [l.key, l.quantity]), cart.start, cart.end]);
+  const latest = useRef(fingerprint);
   const checkMutation = useApiMutation(
-    () => unwrap(client.POST("/api/material/reservations/check", { body: body(cart) })),
+    (request: { fingerprint: string; body: ReturnType<typeof body> }) =>
+      unwrap(client.POST("/api/material/reservations/check", { body: request.body })),
     {
-      onSuccess: (data) =>
-        setCheck({ problems: data.problems, groups: data.approval_groups.map((g) => g.name) }),
-      onError: () => setCheck(null),
+      onSuccess: (data, request) =>
+        request.fingerprint === latest.current &&
+        setCheck({
+          fingerprint: request.fingerprint,
+          problems: data.problems,
+          groups: data.approval_groups.map((g) => g.name),
+        }),
+      onError: (e, request) =>
+        request.fingerprint === latest.current &&
+        setCheck({
+          fingerprint: request.fingerprint,
+          problems: [],
+          groups: [],
+          // Something in the cart is gone: a piece, type or size deleted since.
+          error:
+            e instanceof ApiError && e.status === 404
+              ? "Etwas im Korb gibt es nicht mehr. Nimm es heraus oder leere den Korb."
+              : `Ob alles frei ist, ließ sich nicht prüfen: ${errorText(e)}`,
+        }),
     },
   );
-  const fingerprint = JSON.stringify([cart.lines.map((l) => [l.key, l.quantity]), cart.start, cart.end]);
   useEffect(() => {
-    setCheck(null);
+    latest.current = fingerprint;
     if (cart.lines.length === 0) return;
-    const timer = setTimeout(() => checkMutation.mutate(undefined), 400);
+    const request = { fingerprint, body: body(cart) };
+    const timer = setTimeout(() => checkMutation.mutate(request), 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fingerprint]);
+  const current = check?.fingerprint === fingerprint ? check : null;
+  // Material of other groups is only lent once they agree: it is reserved, not taken.
+  const needsApproval = (current?.groups.length ?? 0) > 0;
 
   const done = () => {
     cart.clear();
@@ -285,13 +372,11 @@ export function CartPanel() {
         </span>
       ) : (
         <>
-          <input
-            type="number"
+          <CountInput
+            label={`Anzahl ${lineName(l)}`}
             min={1}
-            className="cart-qty"
-            aria-label={`Anzahl ${lineName(l)}`}
             value={l.quantity}
-            onChange={(e) => cart.setQuantity(l.key, Number(e.target.value))}
+            onChange={(n) => cart.setQuantity(l.key, n)}
           />
           <span className="cart-line-name">{name}</span>
         </>
@@ -338,21 +423,23 @@ export function CartPanel() {
             )}
           </ul>
           <div className="cart-check" role="status">
-            {checkMutation.isPending || !check ? (
+            {!current ? (
               <span className="muted small">Prüft, ob alles frei ist…</span>
-            ) : check.problems.length === 0 ? (
+            ) : current.error ? (
+              <p className="error small">{current.error}</p>
+            ) : current.problems.length === 0 ? (
               <span className="small">
                 <Badge tone="success">Alles frei</Badge>
               </span>
             ) : (
-              check.problems.map((p) => (
+              current.problems.map((p) => (
                 <p key={p} className="error small">
                   {p}
                 </p>
               ))
             )}
-            {check && check.groups.length > 0 && (
-              <p className="small muted">Braucht die Freigabe von {check.groups.join(", ")}.</p>
+            {needsApproval && (
+              <p className="small muted">Braucht die Freigabe von {current!.groups.join(", ")}.</p>
             )}
           </div>
           <Field label="Notiz">
@@ -366,12 +453,19 @@ export function CartPanel() {
               <Button
                 variant="ghost"
                 busy={reserveToTake.isPending}
+                disabled={needsApproval}
                 onClick={() => (inHand ? setBorrowing(true) : reserveToTake.mutate(undefined))}
               >
                 Jetzt mitnehmen
               </Button>
             )}
           </div>
+          {cart.start === isoToday() && needsApproval && (
+            <p className="small muted">
+              Material anderer Gruppen nimmst du erst nach der Freigabe mit: reservier es, und hol es
+              dann unter Mein Material ab.
+            </p>
+          )}
         </>
       )}
       {borrowing && (
@@ -389,7 +483,9 @@ export function CartPanel() {
         <PickupModal
           reservation={pickup}
           onClose={() => {
+            // Not picked up now: the reservation stands, to be picked up later.
             setPickup(null);
+            toast.success("Reserviert – abholen kannst du es unter Mein Material.");
             done();
           }}
           onDone={() => {

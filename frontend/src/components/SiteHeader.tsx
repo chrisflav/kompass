@@ -16,6 +16,8 @@ interface NavLeaf {
   label: string;
   /** Shown only to those holding one of these permissions ("app.codename"). */
   perms?: string[];
+  /** Further path prefixes that belong to this entry, such as the tabs of a page. */
+  match?: string[];
 }
 interface NavArea {
   label: string;
@@ -124,6 +126,12 @@ const ADMIN_NAV: NavArea[] = [
       to: "/kompass/material/stock",
       label: "Bestand",
       perms: ["equipment.manage_inventory", "equipment.manage_lending"],
+      match: [
+        "/kompass/material/psa",
+        "/kompass/material/deficits",
+        "/kompass/material/locations",
+        "/kompass/material/categories",
+      ],
     },
   ] },
   { label: "Verwaltung", items: [
@@ -145,12 +153,19 @@ function useAdminNav(): NavArea[] {
 }
 
 /**
- * The item of an area the path belongs to: the longest matching link, so a
- * parent route ("/kompass/material") does not light up beside its children.
+ * The item of an area the path belongs to: the longest matching link (or extra
+ * prefix of an item's ``match``), so a parent route ("/kompass/material") does
+ * not light up beside its children.
  */
 function activeItem(items: NavLeaf[], path: string): string | undefined {
-  const matches = items.filter((i) => path === i.to || path.startsWith(i.to + "/"));
-  return matches.map((i) => i.to).sort((a, b) => b.length - a.length)[0];
+  let best: { to: string; length: number } | undefined;
+  for (const item of items) {
+    for (const prefix of [item.to, ...(item.match ?? [])]) {
+      const matches = path === prefix || path.startsWith(prefix + "/");
+      if (matches && (!best || prefix.length > best.length)) best = { to: item.to, length: prefix.length };
+    }
+  }
+  return best?.to;
 }
 
 /* --- small popover primitive --------------------------------------------- */
