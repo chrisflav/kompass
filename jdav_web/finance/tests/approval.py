@@ -40,6 +40,7 @@ from finance.engine.approval import fully_approved
 from finance.engine.approval import may_sign
 from finance.engine.approval import resolve_eligibility
 from finance.engine.approval import states
+from finance.engine.statements import NO_CURRENT_RESOLUTION
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
@@ -164,6 +165,62 @@ class ThresholdByOmission(Ruleset):
 
 
 ruleset = ThresholdByOmission()
+'''
+
+
+#: The same threshold, written by a section that books **nothing** for a
+#: receipt it cannot pay back. The difference to ``THRESHOLD_BY_OMISSION`` is
+#: one ``continue``, and it is the only shape in which the two halves of the
+#: fallback's condition come apart: the rules report a problem *and*, because
+#: the payout they could resolve is zero, ``approval`` returns ``[], []``. A
+#: section that drops the transfer instead of booking it against the
+#: participants is the natural way to write "we do not know who to pay".
+THRESHOLD_WITHOUT_THE_PAYOUT = '''
+from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS, Transfer
+
+
+class ThresholdWithoutThePayout(Ruleset):
+    """Nobody signs under a thousand euro, and an unpayable receipt pays nobody."""
+
+    name = "threshold-without-the-payout"
+    permissions = ("finance.process_statementsubmitted",)
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        transfers = []
+        errors = []
+        for bill in ctx.bills:
+            if not bill.covered:
+                continue
+            if bill.payer is None:
+                # Nothing is booked for a receipt with nobody to pay back, so
+                # the payout drops to zero and the threshold stops tripping.
+                errors.append("Beleg ohne Zahler")
+                continue
+            transfers.append(Transfer(SECTION, bill.payer, bill.amount, "bill", rule_id="bills"))
+        return transfers, errors
+
+    def approval(self, ctx, transfers):
+        if sum((t.amount for t in transfers), 0) < 1000:
+            return [], []
+        return (
+            [
+                Constraint(
+                    name="Vorstand",
+                    description="Zwei Unterschriften ab 1.000 Euro",
+                    applicable=True,
+                    required=2,
+                    eligible=ctx.permission_holders("finance.process_statementsubmitted"),
+                )
+            ],
+            [],
+        )
+
+
+ruleset = ThresholdWithoutThePayout()
 '''
 
 
@@ -2077,6 +2134,80 @@ class ThresholdByOmissionTestCase(TestCase):
         self.assertEqual(kept.name, "Vorstand")
         self.assertIsNotNone(kept.superseded_at)
 
+    def test_clean_rules_that_still_name_a_step_keep_the_statement_stuck(self):
+        """The other side of the same coin, and the one with the money on it.
+
+        The permissive half of the fallback is pinned by the test above: clean
+        rules that ask for nothing settle the statement. This is the half that
+        has to stay strict — clean rules that *still name a step* while no live
+        row answers it — and nothing in the suite asked for it. Line coverage
+        cannot tell: the clean-and-asking-for-nothing case runs the very same
+        ``return`` with an empty list, so the line is covered and the
+        condition is not, and a measured verification pass replaced that
+        branch with ``return []`` and watched all 510 finance tests stay green
+        while a 1.200-Euro payout went out on one signature where these rules
+        ask for two.
+
+        The sequence that gets there, and every step of it is an ordinary day:
+
+        * the statement is handed in over the threshold, so one ``Vorstand``
+          row is frozen asking for two signatures,
+        * a receipt nobody is named on arrives, which is a rule error, so the
+          freeze that receipt triggers writes nothing and retires both the
+          obligations and the constraints (:func:`~finance.engine.statements.
+          materialise`),
+        * the receipt turns out to belong to another statement and is moved
+          there. ``Bill.save`` refreshes the statement the bill points at
+          *now*, so this one is left as it was — retired, and waiting for a
+          save of its own to write a record again,
+        * and it is left clean — ``rule_result.errors`` empty, ``validity``
+          ``VALID``, the rules asking for two signatures again — with no live
+          row to record them.
+
+        There is no record to read and no reason to believe the signatures
+        came in, so the only safe answer is the one today's rules give, read
+        as a question nothing has resolved. The statement stays stuck until a
+        re-freeze writes a record, which the next bill save does.
+        """
+        big = self.a_statement_of(Decimal("1200.00"))
+        self.assertEqual(big.approval_constraint_set.get().name, "Vorstand")
+
+        stray = Bill.objects.create(
+            statement=big,
+            short_description="Fremdbeleg",
+            amount=Decimal("300.00"),
+            costs_covered=True,
+            paid_by=None,
+        )
+        self.assertTrue(Statement.objects.get(pk=big.pk).rule_result.errors, "unresolvable now")
+        self.assertEqual(big.approval_constraint_set.count(), 0, "so nothing was written")
+
+        stray.statement = Statement.objects.create(short_description="Andere")
+        stray.save()
+        statement = rebook(big, self.ledger)
+
+        self.assertEqual(statement.rule_result.errors, (), "nothing is wrong with it any more")
+        self.assertEqual(statement.validity, Statement.VALID)
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "and still nothing live")
+
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertEqual(sorted(gate), ["Vorstand"], "the step today's rules name")
+        self.assertTrue(gate["Vorstand"].applicable)
+        self.assertTrue(gate["Vorstand"].open)
+        self.assertEqual(gate["Vorstand"].required, 2)
+        self.assertEqual(gate["Vorstand"].error, NO_CURRENT_RESOLUTION)
+        self.assertFalse(statement.fully_approved)
+        self.assertFalse(approval_payload(statement, self.anna)["approved"])
+        # One signature, from somebody the rules do name and who holds the
+        # capability. It does not pay the statement out, and this is the
+        # assertion the neutered branch fails: there the gate is empty, the
+        # statement reads approved, and 1.200 Euro move on this one click.
+        self.assertFalse(statement.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+        self.assertFalse(
+            statement.transaction_set.filter(confirmed=True).exists(), "and nothing was paid"
+        )
+
     def test_a_statement_whose_rules_break_is_still_stuck(self):
         """The fallback it is gated on, under the same rules.
 
@@ -2096,6 +2227,102 @@ class ThresholdByOmissionTestCase(TestCase):
         gate = {state.name: state for state in gate_of(statement)}
         self.assertEqual(sorted(gate), ["Vorstand"], "the question it was handed in with")
         self.assertTrue(gate["Vorstand"].open)
+        self.assertFalse(statement.fully_approved)
+        self.assertFalse(approval_payload(statement, self.anna)["approved"])
+        self.assertFalse(statement.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+
+class UnresolvableUnderTheThresholdTestCase(TestCase):
+    """A broken statement whose rules also stop asking for signatures.
+
+    The fallback's strict branch is taken on two conditions — no resolution to
+    be had, *or* a resolution that reported a problem — and the second one had
+    no test of its own. ``ThresholdByOmissionTestCase``'s broken statement
+    cannot provide one: its rules book the payerless receipt against the
+    participants anyway ("Owed either way, so the threshold still trips"), so
+    ``approval`` keeps naming ``Vorstand`` and the branch's answer is the same
+    whichever condition sent it there. Dropping ``or
+    resolution.reported_a_problem`` left all 510 finance tests green.
+
+    This section drops the transfer it cannot resolve instead, which is the
+    other obvious way to write it and which pulls the two apart: the rules
+    report a problem **and** ask for nothing, so reading "nothing is asked" as
+    "nobody needs to sign" says a statement whose payout nobody could work out
+    is fully approved.
+    """
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        self.clara_user, self.clara = a_user("clara", permitted=True)
+        self.ledger = Ledger.objects.create(name="Konto")
+        self.directory = TemporaryDirectory()
+        package = Path(self.directory.name)
+        (package / "__init__.py").write_text(THRESHOLD_WITHOUT_THE_PAYOUT, encoding="utf-8")
+        row, problems = import_from_directory(package, name="threshold-without-the-payout")
+        self.assertEqual(problems, [])
+        self.version = row
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def a_statement_of(self, amount):
+        statement = Statement.objects.create(short_description="Gross")
+        Bill.objects.create(
+            statement=statement,
+            short_description="Bus",
+            amount=amount,
+            costs_covered=True,
+            paid_by=self.clara,
+        )
+        statement.submit(submitter=self.clara)
+        return rebook(statement, self.ledger)
+
+    def test_a_statement_whose_payout_broke_away_is_not_approved_by_omission(self):
+        """The problem is reported, nothing is asked, and it still sticks.
+
+        The statement is handed in over the threshold and freezes one
+        ``Vorstand`` row asking for two signatures. Then its receipt loses its
+        payer — the finance officer's one edit, through ``Bill.save`` —, which
+        these rules answer with an error and no transfer at all. The freeze
+        writes nothing and retires the record, and re-resolving now returns a
+        *clean-looking* empty list of steps beside an error on the result.
+
+        The gate has to read the error rather than the empty list, and the
+        step the record last asked for is what it reads instead. ``validity``
+        refuses a payout here too — ``UNRESOLVED``, because the rules reported
+        a problem — so the gate is the only thing that tells the two answers
+        apart, which is exactly why this needs asserting: without it
+        ``/approval`` reports ``approved: true`` and the page says every
+        signature is in, for a statement nobody can settle. That
+        contradiction is what :mod:`finance.api.approval` exists to prevent.
+        """
+        big = self.a_statement_of(Decimal("1200.00"))
+        frozen = big.approval_constraint_set.get()
+        self.assertEqual((frozen.name, frozen.required), ("Vorstand", 2))
+
+        bill = big.bill_set.get()
+        bill.paid_by = None
+        bill.save()
+        # Re-booked, so that what refuses the payout below is the approval and
+        # not the arithmetic of transactions written for the old figures.
+        statement = rebook(big, self.ledger)
+
+        self.assertTrue(statement.rule_result.errors, "the rules report a problem")
+        self.assertEqual(
+            sum(transfer.amount for transfer in statement.rule_result.transfers),
+            Decimal("0.00"),
+            "and resolve no payout, so these rules ask for no signature either",
+        )
+        self.assertEqual(statement.validity, Statement.UNRESOLVED)
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "nothing live")
+
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertEqual(sorted(gate), ["Vorstand"], "the question it was handed in with")
+        self.assertTrue(gate["Vorstand"].applicable)
+        self.assertTrue(gate["Vorstand"].open)
+        self.assertEqual(gate["Vorstand"].error, NO_CURRENT_RESOLUTION)
+        self.assertTrue(gate["Vorstand"].unsatisfiable, "nor may anybody sign it away")
         self.assertFalse(statement.fully_approved)
         self.assertFalse(approval_payload(statement, self.anna)["approved"])
         self.assertFalse(statement.approve(self.anna))
