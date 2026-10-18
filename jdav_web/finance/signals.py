@@ -39,8 +39,8 @@ import logging
 from typing import Any
 
 from django.db.models.signals import post_delete
-from django.dispatch import receiver
 from members.models import Member
+from members.models import MemberUnconfirmedProxy
 
 from .inputs import party_keys
 from .models import Statement
@@ -67,7 +67,17 @@ def forget_member(member_id: int) -> list[int]:
         )
         if _mentions(answers or {}, member_id)
     ]
-    for statement in Statement.objects.filter(pk__in=mentions):
+    # The status is asked **again** here, and the rows are locked while this
+    # runs. The scan above is a read and the save below is a write, so without
+    # it a statement handed in between the two would be pruned anyway —
+    # `save()`'s own guard cannot catch that either, since it reads the status
+    # off the stale instance this loop fetched. The window is tens of
+    # milliseconds and the consequence is round 2's defect at a smaller number:
+    # an allowance struck off a frozen payout, silently.
+    locked = Statement.objects.filter(
+        pk__in=mentions, status=Statement.UNSUBMITTED
+    ).select_for_update()
+    for statement in locked:
         keys = _party_keys(statement)
         if keys is None:
             continue
@@ -136,6 +146,25 @@ def _mentions(answers: dict[str, Any], member_id: int) -> bool:
     return False
 
 
-@receiver(post_delete, sender=Member, dispatch_uid="finance.forget_deleted_member")
 def _forget_deleted_member(sender: Any, instance: Any, **kwargs: Any) -> None:
     forget_member(instance.pk)
+
+
+# Connected for the proxy as well as for the model, which is not a belt-and-
+# braces nicety: django's collector sends `post_delete` with
+# `sender = objs[0].__class__`, so deleting a `MemberUnconfirmedProxy` — the
+# admin's *Unbestätigte Anmeldungen*, and what `Member.demote_to_waiter()`
+# deletes — never reached a receiver bound to `Member` alone. The collector
+# honours `SET_NULL` and the m2m cascade through a proxy, so the arrangement
+# this replaces had nothing to miss and this one did. `sender=None` would catch
+# any future proxy, but it also gives every model in the project a `post_delete`
+# listener, and `Collector.can_fast_delete` checks exactly that: it would turn
+# off bulk deletion everywhere. `MemberUnconfirmedProxy` is the only proxy of
+# `Member` in the tree. `Signal.connect` keys on `(dispatch_uid, sender)`, so
+# the same uid stays idempotent for each.
+for _sender in (Member, MemberUnconfirmedProxy):
+    post_delete.connect(
+        _forget_deleted_member,
+        sender=_sender,
+        dispatch_uid="finance.forget_deleted_member",
+    )

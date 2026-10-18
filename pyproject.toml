@@ -97,12 +97,13 @@ follow_imports = "skip"
 # `finance.rules` is four predicates, each wrapped by `@predicate` (django-rules)
 # and `@memberize_user` (contrib) -- both from modules that are skipped above and
 # therefore `Any`, which `--strict` reports as "untyped decorator makes function
-# untyped" on every one of them. `finance.signals` is one receiver wrapped by
-# django's `@receiver`, which is `Any` for the same reason. The bodies are
-# checked; only the decorators are exempted here, and saying so in the
-# configuration is better than five `# type: ignore` comments.
+# untyped" on every one of them. The bodies are checked; only the decorators are
+# exempted here, and saying so in the configuration is better than four
+# `# type: ignore` comments. `finance.signals` was listed too while it used
+# django's `@receiver`; it connects its receiver by hand now, for the proxy as
+# well as for the model, so it needs no exemption.
 [[tool.mypy.overrides]]
-module = ["finance.rules", "finance.signals"]
+module = ["finance.rules"]
 disallow_untyped_decorators = false
 
 # The API layer, checked for the errors that can actually be *found* there.

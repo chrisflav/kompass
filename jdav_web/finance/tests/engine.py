@@ -1178,6 +1178,28 @@ class ContextTestCase(TestCase):
         self.assertIsNone(ctx.inputs.member("subsidy_to"))
         self.assertEqual(ctx.inputs.members("allowance_to"), ())
 
+    def test_a_set_of_people_is_not_whatever_happens_to_be_iterable(self):
+        """A string and a dict are iterable, and neither is a set of people.
+
+        ``coerce_input`` promises that an answer which does not fit its
+        declaration is handed through untouched, so that the rule's own
+        accessor raises and ``evaluate`` reports it. ``"27"`` iterated as two
+        members and ``{"3": 1}`` as one instead, which is the opposite: a
+        plausible-looking set of strangers. Unreachable through today's write
+        path, and exactly the case the tolerance exists for — a section
+        retyping a key that already holds a text or whole-euro answer. Neuter
+        the ``isinstance`` guard in ``_fitted`` and both assertions go red with
+        a set of members the answer never named.
+        """
+        for stored in ("27", {"3": 1}):
+            with self.subTest(stored=stored):
+                self.statement.inputs = {"allowance_to": stored}
+                self.statement.save()
+                ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
+                self.assertEqual(ctx.inputs.raw("allowance_to"), stored)
+                with self.assertRaises(RuleError):
+                    ctx.inputs.members("allowance_to")
+
     def test_an_answer_no_declaration_asks_for_is_not_an_answer(self):
         """A key the rules stopped asking for does not reach a rule.
 

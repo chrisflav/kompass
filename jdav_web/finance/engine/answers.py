@@ -56,6 +56,13 @@ def coerce_input(declaration: Input, value: Any) -> object:
 
 def _fitted(declaration: Input, value: Any) -> object:
     if declaration.type == "member_set":
+        # A string is iterable and a dict iterates its keys, so without this
+        # `"27"` would read back as two members and `{"3": 1}` as one — against
+        # the promise above that a value which does not fit is handed through
+        # untouched. Which is exactly the case the `except` above exists for: a
+        # section retyping a key that already holds a text or whole-euro answer.
+        if value is not None and not isinstance(value, list | tuple):
+            raise TypeError(f"a set of members is not {type(value).__name__}")
         # Sorted and deduplicated, because a set is a set: this is what the
         # `ManyToManyField` it replaced guaranteed, and `statement_inputs`
         # sorted by primary key before the columns were dropped. The order

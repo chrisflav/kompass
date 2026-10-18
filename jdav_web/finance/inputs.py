@@ -227,10 +227,14 @@ def _as_member(value: Any) -> int:
     ``dict`` and the only thing that looks at them is here. The message is the
     one the admin and the API have always given, which is also true of a value
     that is not a person at all: it is not one of the people the rules offered.
+
+    ``OverflowError`` is in the list because ``1e400`` is an ordinary JSON
+    number that arrives as ``float('inf')``, and ``int()`` of that overflows
+    rather than failing to parse.
     """
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise ValidationError(
             _("Only youth leaders of this excursion may receive contributions.")
         ) from None
@@ -297,7 +301,15 @@ def _clean_money(declaration: Input, value: Any) -> Decimal:
         raise ValidationError(
             _("%(label)s cannot be negative.") % {"label": str(declaration.label)}
         )
-    places = max(0, -int(amount.normalize().as_tuple().exponent))
+    # `as_tuple()` and not `normalize()`: normalising applies the decimal
+    # context, and `Decimal("1E+1000000").normalize()` raises `Overflow` — an
+    # `ArithmeticError` that is not an `InvalidOperation`, so that string in a
+    # money answer was a 500 rather than this function's 422. Money arrives as
+    # text on this API, so nothing exotic is needed to send it. The exponent is
+    # all the question needs, and reading it uses no context. The `int()` is
+    # for the type checker: typeshed allows an exponent of 'n', 'N' or 'F',
+    # which only a NaN or an infinity carries and `is_finite()` has refused.
+    places = max(0, -int(amount.as_tuple().exponent))
     if places > MONEY_PLACES or amount > MONEY_MAX:
         raise ValidationError(
             _("%(label)s has to be an amount in whole cents, at most %(max)s.")
@@ -309,7 +321,7 @@ def _clean_money(declaration: Input, value: Any) -> Decimal:
 def _clean_int(declaration: Input, value: Any) -> int:
     try:
         number = int(value if value is not None else 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise ValidationError(
             _("%(label)s is not a whole number.") % {"label": str(declaration.label)}
         ) from None

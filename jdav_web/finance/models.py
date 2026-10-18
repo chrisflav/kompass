@@ -61,10 +61,15 @@ class Ledger(models.Model):
 
 
 def _as_id(value) -> int | None:
-    """``value`` as a member id, or ``None`` when it is not one at all."""
+    """``value`` as a member id, or ``None`` when it is not one at all.
+
+    ``OverflowError`` for the same reason as in :func:`finance.inputs._as_member`:
+    a JSON ``1e400`` is ``float('inf')`` by the time it gets here, and this is a
+    readout, so it has to answer rather than raise.
+    """
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 

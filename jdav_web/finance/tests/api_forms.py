@@ -273,8 +273,15 @@ class FinanceFormApiTestCase(TestCase):
         ``quantize`` floors to cents, so a third decimal place is dropped
         rather than paid, and an unbounded amount is one ``0021``'s reverse
         cannot write back into the ``max_digits=5`` column it came from.
+
+        ``"1E+1000000"`` is the exponent form of the same thing and belongs
+        here because it took a different route: ``normalize()`` applies the
+        decimal context and raised ``Overflow``, an ``ArithmeticError`` that is
+        not an ``InvalidOperation``, so it came out as a 500. Money is sent as
+        text on this API, so there is nothing exotic about it. ``1e400`` is an
+        ordinary JSON *number* that arrives as ``float('inf')``.
         """
-        for value in ("1.234", "100000.00", "nan", "inf"):
+        for value in ("1.234", "100000.00", "nan", "inf", "1E+1000000", 1e400):
             with self.subTest(value=value):
                 r = self.client.patch(
                     "/api/finance/statements/{}".format(self.statement.pk),
@@ -328,7 +335,11 @@ class FinanceFormApiTestCase(TestCase):
         now and this is the only thing that looks at them, so the shapes a
         client can send have to come back as refusals rather than as 500s.
         Neuter ``_as_member`` — ``int(value)`` bare — and every row below
-        becomes an unhandled ``ValueError`` or ``TypeError``.
+        becomes an unhandled ``ValueError`` or ``TypeError``. The last two are
+        there because the seven before them are all *non-numeric*, which is how
+        a number that overflows got through: ``1e400`` is ordinary JSON and
+        arrives as ``float('inf')``, whose ``int()`` raises ``OverflowError``,
+        which is neither of the two that were caught.
         """
         cases = [
             {"subsidy_to": "abc"},
@@ -338,6 +349,8 @@ class FinanceFormApiTestCase(TestCase):
             {"allowance_to": [[1]]},
             {"allowance_to": {"a": 1}},
             {"allowance_to": "abc"},
+            {"subsidy_to": 1e400},
+            {"allowance_to": [1e400]},
         ]
         for answers in cases:
             with self.subTest(answers=answers):
@@ -725,6 +738,13 @@ class InputValueTestCase(SimpleTestCase):
             clean_value(declaration, "drei")
         with self.assertRaises(ValidationError):
             clean_value(declaration, 8)
+        # A number that *overflows* rather than failing to parse: `1e400` is
+        # ordinary JSON and arrives as `float('inf')`, whose `int()` raises
+        # `OverflowError`. No ruleset in tree declares an `int` yet, so this is
+        # the only place the gap could be shown — which is why it is shown
+        # here rather than left for the section that declares the first one.
+        with self.assertRaises(ValidationError):
+            clean_value(declaration, 1e400)
 
     def test_a_flag_and_a_line_of_text(self):
         self.assertIs(clean_value(Input("f", "F", "bool"), "ja"), True)

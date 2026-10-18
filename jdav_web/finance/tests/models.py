@@ -9,6 +9,7 @@ from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from finance import signals
 from finance.engine import build_context
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
@@ -38,6 +39,7 @@ from members.models import Intervention
 from members.models import LJPProposal
 from members.models import MALE
 from members.models import Member
+from members.models import MemberUnconfirmedProxy
 from members.models import MUSKELKRAFT_ANREISE
 from members.models import NewMemberOnList
 
@@ -714,7 +716,8 @@ class StatementTestCase(TestCase):
 
         Neuter it — disconnect the receiver — and the three assertions below go
         red, the last one because the rules still resolve a transfer to a member
-        who is gone.
+        who is gone. Bind it to ``Member`` alone and the proxy half goes red,
+        which is the delete the admin actually performs.
         """
         ghost = Member.objects.create(
             prename="Weg", lastname="Gewesen", email=settings.TEST_MAIL, gender=0
@@ -745,6 +748,59 @@ class StatementTestCase(TestCase):
             if isinstance(transfer.destination, RuleMember)
         }
         self.assertNotIn(ghost.pk, named)
+        # And once more through the proxy, because that is the delete a section
+        # performs: `MemberUnconfirmedProxy` is the admin's *Unconfirmed
+        # registrations*, `Member.demote_to_waiter()` ends in `self.delete()` on
+        # one of those, and django's collector sends `post_delete` with
+        # `sender = objs[0].__class__`. So a receiver bound to `Member` alone
+        # never ran for a member whose mail confirmation was still pending —
+        # the default state after registration — while `SET_NULL` and the m2m
+        # cascade this replaces went through the proxy quite happily.
+        pending = Member.objects.create(
+            prename="Noch",
+            lastname="Unbestaetigt",
+            email=settings.TEST_MAIL,
+            gender=0,
+            confirmed=False,
+        )
+        self.st3.excursion.jugendleiter.add(pending)
+        answer(self.st3, subsidy_to=pending.pk, allowance_to=[pending.pk])
+        MemberUnconfirmedProxy.objects.get(pk=pending.pk).delete()
+        self.st3.refresh_from_db()
+        self.assertIsNone(self.st3.inputs["subsidy_to"])
+        self.assertEqual(self.st3.inputs["allowance_to"], [])
+
+    def test_a_statement_handed_in_mid_prune_is_still_left_alone(self):
+        """The scan is a read and the prune is a write, so the status is asked twice.
+
+        Without the second question a statement submitted between the two would
+        be pruned on the strength of the first — and ``save()``'s own guard
+        cannot catch it either, since it reads the status off the instance the
+        loop already fetched. The window is modelled where it actually is:
+        between the scan's query and the fetch's, by handing the statement in
+        while the scan's rows are being sifted. Neuter it (drop ``status`` from
+        the second filter) and the frozen answer is rewritten.
+        """
+        ghost = Member.objects.create(
+            prename="Dazwischen", lastname="Rein", email=settings.TEST_MAIL, gender=0
+        )
+        self.st3.excursion.jugendleiter.add(ghost)
+        answer(self.st3, subsidy_to=ghost.pk)
+        # Read before the delete: django sets `pk` to `None` on the instance it
+        # deleted, so comparing against `ghost.pk` afterwards would assert that
+        # the answer is `None` — which is what the neutered code writes.
+        gone, statement_id = ghost.pk, self.st3.pk
+
+        sift = signals._mentions
+
+        def hand_in(answers, member_id):
+            Statement.objects.filter(pk=statement_id).update(status=Statement.SUBMITTED)
+            return sift(answers, member_id)
+
+        with patch.object(signals, "_mentions", side_effect=hand_in):
+            ghost.delete()
+        self.st3.refresh_from_db()
+        self.assertEqual(self.st3.inputs["subsidy_to"], gone)
 
     def test_deleting_a_member_leaves_a_handed_in_statement_alone(self):
         """A frozen statement is not the receiver's business, and must not be.
@@ -888,6 +944,13 @@ class StatementTestCase(TestCase):
         answer(self.st6, subsidy_to="niemand", allowance_to=[self.fritz.pk, {"wer": "?"}])
         self.assertIsNone(self.st6.subsidy_to)
         self.assertEqual(self.st6.allowance_to, [self.fritz])
+        # And a number that *overflows* rather than failing to parse, which is
+        # `OverflowError` and was not in the list `_as_id` caught: `1e400` is
+        # ordinary JSON. On an unsaved statement, because the reader is the
+        # point and a JSON column need not accept an infinity at all.
+        inert = Statement(inputs={"subsidy_to": float("inf"), "allowance_to": [float("inf")]})
+        self.assertIsNone(inert.subsidy_to)
+        self.assertEqual(inert.allowance_to, [])
 
     def test_total_pretty(self):
         self.assertEqual(self.st3.total_pretty(), "{}€".format(self.st3.total))

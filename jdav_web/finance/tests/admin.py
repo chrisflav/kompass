@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from finance.testing import also
+from finance.testing import answer
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import MALE
@@ -517,6 +518,41 @@ class StatementSubmittedAdminTestCase(AdminTestCase):
             )
         )
         self.assertTrue(any(expected_text in str(msg) for msg in messages))
+
+    def test_overview_view_confirm_a_statement_the_rules_cannot_settle(self):
+        """The sixth validity state, and the one branch that had no arm.
+
+        ``UNRESOLVED`` went into the enum and not into this dispatch, so it
+        fell into the ``else``: an internal-bug line in the log and a redirect
+        to the changelist **with no message at all**, which is fail-closed and
+        silent. A treasurer has to be told which answer the rules choked on,
+        and ``validity_display`` is the only thing here that can say it. Neuter
+        it — take the branch out again — and this goes red on an empty message
+        list.
+        """
+        # An answer that no longer fits the declaration that asked for it,
+        # read by a rule — which is the state this exists for. No bills and no
+        # transactions, because `UNRESOLVED` is asked *last*: a statement whose
+        # arithmetic also disagrees gets the more specific message, which is
+        # the right way round and leaves this one reachable only like this.
+        self.excursion.jugendleiter.add(self.member)
+        statement = Statement.objects.create(
+            short_description="Unauflösbar",
+            excursion=self.excursion,
+            status=Statement.SUBMITTED,
+            submitted_by=self.member,
+            submitted_date=timezone.now(),
+        )
+        answer(statement, night_cost={"war": "mal eine Zahl"}, subsidy_to=self.member.pk)
+        self.assertEqual(statement.validity, Statement.UNRESOLVED)
+
+        url = reverse("admin:finance_statement_overview", args=(statement.pk,))
+        c = self._login("superuser")
+        response = c.post(url, follow=True, data={"confirm": ""})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        messages = list(get_messages(response.wsgi_request))
+        expected = str(statement.validity_display)
+        self.assertTrue(any(expected in str(message) for message in messages), messages)
 
     def test_overview_view_reject(self):
         """Test overview_view reject statement"""
