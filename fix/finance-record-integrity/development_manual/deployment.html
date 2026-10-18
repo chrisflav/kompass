@@ -98,6 +98,7 @@
 <li class="toctree-l2"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="authentication.html">Authentication</a></li>
 <li class="toctree-l2"><a class="reference internal" href="mail_routing.html">Mail routing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="finance_rules.html">A section’s finance rules</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="translations.html">Translations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ci.html">Continuous Integration</a></li>
@@ -434,6 +435,27 @@ will be placed in the impressum page.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">templates/startpage/faq_content</span></code>: group registration FAQ</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">templates/startpage/group_introduction</span></code>: introductory text placed above the group listing</p></li>
 </ul>
+</li>
+<li><p>Finance rules: How the section settles a statement — what an allowance is, who gets it, what the
+participants contribute, who has to sign — is a Python package in the config directory, named
+from the <code class="docutils literal notranslate"><span class="pre">settings.toml</span></code>:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">[finance]</span>
+</span><span id="line-2"><span class="n">ruleset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"rules"</span><span class="w">   </span><span class="c1"># a package directory under KOMPASS_CONFIG_DIR_PATH</span>
+</span></code></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">importruleset</span></code> runs when the <code class="docutils literal notranslate"><span class="pre">master</span></code> container starts — the only one of the five
+containers whose entrypoint imports — so a rule change needs neither a Kompass release nor a
+rebuild. A package that fails its checks or its cases is stored as a draft,
+the previous version stays active, the command says so loudly and the container keeps serving.</p>
+<p><code class="docutils literal notranslate"><span class="pre">deploy/config-template/</span></code> in this repository is the directory to copy, and
+<a class="reference internal" href="finance_rules.html#development-manual-finance-rules"><span class="std std-ref">A section’s finance rules</span></a> is the reference for writing the rules themselves.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warnung</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">[finance]</span> <span class="pre">ruleset</span></code> unset, the <strong>reference Heidelberg ruleset</strong> that ships in the image
+applies. For any section that is not Heidelberg that is the wrong answer, and a silent one:
+the statements resolve, the books add up, and the figures are somebody else’s. A section that
+deploys without a ruleset settles its statements under Heidelberg’s rules.</p>
+</div>
 </li>
 </ul>
 <p class="rubric">Footnotes</p>
