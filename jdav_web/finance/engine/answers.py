@@ -81,7 +81,11 @@ def _fitted(declaration: Input, value: Any) -> object:
     return "" if value is None else str(value)
 
 
-def typed_inputs(declarations: Iterable[Input], answers: Mapping[str, Any]) -> dict[str, object]:
+def typed_inputs(
+    declarations: Iterable[Input],
+    answers: Mapping[str, Any],
+    derived: Mapping[str, object] | None = None,
+) -> dict[str, object]:
     """``answers`` restricted to ``declarations`` and typed by them.
 
     Restricted, because a key no declaration asks for is not an answer any
@@ -89,8 +93,23 @@ def typed_inputs(declarations: Iterable[Input], answers: Mapping[str, Any]) -> d
     hand it to a rule that read it by mistake. Typed, because a rule reads
     ``ctx.inputs.money(...)`` and gets a :class:`~decimal.Decimal` or a
     :class:`kompass.rules.RuleError`, never a string that looks like one.
+
+    ``derived`` are the answers the *engine* supplies, from
+    :func:`finance.engine.declared.supplied`. They win over anything stored
+    under the same key, and that is the fail-closed half of the feature: a
+    derived figure is never editable, so a value that reached
+    ``Statement.inputs`` under its key — a leftover from before the question
+    was derived, or a hand-crafted write — is shadowed rather than read. They
+    go through :func:`coerce_input` like a stored answer, so that one key is
+    one type however it was arrived at.
     """
+    engine_supplied = {} if derived is None else derived
     return {
-        declaration.key: coerce_input(declaration, answers.get(declaration.key))
+        declaration.key: coerce_input(
+            declaration,
+            engine_supplied[declaration.key]
+            if declaration.key in engine_supplied
+            else answers.get(declaration.key),
+        )
         for declaration in declarations
     }

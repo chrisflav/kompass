@@ -36,15 +36,25 @@ from finance.rules_api import Ruleset
 from finance.rules_api import Section
 from finance.rules_api import Transfer
 
+from .answers import coerce_input
+from .declared import ask
+from .declared import supplied
 from .guard import no_queries
 
 #: What an unanswered declaration of each type reads as.
+#:
+#: ``choice`` is ``""`` and not ``None``, which is what makes the widget
+#: readable at all (taxis #573): it is a named value out of a fixed list, a
+#: rule reads it with :meth:`~kompass.rules.Inputs.text`, and that accessor
+#: type-checks against ``str`` — so ``None`` here turned every unanswered
+#: choice into a :class:`~kompass.rules.RuleError` that collapsed the whole
+#: evaluation instead of reading as "nothing chosen yet".
 _EMPTY: dict[str, object] = {
     "money": Decimal("0.00"),
     "int": 0,
     "bool": False,
     "text": "",
-    "choice": None,
+    "choice": "",
     "member": None,
     "member_set": (),
 }
@@ -264,15 +274,48 @@ def _net_out(transfers: Iterable[Transfer], party: Party) -> Decimal:
     return total
 
 
-def _answered(declarations: Iterable[Input], ctx: RuleContext) -> Inputs:
-    """The answers to ``declarations``, with an empty value for the unanswered.
+def _answered(vocabulary: Iterable[Input], asked: Iterable[Input], ctx: RuleContext) -> Inputs:
+    """The answers a rule reads: what is *asked*, over the whole vocabulary.
 
-    The declarations are the authority: an answer to a question the ruleset
-    stopped asking is dropped, and a question nobody answered reads as that
-    type's empty value rather than raising.
+    Two sets, because a ruleset answers two questions about its form.
+    ``vocabulary`` is :meth:`~kompass.rules.Ruleset.inputs`, every key the
+    ruleset may ever read, and it decides what is *readable*: a rule that reads
+    a key it declared gets a value rather than a
+    :class:`~kompass.rules.RuleError`. ``asked`` is
+    :meth:`~kompass.rules.Ruleset.relevant_inputs`, the questions still on the
+    form, and it decides what is *answered*.
+
+    So the rule for a question the ruleset has stopped asking is the rule for a
+    question nobody has answered yet: it reads as that type's empty value. That
+    is taxis #579, settled in the direction that costs nothing — **what the form
+    does not ask, the rules read as unanswered.** The stored answer to a retired
+    question no longer moves money, which was the bug; and reading one is not
+    an error, which would have collapsed the whole evaluation into a traceback
+    over a question a person cannot even see (the mistake ``_EMPTY["choice"]``
+    used to make, for the same reason).
+
+    A **derived** declaration is resolved here rather than read, and that is
+    deliberately the last word. ``build_context`` already resolved it, so for a
+    real statement this agrees with what the form showed — but a context can
+    also arrive from a case file, from the fuzzer or from a dry run against
+    unsaved answers, and on those routes nothing else would. Resolving again
+    costs two attribute reads and makes one sentence true on every route: what
+    a rule reads for a derived key is what the statement's own data says, and
+    not what anybody submitted under it.
     """
-    answers: dict[str, object] = {}
-    for declaration in declarations:
+    asked = list(asked)
+    engine_supplied = supplied(asked, ctx)
+    # Everything declared reads as unanswered to begin with, so that a question
+    # the form is not asking is readable but empty — and so that a
+    # `relevant_inputs` which somehow names a key `inputs` does not is still
+    # resolved below rather than silently dropped.
+    answers: dict[str, object] = {
+        declaration.key: _EMPTY.get(declaration.type) for declaration in vocabulary
+    }
+    for declaration in asked:
+        if declaration.key in engine_supplied:
+            answers[declaration.key] = coerce_input(declaration, engine_supplied[declaration.key])
+            continue
         try:
             answers[declaration.key] = ctx.inputs.raw(declaration.key)
         except RuleError:
@@ -289,8 +332,15 @@ def evaluate(ruleset: Ruleset, ctx: RuleContext) -> Result:
     declarations: tuple[Input, ...] = ()
     try:
         with no_queries():
-            declarations = tuple(ruleset.inputs(ctx))
-            answered = replace(ctx, inputs=_answered(declarations, ctx))
+            # Both questions, because the form and the rules have to agree
+            # about which answers count (taxis #579): `inputs` is what may be
+            # read, `relevant_inputs` is what is being asked, and `_answered`
+            # puts the two together. Asking only `inputs` is the bug — a
+            # ruleset that retires a question would go on being paid from an
+            # answer the API offers no way to see or change.
+            vocabulary = ask(ruleset, ctx)
+            declarations = tuple(ask(ruleset, ctx, relevant=True))
+            answered = replace(ctx, inputs=_answered(vocabulary, declarations, ctx))
             returned, reported = ruleset.transfers(answered)
             checks = tuple(ruleset.checks(answered))
             transfers, problems = _validate(returned)

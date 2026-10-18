@@ -35,6 +35,9 @@ from .context import build_context
 from .context import parameters
 from .context import permission_holders
 from .context import statement_inputs
+from .declared import ask
+from .declared import options_from
+from .declared import supplied
 from .errors import EngineError
 from .errors import QueryDuringEvaluation
 from .errors import RulesetInvalid
@@ -82,6 +85,7 @@ __all__ = [
     "active_ruleset",
     "active_version",
     "approval_states",
+    "ask",
     "bind",
     "build_context",
     "cents_of",
@@ -103,6 +107,7 @@ __all__ = [
     "materialise",
     "may_sign",
     "no_queries",
+    "options_from",
     "parameters",
     "permission_holders",
     "read_sources",
@@ -117,6 +122,7 @@ __all__ = [
     "statement_context",
     "statement_inputs",
     "statement_params",
+    "supplied",
     "sum_amounts",
     "typed_inputs",
     "verify",

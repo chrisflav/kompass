@@ -46,7 +46,8 @@ from members.models import MUSKELKRAFT_ANREISE
 from members.models import OEFFENTLICHE_ANREISE
 
 from .answers import typed_inputs
-from .guard import no_queries
+from .declared import ask
+from .declared import supplied
 
 #: The settings a ruleset's parameters are taken from, until a ruleset brings
 #: its own (step 2 of the refactor). These are exactly the keys
@@ -273,12 +274,20 @@ def build_context(
     if ruleset is None or inputs is not None:
         return context
     # Asking the ruleset which answers it declares is a call into a section's
-    # own code, so it happens inside the guard like every other one — and it
+    # own code, so it happens inside the guard — `ask` opens it — and it
     # happens *after* everything above, which is the last query this context
     # needs. The answers it is asked against are the untyped ones: a ruleset
     # that branches on an answer while declaring the questions reads them with
     # `raw`, or branches in `relevant_inputs`, which runs against the typed
     # context this returns.
-    with no_queries():
-        declarations = ruleset.inputs(context)
-    return RuleContext(inputs=Inputs(typed_inputs(declarations, stored)), **around)
+    declarations = ask(ruleset, context)
+    # The derived answers are resolved here as well as in `evaluate`, and not
+    # only there, because this is the context `relevant_inputs`, the form and
+    # `clean` are asked against: without them, a question the engine answers
+    # would read as unanswered everywhere except in the rules, and a client
+    # would be shown an empty field for a figure that is already settled.
+    # Resolved, never stored — `supplied`'s own documentation says why.
+    return RuleContext(
+        inputs=Inputs(typed_inputs(declarations, stored, supplied(declarations, context))),
+        **around,
+    )
