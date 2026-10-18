@@ -25,6 +25,7 @@ Nothing here imports ``finance.models``: statements arrive as arguments.
 
 import logging
 from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -342,7 +343,7 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
         # Writing rows here would hide a payerless receipt behind a payout that
         # looks complete.
         _retire_rows(statement)
-        statement.approval_constraint_set.all().delete()
+        _retire_constraint_rows(statement)
         return ()
     members = MemberModel.objects.in_bulk([party.id for party in result.members()])
     names = {pk: member.name for pk, member in members.items()}
@@ -392,6 +393,234 @@ def _retire_rows(statement: Any) -> None:
     rows.filter(frozen_at__isnull=False, superseded_at__isnull=True).update(
         superseded_at=timezone.now()
     )
+
+
+def _retire_constraint_rows(statement: Any) -> None:
+    """Clear the way for a new resolution, keeping what was settled.
+
+    The mirror of :func:`_retire_rows`, one model over, and for the same
+    reason: a draft's constraint rows are a working copy and are dropped, a
+    row frozen at submission is a record and is marked superseded.
+
+    They were *deleted* until #555, and what the delete destroyed was the only
+    record of who authorised a payout against a failing approval step and what
+    reason they gave — to an unrelated receipt edit, through the one edit the
+    finance officer's permission exists for. The decision the rows carried is
+    read back by :func:`_decisions_so_far`.
+    """
+    rows = statement.approval_constraint_set.all()
+    rows.filter(frozen_at__isnull=True).delete()
+    rows.filter(frozen_at__isnull=False).update(superseded_at=timezone.now())
+
+
+#: The fields of an :class:`~finance.store.ApprovalConstraint` that record a
+#: *decision* about the step rather than a resolution of it: whether its
+#: signatures came in, and who waived it with what reason.
+DECISION_FIELDS = ("satisfied", "overridden_by_id", "overridden_at", "override_reason")
+
+#: The three of them that are the waiver. They are the ones a new row may have
+#: to refuse (:func:`_carried_decision`), because a waiver is a permission and
+#: the other field is a count.
+WAIVER_FIELDS = ("overridden_by_id", "overridden_at", "override_reason")
+
+
+@dataclass(frozen=True)
+class Recorded:
+    """What the row a decision sits on says, for the row taking over from it.
+
+    The decision itself, and the one thing about the row a waiver has to be
+    judged against: whether the step was **asking** anything when it was
+    waived. That belongs to the row rather than to the decision, and it is a
+    reason a waiver may not carry (:func:`_carried_decision`) — which is why
+    it travels beside the decision instead of being unpacked into the new row,
+    where it would overwrite the answer this resolution just worked out.
+
+    The row's ``error`` is deliberately **not** here, and the asymmetry is the
+    reason: :meth:`finance.models.Statement.override_approval` refuses a
+    waiver for a step it cannot resolve, so a waiver on a row that carries an
+    error does not exist to be read. Only the row *taking over* can carry one,
+    and :func:`_why_the_waiver_does_not_carry` reads that from the resolution
+    it is handed.
+    """
+
+    #: The four fields of :data:`DECISION_FIELDS`, as the new row's kwargs.
+    decision: dict[str, Any]
+    #: Whether the step applied on the row the decision was recorded on.
+    applicable: bool
+
+
+def latest_constraint_rows(statement: Any) -> list[ApprovalConstraint]:
+    """The most recent row per step name, superseded rows included.
+
+    Two callers need exactly this. :func:`_decisions_so_far` needs it because
+    a re-resolution that happens while the rules report a problem persists
+    nothing, so by the time the problem is fixed the row carrying a waiver is
+    a superseded one; reading only live rows would carry a decision across an
+    ordinary re-freeze and lose it across that pair of events, which is the
+    same defect with one more step in it. And
+    :func:`current_constraint_rows` needs it for the same state read from the
+    other end: with no live rows at all the gate had nothing to answer with,
+    and "no constraints" means *approved* (:func:`finance.engine.approval.
+    fully_approved`), so a statement whose rules broke after submission read
+    as signed off by nobody. The rows the record last asked for are a better
+    answer than none, and supersession is what made them available.
+    """
+    latest: dict[str, ApprovalConstraint] = {}
+    for row in ApprovalConstraint.all_objects.filter(statement=statement).order_by("pk"):
+        latest[row.name] = row
+    return list(latest.values())
+
+
+def _decisions_so_far(statement: Any) -> dict[str, Recorded]:
+    """Per step name, the decision its most recent row carries.
+
+    A decision belongs to the **step**, not to the row. Resolving a statement
+    again re-asks who may sign it; it does not re-ask whether the people who
+    already signed did, nor withdraw an authorisation nobody withdrew —
+    before #555 a covered receipt did exactly that, and put a payout the board
+    had waived back in front of the board. The superseded row keeps its own
+    copy of the decision beside the eligible set and the amounts it was taken
+    against, so the chain reads as what happened rather than as the latest
+    state alone.
+
+    Carrying is not unconditional, and the two halves of a decision differ in
+    *why*. ``satisfied`` is a count of what came in, read only for a statement
+    that has settled or has not been handed in, and never by the gate, which
+    counts signatures afresh every time (``recorded=False``) — so a step the
+    rules ask for differently after a re-freeze, a quorum that grew with the
+    payout say, carries it harmlessly. A **waiver is a permission**, and
+    :attr:`~finance.engine.approval.ConstraintState.open` reads it on every
+    call, gate included, so it is re-checked against the resolution that is
+    taking over: see :func:`_carried_decision`.
+    """
+    return {
+        row.name: Recorded(
+            decision={field: getattr(row, field) for field in DECISION_FIELDS},
+            applicable=row.applicable,
+        )
+        for row in latest_constraint_rows(statement)
+    }
+
+
+def _excluding_forbid(row: Mapping[str, Any], member_id: Any) -> str | None:
+    """The name of the forbid that bars ``member_id`` from ``row``, or ``None``.
+
+    The permission re-check is not a forbid, exactly as in
+    :meth:`finance.models.Statement.forbids_approval_by`: somebody who did not
+    hold the capability when the row was written may hold it now, and the
+    capability is checked at the moment somebody acts.
+    """
+    if member_id is None:
+        return None
+    for item in row.get("excluded", ()) or ():
+        if int(item["member"]) != int(member_id):
+            continue
+        forbid = str(item.get("forbid", ""))
+        if forbid != PERMISSION_EXCLUSION:
+            return forbid
+    return None
+
+
+def _why_the_waiver_does_not_carry(recorded: Recorded, row: Mapping[str, Any]) -> str | None:
+    """Why ``row`` may not take over the waiver on ``recorded``, or ``None``.
+
+    Three reasons, and each is a control :meth:`finance.models.Statement.
+    override_approval` applies to a waiver being *given*. A waiver carried past
+    one of them is that control defeated after the fact, because
+    :attr:`~finance.engine.approval.ConstraintState.open` reads ``overridden``
+    on every call, the gate's included — so the carried copy closes the step
+    where the live request would be turned down. Each was measured paying a
+    statement out:
+
+    **A forbid now excludes the person who gave it.** The payee waives the
+    board's signatures, the finance officer covers a receipt *that payee*
+    fronted, and the section's conflict-of-interest forbid excludes them from
+    the step their own waiver is still closing.
+
+    **The step can no longer be resolved.** ``override_approval`` refuses a
+    waiver for a step whose rules failed (``approval_cannot_be_resolved``):
+    a broken forbid is a rule that failed to say who is excluded, and the
+    person with the most reason to ask is the one it was written for, so such
+    a payout stays stuck. A waiver given while the rule worked and carried
+    onto the row that broke un-sticks it — and invisibly, because
+    :func:`finance.api.approval.state_display` reports ``Overridden`` before
+    it reports ``Could not be resolved``, and a forbid that raises is not an
+    evaluation error, so ``_pay_out``'s own guard never fires. Note the
+    asymmetry this keeps: an error on the row the waiver *was given on* is
+    impossible (the live path refused it there), so only the new row is asked.
+
+    **The step was not asking anything when it was waived.** This is the one
+    that needs no broken rules at all. ``override_approval`` checks the row,
+    the statement, the resolution and the forbids — and never ``applicable``,
+    so waiving a step that does not apply is accepted and recorded, and
+    nothing happens, because :func:`~finance.engine.approval.fully_approved`
+    ignores a step that does not apply. Then the payout grows past the
+    section's threshold, the step the rules ask for *now* carries that waiver,
+    and one unrelated signature pays the statement out: the board's two
+    signatures pre-authorised, months earlier, by one person, for a step that
+    did not exist when he waived it. A waiver answers the question a step was
+    asking; a step that asked nothing has no answer to carry.
+
+    The comparison is against the row the waiver was last carried onto, which
+    is not always the row it was *given* on — a payout that dips under the
+    threshold and comes back over it passes through an inapplicable row on the
+    way — so the reason recorded says exactly that. It would otherwise tell
+    the reader of an audit column that a waiver given on an applicable step
+    was given on an inapplicable one, which is a false statement of fact in
+    the one place this design exists to keep honest.
+
+    The alternative considered for all three was to make
+    :func:`finance.engine.approval.states` require the overrider to be in the
+    eligible set before an override closes a step. It is the wrong rule: an
+    override is *for* the person who may not sign — the chair waving through a
+    step whose group is the treasurers — so requiring membership would refuse
+    every legitimate waiver, and a waiver by an administrator with no member
+    record (``overridden_by`` is nullable) could never be given at all. These
+    re-ask the controls that exist, and nothing else.
+    """
+    forbid = _excluding_forbid(row, recorded.decision["overridden_by_id"])
+    if forbid is not None:
+        return forbid
+    error = str(row.get("error", "") or "")
+    if error:
+        return f"the step can no longer be resolved ({error})"
+    if bool(row.get("applicable", True)) and not recorded.applicable:
+        return "the step was not being asked for on the row this waiver was carried onto"
+    return None
+
+
+def _carried_decision(recorded: Recorded | None, row: Mapping[str, Any]) -> dict[str, Any]:
+    """What the new ``row`` takes over from the row recorded before it.
+
+    The whole decision, unless it is a **waiver** this resolution may not
+    honour (:func:`_why_the_waiver_does_not_carry`). Then the waiver stays
+    behind, on the superseded row — which is what #555 is about — and this row
+    records that it did not come with it, naming the person, the reason they
+    gave and the reason it lapsed.
+
+    ``satisfied`` always carries, and the difference is not an oversight: it is
+    a count of what came in, recounted by the gate every time
+    (``recorded=False``) and read only for a statement that has settled or has
+    not been handed in. A waiver is a permission that ``open`` reads on every
+    call. One is re-checked because something depends on it.
+    """
+    if recorded is None:
+        return {}
+    carried = dict(recorded.decision)
+    if carried["overridden_at"] is None:
+        return carried
+    lapsed = _why_the_waiver_does_not_carry(recorded, row)
+    if lapsed is None:
+        return carried
+    for field in WAIVER_FIELDS:
+        carried.pop(field, None)
+    waived_by = MemberModel.objects.filter(pk=recorded.decision["overridden_by_id"]).first()
+    who = waived_by.name if waived_by else recorded.decision["overridden_by_id"]
+    carried["override_withdrawn"] = (
+        f"the override by {who} ({recorded.decision['override_reason']}) "
+        f"did not carry onto this row: {lapsed}"
+    )[:500]
+    return carried
 
 
 def _approver_ids() -> set[int]:
@@ -499,8 +728,19 @@ def _materialise_constraints(statement: Any, result: Result, *, version: str, fr
     an audit two years later must not depend on re-running a section's Python.
     Who may sign *now* is a different question, asked by
     :func:`current_constraint_rows` — see its docstring for why the two differ.
+
+    Called again for a statement that is already submitted — the finance
+    officer covering a receipt, which is the one edit that stays open — the
+    rows it finds are **superseded rather than deleted**
+    (:func:`_retire_constraint_rows`), and each new row carries the decision
+    recorded about that step so far (:func:`_decisions_so_far`), as far as
+    this resolution allows it to (:func:`_carried_decision`). Who overrode a
+    step and why is the record the override mechanism exists to leave; losing
+    it to an unrelated receipt edit was #555, and so was handing the payout
+    back to the board that had already waived it.
     """
-    statement.approval_constraint_set.all().delete()
+    decisions = _decisions_so_far(statement)
+    _retire_constraint_rows(statement)
     ApprovalConstraint.objects.bulk_create(
         [
             ApprovalConstraint(
@@ -515,10 +755,71 @@ def _materialise_constraints(statement: Any, result: Result, *, version: str, fr
                 error=row["error"],
                 rule_version=version,
                 frozen_at=frozen,
+                **_carried_decision(decisions.get(row["name"]), row),
             )
             for position, row in enumerate(resolve_constraints(statement, result))
         ]
     )
+
+
+#: What a fallback row says instead of a resolution, because there was none.
+#: It is a statement of fact rather than a diagnosis: the rules did not
+#: produce an approval record on their last run, which is why the record's own
+#: question is being read back.
+NO_CURRENT_RESOLUTION = "the rules produced no approval record on their last run"
+
+
+def _record_as_unresolved(mapping: dict[str, Any]) -> dict[str, Any]:
+    """One step as a question nothing has resolved.
+
+    What :func:`_without_a_record` reads a step as when no row is live —
+    whichever of the two it reads, the record's own question or the one
+    today's rules ask in its place, because in neither case is there a
+    resolution to report.
+    Two things have to be dropped and one has to be added, and all three are
+    the same point: *this is not a resolution*.
+
+    **The answers go.** Keeping them made the fallback **permissive**. A
+    retired row carrying ``overridden`` closed its own step, so
+    :func:`~finance.engine.approval.fully_approved` answered yes and
+    ``/approval`` reported ``approved: true`` for a statement whose rules had
+    just broken — the contradiction :mod:`finance.api.approval` exists to
+    prevent. It also made the payload disagree with itself, because it reads
+    the *states* from here and an override's author and reason from the
+    **live** rows, which are the empty ones: "Overridden — : ", with nobody
+    and no reason.
+
+    **And the error comes.** Dropping the answers is not enough, because the
+    gate counts signatures for itself (``recorded=False``): a step whose
+    quorum really is in reads satisfied, ``fully_approved`` answers yes again,
+    and the payload says a statement nobody can settle is approved. What is
+    actually true is that the last run produced no record at all, so every
+    step here is :data:`NO_CURRENT_RESOLUTION` — which
+    :func:`finance.api.approval.state_display` reads as *Could not be
+    resolved*, which is what happened, and which
+    :attr:`~finance.engine.approval.ConstraintState.unsatisfiable` reads as
+    nobody may sign it away either.
+
+    The error is what carries it, and deliberately not an empty ``eligible``:
+    the merge in :func:`current_constraint_rows` re-supplies today's eligible
+    set by design — a treasurer appointed since submission is the reason that
+    merge exists — so a row emptied here would fill back up.
+    :func:`~finance.engine.approval.states` reads ``error`` *or* an empty
+    group the same way, and the error is the one the merge keeps
+    (``fresh["error"] or base["error"]``).
+
+    Nothing here can be more permissive than the empty list it replaced, and
+    the fallback is read by the gate only: it is never written to a row, so
+    the record keeps saying what it said.
+    """
+    return {
+        **mapping,
+        "satisfied": False,
+        "overridden": False,
+        "overridden_by": None,
+        "override_reason": "",
+        "error": mapping.get("error") or NO_CURRENT_RESOLUTION,
+    }
 
 
 def current_constraint_rows(statement: Any) -> list[dict[str, Any]]:
@@ -559,21 +860,32 @@ def current_constraint_rows(statement: Any) -> list[dict[str, Any]]:
     caller asks it for ``recorded=True``, and the record is the only caller
     that asks.
     """
-    frozen = list(statement.approval_constraint_set.all())
+    live = list(statement.approval_constraint_set.all())
+    frozen = live or latest_constraint_rows(statement)
     if not frozen:
         return []
-    rows = _rows_from_the_same_rules(statement, frozen)
-    if rows is None:
-        return [row.as_row() for row in frozen]
-    today = {row["name"]: row for row in rows}
+    resolution = _resolution_from_the_same_rules(statement, frozen)
+    records = [row.as_row() for row in frozen] if live else _without_a_record(frozen, resolution)
+    if not records:
+        # The rules ran cleanly and asked for nothing: see `_without_a_record`.
+        return []
+    if resolution is None:
+        return records
+    today = {row["name"]: row for row in resolution.rows}
     merged = []
-    for record in frozen:
-        base = record.as_row()
-        fresh = today.get(record.name)
+    for base in records:
+        fresh = today.get(base["name"])
         if fresh is None:
-            # The same rules cannot stop naming a constraint they named — the
-            # transfers are frozen too — so this is impossible rather than
-            # merely unlikely. Keeping the row is what makes it harmless.
+            # Not reachable through the live rows: the obligations they were
+            # resolved beside are frozen and `result_from_rows` replays those,
+            # so the same rules, asked the same question about the same
+            # transfers, cannot stop naming a step they named. It is reachable
+            # through `_without_a_record`, where the obligations were retired
+            # with the constraints: the rules then run against today's data
+            # and a ruleset that fails outright answers with one `UNRESOLVED`
+            # row, naming none of the steps the record asked about. Keeping
+            # the row is what makes that harmless — it still carries the
+            # reason nothing resolved it.
             merged.append(base)
             continue
         sticky = [
@@ -594,9 +906,76 @@ def current_constraint_rows(statement: Any) -> list[dict[str, Any]]:
     return merged
 
 
-def _rows_from_the_same_rules(
+@dataclass(frozen=True)
+class Resolution:
+    """Today's answer to the question the record froze.
+
+    ``reported_a_problem`` is the result's own ``errors``, carried out of here
+    because :func:`_without_a_record` cannot tell "the rules broke" from "the
+    rules stopped asking" without it, and both look alike from the rows.
+    """
+
+    #: One mapping per constraint, as :func:`resolve_constraints` returns them.
+    rows: list[dict[str, Any]]
+    #: Whether resolving the statement reported a problem with it.
+    reported_a_problem: bool
+
+
+def _without_a_record(
+    frozen: list[ApprovalConstraint], resolution: Resolution | None
+) -> list[dict[str, Any]]:
+    """The gate's answer when the record has no live row left.
+
+    There are two ways to arrive here and they need opposite answers, which is
+    what this function exists to tell apart. Both leave the same evidence —
+    rows that were the record and are superseded, and nothing live beside them
+    — so the rows cannot say which happened. The rules can.
+
+    **The rules reported a problem**, and nothing was persisted: a statement
+    that cannot be resolved has no record (:func:`materialise`). Answering
+    "no constraints" here means answering *approved*
+    (:func:`finance.engine.approval.fully_approved`), so a statement whose
+    rules broke after submission read as signed off by nobody. The rows the
+    record last asked for are a better answer than none, read as questions
+    *nothing* has resolved (:func:`_record_as_unresolved`), and supersession is
+    what made them available. Same when the resolution cannot be had at all —
+    a different version, or rules that will not run — because then nothing
+    known says the statement is settleable.
+
+    **Or the rules ran cleanly and stopped asking.** ``Ruleset.approval``
+    returning ``[], []`` is a first-class answer, documented in
+    :mod:`finance.rules_api` as "the capability check alone decides", and a
+    section will write a threshold by *omitting* the step as readily as by
+    marking it inapplicable. So the finance officer correcting a bill
+    downwards — the one edit a submitted statement stays open for — supersedes
+    the step the statement was handed in with and puts nothing in its place.
+    Nothing is wrong with that statement: there is no problem to fix, and no
+    re-freeze will write a live row while the payout stays under the
+    threshold. Reading it as the case above made it **permanently
+    unsettleable**, every door refused and the admin's confirm button landing
+    in its own "this should NOT happen!" branch. It is now what it has become,
+    which is a statement that was always small.
+
+    When the rules run cleanly and *do* still name steps, those are the
+    questions — today's, not the record's, because the record's may name steps
+    these rules no longer have — and nothing has resolved them, so the
+    statement stays stuck until something writes a record again. That is the
+    safe direction, and it is the one case where this is stricter than the
+    empty list it replaced.
+
+    What comes back goes through the same merge as a live row, which is
+    deliberate: in the clean case it re-supplies the eligible set these rows
+    already carry and changes nothing, and in the problem case it is how a
+    step today's rules no longer name keeps saying that nothing resolved it.
+    """
+    if resolution is None or resolution.reported_a_problem:
+        return [_record_as_unresolved(row.as_row()) for row in frozen]
+    return [_record_as_unresolved(dict(row)) for row in resolution.rows]
+
+
+def _resolution_from_the_same_rules(
     statement: Any, frozen: list[ApprovalConstraint]
-) -> list[dict[str, Any]] | None:
+) -> Resolution | None:
     """Today's resolution, or ``None`` if today's rules are not the same rules.
 
     "The same" is the version hash the rows carry. A row frozen before the
@@ -628,7 +1007,10 @@ def _rows_from_the_same_rules(
         result = (
             result_from_rows(statement) if rows_exist(statement) else evaluate_statement(statement)
         )
-        return resolve_constraints(statement, result)
+        return Resolution(
+            rows=resolve_constraints(statement, result),
+            reported_a_problem=bool(result.errors),
+        )
     except Exception as problem:  # the rules are there but will not run
         logger.warning("re-resolving the approval of %s failed: %s", statement.pk, problem)
         return None

@@ -9,8 +9,12 @@ years later: *under which rules was this settled, and what did they say?*
     version is a *new row* that points at the one it supersedes, never an
     update: that is the difference between valid time (``valid_from`` /
     ``valid_to``, when the rules applied) and transaction time
-    (``imported_at`` / ``activated_at``, when the system learned of them), and
-    an auditor needs both.
+    (``imported_at`` / ``activated_at`` / ``retired_at``, when Kompass was
+    told), and an auditor needs both (#560). The two can differ by months — a
+    section resolves new rates in March and gets round to telling Kompass in
+    May — and a row records each of them, so that *what was in force* and
+    *what Kompass applied at the time* stay separately answerable years
+    later.
 :class:`RoleAssignment`
     Who held which section role, with dates. The source of ``ctx.roles``.
 :class:`Obligation`
@@ -22,7 +26,9 @@ years later: *under which rules was this settled, and what did they say?*
     and possibly the maintainers are gone.
 :class:`ApprovalConstraint`
     What the rules asked for in the way of signatures, frozen beside the
-    obligations.
+    obligations — and, where one was signed off against a failing step, who
+    authorised that and why. Superseded rather than rewritten when a submitted
+    statement is resolved again, for the same reason as :class:`Obligation`.
 
 A German club's books fall under the GoBD, which asks for *Unveränderbarkeit*
 (no entry altered unnoticed), *Nachvollziehbarkeit* (every transaction
@@ -44,7 +50,9 @@ from members.models import Member
 
 #: The fields of a :class:`RuleSet` row that may never change once it is
 #: saved. Everything else about a version is lifecycle — when it was
-#: activated, when it was closed, whether its cases passed.
+#: activated, when it was closed, whether its cases passed. ``valid_from`` is
+#: on the list: *when* a version's rules applied from is part of what the row
+#: says, so a correction to it is a new row like any other.
 IMMUTABLE_FIELDS = (
     "name",
     "hash",
@@ -75,14 +83,32 @@ class RuleSetManager(models.Manager):
     def active(self, when=None):
         """The version in force at ``when`` (default: now), or ``None``.
 
-        In force means: activated, its validity has started, and its validity
-        has not been closed by a successor. Where two rows could answer, the
-        one whose validity started last wins — which is what a correction with
-        the same valid range is for.
+        In force is a question about **valid time**: the version whose
+        validity had started by ``when`` and had not ended. Asked with a past
+        ``when`` it is the as-of-today answer to "which rules applied then",
+        which is not the same as "which rules Kompass applied then" — for that,
+        read :attr:`RuleSet.imported_at` and :attr:`RuleSet.retired_at`, and
+        see the module docstring on why both exist.
+
+        Where two rows could answer, the one whose validity started last wins,
+        and :attr:`RuleSet.imported_at` breaks a tie — which is what a
+        correction with the same valid range is for: the later knowledge wins.
+
+        A **draft** never answers, and nothing else is excluded by its state.
+        That is the whole of the filter, and it has to be: requiring
+        ``state=ACTIVE`` meant a staged change — the one feature validity and
+        activation are separate fields *for* — left nothing in force at all
+        between the import and the date it takes effect, because activating
+        the staged row closes its predecessor's validity at that future date
+        and marks it ``RETIRED`` there and then. A statement created in that
+        window bound to no version and was settled against the reference
+        ruleset and the live settings. The state column says how an import
+        ended; the dates say what applied when.
         """
         moment = timezone.now() if when is None else when
         return (
-            self.filter(state=RuleSet.ACTIVE, valid_from__lte=moment)
+            self.exclude(state=RuleSet.DRAFT)
+            .filter(valid_from__lte=moment)
             .filter(Q(valid_to__isnull=True) | Q(valid_to__gt=moment))
             .order_by("-valid_from", "-imported_at")
             .first()
@@ -151,6 +177,18 @@ class RuleSet(models.Model):
     activated_at = models.DateTimeField(
         verbose_name=_("Activated on"), null=True, blank=True, default=None
     )
+    retired_at = models.DateTimeField(
+        verbose_name=_("Retired on"),
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "When Kompass stopped applying this version — transaction time, beside "
+            "'Valid to', which is when its rules ceased to be in force. The two are "
+            "the same instant unless a correction was backdated, and then the "
+            "difference is the whole record."
+        ),
+    )
     cases_passed_at = models.DateTimeField(
         verbose_name=_("Cases passed on"), null=True, blank=True, default=None
     )
@@ -218,22 +256,64 @@ class RuleSet(models.Model):
         }
 
     def retire(self, when=None):
-        """Close this version's validity, because a successor took over."""
-        self.valid_to = timezone.now() if when is None else when
-        self.state = RuleSet.RETIRED
-        self.save(update_fields=["valid_to", "state"])
+        """Close this version's validity, because a successor took over.
 
-    def activate(self):
-        """Put this version in force.
+        ``when`` is **valid** time: the instant the rules stopped applying,
+        which is the successor's ``valid_from`` and may be in the past (a
+        backdated correction) or in the future (a staged change). It is
+        written every time, because the latest knowledge decides what was in
+        force.
+
+        :attr:`retired_at` is transaction time, and the two other rules follow
+        from what it means — *when Kompass stopped applying this version*:
+
+        **It is written once.** A correction imported in May with a March
+        ``valid_from`` closes the validity of a row that a successor already
+        closed in April. Overwriting its ``retired_at`` from April to May
+        would destroy the one fact the column was added to keep: Kompass
+        applied those rules until April. The first retirement is the one that
+        stopped them being applied.
+
+        **It is not written ahead of time, and neither is the state.** A
+        staged change retires its predecessor at a *future* date, and until
+        that date the predecessor is still the version every statement is
+        settled under — which is what makes
+        :meth:`RuleSetManager.active` read the dates rather than the state.
+        Stamping either there said that Kompass had stopped applying the
+        version it was in fact applying, and ``dumpruleset`` told an auditor
+        it had been applied for no time at all. Nothing flips them when the
+        date arrives: the dates decide what applies when, and ``NULL`` reads
+        as *not recorded* rather than as a time nobody can stand behind.
+        """
+        now = timezone.now()
+        moment = now if when is None else when
+        self.valid_to = moment
+        changed = ["valid_to"]
+        if moment <= now:
+            if self.retired_at is None:
+                self.retired_at = now
+                changed.append("retired_at")
+            if self.state != RuleSet.RETIRED:
+                self.state = RuleSet.RETIRED
+                changed.append("state")
+        self.save(update_fields=changed)
+
+    def activate(self, until=None):
+        """Put this version in force, up to ``until`` where its interval ends.
 
         From now, or from :attr:`valid_from` where that is in the future: a
         staged change is activated once and takes effect on its own date,
         which is why activation and validity are separate fields rather than
         one timestamp.
+
+        ``until`` is for the one case where a version is in force for a
+        *closed* interval from the moment it is stored: a correction
+        backdated into a gap that a later version already ends. Left out, the
+        version is open-ended, which is every ordinary import.
         """
         self.state = RuleSet.ACTIVE
         self.activated_at = timezone.now()
-        self.valid_to = None
+        self.valid_to = until
         self.save(update_fields=["state", "activated_at", "valid_to"])
 
 
@@ -485,14 +565,80 @@ class Approval(models.Model):
         return ("unattributable",)
 
 
+class ApprovalConstraintManager(models.Manager):
+    """The rows that are a statement's *current* approval record.
+
+    A superseded row is history and never takes part in a decision: it must
+    not count towards a quorum, appear as a step still waiting for a
+    signature, or be the row an override or a signature is written onto. There
+    are seven readers of these rows — the record
+    (:attr:`finance.models.Statement.approval_states`), the gate
+    (:func:`finance.engine.statements.current_constraint_rows`), the version
+    bound inside it, :meth:`finance.models.Statement.approve`,
+    :meth:`finance.models.Statement.override_approval`, the ``/approval``
+    payload and the admin page it feeds — and "every one of them asks for the
+    live rows" is a property of the model rather than a convention seven
+    callers have to keep: so it is the **default** manager, which is what
+    ``statement.approval_constraint_set`` is built from.
+
+    Django's own advice is not to filter in a default manager, and the reason
+    it gives is this exact reach. Here the reach *is* the design: the question
+    every one of those callers asks is "what does this statement still need",
+    and a row that was replaced is not part of the answer. The two things that
+    must see everything still do — ``_base_manager``, which is what cascading
+    deletes and forward relations use, and :attr:`ApprovalConstraint.
+    all_objects`, which is the audit view and the one to reach for when the
+    question is "what did this look like before".
+
+    One consequence to know: ``dumpdata`` serialises the default manager, so
+    it would leave superseded rows out. Nothing in this repository calls it;
+    an export that has to be complete passes ``--all`` or reads
+    ``all_objects``.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(superseded_at__isnull=True)
+
+
 class ApprovalConstraint(models.Model):
     """A signature the rules asked for, frozen beside the obligations.
 
     Persisted at submission so that the question "who was allowed to sign
     this, at the time" has an answer that does not depend on today's
     permissions or today's rules. Evaluating these — quorum, exclusions,
-    who has signed — is the approval engine, which is a later step; this is
-    the record it will read.
+    who has signed — is the approval engine; this is the record it reads.
+
+    A row is **superseded, never rewritten**. The finance officer covering a
+    receipt after submission resolves the statement again, and the rows the
+    rules ask for are resolved again with it; the previous rows are marked
+    :attr:`superseded_at` and stay. They are the only record of who signed a
+    payout off against a step that was failing, and why they said it was all
+    right — which is the half of §6's GoBD argument (*Unveränderbarkeit*) that
+    justified versioning the configuration in the first place. Deleting them
+    and writing fresh ones, which is what this did until #555, lost that
+    record to an unrelated receipt edit.
+
+    What a row takes over from the row it replaces is the *decision* about the
+    step — see :func:`finance.engine.statements._carried_decision` — except
+    for a **waiver** the new row may not honour, and that exception is a
+    control rather than a nicety. A waiver closes a step wherever it lands, so
+    carrying one past a refusal the live request would meet is that refusal
+    defeated after the fact. The three it is re-asked against are the three
+    :meth:`finance.models.Statement.override_refusal` applies to a waiver
+    being given:
+
+    * a ``Forbid`` now **excludes the person who gave it** — the payee fronts
+      a receipt after waiving the step, and the waiver they may no longer give
+      would go on closing it;
+    * the step can no longer be **resolved** — a broken rule makes a payout
+      stuck, and a waiver from before it broke would un-stick it;
+    * the step was not being **asked for** on the row the waiver is carried
+      onto — a waiver answers the question a step was asking, and a step that
+      is asking nothing has no answer to carry.
+
+    :attr:`override_withdrawn` is what the new row says instead, naming the
+    person, their reason and which of the three it was, and the waiver itself
+    stays on the superseded row.
     """
 
     statement = models.ForeignKey(
@@ -538,6 +684,17 @@ class ApprovalConstraint(models.Model):
     override_reason = models.TextField(
         verbose_name=_("Reason for the override"), blank=True, default=""
     )
+    override_withdrawn = models.TextField(
+        verbose_name=_("Withdrawn override"),
+        blank=True,
+        default="",
+        help_text=_(
+            "Why an override recorded on this step did not carry onto this row: a rule "
+            "now excludes the person who gave it, or the step can no longer be resolved, "
+            "or it is not being asked for here. The override itself is on the row this "
+            "one replaced, which is kept."
+        ),
+    )
     error = models.TextField(
         verbose_name=_("Could not be resolved"),
         blank=True,
@@ -554,6 +711,22 @@ class ApprovalConstraint(models.Model):
     frozen_at = models.DateTimeField(
         verbose_name=_("Frozen on"), null=True, blank=True, default=None
     )
+    superseded_at = models.DateTimeField(
+        verbose_name=_("Superseded on"),
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "Set when a later resolution replaced this row. It is kept, not deleted: "
+            "who signed a step off against the rules, and why, is a record no edit "
+            "elsewhere may destroy."
+        ),
+    )
+
+    objects = ApprovalConstraintManager()
+    #: Every row, superseded ones included. The audit view: what a statement's
+    #: approval record looked like before it was resolved again.
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = _("Approval constraint")
@@ -561,7 +734,13 @@ class ApprovalConstraint(models.Model):
         ordering = ["statement_id", "position", "pk"]
 
     def __str__(self):
-        return f"{self.name} ({self.required})"
+        superseded = " (superseded)" if self.superseded_at is not None else ""
+        return f"{self.name} ({self.required}){superseded}"
+
+    @property
+    def live(self):
+        """Whether this row is the current one rather than a superseded one."""
+        return self.superseded_at is None
 
     @property
     def eligible(self):
@@ -579,9 +758,10 @@ class ApprovalConstraint(models.Model):
         ``satisfied`` is on it because this row **is** the record: it holds
         the answer that was reached when the statement was signed — written
         by the first :meth:`finance.models.Statement.approve` that finds the
-        step satisfied, and never revised by a later signature — that method's
-        docstring has the exact scope of "once", including the way a re-freeze
-        rewrites the row from outside it (#555). Left off,
+        step satisfied, and never revised by a later signature. A re-freeze no
+        longer rewrites it either: since #555 the row is superseded and a new
+        one is written beside it, so what this mapping says is what was true
+        of *this* row for as long as it was the live one. Left off,
         it was recomputed as ``signed ∩ eligible`` against the *frozen*
         eligible set — and a treasurer appointed after submission is by
         construction not in that set, so an ordinary mid-flight signature

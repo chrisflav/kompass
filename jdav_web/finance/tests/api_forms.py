@@ -635,6 +635,35 @@ class FinanceFormApiTestCase(TestCase):
         statement = Statement.objects.get(pk=self.statement.pk)
         self.assertFalse(statement.approval_constraint_set.get().overridden)
 
+    def test_an_override_of_a_step_that_is_not_being_asked_for_is_refused(self):
+        """The sixth refusal, which is the one that had no endpoint test.
+
+        The model learnt to refuse a waiver for a step that does not apply —
+        such a step is not in the way, so the request has nothing to grant —
+        and the endpoint went on restating five refusals of its own, so this
+        one answered **200** with ``overridden: false`` beside
+        ``approved: true``, which reads as success. That is #548 again, and
+        why the refusals now live in one place
+        (:meth:`finance.models.Statement.override_refusal`).
+
+        Heidelberg's one step always applies, so the row is made inapplicable
+        directly — which is the state a section's own threshold writes, as
+        :mod:`finance.tests.approval` exercises end to end. What this pins is
+        the status code.
+        """
+        self.statement.submit(self.owner)
+        self.statement.approval_constraint_set.update(applicable=False)
+        r = self.client.post(
+            "/api/finance/statements/{}/override-approval".format(self.statement.pk),
+            data={"name": "Freigabe", "reason": "Fristende"},
+            content_type="application/json",
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertFalse(statement.approval_constraint_set.get().overridden)
+        self.assertFalse(statement.confirmed)
+
     #: A section whose forbid broke *after* a statement was handed in. The
     #: step keeps its name, so it is the frozen "Freigabe" row that can no
     #: longer be resolved — which is what makes the override refusable.

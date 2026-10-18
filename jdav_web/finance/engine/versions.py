@@ -26,6 +26,7 @@ engine. Anything that needs a statement takes one as an argument.
 """
 
 import hashlib
+import logging
 import os
 import platform
 from collections.abc import Mapping
@@ -37,6 +38,7 @@ from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from finance.rules_api import Ruleset
 from finance.store import RuleSet
@@ -51,6 +53,8 @@ from .loader import load
 from .loader import manifest
 from .loader import manifest_hash
 from .loader import read_sources
+
+logger = logging.getLogger(__name__)
 
 #: Where a ruleset's own cases live inside its package.
 CASES_DIRECTORY = "cases"
@@ -139,7 +143,19 @@ def version_hash(sources: Mapping[str, str], params: Mapping[str, Any]) -> str:
 
 
 def decimal_params(params: Mapping[str, Any]) -> dict[str, Decimal]:
-    """A stored parameter mapping as :class:`~decimal.Decimal`\\ s."""
+    """A stored parameter mapping as :class:`~decimal.Decimal`\\ s.
+
+    A value that will not parse is left out rather than raising, because this
+    reads *stored* rows and a row that is already in the database has to stay
+    readable. What a rule then sees is an undeclared key, which
+    :class:`~kompass.rules.Params` refuses — so the statement is stuck with a
+    confusing reason rather than settled with a wrong number.
+
+    Which is why such a value is caught one step earlier now, at the import
+    (:func:`parameter_problems`): a typo in ``settings.toml`` is a version
+    that does not activate and says why, instead of a number that reads as
+    "that parameter does not exist" months later.
+    """
     values: dict[str, Decimal] = {}
     for key, value in params.items():
         try:
@@ -149,13 +165,60 @@ def decimal_params(params: Mapping[str, Any]) -> dict[str, Decimal]:
     return values
 
 
-def declared_valid_from(ruleset: Ruleset) -> datetime:
-    """When a version's rules apply from: its own date, or now.
+def parameter_problems(params: Mapping[str, Any]) -> list[str]:
+    """One message per section number that is not a number.
 
-    A ruleset may name a future date (``valid_from = "2027-01-01"``), which is
-    how a section stages a change it has already agreed. A date in the past is
-    not honoured — that would rewrite settled statements — so anything but a
-    future date means "from now".
+    The section's figures are as much a part of a version as its code — the
+    hash covers both — so a figure Kompass cannot read is a reason not to
+    activate the version, exactly like a rule that does not compile. It used
+    to be dropped silently by :func:`decimal_params`, and the first anybody
+    heard of it was a statement whose rules reported a missing parameter.
+    """
+    problems = []
+    for key in sorted(params):
+        try:
+            Decimal(str(params[key]))
+        except InvalidOperation:
+            problems.append(
+                f"the section's {key} is {params[key]!r}, which is not a number — "
+                "the version cannot be activated with it"
+            )
+    return problems
+
+
+def declared_valid_from(ruleset: Ruleset) -> datetime:
+    """When a version's rules apply from, in **valid** time: its own date.
+
+    A ruleset names the date its rules were in force from
+    (``valid_from = "2026-03-01"``). A future date is how a section stages a
+    change it has already agreed; a *past* date is how it records one it
+    agreed before it got round to telling Kompass — the section resolved new
+    rates in March, the import happens in May, and the rules were valid from
+    March either way. Unset, and the answer is "from now", which is every
+    ordinary import.
+
+    A past date used to be refused (#560), on the grounds that honouring it
+    would rewrite settled statements. It does not, and that is the point: a
+    statement is bound to the closure it copied **when it was created**
+    (:func:`~finance.engine.statements.bind`), so what it settles under is
+    decided once and no later row can move it. What the refusal actually did
+    was make the only correction a section needs unrepresentable, and leave
+    valid time pinned to transaction time — so the record could not say that
+    Kompass applied one version while a different one had been in force. The
+    audit requirement is the opposite of the refusal: both times recorded, so
+    that what the system knew and when it knew it stays reconstructible.
+
+    What a backdated version does **not** do is re-settle the statements that
+    were created in the gap. They keep their own snapshot and their own rows,
+    and re-settling them is a separate, deliberate act that this code does not
+    offer; #561 is the deliberate act, and it does not exist yet.
+
+    The authority for the date is the ruleset package itself — the
+    git-versioned configuration repository that §4.2's trust model puts on a
+    par with ``settings.toml``, and which is the *Verfahrensdokumentation* the
+    GoBD asks for. A date Kompass cannot read is reported and means "from
+    now", because an import that silently backdates to the epoch would be
+    worse than one that does not backdate at all.
     """
     declared = getattr(ruleset, "valid_from", "")
     now: datetime = timezone.now()
@@ -164,11 +227,16 @@ def declared_valid_from(ruleset: Ruleset) -> datetime:
     try:
         parsed = datetime.fromisoformat(str(declared))
     except ValueError:
+        logger.warning(
+            "the ruleset declares valid_from=%r, which is not a date; the version is "
+            "valid from now",
+            declared,
+        )
         return now
     if timezone.is_naive(parsed):
         aware: datetime = timezone.make_aware(parsed)
         parsed = aware
-    return parsed if parsed > now else now
+    return parsed
 
 
 @dataclass(frozen=True)
@@ -277,6 +345,10 @@ def import_from_directory(
         return stored, list(stored.problems)
 
     loaded, problems = check_directory(directory)
+    # The numbers as well as the code: both are hashed into the version, so
+    # both are reasons to store a draft rather than activate it.
+    problems = [*problems, *parameter_problems(params)]
+    now = timezone.now()
     try:
         declared = declared_fields(loaded, directory, name=name)
     except Exception as broken:  # a field of the section's that runs code
@@ -304,16 +376,61 @@ def import_from_directory(
     )
     if problems:
         return row, problems
-    activate(row)
+    # Backdated — valid time before transaction time — means the row fills an
+    # interval that has already passed rather than taking over from now, so
+    # whatever version is in force today stays in force. `now` is the one
+    # captured above, because `declared_fields` reads its own clock and a
+    # version with no declared date would otherwise be a microsecond "in the
+    # past" and take the correction path on every ordinary import.
+    activate(row, correction=declared.valid_from < now)
     return row, []
 
 
-def activate(row: RuleSet) -> None:
-    """Put ``row`` in force and close the validity of the version it replaces."""
-    predecessor = RuleSet.objects.active()
-    if predecessor is not None and predecessor.pk != row.pk:
-        predecessor.retire(when=row.valid_from)
-    row.activate()
+def activate(row: RuleSet, *, correction: bool = False) -> None:
+    """Put ``row`` into the timeline, in valid time, from its ``valid_from``.
+
+    Every version whose validity covers that instant is closed there —
+    usually exactly one, the predecessor; more than one only on a timeline
+    that staged two future versions, where closing all of them is the repair.
+    Retiring is a *valid*-time statement with a transaction-time stamp of its
+    own (:meth:`~finance.store.RuleSet.retire`), so "those rules ended in
+    March" and "Kompass was told in May" are both on the record.
+
+    ``correction`` is the backdated case, and it is the caller's to declare
+    because the data cannot tell it from a rollback: a row whose validity
+    starts in the past while later versions exist fills the interval up to the
+    next version's ``valid_from`` and leaves today's version in force. Without
+    that cap, a correction resolved in March and imported in May would quietly
+    revert an April version that nobody asked to withdraw — valid time's
+    answer to "what applies now" would be the March rules.
+
+    Re-activating a version that is already stored (an unchanged package, or a
+    section rolling its configuration repository back) is **not** a
+    correction, and it keeps the behaviour it has always had: the row's own
+    ``valid_from`` is immutable, so a rollback re-opens that old interval
+    rather than starting a new one, and the version it rolls back from is
+    closed at a date before its own start. That is a lossy way to say "these
+    rules apply again" and it is #563 rather than changed here, because the
+    honest alternative — a second row with the same sources and a new interval
+    — collides with ``hash`` being the row's identity.
+    """
+    moment = row.valid_from
+    others = RuleSet.objects.exclude(pk=row.pk).exclude(state=RuleSet.DRAFT)
+    # `list`, because the loop writes to the rows the query selected on.
+    covering = list(
+        others.filter(valid_from__lte=moment).filter(
+            Q(valid_to__isnull=True) | Q(valid_to__gt=moment)
+        )
+    )
+    for predecessor in covering:
+        predecessor.retire(when=moment)
+    until = None
+    if correction:
+        successor = (
+            others.filter(valid_from__gt=moment).order_by("valid_from", "imported_at").first()
+        )
+        until = None if successor is None else successor.valid_from
+    row.activate(until=until)
 
 
 def active_version() -> RuleSet | None:

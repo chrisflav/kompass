@@ -49,6 +49,7 @@ from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
 from finance.rules_api import RuleError
 from finance.store import Approval
+from finance.store import ApprovalConstraint
 from finance.store import RoleAssignment
 from finance.store import RuleSet
 from finance.tests.harness import gate_of
@@ -108,6 +109,63 @@ class TwoSignatures(Ruleset):
 
 ruleset = TwoSignatures()
 '''
+
+#: A section that routes by **omitting** the step rather than marking it
+#: inapplicable: under a thousand euro its ``approval`` returns ``[], []``,
+#: which :mod:`finance.rules_api` documents as a first-class answer — "nobody,
+#: which the engine reads as 'the capability check alone decides'" — and which
+#: is the obvious way to write the threshold the same docstring suggests.
+THRESHOLD_BY_OMISSION = '''
+from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS, Transfer
+
+
+class ThresholdByOmission(Ruleset):
+    """Nobody signs under a thousand euro; two people sign over it."""
+
+    name = "threshold-by-omission"
+    permissions = ("finance.process_statementsubmitted",)
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        transfers = []
+        errors = []
+        for bill in ctx.bills:
+            if not bill.covered:
+                continue
+            if bill.payer is None:
+                # Owed either way, so the threshold still trips; only the
+                # recipient is missing, exactly as the reference rules do it.
+                errors.append("Beleg ohne Zahler")
+                transfers.append(
+                    Transfer(SECTION, PARTICIPANTS, bill.amount, "bill", rule_id="bills")
+                )
+                continue
+            transfers.append(Transfer(SECTION, bill.payer, bill.amount, "bill", rule_id="bills"))
+        return transfers, errors
+
+    def approval(self, ctx, transfers):
+        if sum((t.amount for t in transfers), 0) < 1000:
+            return [], []
+        return (
+            [
+                Constraint(
+                    name="Vorstand",
+                    description="Zwei Unterschriften ab 1.000 Euro",
+                    applicable=True,
+                    required=2,
+                    eligible=ctx.permission_holders("finance.process_statementsubmitted"),
+                )
+            ],
+            [],
+        )
+
+
+ruleset = ThresholdByOmission()
+'''
+
 
 #: The same section, with a bug in its exclusion rule.
 ANGRY_FORBID = '''
@@ -661,6 +719,23 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
         self.assertTrue(fully_approved([]))
 
 
+def rebook(statement, ledger):
+    """Re-book a statement's transactions against its payout, as the admin would.
+
+    A statement whose figures moved has transactions that no longer match
+    them, and :attr:`~finance.models.Statement.validity` refuses to pay out on
+    that alone. Re-booking takes that refusal out of the way, so that a test
+    asserting a payout is refused is asserting the *signatures* are missing and
+    not the bookkeeping — and, the other way round, a test asserting a payout
+    *happens* is not quietly passing because nothing else was in the way.
+    """
+    statement = Statement.objects.get(pk=statement.pk)
+    statement.transaction_set.all().delete()
+    statement.generate_transactions()
+    statement.transaction_set.update(ledger=ledger)
+    return Statement.objects.get(pk=statement.pk)
+
+
 def a_user(name, *, permitted=False):
     user = User.objects.create_user(name, password="secret")
     if permitted:
@@ -883,6 +958,108 @@ class HeidelbergApprovalTestCase(TestCase):
                 "finance.approve_obj_statement", Freizeit.objects.get(pk=excursion.pk)
             )
         )
+
+    def test_a_statement_whose_rules_break_after_submission_is_not_approved(self):
+        """ "No constraints" means *approved*, so the rows may not simply go.
+
+        A statement whose rules report a problem persists nothing: its rows
+        are retired, and with no rows at all ``fully_approved`` answers yes to
+        an empty list and the payload reads ``approved: true`` for a statement
+        nobody has signed. The payout was refused either way — ``_pay_out``
+        checks the problem itself, and ``confirm`` checks the validity — so
+        this is what a person is *told*, which is the half the record is for.
+
+        Since #555 the superseded rows are still there, so the gate can
+        answer with what the record last asked for.
+        """
+        bill = self.statement.bill_set.first()
+        bill.paid_by = None
+        bill.save()
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertTrue(statement.rule_result.errors, "the rules report a problem")
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "nothing live")
+        self.assertEqual(
+            [row.name for row in ApprovalConstraint.all_objects.filter(statement=statement)],
+            ["Freigabe"],
+            "and the record of what was asked for is kept",
+        )
+        self.assertEqual([state.name for state in gate_of(statement)], ["Freigabe"])
+        self.assertFalse(statement.fully_approved)
+        self.assertFalse(approval_payload(statement, self.treasurer)["approved"])
+        # And the money does not move, by either door.
+        self.assertFalse(statement.approve(self.treasurer))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirm(confirmer=self.treasurer))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_the_fallback_does_not_resurrect_a_signed_step(self):
+        """The fallback answers with questions, and a quorum is not one.
+
+        When the rules report a problem after submission the rows are retired,
+        and the gate falls back to what the record last asked for. Reading
+        those rows as a *resolution* made the fallback permissive in the one
+        case that matters: the gate counts signatures for itself, so a step
+        whose quorum was in came back satisfied, ``fully_approved`` answered
+        yes, and ``/approval`` reported ``approved: true`` for a statement
+        nobody can settle. What is true is that the last run produced no
+        record at all, so every step reads *Could not be resolved* and nobody
+        may sign it away either.
+        """
+        self.statement.transaction_set.all().delete()
+        self.assertFalse(self.statement.approve(self.treasurer), "unpayable for another reason")
+        self.assertTrue(
+            Statement.objects.get(pk=self.statement.pk).approval_constraint_set.get().satisfied
+        )
+
+        bill = self.statement.bill_set.first()
+        bill.paid_by = None
+        bill.save()
+
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertTrue(statement.rule_result.errors)
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "nothing live")
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertFalse(gate["Freigabe"].satisfied, "the quorum is in; nothing resolved it")
+        self.assertTrue(gate["Freigabe"].open)
+        self.assertTrue(gate["Freigabe"].unsatisfiable, "and nobody may sign it away")
+        self.assertFalse(statement.fully_approved)
+        self.assertFalse(statement.may_be_approved_by(self.treasurer))
+        payload = approval_payload(statement, self.treasurer)
+        self.assertFalse(payload["approved"])
+        self.assertEqual(payload["constraints"][0]["state_display"], _("Could not be resolved"))
+
+    def test_the_fallback_does_not_resurrect_a_waived_step(self):
+        """The same, for the decision that closes a step on its own.
+
+        A retired row carrying ``overridden`` answered its own question
+        through the fallback, and the payload read it beside the **live** rows
+        — which are the empty ones — so it rendered "Overridden" with nobody
+        and no reason. The waiver is on the record; it is not in the gate.
+        """
+        self.statement.transaction_set.all().delete()
+        self.assertFalse(self.statement.override_approval("Freigabe", self.treasurer, "Frist"))
+        self.assertTrue(
+            Statement.objects.get(pk=self.statement.pk).approval_constraint_set.get().overridden
+        )
+
+        bill = self.statement.bill_set.first()
+        bill.paid_by = None
+        bill.save()
+
+        statement = Statement.objects.get(pk=self.statement.pk)
+        self.assertEqual(statement.approval_constraint_set.count(), 0)
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertFalse(gate["Freigabe"].overridden)
+        self.assertTrue(gate["Freigabe"].open)
+        self.assertFalse(statement.fully_approved)
+        shown = approval_payload(statement, self.treasurer)["constraints"][0]
+        self.assertFalse(shown["overridden"])
+        self.assertIsNone(shown["overridden_by"], "and nothing rendered as 'Overridden — : '")
+        self.assertEqual(shown["override_reason"], "")
+        self.assertEqual(shown["state_display"], _("Could not be resolved"))
+        # The waiver itself is still on the row it was given on.
+        kept = ApprovalConstraint.all_objects.filter(statement=statement).get()
+        self.assertEqual(kept.overridden_by, self.treasurer)
+        self.assertEqual(kept.override_reason, "Frist")
 
     def test_an_unpayable_statement_is_not_paid_out_by_a_signature(self):
         self.statement.transaction_set.all().delete()
@@ -1415,6 +1592,514 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertFalse(big.confirmed)
         self.assertTrue(big.approve(self.bernd))
         self.assertTrue(Statement.objects.get(pk=big.pk).confirmed)
+
+    def cover_another_receipt(self, statement, payer, amount=Decimal("30.00")):
+        """The one edit a submitted statement stays open for.
+
+        The finance officer covering a receipt after submission —
+        ``BillOnStatementProxy``'s whole reason to exist — resolves the
+        statement again through ``Bill.save`` → ``_refresh_statement`` →
+        ``freeze_obligations``, and the transactions are re-booked against the
+        new total as they would be in the admin.
+
+        ``payer`` is explicit, and that is the point: this section's forbid
+        excludes whoever the payout pays, so *who* fronted the receipt decides
+        whether the eligible set changes between the two freezes. Covering a
+        receipt for somebody who was already being paid leaves the sets
+        identical and exercises none of the merge — which is the case #546 was
+        filed for, and the one a first version of these tests missed.
+        """
+        Bill.objects.create(
+            statement=statement,
+            short_description="Essen",
+            amount=amount,
+            costs_covered=True,
+            paid_by=payer,
+        )
+        return self.rebook(statement)
+
+    def rebook(self, statement):
+        return rebook(statement, self.ledger)
+
+    def test_a_re_freeze_keeps_who_overrode_a_step_and_why(self):
+        """#555, and the record the whole versioning argument is about.
+
+        An override is "we went ahead anyway", and its entire value is the
+        record of who decided that and what reason they gave. Re-freezing
+        *deleted* the constraint rows and wrote fresh ones, so a finance
+        officer covering an unrelated receipt — an ordinary action, and the
+        one edit a submitted statement stays open for — turned
+        ``(overridden_by=bernd, override_reason="Fristende")`` into
+        ``(None, "")``. Both halves were wrong: the authorisation was gone
+        from the record, and the payout was back in front of the board that
+        had already waived it.
+
+        The rows are superseded now, the way ``Obligation`` rows have been
+        since ``0019``, and the decision taken about a step is carried onto
+        the row that takes over.
+        """
+        _dana_user, dana = a_user("dana", permitted=True)
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.override_approval("Vorstand", self.bernd, "Fristende"))
+        self.assertFalse(Statement.objects.get(pk=big.pk).confirmed, "Kasse is still open")
+        before = big.approval_constraint_set.get(name="Vorstand")
+        self.assertIn(dana.pk, before.eligible_member_ids)
+
+        # Dana fronted the receipt, so the second resolution pays her and the
+        # section's forbid excludes her: the eligible set is genuinely
+        # different across the two freezes, which is what makes this a test of
+        # the merge rather than of two identical answers.
+        statement = self.cover_another_receipt(big, payer=dana)
+
+        self.assertEqual(
+            [row.name for row in statement.approval_constraint_set.all()],
+            ["Kasse", "Vorstand"],
+            "one live row per step, and a superseded row is not one of them",
+        )
+        board_now = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertNotIn(dana.pk, board_now.eligible_member_ids, "the group moved")
+        self.assertIn(
+            dana.pk, [int(item["member"]) for item in board_now.excluded], "under Befangenheit"
+        )
+        waived = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertEqual(waived.overridden_by, self.bernd)
+        self.assertEqual(waived.override_reason, "Fristende")
+        self.assertIsNotNone(waived.overridden_at)
+        # The row that was replaced is kept, saying what it said.
+        superseded = [
+            row
+            for row in ApprovalConstraint.all_objects.filter(statement=statement)
+            if not row.live
+        ]
+        self.assertEqual(
+            [row.name for row in superseded], ["Kasse", "Vorstand"], "kept, not deleted"
+        )
+        before = next(row for row in superseded if row.name == "Vorstand")
+        self.assertEqual(before.overridden_by, self.bernd)
+        self.assertEqual(before.override_reason, "Fristende")
+        self.assertIn("superseded", str(before))
+        # The gate does not ask the board again, and nothing counts twice.
+        gate = gate_of(statement)
+        self.assertEqual([state.name for state in gate], ["Kasse", "Vorstand"])
+        board = next(state for state in gate if state.name == "Vorstand")
+        self.assertTrue(board.overridden)
+        self.assertFalse(board.open)
+        # And what a treasurer reads still names the person and the reason.
+        payload = approval_payload(statement, self.anna)
+        shown = next(item for item in payload["constraints"] if item["name"] == "Vorstand")
+        self.assertEqual(shown["overridden_by"].name, self.bernd.name)
+        self.assertEqual(shown["override_reason"], "Fristende")
+        self.assertEqual(shown["state_display"], _("Overridden"))
+        # The one signature that was still outstanding pays it out: the
+        # waiver survived the edit, so the board is not in the way.
+        self.assertTrue(statement.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_waiver_does_not_carry_onto_a_row_that_excludes_its_author(self):
+        """The control #555's fix must not defeat, measured end to end.
+
+        An override is refused from somebody a forbid excludes, because
+        "recording that they did it is a mitigation rather than a control".
+        Carrying an earlier copy of exactly that override is the same hole
+        with a timestamp on it: ``ConstraintState.open`` reads ``overridden``
+        on every call, the gate's included, so the waiver would go on closing
+        the step for the person who may no longer give it.
+
+        The sequence: Bernd waives the board's two signatures legitimately,
+        the finance officer then covers a receipt **Bernd** fronted, and the
+        new resolution excludes him under *Befangenheit*. The waiver stays on
+        the row it was given on — that is #555 — and the row that takes over
+        says why it did not come with it.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.override_approval("Vorstand", self.bernd, "Fristende"))
+
+        statement = self.cover_another_receipt(big, payer=self.bernd)
+
+        board = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertFalse(board.overridden, "the waiver did not carry")
+        self.assertIsNone(board.overridden_by)
+        self.assertEqual(board.override_reason, "")
+        self.assertIn("Befangenheit", board.override_withdrawn)
+        self.assertIn(self.bernd.name, board.override_withdrawn)
+        self.assertIn("Fristende", board.override_withdrawn, "and what it said")
+        # It is not destroyed, which is the whole of #555: it is on the row
+        # that was live when it was given.
+        kept = [
+            row
+            for row in ApprovalConstraint.all_objects.filter(statement=statement, name="Vorstand")
+            if not row.live
+        ]
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].overridden_by, self.bernd)
+        self.assertEqual(kept[0].override_reason, "Fristende")
+        # The gate asks the board again, and the live path refuses the very
+        # override the carried copy would have honoured.
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertFalse(gate["Vorstand"].overridden)
+        self.assertTrue(gate["Vorstand"].open)
+        self.assertFalse(statement.override_approval("Vorstand", self.bernd, "Fristende"))
+        # So no payout: Anna's signature satisfies Kasse and nothing else.
+        self.assertFalse(statement.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_step_that_does_not_apply_cannot_be_waived(self):
+        """The live half of the pre-authorisation hole, refused at the door.
+
+        ``override_approval`` checked the row, the statement, the resolution
+        and the forbids, and never ``applicable`` — so waiving a step the
+        rules are not asking for was accepted and recorded. Nothing happened,
+        because ``fully_approved`` ignores a step that does not apply, and
+        that is exactly what made it dangerous: the record came due later,
+        when the payout grew past the section's threshold and the step the
+        rules now asked for took the waiver over.
+        """
+        small = self.statement_for(Decimal("400.00"), self.clara)
+        # Unpayable for an unrelated reason, so that a waiver which *is*
+        # accepted is recorded without the statement confirming and freezing.
+        small.transaction_set.all().delete()
+        board = small.approval_constraint_set.get(name="Vorstand")
+        self.assertFalse(board.applicable, "two signatures are asked for over a thousand")
+
+        self.assertFalse(small.override_approval("Vorstand", self.bernd, "vorsorglich"))
+
+        board.refresh_from_db()
+        self.assertFalse(board.overridden, "and nothing was recorded")
+        self.assertIsNone(board.overridden_by)
+        # The step the rules do ask for can still be waived, which is what
+        # says this refusal is about the question and not about the person.
+        self.assertFalse(small.override_approval("Kasse", self.bernd, "Fristende"))
+        self.assertTrue(small.approval_constraint_set.get(name="Kasse").overridden)
+
+    def test_a_waiver_does_not_carry_onto_a_step_that_was_not_being_asked(self):
+        """The carried half, through the one sequence that still reaches it.
+
+        Since the refusal above, a waiver can only sit on an inapplicable row
+        by having been given while the step *did* apply and then carried onto
+        a resolution where it did not: the payout dips under the section's
+        threshold and comes back over it. The waiver lapses on the way back,
+        and that is deliberately conservative — the ask is the same ask — but
+        the board being asked again is the safe direction, and the alternative
+        is to track which ask a waiver answered, which is machinery for no
+        safety.
+
+        What it closes is the hole as measured: the step the rules asked for
+        over a thousand euro was being closed by a waiver recorded when they
+        were asking nothing, and one unrelated signature paid the statement
+        out.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.override_approval("Vorstand", self.bernd, "Fristende"))
+        bill = big.bill_set.first()
+
+        # Under the threshold: the step stops being asked for, and the waiver
+        # rides along harmlessly, because nothing is in the way.
+        bill.amount = Decimal("400.00")
+        bill.save()
+        statement = self.rebook(big)
+        dormant = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertFalse(dormant.applicable)
+        self.assertTrue(dormant.overridden, "carried, and closing nothing")
+
+        # Over it again: now the rules are asking, and the waiver does not
+        # answer this question.
+        bill.amount = Decimal("1200.00")
+        bill.save()
+        statement = self.rebook(statement)
+
+        board = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertTrue(board.applicable, "the rules are asking for two signatures")
+        self.assertFalse(board.overridden, "and the waiver did not carry")
+        self.assertIsNone(board.overridden_by)
+        # And the reason recorded is true of the row it is recorded on. The
+        # comparison is against the row the waiver was last carried onto, not
+        # the row it was given on — Bernd's waiver was given while the step
+        # *was* being asked for, at twelve hundred euro — so a column saying
+        # it was waived while nothing was asked would be a false statement of
+        # fact in the record this whole design exists to keep honest.
+        self.assertIn(
+            "not being asked for on the row this waiver was carried onto",
+            board.override_withdrawn,
+        )
+        self.assertNotIn("when it was waived", board.override_withdrawn)
+        self.assertIn(self.bernd.name, board.override_withdrawn)
+        self.assertIn("Fristende", board.override_withdrawn)
+        # The waiver is kept where it was given, which is #555.
+        kept = [
+            row
+            for row in ApprovalConstraint.all_objects.filter(statement=statement, name="Vorstand")
+            if row.overridden
+        ]
+        self.assertTrue(kept, "the record of it survives")
+        self.assertEqual(kept[0].overridden_by, self.bernd)
+        # And the board is asked: one signature does not pay this out.
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertTrue(gate["Vorstand"].open)
+        self.assertEqual(gate["Vorstand"].missing, 2)
+        self.assertFalse(statement.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_waiver_does_not_carry_onto_a_step_that_cannot_be_resolved(self):
+        """A broken rule makes a payout stuck, and a carried waiver un-stuck it.
+
+        ``override_approval`` refuses a waiver for a step whose rules failed,
+        because a broken forbid is a rule that failed to say who is excluded
+        and the person with most reason to ask is the one it was written for.
+        A waiver given while the rule worked, carried onto the row that broke,
+        defeated that — and invisibly: ``state_display`` reports *Overridden*
+        before it reports *Could not be resolved*, and a forbid that raises is
+        not an evaluation error, so ``_pay_out``'s guard never fires. This
+        defends the claim of
+        ``test_a_broken_forbid_stops_the_payout_instead_of_disabling_itself``
+        against the re-freeze.
+
+        The re-resolution is patched, which is the seam this module's other
+        arising-forbid tests use: under an unchanged version the same rules
+        only start failing on data they did not see at submission.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.override_approval("Vorstand", self.bernd, "Fristende"))
+        unresolvable = [
+            {
+                "name": name,
+                "description": "",
+                "applicable": True,
+                "required": 2 if name == "Vorstand" else 1,
+                "eligible": [],
+                "excluded": [],
+                "error": "RuleError: the forbid 'Befangenheit' failed",
+            }
+            for name in ("Kasse", "Vorstand")
+        ]
+        with patch("finance.engine.statements.resolve_constraints", return_value=unresolvable):
+            statement = self.cover_another_receipt(big, payer=self.clara)
+
+        board = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertIn("Befangenheit", board.error)
+        self.assertFalse(board.overridden, "the waiver did not carry onto a broken step")
+        self.assertIsNone(board.overridden_by)
+        self.assertIn("can no longer be resolved", board.override_withdrawn)
+        self.assertIn(self.bernd.name, board.override_withdrawn)
+        # Kept where it was given.
+        kept = [
+            row
+            for row in ApprovalConstraint.all_objects.filter(statement=statement, name="Vorstand")
+            if row.overridden
+        ]
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].override_reason, "Fristende")
+        # The page says what is wrong rather than "Overridden", and the payout
+        # is stuck — including against the waiver being given again.
+        payload = approval_payload(statement, self.anna)
+        shown = next(item for item in payload["constraints"] if item["name"] == "Vorstand")
+        self.assertEqual(shown["state_display"], _("Could not be resolved"))
+        self.assertFalse(shown["overridden"])
+        self.assertFalse(payload["approved"])
+        self.assertFalse(statement.override_approval("Vorstand", self.bernd, "Fristende"))
+        self.assertFalse(statement.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_waiver_nobody_can_be_named_for_carries(self):
+        """The other end of the forbid re-check: there is nobody to re-ask about.
+
+        ``override_approval`` skips the forbid check when there is no member to
+        check — an administrator with no member record, whom the capability
+        layer let in — because a forbid matches member ids and matches nothing
+        here. So the carry has nothing to re-ask either, and the waiver stands
+        even though this resolution excludes somebody else entirely. The row
+        goes on saying that it was given and that nobody can be named for it,
+        which is what ``Approval.signer`` says about the same case one model
+        over.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.override_approval("Vorstand", None, "Vorstandsbeschluss"))
+
+        statement = self.cover_another_receipt(big, payer=self.bernd)
+
+        board = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertTrue(board.overridden, "a waiver with no author still carries")
+        self.assertIsNone(board.overridden_by)
+        self.assertEqual(board.override_reason, "Vorstandsbeschluss")
+        self.assertEqual(board.override_withdrawn, "", "there was nothing to withdraw")
+        # Bernd is excluded by the forbid now, which is what makes this the
+        # same shape as the test above with the author taken out of it.
+        self.assertIn(self.bernd.pk, [int(item["member"]) for item in board.excluded])
+        self.assertTrue(statement.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_superseded_constraint_row_is_never_written_again(self):
+        """The other half of #555's measurement: the ``satisfied`` column.
+
+        A signed step read ``satisfied: True``; the officer covered a receipt
+        and both columns read ``False`` again. No money moved, because the
+        gate counts signatures — but the column is the *record* of what was
+        true when the statement was signed (#552), and an unrelated edit
+        rewriting it is what §6's *Unveränderbarkeit* cannot live with.
+
+        So the answer is carried onto the live row, and the superseded row
+        keeps its own: a later signature writes the live rows and never
+        reaches back. The statement is unpayable here for an unrelated
+        reason, which is what lets a signature be recorded without the
+        statement confirming and the rows freezing for good.
+        """
+        _dana_user, dana = a_user("dana", permitted=True)
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        big.transaction_set.all().delete()
+        self.assertFalse(big.approve(self.anna), "Vorstand still wants two")
+        signed = Statement.objects.get(pk=big.pk).approval_constraint_set.get(name="Kasse")
+        self.assertTrue(signed.satisfied)
+        self.assertIn(dana.pk, signed.eligible_member_ids)
+
+        # Again the receipt is Dana's, so the eligible set changes with it.
+        statement = self.cover_another_receipt(big, payer=dana)
+        self.assertNotIn(
+            dana.pk,
+            statement.approval_constraint_set.get(name="Kasse").eligible_member_ids,
+            "the group moved between the two freezes",
+        )
+
+        rows = {row.name: row for row in statement.approval_constraint_set.all()}
+        self.assertTrue(rows["Kasse"].satisfied, "the step stays signed across the re-freeze")
+        self.assertFalse(rows["Vorstand"].satisfied)
+        kept = ApprovalConstraint.all_objects.filter(
+            statement=statement, superseded_at__isnull=False
+        )
+        self.assertEqual(
+            {row.name: row.satisfied for row in kept}, {"Kasse": True, "Vorstand": False}
+        )
+        # The second signature completes the board's quorum. It writes the
+        # live row and may not touch the row that was replaced.
+        self.assertTrue(statement.approve(self.bernd))
+        live = statement.approval_constraint_set.get(name="Vorstand")
+        self.assertTrue(live.satisfied)
+        self.assertEqual(
+            {row.name: row.satisfied for row in kept.all()},
+            {"Kasse": True, "Vorstand": False},
+            "a superseded row is history and is never written again",
+        )
+
+
+class ThresholdByOmissionTestCase(TestCase):
+    """A section whose rules ask for no signature at all under a threshold.
+
+    ``Ruleset.approval``'s default is ``return [], []`` and
+    :mod:`finance.rules_api` documents what that means — "nobody, which the
+    engine reads as 'the capability check alone decides'" — so a threshold
+    written by *omitting* the step is a first-class answer rather than an
+    oddity, and it is the shape the same docstring suggests.
+
+    It is also the shape that distinguishes "the record was retired because
+    the rules broke" from "the record was retired because the rules, running
+    cleanly, stopped asking for anything". Both leave no live row, and reading
+    the second as the first makes a healthy statement unsettleable.
+    """
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        self.bernd_user, self.bernd = a_user("bernd", permitted=True)
+        self.clara_user, self.clara = a_user("clara", permitted=True)
+        self.ledger = Ledger.objects.create(name="Konto")
+        self.directory = TemporaryDirectory()
+        package = Path(self.directory.name)
+        (package / "__init__.py").write_text(THRESHOLD_BY_OMISSION, encoding="utf-8")
+        row, problems = import_from_directory(package, name="threshold-by-omission")
+        self.assertEqual(problems, [])
+        self.version = row
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def a_statement_of(self, amount):
+        statement = Statement.objects.create(short_description="Gross")
+        Bill.objects.create(
+            statement=statement,
+            short_description="Bus",
+            amount=amount,
+            costs_covered=True,
+            paid_by=self.clara,
+        )
+        statement.submit(submitter=self.clara)
+        return rebook(statement, self.ledger)
+
+    def test_a_small_statement_is_settled_by_the_capability_alone(self):
+        """The baseline: a statement that was never over the threshold pays out.
+
+        Nothing is frozen, because there is nothing to freeze, and the
+        capability check is the whole of the approval — which is what the
+        ``[], []`` answer means.
+        """
+        small = self.a_statement_of(Decimal("400.00"))
+        self.assertEqual(small.approval_constraint_set.count(), 0)
+        self.assertEqual(gate_of(small), [])
+        self.assertTrue(small.fully_approved)
+        self.assertTrue(small.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=small.pk).confirmed)
+
+    def test_a_statement_corrected_under_the_threshold_can_still_be_settled(self):
+        """And so does one that *becomes* small, which is the regression.
+
+        The finance officer correcting a bill downwards is the one edit a
+        submitted statement stays open for. It re-freezes: the ``Vorstand`` row
+        the statement was handed in with is superseded, and the rules — running
+        cleanly — ask for nothing in its place, so no row takes over. Nothing
+        is wrong with this statement. ``rule_result.errors`` is empty,
+        ``validity`` is ``VALID``, and it is now exactly a statement that was
+        always small.
+
+        Reading "no live row" as "the rules reported a problem" made it
+        permanently unsettleable instead: the gate fell back to the superseded
+        row, stamped it *Could not be resolved*, and refused every door —
+        signing, overriding and confirming — with nothing a human could fix,
+        because no re-freeze will write a live row while the payout stays under
+        the threshold. The admin's confirm button then lands in the branch
+        commented "this should NOT happen!" and says "please try again",
+        forever.
+        """
+        big = self.a_statement_of(Decimal("1200.00"))
+        self.assertEqual(big.approval_constraint_set.get().name, "Vorstand")
+
+        bill = big.bill_set.get()
+        bill.amount = Decimal("400.00")
+        bill.save()
+        statement = rebook(big, self.ledger)
+
+        self.assertEqual(statement.rule_result.errors, (), "nothing is wrong with it")
+        self.assertEqual(statement.validity, Statement.VALID)
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "and nothing is asked")
+        self.assertEqual(gate_of(statement), [])
+        self.assertTrue(statement.fully_approved)
+        self.assertTrue(approval_payload(statement, self.anna)["approved"])
+        self.assertTrue(statement.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+        # The record of what it was handed in with is still there, which is
+        # what supersession is for.
+        kept = ApprovalConstraint.all_objects.filter(statement=statement).get()
+        self.assertEqual(kept.name, "Vorstand")
+        self.assertIsNotNone(kept.superseded_at)
+
+    def test_a_statement_whose_rules_break_is_still_stuck(self):
+        """The fallback it is gated on, under the same rules.
+
+        The gate asks "did the rules report a problem", and this is the case
+        that answers yes: a payerless covered receipt leaves the payout
+        unresolvable, the record is retired, and the statement may not be
+        settled by the capability alone just because nothing is live.
+        """
+        big = self.a_statement_of(Decimal("1200.00"))
+        bill = big.bill_set.get()
+        bill.paid_by = None
+        bill.save()
+
+        statement = Statement.objects.get(pk=big.pk)
+        self.assertTrue(statement.rule_result.errors)
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "nothing live")
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertEqual(sorted(gate), ["Vorstand"], "the question it was handed in with")
+        self.assertTrue(gate["Vorstand"].open)
+        self.assertFalse(statement.fully_approved)
+        self.assertFalse(approval_payload(statement, self.anna)["approved"])
+        self.assertFalse(statement.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
 
 
 class BootstrapAccountTestCase(TestCase):

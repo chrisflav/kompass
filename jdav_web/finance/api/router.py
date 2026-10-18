@@ -627,15 +627,14 @@ def approve_statement(request, statement_id: int, payload: ApprovalCreate):
 @router.post("/statements/{statement_id}/override-approval", response=StatementApprovalOut)
 def override_statement_approval(request, statement_id: int, payload: ApprovalOverride):
     """Sign a constraint off without its quorum, with who and why recorded."""
-    # Every refusal below answers 422, and the one that checks whether the
-    # rules could be resolved at all is here for that reason: it used to be
-    # left to `override_approval`, which refuses by returning False, so the
-    # endpoint answered 200 with `overridden: false` — the money correctly did
-    # not move and the refusal was recorded, but a client had to diff the
-    # payload against what it sent to find out that nothing had happened. With
-    # all five of that method's refusals asked here, a 200 means the override
-    # is on the record, whether or not it was the last signature the payout
-    # needed.
+    # Every refusal answers 422, so that a 200 means the override is on the
+    # record whether or not it was the last signature the payout needed. They
+    # used to be restated here, one `raise` per refusal beside the model's own
+    # `return False`, and the two lists drifted the first time one was added:
+    # a step the rules are not asking for was refused by the model and
+    # answered 200 here, with `overridden: false` in a body that also said
+    # `approved: true`, which reads as success. `override_refusal` is the one
+    # list, and it says which refusal it was.
     #
     # The docstring stays one line on purpose: it is the operation's
     # `description` in `frontend/openapi.json` and in the generated
@@ -643,24 +642,12 @@ def override_statement_approval(request, statement_id: int, payload: ApprovalOve
     # something a client reads.
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.process_statementsubmitted")
-    if not statement.submitted or statement.confirmed:
-        raise ValidationError(_("Only submitted, unconfirmed statements can be approved."))
     if not payload.reason.strip():
         raise ValidationError(_("An override has to say why."))
-    if not statement.approval_constraint_set.filter(name=payload.name).exists():
-        raise ValidationError(
-            _("This statement has no approval step called %(name)s.") % {"name": payload.name}
-        )
-    if statement.approval_cannot_be_resolved(payload.name):
-        raise ValidationError(
-            _(
-                "The section's rules could not say who may sign this approval step, "
-                "so it cannot be overridden either."
-            )
-        )
     member = get_member(request)
-    if member is not None and statement.forbids_approval_by(payload.name, member):
-        raise ValidationError(_("The section's rules exclude you from this approval step."))
+    refusal = statement.override_refusal(payload.name, member)
+    if refusal is not None:
+        raise ValidationError(refusal)
     statement.override_approval(payload.name, member, payload.reason)
     statement.refresh_from_db()
     return approval_payload(statement, member)
