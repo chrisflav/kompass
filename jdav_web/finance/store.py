@@ -619,17 +619,26 @@ class ApprovalConstraint(models.Model):
     record to an unrelated receipt edit.
 
     What a row takes over from the row it replaces is the *decision* about the
-    step — see :func:`finance.engine.statements._carried_decision` — with one
-    exception, and the exception is a control rather than a nicety: a waiver
-    does not carry onto a row that excludes the person who gave it. An
-    override is refused from somebody a ``Forbid`` excludes
-    (:meth:`finance.models.Statement.override_approval`), because recording
-    that they did it is a mitigation and not a control, and carrying an
-    earlier copy of exactly that override would be the same hole with a
-    timestamp on it: the payee fronts a receipt after waiving the step, and
-    the waiver they are no longer allowed to give would go on closing it.
-    :attr:`override_withdrawn` is what the new row says instead, and the
-    waiver itself stays on the superseded row.
+    step — see :func:`finance.engine.statements._carried_decision` — except
+    for a **waiver** the new row may not honour, and that exception is a
+    control rather than a nicety. A waiver closes a step wherever it lands, so
+    carrying one past a refusal the live request would meet is that refusal
+    defeated after the fact. The three it is re-asked against are the three
+    :meth:`finance.models.Statement.override_refusal` applies to a waiver
+    being given:
+
+    * a ``Forbid`` now **excludes the person who gave it** — the payee fronts
+      a receipt after waiving the step, and the waiver they may no longer give
+      would go on closing it;
+    * the step can no longer be **resolved** — a broken rule makes a payout
+      stuck, and a waiver from before it broke would un-stick it;
+    * the step was not being **asked for** on the row the waiver is carried
+      onto — a waiver answers the question a step was asking, and a step that
+      is asking nothing has no answer to carry.
+
+    :attr:`override_withdrawn` is what the new row says instead, naming the
+    person, their reason and which of the three it was, and the waiver itself
+    stays on the superseded row.
     """
 
     statement = models.ForeignKey(
@@ -680,9 +689,10 @@ class ApprovalConstraint(models.Model):
         blank=True,
         default="",
         help_text=_(
-            "Why an override recorded on this step did not carry onto this row: the "
-            "person who gave it is excluded from it now. The override itself is on "
-            "the row this one replaced, which is kept."
+            "Why an override recorded on this step did not carry onto this row: a rule "
+            "now excludes the person who gave it, or the step can no longer be resolved, "
+            "or it is not being asked for here. The override itself is on the row this "
+            "one replaced, which is kept."
         ),
     )
     error = models.TextField(

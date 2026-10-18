@@ -841,18 +841,16 @@ class Statement(CommonModel):
         (:func:`finance.engine.statements._why_the_waiver_does_not_carry`) —
         and that is where the money is actually stopped; refusing here stops
         the meaningless record being written at all, which is the difference
-        between a control and a repair. Returns whether the statement ended up
-        confirmed.
+        between a control and a repair.
+
+        The refusals themselves live in :meth:`override_refusal`, because the
+        API endpoint has to report *which* one it was and a second hand-kept
+        copy of this list is what let the new refusal answer 200 there.
+        Returns whether the statement ended up confirmed.
         """
+        if self.override_refusal(name, member) is not None:
+            return False
         row = self.approval_constraint_set.filter(name=name).first()
-        if row is None or not self.submitted or self.confirmed:
-            return False
-        if not row.applicable:
-            return False
-        if self.approval_cannot_be_resolved(name):
-            return False
-        if member is not None and self.forbids_approval_by(name, member):
-            return False
         row.overridden_by = member
         row.overridden_at = timezone.now()
         row.override_reason = reason
@@ -861,6 +859,42 @@ class Statement(CommonModel):
         if not self.fully_approved:
             return False
         return self._pay_out(member)
+
+    def override_refusal(self, name, member):
+        """Why ``member`` may not waive the step ``name``, in words, or ``None``.
+
+        The refusals of :meth:`override_approval`, in one place because they
+        are asked in two: the method returns ``False``, which is all a model
+        caller needs, and the endpoint has to *say* which refusal it was —
+        every one of them answers 422, so that a 200 means the override is on
+        the record (#548). Kept as two parallel lists, they drifted the first
+        time one was added: the step that does not apply was refused by the
+        method and answered 200 by the endpoint, with ``overridden: false``
+        buried in a body that also said ``approved: true``.
+
+        The order is the order a person wants to be told about: whether the
+        statement can be approved at all, then whether this step exists, then
+        whether it is being asked for, then whether anybody could sign it, and
+        last whether this particular person may. The caller checks its own
+        payload — an override has to say why — before asking any of it.
+        """
+        if not self.submitted or self.confirmed:
+            return _("Only submitted, unconfirmed statements can be approved.")
+        row = self.approval_constraint_set.filter(name=name).first()
+        if row is None:
+            return _("This statement has no approval step called %(name)s.") % {"name": name}
+        if not row.applicable:
+            return _(
+                "The rules are not asking for this approval step, so there is nothing to override."
+            )
+        if self.approval_cannot_be_resolved(name):
+            return _(
+                "The section's rules could not say who may sign this approval step, "
+                "so it cannot be overridden either."
+            )
+        if member is not None and self.forbids_approval_by(name, member):
+            return _("The section's rules exclude you from this approval step.")
+        return None
 
     def approval_cannot_be_resolved(self, name):
         """Whether the rules failed to say who may sign the step ``name``."""

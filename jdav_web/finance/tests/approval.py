@@ -110,6 +110,63 @@ class TwoSignatures(Ruleset):
 ruleset = TwoSignatures()
 '''
 
+#: A section that routes by **omitting** the step rather than marking it
+#: inapplicable: under a thousand euro its ``approval`` returns ``[], []``,
+#: which :mod:`finance.rules_api` documents as a first-class answer — "nobody,
+#: which the engine reads as 'the capability check alone decides'" — and which
+#: is the obvious way to write the threshold the same docstring suggests.
+THRESHOLD_BY_OMISSION = '''
+from kompass.rules import Constraint, Ruleset, SECTION, PARTICIPANTS, Transfer
+
+
+class ThresholdByOmission(Ruleset):
+    """Nobody signs under a thousand euro; two people sign over it."""
+
+    name = "threshold-by-omission"
+    permissions = ("finance.process_statementsubmitted",)
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx):
+        return []
+
+    def transfers(self, ctx):
+        transfers = []
+        errors = []
+        for bill in ctx.bills:
+            if not bill.covered:
+                continue
+            if bill.payer is None:
+                # Owed either way, so the threshold still trips; only the
+                # recipient is missing, exactly as the reference rules do it.
+                errors.append("Beleg ohne Zahler")
+                transfers.append(
+                    Transfer(SECTION, PARTICIPANTS, bill.amount, "bill", rule_id="bills")
+                )
+                continue
+            transfers.append(Transfer(SECTION, bill.payer, bill.amount, "bill", rule_id="bills"))
+        return transfers, errors
+
+    def approval(self, ctx, transfers):
+        if sum((t.amount for t in transfers), 0) < 1000:
+            return [], []
+        return (
+            [
+                Constraint(
+                    name="Vorstand",
+                    description="Zwei Unterschriften ab 1.000 Euro",
+                    applicable=True,
+                    required=2,
+                    eligible=ctx.permission_holders("finance.process_statementsubmitted"),
+                )
+            ],
+            [],
+        )
+
+
+ruleset = ThresholdByOmission()
+'''
+
+
 #: The same section, with a bug in its exclusion rule.
 ANGRY_FORBID = '''
 from kompass.rules import Constraint, Forbid, Ruleset, SECTION, PARTICIPANTS, Transfer
@@ -660,6 +717,23 @@ class ApprovalArithmeticTestCase(SimpleTestCase):
 
     def test_no_constraints_at_all_is_approved(self):
         self.assertTrue(fully_approved([]))
+
+
+def rebook(statement, ledger):
+    """Re-book a statement's transactions against its payout, as the admin would.
+
+    A statement whose figures moved has transactions that no longer match
+    them, and :attr:`~finance.models.Statement.validity` refuses to pay out on
+    that alone. Re-booking takes that refusal out of the way, so that a test
+    asserting a payout is refused is asserting the *signatures* are missing and
+    not the bookkeeping — and, the other way round, a test asserting a payout
+    *happens* is not quietly passing because nothing else was in the way.
+    """
+    statement = Statement.objects.get(pk=statement.pk)
+    statement.transaction_set.all().delete()
+    statement.generate_transactions()
+    statement.transaction_set.update(ledger=ledger)
+    return Statement.objects.get(pk=statement.pk)
 
 
 def a_user(name, *, permitted=False):
@@ -1545,19 +1619,7 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         return self.rebook(statement)
 
     def rebook(self, statement):
-        """Re-book the transactions against the payout, as the admin would.
-
-        A statement whose figures moved has transactions that no longer match
-        them, and `validity` refuses to pay out on that alone. Re-booking
-        takes that refusal out of the way, so that a test asserting a payout
-        is refused is asserting the *signatures* are missing and not the
-        bookkeeping.
-        """
-        statement = Statement.objects.get(pk=statement.pk)
-        statement.transaction_set.all().delete()
-        statement.generate_transactions()
-        statement.transaction_set.update(ledger=self.ledger)
-        return Statement.objects.get(pk=statement.pk)
+        return rebook(statement, self.ledger)
 
     def test_a_re_freeze_keeps_who_overrode_a_step_and_why(self):
         """#555, and the record the whole versioning argument is about.
@@ -1749,7 +1811,17 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertTrue(board.applicable, "the rules are asking for two signatures")
         self.assertFalse(board.overridden, "and the waiver did not carry")
         self.assertIsNone(board.overridden_by)
-        self.assertIn("not being asked for", board.override_withdrawn)
+        # And the reason recorded is true of the row it is recorded on. The
+        # comparison is against the row the waiver was last carried onto, not
+        # the row it was given on — Bernd's waiver was given while the step
+        # *was* being asked for, at twelve hundred euro — so a column saying
+        # it was waived while nothing was asked would be a false statement of
+        # fact in the record this whole design exists to keep honest.
+        self.assertIn(
+            "not being asked for on the row this waiver was carried onto",
+            board.override_withdrawn,
+        )
+        self.assertNotIn("when it was waived", board.override_withdrawn)
         self.assertIn(self.bernd.name, board.override_withdrawn)
         self.assertIn("Fristende", board.override_withdrawn)
         # The waiver is kept where it was given, which is #555.
@@ -1905,6 +1977,129 @@ class SectionWithTwoSignaturesTestCase(TestCase):
             {"Kasse": True, "Vorstand": False},
             "a superseded row is history and is never written again",
         )
+
+
+class ThresholdByOmissionTestCase(TestCase):
+    """A section whose rules ask for no signature at all under a threshold.
+
+    ``Ruleset.approval``'s default is ``return [], []`` and
+    :mod:`finance.rules_api` documents what that means — "nobody, which the
+    engine reads as 'the capability check alone decides'" — so a threshold
+    written by *omitting* the step is a first-class answer rather than an
+    oddity, and it is the shape the same docstring suggests.
+
+    It is also the shape that distinguishes "the record was retired because
+    the rules broke" from "the record was retired because the rules, running
+    cleanly, stopped asking for anything". Both leave no live row, and reading
+    the second as the first makes a healthy statement unsettleable.
+    """
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        self.bernd_user, self.bernd = a_user("bernd", permitted=True)
+        self.clara_user, self.clara = a_user("clara", permitted=True)
+        self.ledger = Ledger.objects.create(name="Konto")
+        self.directory = TemporaryDirectory()
+        package = Path(self.directory.name)
+        (package / "__init__.py").write_text(THRESHOLD_BY_OMISSION, encoding="utf-8")
+        row, problems = import_from_directory(package, name="threshold-by-omission")
+        self.assertEqual(problems, [])
+        self.version = row
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def a_statement_of(self, amount):
+        statement = Statement.objects.create(short_description="Gross", night_cost=0)
+        Bill.objects.create(
+            statement=statement,
+            short_description="Bus",
+            amount=amount,
+            costs_covered=True,
+            paid_by=self.clara,
+        )
+        statement.submit(submitter=self.clara)
+        return rebook(statement, self.ledger)
+
+    def test_a_small_statement_is_settled_by_the_capability_alone(self):
+        """The baseline: a statement that was never over the threshold pays out.
+
+        Nothing is frozen, because there is nothing to freeze, and the
+        capability check is the whole of the approval — which is what the
+        ``[], []`` answer means.
+        """
+        small = self.a_statement_of(Decimal("400.00"))
+        self.assertEqual(small.approval_constraint_set.count(), 0)
+        self.assertEqual(gate_of(small), [])
+        self.assertTrue(small.fully_approved)
+        self.assertTrue(small.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=small.pk).confirmed)
+
+    def test_a_statement_corrected_under_the_threshold_can_still_be_settled(self):
+        """And so does one that *becomes* small, which is the regression.
+
+        The finance officer correcting a bill downwards is the one edit a
+        submitted statement stays open for. It re-freezes: the ``Vorstand`` row
+        the statement was handed in with is superseded, and the rules — running
+        cleanly — ask for nothing in its place, so no row takes over. Nothing
+        is wrong with this statement. ``rule_result.errors`` is empty,
+        ``validity`` is ``VALID``, and it is now exactly a statement that was
+        always small.
+
+        Reading "no live row" as "the rules reported a problem" made it
+        permanently unsettleable instead: the gate fell back to the superseded
+        row, stamped it *Could not be resolved*, and refused every door —
+        signing, overriding and confirming — with nothing a human could fix,
+        because no re-freeze will write a live row while the payout stays under
+        the threshold. The admin's confirm button then lands in the branch
+        commented "this should NOT happen!" and says "please try again",
+        forever.
+        """
+        big = self.a_statement_of(Decimal("1200.00"))
+        self.assertEqual(big.approval_constraint_set.get().name, "Vorstand")
+
+        bill = big.bill_set.get()
+        bill.amount = Decimal("400.00")
+        bill.save()
+        statement = rebook(big, self.ledger)
+
+        self.assertEqual(statement.rule_result.errors, (), "nothing is wrong with it")
+        self.assertEqual(statement.validity, Statement.VALID)
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "and nothing is asked")
+        self.assertEqual(gate_of(statement), [])
+        self.assertTrue(statement.fully_approved)
+        self.assertTrue(approval_payload(statement, self.anna)["approved"])
+        self.assertTrue(statement.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+        # The record of what it was handed in with is still there, which is
+        # what supersession is for.
+        kept = ApprovalConstraint.all_objects.filter(statement=statement).get()
+        self.assertEqual(kept.name, "Vorstand")
+        self.assertIsNotNone(kept.superseded_at)
+
+    def test_a_statement_whose_rules_break_is_still_stuck(self):
+        """The fallback it is gated on, under the same rules.
+
+        The gate asks "did the rules report a problem", and this is the case
+        that answers yes: a payerless covered receipt leaves the payout
+        unresolvable, the record is retired, and the statement may not be
+        settled by the capability alone just because nothing is live.
+        """
+        big = self.a_statement_of(Decimal("1200.00"))
+        bill = big.bill_set.get()
+        bill.paid_by = None
+        bill.save()
+
+        statement = Statement.objects.get(pk=big.pk)
+        self.assertTrue(statement.rule_result.errors)
+        self.assertEqual(statement.approval_constraint_set.count(), 0, "nothing live")
+        gate = {state.name: state for state in gate_of(statement)}
+        self.assertEqual(sorted(gate), ["Vorstand"], "the question it was handed in with")
+        self.assertTrue(gate["Vorstand"].open)
+        self.assertFalse(statement.fully_approved)
+        self.assertFalse(approval_payload(statement, self.anna)["approved"])
+        self.assertFalse(statement.approve(self.anna))
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
 
 
 class BootstrapAccountTestCase(TestCase):
