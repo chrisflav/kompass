@@ -58,6 +58,7 @@ from finance.engine.versions import version_hash
 from finance.models import Bill
 from finance.models import Statement
 from finance.models import Transaction
+from finance.rules_api import Choice
 from finance.rules_api import Input
 from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
@@ -1061,7 +1062,12 @@ class FuzzTestCase(SimpleTestCase):
         picked = random_answer(rng, Input("g", "G", "member_set", options=options, max=1))
         self.assertLessEqual(len(picked), 1)
         self.assertEqual(random_answer(rng, Input("h", "H", "member_set")), ())
-        self.assertIsNone(random_answer(rng, Input("i", "I", "choice")))
+        # A choice comes out of the declaration's own alternatives, or empty —
+        # which is the state a form being filled in is in, and so one the rules
+        # have to survive.
+        alternatives = (Choice("ehrenamt", "Ehrenamt"), Choice("tour", "Tourenleitung"))
+        picked_choice = random_answer(rng, Input("i", "I", "choice", choices=alternatives))
+        self.assertIn(picked_choice, ("", "ehrenamt", "tour"))
         self.assertIsInstance(random_answer(rng, Input("j", "J", "int")), int)
 
     def test_a_balance_declared_the_wrong_way_round_is_refused(self):

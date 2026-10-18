@@ -31,6 +31,7 @@ from finance.inputs import form_field
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
+from finance.rules_api import Choice
 from finance.rules_api import Input
 from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
@@ -791,6 +792,22 @@ class InputValueTestCase(SimpleTestCase):
         self.assertEqual(clean_value(Input("s", "S", "member_set"), None), [])
         self.assertEqual(clean_value(Input("c", "C", "money"), None), Decimal("0"))
 
+    def test_a_choice_nobody_has_made_yet(self):
+        """Empty is an answer to a ``choice`` and reads back as ``""``.
+
+        The same way an unanswered amount reads back as ``0.00``: a form is
+        filled in gradually, so "not chosen yet" has to be submittable. Whether
+        an answer is *needed* is ``required`` and the ruleset's own checks, not
+        this. Neuter it — refuse the empty value here — and a client cannot
+        send a half-finished form at all.
+        """
+        declaration = Input("regime", "Regelwerk", "choice", choices=(Choice("a", "Erstes"),))
+        self.assertEqual(clean_value(declaration, None), "")
+        self.assertEqual(clean_value(declaration, ""), "")
+        self.assertEqual(clean_value(declaration, "a"), "a")
+        with self.assertRaises(ValidationError):
+            clean_value(declaration, "b")
+
 
 class FormFieldTestCase(SimpleTestCase):
     """Each type as the control a server-rendered form shows for it.
@@ -806,13 +823,14 @@ class FormFieldTestCase(SimpleTestCase):
             "int": forms.IntegerField,
             "bool": forms.BooleanField,
             "text": forms.CharField,
-            "choice": forms.CharField,
+            "choice": forms.ChoiceField,
             "member": forms.TypedChoiceField,
             "member_set": forms.TypedMultipleChoiceField,
         }
         for input_type, expected in cases.items():
             with self.subTest(type=input_type):
-                field = form_field(Input("k", "Frage", input_type, help="Hilfe"))
+                extra = {"choices": (Choice("a", "A"),)} if input_type == "choice" else {}
+                field = form_field(Input("k", "Frage", input_type, help="Hilfe", **extra))
                 self.assertIsInstance(field, expected)
                 self.assertEqual(field.label, "Frage")
                 self.assertEqual(field.help_text, "Hilfe")
