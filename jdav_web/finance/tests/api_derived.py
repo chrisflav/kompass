@@ -238,9 +238,12 @@ class DerivedInputApiTestCase(DerivedFormTestCase):
         put a value there. The engine resolves the source again on every
         context build, so the figure a rule reads is the trip's.
 
-        Neuter it — in :func:`finance.engine.answers.typed_inputs`, prefer
-        ``answers`` over the engine's own value — and the form reports 9999 and
-        the payout doubles.
+        What this detects is the resolution in
+        :func:`finance.engine.answers.typed_inputs`: prefer ``answers`` over the
+        engine's own value and the form reports 9999 and the payout doubles.
+        The *other* resolution, in ``_answered``, is a different claim on a
+        different route — see
+        ``test_a_dry_run_cannot_put_its_own_figure_in_a_derived_answer``.
         """
         answer(self.statement, kilometers=9999, regime="ehrenamt")
         with self.serving():
@@ -274,6 +277,60 @@ class DerivedInputApiTestCase(DerivedFormTestCase):
         self.loose.refresh_from_db()
         self.assertEqual(self.loose.inputs["kilometers"], 250)
         self.assertEqual(self.paid(self.loose), Decimal("75.00"))
+
+    def test_a_dry_run_cannot_put_its_own_figure_in_a_derived_answer(self):
+        """``_answered`` resolves the source again, and that is the last word.
+
+        A dry run hands ``evaluate_statement`` the answers to try, and
+        ``build_context`` returns early for an override rather than typing the
+        stored ones — so on *this* route nothing but ``_answered`` would resolve
+        a derived question at all. The same is true of a case file and of the
+        fuzzer: they build their own context and never go through
+        ``build_context``.
+
+        So the two resolutions are not one belt and one brace. They cover
+        different routes, and this is the one that covers the routes the form
+        does not. Neuter it — drop the ``engine_supplied`` branch of
+        ``_answered`` — and the 9999 below is paid at 0.20 a kilometre: a dry
+        run, a case or a fuzz round could each assert a figure production will
+        never produce.
+        """
+        result = evaluate_statement(
+            self.statement,
+            ruleset=self.rules,
+            inputs={
+                "kilometers": 9999,
+                "regime": "ehrenamt",
+                "paid_to": RuleMember(self.leader.pk),
+            },
+        )
+        self.assertEqual(result.errors, (), result.errors)
+        self.assertEqual(result.total_of("travel"), Decimal("20.00"))
+
+    def test_a_derived_answer_is_there_when_relevant_inputs_branches_on_it(self):
+        """Why ``build_context`` resolves a derived answer as well as ``_answered``.
+
+        ``relevant_inputs`` is given the context ``build_context`` built, and a
+        ruleset may branch on an answer there — that is what the method is for.
+        A derived answer has to be in that context, or a ruleset would see the
+        figure the engine supplies everywhere except in the one method whose
+        job is to decide what to ask about it.
+
+        The ruleset below asks how many people shared the car only when the
+        trip recorded any kilometres, and the statement carries a stored ``0``
+        behind the form to make the two readings differ. Neuter
+        :func:`finance.engine.answers.typed_inputs` so that the stored answer
+        wins — or drop ``supplied`` from ``build_context`` altogether — and the
+        question disappears from a form that should be asking it.
+        """
+        answer(self.statement, kilometers=0)
+        self.rules = _AsksAboutTheJourney()
+        keys = [entry["key"] for entry in self.form(self.statement)["inputs"]]
+        self.assertIn("car_share", keys, "the trip drove 100 km, so the question applies")
+        # And on a statement with no trip the stored answer is the figure, so
+        # the same branch reads it and takes the question off the form.
+        answer(self.loose, kilometers=0)
+        self.assertNotIn("car_share", [entry["key"] for entry in self.form(self.loose)["inputs"]])
 
     def test_the_admin_is_not_offered_a_field_it_would_have_to_refuse(self):
         """A server-rendered form writes every field it renders.
@@ -351,14 +408,18 @@ class ChoiceInputApiTestCase(DerivedFormTestCase):
                 self.assertEqual(self.paid(self.statement), Decimal(expected))
 
     def test_a_choice_nobody_has_answered_yet_is_readable(self):
-        """An unanswered choice must not collapse the evaluation.
+        """A half-finished form resolves, with nothing owed and no error.
 
-        It used to read as ``None`` while :meth:`kompass.rules.Inputs.text`
-        type-checks against ``str``, so a rule reading one got a
-        ``RuleError`` — and because that happens inside ``transfers``, the whole
-        statement came back as one error with a traceback instead of a form
-        with a question on it. Neuter it — ``_EMPTY["choice"] = None`` — and the
-        evaluation below reports an error rather than nothing owed.
+        The *statement* route to an unanswered choice goes through
+        ``coerce_input``, which makes an absent answer ``""`` on its way into
+        the context — so the ``_EMPTY["choice"]`` that taxis #573 is about is
+        not what this exercises, and neutering it leaves this green. The guard
+        for that is
+        ``finance.tests.engine.EvaluationTestCase``'s
+        ``test_a_declared_question_nobody_answered_reads_as_empty``, where the
+        context never mentions the key — which is the shape a case file and the
+        fuzzer have. This is the end-to-end half: the form asks, nothing is
+        owed, and nothing is wrong.
         """
         self.assertEqual(self.paid(self.statement), Decimal("0.00"))
         body = self.form(self.statement)
@@ -617,6 +678,27 @@ class DerivedMemberApiTestCase(DerivedFormTestCase):
         served = self.form(self.statement)["answers"]["people"]
         self.assertTrue(served, "there are participants, so there is something to serialise")
         self.assertTrue(all(isinstance(entry, str) for entry in served), served)
+
+
+class _AsksAboutTheJourney(TravelRules):
+    """A ruleset whose ``relevant_inputs`` branches on a *derived* answer.
+
+    The question about sharing the car is only worth asking if the trip drove
+    anywhere, and how far it drove is the engine's answer rather than
+    anybody's. So this reads a derived value in the one method that decides
+    what to ask.
+    """
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            *super().inputs(ctx),
+            Input("car_share", "Wie viele im Auto?", "int", required=False, step="Fahrt"),
+        ]
+
+    def relevant_inputs(self, ctx: RuleContext) -> list[Input]:
+        if ctx.inputs.number("kilometers") > 0:
+            return self.inputs(ctx)
+        return [entry for entry in self.inputs(ctx) if entry.key != "car_share"]
 
 
 class _DerivedShapes(TravelRules):

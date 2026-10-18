@@ -613,6 +613,19 @@ class EvaluationTestCase(SimpleTestCase):
         self.assertEqual(result.errors, ())
 
     def test_a_declared_question_nobody_answered_reads_as_empty(self):
+        """All seven types, read through the accessor each one is paired with.
+
+        ``choice`` is here because it was the one that was not: ``_EMPTY`` held
+        ``None`` for it while :meth:`~kompass.rules.Inputs.text` type-checks
+        against ``str``, so reading an unanswered one raised inside
+        ``transfers`` and collapsed the whole evaluation into one traceback
+        (taxis #573). Neuter it — put ``None`` back — and this goes red, which
+        a test going through a *statement* would not: ``coerce_input`` makes an
+        absent answer ``""`` on its way into the context, so the ``_EMPTY``
+        branch is only reached by a context that never mentioned the key at
+        all. A case file and the fuzzer are exactly that, which is why the
+        guard belongs here rather than on the API.
+        """
         seen = {}
 
         class Reader(Fixed):
@@ -623,6 +636,7 @@ class EvaluationTestCase(SimpleTestCase):
                 seen["number"] = ctx.inputs.number("number")
                 seen["flag"] = ctx.inputs.flag("flag")
                 seen["text"] = ctx.inputs.text("text")
+                seen["pick"] = ctx.inputs.text("pick")
                 return [], []
 
         declarations = [
@@ -632,8 +646,10 @@ class EvaluationTestCase(SimpleTestCase):
             Input("number", "", "int"),
             Input("flag", "", "bool"),
             Input("text", "", "text"),
+            Input("pick", "", "choice", choices=(Choice("a", "Erstes"),)),
         ]
-        evaluate(Reader(declarations=declarations), context())
+        result = evaluate(Reader(declarations=declarations), context())
+        self.assertEqual(result.errors, (), result.errors)
         self.assertEqual(
             seen,
             {
@@ -643,6 +659,7 @@ class EvaluationTestCase(SimpleTestCase):
                 "number": 0,
                 "flag": False,
                 "text": "",
+                "pick": "",
             },
         )
 
