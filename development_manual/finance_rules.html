@@ -636,6 +636,24 @@ person or per statement — is the author’s Python.</p>
 refuses to load a ruleset written against a newer context.</p>
 </dd></dl>
 <dl class="py attribute">
+<dt class="sig sig-object py" id="kompass.rules.Ruleset.valid_from">
+<span class="sig-name descname"><span class="pre">valid_from</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Ruleset.valid_from" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Ruleset.valid_from'">¶</a></dt>
+<dd><p>The date these rules were <strong>in force</strong> from, ISO 8601
+(<code class="docutils literal notranslate"><span class="pre">"2026-03-01"</span></code>), empty for „from the moment Kompass is told“.</p>
+<p>It is valid time, and it may be in the past: a section that resolved
+new rates in March and imports them in May says <code class="docutils literal notranslate"><span class="pre">"2026-03-01"</span></code>, and
+the record then carries both when the rules applied and when Kompass
+learned of them. A date in the future stages a change that is already
+agreed. This declaration is the <em>authority</em> for either, which is why it
+lives in the ruleset package rather than in a command-line flag: the
+package is reviewed and committed, and it is the versioned
+documentation of the procedure an auditor asks for.</p>
+<p>Backdating records; it does not re-settle. A statement is bound to the
+rules it was created under, and no version imported afterwards — with
+whatever date — changes what it settled under; settling one again under
+a correction is a separate, deliberate act (#561).</p>
+</dd></dl>
+<dl class="py attribute">
 <dt class="sig sig-object py" id="kompass.rules.Ruleset.permissions">
 <span class="sig-name descname"><span class="pre">permissions</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">()</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Ruleset.permissions" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Ruleset.permissions'">¶</a></dt>
 <dd><p>Permission codenames the rules read with
@@ -1417,6 +1435,7 @@ somebody and there is more than one candidate: <code class="docutils literal not
 <li><a :data-current="activeSection === '#kompass.rules.Ruleset'" class="reference internal" href="#kompass.rules.Ruleset"><code class="docutils literal notranslate"><span class="pre">Ruleset</span></code></a><ul>
 <li><a :data-current="activeSection === '#kompass.rules.Ruleset.name'" class="reference internal" href="#kompass.rules.Ruleset.name"><code class="docutils literal notranslate"><span class="pre">Ruleset.name</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Ruleset.context_version'" class="reference internal" href="#kompass.rules.Ruleset.context_version"><code class="docutils literal notranslate"><span class="pre">Ruleset.context_version</span></code></a></li>
+<li><a :data-current="activeSection === '#kompass.rules.Ruleset.valid_from'" class="reference internal" href="#kompass.rules.Ruleset.valid_from"><code class="docutils literal notranslate"><span class="pre">Ruleset.valid_from</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Ruleset.permissions'" class="reference internal" href="#kompass.rules.Ruleset.permissions"><code class="docutils literal notranslate"><span class="pre">Ruleset.permissions</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Ruleset.balance'" class="reference internal" href="#kompass.rules.Ruleset.balance"><code class="docutils literal notranslate"><span class="pre">Ruleset.balance</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Ruleset.inputs'" class="reference internal" href="#kompass.rules.Ruleset.inputs"><code class="docutils literal notranslate"><span class="pre">Ruleset.inputs()</span></code></a></li>
