@@ -131,6 +131,7 @@
 <li class="toctree-l2"><a class="reference internal" href="development_manual/architecture.html">Architecture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development_manual/authentication.html">Authentication</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development_manual/mail_routing.html">Mail routing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development_manual/finance_rules.html">A section’s finance rules</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development_manual/testing.html">Testing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development_manual/translations.html">Translations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="development_manual/ci.html">Continuous Integration</a></li>
@@ -177,9 +178,349 @@
 <div id="content" role="main">
 
   <h1 id="index">Stichwortverzeichnis</h1>
+  <h2 id="A">A</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Participant.age">age (Attribut von kompass.rules.Participant)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Participant.age_at_start">age_at_start (Attribut von kompass.rules.Participant)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Bill.amount">amount (Attribut von kompass.rules.Bill)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer.amount">(Attribut von kompass.rules.Transfer)</a>
+</li>
+      </ul></li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Constraint.anyone_permitted">anyone_permitted (Attribut von kompass.rules.Constraint)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Constraint.applicable">applicable (Attribut von kompass.rules.Constraint)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Forbid.applies_to">applies_to (Attribut von kompass.rules.Forbid)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.approach">approach (Attribut von kompass.rules.Excursion)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.approval">approval() (Methode von kompass.rules.Ruleset)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.approved_staff_count">approved_staff_count (Attribut von kompass.rules.Excursion)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Params.as_dict">as_dict() (Methode von kompass.rules.Params)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="B">B</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.balance">balance (Attribut von kompass.rules.Ruleset)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Bill">Bill (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.bills">bills (Attribut von kompass.rules.RuleContext)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="C">C</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer.category">category (Attribut von kompass.rules.Transfer)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.CENT">CENT (in Modul kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Check">Check (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.checks">checks() (Methode von kompass.rules.Ruleset)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Constraint">Constraint (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.context_version">context_version (Attribut von kompass.rules.Ruleset)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.CONTEXT_VERSION">CONTEXT_VERSION (in Modul kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Bill.covered">covered (Attribut von kompass.rules.Bill)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.StatementInfo.creator">creator (Attribut von kompass.rules.StatementInfo)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="D">D</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.declared">declared() (Methode von kompass.rules.Inputs)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Bill.description">description (Attribut von kompass.rules.Bill)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Constraint.description">(Attribut von kompass.rules.Constraint)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer.destination">destination (Attribut von kompass.rules.Transfer)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.duration">duration (Attribut von kompass.rules.Excursion)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.LJP.duration">(Attribut von kompass.rules.LJP)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="E">E</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Constraint.eligible">eligible (Attribut von kompass.rules.Constraint)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.excursion">excursion (Attribut von kompass.rules.RuleContext)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion">Excursion (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer.explanation">explanation (Attribut von kompass.rules.Transfer)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="F">F</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.first_of">first_of() (im Modul kompass.rules)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.flag">flag() (Methode von kompass.rules.Inputs)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Forbid">Forbid (Klasse in kompass.rules)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="G">G</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Params.get">get() (Methode von kompass.rules.Params)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Roles.get">(Methode von kompass.rules.Roles)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.LJP.goal">goal (Attribut von kompass.rules.LJP)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="H">H</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Bill.has_proof">has_proof (Attribut von kompass.rules.Bill)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Input.help">help (Attribut von kompass.rules.Input)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="I">I</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Bill.id">id (Attribut von kompass.rules.Bill)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.StatementInfo.id">(Attribut von kompass.rules.StatementInfo)</a>
+</li>
+      </ul></li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Input">Input (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.inputs">inputs (Attribut von kompass.rules.RuleContext)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs">Inputs (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.inputs">inputs() (Methode von kompass.rules.Ruleset)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.InputType">InputType (in Modul kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Participant.is_leader">is_leader (Attribut von kompass.rules.Participant)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="K">K</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Input.key">key (Attribut von kompass.rules.Input)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.kilometers">kilometers (Attribut von kompass.rules.Excursion)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="L">L</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Input.label">label (Attribut von kompass.rules.Input)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer.label">(Attribut von kompass.rules.Transfer)</a>
+</li>
+      </ul></li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.leaders">leaders (Attribut von kompass.rules.Excursion)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.ljp">ljp (Attribut von kompass.rules.Excursion)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.LJP">LJP (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.LJPGoal">LJPGoal (in Modul kompass.rules)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="M">M</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Input.max">max (Attribut von kompass.rules.Input)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Member">Member (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.member">member() (Methode von kompass.rules.Inputs)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.MemberId">MemberId (in Modul kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.members">members() (Methode von kompass.rules.Inputs)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Check.message">message (Attribut von kompass.rules.Check)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.money">money() (Methode von kompass.rules.Inputs)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="N">N</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Constraint.name">name (Attribut von kompass.rules.Constraint)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Forbid.name">(Attribut von kompass.rules.Forbid)</a>
+</li>
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.name">(Attribut von kompass.rules.Ruleset)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.nights">nights (Attribut von kompass.rules.Excursion)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.number">number() (Methode von kompass.rules.Inputs)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="O">O</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Check.ok">ok (Attribut von kompass.rules.Check)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Input.options">options (Attribut von kompass.rules.Input)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="P">P</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.params">params (Attribut von kompass.rules.RuleContext)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Params">Params (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Participant">Participant (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.LJP.participant_count">participant_count (Attribut von kompass.rules.LJP)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.participants">participants (Attribut von kompass.rules.Excursion)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.PARTICIPANTS">PARTICIPANTS (in Modul kompass.rules)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Participants">Participants (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Party">Party (in Modul kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Bill.payer">payer (Attribut von kompass.rules.Bill)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.pct">pct() (im Modul kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.permission_holders">permission_holders() (Methode von kompass.rules.RuleContext)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.permissions">permissions (Attribut von kompass.rules.RuleContext)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.permissions">(Attribut von kompass.rules.Ruleset)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="Q">Q</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.quantize">quantize() (im Modul kompass.rules)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
   <h2 id="R">R</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.raw">raw() (Methode von kompass.rules.Inputs)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.relevant_inputs">relevant_inputs() (Methode von kompass.rules.Ruleset)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Constraint.required">required (Attribut von kompass.rules.Constraint)</a>
+
+      <ul style="list-style-type:none">
+        <li><a href="development_manual/finance_rules.html#kompass.rules.Input.required">(Attribut von kompass.rules.Input)</a>
+</li>
+      </ul></li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Roles.resolved">resolved (kompass.rules.Roles property)</a>
+</li>
       <li>
     RFC
 
@@ -187,6 +528,86 @@
         <li><a href="development_manual/mail_routing.html#index-0">RFC 2033</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.role_holders">role_holders() (Methode von kompass.rules.RuleContext)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.roles">roles (Attribut von kompass.rules.RuleContext)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Roles">Roles (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer.rule_id">rule_id (Attribut von kompass.rules.Transfer)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext">RuleContext (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleError">RuleError</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset">Ruleset (Klasse in kompass.rules)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="S">S</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.SECTION">SECTION (in Modul kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Section">Section (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer.source">source (Attribut von kompass.rules.Transfer)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.split">split() (im Modul kompass.rules)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Excursion.staff_count">staff_count (Attribut von kompass.rules.Excursion)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.statement">statement (Attribut von kompass.rules.RuleContext)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.StatementInfo">StatementInfo (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.StatementInfo.submitter">submitter (Attribut von kompass.rules.StatementInfo)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="T">T</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Inputs.text">text() (Methode von kompass.rules.Inputs)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.LJP.theoretic_participant_count">theoretic_participant_count (Attribut von kompass.rules.LJP)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.TourApproach">TourApproach (in Modul kompass.rules)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Transfer">Transfer (Klasse in kompass.rules)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Ruleset.transfers">transfers() (Methode von kompass.rules.Ruleset)</a>
+</li>
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Input.type">type (Attribut von kompass.rules.Input)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="U">U</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.Roles.unresolved">unresolved() (Klassenmethode von kompass.rules.Roles)</a>
+</li>
+  </ul></td>
+  </tr>
+      </table>
+  
+  <h2 id="V">V</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul style="margin-left:0;list-style-type:none">
+      <li><a href="development_manual/finance_rules.html#kompass.rules.RuleContext.version">version (Attribut von kompass.rules.RuleContext)</a>
+</li>
   </ul></td>
   </tr>
       </table>
@@ -196,7 +617,7 @@
 </div></div>
 <aside id="right-sidebar" class="hidden text-sm xl:block">
 <div class="sticky top-16 -mt-10 max-h-[calc(var(--vh)-4rem)] overflow-y-auto pt-6 space-y-2">
-<a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#R">R</a>
+<a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#A">A</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#B">B</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#C">C</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#D">D</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#E">E</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#F">F</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#G">G</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#H">H</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#I">I</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#K">K</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#L">L</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#M">M</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#N">N</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#O">O</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#P">P</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#Q">Q</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#R">R</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#S">S</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#T">T</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#U">U</a><a class="pt-2 block text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:outline-offset-[-1px]" href="#V">V</a>
 </div>
 </aside>
           </main>
