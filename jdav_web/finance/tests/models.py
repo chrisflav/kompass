@@ -9,6 +9,7 @@ from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from finance.engine import build_context
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
 from finance.models import Bill
@@ -833,6 +834,12 @@ class StatementTestCase(TestCase):
         )
         self.st3.excursion.jugendleiter.add(ghost)
         answer(self.st3, subsidy_to=ghost.pk)
+        # The stub has to narrow the form for this to prove anything, so assert
+        # its premise rather than trust it: the key is off `relevant_inputs`
+        # and still on `inputs`, which is the one the engine reads.
+        narrowed, context = NarrowedForm(), build_context(self.st3)
+        self.assertNotIn("subsidy_to", [asked.key for asked in narrowed.relevant_inputs(context)])
+        self.assertIn("subsidy_to", [asked.key for asked in narrowed.inputs(context)])
         # Patched where the receiver reads it, not on the imported class: a
         # statement's ruleset is exec'd from its own stored sources under a
         # hash-named package, so `HeidelbergRules` there is a different class
