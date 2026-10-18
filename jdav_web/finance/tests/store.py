@@ -575,7 +575,7 @@ class ImportTestCase(TestCase):
         RuleSet.objects.all().delete()
         with override_settings(ALLOWANCE_PER_DAY=22):
             january, _problems = self.imported(dated("januar", self.days_ago(120)), name="januar")
-            statement = Statement.objects.create(short_description="Februar", night_cost=0)
+            statement = Statement.objects.create(short_description="Februar")
         self.assertEqual(statement.ruleset_id, january.pk)
 
         with override_settings(ALLOWANCE_PER_DAY=99):
@@ -588,7 +588,7 @@ class ImportTestCase(TestCase):
         self.assertEqual(ruleset_for(bound).name, "januar")
         # A statement created now is settled under what is in force now.
         with override_settings(ALLOWANCE_PER_DAY=99):
-            later = Statement.objects.create(short_description="Juni", night_cost=0)
+            later = Statement.objects.create(short_description="Juni")
         self.assertEqual(later.ruleset_id, march.pk)
         self.assertEqual(statement_params(later)["ALLOWANCE_PER_DAY"], Decimal("99"))
 
@@ -610,7 +610,7 @@ class ImportTestCase(TestCase):
         staged, problems = self.imported(dated("naechster-monat", when), name="naechster-monat")
         self.assertEqual(problems, [])
         self.assertEqual(active_version(), current, "the staged change is not in force yet")
-        statement = Statement.objects.create(short_description="Heute", night_cost=0)
+        statement = Statement.objects.create(short_description="Heute")
         self.assertEqual(statement.ruleset_id, current.pk, "and a new statement is bound to it")
         later = staged.valid_from + timezone.timedelta(days=1)
         self.assertEqual(RuleSet.objects.active(when=later), staged)

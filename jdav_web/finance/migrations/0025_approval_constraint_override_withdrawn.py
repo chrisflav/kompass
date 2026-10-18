@@ -1,6 +1,6 @@
 """A row says when a waiver did not carry onto it.
 
-Supersession (``0021``) carries the decision recorded about a step onto the row
+Supersession (``0023``) carries the decision recorded about a step onto the row
 that takes over, so that a finance officer covering a receipt does not put a
 payout the board has already waived back in front of the board. A waiver is a
 permission, though, and ``ConstraintState.open`` reads it on every call — so
@@ -24,7 +24,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("finance", "0022_ruleset_retired_at"),
+        ("finance", "0024_ruleset_retired_at"),
     ]
 
     operations = [

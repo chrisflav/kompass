@@ -2010,7 +2010,7 @@ class ThresholdByOmissionTestCase(TestCase):
         self.directory.cleanup()
 
     def a_statement_of(self, amount):
-        statement = Statement.objects.create(short_description="Gross", night_cost=0)
+        statement = Statement.objects.create(short_description="Gross")
         Bill.objects.create(
             statement=statement,
             short_description="Bus",

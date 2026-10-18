@@ -39,7 +39,7 @@ def record_when_kompass_was_told(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("finance", "0021_approval_constraint_superseded"),
+        ("finance", "0023_approval_constraint_superseded"),
     ]
 
     operations = [

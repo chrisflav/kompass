@@ -393,8 +393,8 @@ class RetiredAtMigrationTestCase(django.test.TransactionTestCase):
     """
 
     app = "finance"
-    migrate_from = [("finance", "0021_approval_constraint_superseded")]
-    migrate_to = [("finance", "0022_ruleset_retired_at")]
+    migrate_from = [("finance", "0023_approval_constraint_superseded")]
+    migrate_to = [("finance", "0024_ruleset_retired_at")]
 
     def setUp(self):
         executor = MigrationExecutor(connection)

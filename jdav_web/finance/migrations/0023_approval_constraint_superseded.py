@@ -21,7 +21,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("finance", "0020_approval_signers"),
+        ("finance", "0022_remove_statement_heidelberg_columns"),
     ]
 
     operations = [
