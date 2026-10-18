@@ -367,3 +367,154 @@ wurden wie beschrieben ausgeführt.
 Viele Grüße
 Euer KOMPASS""",
 )
+
+
+MATERIAL_RESERVATION_CONFIRMED_TEXT = get_text(
+    "material_reservation_confirmed",
+    default="""Hallo {name},
+
+für dich ist vom {start} bis zum {end} folgendes Material reserviert:
+
+{parts}
+
+Deine Reservierungen und dein Material findest du hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_REQUEST_TEXT = get_text(
+    "material_request",
+    default="""Hallo {name},
+
+{borrower} fragt vom {start} bis zum {end} folgendes Material der Gruppe {group} an:
+
+{parts}
+
+Bitte gib die Anfrage frei oder lehne sie ab:
+
+{link}
+
+Ohne Antwort bis zum Beginn wird die Anfrage automatisch abgelehnt.
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_REQUEST_RECEIVED_TEXT = get_text(
+    "material_request_received",
+    default="""Hallo {name},
+
+du hast vom {start} bis zum {end} folgendes Material angefragt:
+
+{parts}
+
+Ein Teil davon gehört {groups}. Sobald dort entschieden ist, bekommst du Bescheid.
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_REQUEST_APPROVED_TEXT = get_text(
+    "material_request_approved",
+    default="""Hallo {name},
+
+deine Materialanfrage vom {start} bis zum {end} wurde freigegeben:
+
+{parts}
+
+Kommentar: {comment}
+
+Deine Reservierungen findest du hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_REQUEST_DECLINED_TEXT = get_text(
+    "material_request_declined",
+    default="""Hallo {name},
+
+deine Materialanfrage vom {start} bis zum {end} wurde leider abgelehnt:
+
+{parts}
+
+Kommentar: {comment}
+
+Vielleicht findest du anderes Material hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_HOLDER_NOTICE_TEXT = get_text(
+    "material_holder_notice",
+    default="""Hallo {name},
+
+{borrower} hat ab dem {start} Material reserviert, das gerade bei dir ist:
+
+{parts}
+
+Bitte bring es rechtzeitig zurück oder gib es direkt weiter. Dein Material findest du hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_PICKUP_REMINDER_TEXT = get_text(
+    "material_pickup_reminder",
+    default="""Hallo {name},
+
+morgen beginnt deine Materialreservierung bis zum {end}:
+
+{parts}
+
+Beim Abholen trägst du die Teile hier aus:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_RETURN_REMINDER_TEXT = get_text(
+    "material_return_reminder",
+    default="""Hallo {name},
+
+folgendes Material ist am {due} zurückzugeben:
+
+{parts}
+
+Bitte bring es zurück und trage die Rückgabe hier ein:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)
+
+MATERIAL_PIECE_RETIRED_TEXT = get_text(
+    "material_piece_retired",
+    default="""Hallo {name},
+
+{part} aus deiner Reservierung vom {start} bis zum {end} wurde ausgemustert, und
+kein anderes Teil ist in diesem Zeitraum frei. Deine Reservierung umfasst jetzt noch:
+
+{parts}
+
+Ist nichts mehr übrig, ist die Reservierung storniert. Vielleicht findest du
+anderes Material hier:
+
+{link}
+
+Viele Grüße
+Dein KOMPASS""",
+)

@@ -248,6 +248,8 @@ export interface Column<T> {
   width?: string;
   /** Column key for sorting (mirrors the admin's sortable list columns). */
   sortKey?: string;
+  /** Class for the column's cells, e.g. "inline-actions" for a row's buttons. */
+  className?: string;
 }
 
 export type SortState = { key: string; dir: "asc" | "desc" } | null;
@@ -298,7 +300,11 @@ export function DataTable<T>({
               const sortable = onSort && c.sortKey;
               const active = sort && c.sortKey === sort.key;
               return (
-                <th key={c.header} style={c.width ? { width: c.width } : undefined}>
+                <th
+                  key={c.header}
+                  className={c.className}
+                  style={c.width ? { width: c.width } : undefined}
+                >
                   {sortable ? (
                     <button
                       type="button"
@@ -339,7 +345,9 @@ export function DataTable<T>({
                   </td>
                 )}
                 {columns.map((c) => (
-                  <td key={c.header}>{c.cell(row)}</td>
+                  <td key={c.header} className={c.className}>
+                    {c.cell(row)}
+                  </td>
                 ))}
               </tr>
             );

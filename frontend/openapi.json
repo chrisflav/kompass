@@ -6417,7 +6417,7 @@
     },
     "/api/material/categories": {
       "get": {
-        "operationId": "material_api_router_list_categories",
+        "operationId": "equipment_api_router_list_categories",
         "summary": "List Categories",
         "parameters": [],
         "responses": {
@@ -6427,7 +6427,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/MaterialCategoryBrief"
+                    "$ref": "#/components/schemas/TagBrief"
                   },
                   "title": "Response",
                   "type": "array"
@@ -6446,7 +6446,7 @@
         ]
       },
       "post": {
-        "operationId": "material_api_router_create_category",
+        "operationId": "equipment_api_router_create_category",
         "summary": "Create Category",
         "parameters": [],
         "responses": {
@@ -6455,7 +6455,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaterialCategoryOut"
+                  "$ref": "#/components/schemas/TagOut"
                 }
               }
             }
@@ -6468,7 +6468,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MaterialCategoryIn"
+                "$ref": "#/components/schemas/TagIn"
               }
             }
           },
@@ -6483,7 +6483,7 @@
     },
     "/api/material/categories/{category_id}": {
       "get": {
-        "operationId": "material_api_router_retrieve_category",
+        "operationId": "equipment_api_router_retrieve_category",
         "summary": "Retrieve Category",
         "parameters": [
           {
@@ -6502,7 +6502,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaterialCategoryOut"
+                  "$ref": "#/components/schemas/TagOut"
                 }
               }
             }
@@ -6518,7 +6518,7 @@
         ]
       },
       "put": {
-        "operationId": "material_api_router_update_category",
+        "operationId": "equipment_api_router_update_category",
         "summary": "Update Category",
         "parameters": [
           {
@@ -6537,7 +6537,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaterialCategoryOut"
+                  "$ref": "#/components/schemas/TagOut"
                 }
               }
             }
@@ -6550,7 +6550,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MaterialCategoryIn"
+                "$ref": "#/components/schemas/TagIn"
               }
             }
           },
@@ -6563,7 +6563,7 @@
         ]
       },
       "delete": {
-        "operationId": "material_api_router_delete_category",
+        "operationId": "equipment_api_router_delete_category",
         "summary": "Delete Category",
         "parameters": [
           {
@@ -6591,10 +6591,10 @@
         ]
       }
     },
-    "/api/material/parts": {
+    "/api/material/locations": {
       "get": {
-        "operationId": "material_api_router_list_parts",
-        "summary": "List Parts",
+        "operationId": "equipment_api_router_list_locations",
+        "summary": "List Locations",
         "parameters": [],
         "responses": {
           "200": {
@@ -6603,7 +6603,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/MaterialPartBrief"
+                    "$ref": "#/components/schemas/LocationOut"
                   },
                   "title": "Response",
                   "type": "array"
@@ -6622,8 +6622,8 @@
         ]
       },
       "post": {
-        "operationId": "material_api_router_create_part",
-        "summary": "Create Part",
+        "operationId": "equipment_api_router_create_location",
+        "summary": "Create Location",
         "parameters": [],
         "responses": {
           "200": {
@@ -6631,142 +6631,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaterialPartOut"
-                }
-              }
-            }
-          }
-        },
-        "description": "Create a part; ``photo`` is an optional multipart image upload.",
-        "tags": [
-          "material"
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "title": "MultiPartBodyParams",
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "title": "Name",
-                    "type": "string"
-                  },
-                  "description": {
-                    "default": "",
-                    "title": "Description",
-                    "type": "string"
-                  },
-                  "quantity": {
-                    "default": 0,
-                    "title": "Quantity",
-                    "type": "integer"
-                  },
-                  "buy_date": {
-                    "format": "date",
-                    "title": "Buy Date",
-                    "type": "string"
-                  },
-                  "lifetime": {
-                    "anyOf": [
-                      {
-                        "type": "number"
-                      },
-                      {
-                        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-                        "type": "string"
-                      }
-                    ],
-                    "title": "Lifetime"
-                  },
-                  "material_cat": {
-                    "default": [],
-                    "items": {
-                      "type": "integer"
-                    },
-                    "title": "Material Cat",
-                    "type": "array"
-                  },
-                  "photo": {
-                    "format": "binary",
-                    "title": "Photo",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "name",
-                  "buy_date",
-                  "lifetime"
-                ]
-              }
-            }
-          },
-          "required": true
-        },
-        "security": [
-          {
-            "OAuth2Bearer": []
-          }
-        ]
-      }
-    },
-    "/api/material/parts/{part_id}": {
-      "get": {
-        "operationId": "material_api_router_retrieve_part",
-        "summary": "Retrieve Part",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "part_id",
-            "schema": {
-              "title": "Part Id",
-              "type": "integer"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaterialPartOut"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "material"
-        ],
-        "security": [
-          {
-            "OAuth2Bearer": []
-          }
-        ]
-      },
-      "patch": {
-        "operationId": "material_api_router_update_part",
-        "summary": "Update Part",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "part_id",
-            "schema": {
-              "title": "Part Id",
-              "type": "integer"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaterialPartOut"
+                  "$ref": "#/components/schemas/LocationOut"
                 }
               }
             }
@@ -6779,7 +6644,86 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MaterialPartUpdate"
+                "$ref": "#/components/schemas/LocationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/recipients": {
+      "get": {
+        "operationId": "equipment_api_router_list_recipients",
+        "summary": "List Recipients",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Ref"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Everyone material can be handed over to: the names of all confirmed members.\n\nUnlike /members/ this is not narrowed to the members one may see, since a\nholder may pass a piece on to any member.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/locations/{location_id}": {
+      "put": {
+        "operationId": "equipment_api_router_update_location",
+        "summary": "Update Location",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationIn"
               }
             }
           },
@@ -6792,14 +6736,14 @@
         ]
       },
       "delete": {
-        "operationId": "material_api_router_delete_part",
-        "summary": "Delete Part",
+        "operationId": "equipment_api_router_delete_location",
+        "summary": "Delete Location",
         "parameters": [
           {
             "in": "path",
-            "name": "part_id",
+            "name": "location_id",
             "schema": {
-              "title": "Part Id",
+              "title": "Location Id",
               "type": "integer"
             },
             "required": true
@@ -6820,16 +6764,229 @@
         ]
       }
     },
-    "/api/material/parts/{part_id}/photo": {
+    "/api/material/types": {
+      "get": {
+        "operationId": "equipment_api_router_list_types",
+        "summary": "List Types",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductTypeCard"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "The catalogue: every type with pieces, and how many are free in the period.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
       "post": {
-        "operationId": "material_api_router_update_part_photo",
-        "summary": "Update Part Photo",
+        "operationId": "equipment_api_router_create_type",
+        "summary": "Create Type",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTypeOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTypeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/types/{type_id}": {
+      "get": {
+        "operationId": "equipment_api_router_retrieve_type",
+        "summary": "Retrieve Type",
         "parameters": [
           {
             "in": "path",
-            "name": "part_id",
+            "name": "type_id",
             "schema": {
-              "title": "Part Id",
+              "title": "Type Id",
+              "type": "integer"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTypeOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "equipment_api_router_update_type",
+        "summary": "Update Type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "schema": {
+              "title": "Type Id",
               "type": "integer"
             },
             "required": true
@@ -6841,13 +6998,87 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaterialPartOut"
+                  "$ref": "#/components/schemas/ProductTypeOut"
                 }
               }
             }
           }
         },
-        "description": "Replace a part's photo via multipart upload.\n\n``PATCH /parts/{id}`` is JSON-only and cannot carry a file, so the photo (an\neditable admin field) is updated through this dedicated multipart route.",
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductTypeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "equipment_api_router_delete_type",
+        "summary": "Delete Type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "schema": {
+              "title": "Type Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/types/{type_id}/photo": {
+      "post": {
+        "operationId": "equipment_api_router_update_type_photo",
+        "summary": "Update Type Photo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "schema": {
+              "title": "Type Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTypeOut"
+                }
+              }
+            }
+          }
+        },
         "tags": [
           "material"
         ],
@@ -6879,11 +7110,160 @@
         ]
       }
     },
-    "/api/material/ownerships": {
+    "/api/material/types/{type_id}/manual": {
+      "post": {
+        "operationId": "equipment_api_router_update_type_manual",
+        "summary": "Update Type Manual",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "schema": {
+              "title": "Type Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductTypeOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "manual": {
+                    "format": "binary",
+                    "title": "Manual",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "manual"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/parts": {
       "get": {
-        "operationId": "material_api_router_list_ownerships",
-        "summary": "List Ownerships",
-        "parameters": [],
+        "operationId": "equipment_api_router_list_parts",
+        "summary": "List Parts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "product_type",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Type"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "holder",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Holder"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            },
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -6891,7 +7271,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/OwnershipOut"
+                    "$ref": "#/components/schemas/PartBrief"
                   },
                   "title": "Response",
                   "type": "array"
@@ -6910,8 +7290,8 @@
         ]
       },
       "post": {
-        "operationId": "material_api_router_create_ownership",
-        "summary": "Create Ownership",
+        "operationId": "equipment_api_router_create_parts",
+        "summary": "Create Parts",
         "parameters": [],
         "responses": {
           "200": {
@@ -6919,12 +7299,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OwnershipOut"
+                  "items": {
+                    "$ref": "#/components/schemas/PartBrief"
+                  },
+                  "title": "Response",
+                  "type": "array"
                 }
               }
             }
           }
         },
+        "description": "Add pieces to the stock: one, or ``count`` identical ones without IDs.",
         "tags": [
           "material"
         ],
@@ -6932,7 +7317,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OwnershipIn"
+                "$ref": "#/components/schemas/PartIn"
               }
             }
           },
@@ -6945,16 +7330,92 @@
         ]
       }
     },
-    "/api/material/ownerships/{ownership_id}": {
+    "/api/material/parts/lookup": {
       "get": {
-        "operationId": "material_api_router_retrieve_ownership",
-        "summary": "Retrieve Ownership",
+        "operationId": "equipment_api_router_lookup_part",
+        "summary": "Lookup Part",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Find the piece whose PSA ID or serial number is ``code``, and lend its outermost assembly.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/parts/transfer": {
+      "post": {
+        "operationId": "equipment_api_router_transfer_parts",
+        "summary": "Transfer Parts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarningsOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Hand pieces over (issue #449): to a person until a day or for good, or to a place.\n\nMembers hand over what they hold and what their groups own; the material\nteam anything, including counted sizes.",
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/parts/{part_id}": {
+      "get": {
+        "operationId": "equipment_api_router_retrieve_part",
+        "summary": "Retrieve Part",
         "parameters": [
           {
             "in": "path",
-            "name": "ownership_id",
+            "name": "part_id",
             "schema": {
-              "title": "Ownership Id",
+              "title": "Part Id",
               "type": "integer"
             },
             "required": true
@@ -6966,7 +7427,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OwnershipOut"
+                  "$ref": "#/components/schemas/PartOut"
                 }
               }
             }
@@ -6982,14 +7443,14 @@
         ]
       },
       "patch": {
-        "operationId": "material_api_router_update_ownership",
-        "summary": "Update Ownership",
+        "operationId": "equipment_api_router_update_part",
+        "summary": "Update Part",
         "parameters": [
           {
             "in": "path",
-            "name": "ownership_id",
+            "name": "part_id",
             "schema": {
-              "title": "Ownership Id",
+              "title": "Part Id",
               "type": "integer"
             },
             "required": true
@@ -7001,7 +7462,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OwnershipOut"
+                  "$ref": "#/components/schemas/PartOut"
                 }
               }
             }
@@ -7014,7 +7475,313 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OwnershipUpdate"
+                "$ref": "#/components/schemas/PartUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/parts/{part_id}/photo": {
+      "post": {
+        "operationId": "equipment_api_router_update_part_photo",
+        "summary": "Update Part Photo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_id",
+            "schema": {
+              "title": "Part Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "photo": {
+                    "format": "binary",
+                    "title": "Photo",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "photo"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/parts/{part_id}/inspections": {
+      "post": {
+        "operationId": "equipment_api_router_create_inspection",
+        "summary": "Create Inspection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_id",
+            "schema": {
+              "title": "Part Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "title": "MultiPartBodyParams",
+                "type": "object",
+                "properties": {
+                  "result": {
+                    "title": "Result",
+                    "type": "string"
+                  },
+                  "date": {
+                    "anyOf": [
+                      {
+                        "format": "date",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Date"
+                  },
+                  "comment": {
+                    "default": "",
+                    "title": "Comment",
+                    "type": "string"
+                  },
+                  "photo": {
+                    "format": "binary",
+                    "title": "Photo",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/psa": {
+      "get": {
+        "operationId": "equipment_api_router_psa_register",
+        "summary": "Psa Register",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "retired",
+            "schema": {
+              "default": false,
+              "title": "Retired",
+              "type": "boolean"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PsaRow"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Every piece of personal protective equipment, the next inspection due first.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/sizes": {
+      "get": {
+        "operationId": "equipment_api_router_list_sizes",
+        "summary": "List Sizes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SizeOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Every size, for the desk to pick from.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/types/{type_id}/sizes": {
+      "post": {
+        "operationId": "equipment_api_router_create_size",
+        "summary": "Create Size",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_id",
+            "schema": {
+              "title": "Type Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SizeOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SizeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/sizes/{size_id}": {
+      "patch": {
+        "operationId": "equipment_api_router_update_size",
+        "summary": "Update Size",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "size_id",
+            "schema": {
+              "title": "Size Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SizeOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SizeUpdate"
               }
             }
           },
@@ -7027,14 +7794,14 @@
         ]
       },
       "delete": {
-        "operationId": "material_api_router_delete_ownership",
-        "summary": "Delete Ownership",
+        "operationId": "equipment_api_router_delete_size",
+        "summary": "Delete Size",
         "parameters": [
           {
             "in": "path",
-            "name": "ownership_id",
+            "name": "size_id",
             "schema": {
-              "title": "Ownership Id",
+              "title": "Size Id",
               "type": "integer"
             },
             "required": true
@@ -7048,6 +7815,627 @@
         "tags": [
           "material"
         ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/reservations/check": {
+      "post": {
+        "operationId": "equipment_api_router_check_reservation",
+        "summary": "Check Reservation",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationCheckOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "What a reservation would take, and what stands in its way, without making it.",
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/reservations": {
+      "post": {
+        "operationId": "equipment_api_router_create_reservation",
+        "summary": "Create Reservation",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "equipment_api_router_list_reservations",
+        "summary": "List Reservations",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "mine",
+              "title": "Scope",
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "product_type",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Type"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReservationOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "``mine``: one's own. ``approvals``: waiting for a group one decides for. ``all``: the desk's view.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/reservations/{reservation_id}": {
+      "get": {
+        "operationId": "equipment_api_router_retrieve_reservation",
+        "summary": "Retrieve Reservation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "schema": {
+              "title": "Reservation Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/reservations/{reservation_id}/cancel": {
+      "post": {
+        "operationId": "equipment_api_router_cancel_reservation",
+        "summary": "Cancel Reservation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "schema": {
+              "title": "Reservation Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/reservations/{reservation_id}/decide": {
+      "post": {
+        "operationId": "equipment_api_router_decide_reservation",
+        "summary": "Decide Reservation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "schema": {
+              "title": "Reservation Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/loans": {
+      "post": {
+        "operationId": "equipment_api_router_create_loan",
+        "summary": "Create Loan",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/LoanOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Take pieces: for a reservation, or on the spot with a return date.\n\n``permanent`` takes them for good, without a loan; the answer is then null.",
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "equipment_api_router_list_loans",
+        "summary": "List Loans",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "mine",
+              "title": "Scope",
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "open",
+            "schema": {
+              "default": true,
+              "title": "Open",
+              "type": "boolean"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LoanOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/loans/{loan_id}/receipt": {
+      "get": {
+        "operationId": "equipment_api_router_loan_receipt",
+        "summary": "Loan Receipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "loan_id",
+            "schema": {
+              "title": "Loan Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "A printable receipt of a loan, for the desk and the borrower.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/returns": {
+      "post": {
+        "operationId": "equipment_api_router_return_parts",
+        "summary": "Return Parts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Give back pieces one holds, to a location or each piece's home, and counts of lent sizes.",
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/mine": {
+      "get": {
+        "operationId": "equipment_api_router_mine",
+        "summary": "Mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MineOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "What I hold, what I reserved, and how many requests wait for my decision.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/desk": {
+      "get": {
+        "operationId": "equipment_api_router_desk",
+        "summary": "Desk",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeskOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "The desk's day: pickups, returns due, overdue loans, open requests, pieces to inspect.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/deficits": {
+      "post": {
+        "operationId": "equipment_api_router_report_deficit",
+        "summary": "Report Deficit",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeficitOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Put a wish on the Materialwarte's list.",
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeficitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "equipment_api_router_list_deficits",
+        "summary": "List Deficits",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "open",
+              "title": "Status"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeficitOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/material/deficits/{deficit_id}": {
+      "patch": {
+        "operationId": "equipment_api_router_update_deficit",
+        "summary": "Update Deficit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deficit_id",
+            "schema": {
+              "title": "Deficit Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeficitOut"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeficitUpdate"
+              }
+            }
+          },
+          "required": true
+        },
         "security": [
           {
             "OAuth2Bearer": []
@@ -17424,14 +18812,13 @@
         "title": "MessageIn",
         "type": "object"
       },
-      "MaterialCategoryBrief": {
+      "TagBrief": {
         "properties": {
           "id": {
             "title": "Id",
             "type": "integer"
           },
           "name": {
-            "maxLength": 40,
             "title": "Name",
             "type": "string"
           }
@@ -17440,38 +18827,67 @@
           "id",
           "name"
         ],
-        "title": "MaterialCategoryBrief",
+        "title": "TagBrief",
         "type": "object"
       },
-      "MaterialCategoryOut": {
+      "Ref": {
         "properties": {
           "id": {
             "title": "Id",
             "type": "integer"
           },
-          "material_parts": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Ref",
+        "type": "object"
+      },
+      "TagOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "product_types": {
             "items": {
-              "$ref": "#/components/schemas/MaterialPartRef"
+              "$ref": "#/components/schemas/Ref"
             },
-            "title": "Material Parts",
+            "title": "Product Types",
             "type": "array"
-          },
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "product_types"
+        ],
+        "title": "TagOut",
+        "type": "object"
+      },
+      "TagIn": {
+        "properties": {
           "name": {
-            "maxLength": 40,
             "title": "Name",
             "type": "string"
           }
         },
         "required": [
-          "id",
-          "material_parts",
           "name"
         ],
-        "title": "MaterialCategoryOut",
+        "title": "TagIn",
         "type": "object"
       },
-      "MaterialPartRef": {
-        "description": "Minimal identity of a material part used inside related payloads.",
+      "LocationOut": {
         "properties": {
           "id": {
             "title": "Id",
@@ -17480,33 +18896,106 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "opening_hours": {
+            "title": "Opening Hours",
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "address",
+          "opening_hours"
         ],
-        "title": "MaterialPartRef",
+        "title": "LocationOut",
         "type": "object"
       },
-      "MaterialCategoryIn": {
+      "LocationIn": {
         "properties": {
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "opening_hours": {
+            "default": "",
+            "title": "Opening Hours",
             "type": "string"
           }
         },
         "required": [
           "name"
         ],
-        "title": "MaterialCategoryIn",
+        "title": "LocationIn",
         "type": "object"
       },
-      "MaterialPartBrief": {
+      "GroupCount": {
+        "description": "How many free pieces of a type one owner group has. ``id`` null is the section.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "needs_approval": {
+            "title": "Needs Approval",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "available",
+          "needs_approval"
+        ],
+        "title": "GroupCount",
+        "type": "object"
+      },
+      "ProductTypeCard": {
+        "description": "A product type as the catalogue shows it.",
         "properties": {
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "manufacturer": {
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "product_group": {
+            "title": "Product Group",
+            "type": "string"
+          },
+          "is_psa": {
+            "title": "Is Psa",
+            "type": "boolean"
           },
           "photo": {
             "anyOf": [
@@ -17519,94 +19008,286 @@
             ],
             "title": "Photo"
           },
-          "quantity_real": {
-            "title": "Quantity Real",
-            "type": "string"
-          },
-          "not_too_old": {
-            "title": "Not Too Old",
-            "type": "boolean"
-          },
-          "owners": {
+          "tags": {
             "items": {
-              "$ref": "#/components/schemas/PartOwnerBrief"
+              "$ref": "#/components/schemas/TagBrief"
             },
-            "title": "Owners",
+            "title": "Tags",
             "type": "array"
           },
-          "name": {
-            "maxLength": 30,
-            "title": "Name",
-            "type": "string"
-          },
-          "description": {
-            "default": "",
-            "maxLength": 140,
-            "title": "Description",
-            "type": "string"
-          },
-          "quantity": {
-            "default": 0,
-            "title": "Quantity",
+          "total": {
+            "title": "Total",
             "type": "integer"
           },
-          "buy_date": {
-            "format": "date",
-            "title": "Purchase Date",
-            "type": "string"
+          "available": {
+            "title": "Available",
+            "type": "integer"
           },
-          "lifetime": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Lifetime (Years)",
-            "type": "string"
+          "available_direct": {
+            "title": "Available Direct",
+            "type": "integer"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupCount"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/SizeOut"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sets"
           }
         },
         "required": [
           "id",
-          "quantity_real",
-          "not_too_old",
-          "owners",
           "name",
-          "buy_date",
-          "lifetime"
+          "manufacturer",
+          "product_group",
+          "is_psa",
+          "photo",
+          "tags",
+          "total",
+          "available",
+          "available_direct",
+          "groups",
+          "sizes",
+          "sets"
         ],
-        "title": "MaterialPartBrief",
+        "title": "ProductTypeCard",
         "type": "object"
       },
-      "PartOwnerBrief": {
-        "description": "One ownership row as shown on a part (reproduces ``ownership_overview``).\n\nResolved from an ``Ownership`` instance. ``owner_id`` is exposed for editing\n(the SPA can PATCH/create via the ``/ownerships`` endpoints), ``owner_name``\nfor display. Named distinctly from ``OwnershipOut`` so ninja does not collide\nOpenAPI component keys.",
+      "SizeOut": {
+        "description": "A size kept as a counted stock. ``available`` is free in the asked period.",
         "properties": {
           "id": {
             "title": "Id",
             "type": "integer"
           },
-          "owner_id": {
-            "title": "Owner Id",
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "quantity": {
+            "title": "Quantity",
             "type": "integer"
           },
-          "owner_name": {
-            "title": "Owner Name",
+          "per_set": {
+            "title": "Per Set",
+            "type": "integer"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "product_type",
+          "quantity",
+          "per_set",
+          "group",
+          "location",
+          "position",
+          "available"
+        ],
+        "title": "SizeOut",
+        "type": "object"
+      },
+      "CalendarEntry": {
+        "properties": {
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
             "type": "string"
           },
           "count": {
             "title": "Count",
             "type": "integer"
+          },
+          "borrower": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
-          "id",
-          "owner_id",
-          "owner_name",
-          "count"
+          "start",
+          "end",
+          "status",
+          "count",
+          "borrower"
         ],
-        "title": "PartOwnerBrief",
+        "title": "CalendarEntry",
         "type": "object"
       },
-      "MaterialPartOut": {
+      "PartBrief": {
         "properties": {
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "psa_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psa Id"
+          },
+          "serial_number": {
+            "title": "Serial Number",
+            "type": "string"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "lent_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lent Until"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "product_type",
+          "psa_id",
+          "serial_number",
+          "group",
+          "holder",
+          "location",
+          "status",
+          "lent_until"
+        ],
+        "title": "PartBrief",
+        "type": "object"
+      },
+      "ProductTypeOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "manufacturer": {
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "product_group": {
+            "title": "Product Group",
+            "type": "string"
+          },
+          "is_psa": {
+            "title": "Is Psa",
+            "type": "boolean"
           },
           "photo": {
             "anyOf": [
@@ -17619,90 +19300,192 @@
             ],
             "title": "Photo"
           },
-          "quantity_real": {
-            "title": "Quantity Real",
-            "type": "string"
-          },
-          "not_too_old": {
-            "title": "Not Too Old",
-            "type": "boolean"
-          },
-          "categories": {
+          "tags": {
             "items": {
-              "$ref": "#/components/schemas/MaterialCategoryBrief"
+              "$ref": "#/components/schemas/TagBrief"
             },
-            "title": "Categories",
+            "title": "Tags",
             "type": "array"
           },
-          "owners": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "available_direct": {
+            "title": "Available Direct",
+            "type": "integer"
+          },
+          "groups": {
             "items": {
-              "$ref": "#/components/schemas/PartOwnerBrief"
+              "$ref": "#/components/schemas/GroupCount"
             },
-            "title": "Owners",
+            "title": "Groups",
             "type": "array"
           },
-          "name": {
-            "maxLength": 30,
-            "title": "Name",
-            "type": "string"
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/SizeOut"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sets"
           },
           "description": {
-            "default": "",
-            "maxLength": 140,
             "title": "Description",
             "type": "string"
           },
-          "quantity": {
-            "default": 0,
-            "title": "Quantity",
+          "article_number": {
+            "title": "Article Number",
+            "type": "string"
+          },
+          "manual": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual"
+          },
+          "usage_years": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage Years"
+          },
+          "inspection_interval_days": {
+            "title": "Inspection Interval Days",
             "type": "integer"
           },
-          "buy_date": {
-            "format": "date",
-            "title": "Purchase Date",
-            "type": "string"
+          "daily_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Rate"
           },
-          "lifetime": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Lifetime (Years)",
-            "type": "string"
+          "calendar": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarEntry"
+            },
+            "title": "Calendar",
+            "type": "array"
+          },
+          "parts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PartBrief"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parts"
           }
         },
         "required": [
           "id",
-          "quantity_real",
-          "not_too_old",
-          "categories",
-          "owners",
           "name",
-          "buy_date",
-          "lifetime"
+          "manufacturer",
+          "product_group",
+          "is_psa",
+          "photo",
+          "tags",
+          "total",
+          "available",
+          "available_direct",
+          "groups",
+          "sizes",
+          "sets",
+          "description",
+          "article_number",
+          "manual",
+          "usage_years",
+          "inspection_interval_days",
+          "daily_rate",
+          "calendar",
+          "parts"
         ],
-        "title": "MaterialPartOut",
+        "title": "ProductTypeOut",
         "type": "object"
       },
-      "MaterialPartIn": {
+      "ProductTypeIn": {
         "properties": {
           "name": {
             "title": "Name",
             "type": "string"
           },
+          "manufacturer": {
+            "default": "",
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "product_group": {
+            "default": "",
+            "title": "Product Group",
+            "type": "string"
+          },
           "description": {
             "default": "",
             "title": "Description",
             "type": "string"
           },
-          "quantity": {
-            "default": 0,
-            "title": "Quantity",
-            "type": "integer"
+          "is_psa": {
+            "default": false,
+            "title": "Is Psa",
+            "type": "boolean"
           },
-          "buy_date": {
-            "format": "date",
-            "title": "Buy Date",
+          "article_number": {
+            "default": "",
+            "title": "Article Number",
             "type": "string"
           },
-          "lifetime": {
+          "usage_years": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage Years"
+          },
+          "inspection_interval_days": {
+            "default": 365,
+            "title": "Inspection Interval Days",
+            "type": "integer"
+          },
+          "daily_rate": {
             "anyOf": [
               {
                 "type": "number"
@@ -17710,29 +19493,29 @@
               {
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
                 "type": "string"
+              },
+              {
+                "type": "null"
               }
             ],
-            "title": "Lifetime"
+            "title": "Daily Rate"
           },
-          "material_cat": {
+          "tags": {
             "default": [],
             "items": {
               "type": "integer"
             },
-            "title": "Material Cat",
+            "title": "Tags",
             "type": "array"
           }
         },
         "required": [
-          "name",
-          "buy_date",
-          "lifetime"
+          "name"
         ],
-        "title": "MaterialPartIn",
+        "title": "ProductTypeIn",
         "type": "object"
       },
-      "MaterialPartUpdate": {
-        "description": "Editable subset for PATCH; only supplied fields are applied.",
+      "ProductTypeUpdate": {
         "properties": {
           "name": {
             "anyOf": [
@@ -17745,6 +19528,28 @@
             ],
             "title": "Name"
           },
+          "manufacturer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufacturer"
+          },
+          "product_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Group"
+          },
           "description": {
             "anyOf": [
               {
@@ -17756,7 +19561,29 @@
             ],
             "title": "Description"
           },
-          "quantity": {
+          "is_psa": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Psa"
+          },
+          "article_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Number"
+          },
+          "usage_years": {
             "anyOf": [
               {
                 "type": "integer"
@@ -17765,7 +19592,96 @@
                 "type": "null"
               }
             ],
-            "title": "Quantity"
+            "title": "Usage Years"
+          },
+          "inspection_interval_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspection Interval Days"
+          },
+          "daily_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Rate"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "title": "ProductTypeUpdate",
+        "type": "object"
+      },
+      "PartIn": {
+        "properties": {
+          "product_type": {
+            "title": "Product Type",
+            "type": "integer"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "psa_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psa Id"
+          },
+          "serial_number": {
+            "default": "",
+            "title": "Serial Number",
+            "type": "string"
+          },
+          "manufactured_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufactured On"
           },
           "buy_date": {
             "anyOf": [
@@ -17779,26 +19695,329 @@
             ],
             "title": "Buy Date"
           },
-          "lifetime": {
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "home_location": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "integer"
               },
               {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "null"
+              }
+            ],
+            "title": "Home Location"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_type"
+        ],
+        "title": "PartIn",
+        "type": "object"
+      },
+      "CustodyEventOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "from_name": {
+            "anyOf": [
+              {
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Lifetime"
+            "title": "From Name"
           },
-          "material_cat": {
+          "to_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Name"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "at",
+          "from_name",
+          "to_name",
+          "by"
+        ],
+        "title": "CustodyEventOut",
+        "type": "object"
+      },
+      "InspectionOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "result": {
+            "title": "Result",
+            "type": "string"
+          },
+          "inspector": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comment": {
+            "title": "Comment",
+            "type": "string"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "result",
+          "inspector",
+          "comment",
+          "photo"
+        ],
+        "title": "InspectionOut",
+        "type": "object"
+      },
+      "PartOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "psa_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psa Id"
+          },
+          "serial_number": {
+            "title": "Serial Number",
+            "type": "string"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "lent_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lent Until"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          },
+          "manufactured_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufactured On"
+          },
+          "buy_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buy Date"
+          },
+          "home_location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/PartBrief"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "retired_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired On"
+          },
+          "next_inspection": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Inspection"
+          },
+          "past_usage_period": {
+            "title": "Past Usage Period",
+            "type": "boolean"
+          },
+          "inspections": {
             "anyOf": [
               {
                 "items": {
-                  "type": "integer"
+                  "$ref": "#/components/schemas/InspectionOut"
                 },
                 "type": "array"
               },
@@ -17806,86 +20025,1101 @@
                 "type": "null"
               }
             ],
-            "title": "Material Cat"
+            "title": "Inspections"
+          },
+          "custody": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CustodyEventOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custody"
+          },
+          "reservations": {
+            "items": {
+              "$ref": "#/components/schemas/PartReservation"
+            },
+            "title": "Reservations",
+            "type": "array"
           }
         },
-        "title": "MaterialPartUpdate",
+        "required": [
+          "id",
+          "label",
+          "product_type",
+          "psa_id",
+          "serial_number",
+          "group",
+          "holder",
+          "location",
+          "status",
+          "lent_until",
+          "note",
+          "photo",
+          "manufactured_on",
+          "buy_date",
+          "home_location",
+          "parent",
+          "components",
+          "retired_on",
+          "next_inspection",
+          "past_usage_period",
+          "inspections",
+          "custody",
+          "reservations"
+        ],
+        "title": "PartOut",
         "type": "object"
       },
-      "OwnershipOut": {
+      "PartReservation": {
         "properties": {
           "id": {
             "title": "Id",
             "type": "integer"
           },
-          "owner": {
-            "$ref": "#/components/schemas/MemberBrief"
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
           },
-          "material": {
-            "$ref": "#/components/schemas/MaterialPartRef"
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "borrower": {
+            "$ref": "#/components/schemas/MemberRef"
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end",
+          "status",
+          "borrower"
+        ],
+        "title": "PartReservation",
+        "type": "object"
+      },
+      "WarningsOut": {
+        "properties": {
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "warnings"
+        ],
+        "title": "WarningsOut",
+        "type": "object"
+      },
+      "SizeQuantity": {
+        "properties": {
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size",
+          "quantity"
+        ],
+        "title": "SizeQuantity",
+        "type": "object"
+      },
+      "TransferIn": {
+        "properties": {
+          "parts": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "sizes": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SizeQuantity"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "member": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          }
+        },
+        "title": "TransferIn",
+        "type": "object"
+      },
+      "PartUpdate": {
+        "properties": {
+          "group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "psa_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psa Id"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "manufactured_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufactured On"
+          },
+          "buy_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buy Date"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "home_location": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Location"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          }
+        },
+        "title": "PartUpdate",
+        "type": "object"
+      },
+      "PsaRow": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "psa_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psa Id"
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "last_inspection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InspectionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_inspection": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Inspection"
+          },
+          "days_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Left"
+          },
+          "past_usage_period": {
+            "title": "Past Usage Period",
+            "type": "boolean"
+          },
+          "incomplete": {
+            "title": "Incomplete",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "psa_id",
+          "product_type",
+          "group",
+          "holder",
+          "location",
+          "status",
+          "last_inspection",
+          "next_inspection",
+          "days_left",
+          "past_usage_period",
+          "incomplete"
+        ],
+        "title": "PsaRow",
+        "type": "object"
+      },
+      "SizeIn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "quantity": {
+            "default": 0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "per_set": {
+            "default": 1,
+            "title": "Per Set",
+            "type": "integer"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "position": {
+            "default": 0,
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SizeIn",
+        "type": "object"
+      },
+      "SizeUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "per_set": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Set"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "title": "SizeUpdate",
+        "type": "object"
+      },
+      "ReservationCheckOut": {
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartBrief"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/SizeCount"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "approval_groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupBrief"
+            },
+            "title": "Approval Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "problems",
+          "parts",
+          "sizes",
+          "approval_groups"
+        ],
+        "title": "ReservationCheckOut",
+        "type": "object"
+      },
+      "SizeCount": {
+        "properties": {
+          "size": {
+            "$ref": "#/components/schemas/SizeRef"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "size",
+          "quantity",
+          "group"
+        ],
+        "title": "SizeCount",
+        "type": "object"
+      },
+      "SizeRef": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "product_type"
+        ],
+        "title": "SizeRef",
+        "type": "object"
+      },
+      "LineIn": {
+        "properties": {
+          "product_type": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Type"
+          },
+          "quantity": {
+            "default": 1,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          }
+        },
+        "title": "LineIn",
+        "type": "object"
+      },
+      "ReservationIn": {
+        "properties": {
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LineIn"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "borrower": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Borrower"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "lines"
+        ],
+        "title": "ReservationIn",
+        "type": "object"
+      },
+      "ApprovalOut": {
+        "properties": {
+          "group": {
+            "$ref": "#/components/schemas/GroupBrief"
+          },
+          "approved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comment": {
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "approved",
+          "decided_by",
+          "comment"
+        ],
+        "title": "ApprovalOut",
+        "type": "object"
+      },
+      "ReservationOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "borrower": {
+            "$ref": "#/components/schemas/MemberRef"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/TypeCount"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartBrief"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/SizeCount"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalOut"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "decidable_groups": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Decidable Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "borrower",
+          "start",
+          "end",
+          "status",
+          "note",
+          "created_at",
+          "lines",
+          "parts",
+          "sizes",
+          "approvals",
+          "decidable_groups"
+        ],
+        "title": "ReservationOut",
+        "type": "object"
+      },
+      "TypeCount": {
+        "properties": {
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
           },
           "count": {
-            "default": 1,
             "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_type",
+          "count"
+        ],
+        "title": "TypeCount",
+        "type": "object"
+      },
+      "DecisionIn": {
+        "properties": {
+          "group": {
+            "title": "Group",
+            "type": "integer"
+          },
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          },
+          "comment": {
+            "default": "",
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "approved"
+        ],
+        "title": "DecisionIn",
+        "type": "object"
+      },
+      "LentSizeOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "size": {
+            "$ref": "#/components/schemas/SizeRef"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "returned": {
+            "title": "Returned",
             "type": "integer"
           }
         },
         "required": [
           "id",
-          "owner",
-          "material"
+          "size",
+          "quantity",
+          "returned"
         ],
-        "title": "OwnershipOut",
+        "title": "LentSizeOut",
         "type": "object"
       },
-      "OwnershipIn": {
+      "LoanLineOut": {
         "properties": {
-          "material": {
-            "title": "Material",
+          "part": {
+            "$ref": "#/components/schemas/PartBrief"
+          },
+          "returned_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Returned At"
+          }
+        },
+        "required": [
+          "part",
+          "returned_at"
+        ],
+        "title": "LoanLineOut",
+        "type": "object"
+      },
+      "LoanOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
             "type": "integer"
           },
-          "owner": {
-            "title": "Owner",
+          "borrower": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "out_at": {
+            "format": "date-time",
+            "title": "Out At",
+            "type": "string"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "reservation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reservation"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "boolean"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LoanLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/LentSizeOut"
+            },
+            "title": "Sizes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "borrower",
+          "out_at",
+          "due",
+          "reservation",
+          "overdue",
+          "lines",
+          "sizes"
+        ],
+        "title": "LoanOut",
+        "type": "object"
+      },
+      "LoanIn": {
+        "properties": {
+          "parts": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "sizes": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SizeQuantity"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "reservation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reservation"
+          },
+          "borrower": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Borrower"
+          },
+          "permanent": {
+            "default": false,
+            "title": "Permanent",
+            "type": "boolean"
+          }
+        },
+        "title": "LoanIn",
+        "type": "object"
+      },
+      "ReturnOut": {
+        "properties": {
+          "returned": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Returned",
+            "type": "array"
+          }
+        },
+        "required": [
+          "returned"
+        ],
+        "title": "ReturnOut",
+        "type": "object"
+      },
+      "LentQuantity": {
+        "properties": {
+          "lent": {
+            "title": "Lent",
             "type": "integer"
           },
-          "count": {
-            "default": 1,
-            "title": "Count",
+          "quantity": {
+            "title": "Quantity",
             "type": "integer"
           }
         },
         "required": [
-          "material",
-          "owner"
+          "lent",
+          "quantity"
         ],
-        "title": "OwnershipIn",
+        "title": "LentQuantity",
         "type": "object"
       },
-      "OwnershipUpdate": {
+      "ReturnIn": {
         "properties": {
-          "material": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Material"
+          "parts": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Parts",
+            "type": "array"
           },
-          "owner": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner"
+          "sizes": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/LentQuantity"
+            },
+            "title": "Sizes",
+            "type": "array"
           },
-          "count": {
+          "location": {
             "anyOf": [
               {
                 "type": "integer"
@@ -17894,10 +21128,390 @@
                 "type": "null"
               }
             ],
-            "title": "Count"
+            "title": "Location"
+          },
+          "flagged": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Flagged",
+            "type": "array"
           }
         },
-        "title": "OwnershipUpdate",
+        "title": "ReturnIn",
+        "type": "object"
+      },
+      "HeldPart": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "psa_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psa Id"
+          },
+          "serial_number": {
+            "title": "Serial Number",
+            "type": "string"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "lent_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lent Until"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "product_type",
+          "psa_id",
+          "serial_number",
+          "group",
+          "holder",
+          "location",
+          "status",
+          "lent_until",
+          "due",
+          "overdue"
+        ],
+        "title": "HeldPart",
+        "type": "object"
+      },
+      "HeldSize": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "size": {
+            "$ref": "#/components/schemas/SizeRef"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "size",
+          "quantity",
+          "due",
+          "overdue"
+        ],
+        "title": "HeldSize",
+        "type": "object"
+      },
+      "MineOut": {
+        "properties": {
+          "held": {
+            "items": {
+              "$ref": "#/components/schemas/HeldPart"
+            },
+            "title": "Held",
+            "type": "array"
+          },
+          "held_sizes": {
+            "items": {
+              "$ref": "#/components/schemas/HeldSize"
+            },
+            "title": "Held Sizes",
+            "type": "array"
+          },
+          "reservations": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationOut"
+            },
+            "title": "Reservations",
+            "type": "array"
+          },
+          "to_decide": {
+            "title": "To Decide",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "held",
+          "held_sizes",
+          "reservations",
+          "to_decide"
+        ],
+        "title": "MineOut",
+        "type": "object"
+      },
+      "DeskOut": {
+        "properties": {
+          "pickups": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationOut"
+            },
+            "title": "Pickups",
+            "type": "array"
+          },
+          "due": {
+            "items": {
+              "$ref": "#/components/schemas/LoanOut"
+            },
+            "title": "Due",
+            "type": "array"
+          },
+          "overdue": {
+            "items": {
+              "$ref": "#/components/schemas/LoanOut"
+            },
+            "title": "Overdue",
+            "type": "array"
+          },
+          "requests": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationOut"
+            },
+            "title": "Requests",
+            "type": "array"
+          },
+          "inspection_due": {
+            "items": {
+              "$ref": "#/components/schemas/PartBrief"
+            },
+            "title": "Inspection Due",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pickups",
+          "due",
+          "overdue",
+          "requests",
+          "inspection_due"
+        ],
+        "title": "DeskOut",
+        "type": "object"
+      },
+      "DeficitOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "product_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "wanted_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wanted From"
+          },
+          "wanted_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wanted To"
+          },
+          "comment": {
+            "title": "Comment",
+            "type": "string"
+          },
+          "reported_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product_type",
+          "text",
+          "wanted_from",
+          "wanted_to",
+          "comment",
+          "reported_by",
+          "created_at",
+          "status"
+        ],
+        "title": "DeficitOut",
+        "type": "object"
+      },
+      "DeficitIn": {
+        "properties": {
+          "product_type": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Type"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "wanted_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wanted From"
+          },
+          "wanted_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wanted To"
+          },
+          "comment": {
+            "default": "",
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "title": "DeficitIn",
+        "type": "object"
+      },
+      "DeficitUpdate": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "DeficitUpdate",
         "type": "object"
       },
       "TerminEnumChoice": {

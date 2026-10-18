@@ -18,9 +18,10 @@ import {
   type DetailRow,
 } from "../../components/ui";
 import type { components } from "../../api/schema";
+import { StockTabs } from "./shared";
 
-type MaterialCategoryBrief = components["schemas"]["MaterialCategoryBrief"];
-type MaterialCategoryOut = components["schemas"]["MaterialCategoryOut"];
+type TagBrief = components["schemas"]["TagBrief"];
+type TagOut = components["schemas"]["TagOut"];
 
 /* --- list ---------------------------------------------------------------- */
 
@@ -34,7 +35,7 @@ export function CategoriesList() {
   const rows = query.data ?? [];
 
   // Admin has no search_fields / list_filter; ordering = name.
-  const config: ListViewConfig<MaterialCategoryBrief> = useMemo(
+  const config: ListViewConfig<TagBrief> = useMemo(
     () => ({
       sort: { name: (c) => c.name },
       defaultSort: { key: "name", dir: "asc" },
@@ -47,16 +48,21 @@ export function CategoriesList() {
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Materialkategorien" }]}
+        breadcrumbs={[
+          { label: "Material", to: "/kompass/material" },
+          { label: "Bestand", to: "/kompass/material/stock" },
+          { label: "Tags" },
+        ]}
         subtitle={`${view.rows.length} / ${view.total}`}
         actions={
-          can("material.add_materialcategory") && (
-            <Button onClick={() => setCreating(true)}>Neue Kategorie</Button>
+          can("equipment.manage_inventory") && (
+            <Button onClick={() => setCreating(true)}>Neuer Tag</Button>
           )
         }
       />
+      <StockTabs />
       {creating && (
-        <Modal title="Neue Kategorie" onClose={() => setCreating(false)}>
+        <Modal title="Neuer Tag" onClose={() => setCreating(false)}>
           <CategoryForm
             initial={{ name: "" }}
             submitLabel="Anlegen"
@@ -70,7 +76,7 @@ export function CategoriesList() {
         </Modal>
       )}
       <ListToolbar view={view} />
-      <QueryBoundary query={query} empty="Keine Kategorien vorhanden.">
+      <QueryBoundary query={query} empty="Keine Tags vorhanden.">
         {() => (
           <DataTable
             rows={view.rows}
@@ -101,12 +107,12 @@ export function CategoryDetailPage() {
 
   return (
     <QueryBoundary query={query}>
-      {(category: MaterialCategoryOut) => <CategoryDetailBody category={category} />}
+      {(category: TagOut) => <CategoryDetailBody category={category} />}
     </QueryBoundary>
   );
 }
 
-function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
+function CategoryDetailBody({ category }: { category: TagOut }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => ({ name: category.name }));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -148,7 +154,7 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
     {
       invalidate: [["material", "categories"]],
       onSuccess: () => {
-        toast.success("Kategorie gelöscht.");
+        toast.success("Tag gelöscht.");
         navigate("/kompass/material/categories");
       },
       onError: (e: Error) => toast.error(e.message),
@@ -186,7 +192,8 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
     >
       <PageHeader
         breadcrumbs={[
-          { label: "Materialkategorien", to: "/kompass/material/categories" },
+          { label: "Material", to: "/kompass/material" },
+          { label: "Tags", to: "/kompass/material/categories" },
           { label: category.name },
         ]}
         actions={
@@ -211,7 +218,7 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
                 onClick={async () => {
                   if (
                     await confirm({
-                      message: "Kategorie wirklich löschen?",
+                      message: "Tag wirklich löschen?",
                       danger: true,
                       confirmLabel: "Löschen",
                     })
@@ -229,13 +236,13 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
         }
       />
       <EditableDetail rows={rows} editing={editing} errors={fieldErrors} />
-      <h3>Material in dieser Kategorie</h3>
+      <h3>Materialtypen mit diesem Tag</h3>
       <DataTable
-        rows={category.material_parts}
+        rows={category.product_types}
         rowKey={(p) => p.id}
-        onRowClick={(p) => navigate(`/kompass/material/${p.id}`)}
+        onRowClick={(p) => navigate(`/kompass/material/types/${p.id}`)}
         columns={[{ header: "Name", cell: (p) => p.name }]}
-        empty="Kein Material in dieser Kategorie."
+        empty="Kein Materialtyp hat diesen Tag."
       />
     </form>
   );
@@ -243,7 +250,7 @@ function CategoryDetailBody({ category }: { category: MaterialCategoryOut }) {
 
 /* --- shared form --------------------------------------------------------- */
 
-type CategoryFormState = components["schemas"]["MaterialCategoryIn"];
+type CategoryFormState = components["schemas"]["TagIn"];
 
 function CategoryForm({
   initial,
@@ -255,8 +262,8 @@ function CategoryForm({
 }: {
   initial: CategoryFormState;
   submitLabel: string;
-  onSubmit: (body: CategoryFormState) => Promise<MaterialCategoryOut>;
-  onSuccess: (c: MaterialCategoryOut) => void;
+  onSubmit: (body: CategoryFormState) => Promise<TagOut>;
+  onSuccess: (c: TagOut) => void;
   onCancel?: () => void;
   invalidate?: unknown[][];
 }) {

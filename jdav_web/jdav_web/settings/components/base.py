@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "contrib.apps.ContribConfig",
     "startpage.apps.StartpageConfig",
     "material.apps.MaterialConfig",
+    "equipment.apps.EquipmentConfig",
     "members.apps.MembersConfig",
     "mailer.apps.MailerConfig",
     "finance.apps.FinanceConfig",

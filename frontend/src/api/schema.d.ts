@@ -2532,10 +2532,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Categories */
-        get: operations["material_api_router_list_categories"];
+        get: operations["equipment_api_router_list_categories"];
         put?: never;
         /** Create Category */
-        post: operations["material_api_router_create_category"];
+        post: operations["equipment_api_router_create_category"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2550,12 +2550,145 @@ export interface paths {
             cookie?: never;
         };
         /** Retrieve Category */
-        get: operations["material_api_router_retrieve_category"];
+        get: operations["equipment_api_router_retrieve_category"];
         /** Update Category */
-        put: operations["material_api_router_update_category"];
+        put: operations["equipment_api_router_update_category"];
         post?: never;
         /** Delete Category */
-        delete: operations["material_api_router_delete_category"];
+        delete: operations["equipment_api_router_delete_category"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Locations */
+        get: operations["equipment_api_router_list_locations"];
+        put?: never;
+        /** Create Location */
+        post: operations["equipment_api_router_create_location"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Recipients
+         * @description Everyone material can be handed over to: the names of all confirmed members.
+         *
+         *     Unlike /members/ this is not narrowed to the members one may see, since a
+         *     holder may pass a piece on to any member.
+         */
+        get: operations["equipment_api_router_list_recipients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/locations/{location_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Location */
+        put: operations["equipment_api_router_update_location"];
+        post?: never;
+        /** Delete Location */
+        delete: operations["equipment_api_router_delete_location"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Types
+         * @description The catalogue: every type with pieces, and how many are free in the period.
+         */
+        get: operations["equipment_api_router_list_types"];
+        put?: never;
+        /** Create Type */
+        post: operations["equipment_api_router_create_type"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/types/{type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve Type */
+        get: operations["equipment_api_router_retrieve_type"];
+        put?: never;
+        post?: never;
+        /** Delete Type */
+        delete: operations["equipment_api_router_delete_type"];
+        options?: never;
+        head?: never;
+        /** Update Type */
+        patch: operations["equipment_api_router_update_type"];
+        trace?: never;
+    };
+    "/api/material/types/{type_id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update Type Photo */
+        post: operations["equipment_api_router_update_type_photo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/types/{type_id}/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update Type Manual */
+        post: operations["equipment_api_router_update_type_manual"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2569,13 +2702,56 @@ export interface paths {
             cookie?: never;
         };
         /** List Parts */
-        get: operations["material_api_router_list_parts"];
+        get: operations["equipment_api_router_list_parts"];
         put?: never;
         /**
-         * Create Part
-         * @description Create a part; ``photo`` is an optional multipart image upload.
+         * Create Parts
+         * @description Add pieces to the stock: one, or ``count`` identical ones without IDs.
          */
-        post: operations["material_api_router_create_part"];
+        post: operations["equipment_api_router_create_parts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/parts/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lookup Part
+         * @description Find the piece whose PSA ID or serial number is ``code``, and lend its outermost assembly.
+         */
+        get: operations["equipment_api_router_lookup_part"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/parts/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer Parts
+         * @description Hand pieces over (issue #449): to a person until a day or for good, or to a place.
+         *
+         *     Members hand over what they hold and what their groups own; the material
+         *     team anything, including counted sizes.
+         */
+        post: operations["equipment_api_router_transfer_parts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2590,15 +2766,14 @@ export interface paths {
             cookie?: never;
         };
         /** Retrieve Part */
-        get: operations["material_api_router_retrieve_part"];
+        get: operations["equipment_api_router_retrieve_part"];
         put?: never;
         post?: never;
-        /** Delete Part */
-        delete: operations["material_api_router_delete_part"];
+        delete?: never;
         options?: never;
         head?: never;
         /** Update Part */
-        patch: operations["material_api_router_update_part"];
+        patch: operations["equipment_api_router_update_part"];
         trace?: never;
     };
     "/api/material/parts/{part_id}/photo": {
@@ -2610,55 +2785,337 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Update Part Photo
-         * @description Replace a part's photo via multipart upload.
-         *
-         *     ``PATCH /parts/{id}`` is JSON-only and cannot carry a file, so the photo (an
-         *     editable admin field) is updated through this dedicated multipart route.
-         */
-        post: operations["material_api_router_update_part_photo"];
+        /** Update Part Photo */
+        post: operations["equipment_api_router_update_part_photo"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/material/ownerships": {
+    "/api/material/parts/{part_id}/inspections": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Ownerships */
-        get: operations["material_api_router_list_ownerships"];
+        get?: never;
         put?: never;
-        /** Create Ownership */
-        post: operations["material_api_router_create_ownership"];
+        /** Create Inspection */
+        post: operations["equipment_api_router_create_inspection"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/material/ownerships/{ownership_id}": {
+    "/api/material/psa": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Retrieve Ownership */
-        get: operations["material_api_router_retrieve_ownership"];
+        /**
+         * Psa Register
+         * @description Every piece of personal protective equipment, the next inspection due first.
+         */
+        get: operations["equipment_api_router_psa_register"];
         put?: never;
         post?: never;
-        /** Delete Ownership */
-        delete: operations["material_api_router_delete_ownership"];
+        delete?: never;
         options?: never;
         head?: never;
-        /** Update Ownership */
-        patch: operations["material_api_router_update_ownership"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/sizes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sizes
+         * @description Every size, for the desk to pick from.
+         */
+        get: operations["equipment_api_router_list_sizes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/types/{type_id}/sizes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Size */
+        post: operations["equipment_api_router_create_size"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/sizes/{size_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Size */
+        delete: operations["equipment_api_router_delete_size"];
+        options?: never;
+        head?: never;
+        /** Update Size */
+        patch: operations["equipment_api_router_update_size"];
+        trace?: never;
+    };
+    "/api/material/reservations/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Reservation
+         * @description What a reservation would take, and what stands in its way, without making it.
+         */
+        post: operations["equipment_api_router_check_reservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/reservations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reservations
+         * @description ``mine``: one's own. ``approvals``: waiting for a group one decides for. ``all``: the desk's view.
+         */
+        get: operations["equipment_api_router_list_reservations"];
+        put?: never;
+        /** Create Reservation */
+        post: operations["equipment_api_router_create_reservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/reservations/{reservation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve Reservation */
+        get: operations["equipment_api_router_retrieve_reservation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/reservations/{reservation_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Reservation */
+        post: operations["equipment_api_router_cancel_reservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/reservations/{reservation_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Reservation */
+        post: operations["equipment_api_router_decide_reservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/loans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Loans */
+        get: operations["equipment_api_router_list_loans"];
+        put?: never;
+        /**
+         * Create Loan
+         * @description Take pieces: for a reservation, or on the spot with a return date.
+         *
+         *     ``permanent`` takes them for good, without a loan; the answer is then null.
+         */
+        post: operations["equipment_api_router_create_loan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/loans/{loan_id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Loan Receipt
+         * @description A printable receipt of a loan, for the desk and the borrower.
+         */
+        get: operations["equipment_api_router_loan_receipt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/returns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return Parts
+         * @description Give back pieces one holds, to a location or each piece's home, and counts of lent sizes.
+         */
+        post: operations["equipment_api_router_return_parts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mine
+         * @description What I hold, what I reserved, and how many requests wait for my decision.
+         */
+        get: operations["equipment_api_router_mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/desk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Desk
+         * @description The desk's day: pickups, returns due, overdue loans, open requests, pieces to inspect.
+         */
+        get: operations["equipment_api_router_desk"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/deficits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Deficits */
+        get: operations["equipment_api_router_list_deficits"];
+        put?: never;
+        /**
+         * Report Deficit
+         * @description Put a wish on the Materialwarte's list.
+         */
+        post: operations["equipment_api_router_report_deficit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/material/deficits/{deficit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Deficit */
+        patch: operations["equipment_api_router_update_deficit"];
         trace?: never;
     };
     "/api/ludwigsburgalpin/enums": {
@@ -6706,199 +7163,845 @@ export interface components {
              */
             reply_to_email_address: number[];
         };
-        /** MaterialCategoryBrief */
-        MaterialCategoryBrief: {
+        /** TagBrief */
+        TagBrief: {
             /** Id */
             id: number;
             /** Name */
             name: string;
         };
-        /** MaterialCategoryOut */
-        MaterialCategoryOut: {
-            /** Id */
-            id: number;
-            /** Material Parts */
-            material_parts: components["schemas"]["MaterialPartRef"][];
-            /** Name */
-            name: string;
-        };
-        /**
-         * MaterialPartRef
-         * @description Minimal identity of a material part used inside related payloads.
-         */
-        MaterialPartRef: {
+        /** Ref */
+        Ref: {
             /** Id */
             id: number;
             /** Name */
             name: string;
         };
-        /** MaterialCategoryIn */
-        MaterialCategoryIn: {
+        /** TagOut */
+        TagOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Product Types */
+            product_types: components["schemas"]["Ref"][];
+        };
+        /** TagIn */
+        TagIn: {
             /** Name */
             name: string;
         };
-        /** MaterialPartBrief */
-        MaterialPartBrief: {
+        /** LocationOut */
+        LocationOut: {
             /** Id */
             id: number;
-            /** Photo */
-            photo?: string | null;
-            /** Quantity Real */
-            quantity_real: string;
-            /** Not Too Old */
-            not_too_old: boolean;
-            /** Owners */
-            owners: components["schemas"]["PartOwnerBrief"][];
+            /** Name */
+            name: string;
+            /** Address */
+            address: string;
+            /** Opening Hours */
+            opening_hours: string;
+        };
+        /** LocationIn */
+        LocationIn: {
             /** Name */
             name: string;
             /**
-             * Description
+             * Address
              * @default
              */
-            description: string;
+            address: string;
             /**
-             * Quantity
-             * @default 0
+             * Opening Hours
+             * @default
              */
-            quantity: number;
-            /**
-             * Purchase Date
-             * Format: date
-             */
-            buy_date: string;
-            /** Lifetime (Years) */
-            lifetime: string;
+            opening_hours: string;
         };
         /**
-         * PartOwnerBrief
-         * @description One ownership row as shown on a part (reproduces ``ownership_overview``).
-         *
-         *     Resolved from an ``Ownership`` instance. ``owner_id`` is exposed for editing
-         *     (the SPA can PATCH/create via the ``/ownerships`` endpoints), ``owner_name``
-         *     for display. Named distinctly from ``OwnershipOut`` so ninja does not collide
-         *     OpenAPI component keys.
+         * GroupCount
+         * @description How many free pieces of a type one owner group has. ``id`` null is the section.
          */
-        PartOwnerBrief: {
+        GroupCount: {
+            /** Id */
+            id: number | null;
+            /** Name */
+            name: string;
+            /** Available */
+            available: number;
+            /** Needs Approval */
+            needs_approval: boolean;
+        };
+        /**
+         * ProductTypeCard
+         * @description A product type as the catalogue shows it.
+         */
+        ProductTypeCard: {
             /** Id */
             id: number;
-            /** Owner Id */
-            owner_id: number;
-            /** Owner Name */
-            owner_name: string;
+            /** Name */
+            name: string;
+            /** Manufacturer */
+            manufacturer: string;
+            /** Product Group */
+            product_group: string;
+            /** Is Psa */
+            is_psa: boolean;
+            /** Photo */
+            photo: string | null;
+            /** Tags */
+            tags: components["schemas"]["TagBrief"][];
+            /** Total */
+            total: number;
+            /** Available */
+            available: number;
+            /** Available Direct */
+            available_direct: number;
+            /** Groups */
+            groups: components["schemas"]["GroupCount"][];
+            /** Sizes */
+            sizes: components["schemas"]["SizeOut"][];
+            /** Sets */
+            sets: number | null;
+        };
+        /**
+         * SizeOut
+         * @description A size kept as a counted stock. ``available`` is free in the asked period.
+         */
+        SizeOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            product_type: components["schemas"]["Ref"];
+            /** Quantity */
+            quantity: number;
+            /** Per Set */
+            per_set: number;
+            group: components["schemas"]["GroupBrief"] | null;
+            location: components["schemas"]["Ref"] | null;
+            /** Position */
+            position: number;
+            /** Available */
+            available: number;
+        };
+        /** CalendarEntry */
+        CalendarEntry: {
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Status */
+            status: string;
             /** Count */
             count: number;
+            borrower: components["schemas"]["MemberRef"] | null;
         };
-        /** MaterialPartOut */
-        MaterialPartOut: {
+        /** PartBrief */
+        PartBrief: {
             /** Id */
             id: number;
-            /** Photo */
-            photo?: string | null;
-            /** Quantity Real */
-            quantity_real: string;
-            /** Not Too Old */
-            not_too_old: boolean;
-            /** Categories */
-            categories: components["schemas"]["MaterialCategoryBrief"][];
-            /** Owners */
-            owners: components["schemas"]["PartOwnerBrief"][];
-            /** Name */
-            name: string;
-            /**
-             * Description
-             * @default
-             */
-            description: string;
-            /**
-             * Quantity
-             * @default 0
-             */
-            quantity: number;
-            /**
-             * Purchase Date
-             * Format: date
-             */
-            buy_date: string;
-            /** Lifetime (Years) */
-            lifetime: string;
+            /** Label */
+            label: string;
+            product_type: components["schemas"]["Ref"];
+            /** Psa Id */
+            psa_id: string | null;
+            /** Serial Number */
+            serial_number: string;
+            group: components["schemas"]["GroupBrief"] | null;
+            holder: components["schemas"]["MemberRef"] | null;
+            location: components["schemas"]["Ref"] | null;
+            /** Status */
+            status: string;
+            /** Lent Until */
+            lent_until: string | null;
         };
-        /** MaterialPartIn */
-        MaterialPartIn: {
+        /** ProductTypeOut */
+        ProductTypeOut: {
+            /** Id */
+            id: number;
             /** Name */
             name: string;
+            /** Manufacturer */
+            manufacturer: string;
+            /** Product Group */
+            product_group: string;
+            /** Is Psa */
+            is_psa: boolean;
+            /** Photo */
+            photo: string | null;
+            /** Tags */
+            tags: components["schemas"]["TagBrief"][];
+            /** Total */
+            total: number;
+            /** Available */
+            available: number;
+            /** Available Direct */
+            available_direct: number;
+            /** Groups */
+            groups: components["schemas"]["GroupCount"][];
+            /** Sizes */
+            sizes: components["schemas"]["SizeOut"][];
+            /** Sets */
+            sets: number | null;
+            /** Description */
+            description: string;
+            /** Article Number */
+            article_number: string;
+            /** Manual */
+            manual: string | null;
+            /** Usage Years */
+            usage_years: number | null;
+            /** Inspection Interval Days */
+            inspection_interval_days: number;
+            /** Daily Rate */
+            daily_rate: string | null;
+            /** Calendar */
+            calendar: components["schemas"]["CalendarEntry"][];
+            /** Parts */
+            parts: components["schemas"]["PartBrief"][] | null;
+        };
+        /** ProductTypeIn */
+        ProductTypeIn: {
+            /** Name */
+            name: string;
+            /**
+             * Manufacturer
+             * @default
+             */
+            manufacturer: string;
+            /**
+             * Product Group
+             * @default
+             */
+            product_group: string;
             /**
              * Description
              * @default
              */
             description: string;
             /**
-             * Quantity
-             * @default 0
+             * Is Psa
+             * @default false
              */
-            quantity: number;
+            is_psa: boolean;
             /**
-             * Buy Date
-             * Format: date
+             * Article Number
+             * @default
              */
-            buy_date: string;
-            /** Lifetime */
-            lifetime: number | string;
+            article_number: string;
+            /** Usage Years */
+            usage_years?: number | null;
             /**
-             * Material Cat
+             * Inspection Interval Days
+             * @default 365
+             */
+            inspection_interval_days: number;
+            /** Daily Rate */
+            daily_rate?: number | string | null;
+            /**
+             * Tags
              * @default []
              */
-            material_cat: number[];
+            tags: number[];
         };
-        /**
-         * MaterialPartUpdate
-         * @description Editable subset for PATCH; only supplied fields are applied.
-         */
-        MaterialPartUpdate: {
+        /** ProductTypeUpdate */
+        ProductTypeUpdate: {
             /** Name */
             name?: string | null;
+            /** Manufacturer */
+            manufacturer?: string | null;
+            /** Product Group */
+            product_group?: string | null;
             /** Description */
             description?: string | null;
-            /** Quantity */
-            quantity?: number | null;
+            /** Is Psa */
+            is_psa?: boolean | null;
+            /** Article Number */
+            article_number?: string | null;
+            /** Usage Years */
+            usage_years?: number | null;
+            /** Inspection Interval Days */
+            inspection_interval_days?: number | null;
+            /** Daily Rate */
+            daily_rate?: number | string | null;
+            /** Tags */
+            tags?: number[] | null;
+        };
+        /** PartIn */
+        PartIn: {
+            /** Product Type */
+            product_type: number;
+            /** Group */
+            group?: number | null;
+            /** Psa Id */
+            psa_id?: string | null;
+            /**
+             * Serial Number
+             * @default
+             */
+            serial_number: string;
+            /** Manufactured On */
+            manufactured_on?: string | null;
             /** Buy Date */
             buy_date?: string | null;
-            /** Lifetime */
-            lifetime?: number | string | null;
-            /** Material Cat */
-            material_cat?: number[] | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Home Location */
+            home_location?: number | null;
+            /** Parent */
+            parent?: number | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
         };
-        /** OwnershipOut */
-        OwnershipOut: {
+        /** CustodyEventOut */
+        CustodyEventOut: {
             /** Id */
             id: number;
-            owner: components["schemas"]["MemberBrief"];
-            material: components["schemas"]["MaterialPartRef"];
+            /** Kind */
+            kind: string;
             /**
-             * Count
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** From Name */
+            from_name: string | null;
+            /** To Name */
+            to_name: string | null;
+            by: components["schemas"]["MemberRef"] | null;
+        };
+        /** InspectionOut */
+        InspectionOut: {
+            /** Id */
+            id: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Result */
+            result: string;
+            inspector: components["schemas"]["MemberRef"] | null;
+            /** Comment */
+            comment: string;
+            /** Photo */
+            photo: string | null;
+        };
+        /** PartOut */
+        PartOut: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            product_type: components["schemas"]["Ref"];
+            /** Psa Id */
+            psa_id: string | null;
+            /** Serial Number */
+            serial_number: string;
+            group: components["schemas"]["GroupBrief"] | null;
+            holder: components["schemas"]["MemberRef"] | null;
+            location: components["schemas"]["Ref"] | null;
+            /** Status */
+            status: string;
+            /** Lent Until */
+            lent_until: string | null;
+            /** Note */
+            note: string;
+            /** Photo */
+            photo: string | null;
+            /** Manufactured On */
+            manufactured_on: string | null;
+            /** Buy Date */
+            buy_date: string | null;
+            home_location: components["schemas"]["Ref"] | null;
+            parent: components["schemas"]["PartBrief"] | null;
+            /** Components */
+            components: components["schemas"]["PartBrief"][];
+            /** Retired On */
+            retired_on: string | null;
+            /** Next Inspection */
+            next_inspection: string | null;
+            /** Past Usage Period */
+            past_usage_period: boolean;
+            /** Inspections */
+            inspections: components["schemas"]["InspectionOut"][] | null;
+            /** Custody */
+            custody: components["schemas"]["CustodyEventOut"][] | null;
+            /** Reservations */
+            reservations: components["schemas"]["PartReservation"][];
+        };
+        /** PartReservation */
+        PartReservation: {
+            /** Id */
+            id: number;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Status */
+            status: string;
+            borrower: components["schemas"]["MemberRef"];
+        };
+        /** WarningsOut */
+        WarningsOut: {
+            /** Warnings */
+            warnings: string[];
+        };
+        /** SizeQuantity */
+        SizeQuantity: {
+            /** Size */
+            size: number;
+            /** Quantity */
+            quantity: number;
+        };
+        /** TransferIn */
+        TransferIn: {
+            /**
+             * Parts
+             * @default []
+             */
+            parts: number[];
+            /**
+             * Sizes
+             * @default []
+             */
+            sizes: components["schemas"]["SizeQuantity"][];
+            /** Member */
+            member?: number | null;
+            /** Location */
+            location?: number | null;
+            /** Due */
+            due?: string | null;
+        };
+        /** PartUpdate */
+        PartUpdate: {
+            /** Group */
+            group?: number | null;
+            /** Psa Id */
+            psa_id?: string | null;
+            /** Serial Number */
+            serial_number?: string | null;
+            /** Manufactured On */
+            manufactured_on?: string | null;
+            /** Buy Date */
+            buy_date?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Home Location */
+            home_location?: number | null;
+            /** Parent */
+            parent?: number | null;
+        };
+        /** PsaRow */
+        PsaRow: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            /** Psa Id */
+            psa_id: string | null;
+            product_type: components["schemas"]["Ref"];
+            group: components["schemas"]["GroupBrief"] | null;
+            holder: components["schemas"]["MemberRef"] | null;
+            location: components["schemas"]["Ref"] | null;
+            /** Status */
+            status: string;
+            last_inspection: components["schemas"]["InspectionOut"] | null;
+            /** Next Inspection */
+            next_inspection: string | null;
+            /** Days Left */
+            days_left: number | null;
+            /** Past Usage Period */
+            past_usage_period: boolean;
+            /** Incomplete */
+            incomplete: boolean;
+        };
+        /** SizeIn */
+        SizeIn: {
+            /** Name */
+            name: string;
+            /**
+             * Quantity
+             * @default 0
+             */
+            quantity: number;
+            /**
+             * Per Set
              * @default 1
              */
-            count: number;
-        };
-        /** OwnershipIn */
-        OwnershipIn: {
-            /** Material */
-            material: number;
-            /** Owner */
-            owner: number;
+            per_set: number;
+            /** Group */
+            group?: number | null;
+            /** Location */
+            location?: number | null;
             /**
-             * Count
+             * Position
+             * @default 0
+             */
+            position: number;
+        };
+        /** SizeUpdate */
+        SizeUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Per Set */
+            per_set?: number | null;
+            /** Group */
+            group?: number | null;
+            /** Location */
+            location?: number | null;
+            /** Position */
+            position?: number | null;
+        };
+        /** ReservationCheckOut */
+        ReservationCheckOut: {
+            /** Ok */
+            ok: boolean;
+            /** Problems */
+            problems: string[];
+            /** Parts */
+            parts: components["schemas"]["PartBrief"][];
+            /** Sizes */
+            sizes: components["schemas"]["SizeCount"][];
+            /** Approval Groups */
+            approval_groups: components["schemas"]["GroupBrief"][];
+        };
+        /** SizeCount */
+        SizeCount: {
+            size: components["schemas"]["SizeRef"];
+            /** Quantity */
+            quantity: number;
+            group: components["schemas"]["GroupBrief"] | null;
+        };
+        /** SizeRef */
+        SizeRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            product_type: components["schemas"]["Ref"];
+        };
+        /** LineIn */
+        LineIn: {
+            /** Product Type */
+            product_type?: number | null;
+            /**
+             * Quantity
              * @default 1
              */
-            count: number;
+            quantity: number;
+            /** Part */
+            part?: number | null;
+            /** Size */
+            size?: number | null;
         };
-        /** OwnershipUpdate */
-        OwnershipUpdate: {
-            /** Material */
-            material?: number | null;
-            /** Owner */
-            owner?: number | null;
+        /** ReservationIn */
+        ReservationIn: {
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Lines */
+            lines: components["schemas"]["LineIn"][];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Borrower */
+            borrower?: number | null;
+        };
+        /** ApprovalOut */
+        ApprovalOut: {
+            group: components["schemas"]["GroupBrief"];
+            /** Approved */
+            approved: boolean | null;
+            decided_by: components["schemas"]["MemberRef"] | null;
+            /** Comment */
+            comment: string;
+        };
+        /** ReservationOut */
+        ReservationOut: {
+            /** Id */
+            id: number;
+            borrower: components["schemas"]["MemberRef"];
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Status */
+            status: string;
+            /** Note */
+            note: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Lines */
+            lines: components["schemas"]["TypeCount"][];
+            /** Parts */
+            parts: components["schemas"]["PartBrief"][];
+            /** Sizes */
+            sizes: components["schemas"]["SizeCount"][];
+            /** Approvals */
+            approvals: components["schemas"]["ApprovalOut"][];
+            /** Decidable Groups */
+            decidable_groups: number[];
+        };
+        /** TypeCount */
+        TypeCount: {
+            product_type: components["schemas"]["Ref"];
             /** Count */
-            count?: number | null;
+            count: number;
+        };
+        /** DecisionIn */
+        DecisionIn: {
+            /** Group */
+            group: number;
+            /** Approved */
+            approved: boolean;
+            /**
+             * Comment
+             * @default
+             */
+            comment: string;
+        };
+        /** LentSizeOut */
+        LentSizeOut: {
+            /** Id */
+            id: number;
+            size: components["schemas"]["SizeRef"];
+            /** Quantity */
+            quantity: number;
+            /** Returned */
+            returned: number;
+        };
+        /** LoanLineOut */
+        LoanLineOut: {
+            part: components["schemas"]["PartBrief"];
+            /** Returned At */
+            returned_at: string | null;
+        };
+        /** LoanOut */
+        LoanOut: {
+            /** Id */
+            id: number;
+            borrower: components["schemas"]["MemberRef"] | null;
+            /**
+             * Out At
+             * Format: date-time
+             */
+            out_at: string;
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            /** Reservation */
+            reservation: number | null;
+            /** Overdue */
+            overdue: boolean;
+            /** Lines */
+            lines: components["schemas"]["LoanLineOut"][];
+            /** Sizes */
+            sizes: components["schemas"]["LentSizeOut"][];
+        };
+        /** LoanIn */
+        LoanIn: {
+            /**
+             * Parts
+             * @default []
+             */
+            parts: number[];
+            /**
+             * Sizes
+             * @default []
+             */
+            sizes: components["schemas"]["SizeQuantity"][];
+            /** Due */
+            due?: string | null;
+            /** Reservation */
+            reservation?: number | null;
+            /** Borrower */
+            borrower?: number | null;
+            /**
+             * Permanent
+             * @default false
+             */
+            permanent: boolean;
+        };
+        /** ReturnOut */
+        ReturnOut: {
+            /** Returned */
+            returned: number[];
+        };
+        /** LentQuantity */
+        LentQuantity: {
+            /** Lent */
+            lent: number;
+            /** Quantity */
+            quantity: number;
+        };
+        /** ReturnIn */
+        ReturnIn: {
+            /**
+             * Parts
+             * @default []
+             */
+            parts: number[];
+            /**
+             * Sizes
+             * @default []
+             */
+            sizes: components["schemas"]["LentQuantity"][];
+            /** Location */
+            location?: number | null;
+            /**
+             * Flagged
+             * @default []
+             */
+            flagged: number[];
+        };
+        /** HeldPart */
+        HeldPart: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            product_type: components["schemas"]["Ref"];
+            /** Psa Id */
+            psa_id: string | null;
+            /** Serial Number */
+            serial_number: string;
+            group: components["schemas"]["GroupBrief"] | null;
+            holder: components["schemas"]["MemberRef"] | null;
+            location: components["schemas"]["Ref"] | null;
+            /** Status */
+            status: string;
+            /** Lent Until */
+            lent_until: string | null;
+            /** Due */
+            due: string | null;
+            /** Overdue */
+            overdue: boolean;
+        };
+        /** HeldSize */
+        HeldSize: {
+            /** Id */
+            id: number;
+            size: components["schemas"]["SizeRef"];
+            /** Quantity */
+            quantity: number;
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            /** Overdue */
+            overdue: boolean;
+        };
+        /** MineOut */
+        MineOut: {
+            /** Held */
+            held: components["schemas"]["HeldPart"][];
+            /** Held Sizes */
+            held_sizes: components["schemas"]["HeldSize"][];
+            /** Reservations */
+            reservations: components["schemas"]["ReservationOut"][];
+            /** To Decide */
+            to_decide: number;
+        };
+        /** DeskOut */
+        DeskOut: {
+            /** Pickups */
+            pickups: components["schemas"]["ReservationOut"][];
+            /** Due */
+            due: components["schemas"]["LoanOut"][];
+            /** Overdue */
+            overdue: components["schemas"]["LoanOut"][];
+            /** Requests */
+            requests: components["schemas"]["ReservationOut"][];
+            /** Inspection Due */
+            inspection_due: components["schemas"]["PartBrief"][];
+        };
+        /** DeficitOut */
+        DeficitOut: {
+            /** Id */
+            id: number;
+            product_type: components["schemas"]["Ref"] | null;
+            /** Text */
+            text: string;
+            /** Wanted From */
+            wanted_from: string | null;
+            /** Wanted To */
+            wanted_to: string | null;
+            /** Comment */
+            comment: string;
+            reported_by: components["schemas"]["MemberRef"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Status */
+            status: string;
+        };
+        /** DeficitIn */
+        DeficitIn: {
+            /** Product Type */
+            product_type?: number | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /** Wanted From */
+            wanted_from?: string | null;
+            /** Wanted To */
+            wanted_to?: string | null;
+            /**
+             * Comment
+             * @default
+             */
+            comment: string;
+        };
+        /** DeficitUpdate */
+        DeficitUpdate: {
+            /** Status */
+            status: string;
         };
         /**
          * TerminEnumChoice
@@ -12289,7 +13392,7 @@ export interface operations {
             };
         };
     };
-    material_api_router_list_categories: {
+    equipment_api_router_list_categories: {
         parameters: {
             query?: never;
             header?: never;
@@ -12304,12 +13407,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialCategoryBrief"][];
+                    "application/json": components["schemas"]["TagBrief"][];
                 };
             };
         };
     };
-    material_api_router_create_category: {
+    equipment_api_router_create_category: {
         parameters: {
             query?: never;
             header?: never;
@@ -12318,7 +13421,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MaterialCategoryIn"];
+                "application/json": components["schemas"]["TagIn"];
             };
         };
         responses: {
@@ -12328,12 +13431,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialCategoryOut"];
+                    "application/json": components["schemas"]["TagOut"];
                 };
             };
         };
     };
-    material_api_router_retrieve_category: {
+    equipment_api_router_retrieve_category: {
         parameters: {
             query?: never;
             header?: never;
@@ -12350,12 +13453,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialCategoryOut"];
+                    "application/json": components["schemas"]["TagOut"];
                 };
             };
         };
     };
-    material_api_router_update_category: {
+    equipment_api_router_update_category: {
         parameters: {
             query?: never;
             header?: never;
@@ -12366,7 +13469,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MaterialCategoryIn"];
+                "application/json": components["schemas"]["TagIn"];
             };
         };
         responses: {
@@ -12376,12 +13479,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialCategoryOut"];
+                    "application/json": components["schemas"]["TagOut"];
                 };
             };
         };
     };
-    material_api_router_delete_category: {
+    equipment_api_router_delete_category: {
         parameters: {
             query?: never;
             header?: never;
@@ -12401,7 +13504,7 @@ export interface operations {
             };
         };
     };
-    material_api_router_list_parts: {
+    equipment_api_router_list_locations: {
         parameters: {
             query?: never;
             header?: never;
@@ -12416,50 +13519,239 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPartBrief"][];
+                    "application/json": components["schemas"]["LocationOut"][];
                 };
             };
         };
     };
-    material_api_router_create_part: {
+    equipment_api_router_create_location: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_list_recipients: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ref"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_update_location: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_delete_location: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    equipment_api_router_list_types: {
+        parameters: {
+            query?: {
+                q?: string;
+                tag?: number | null;
+                group?: number | null;
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductTypeCard"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_create_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductTypeIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductTypeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_retrieve_type: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: never;
+            path: {
+                type_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductTypeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_delete_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    equipment_api_router_update_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductTypeUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductTypeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_update_type_photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: number;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
                 "multipart/form-data": {
-                    /** Name */
-                    name: string;
-                    /**
-                     * Description
-                     * @default
-                     */
-                    description?: string;
-                    /**
-                     * Quantity
-                     * @default 0
-                     */
-                    quantity?: number;
-                    /**
-                     * Buy Date
-                     * Format: date
-                     */
-                    buy_date: string;
-                    /** Lifetime */
-                    lifetime: number | string;
-                    /**
-                     * Material Cat
-                     * @default []
-                     */
-                    material_cat?: number[];
                     /**
                      * Photo
                      * Format: binary
                      */
-                    photo?: string;
+                    photo: string;
                 };
             };
         };
@@ -12470,12 +13762,141 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPartOut"];
+                    "application/json": components["schemas"]["ProductTypeOut"];
                 };
             };
         };
     };
-    material_api_router_retrieve_part: {
+    equipment_api_router_update_type_manual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Manual
+                     * Format: binary
+                     */
+                    manual: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductTypeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_list_parts: {
+        parameters: {
+            query?: {
+                q?: string;
+                product_type?: number | null;
+                group?: number | null;
+                holder?: number | null;
+                location?: number | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartBrief"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_create_parts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartBrief"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_lookup_part: {
+        parameters: {
+            query: {
+                code: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_transfer_parts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarningsOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_retrieve_part: {
         parameters: {
             query?: never;
             header?: never;
@@ -12492,32 +13913,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPartOut"];
+                    "application/json": components["schemas"]["PartOut"];
                 };
             };
         };
     };
-    material_api_router_delete_part: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                part_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    material_api_router_update_part: {
+    equipment_api_router_update_part: {
         parameters: {
             query?: never;
             header?: never;
@@ -12528,7 +13929,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MaterialPartUpdate"];
+                "application/json": components["schemas"]["PartUpdate"];
             };
         };
         responses: {
@@ -12538,12 +13939,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPartOut"];
+                    "application/json": components["schemas"]["PartOut"];
                 };
             };
         };
     };
-    material_api_router_update_part_photo: {
+    equipment_api_router_update_part_photo: {
         parameters: {
             query?: never;
             header?: never;
@@ -12570,41 +13971,38 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPartOut"];
+                    "application/json": components["schemas"]["PartOut"];
                 };
             };
         };
     };
-    material_api_router_list_ownerships: {
+    equipment_api_router_create_inspection: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnershipOut"][];
-                };
+            path: {
+                part_id: number;
             };
-        };
-    };
-    material_api_router_create_ownership: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OwnershipIn"];
+                "multipart/form-data": {
+                    /** Result */
+                    result: string;
+                    /** Date */
+                    date?: string | null;
+                    /**
+                     * Comment
+                     * @default
+                     */
+                    comment?: string;
+                    /**
+                     * Photo
+                     * Format: binary
+                     */
+                    photo?: string;
+                };
             };
         };
         responses: {
@@ -12614,18 +14012,18 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OwnershipOut"];
+                    "application/json": components["schemas"]["InspectionOut"];
                 };
             };
         };
     };
-    material_api_router_retrieve_ownership: {
+    equipment_api_router_psa_register: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ownership_id: number;
+            query?: {
+                retired?: boolean;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -12636,17 +14034,63 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OwnershipOut"];
+                    "application/json": components["schemas"]["PsaRow"][];
                 };
             };
         };
     };
-    material_api_router_delete_ownership: {
+    equipment_api_router_list_sizes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SizeOut"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_create_size: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                ownership_id: number;
+                type_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SizeIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SizeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_delete_size: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                size_id: number;
             };
             cookie?: never;
         };
@@ -12661,18 +14105,18 @@ export interface operations {
             };
         };
     };
-    material_api_router_update_ownership: {
+    equipment_api_router_update_size: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                ownership_id: number;
+                size_id: number;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OwnershipUpdate"];
+                "application/json": components["schemas"]["SizeUpdate"];
             };
         };
         responses: {
@@ -12682,7 +14126,352 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OwnershipOut"];
+                    "application/json": components["schemas"]["SizeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_check_reservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReservationIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationCheckOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_list_reservations: {
+        parameters: {
+            query?: {
+                scope?: string;
+                status?: string | null;
+                product_type?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationOut"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_create_reservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReservationIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_retrieve_reservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reservation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_cancel_reservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reservation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_decide_reservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reservation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReservationOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_list_loans: {
+        parameters: {
+            query?: {
+                scope?: string;
+                open?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanOut"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_create_loan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoanIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanOut"] | null;
+                };
+            };
+        };
+    };
+    equipment_api_router_loan_receipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                loan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    equipment_api_router_return_parts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_mine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MineOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_desk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_list_deficits: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeficitOut"][];
+                };
+            };
+        };
+    };
+    equipment_api_router_report_deficit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeficitIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeficitOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_update_deficit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deficit_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeficitUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeficitOut"];
                 };
             };
         };
