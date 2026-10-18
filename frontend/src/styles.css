@@ -153,6 +153,12 @@ h3 {
   transition: background 0.12s ease;
 }
 
+/* A link styled as a button (a <Link> to another page) looks like one. */
+a.btn {
+  display: inline-block;
+  text-decoration: none;
+}
+
 .btn:hover:not(:disabled) {
   background: var(--accent-hover);
 }
@@ -3618,4 +3624,453 @@ button.etappe-body:hover {
 
 :root[data-theme="dark"] .activity-climber {
   filter: invert(0.92);
+}
+
+/* --- material ------------------------------------------------------------
+   The browser reads like a gear shop's shelf, the cart rides beside it, and
+   the rest stays the restrained admin: hairlines, mono figures, few colours. */
+
+.material-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.material-main {
+  min-width: 0;
+}
+
+.lookup-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* IDs are typed in the instrument voice; the hint stays in the body face. */
+.lookup-row input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+
+.lookup-row input::placeholder {
+  font-family: var(--font-sans);
+}
+
+.field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.material-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  transition: opacity 0.15s ease;
+}
+
+/* The last results, shown while the next search loads. */
+.material-grid.is-stale {
+  opacity: 0.6;
+}
+
+.material-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: border-color 0.12s ease;
+}
+
+.material-card:hover {
+  border-color: var(--accent);
+}
+
+.material-card-photo,
+.material-detail-photo {
+  display: grid;
+  /* One cell that the photo cannot stretch, so every card keeps the same frame. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--contour);
+  font-size: 2rem;
+  text-decoration: none;
+}
+
+.material-card-photo img,
+.material-detail-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.material-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0.85rem 0.85rem;
+  flex: 1;
+}
+
+.material-card-title {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.material-card-title:hover {
+  color: var(--accent);
+}
+
+.material-card-tags,
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.material-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+.availability {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.material-detail {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.material-detail-photo {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* The upload button sits on the photo and shows on hover or keyboard focus;
+   on touch screens, which cannot hover, it is always there. */
+.photo-upload {
+  position: absolute;
+  bottom: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  background: var(--panel);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.material-detail-photo:hover .photo-upload,
+.material-detail-photo:focus-within .photo-upload {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .photo-upload {
+    opacity: 1;
+  }
+}
+
+/* Clicking the photo opens it large. */
+.photo-zoom {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.photo-large {
+  display: block;
+  max-width: 100%;
+  max-height: 75vh;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+/* Hidden but still reachable by keyboard through its label. */
+.photo-upload-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* The Bestand's pages, as link tabs. */
+a.tab {
+  text-decoration: none;
+}
+
+/* "Wie lange?": until a day, or for good. */
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.choice legend {
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.choice input[type="date"] {
+  width: auto;
+}
+
+/* Page sections one below the other, as wide as the page (unlike the form-width .stack). */
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.qty-add {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.qty-add input,
+.cart-qty {
+  width: 4rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.cart {
+  position: sticky;
+  top: 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.cart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cart-head h3 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cart-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.cart-lines li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cart-line-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The sizes of one type, under its name. */
+.cart-lines .cart-group {
+  display: block;
+  padding: 0.4rem 0 0;
+}
+
+.cart-group-title {
+  font-weight: 600;
+}
+
+.cart-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cart-group li:last-child {
+  border-bottom: none;
+}
+
+.cart-check {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 1.4rem;
+}
+
+.cart-check p {
+  margin: 0;
+}
+
+/* Two ways out of the cart, one under the other: reserve (the primary) or take now. */
+.cart-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* A section's empty state reads as an empty panel, as on the dashboard. */
+.dash-section > .state {
+  padding: 0.9rem 1rem;
+  font-size: 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.dash-head h3.eyebrow {
+  font-weight: 500;
+}
+
+.dash-head .row-actions {
+  margin-bottom: 0.5rem;
+}
+
+.check-list:empty {
+  display: none;
+}
+
+/* A row's buttons stay on one line at its right edge. */
+.data-table td.inline-actions .row-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.check-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.inline-check input {
+  width: auto;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.notice {
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  background: var(--warning-weak);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius);
+}
+
+.request-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 900px) {
+  .material-layout,
+  .material-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* On one column the cart, which holds the period, comes first. */
+  .cart {
+    position: static;
+    order: -1;
+  }
+}
+
+/* On a phone a catalogue card is a row: a small photo beside the text. */
+@media (max-width: 640px) {
+  .material-card {
+    flex-direction: row;
+  }
+
+  .material-card-photo {
+    flex: 0 0 6.5rem;
+    aspect-ratio: auto;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    font-size: 1.4rem;
+  }
+
+  .material-detail-photo {
+    max-width: 20rem;
+  }
 }

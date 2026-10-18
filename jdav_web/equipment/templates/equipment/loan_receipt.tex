@@ -1,0 +1,36 @@
+{% extends "members/tex_base.tex" %}
+{% load static common tex_extras %}
+
+{% block title %}Leihschein{% endblock %}
+
+{% block content %}
+
+\begin{table}[H]
+    \begin{tabular}{ll}
+        \large Ausleihe: & {{ loan.borrower.name|esc_all }} \\
+        \large Ausgegeben am: & {{ loan.out_at|date_short }} \\
+        \large Rückgabe bis: & {{ loan.due|date_short }} \\
+    \end{tabular}
+\end{table}
+
+\begin{tabularx}{.97\linewidth}{lXrr}
+    \toprule
+    \# & \textbf{Material} & \textbf{Tagessatz} & \textbf{Betrag ({{ days }} Tage)} \\
+    \midrule
+    \endhead
+    \bottomrule
+    \endfoot
+
+    {% for row in rows %}
+        {{ forloop.counter }} & {{ row.part|esc_all }} & {% if row.rate is not None %}{{ row.rate }} EUR{% endif %} & {% if row.amount is not None %}{{ row.amount }} EUR{% endif %} \\
+    {% endfor %}
+    \midrule
+    & \textbf{Summe} & & {{ total }} EUR \\
+\end{tabularx}
+
+\vspace{2cm}
+
+\noindent\rule{6cm}{0.4pt} \hfill \rule{6cm}{0.4pt}\\
+Ausgabe \hfill Rückgabe
+
+{% endblock %}

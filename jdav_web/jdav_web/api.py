@@ -64,6 +64,7 @@ def ping(request):
 
 def _register_routers():
     """Attach app routers. Imported lazily to avoid app-registry import cycles."""
+    from equipment.api.router import router as equipment_router
     from feedback.api.router import router as feedback_router
     from finance.api.documents import router as finance_documents_router
     from finance.api.inlines import router as finance_inlines_router
@@ -76,7 +77,6 @@ def _register_routers():
     from ludwigsburgalpin.api.router import router as ludwigsburgalpin_router
     from mailer.api.public import router as mailer_public_router
     from mailer.api.router import router as mailer_router
-    from material.api.router import router as material_router
     from members.api.documents import router as members_documents_router
     from members.api.inlines_excursion import router as members_inlines_excursion_router
     from members.api.inlines_group import router as members_inlines_group_router
@@ -99,7 +99,8 @@ def _register_routers():
     api.add_router("/finance/documents", finance_documents_router, tags=["finance"])
     api.add_router("/finance/ledgers", finance_ledgers_router, tags=["finance"])
     api.add_router("/mailer", mailer_router, tags=["mailer"])
-    api.add_router("/material", material_router, tags=["material"])
+    # The SPA's material management; the old ``material`` app is admin-only.
+    api.add_router("/material", equipment_router, tags=["material"])
     api.add_router("/ludwigsburgalpin", ludwigsburgalpin_router, tags=["ludwigsburgalpin"])
     api.add_router(
         "/ludwigsburgalpin/documents",

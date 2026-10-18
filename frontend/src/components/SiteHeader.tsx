@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useApiQuery } from "../api/hooks";
 import { client, unwrap } from "../api/http";
-import { useMe } from "../api/me";
+import { useMe, usePermissions } from "../api/me";
 import { useSite } from "../api/site";
 import { useAuth } from "../auth";
 import { useThemeChoice, type ThemeChoice } from "../theme";
@@ -14,6 +14,8 @@ import { FeedbackButton } from "./FeedbackButton";
 interface NavLeaf {
   to: string;
   label: string;
+  /** Shown only to those holding one of these permissions ("app.codename"). */
+  perms?: string[];
 }
 interface NavArea {
   label: string;
@@ -113,16 +115,43 @@ const ADMIN_NAV: NavArea[] = [
     { to: "/kompass/cms/faqs", label: "FAQ" },
     { to: "/kompass/cms/links", label: "Links" },
   ] },
+  { label: "Material", items: [
+    { to: "/kompass/material", label: "Materialbrowser" },
+    { to: "/kompass/material/mine", label: "Mein Material" },
+    { to: "/kompass/material/desk", label: "Ausgabe", perms: ["equipment.manage_lending"] },
+    // PSA, wishlist, locations and tags are tabs of the Bestand.
+    {
+      to: "/kompass/material/stock",
+      label: "Bestand",
+      perms: ["equipment.manage_inventory", "equipment.manage_lending"],
+    },
+  ] },
   { label: "Verwaltung", items: [
     { to: "/kompass/events", label: "Termine" },
-    { to: "/kompass/material", label: "Material" },
-    { to: "/kompass/material/categories", label: "Materialkategorien" },
     { to: "/kompass/users", label: "Benutzer" },
     { to: "/kompass/permission-groups", label: "Rechtegruppen" },
     { to: "/kompass/registration-passwords", label: "Registrierungspasswörter" },
     { to: "/kompass/feedback", label: "Feedback" },
   ] },
 ];
+
+/** {@link ADMIN_NAV} without the entries the user lacks the permission for. */
+function useAdminNav(): NavArea[] {
+  const { canAny } = usePermissions();
+  return ADMIN_NAV.map((area) => ({
+    ...area,
+    items: area.items.filter((i) => !i.perms || canAny(...i.perms)),
+  }));
+}
+
+/**
+ * The item of an area the path belongs to: the longest matching link, so a
+ * parent route ("/kompass/material") does not light up beside its children.
+ */
+function activeItem(items: NavLeaf[], path: string): string | undefined {
+  const matches = items.filter((i) => path === i.to || path.startsWith(i.to + "/"));
+  return matches.map((i) => i.to).sort((a, b) => b.length - a.length)[0];
+}
 
 /* --- small popover primitive --------------------------------------------- */
 
@@ -149,12 +178,12 @@ function useOutsideClose(onClose: () => void) {
 function NavArea({ area, activePath }: { area: NavArea; activePath: string }) {
   const [open, setOpen] = useState(false);
   const ref = useOutsideClose(() => setOpen(false));
-  const active = area.items.some((i) => activePath === i.to || activePath.startsWith(i.to + "/"));
+  const current = activeItem(area.items, activePath);
   return (
     <div className="nav-area" ref={ref}>
       <button
         type="button"
-        className={active ? "nav-area-btn active" : "nav-area-btn"}
+        className={current ? "nav-area-btn active" : "nav-area-btn"}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
@@ -164,13 +193,9 @@ function NavArea({ area, activePath }: { area: NavArea; activePath: string }) {
       {open && (
         <div className="nav-dropdown" onClick={() => setOpen(false)}>
           {area.items.map((i) => (
-            <NavLink
-              key={i.to}
-              to={i.to}
-              className={({ isActive }) => (isActive ? "nav-drop-item active" : "nav-drop-item")}
-            >
+            <Link key={i.to} to={i.to} className={i.to === current ? "nav-drop-item active" : "nav-drop-item"}>
               {i.label}
-            </NavLink>
+            </Link>
           ))}
         </div>
       )}
@@ -336,6 +361,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
   const { pathname } = useLocation();
   const [drawer, setDrawer] = useState(false);
   const publicNav = usePublicNav(variant === "public");
+  const adminNav = useAdminNav();
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => setDrawer(false), [pathname]);
@@ -394,7 +420,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
           to themselves and the bar cannot collide with the account cluster. */}
       <div className="navrail">
         <nav className="topnav" aria-label="Hauptnavigation">
-          {(variant === "public" ? publicNav : ADMIN_NAV).map((entry) =>
+          {(variant === "public" ? publicNav : adminNav).map((entry) =>
             isArea(entry) ? (
               <NavArea key={entry.label} area={entry} activePath={pathname} />
             ) : (
@@ -423,14 +449,18 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
               </NavLink>
             </div>
           )}
-          {(variant === "public" ? publicNav : ADMIN_NAV).map((entry) =>
+          {(variant === "public" ? publicNav : adminNav).map((entry) =>
             isArea(entry) ? (
               <div className="drawer-group" key={entry.label}>
                 <span className="drawer-label">{entry.label}</span>
                 {entry.items.map((i) => (
-                  <NavLink key={i.to} to={i.to} className="drawer-item">
+                  <Link
+                    key={i.to}
+                    to={i.to}
+                    className={i.to === activeItem(entry.items, pathname) ? "drawer-item active" : "drawer-item"}
+                  >
                     {i.label}
-                  </NavLink>
+                  </Link>
                 ))}
               </div>
             ) : (

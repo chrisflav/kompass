@@ -1,0 +1,464 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 18:37+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Filetype not supported."
+msgstr "Dieser Dateityp wird nicht unterstützt."
+
+msgid "File too large."
+msgstr "Die Datei ist zu groß."
+
+msgid "Unknown material."
+msgstr "Unbekanntes Material."
+
+msgid "A type that still has pieces cannot be deleted."
+msgstr ""
+"Ein Materialtyp, zu dem es noch Teile gibt, kann nicht gelöscht werden."
+
+msgid "Only the material team sees every single piece."
+msgstr "Nur das Materialteam sieht jedes einzelne Teil."
+
+msgid "No material has this ID."
+msgstr "Zu dieser ID gibt es kein Material."
+
+msgid "Only the material team hands out counted material."
+msgstr "Gezähltes Material gibt nur das Materialteam aus."
+
+msgid "You can only pass on material you hold or your groups own."
+msgstr ""
+"Du kannst nur Material weitergeben, das du hast oder das deinen Gruppen "
+"gehört."
+
+msgid "Create between 1 and 200 pieces at once."
+msgstr "Lege zwischen 1 und 200 Teile auf einmal an."
+
+msgid "Pieces with an ID are added one at a time."
+msgstr "Teile mit einer ID werden einzeln angelegt."
+
+msgid "This piece is retired."
+msgstr "Dieses Teil ist ausgesondert."
+
+msgid "This size has been reserved or lent. Set its stock to 0 instead."
+msgstr ""
+"Diese Größe wurde schon reserviert oder verliehen. Setze ihren Bestand "
+"stattdessen auf 0."
+
+msgid "This reservation is someone else's."
+msgstr "Diese Reservierung gehört jemand anderem."
+
+msgid "Only the group's leaders decide on its material."
+msgstr ""
+"Über das Material einer Gruppe entscheiden nur ihre Jugendleiter*innen."
+
+msgid "You can only return material you hold."
+msgstr "Du kannst nur Material zurückgeben, das du hast."
+
+msgid "Say what is missing."
+msgstr "Gib an, was fehlt."
+
+msgid "material management"
+msgstr "Materialverwaltung"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Tag"
+msgstr "Tag"
+
+msgid "Tags"
+msgstr "Tags"
+
+msgid "name"
+msgstr "Name"
+
+msgid "address"
+msgstr "Adresse"
+
+msgid "opening hours"
+msgstr "Öffnungszeiten"
+
+msgid "location"
+msgstr "Ort"
+
+msgid "locations"
+msgstr "Orte"
+
+msgid "manufacturer"
+msgstr "Hersteller"
+
+msgid "product group"
+msgstr "Produktgruppe"
+
+msgid "description"
+msgstr "Beschreibung"
+
+msgid "personal protective equipment"
+msgstr "PSA"
+
+msgid "photo"
+msgstr "Bild"
+
+msgid "article number"
+msgstr "Artikelnummer"
+
+msgid "manual"
+msgstr "Gebrauchsanleitung"
+
+msgid "usage period (years)"
+msgstr "Nutzungsdauer (Jahre)"
+
+msgid "inspection interval (days)"
+msgstr "Prüfintervall (Tage)"
+
+msgid "daily rental rate"
+msgstr "Tagessatz"
+
+msgid "tags"
+msgstr "Tags"
+
+msgid "product type"
+msgstr "Materialtyp"
+
+msgid "product types"
+msgstr "Materialtypen"
+
+msgid "active"
+msgstr "aktiv"
+
+msgid "inspection due"
+msgstr "Prüfung fällig"
+
+msgid "retired"
+msgstr "ausgesondert"
+
+msgid "owner group"
+msgstr "Besitzende Gruppe"
+
+msgid "Empty means the material belongs to the whole section."
+msgstr "Leer bedeutet, das Material gehört der ganzen Sektion."
+
+msgid "PSA ID"
+msgstr "PSA-ID"
+
+msgid "serial number"
+msgstr "Seriennummer"
+
+msgid "manufacturing date"
+msgstr "Herstellungsdatum"
+
+msgid "purchase date"
+msgstr "Kaufdatum"
+
+msgid "note"
+msgstr "Notiz"
+
+msgid "assembled into"
+msgstr "Bestandteil von"
+
+msgid "home location"
+msgstr "Stammort"
+
+msgid "status"
+msgstr "Status"
+
+msgid "retired on"
+msgstr "ausgesondert am"
+
+msgid "holder"
+msgstr "bei"
+
+msgid "A PSA ID is required for personal protective equipment."
+msgstr "PSA braucht eine PSA-ID."
+
+msgid "A manufacturing date is required for personal protective equipment."
+msgstr "PSA braucht ein Herstellungsdatum."
+
+msgid "A piece cannot be assembled into itself."
+msgstr "Ein Teil kann nicht Bestandteil von sich selbst sein."
+
+msgid "material part"
+msgstr "Materialteil"
+
+msgid "material parts"
+msgstr "Materialteile"
+
+msgid "Can manage the material inventory and inspections"
+msgstr "Kann den Materialbestand und die Prüfungen verwalten"
+
+msgid "Can lend and reserve material on behalf of others"
+msgstr "Kann Material für andere verleihen und reservieren"
+
+msgid "stock"
+msgstr "Bestand"
+
+msgid "per set"
+msgstr "pro Satz"
+
+msgid "position"
+msgstr "Reihenfolge"
+
+msgid "size"
+msgstr "Größe"
+
+msgid "sizes"
+msgstr "Größen"
+
+msgid "The custody history cannot be changed."
+msgstr "Der Verlauf der Zugehörigkeit kann nicht geändert werden."
+
+msgid "checkout"
+msgstr "Ausleihe"
+
+msgid "return"
+msgstr "Rückgabe"
+
+msgid "transfer"
+msgstr "Übergabe"
+
+msgid "assemble"
+msgstr "Zusammenbau"
+
+msgid "retire"
+msgstr "Aussonderung"
+
+msgid "part"
+msgstr "Teil"
+
+msgid "kind"
+msgstr "Art"
+
+msgid "at"
+msgstr "am"
+
+msgid "recorded by"
+msgstr "eingetragen von"
+
+msgid "custody event"
+msgstr "Zugehörigkeitsänderung"
+
+msgid "custody events"
+msgstr "Zugehörigkeitsänderungen"
+
+msgid "requested"
+msgstr "angefragt"
+
+msgid "confirmed"
+msgstr "bestätigt"
+
+msgid "declined"
+msgstr "abgelehnt"
+
+msgid "cancelled"
+msgstr "storniert"
+
+msgid "picked up"
+msgstr "abgeholt"
+
+msgid "borrower"
+msgstr "Ausleihende*r"
+
+msgid "start"
+msgstr "Beginn"
+
+msgid "end"
+msgstr "Ende"
+
+msgid "created at"
+msgstr "erstellt am"
+
+msgid "parts"
+msgstr "Teile"
+
+msgid "reservation"
+msgstr "Reservierung"
+
+msgid "reservations"
+msgstr "Reservierungen"
+
+msgid "quantity"
+msgstr "Anzahl"
+
+msgid "approved"
+msgstr "freigegeben"
+
+msgid "comment"
+msgstr "Kommentar"
+
+msgid "approval"
+msgstr "Freigabe"
+
+msgid "approvals"
+msgstr "Freigaben"
+
+msgid "handed out at"
+msgstr "ausgegeben am"
+
+msgid "due"
+msgstr "zurück bis"
+
+msgid "loan"
+msgstr "Ausleihe"
+
+msgid "loans"
+msgstr "Ausleihen"
+
+msgid "returned at"
+msgstr "zurückgegeben am"
+
+msgid "returned"
+msgstr "zurückgegeben"
+
+msgid "ok"
+msgstr "ok"
+
+msgid "date"
+msgstr "Datum"
+
+msgid "inspector"
+msgstr "Prüfer*in"
+
+msgid "result"
+msgstr "Ergebnis"
+
+msgid "inspection"
+msgstr "Prüfung"
+
+msgid "inspections"
+msgstr "Prüfungen"
+
+msgid "open"
+msgstr "offen"
+
+msgid "ordered"
+msgstr "bestellt"
+
+msgid "dismissed"
+msgstr "verworfen"
+
+msgid "what is missing"
+msgstr "was fehlt"
+
+msgid "wanted from"
+msgstr "gewünscht ab"
+
+msgid "wanted until"
+msgstr "gewünscht bis"
+
+msgid "reported by"
+msgstr "gemeldet von"
+
+msgid "reported at"
+msgstr "gemeldet am"
+
+msgid "deficit"
+msgstr "Defizit"
+
+msgid "deficits"
+msgstr "Defizite"
+
+#, python-format
+msgid "Only %(count)d of %(type)s are free in this period."
+msgstr "Nur %(count)d × %(type)s sind in diesem Zeitraum frei."
+
+#, python-format
+msgid "%(part)s cannot be lent at the moment."
+msgstr "%(part)s kann gerade nicht verliehen werden."
+
+#, python-format
+msgid "%(part)s is already booked in this period."
+msgstr "%(part)s ist in diesem Zeitraum schon vergeben."
+
+msgid "The end of the period lies before its start."
+msgstr "Das Ende des Zeitraums liegt vor seinem Beginn."
+
+msgid "The period lies in the past."
+msgstr "Der Zeitraum liegt in der Vergangenheit."
+
+msgid "Nothing was selected."
+msgstr "Es wurde nichts ausgewählt."
+
+msgid "This reservation is no longer waiting for a decision."
+msgstr "Über diese Reservierung ist schon entschieden."
+
+msgid "This group has nothing to decide on this reservation."
+msgstr "Diese Gruppe hat über diese Reservierung nichts zu entscheiden."
+
+msgid "Only an open reservation can be cancelled."
+msgstr "Nur eine offene Reservierung kann storniert werden."
+
+#, python-format
+msgid "%(part)s is reserved by %(name)s from %(start)s to %(end)s."
+msgstr "%(part)s ist von %(start)s bis %(end)s für %(name)s reserviert."
+
+msgid "Only a confirmed reservation can be picked up."
+msgstr "Nur eine bestätigte Reservierung kann abgeholt werden."
+
+msgid "Counted material can only be lent with a return date."
+msgstr "Gezähltes Material kann nur mit Rückgabedatum ausgeliehen werden."
+
+msgid "Give a return date that is not in the past."
+msgstr "Gib ein Rückgabedatum an, das nicht in der Vergangenheit liegt."
+
+#, python-format
+msgid "%(part)s is still lent to %(name)s."
+msgstr "%(part)s ist noch an %(name)s verliehen."
+
+msgid "Only a person can borrow material."
+msgstr "Nur eine Person kann Material ausleihen."
+
+msgid "Choose either a member or a location."
+msgstr "Wähle entweder eine Person oder einen Ort."
+
+#, python-format
+msgid "%(part)s is reserved by %(name)s from %(start)s."
+msgstr "%(part)s ist ab %(start)s für %(name)s reserviert."
+
+msgid "A lent piece cannot be assembled."
+msgstr "Ein verliehenes Teil kann nicht verbaut werden."
+
+msgid "Material reserved"
+msgstr "Material reserviert"
+
+#, python-format
+msgid "Material request for %(group)s"
+msgstr "Materialanfrage für %(group)s"
+
+msgid "Material requested"
+msgstr "Material angefragt"
+
+msgid "Material request approved"
+msgstr "Materialanfrage freigegeben"
+
+msgid "Material request declined"
+msgstr "Materialanfrage abgelehnt"
+
+msgid "No answer before the start."
+msgstr "Keine Antwort vor Beginn."
+
+msgid "Please bring back material"
+msgstr "Bitte Material zurückbringen"
+
+msgid "Your material reservation starts tomorrow"
+msgstr "Deine Materialreservierung beginnt morgen"
+
+msgid "Material overdue"
+msgstr "Material überfällig"
+
+msgid "Material due tomorrow"
+msgstr "Material morgen fällig"

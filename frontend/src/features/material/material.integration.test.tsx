@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   api,
@@ -7,881 +7,972 @@ import {
   http,
   HttpResponse,
   multipartFields,
-  multipartFilenames,
   server,
   useMe,
 } from "../../test/server";
-import {
-  fillEveryField,
-  pickEverySelect,
-  renderRoute,
-  sortByEveryColumn,
-} from "../../test/utils";
+import { currentUrl, renderRoute } from "../../test/utils";
+import { addDays, isoToday, shortDate } from "./shared";
+
+const TODAY = isoToday();
+const TOMORROW = addDays(TODAY, 1);
 
 const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
+const dialog = async () => within(await screen.findByRole("dialog"));
 
-const CATEGORIES = [
-  { id: 1, name: "Seile" },
-  { id: 2, name: "Gurte" },
+const TAGS = [
+  { id: 1, name: "Hochtour" },
+  { id: 2, name: "Höhle" },
 ];
+const GROUPS = [{ id: 5, name: "Jugend" }];
+const MEMBERS = [
+  { id: 7, name: "Hannah Beckers" },
+  { id: 8, name: "Peter Lustig" },
+];
+const LOCATIONS = [{ id: 3, name: "Griffwerk", address: "", opening_hours: "Di 18–20" }];
 
-/* --- Materialkategorien --------------------------------------------------- */
+const ref = (id: number, name: string) => ({ id, name });
 
-describe("material — Kategorien", () => {
-  function listReturns(rows = CATEGORIES) {
-    server.use(http.get(api("/api/material/categories"), () => HttpResponse.json(rows)));
-  }
+function part(id: number, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    label: `S${id}`,
+    product_type: ref(10, "Bandschlinge 120 cm"),
+    psa_id: null,
+    serial_number: "",
+    group: null,
+    holder: null,
+    location: ref(3, "Griffwerk"),
+    status: "active",
+    lent_until: null,
+    ...overrides,
+  };
+}
 
-  it("lists the categories", async () => {
-    listReturns();
-    renderRoute("/kompass/material/categories");
-    expect(await screen.findByText("Seile")).toBeInTheDocument();
-    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+const CARD = {
+  id: 10,
+  name: "Bandschlinge 120 cm",
+  manufacturer: "Edelrid",
+  product_group: "Schlingen",
+  is_psa: true,
+  photo: null,
+  tags: [TAGS[0]],
+  total: 4,
+  available: 3,
+  available_direct: 2,
+  groups: [
+    { id: null, name: "", available: 2, needs_approval: false },
+    { id: 5, name: "Jugend", available: 1, needs_approval: true },
+  ],
+  sizes: [],
+  sets: null,
+};
+
+const size = (id: number, name: string, overrides: Record<string, unknown> = {}) => ({
+  id,
+  name,
+  product_type: ref(11, "Friends"),
+  quantity: 2,
+  per_set: 1,
+  group: null,
+  location: null,
+  position: id,
+  available: 2,
+  ...overrides,
+});
+
+const FRIENDS = {
+  ...CARD,
+  id: 11,
+  name: "Friends",
+  manufacturer: "Black Diamond",
+  is_psa: false,
+  tags: [],
+  total: 6,
+  available: 5,
+  available_direct: 5,
+  groups: [],
+  sizes: [size(1, "1"), size(2, "2", { quantity: 4, per_set: 2, available: 3 })],
+  sets: 1,
+};
+
+const TYPE = {
+  ...CARD,
+  description: "Genähte Schlinge",
+  article_number: "A-1",
+  manual: "/media/material/manuals/schlinge.pdf",
+  usage_years: 10,
+  inspection_interval_days: 365,
+  daily_rate: "1.50",
+  calendar: [
+    { start: TOMORROW, end: TOMORROW, status: "confirmed", count: 2, borrower: ref(8, "Peter Lustig") },
+  ],
+  parts: [part(1), part(2, { holder: ref(8, "Peter Lustig"), location: null, lent_until: TOMORROW })],
+};
+
+function partOut(overrides: Record<string, unknown> = {}) {
+  return {
+    ...part(1),
+    psa_id: "E1351",
+    label: "E1351",
+    note: "",
+    photo: null,
+    manufactured_on: "2024-01-01",
+    buy_date: null,
+    home_location: ref(3, "Griffwerk"),
+    parent: null,
+    components: [],
+    retired_on: null,
+    next_inspection: "2020-01-01",
+    past_usage_period: true,
+    inspections: [
+      { id: 1, date: "2025-01-01", result: "ok", inspector: ref(7, "Hannah Beckers"), comment: "", photo: null },
+    ],
+    custody: [
+      { id: 1, kind: "transfer", at: "2025-01-01T10:00:00Z", from_name: null, to_name: "Griffwerk", by: null },
+    ],
+    reservations: [{ id: 4, start: TOMORROW, end: TOMORROW, status: "confirmed", borrower: ref(8, "Peter Lustig") }],
+    ...overrides,
+  };
+}
+
+function reservation(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 20,
+    borrower: ref(7, "Hannah Beckers"),
+    start: TODAY,
+    end: TOMORROW,
+    status: "confirmed",
+    note: "Kurs",
+    created_at: "2026-01-01T10:00:00Z",
+    lines: [{ product_type: ref(10, "Bandschlinge 120 cm"), count: 2 }],
+    parts: [part(1), part(2)],
+    sizes: [],
+    approvals: [],
+    decidable_groups: [],
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  localStorage.removeItem("kompass_material_cart");
+  server.use(
+    http.get(api("/api/material/categories"), () => HttpResponse.json(TAGS)),
+    http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)),
+    http.get(api("/api/members/"), () => HttpResponse.json(MEMBERS)),
+    http.get(api("/api/material/locations"), () => HttpResponse.json(LOCATIONS)),
+    http.get(api("/api/material/types"), () => HttpResponse.json([CARD])),
+    http.get(api("/api/material/types/10"), () => HttpResponse.json(TYPE)),
+    http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut())),
+    http.get(api("/api/material/reservations"), () => HttpResponse.json([])),
+  );
+});
+
+/* --- catalogue and cart ----------------------------------------------------- */
+
+describe("material — Materialbrowser", () => {
+  it("shows what there is and how much is free", async () => {
+    renderRoute("/kompass/material");
+    expect(await screen.findByText("Bandschlinge 120 cm")).toBeInTheDocument();
+    expect(screen.getByText("3 / 4 frei")).toBeInTheDocument();
+    expect(screen.getByText("1 mit Freigabe")).toBeInTheDocument();
+    expect(screen.getByText("PSA")).toBeInTheDocument();
   });
 
-  it("says so when there are none", async () => {
-    listReturns([]);
-    renderRoute("/kompass/material/categories");
-    expect(await screen.findByText("Keine Kategorien vorhanden.")).toBeInTheDocument();
+  it("asks the server with the search and the period", async () => {
+    const seen: URLSearchParams[] = [];
+    server.use(
+      http.get(api("/api/material/types"), ({ request }) => {
+        seen.push(new URL(request.url).searchParams);
+        return HttpResponse.json([]);
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    expect(await screen.findByText("Kein Material gefunden.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Material suchen"), "seil");
+    await waitFor(() => expect(seen[seen.length - 1]?.get("q")).toBe("seil"));
+    expect(seen[seen.length - 1]?.get("start")).toBe(TODAY);
   });
 
-  it("hides the create button without the permission", async () => {
-    useMe({ permissions: [] });
-    listReturns();
-    renderRoute("/kompass/material/categories");
-    await screen.findByText("Seile");
-    expect(screen.queryByRole("button", { name: "Neue Kategorie" })).not.toBeInTheDocument();
-  });
-
-  it("creates a category and opens it", async () => {
-    useMe({ permissions: ["material.add_materialcategory"] });
-    listReturns();
+  it("reserves what is in the cart and goes to my material", async () => {
     let body: unknown = null;
     server.use(
-      http.post(api("/api/material/categories"), async ({ request }) => {
+      http.post(api("/api/material/reservations/check"), () =>
+        HttpResponse.json({
+          ok: false,
+          problems: ["Nur 3 × Bandschlinge sind frei."],
+          parts: [],
+          approval_groups: [ref(5, "Jugend")],
+        }),
+      ),
+      http.post(api("/api/material/reservations"), async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json({ id: 3, name: "Karabiner", material_parts: [] });
+        return HttpResponse.json(reservation());
       }),
-      http.get(api("/api/material/categories/3"), () =>
-        HttpResponse.json({ id: 3, name: "Karabiner", material_parts: [] }),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
       ),
     );
-    const { user } = renderRoute("/kompass/material/categories");
-    await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    await user.tripleClick(cart.getByLabelText("Anzahl Bandschlinge 120 cm"));
+    await user.keyboard("5");
+    // Whether it is free is checked on its own once the cart settles.
+    expect(await cart.findByText("Nur 3 × Bandschlinge sind frei.")).toBeInTheDocument();
+    expect(cart.getByText("Braucht die Freigabe von Jugend.")).toBeInTheDocument();
 
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText("Name"), "Karabiner");
-    await user.click(dialog.getByRole("button", { name: "Anlegen" }));
-
-    await waitFor(() => expect(body).toEqual({ name: "Karabiner" }));
-    expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
-  });
-
-  it("shows a rejected create on the form and closes on Abbrechen", async () => {
-    useMe({ permissions: ["material.add_materialcategory"] });
-    listReturns();
-    server.use(
-      http.post(api("/api/material/categories"), () =>
-        djangoValidation({ name: ["Diese Kategorie gibt es schon."] }),
-      ),
-    );
-    const { user } = renderRoute("/kompass/material/categories");
-    await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
-
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Name"), "Seile");
-    await user.click(dialog.getByRole("button", { name: "Anlegen" }));
-    expect(await screen.findAllByText("Diese Kategorie gibt es schon.")).not.toHaveLength(0);
-
-    await user.click(dialog.getByRole("button", { name: "Abbrechen" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  });
-
-  it("lists the category's material and opens a part from it", async () => {
-    server.use(
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({
-          id: 1,
-          name: "Seile",
-          material_parts: [{ id: 4, name: "Halbseil 60m" }],
-        }),
-      ),
-    );
-    renderRoute("/kompass/material/categories/1");
-    expect(await screen.findByText("Halbseil 60m")).toBeInTheDocument();
-  });
-
-  it("opens a part from the category's own list", async () => {
-    server.use(
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({
-          id: 1,
-          name: "Seile",
-          material_parts: [{ id: 4, name: "Halbseil 60m" }],
-        }),
-      ),
-      http.get(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
-      http.get(api("/api/members/"), () => HttpResponse.json([])),
-    );
-    const { user } = renderRoute("/kompass/material/categories/1");
-    await user.click(await screen.findByText("Halbseil 60m"));
-    expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
-  });
-
-  it("says so when the category holds no material", async () => {
-    server.use(
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
-      ),
-    );
-    renderRoute("/kompass/material/categories/1");
-    expect(await screen.findByText("Kein Material in dieser Kategorie.")).toBeInTheDocument();
-  });
-
-  it("edits a category, and keeps edit mode when the save is rejected", async () => {
-    let put: unknown = null;
-    let attempt = 0;
-    server.use(
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
-      ),
-      http.put(api("/api/material/categories/1"), async ({ request }) => {
-        attempt += 1;
-        if (attempt === 1) return djangoValidation({ name: ["Name fehlt."] });
-        put = await request.json();
-        return HttpResponse.json({ id: 1, name: "Seile & Reepschnüre", material_parts: [] });
+    await user.type(cart.getByPlaceholderText("z. B. Ausfahrt"), "Hochtour");
+    await user.click(cart.getByRole("button", { name: "Reservieren" }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        start: TODAY,
+        end: TOMORROW,
+        note: "Hochtour",
+        lines: [{ product_type: 10, quantity: 5 }],
       }),
     );
-    const { user } = renderRoute("/kompass/material/categories/1");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-    expect(await screen.findAllByText("Name fehlt.")).not.toHaveLength(0);
-
-    const name = screen.getByDisplayValue("Seile");
-    await user.clear(name);
-    await user.type(name, "Seile & Reepschnüre");
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(put).toEqual({ name: "Seile & Reepschnüre" }));
+    expect(await screen.findByText("Reserviert.")).toBeInTheDocument();
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
   });
 
-  it("leaves edit mode on Abbrechen", async () => {
+  it("opens a piece when its ID is searched for", async () => {
     server.use(
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
+      http.get(api("/api/material/parts/lookup"), ({ request }) =>
+        new URL(request.url).searchParams.get("code") === "E1351"
+          ? HttpResponse.json(partOut())
+          : HttpResponse.json({ detail: ["Zu dieser ID gibt es kein Material."] }, { status: 422 }),
       ),
     );
-    const { user } = renderRoute("/kompass/material/categories/1");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
-    expect(screen.queryByDisplayValue("Seile")).not.toBeInTheDocument();
+    const { user } = renderRoute("/kompass/material");
+    const search = await screen.findByLabelText("Material suchen");
+    await user.type(search, "nope{Enter}");
+    // Not an ID: the search just filters, and no error gets in the way.
+    expect(currentUrl()).toBe("/kompass/material");
+    await user.clear(search);
+    await user.type(search, "E1351{Enter}");
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/parts/1"));
   });
 
-  it("deletes a category once confirmed, and reports a refusal", async () => {
-    let attempt = 0;
+  it("puts a whole set of a type kept by size in the cart", async () => {
+    server.use(http.get(api("/api/material/types"), () => HttpResponse.json([CARD, FRIENDS])));
+    const { user } = renderRoute("/kompass/material");
+    expect(await screen.findByText("1 Satz frei")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Satz Friends in den Korb" }));
+    const cart = within(screen.getByRole("complementary", { name: "Korb" }));
+    expect(cart.getByLabelText("Anzahl Friends 1")).toHaveValue(1);
+    expect(cart.getByLabelText("Anzahl Friends 2")).toHaveValue(2);
+  });
+
+  it("takes sizes from the cart right away", async () => {
+    let body: unknown = null;
     server.use(
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
+      http.get(api("/api/material/types"), () => HttpResponse.json([FRIENDS])),
+      http.post(api("/api/material/loans"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
       ),
-      http.get(api("/api/material/categories"), () => HttpResponse.json([])),
-      http.delete(api("/api/material/categories/1"), () => {
-        attempt += 1;
-        if (attempt === 1) {
-          return HttpResponse.json({ detail: "Noch Material zugeordnet." }, { status: 409 });
-        }
-        return new HttpResponse(null, { status: 204 });
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Satz Friends in den Korb" }));
+    await user.click(screen.getByRole("button", { name: "Jetzt mitnehmen" }));
+    const d = await dialog();
+    expect(d.getByText(/3 Teile/)).toBeInTheDocument();
+    // Counted sizes cannot be kept for good.
+    expect(d.getByRole("radio", { name: "dauerhaft" })).toBeDisabled();
+    await user.click(d.getByRole("button", { name: "Mitnehmen" }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        parts: [],
+        sizes: [
+          { size: 1, quantity: 1 },
+          { size: 2, quantity: 2 },
+        ],
+        due: TOMORROW,
+        borrower: null,
+        permanent: false,
       }),
     );
-    const { user } = renderRoute("/kompass/material/categories/1");
-
-    await user.click(await screen.findByRole("button", { name: "Löschen" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
-    );
-    expect(await screen.findByText("Noch Material zugeordnet.")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Löschen" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
-    );
-    expect(await screen.findByText("Kategorie gelöscht.")).toBeInTheDocument();
   });
 
-  it("goes back through the browser history", async () => {
+  it("takes any pieces of a type for good: reserves them, then picks them up", async () => {
+    const calls: Record<string, unknown> = {};
     server.use(
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
+      http.post(api("/api/material/reservations"), async ({ request }) => {
+        calls.reservation = await request.json();
+        return HttpResponse.json(reservation());
+      }),
+      http.post(api("/api/material/loans"), async ({ request }) => {
+        calls.loans = await request.json();
+        return HttpResponse.json(null);
+      }),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
       ),
     );
-    const { user } = renderRoute("/kompass/material/categories/1");
-    await user.click(await screen.findByRole("button", { name: "Zurück" }));
-    expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Bandschlinge 120 cm in den Korb" }));
+    await user.click(screen.getByRole("button", { name: "Jetzt mitnehmen" }));
+    await waitFor(() => expect(calls.reservation).toMatchObject({ start: TODAY }));
+    const d = await dialog();
+    await user.click(d.getByLabelText(/dauerhaft behalten/));
+    await user.click(d.getByRole("button", { name: "2 Teile ausgeben" }));
+    await waitFor(() =>
+      expect(calls.loans).toEqual({ parts: [1, 2], sizes: [], reservation: 20, borrower: null, permanent: true }),
+    );
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
+  });
+
+  it("reports a deficit", async () => {
+    let body: unknown = null;
+    server.use(
+      http.post(api("/api/material/deficits"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: "Defizit melden" }));
+    const d = await dialog();
+    await user.type(d.getByLabelText("Was fehlt?"), "Seilsack");
+    await user.click(d.getByRole("button", { name: "Melden" }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        product_type: null,
+        text: "Seilsack",
+        wanted_from: TODAY,
+        wanted_to: TOMORROW,
+        comment: "",
+      }),
+    );
   });
 });
 
-/* --- Material ------------------------------------------------------------- */
+/* --- type detail ------------------------------------------------------------ */
 
-const PART_BRIEF = {
-  id: 4,
-  name: "Halbseil 60m",
-  description: "Rot",
-  quantity: 2,
-  quantity_real: "2 / 2",
-  buy_date: "2024-03-01",
-  lifetime: "10.0",
-  not_too_old: true,
-  owners: [{ owner_name: "Mila Nowak", count: 2 }],
-};
+describe("material — Materialtyp", () => {
+  it("shows the type, its availability and its calendar", async () => {
+    const { user } = renderRoute("/kompass/material/types/10");
+    expect(await screen.findByText("Genähte Schlinge")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Foto hochladen")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Verfügbarkeit" }));
+    expect(screen.getByText("mit Freigabe")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Belegung" }));
+    expect(screen.getAllByText("Peter Lustig").length).toBeGreaterThan(0);
+  });
 
-const PART = {
-  id: 4,
-  name: "Halbseil 60m",
-  description: "Rot",
-  quantity: 2,
-  quantity_real: "2 / 2",
-  buy_date: "2024-03-01",
-  lifetime: "10.0",
-  not_too_old: true,
-  owners: [{ owner_name: "Mila Nowak", count: 2 }],
-  categories: [{ id: 1, name: "Seile" }],
-  photo: null,
-};
+  it("puts one in the cart, whose amount the cart changes", async () => {
+    const { user } = renderRoute("/kompass/material/types/10");
+    await screen.findByText("Genähte Schlinge");
+    expect(screen.queryByLabelText("Anzahl")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "In den Korb" }));
+    const quantity = screen.getByLabelText("Anzahl Bandschlinge 120 cm");
+    expect(quantity).toHaveValue(1);
+    await user.tripleClick(quantity);
+    await user.keyboard("3");
+    expect(quantity).toHaveValue(3);
+  });
 
-describe("material — Material", () => {
-  function listReturns(rows = [PART_BRIEF]) {
+  it("lists the sizes of a type kept by size and adds one", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let created: unknown = null;
     server.use(
-      http.get(api("/api/material/parts"), () => HttpResponse.json(rows)),
-      http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-    );
-  }
-
-  function detailReturns(overrides: Record<string, unknown> = {}) {
-    server.use(
-      http.get(api("/api/material/parts/4"), () => HttpResponse.json({ ...PART, ...overrides })),
-      http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
-      http.get(api("/api/members/"), () =>
-        HttpResponse.json([
-          { id: 7, name: "Hannah Beckers" },
-          { id: 9, name: "Tobias Werner" },
-        ]),
+      http.get(api("/api/material/types/11"), () =>
+        HttpResponse.json({ ...TYPE, ...FRIENDS, calendar: [], parts: [] }),
       ),
+      http.post(api("/api/material/types/11/sizes"), async ({ request }) => {
+        created = await request.json();
+        return HttpResponse.json(size(3, "3"));
+      }),
     );
-  }
+    const { user } = renderRoute("/kompass/material/types/11");
+    await user.click(await screen.findByRole("tab", { name: "Größen (2)" }));
+    expect(screen.getByText("3 / 4")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Friends 2 in den Korb" }));
+    expect(screen.getByLabelText("Anzahl Friends 2")).toHaveValue(1);
+    await user.click(screen.getByRole("button", { name: "Satz in den Korb" }));
+    expect(screen.getByLabelText("Anzahl Friends 2")).toHaveValue(3);
 
-  it("lists the parts with their owners and condition", async () => {
-    listReturns();
-    renderRoute("/kompass/material");
-    expect(await screen.findByText("Halbseil 60m")).toBeInTheDocument();
-    expect(screen.getByText("In Ordnung")).toBeInTheDocument();
-    expect(screen.getByText(/Mila Nowak/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Größe hinzufügen" }));
+    const d = await dialog();
+    await user.type(d.getByLabelText("Größe"), "3");
+    await user.click(d.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(created).toEqual({ name: "3", quantity: 1, per_set: 1, group: null, location: null, position: 3 }),
+    );
   });
 
-  it("says so when there is none", async () => {
-    listReturns([]);
-    renderRoute("/kompass/material");
-    expect(await screen.findByText("Kein Material vorhanden.")).toBeInTheDocument();
-  });
-
-  it("searches by name and description", async () => {
-    listReturns([PART_BRIEF, { ...PART_BRIEF, id: 5, name: "Klettergurt", description: "Blau" }]);
-    const { user } = renderRoute("/kompass/material");
-    await screen.findByText("Halbseil 60m");
-    await user.type(screen.getByPlaceholderText("Suchen…"), "blau");
-    await waitFor(() => expect(screen.queryByText("Halbseil 60m")).not.toBeInTheDocument());
-    expect(screen.getByText("Klettergurt")).toBeInTheDocument();
-  });
-
-  it("filters by condition and by owner", async () => {
-    listReturns([
-      PART_BRIEF,
-      {
-        ...PART_BRIEF,
-        id: 5,
-        name: "Altes Seil",
-        not_too_old: false,
-        owners: [{ owner_name: "Tobias Werner", count: 1 }],
-      },
-    ]);
-    const { user } = renderRoute("/kompass/material");
-    await screen.findByText("Halbseil 60m");
-
-    await user.click(screen.getByRole("button", { name: /Zustand:/ }));
-    await user.click(dropdown().getByRole("button", { name: "Zu alt" }));
-    await waitFor(() => expect(screen.queryByText("Halbseil 60m")).not.toBeInTheDocument());
-    expect(screen.getByText("Altes Seil")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Filter zurücksetzen" }));
-    await user.click(screen.getByRole("button", { name: /Besitzer:/ }));
-    await user.click(dropdown().getByRole("button", { name: "Tobias Werner" }));
-    await waitFor(() => expect(screen.queryByText("Halbseil 60m")).not.toBeInTheDocument());
-  });
-
-  it("sorts by every column in both directions", async () => {
-    listReturns([
-      PART_BRIEF,
-      { ...PART_BRIEF, id: 5, name: "Klettergurt", description: "", owners: [] },
-    ]);
-    const { user } = renderRoute("/kompass/material");
-    await screen.findByText("Halbseil 60m");
-    await sortByEveryColumn(user);
-    expect(screen.getAllByRole("row")).toHaveLength(3);
-  });
-
-  it("hides the create button without the permission", async () => {
-    useMe({ permissions: [] });
-    listReturns();
-    renderRoute("/kompass/material");
-    await screen.findByText("Halbseil 60m");
-    expect(screen.queryByRole("button", { name: "Neues Material" })).not.toBeInTheDocument();
-  });
-
-  it("creates a part as multipart, with its categories and photo", async () => {
-    useMe({ permissions: ["material.add_materialpart"] });
-    listReturns();
-    let fields: Record<string, string> = {};
-    let files: string[] = [];
+  it("lets the inventory edit the type, replace its photo and add pieces", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let patch: unknown = null;
+    let created: unknown = null;
+    let photo = false;
     server.use(
+      http.patch(api("/api/material/types/10"), async ({ request }) => {
+        patch = await request.json();
+        return HttpResponse.json(TYPE);
+      }),
+      http.post(api("/api/material/types/10/photo"), async ({ request }) => {
+        photo = (await request.formData()).has("photo");
+        return HttpResponse.json(TYPE);
+      }),
       http.post(api("/api/material/parts"), async ({ request }) => {
-        const clone = request.clone();
-        files = await multipartFilenames(request);
-        fields = await multipartFields(clone);
-        return HttpResponse.json(PART);
-      }),
-      http.get(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
-      http.get(api("/api/members/"), () => HttpResponse.json([])),
-    );
-    const { user } = renderRoute("/kompass/material");
-    await user.click(await screen.findByRole("button", { name: "Neues Material" }));
-
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText("Name"), "Halbseil 60m");
-    await user.type(dialog.getByLabelText("Beschreibung"), "Rot");
-    await user.clear(dialog.getByLabelText("Anzahl"));
-    await user.type(dialog.getByLabelText("Anzahl"), "2");
-    await user.type(dialog.getByLabelText("Kaufdatum"), "2024-03-01");
-    await user.clear(dialog.getByLabelText(/Lebenszeit/));
-    await user.type(dialog.getByLabelText(/Lebenszeit/), "10");
-    await user.click(dialog.getByRole("button", { name: "Kategorien" }));
-    await user.click(dropdown().getByRole("button", { name: "Seile" }));
-    await user.upload(
-      dialog.getByLabelText(/Foto/),
-      new File(["x"], "seil.png", { type: "image/png" }),
-    );
-    await user.click(dialog.getByRole("button", { name: "Anlegen" }));
-
-    await waitFor(() => expect(files).toEqual(["seil.png"]));
-    expect(fields).toMatchObject({
-      name: "Halbseil 60m",
-      description: "Rot",
-      quantity: "2",
-      buy_date: "2024-03-01",
-      lifetime: "10",
-      material_cat: "1",
-    });
-    expect(await screen.findByText("Material angelegt.")).toBeInTheDocument();
-  });
-
-  it("creates a part without a photo", async () => {
-    useMe({ permissions: ["material.add_materialpart"] });
-    listReturns();
-    let files: string[] = ["unset"];
-    server.use(
-      http.post(api("/api/material/parts"), async ({ request }) => {
-        files = await multipartFilenames(request);
-        return HttpResponse.json(PART);
-      }),
-      http.get(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
-      http.get(api("/api/members/"), () => HttpResponse.json([])),
-    );
-    const { user } = renderRoute("/kompass/material");
-    await user.click(await screen.findByRole("button", { name: "Neues Material" }));
-
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByLabelText("Name"), "Seil");
-    await user.type(dialog.getByLabelText("Kaufdatum"), "2024-03-01");
-    await user.type(dialog.getByLabelText(/Lebenszeit/), "10");
-    await user.click(dialog.getByRole("button", { name: "Anlegen" }));
-
-    await waitFor(() => expect(files).toEqual([]));
-  });
-
-  it("shows server field errors on the create form and closes on Abbrechen", async () => {
-    useMe({ permissions: ["material.add_materialpart"] });
-    listReturns();
-    server.use(
-      http.post(api("/api/material/parts"), () =>
-        djangoValidation({
-          name: ["Der Name fehlt."],
-          description: ["Zu lang."],
-          quantity: ["Muss positiv sein."],
-          buy_date: ["Ungültiges Datum."],
-          lifetime: ["Ungültig."],
-          material_cat: ["Unbekannte Kategorie."],
-        }),
-      ),
-    );
-    const { user } = renderRoute("/kompass/material");
-    await user.click(await screen.findByRole("button", { name: "Neues Material" }));
-
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Name"), "x");
-    await user.type(dialog.getByLabelText("Kaufdatum"), "2024-03-01");
-    await user.type(dialog.getByLabelText(/Lebenszeit/), "10");
-    await user.click(dialog.getByRole("button", { name: "Anlegen" }));
-
-    expect(await screen.findAllByText("Der Name fehlt.")).not.toHaveLength(0);
-    expect(screen.getByText("Zu lang.")).toBeInTheDocument();
-    expect(screen.getByText("Muss positiv sein.")).toBeInTheDocument();
-    expect(screen.getByText("Ungültiges Datum.")).toBeInTheDocument();
-    expect(screen.getByText("Ungültig.")).toBeInTheDocument();
-    expect(screen.getByText("Unbekannte Kategorie.")).toBeInTheDocument();
-
-    await user.click(dialog.getByRole("button", { name: "Abbrechen" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  });
-
-  it("shows the part with its categories and condition", async () => {
-    detailReturns();
-    renderRoute("/kompass/material/4");
-    // The name appears in the breadcrumb and in the Name row.
-    expect(await screen.findAllByText("Halbseil 60m")).toHaveLength(2);
-    expect(screen.getByText("Seile")).toBeInTheDocument();
-    expect(screen.getByText("In Ordnung")).toBeInTheDocument();
-    expect(screen.getByText("Kein Foto hinterlegt.")).toBeInTheDocument();
-  });
-
-  it("marks an expired part as too old", async () => {
-    detailReturns({ not_too_old: false });
-    renderRoute("/kompass/material/4");
-    expect(await screen.findByText("Zu alt")).toBeInTheDocument();
-  });
-
-  it("links an existing photo", async () => {
-    detailReturns({ photo: "/media/seil.png" });
-    renderRoute("/kompass/material/4");
-    expect(await screen.findByRole("link", { name: "Foto ansehen" })).toHaveAttribute(
-      "href",
-      "http://localhost:8000/media/seil.png",
-    );
-    expect(screen.getByRole("link", { name: "Aktuelles Foto ansehen" })).toBeInTheDocument();
-  });
-
-  it("saves an inline edit as JSON, without the photo", async () => {
-    detailReturns();
-    let patched: Record<string, unknown> | null = null;
-    server.use(
-      http.patch(api("/api/material/parts/4"), async ({ request }) => {
-        patched = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(PART);
+        created = await request.json();
+        return HttpResponse.json([part(9)]);
       }),
     );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    const { user } = renderRoute("/kompass/material/types/10");
+    await screen.findByText("Genähte Schlinge");
+    await user.click(screen.getByRole("tab", { name: "Teile (2)" }));
+    expect(screen.getByText(`an Peter Lustig verliehen bis ${shortDate(TOMORROW)}`)).toBeInTheDocument();
+    expect(screen.getByText("Griffwerk")).toBeInTheDocument();
 
-    const name = screen.getByDisplayValue("Halbseil 60m");
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    const name = screen.getByDisplayValue("Bandschlinge 120 cm");
     await user.clear(name);
-    await user.type(name, "Halbseil 70m");
-    await user.click(screen.getByRole("button", { name: "+ Kategorie hinzufügen" }));
-    await user.click(dropdown().getByRole("button", { name: "Gurte" }));
+    await user.type(name, "Schlinge");
+    await user.upload(screen.getByLabelText("Foto hochladen"), new File(["x"], "a.png", { type: "image/png" }));
+    await waitFor(() => expect(photo).toBe(true));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(patch).toMatchObject({ name: "Schlinge", usage_years: 10, daily_rate: "1.50", tags: [1] }),
+    );
 
-    await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toMatchObject({ name: "Halbseil 70m", material_cat: [1, 2] });
-    expect(patched).not.toHaveProperty("photo");
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Teile hinzufügen" }));
+    const d = await dialog();
+    await user.type(d.getByLabelText("PSA-ID"), "E2");
+    await user.click(d.getByRole("button", { name: "Anlegen" }));
+    await waitFor(() => expect(created).toMatchObject({ product_type: 10, psa_id: "E2", count: 1 }));
+    expect(await screen.findByText("Teil angelegt.")).toBeInTheDocument();
+  });
+});
+
+/* --- part detail ------------------------------------------------------------ */
+
+describe("material — Teil", () => {
+  it("enlarges the photo of a piece, and changes it only in edit mode", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    server.use(
+      http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut({ photo: "/media/images/s.png" }))),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Foto vergrößern" }));
+    expect((await dialog()).getByRole("img", { name: "Bandschlinge 120 cm E1351" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    expect(screen.queryByLabelText("Foto ändern")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    expect(screen.getByLabelText("Foto ändern")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Foto vergrößern" })).not.toBeInTheDocument();
+  });
+
+  it("shows the piece, its reservations and its history", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    const { user } = renderRoute("/kompass/material/parts/1");
+    expect(await screen.findByText("überschritten")).toBeInTheDocument();
+    expect(screen.getByText("überfällig")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Prüfungen" }));
+    expect(screen.getAllByText("Hannah Beckers").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("tab", { name: "Verlauf" }));
+    expect(screen.getByText("Übergabe")).toBeInTheDocument();
+  });
+
+  it("puts the piece in the cart, and offers no hand-over for a piece I do not have", async () => {
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "In den Korb" }));
+    const cart = within(await screen.findByRole("complementary", { name: "Korb" }));
+    expect(cart.getByText("E1351")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zurückgeben" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Übergeben" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    expect(screen.getByRole("button", { name: "Defizit melden" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
+  });
+
+  it("records an inspection", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let fields: Record<string, string> = {};
+    server.use(
+      http.post(api("/api/material/parts/1/inspections"), async ({ request }) => {
+        fields = await multipartFields(request);
+        return HttpResponse.json({});
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Prüfung eintragen" }));
+    const d = await dialog();
+    await user.type(d.getByLabelText("Kommentar"), "Mantel ok");
+    await user.click(d.getByRole("button", { name: "Eintragen" }));
+    await waitFor(() => expect(fields).toEqual({ result: "ok", date: TODAY, comment: "Mantel ok" }));
+  });
+
+  it("returns a piece I hold, flagged as damaged", async () => {
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ holder: ref(7, "Hannah Beckers"), location: null })),
+      ),
+    );
+    let body: unknown = null;
+    server.use(
+      http.post(api("/api/material/returns"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ returned: [1] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Zurückgeben" }));
+    const d = await dialog();
+    await user.click(d.getByLabelText("beschädigt"));
+    await user.click(d.getByRole("button", { name: "Rückgabe bestätigen" }));
+    await waitFor(() => expect(body).toEqual({ parts: [1], sizes: [], location: null, flagged: [1] }));
+  });
+
+  it("saves an edit and shows field errors", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let attempt = 0;
+    server.use(
+      http.patch(api("/api/material/parts/1"), () => {
+        attempt += 1;
+        return attempt === 1
+          ? djangoValidation({ psa_id: ["PSA braucht eine PSA-ID."] })
+          : HttpResponse.json(partOut());
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    await user.clear(screen.getByDisplayValue("E1351"));
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect((await screen.findAllByText("PSA braucht eine PSA-ID.")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
   });
+});
 
-  it("reports a rejected save without leaving edit mode", async () => {
-    detailReturns();
+/* --- my material, requests, desk ------------------------------------------- */
+
+describe("material — Mein Material", () => {
+  it("marks only the current page in the menu", async () => {
     server.use(
-      http.patch(api("/api/material/parts/4"), () =>
-        djangoValidation({ name: ["Der Name fehlt."] }),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
       ),
     );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-
-    expect(await screen.findAllByText("Der Name fehlt.")).not.toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Speichern" })).toBeInTheDocument();
+    const { user } = renderRoute("/kompass/material/mine");
+    await user.click(await screen.findByRole("button", { name: /^Material/ }));
+    const menu = within(document.querySelector(".nav-dropdown") as HTMLElement);
+    expect(menu.getByRole("link", { name: "Mein Material" })).toHaveClass("active");
+    expect(menu.getByRole("link", { name: "Materialbrowser" })).not.toHaveClass("active");
   });
 
-  it("leaves edit mode on Abbrechen", async () => {
-    detailReturns();
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
-    expect(screen.queryByDisplayValue("Halbseil 60m")).not.toBeInTheDocument();
-  });
-
-  it("uploads a photo through its own endpoint as soon as one is picked", async () => {
-    detailReturns();
-    let uploaded: string | undefined;
+  it("returns what I select, picks up a reservation and cancels one", async () => {
+    const calls: Record<string, unknown> = {};
     server.use(
-      http.post(api("/api/material/parts/4/photo"), async ({ request }) => {
-        [uploaded] = await multipartFilenames(request);
-        return HttpResponse.json({ ...PART, photo: "/media/seil.png" });
-      }),
-    );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-
-    await user.upload(
-      document.querySelector('input[type="file"]') as HTMLInputElement,
-      new File(["x"], "seil.png", { type: "image/png" }),
-    );
-    await waitFor(() => expect(uploaded).toBe("seil.png"));
-    expect(await screen.findByText("Foto gespeichert.")).toBeInTheDocument();
-  });
-
-  it("reports a refused photo upload", async () => {
-    detailReturns();
-    server.use(
-      http.post(api("/api/material/parts/4/photo"), () =>
-        HttpResponse.json({ detail: "Die Datei ist zu groß." }, { status: 413 }),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({
+          held: [
+            { ...part(1, { holder: ref(7, "Hannah Beckers") }), due: "2020-01-01", overdue: true },
+            { ...part(2, { holder: ref(7, "Hannah Beckers") }), due: null, overdue: false },
+          ],
+          held_sizes: [
+            { id: 40, size: { id: 1, name: "1", product_type: ref(11, "Friends") }, quantity: 2, due: TOMORROW, overdue: false },
+          ],
+          reservations: [reservation({ sizes: [{ size: { id: 2, name: "2", product_type: ref(11, "Friends") }, quantity: 2, group: null }] })],
+          to_decide: 0,
+        }),
       ),
-    );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.upload(
-      document.querySelector('input[type="file"]') as HTMLInputElement,
-      new File(["x"], "gross.png", { type: "image/png" }),
-    );
-    expect(await screen.findByText("Die Datei ist zu groß.")).toBeInTheDocument();
-  });
-
-  it("stages a new responsible person and creates it on save", async () => {
-    detailReturns();
-    let created: Record<string, unknown> | null = null;
-    server.use(
-      http.patch(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.post(api("/api/material/ownerships"), async ({ request }) => {
-        created = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 30 });
+      http.post(api("/api/material/returns"), async ({ request }) => {
+        calls.returns = await request.json();
+        return HttpResponse.json({ returned: [1] });
+      }),
+      http.post(api("/api/material/loans"), async ({ request }) => {
+        calls.loans = await request.json();
+        return HttpResponse.json({});
+      }),
+      http.get(api("/api/material/parts/lookup"), () => HttpResponse.json(partOut({ id: 9, label: "S9" }))),
+      http.post(api("/api/material/reservations/20/cancel"), () => {
+        calls.cancel = true;
+        return HttpResponse.json(reservation({ status: "cancelled" }));
       }),
     );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
+    const { user } = renderRoute("/kompass/material/mine");
+    expect(await screen.findByText(/überfällig seit/)).toBeInTheDocument();
+    expect(screen.getByText("dauerhaft")).toBeInTheDocument();
+    expect(screen.queryByText("Anfragen für deine Gruppen")).not.toBeInTheDocument();
 
-    expect(await screen.findByText("Keine Verantwortlichen eingetragen.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "+ Verantwortliche:r" }));
+    await user.click(screen.getAllByRole("checkbox")[1]);
+    await user.click(screen.getByRole("button", { name: "1 zurückgeben" }));
+    await user.click((await dialog()).getByRole("button", { name: "Rückgabe bestätigen" }));
+    await waitFor(() =>
+      expect(calls.returns).toEqual({ parts: [1], sizes: [], location: null, flagged: [] }),
+    );
 
-    const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
-    await user.click(dialog.getByRole("button", { name: "Besitzer" }));
-    await user.click(dropdown().getByRole("button", { name: "Tobias Werner" }));
-    await user.clear(dialog.getByLabelText("Anzahl"));
-    await user.type(dialog.getByLabelText("Anzahl"), "3");
-    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+    await user.click(screen.getAllByRole("button", { name: "Zurückgeben" })[0]);
+    const back = await dialog();
+    await user.tripleClick(back.getByLabelText("Anzahl Friends 1"));
+    await user.keyboard("1");
+    await user.click(back.getByRole("button", { name: "Rückgabe bestätigen" }));
+    await waitFor(() =>
+      expect(calls.returns).toEqual({ parts: [], sizes: [{ lent: 40, quantity: 1 }], location: null, flagged: [] }),
+    );
 
-    expect(created).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await user.click(screen.getByRole("button", { name: "Abholen" }));
+    const d = await dialog();
+    await user.click(d.getByLabelText(/S2/));
+    await user.type(d.getByLabelText("Anderes Teil per ID"), "S9");
+    await user.click(d.getByRole("button", { name: "Hinzufügen" }));
+    await user.click(await d.findByRole("button", { name: "4 Teile ausgeben" }));
+    await waitFor(() =>
+      expect(calls.loans).toEqual({
+        parts: [1, 9],
+        sizes: [{ size: 2, quantity: 2 }],
+        reservation: 20,
+        borrower: null,
+        permanent: false,
+      }),
+    );
 
-    await waitFor(() => expect(created).not.toBeNull());
-    expect(created).toEqual({ material: 4, owner: 9, count: 3 });
+    await user.click(screen.getByRole("button", { name: "Stornieren" }));
+    await user.click((await dialog()).getByRole("button", { name: "Stornieren" }));
+    await waitFor(() => expect(calls.cancel).toBe(true));
   });
 
-  it("edits and removes an existing responsible person on save", async () => {
-    detailReturns();
-    let patched: Record<string, unknown> | null = null;
-    let deleted = false;
+  it("hands selected pieces over for good", async () => {
+    let body: unknown = null;
     server.use(
-      http.get(api("/api/material/ownerships"), () =>
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({
+          held: [{ ...part(1, { holder: ref(7, "Hannah Beckers") }), due: null, overdue: false }],
+          held_sizes: [],
+          reservations: [],
+          to_decide: 0,
+        }),
+      ),
+      http.post(api("/api/material/parts/transfer"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ warnings: ["S1 ist ab morgen für Peter reserviert."] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/mine");
+    await user.click((await screen.findAllByRole("checkbox"))[1]);
+    await user.click(screen.getByRole("button", { name: "1 übergeben" }));
+    const d = await dialog();
+    await user.click(d.getByRole("button", { name: "An" }));
+    await user.click(dropdown().getByRole("button", { name: "Peter Lustig" }));
+    expect(d.getByRole("radio", { name: "dauerhaft" })).toBeChecked();
+    await user.click(d.getByRole("button", { name: "Übergeben" }));
+    await waitFor(() =>
+      expect(body).toEqual({ parts: [1], sizes: [], member: 8, location: null, due: null }),
+    );
+    expect(await screen.findByText("S1 ist ab morgen für Peter reserviert.")).toBeInTheDocument();
+  });
+});
+
+describe("material — Anfragen in Mein Material", () => {
+  it("approves a request for my group", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/reservations"), () =>
         HttpResponse.json([
-          { id: 30, material: { id: 4 }, owner: { id: 11, name: "Mila Nowak" }, count: 2 },
-          { id: 31, material: { id: 99 }, owner: { id: 9, name: "Fremd" }, count: 1 },
+          reservation({
+            status: "requested",
+            approvals: [{ group: ref(5, "Jugend"), approved: null, decided_by: null, comment: "" }],
+            decidable_groups: [5],
+          }),
         ]),
       ),
-      http.patch(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.patch(api("/api/material/ownerships/30"), async ({ request }) => {
-        patched = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 30 });
-      }),
-      http.delete(api("/api/material/ownerships/30"), () => {
-        deleted = true;
-        return new HttpResponse(null, { status: 204 });
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 1 }),
+      ),
+      http.post(api("/api/material/reservations/20/decide"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(reservation());
       }),
     );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-
-    // Only this part's ownership is listed.
-    expect(await screen.findByText("Mila Nowak")).toBeInTheDocument();
-    expect(screen.queryByText("Fremd")).not.toBeInTheDocument();
-
-    // The part's own "Anzahl" field also holds 2; take the inline table's.
-    const count = within(screen.getByRole("table")).getByDisplayValue("2");
-    await user.clear(count);
-    await user.type(count, "5");
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(patched).toEqual({ count: 5 }));
-
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-    await user.click(await screen.findByRole("button", { name: "Entfernen" }));
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-    await waitFor(() => expect(deleted).toBe(true));
+    const { user } = renderRoute("/kompass/material/mine");
+    expect(await screen.findByText("Anfragen für deine Gruppen")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Freigeben" }));
+    const d = await dialog();
+    await user.type(d.getByLabelText("Kommentar an die anfragende Person"), "Viel Spaß");
+    await user.click(d.getByRole("button", { name: "Freigeben" }));
+    await waitFor(() => expect(body).toEqual({ group: 5, approved: true, comment: "Viel Spaß" }));
   });
 
-  it("reports a failed inline flush without losing the drafts", async () => {
-    detailReturns();
+  it("sends the old requests page to my material", async () => {
     server.use(
-      http.patch(api("/api/material/parts/4"), () => HttpResponse.json(PART)),
-      http.post(api("/api/material/ownerships"), () =>
-        djangoValidation({ count: ["Mehr als vorhanden."] }),
+      http.get(api("/api/material/mine"), () =>
+        HttpResponse.json({ held: [], held_sizes: [], reservations: [], to_decide: 0 }),
       ),
     );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-    await user.click(await screen.findByRole("button", { name: "+ Verantwortliche:r" }));
+    renderRoute("/kompass/material/requests");
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/mine"));
+  });
+});
 
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "Besitzer" }));
-    await user.click(dropdown().getByRole("button", { name: "Hannah Beckers" }));
-    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
+describe("material — Ausgabe", () => {
+  it("hands out a reservation for its borrower and takes loans back", async () => {
+    const calls: Record<string, unknown> = {};
+    const loan = {
+      id: 30,
+      borrower: ref(8, "Peter Lustig"),
+      out_at: "2026-01-01T10:00:00Z",
+      due: "2020-01-01",
+      reservation: null,
+      overdue: true,
+      lines: [{ part: part(3), returned_at: null }],
+      sizes: [{ id: 41, size: { id: 1, name: "1", product_type: ref(11, "Friends") }, quantity: 2, returned: 1 }],
+    };
+    server.use(
+      http.get(api("/api/material/desk"), () =>
+        HttpResponse.json({
+          pickups: [reservation({ borrower: ref(8, "Peter Lustig") })],
+          due: [],
+          overdue: [loan],
+          requests: [],
+          inspection_due: [part(4, { status: "inspection_due" })],
+        }),
+      ),
+      http.post(api("/api/material/loans"), async ({ request }) => {
+        calls.loans = await request.json();
+        return HttpResponse.json({});
+      }),
+      http.post(api("/api/material/returns"), async ({ request }) => {
+        calls.returns = await request.json();
+        return HttpResponse.json({ returned: [3] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/desk");
+    await user.click(await screen.findByRole("button", { name: "Ausgeben" }));
+    await user.click((await dialog()).getByRole("button", { name: "2 Teile ausgeben" }));
+    await waitFor(() =>
+      expect(calls.loans).toEqual({ parts: [1, 2], sizes: [], reservation: 20, borrower: 8, permanent: false }),
+    );
 
-    expect(
-      await screen.findByText(/Ein verknüpfter Eintrag konnte nicht gespeichert werden/),
-    ).toBeInTheDocument();
-    // Still in edit mode with the staged row intact.
-    expect(screen.getByRole("button", { name: "Speichern" })).toBeInTheDocument();
+    expect(screen.getByText("Bandschlinge 120 cm S3, 1 × Friends 1")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zurücknehmen" }));
+    await user.click((await dialog()).getByRole("button", { name: "Rückgabe bestätigen" }));
+    await waitFor(() =>
+      expect(calls.returns).toEqual({
+        parts: [3],
+        sizes: [{ lent: 41, quantity: 1 }],
+        location: null,
+        flagged: [],
+      }),
+    );
   });
 
-  it("deletes a part once confirmed", async () => {
-    detailReturns();
-    let deleted = false;
+  it("hands material to someone at the desk until a day", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/desk"), () =>
+        HttpResponse.json({ pickups: [], due: [], overdue: [], requests: [], inspection_due: [] }),
+      ),
+      http.get(api("/api/material/parts/lookup"), () => HttpResponse.json(partOut())),
+      http.get(api("/api/material/sizes"), () => HttpResponse.json([size(1, "1")])),
+      http.post(api("/api/material/parts/transfer"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ warnings: [] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/desk");
+    await user.click(await screen.findByRole("button", { name: "Übergeben" }));
+    const d = await dialog();
+    await user.click(d.getByRole("button", { name: "An" }));
+    await user.click(dropdown().getByRole("button", { name: "Peter Lustig" }));
+    await user.type(d.getByLabelText("Teil per ID"), "E1351");
+    await user.click(d.getByRole("button", { name: "Hinzufügen" }));
+    await d.findByText("E1351");
+    await user.click(d.getByRole("button", { name: "Größen ohne ID" }));
+    await user.click(dropdown().getByRole("button", { name: "Friends 1" }));
+    expect(d.getByLabelText("Anzahl Friends 1")).toHaveValue(1);
+    expect(d.getByRole("radio", { name: "dauerhaft" })).toBeDisabled();
+    await user.click(d.getByRole("button", { name: "Übergeben" }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        parts: [1],
+        sizes: [{ size: 1, quantity: 1 }],
+        member: 8,
+        location: null,
+        due: TOMORROW,
+      }),
+    );
+  });
+});
+
+/* --- stock, PSA and the lists ----------------------------------------------- */
+
+describe("material — Bestand", () => {
+  it("filters the pieces and hands a selection on to a location (#449)", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/parts"), () =>
+        HttpResponse.json([part(1), part(2, { holder: ref(8, "Peter Lustig"), location: null })]),
+      ),
+      http.post(api("/api/material/parts/transfer"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ warnings: [] });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/stock");
+    expect(await screen.findByText("dauerhaft bei Peter Lustig")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "PSA-Prüfungen" })).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Alle auswählen" }));
+    await user.click(screen.getByRole("button", { name: "2 übergeben" }));
+    const d = await dialog();
+    await user.click(d.getByRole("button", { name: "An" }));
+    await user.click(dropdown().getByRole("button", { name: "Griffwerk (Ort)" }));
+    expect(d.queryByRole("radio", { name: "dauerhaft" })).not.toBeInTheDocument();
+    await user.click(d.getByRole("button", { name: "Übergeben" }));
+    await waitFor(() =>
+      expect(body).toEqual({ parts: [1, 2], sizes: [], member: null, location: 3, due: null }),
+    );
+  });
+
+  it("creates a new type and adds its pieces", async () => {
+    const calls: Record<string, unknown> = {};
     server.use(
       http.get(api("/api/material/parts"), () => HttpResponse.json([])),
-      http.delete(api("/api/material/parts/4"), () => {
-        deleted = true;
-        return new HttpResponse(null, { status: 204 });
+      http.post(api("/api/material/types"), async ({ request }) => {
+        calls.type = await request.json();
+        return HttpResponse.json({ ...TYPE, id: 11, name: "Pickel", is_psa: false });
+      }),
+      http.get(api("/api/material/types"), () =>
+        HttpResponse.json([CARD, { ...CARD, id: 11, name: "Pickel", is_psa: false }]),
+      ),
+      http.post(api("/api/material/parts"), async ({ request }) => {
+        calls.parts = await request.json();
+        return HttpResponse.json([part(5), part(6)]);
       }),
     );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Löschen" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
-    );
-    await waitFor(() => expect(deleted).toBe(true));
-    expect(await screen.findByText("Material gelöscht.")).toBeInTheDocument();
-  });
-
-  it("reports a refused delete", async () => {
-    detailReturns();
-    server.use(
-      http.delete(api("/api/material/parts/4"), () =>
-        HttpResponse.json({ detail: "material.delete_materialpart" }, { status: 403 }),
-      ),
-    );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Löschen" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Löschen" }),
-    );
-    expect(await screen.findByText("Dazu fehlt dir die Berechtigung.")).toBeInTheDocument();
-  });
-
-  it("goes back through the browser history", async () => {
-    detailReturns();
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Zurück" }));
-    expect(screen.getByRole("button", { name: "Zurück" })).toBeInTheDocument();
+    const { user } = renderRoute("/kompass/material/stock");
+    await user.click(await screen.findByRole("button", { name: "Teile anlegen" }));
+    const d = await dialog();
+    await user.type(await d.findByLabelText("Name des Typs"), "Pickel");
+    await user.click(d.getByRole("button", { name: "Typ anlegen" }));
+    const add = await screen.findByRole("dialog", { name: "Pickel: Teile hinzufügen" });
+    const count = within(add).getByLabelText("Anzahl (ohne IDs)");
+    await user.clear(count);
+    await user.type(count, "2");
+    await user.click(within(add).getByRole("button", { name: "Anlegen" }));
+    await waitFor(() => expect(calls.parts).toMatchObject({ product_type: 11, count: 2 }));
+    expect(calls.type).toMatchObject({ name: "Pickel", is_psa: false });
+    expect(await screen.findByText("2 Teile angelegt.")).toBeInTheDocument();
   });
 });
 
-/* --- exhaustive field passes ---------------------------------------------- */
-
-/** Stub the part list and detail for the exhaustive passes below. */
-function partListReturns(rows: unknown[] = [PART_BRIEF]) {
-  server.use(
-    http.get(api("/api/material/parts"), () => HttpResponse.json(rows)),
-    http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-  );
-}
-
-function partDetailReturns(overrides: Record<string, unknown> = {}) {
-  server.use(
-    http.get(api("/api/material/parts/4"), () => HttpResponse.json({ ...PART, ...overrides })),
-    http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-    http.get(api("/api/material/ownerships"), () => HttpResponse.json([])),
-    http.get(api("/api/members/"), () =>
-      HttpResponse.json([
-        { id: 7, name: "Hannah Beckers" },
-        { id: 9, name: "Tobias Werner" },
-      ]),
-    ),
-  );
-}
-
-describe("material — remaining paths", () => {
-  it("opens a part from its row and closes the create modal with ×", async () => {
-    useMe({ permissions: ["material.add_materialpart"] });
-    partListReturns();
-    partDetailReturns();
-    const { user } = renderRoute("/kompass/material");
-
-    await user.click(await screen.findByRole("button", { name: "Neues Material" }));
-    const dialog = await screen.findByRole("dialog");
-    const file = within(dialog).getByLabelText(/Foto/);
-    await user.upload(file, new File(["x"], "p.png", { type: "image/png" }));
-    await user.upload(file, []);
-    await user.click(within(dialog).getByRole("button", { name: "Schließen" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-
-    await user.click(screen.getByText("Halbseil 60m"));
-    expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
-  });
-
-  it("copes with an API that sends null for the optional fields", async () => {
-    partDetailReturns({ description: null, buy_date: null, lifetime: null, categories: [] });
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
-  });
-
-  it("closes the responsible-person dialog with ×", async () => {
-    partDetailReturns();
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await user.click(screen.getByRole("tab", { name: "Verantwortliche" }));
-    await user.click(await screen.findByRole("button", { name: "+ Verantwortliche:r" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
-    );
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  });
-
-  it("shows an em dash for a responsible person with no name", async () => {
-    partDetailReturns();
+describe("material — PSA-Prüfungen", () => {
+  it("lists every unit with its next inspection", async () => {
     server.use(
-      http.get(api("/api/material/ownerships"), () =>
+      http.get(api("/api/material/psa"), ({ request }) =>
+        HttpResponse.json(
+          new URL(request.url).searchParams.get("retired") === "true"
+            ? []
+            : [
+                {
+                  ...part(1, { label: "E1351", psa_id: "E1351" }),
+                  last_inspection: null,
+                  next_inspection: "2020-01-01",
+                  days_left: -5,
+                  past_usage_period: true,
+                  incomplete: true,
+                },
+                {
+                  ...part(2, { label: "E2", psa_id: "E2" }),
+                  last_inspection: { id: 1, date: "2025-01-01", result: "ok", inspector: null, comment: "", photo: null },
+                  next_inspection: TOMORROW,
+                  days_left: 1,
+                  past_usage_period: false,
+                  incomplete: false,
+                },
+              ],
+        ),
+      ),
+    );
+    const { user } = renderRoute("/kompass/material/psa");
+    expect(await screen.findByText("5 Tage überfällig")).toBeInTheDocument();
+    expect(screen.getByText("1 Tage")).toBeInTheDocument();
+    expect(screen.getByText("Angaben fehlen")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Ausgesondert" }));
+    expect(await screen.findByText("Keine PSA erfasst.")).toBeInTheDocument();
+  });
+});
+
+describe("material — Wunschliste, Orte, Tags", () => {
+  it("moves a wish to ordered", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(api("/api/material/deficits"), () =>
         HttpResponse.json([
-          { id: 30, material: { id: 4 }, owner: { id: 11, name: "" }, count: 1 },
+          {
+            id: 1,
+            product_type: null,
+            text: "Seilsack",
+            wanted_from: TODAY,
+            wanted_to: null,
+            comment: "",
+            reported_by: ref(8, "Peter Lustig"),
+            created_at: "2026-01-01T10:00:00Z",
+            status: "open",
+          },
         ]),
       ),
-    );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("tab", { name: "Verantwortliche" }));
-    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
-    await waitFor(() => expect(panel.textContent).toContain("—"));
-  });
-
-  it("opens a category from its row and closes the create modal with ×", async () => {
-    useMe({ permissions: ["material.add_materialcategory"] });
-    server.use(
-      http.get(api("/api/material/categories"), () => HttpResponse.json(CATEGORIES)),
-      http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
-      ),
-    );
-    const { user } = renderRoute("/kompass/material/categories");
-
-    await user.click(await screen.findByRole("button", { name: "Neue Kategorie" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
-    );
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-
-    await user.click(screen.getByText("Seile"));
-    expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
-  });
-});
-
-describe("material — every field", () => {
-  it("Material: carries every edited field into the PATCH", async () => {
-    partDetailReturns();
-    let patched: Record<string, unknown> | null = null;
-    server.use(
-      http.patch(api("/api/material/parts/4"), async ({ request }) => {
-        patched = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(PART);
+      http.patch(api("/api/material/deficits/1"), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({});
       }),
     );
-    const { user } = renderRoute("/kompass/material/4");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-
-    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
-    await fillEveryField(user, panel);
-    await pickEverySelect(user, panel);
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-
-    await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toMatchObject({
-      name: "Text",
-      description: "Text",
-      quantity: 3,
-      buy_date: "2026-03-04",
-      lifetime: "3",
-    });
+    const { user } = renderRoute("/kompass/material/deficits");
+    expect(await screen.findByText("Seilsack")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "offen ▾" }));
+    await user.click(dropdown().getByRole("button", { name: "bestellt" }));
+    await waitFor(() => expect(body).toEqual({ status: "ordered" }));
   });
 
-  it("Material: shows an em dash for the optional fields left empty", async () => {
-    partDetailReturns({
-      description: "",
-      buy_date: null,
-      categories: [],
-      owners: [],
-      photo: null,
-    });
-    renderRoute("/kompass/material/4");
-    await screen.findByRole("button", { name: "Bearbeiten" });
-    expect((document.querySelector("form") as HTMLElement).textContent).toContain("—");
-  });
-
-  it("Material: fills every field of the create form", async () => {
-    useMe({ permissions: ["material.add_materialpart"] });
-    partListReturns();
-    let fields: Record<string, string> = {};
+  it("edits and deletes a location", async () => {
+    const calls: Record<string, unknown> = {};
     server.use(
-      http.post(api("/api/material/parts"), async ({ request }) => {
-        fields = await multipartFields(request);
-        return djangoValidation({ name: ["Stop."] });
+      http.put(api("/api/material/locations/3"), async ({ request }) => {
+        calls.put = await request.json();
+        return HttpResponse.json(LOCATIONS[0]);
+      }),
+      http.delete(api("/api/material/locations/3"), () => {
+        calls.delete = true;
+        return HttpResponse.json({ success: true });
       }),
     );
-    const { user } = renderRoute("/kompass/material");
-    await user.click(await screen.findByRole("button", { name: "Neues Material" }));
-
-    const dialog = await screen.findByRole("dialog");
-    await fillEveryField(user, dialog);
-    await pickEverySelect(user, dialog);
-    await user.click(within(dialog).getByRole("button", { name: "Anlegen" }));
-
-    await waitFor(() => expect(Object.keys(fields).length).toBeGreaterThan(0));
-    expect(fields).toMatchObject({
-      name: "Text",
-      description: "Text",
-      quantity: "3",
-      buy_date: "2026-03-04",
-      lifetime: "3",
-    });
+    const { user } = renderRoute("/kompass/material/locations");
+    await user.click(await screen.findByText("Griffwerk"));
+    let d = await dialog();
+    await user.type(d.getByLabelText("Adresse"), "Ludwigsburg");
+    await user.click(d.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(calls.put).toEqual({ name: "Griffwerk", address: "Ludwigsburg", opening_hours: "Di 18–20" }),
+    );
+    await user.click(await screen.findByText("Griffwerk"));
+    d = await dialog();
+    await user.click(d.getByRole("button", { name: "Löschen" }));
+    await user.click(within(screen.getAllByRole("dialog")[screen.getAllByRole("dialog").length - 1]).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(calls.delete).toBe(true));
   });
 
-  it("Kategorie: carries the edited name into the PUT", async () => {
+  it("shows the types carrying a tag", async () => {
     server.use(
       http.get(api("/api/material/categories/1"), () =>
-        HttpResponse.json({ id: 1, name: "Seile", material_parts: [] }),
+        HttpResponse.json({ id: 1, name: "Hochtour", product_types: [ref(10, "Bandschlinge 120 cm")] }),
       ),
-    );
-    let put: unknown = null;
-    server.use(
-      http.put(api("/api/material/categories/1"), async ({ request }) => {
-        put = await request.json();
-        return HttpResponse.json({ id: 1, name: "Text", material_parts: [] });
-      }),
     );
     const { user } = renderRoute("/kompass/material/categories/1");
-    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
-    await fillEveryField(user, document.querySelector("form") as HTMLElement);
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await user.click(await screen.findByText("Bandschlinge 120 cm"));
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/types/10"));
+  });
 
-    await waitFor(() => expect(put).toEqual({ name: "Text" }));
+  it("redirects an old part link", async () => {
+    renderRoute("/kompass/material/1");
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/parts/1"));
   });
 });

@@ -70,6 +70,6 @@ fi
 cd jdav_web
 KOMPASS_CONFIG_DIR_PATH=../.agent/config \
   uv run --python 3.13 python manage.py test \
-  startpage finance members contrib logindata mailer material ludwigsburgalpin feedback \
+  startpage finance members contrib logindata mailer material equipment ludwigsburgalpin feedback \
   test_data jdav_web \
   --noinput -v "${DJANGO_TEST_VERBOSITY:-1}"

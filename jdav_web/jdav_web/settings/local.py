@@ -105,6 +105,11 @@ FINANCE_RULESET_POLL_MINUTES = get_var("finance", "ruleset_poll_minutes", defaul
 # ones it cannot refuse — so 0 (off) means trusting the database alone.
 FINANCE_VERIFY_HOURS = get_var("finance", "verify_hours", default=24)
 
+# Days before a material reservation starts on which the holders of its pieces
+# are asked to bring them back. From the last of these days on they are asked
+# daily, until the reservation is picked up.
+MATERIAL_HOLDER_NOTICE_DAYS = get_var("material", "holder_notice_days", default=[7, 2])
+
 # links
 
 REGISTRATION_FORM_DOWNLOAD_LINK = get_var(
