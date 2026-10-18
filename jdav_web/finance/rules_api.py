@@ -873,6 +873,21 @@ class Ruleset(ABC):
         which is enough for a ruleset whose ``inputs`` branches on them — drop
         the question about the price per night once "no subsidy" has been
         answered, and it stops being asked.
+
+        This and :meth:`inputs` have different jobs, and overriding this one
+        overrides only the second of them. ``inputs`` says what may be
+        **read**: the whole vocabulary, every key an answer may be stored
+        under, and the list that reading a key is checked against. This says
+        what is being **asked**: the form, and the set an answer has to be in
+        to count. A question this leaves out is off the form, the API refuses
+        an answer for it, and the rules read it as *unanswered* — the type's
+        empty value, whatever is still stored under the key.
+
+        So what the form does not ask, the rules read as unanswered, and
+        retiring a question stops it moving money. Reading a retired key is
+        not an error; it reads empty, because a question nobody can see is not
+        something a rule should fail on. Narrow ``inputs`` here rather than
+        widening it.
         """
         return self.inputs(ctx)
 
