@@ -69,6 +69,7 @@ from collections.abc import Iterator
 from collections.abc import Mapping
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import fields
 from decimal import Decimal
 from decimal import ROUND_FLOOR
 from typing import Any
@@ -557,12 +558,93 @@ class Transfer:
 
 
 @dataclass(frozen=True, slots=True)
+class Choice:
+    """One alternative a ``choice`` question offers.
+
+    The value is what is stored and what a rule reads back
+    (:meth:`Inputs.text`); the label is what the person picking it is shown.
+    Keeping the two apart is what lets a section reword a question without
+    touching the rules that read its answer.
+    """
+
+    #: What the answer reads as — the rules' own vocabulary, and stable.
+    value: str
+    #: What the person choosing it is shown, in the section's language.
+    label: str
+
+
+#: The context fields a derived input's :attr:`Input.source` may start at.
+#:
+#: A source is ``"<root>.<field>"``, one field deep, and the field has to be a
+#: real field of what that root holds. Both are checked where the declaration
+#: is written, so a typo is a refusal that lists the fields rather than a
+#: question that silently becomes one nobody can answer. The list is
+#: deliberately short: a derived input is a figure the statement *already*
+#: knows, and these are the two places it keeps one.
+SOURCE_ROOTS: Final = ("excursion", "statement")
+
+#: What each root holds, for checking a :attr:`Input.source` against its fields.
+_SOURCE_TYPES: Final = {"excursion": Excursion, "statement": StatementInfo}
+
+#: Where a party-valued question's :attr:`Input.options` may be taken from.
+#:
+#: A fixed vocabulary rather than a path, because "who may be paid" is the one
+#: declaration where a mistake costs money. Every name here is a set the
+#: *statement itself* carries, so no spelling of
+#: :attr:`Input.options_source` reaches somebody the statement does not already
+#: mention, and "every member in the section" is not reachable at all.
+#:
+#: ``excursion.leaders`` is what a trip-shaped ruleset writes by hand today.
+#: The rest is what a statement settling something else has instead: the people
+#: on the trip's list, whoever paid one of its receipts, and the two people the
+#: statement names itself.
+OPTION_SOURCES: Final = (
+    "excursion.leaders",
+    "excursion.participants",
+    "bills.payers",
+    "statement.creator",
+    "statement.submitter",
+)
+
+#: The widget types whose answer names people, and so the only ones an option
+#: source means anything for.
+_PARTY_INPUT_TYPES: Final = ("member", "member_set")
+
+
+def _check_source(source: str) -> None:
+    """Refuse ``source`` unless the engine will resolve it (:data:`SOURCE_ROOTS`)."""
+    root, dot, name = source.partition(".")
+    holder = _SOURCE_TYPES.get(root)
+    if holder is None:
+        raise RuleError(
+            f"a derived input's source starts at one of {', '.join(SOURCE_ROOTS)}, not at {root!r}"
+        )
+    if not dot or not name or "." in name:
+        raise RuleError(
+            f"{source!r} is not a source: write it as <root>.<field>, one field deep. "
+            "A figure further in than that is read off the context by the rule that "
+            "wants it."
+        )
+    known = tuple(declared.name for declared in fields(holder))
+    if name not in known:
+        raise RuleError(f"{root} has no field {name!r}; it has {', '.join(known)}")
+
+
+@dataclass(frozen=True, slots=True)
 class Input:
     """One question the statement's form has to ask.
 
     Declaring the question beside the rule that reads the answer is what keeps
     the two from drifting apart: the form is generated from these, and a rule
     that reads an undeclared key fails loudly (see :class:`Inputs`).
+
+    A declaration the engine cannot serve is refused where it is written, with
+    :class:`RuleError`: a ``choice`` with nothing to choose from, a
+    :attr:`source` that names no context field, an :attr:`options_source` on a
+    question that names no people. The engine refuses a nonsense
+    :attr:`Ruleset.balance` for the same reason — it is a bug in the rules, and
+    a case in the section's own CI should fail on it rather than a person's
+    form quietly losing a question.
     """
 
     #: The key the answer is read back under.
@@ -578,9 +660,73 @@ class Input:
     #: For ``member`` and ``member_set``: who may be picked. The engine
     #: re-validates a submitted answer against this, so an answer can never
     #: name somebody the rule did not offer.
+    #:
+    #: A ruleset either lists the people itself, out of the context it was
+    #: given, or names an :attr:`options_source` and lets the engine fill this
+    #: in. Not both.
     options: tuple[Member, ...] = ()
     #: For ``member_set`` and ``int``: the largest acceptable count or value.
     max: int | None = None
+    #: For ``choice``: the alternatives, which a ``choice`` has to have. A
+    #: submitted answer is re-validated against them, exactly as a person is
+    #: re-validated against :attr:`options`.
+    choices: tuple[Choice, ...] = ()
+    #: Where the engine takes this answer *from* instead of asking for it:
+    #: ``"excursion.kilometers"`` (see :data:`SOURCE_ROOTS`).
+    #:
+    #: When the source resolves, the engine supplies the value, the declaration
+    #: comes back :attr:`derived`, and the form **refuses** a submitted answer
+    #: for the key — the figure is corrected where it lives, not here. When it
+    #: does not resolve — no trip, or nothing recorded — this is an ordinary
+    #: question whose answer is stored like any other. Either way a rule reads
+    #: it the same way, which is the whole point: one
+    #: ``ctx.inputs.number("kilometers")`` and no branch on where it came from.
+    #:
+    #: A derived value is **not stored**. It is resolved again every time a
+    #: context is built, so there is no second copy to go stale when the trip
+    #: changes.
+    source: str = ""
+    #: Where the engine takes :attr:`options` from, for a ``member`` or
+    #: ``member_set`` question: one of :data:`OPTION_SOURCES`.
+    #:
+    #: It is a request, and the engine's answer is :attr:`options`. A
+    #: declaration that comes back from the engine therefore carries one or the
+    #: other and never both — which is also what a ruleset stating both is
+    #: refused for.
+    options_source: str = ""
+    #: The step this question belongs to, as a short label. Questions that
+    #: share one are presented together, in the order the labels are first
+    #: declared, and ``GET …/form`` serves that grouping. Empty is the unnamed
+    #: step, which is what a form without steps is.
+    step: str = ""
+    #: Whether the engine supplies this answer itself. The *engine* sets it; a
+    #: ruleset declares :attr:`source` and reads this back.
+    derived: bool = False
+
+    def __post_init__(self) -> None:
+        if self.type == "choice" and not self.choices:
+            raise RuleError(
+                f"the choice {self.key!r} offers no choices, which is a text field that "
+                "validates nothing; list them in `choices`"
+            )
+        if self.choices and self.type != "choice":
+            raise RuleError(f"{self.key!r} is a {self.type} input, so its choices are never shown")
+        if self.source:
+            _check_source(self.source)
+        if not self.options_source:
+            return
+        if self.options_source not in OPTION_SOURCES:
+            raise RuleError(
+                f"{self.options_source!r} is not an option source; the engine serves "
+                f"{', '.join(OPTION_SOURCES)}"
+            )
+        if self.type not in _PARTY_INPUT_TYPES:
+            raise RuleError(f"{self.key!r} is a {self.type} input, so it names no people")
+        if self.options:
+            raise RuleError(
+                f"{self.key!r} both lists its options and names {self.options_source!r} to "
+                "take them from; say it once"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -796,6 +942,7 @@ __all__ = [
     "CONTEXT_VERSION",
     "Bill",
     "Check",
+    "Choice",
     "Constraint",
     "Excursion",
     "Forbid",
@@ -806,6 +953,7 @@ __all__ = [
     "LJPGoal",
     "Member",
     "MemberId",
+    "OPTION_SOURCES",
     "PARTICIPANTS",
     "Params",
     "Participant",
@@ -816,6 +964,7 @@ __all__ = [
     "Roles",
     "Ruleset",
     "SECTION",
+    "SOURCE_ROOTS",
     "Section",
     "StatementInfo",
     "TourApproach",
