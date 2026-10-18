@@ -218,6 +218,14 @@ class PartReservation(Schema):
     borrower: MemberRef
 
 
+class PartHistory(Schema):
+    """How often a piece has been lent, reserved and inspected."""
+
+    loans: int
+    reservations: int
+    inspections: int
+
+
 class PartOut(PartBrief):
     note: str
     photo: str | None
@@ -231,6 +239,7 @@ class PartOut(PartBrief):
     past_usage_period: bool
     inspections: list[InspectionOut] | None
     custody: list[CustodyEventOut] | None
+    history: PartHistory | None
     reservations: list[PartReservation]
 
 

@@ -903,26 +903,42 @@ def inspect(part, result, by, date=None, comment="", photo=None):
             to_location=part.location,
             by=by,
         )
-        today = timezone.localdate()
-        shrunk = {}
-        for reserved in ReservedPart.objects.filter(
-            part=part, reservation__status__in=Reservation.BLOCKING, reservation__end__gte=today
-        ).select_related("reservation__borrower", "part__product_type"):
-            if not _reallocate(
-                reserved, reserved.reservation.start, reserved.reservation.end, {part.pk}
-            ):
-                reserved.delete()
-                shrunk[reserved.reservation.pk] = reserved.reservation
-        for reservation in shrunk.values():
-            _drop_retired(reservation, part)
+        _release(part)
     elif part.status == Part.INSPECTION_DUE:
         part.status = Part.ACTIVE
         part.save(update_fields=["status"])
     return inspection
 
 
+@transaction.atomic
+def delete_part(part):
+    """Remove ``part`` from the stock together with everything recorded about it.
+
+    The reservations still ahead get another piece where one is free; the pieces
+    built into it stay where they are, on their own.
+    """
+    _release(part)
+    part.delete()
+
+
+def _release(part):
+    """Take ``part`` out of the reservations still ahead, replacing it where another piece is free."""
+    today = timezone.localdate()
+    shrunk = {}
+    for reserved in ReservedPart.objects.filter(
+        part=part, reservation__status__in=Reservation.BLOCKING, reservation__end__gte=today
+    ).select_related("reservation__borrower", "part__product_type"):
+        if not _reallocate(
+            reserved, reserved.reservation.start, reserved.reservation.end, {part.pk}
+        ):
+            reserved.delete()
+            shrunk[reserved.reservation.pk] = reserved.reservation
+    for reservation in shrunk.values():
+        _drop_retired(reservation, part)
+
+
 def _drop_retired(reservation, part):
-    """Tell the borrower of ``reservation`` that the retired ``part`` left it without a replacement.
+    """Tell the borrower of ``reservation`` that ``part``, retired or deleted, left it without a replacement.
 
     A reservation left with nothing is cancelled.
     """

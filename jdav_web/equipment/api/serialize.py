@@ -115,6 +115,15 @@ def part_detail(part, manager):
                 if manager
                 else None
             ),
+            "history": (
+                {
+                    "loans": part.loan_lines.count(),
+                    "reservations": part.reservedpart_set.count(),
+                    "inspections": part.inspections.count(),
+                }
+                if manager
+                else None
+            ),
             "reservations": [
                 {
                     "id": r.pk,

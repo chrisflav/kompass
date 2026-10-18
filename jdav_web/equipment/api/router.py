@@ -512,6 +512,13 @@ def update_part(request, part_id: int, payload: PartUpdate):
     return serialize.part_detail(part, True)
 
 
+@router.delete("/parts/{part_id}")
+def delete_part(request, part_id: int):
+    authorize(request, INVENTORY)
+    services.delete_part(get_object_or_404(Part, pk=part_id))
+    return {"success": True}
+
+
 @router.post("/parts/{part_id}/photo", response=PartOut)
 def update_part_photo(request, part_id: int, photo: UploadedFile = File(...)):
     authorize(request, INVENTORY)

@@ -548,6 +548,40 @@ class InspectionTestCase(MaterialFixture, TestCase):
             services.inspect(self.harness, "broken", self.bob)
 
 
+class DeletePartTestCase(MaterialFixture, TestCase):
+    def setUp(self):
+        self.setUpMaterial()
+
+    def test_deletes_the_history_with_the_piece(self):
+        services.lend(self.alice, [self.harness], self.bob, due=days(3))
+        services.inspect(self.harness, Inspection.OK, self.bob)
+        loan = Loan.objects.get()
+        services.delete_part(self.harness)
+        self.assertFalse(Part.objects.filter(pk=self.harness.pk).exists())
+        self.assertFalse(CustodyEvent.objects.exists())
+        self.assertFalse(Inspection.objects.exists())
+        # The loan it was out on is no longer open.
+        self.assertNotIn(loan, services.open_loans())
+
+    def test_moves_or_drops_reservations(self):
+        moved = services.reserve(self.alice, days(1), days(2), [Line(self.sling_type, 1)])
+        piece = moved.parts.get()
+        dropped = services.reserve(self.alice, days(1), days(2), [Line(part=self.harness)])
+        services.delete_part(piece)
+        services.delete_part(self.harness)
+        self.assertNotEqual(moved.parts.get(), piece)
+        dropped.refresh_from_db()
+        self.assertEqual(dropped.status, Reservation.CANCELLED)
+        self.assertEqual(mail.outbox[-1].to, ["alice@example.com"])
+
+    def test_keeps_the_components(self):
+        self.slings[1].parent = self.slings[0]
+        self.slings[1].save()
+        services.delete_part(self.slings[0])
+        self.slings[1].refresh_from_db()
+        self.assertIsNone(self.slings[1].parent)
+
+
 class NoticeTestCase(MaterialFixture, TestCase):
     def setUp(self):
         self.setUpMaterial()

@@ -7486,6 +7486,34 @@
             "OAuth2Bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "equipment_api_router_delete_part",
+        "summary": "Delete Part",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "part_id",
+            "schema": {
+              "title": "Part Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
       }
     },
     "/api/material/parts/{part_id}/photo": {
@@ -19845,6 +19873,30 @@
         "title": "InspectionOut",
         "type": "object"
       },
+      "PartHistory": {
+        "description": "How often a piece has been lent, reserved and inspected.",
+        "properties": {
+          "loans": {
+            "title": "Loans",
+            "type": "integer"
+          },
+          "reservations": {
+            "title": "Reservations",
+            "type": "integer"
+          },
+          "inspections": {
+            "title": "Inspections",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "loans",
+          "reservations",
+          "inspections"
+        ],
+        "title": "PartHistory",
+        "type": "object"
+      },
       "PartOut": {
         "properties": {
           "id": {
@@ -20041,6 +20093,16 @@
             ],
             "title": "Custody"
           },
+          "history": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartHistory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reservations": {
             "items": {
               "$ref": "#/components/schemas/PartReservation"
@@ -20072,6 +20134,7 @@
           "past_usage_period",
           "inspections",
           "custody",
+          "history",
           "reservations"
         ],
         "title": "PartOut",
