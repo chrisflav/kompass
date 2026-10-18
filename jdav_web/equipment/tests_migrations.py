@@ -20,6 +20,8 @@ class ScheduleNoticesMigrationTestCase(django.test.TransactionTestCase):
         executor.migrate(target)
 
     def test_forwards_and_back(self):
+        # Start below the migration: other tests flush the tables, beat entry included.
+        self.migrate([("equipment", "0001_initial")])
         self.migrate([("equipment", "0002_schedule_notices")])
         task = PeriodicTask.objects.get(name=TASK_NAME)
         self.assertEqual(task.task, "equipment.tasks.send_material_notices")
