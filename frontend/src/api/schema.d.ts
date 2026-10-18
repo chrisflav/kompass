@@ -6785,18 +6785,15 @@ export interface components {
              */
             inputs: components["schemas"]["InputDeclarationOut"][];
         };
-        /** CheckOut */
+        /**
+         * CheckOut
+         * @description One precondition for handing a statement in, and whether it holds.
+         */
         CheckOut: {
             /** Ok */
             ok: boolean;
-            /** Problems */
-            problems: string[];
-            /** Parts */
-            parts: components["schemas"]["PartBrief"][];
-            /** Sizes */
-            sizes: components["schemas"]["SizeCount"][];
-            /** Approval Groups */
-            approval_groups: components["schemas"]["GroupBrief"][];
+            /** Message */
+            message: string;
         };
         /**
          * PreflightOut
@@ -7643,6 +7640,19 @@ export interface components {
             location?: number | null;
             /** Position */
             position?: number | null;
+        };
+        /** ReservationCheckOut */
+        ReservationCheckOut: {
+            /** Ok */
+            ok: boolean;
+            /** Problems */
+            problems: string[];
+            /** Parts */
+            parts: components["schemas"]["PartBrief"][];
+            /** Sizes */
+            sizes: components["schemas"]["SizeCount"][];
+            /** Approval Groups */
+            approval_groups: components["schemas"]["GroupBrief"][];
         };
         /** SizeCount */
         SizeCount: {
@@ -14088,7 +14098,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckOut"];
+                    "application/json": components["schemas"]["ReservationCheckOut"];
                 };
             };
         };

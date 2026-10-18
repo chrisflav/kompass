@@ -312,7 +312,7 @@ class ReservationIn(Schema):
     borrower: int | None = None
 
 
-class CheckOut(Schema):
+class ReservationCheckOut(Schema):
     ok: bool
     problems: list[str]
     parts: list[PartBrief]

@@ -51,7 +51,6 @@ from ninja import Router
 from ninja import UploadedFile
 
 from . import serialize
-from .schemas import CheckOut
 from .schemas import DecisionIn
 from .schemas import DeficitIn
 from .schemas import DeficitOut
@@ -72,6 +71,7 @@ from .schemas import ProductTypeIn
 from .schemas import ProductTypeOut
 from .schemas import ProductTypeUpdate
 from .schemas import PsaRow
+from .schemas import ReservationCheckOut
 from .schemas import ReservationIn
 from .schemas import ReservationOut
 from .schemas import ReturnIn
@@ -604,7 +604,7 @@ def _lines(payload_lines):
     return lines
 
 
-@router.post("/reservations/check", response=CheckOut)
+@router.post("/reservations/check", response=ReservationCheckOut)
 def check_reservation(request, payload: ReservationIn):
     """What a reservation would take, and what stands in its way, without making it."""
     member = get_member(request)

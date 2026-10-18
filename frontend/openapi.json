@@ -7801,7 +7801,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CheckOut"
+                  "$ref": "#/components/schemas/ReservationCheckOut"
                 }
               }
             }
@@ -18131,46 +18131,20 @@
         "type": "object"
       },
       "CheckOut": {
+        "description": "One precondition for handing a statement in, and whether it holds.",
         "properties": {
           "ok": {
             "title": "Ok",
             "type": "boolean"
           },
-          "problems": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Problems",
-            "type": "array"
-          },
-          "parts": {
-            "items": {
-              "$ref": "#/components/schemas/PartBrief"
-            },
-            "title": "Parts",
-            "type": "array"
-          },
-          "sizes": {
-            "items": {
-              "$ref": "#/components/schemas/SizeCount"
-            },
-            "title": "Sizes",
-            "type": "array"
-          },
-          "approval_groups": {
-            "items": {
-              "$ref": "#/components/schemas/GroupBrief"
-            },
-            "title": "Approval Groups",
-            "type": "array"
+          "message": {
+            "title": "Message",
+            "type": "string"
           }
         },
         "required": [
           "ok",
-          "problems",
-          "parts",
-          "sizes",
-          "approval_groups"
+          "message"
         ],
         "title": "CheckOut",
         "type": "object"
@@ -20588,6 +20562,51 @@
           }
         },
         "title": "SizeUpdate",
+        "type": "object"
+      },
+      "ReservationCheckOut": {
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartBrief"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/SizeCount"
+            },
+            "title": "Sizes",
+            "type": "array"
+          },
+          "approval_groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupBrief"
+            },
+            "title": "Approval Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "problems",
+          "parts",
+          "sizes",
+          "approval_groups"
+        ],
+        "title": "ReservationCheckOut",
         "type": "object"
       },
       "SizeCount": {
