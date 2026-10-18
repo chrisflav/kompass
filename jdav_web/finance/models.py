@@ -83,13 +83,14 @@ class StatementManager(models.Manager):
 
 
 class Statement(CommonModel):
-    MISSING_LEDGER, NON_MATCHING_TRANSACTIONS, INVALID_ALLOWANCE_TO, INVALID_TOTAL, VALID = (
-        0,
-        1,
-        2,
-        3,
-        4,
-    )
+    (
+        MISSING_LEDGER,
+        NON_MATCHING_TRANSACTIONS,
+        INVALID_ALLOWANCE_TO,
+        INVALID_TOTAL,
+        VALID,
+        UNRESOLVED,
+    ) = (0, 1, 2, 3, 4, 5)
     UNSUBMITTED, SUBMITTED, CONFIRMED = 0, 1, 2
     STATUS_CHOICES = [
         (UNSUBMITTED, _("In preparation")),
@@ -604,6 +605,21 @@ class Statement(CommonModel):
           The members receiving allowance don't match the regulations.
         - `Statement.INVALID_TOTAL`:
           The total amount of transactions differs from the calculated total payout.
+        - `Statement.UNRESOLVED`:
+          The section's rules could not resolve the statement at all, so there
+          is no payout to compare anything against.
+
+        ``UNRESOLVED`` is asked **last**, after every more specific diagnosis.
+        A covered bill with nobody to pay back is a rule error *and* a total
+        that does not match, and "the total differs" is the more useful of the
+        two sentences to show. What is left for this to catch is the case with
+        no other symptom at all: an answer that no longer fits the type its
+        declaration promises reads as its type's empty value in the readouts —
+        deliberately, so the page renders and somebody can reach the form — and
+        then every figure is zero, the arithmetic agrees with itself, and the
+        statement used to report "everything is correct", which is exactly when
+        it is not. `confirm` refuses on `is_valid`, so this is also what keeps
+        money from moving on a statement the rules could not settle.
         """
         if not self.transactions_match_expenses:
             return Statement.NON_MATCHING_TRANSACTIONS
@@ -613,8 +629,9 @@ class Statement(CommonModel):
             return Statement.INVALID_ALLOWANCE_TO
         if not self.total_valid:
             return Statement.INVALID_TOTAL
-        else:
-            return Statement.VALID
+        if self.rule_result.errors:
+            return Statement.UNRESOLVED
+        return Statement.VALID
 
     def is_valid(self):
         return self.validity == Statement.VALID
@@ -641,6 +658,9 @@ class Statement(CommonModel):
                 "The total of all transactions differs from the calculated total payout."
             ),
             Statement.VALID: _("Everything is correct."),
+            Statement.UNRESOLVED: _(
+                "The section's rules could not settle this statement. Check the answers it gives."
+            ),
         }[self.validity]
 
     def _signatures(self):

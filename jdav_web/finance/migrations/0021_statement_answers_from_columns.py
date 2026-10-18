@@ -24,11 +24,22 @@ What it does to live data, statement by statement:
 **Reversibility.** Both directions are implemented and tested. Forwards is
 additive: the columns are not touched, so this migration alone can be reversed
 by writing the answers back into them, and ``0022`` is what actually drops
-them. Two things reversing cannot restore, and both match what the dropped
-columns would have done anyway: a member deleted between the two runs comes
-back as ``null`` (the columns were ``SET_NULL`` and the through rows cascaded),
-and the order of ``allowance_to`` is lost to a set that never had one.
-Reversing ``0022`` *without* reversing this one leaves the columns empty.
+them. Reversing ``0022`` *without* reversing this one leaves the columns empty.
+
+Four things reversing cannot do. The first two match what the dropped columns
+would have done anyway:
+
+* a member deleted between the two runs comes back as ``null``, because the
+  columns were ``SET_NULL`` and the through rows cascaded;
+* the order of ``allowance_to`` is lost to a set that never had one;
+* an amount over ``999.99`` does not fit the ``max_digits=5`` column it would
+  be written back into, so reversing a statement whose price per night was
+  raised *after* this ran fails rather than truncating it. The edge bounds a
+  money answer at ``max_digits=7`` (:data:`finance.inputs.MONEY_MAX`), because
+  a section may reimburse more than that column ever held;
+* and the stale value ``inputs`` held for one of these four keys is overwritten
+  forwards and not put back. Benign — nothing read that field — and said out
+  loud because "reversible" should mean what it says.
 """
 
 from decimal import Decimal

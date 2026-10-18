@@ -274,7 +274,7 @@ class FinanceFormApiTestCase(TestCase):
         rather than paid, and an unbounded amount is one ``0021``'s reverse
         cannot write back into the ``max_digits=5`` column it came from.
         """
-        for value in ("1.234", "1000000000.00", "nan", "inf"):
+        for value in ("1.234", "100000.00", "nan", "inf"):
             with self.subTest(value=value):
                 r = self.client.patch(
                     "/api/finance/statements/{}".format(self.statement.pk),
@@ -285,7 +285,7 @@ class FinanceFormApiTestCase(TestCase):
                 self.assertEqual(r.status_code, 422, r.content)
         r = self.client.patch(
             "/api/finance/statements/{}".format(self.statement.pk),
-            data={"inputs": {"night_cost": "999999999.99"}},
+            data={"inputs": {"night_cost": "99999.99"}},
             content_type="application/json",
             **self.auth(self.owner_user),
         )
@@ -319,6 +319,35 @@ class FinanceFormApiTestCase(TestCase):
             any("night_cost" in error for error in self.statement.rule_result.errors),
             self.statement.rule_result.errors,
         )
+
+    def test_an_answer_that_is_not_a_person_at_all_is_refused_not_a_crash(self):
+        """A 422, which is what pydantic used to give for these.
+
+        ``subsidy_to_id`` was typed as an ``int`` on the schema, so anything
+        else never reached the code. The answers arrive as a free-form ``dict``
+        now and this is the only thing that looks at them, so the shapes a
+        client can send have to come back as refusals rather than as 500s.
+        Neuter ``_as_member`` — ``int(value)`` bare — and every row below
+        becomes an unhandled ``ValueError`` or ``TypeError``.
+        """
+        cases = [
+            {"subsidy_to": "abc"},
+            {"subsidy_to": [1]},
+            {"subsidy_to": {"a": 1}},
+            {"allowance_to": [None]},
+            {"allowance_to": [[1]]},
+            {"allowance_to": {"a": 1}},
+            {"allowance_to": "abc"},
+        ]
+        for answers in cases:
+            with self.subTest(answers=answers):
+                r = self.client.patch(
+                    "/api/finance/statements/{}".format(self.statement.pk),
+                    data={"inputs": answers},
+                    content_type="application/json",
+                    **self.auth(self.owner_user),
+                )
+                self.assertEqual(r.status_code, 422, r.content)
 
     def test_an_answer_naming_somebody_the_rules_did_not_offer(self):
         r = self.client.patch(

@@ -44,6 +44,23 @@ from .engine import statement_context
 #: The input types that name people, and whether more than one may be named.
 MEMBER_TYPES = {"member": False, "member_set": True}
 
+#: The resolution and the ceiling an answer in money has to fit.
+#:
+#: Cents because that is what the engine computes in — ``quantize`` floors to
+#: them, so a third decimal place is silently dropped rather than paid.
+#:
+#: The ceiling is ``max_digits=7``, which is :func:`form_field`'s own money
+#: field: the admin and the API check the same declaration, so they have to
+#: refuse the same answers, and a ceiling the admin's widget would reject
+#: anyway is the one place the two can be made to agree. It is deliberately
+#: *not* the ``max_digits=5`` of the column ``night_cost`` came from — a
+#: section may reimburse more than 999.99 a night and nothing should stop it —
+#: which is why ``0021``'s reverse lists an amount too wide for that column
+#: among the things reversing cannot do.
+MONEY_PLACES = 2
+MONEY_DIGITS = 7
+MONEY_MAX = Decimal(10 ** (MONEY_DIGITS - MONEY_PLACES)) - Decimal("0.01")
+
 
 def declarations(statement: Any) -> list[Input]:
     """The questions ``statement`` still has to ask, in order.
@@ -95,18 +112,27 @@ def rendered(statement: Any) -> list[dict[str, Any]]:
 
 
 def party_keys(statement: Any) -> set[str]:
-    """The declared keys that name people.
+    """Every key that names people, asked of ``inputs`` and not of the form.
 
     An answer naming somebody is only admissible against the trip it was given
     for: swap the excursion and last week's youth leaders are no longer
-    eligible for anything. The caller drops these rather than the four columns
-    it used to know by name.
+    eligible for anything, and a deleted member has to come out of every answer
+    that still names them. Callers drop these rather than the four columns they
+    used to know by name.
+
+    Asked of :meth:`~kompass.rules.Ruleset.inputs` rather than through
+    :func:`declarations`, which asks ``relevant_inputs``: the question this has
+    to match is the one :func:`finance.engine.context.build_context` asks, so
+    that a ruleset narrowing only ``relevant_inputs`` cannot put a key out of
+    reach here while the engine goes on reading it. The two questions
+    disagreeing at all is taxis #579; what this guarantees is that *this* set is
+    never the smaller of the two.
     """
-    return {
-        declaration.key
-        for declaration in declarations(statement)
-        if declaration.type in MEMBER_TYPES
-    }
+    ruleset = ruleset_for(statement)
+    context = statement_context(statement, ruleset)
+    with no_queries():
+        declared = ruleset.inputs(context)
+    return {declaration.key for declaration in declared if declaration.type in MEMBER_TYPES}
 
 
 def form_field(declaration: Input) -> Any:
@@ -135,7 +161,11 @@ def form_field(declaration: Input) -> Any:
             choices=[("", "---------"), *choices], coerce=int, empty_value=None, **common
         )
     if declaration.type == "money":
-        return forms.DecimalField(decimal_places=2, max_digits=7, min_value=0, **common)
+        # The same bound `_clean_money` enforces, so the widget refuses exactly
+        # what the declaration does rather than its own narrower range.
+        return forms.DecimalField(
+            decimal_places=MONEY_PLACES, max_digits=MONEY_DIGITS, min_value=0, **common
+        )
     if declaration.type == "int":
         return forms.IntegerField(max_value=declaration.max, **common)
     if declaration.type == "bool":
@@ -188,6 +218,24 @@ def clean_value(declaration: Input, value: Any) -> Any:
     return "" if value is None else str(value)
 
 
+def _as_member(value: Any) -> int:
+    """``value`` as a member id, or a refusal the client can read.
+
+    Whatever a client sends for a party-valued answer, this has to come back as
+    a 422 and not as a 500. ``main`` got that from pydantic, which typed
+    ``subsidy_to_id`` as an ``int``; now the answers arrive as a free-form
+    ``dict`` and the only thing that looks at them is here. The message is the
+    one the admin and the API have always given, which is also true of a value
+    that is not a person at all: it is not one of the people the rules offered.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValidationError(
+            _("Only youth leaders of this excursion may receive contributions.")
+        ) from None
+
+
 def _clean_members(declaration: Input, value: Any) -> Any:
     """Who may be named: exactly the people the rules offered, each once.
 
@@ -210,16 +258,17 @@ def _clean_members(declaration: Input, value: Any) -> Any:
     many = MEMBER_TYPES[declaration.type]
     if value is None:
         return [] if many else None
-    picked = list(value) if many else [value]
+    picked = list(value) if many and isinstance(value, list) else [value]
     allowed = {member.id for member in declaration.options}
-    for member_id in picked:
-        if int(member_id) not in allowed:
+    ids = [_as_member(member_id) for member_id in picked]
+    for member_id in ids:
+        if member_id not in allowed:
             raise ValidationError(
                 _("Only youth leaders of this excursion may receive contributions.")
             )
     if not many:
-        return int(picked[0])
-    resolved = sorted({int(member_id) for member_id in picked})
+        return ids[0]
+    resolved = sorted(set(ids))
     if declaration.max is not None and len(resolved) > declaration.max:
         raise ValidationError(
             _(
@@ -229,17 +278,6 @@ def _clean_members(declaration: Input, value: Any) -> Any:
             % {"approved_count": str(declaration.max), "entered_count": str(len(resolved))}
         )
     return resolved
-
-
-#: The resolution and the ceiling an answer in money has to fit.
-#:
-#: Cents because that is what the engine computes in — ``quantize`` floors to
-#: them, so a third decimal place is silently dropped rather than paid — and a
-#: ceiling because an unbounded answer is a figure no section's books hold,
-#: and one that ``0021``'s reverse cannot write back into the
-#: ``max_digits=5`` column it came from.
-MONEY_PLACES = 2
-MONEY_MAX = Decimal("999999999.99")
 
 
 def _clean_money(declaration: Input, value: Any) -> Decimal:

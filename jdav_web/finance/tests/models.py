@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -23,6 +24,7 @@ from finance.models import StatementUnSubmittedManager
 from finance.models import Transaction
 from finance.models import TransactionIssue
 from finance.rules_api import Member as RuleMember
+from finance.rulesets.heidelberg import HeidelbergRules
 from finance.testing import also
 from finance.testing import answer
 from finance.testing import without
@@ -37,6 +39,17 @@ from members.models import MALE
 from members.models import Member
 from members.models import MUSKELKRAFT_ANREISE
 from members.models import NewMemberOnList
+
+
+class NarrowedForm(HeidelbergRules):
+    """Heidelberg with one question taken off the form but still read.
+
+    Which is the asymmetry taxis #579 is about: ``relevant_inputs`` narrows
+    what a person is asked while ``inputs`` keeps naming what the rules read.
+    """
+
+    def relevant_inputs(self, ctx):
+        return [declaration for declaration in self.inputs(ctx) if declaration.key != "subsidy_to"]
 
 
 # Create your tests here.
@@ -731,6 +744,118 @@ class StatementTestCase(TestCase):
             if isinstance(transfer.destination, RuleMember)
         }
         self.assertNotIn(ghost.pk, named)
+
+    def test_deleting_a_member_leaves_a_handed_in_statement_alone(self):
+        """A frozen statement is not the receiver's business, and must not be.
+
+        It is already safe: ``Obligation``'s member columns are ``SET_NULL``
+        and ``destination_name`` is copied onto the row so the record stays
+        readable without the member. Pruning it instead would reach past every
+        freeze — ``update_statement`` refuses any edit, the admin's fields are
+        read-only, a confirmed statement may not be touched at all — and the
+        next edit that *is* allowed, a treasurer marking a bill covered,
+        re-materialises the live rows, so the deleted person's allowance and
+        subsidy would quietly stop being owed and the participants' share
+        would be re-struck.
+
+        Neuter it — drop the ``status=UNSUBMITTED`` filter — and all four
+        assertions below go red, the last two by the figures moving.
+        """
+        ghost = Member.objects.create(
+            prename="Weg", lastname="Eingereicht", email=settings.TEST_MAIL, gender=0
+        )
+        self.st3.excursion.jugendleiter.add(ghost)
+        answer(self.st3, subsidy_to=ghost.pk, allowance_to=[ghost.pk])
+        gone, named = ghost.pk, ghost.name
+        self.st3.submit(self.fritz)
+
+        def live():
+            return self.st3.obligation_set.filter(superseded_at=None)
+
+        frozen = {(row.destination_name, row.amount_cents) for row in live()}
+        owed = self.st3.total
+        self.assertEqual(live().filter(destination_member_id=gone).count(), 2)
+
+        ghost.delete()
+
+        self.st3.refresh_from_db()
+        self.assertEqual(self.st3.inputs["subsidy_to"], gone)
+        self.assertEqual(self.st3.inputs["allowance_to"], [gone])
+        # Every row still owes the same amount to the same name. The deleted
+        # member's two rows kept theirs through `SET_NULL` plus the copied
+        # `destination_name`, which is the mechanism that makes pruning a
+        # handed-in statement unnecessary in the first place.
+        self.assertEqual({(row.destination_name, row.amount_cents) for row in live()}, frozen)
+        self.assertEqual(live().filter(destination_name=named).count(), 2)
+        self.assertEqual(
+            list(
+                live()
+                .filter(destination_name=named)
+                .values_list("destination_member_id", flat=True)
+            ),
+            [None, None],
+        )
+        self.assertEqual(self.st3.total, owed)
+
+    def test_a_ruleset_that_raises_does_not_make_members_undeletable(self):
+        """Asking the rules runs inside the deletion's own transaction.
+
+        So a section's bug must not propagate: it would poison that
+        transaction, roll the deletion back and leave the member in place.
+        Neuter the ``try`` in ``signals._party_keys`` and this raises instead,
+        with the member still there.
+        """
+        ghost = Member.objects.create(
+            prename="Kaputt", lastname="Regeln", email=settings.TEST_MAIL, gender=0
+        )
+        answer(self.st6, subsidy_to=ghost.pk)
+        gone = ghost.pk
+        with patch("finance.signals.party_keys", side_effect=RuntimeError("a section's bug")):
+            ghost.delete()
+        self.assertFalse(Member.objects.filter(pk=gone).exists())
+        # The id stays in the draft, which is the harmless half: the readout
+        # drops it and nothing has frozen it.
+        self.st6.refresh_from_db()
+        self.assertEqual(self.st6.inputs["subsidy_to"], gone)
+        self.assertIsNone(self.st6.subsidy_to)
+
+    def test_a_question_only_the_engine_still_reads_is_pruned_too(self):
+        """``party_keys`` asks ``inputs``, not ``relevant_inputs``.
+
+        A ruleset may narrow the second to take a question off the form. The
+        engine goes on reading the first, so pruning by the form's set would
+        skip exactly the key whose dangling id this exists to remove — and
+        ``materialise`` would then write an obligation against a member row
+        that is gone. Neuter it (ask ``relevant_inputs``) and the id survives.
+        """
+        ghost = Member.objects.create(
+            prename="Nur", lastname="Engine", email=settings.TEST_MAIL, gender=0
+        )
+        self.st3.excursion.jugendleiter.add(ghost)
+        answer(self.st3, subsidy_to=ghost.pk)
+        # Patched where the receiver reads it, not on the imported class: a
+        # statement's ruleset is exec'd from its own stored sources under a
+        # hash-named package, so `HeidelbergRules` there is a different class
+        # object and patching this one would have proved nothing.
+        with patch("finance.inputs.ruleset_for", return_value=NarrowedForm()):
+            ghost.delete()
+        self.st3.refresh_from_db()
+        self.assertIsNone(self.st3.inputs["subsidy_to"])
+
+    def test_a_statement_the_rules_cannot_settle_does_not_read_as_correct(self):
+        """The readout has to say so, because every figure in it reads as zero.
+
+        An answer that no longer fits its declaration is handed through to the
+        rules on purpose, so the page renders and somebody can reach the form —
+        but the money figures are recomputed from it in Python and come out at
+        zero, the arithmetic then agrees with itself, and the statement used to
+        report "everything is correct" and let itself be confirmed. Neuter the
+        ``rule_result.errors`` check in ``validity`` and both assertions go red.
+        """
+        answer(self.st3, night_cost={"was": "once a number"})
+        self.assertEqual(self.st3.validity, Statement.UNRESOLVED)
+        self.assertFalse(self.st3.is_valid())
+        self.assertNotEqual(str(self.st3.validity_display), str(_("Everything is correct.")))
 
     def test_an_answer_naming_somebody_who_is_gone_names_nobody(self):
         """Belt and braces for a row the receiver never saw.
