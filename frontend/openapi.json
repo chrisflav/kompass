@@ -11785,6 +11785,105 @@
         ]
       }
     },
+    "/api/logindata/tokens": {
+      "get": {
+        "operationId": "logindata_api_tokens_router_list_tokens",
+        "summary": "List Tokens",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PersonalTokenOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "The requesting user's own personal access tokens, newest first.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "logindata_api_tokens_router_create_token",
+        "summary": "Create Token",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalTokenCreated"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a token for the requesting user; the answer is the only time it is shown.",
+        "tags": [
+          "logindata"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/logindata/tokens/{token_id}": {
+      "delete": {
+        "operationId": "logindata_api_tokens_router_revoke_token",
+        "summary": "Revoke Token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_id",
+            "schema": {
+              "title": "Token Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "description": "Revoke one of the requesting user's tokens; it stops working at once.",
+        "tags": [
+          "logindata"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/ludwigsburgalpin/public/enums": {
       "get": {
         "operationId": "ludwigsburgalpin_api_public_public_termin_enums",
@@ -24992,6 +25091,106 @@
           "password"
         ],
         "title": "RegistrationPasswordIn",
+        "type": "object"
+      },
+      "PersonalTokenOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "read_only": {
+            "title": "Read Only",
+            "type": "boolean"
+          },
+          "created": {
+            "format": "date-time",
+            "title": "Created",
+            "type": "string"
+          },
+          "expires": {
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "read_only",
+          "created",
+          "expires"
+        ],
+        "title": "PersonalTokenOut",
+        "type": "object"
+      },
+      "PersonalTokenCreated": {
+        "description": "The created token, the one time its secret is shown.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "read_only": {
+            "title": "Read Only",
+            "type": "boolean"
+          },
+          "created": {
+            "format": "date-time",
+            "title": "Created",
+            "type": "string"
+          },
+          "expires": {
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "read_only",
+          "created",
+          "expires",
+          "token"
+        ],
+        "title": "PersonalTokenCreated",
+        "type": "object"
+      },
+      "PersonalTokenIn": {
+        "description": "A new token: what to call it, whether it may write, how many days it lives.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "read_only": {
+            "default": true,
+            "title": "Read Only",
+            "type": "boolean"
+          },
+          "days": {
+            "default": 30,
+            "title": "Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PersonalTokenIn",
         "type": "object"
       },
       "TerminSubmit": {

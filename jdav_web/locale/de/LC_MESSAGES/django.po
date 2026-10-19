@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 19:04+0200\n"
+"POT-Creation-Date: 2026-10-19 23:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,6 +28,9 @@ msgstr "Unzureichende Berechtigungen"
 #, python-format
 msgid "You are not allowed to view %(name)s."
 msgstr "Du hast nicht die notwendigen Berechtigungen um %(name)s zu sehen."
+
+msgid "This access token may only read."
+msgstr "Dieses Zugangstoken darf nur lesen."
 
 msgid "No member is linked to this account."
 msgstr "Diesem Konto ist kein Mitglied zugeordnet."
@@ -96,6 +99,15 @@ msgstr "Das eingegebene Passwort ist falsch."
 msgid "Registration failed."
 msgstr "Die Registrierung ist fehlgeschlagen."
 
+msgid "Access tokens can only be managed after signing in."
+msgstr "Zugangstokens lassen sich nur nach einer Anmeldung verwalten."
+
+msgid "Give the token a name."
+msgstr "Gib dem Token einen Namen."
+
+msgid "Choose one of the offered lifetimes."
+msgstr "Wähle eine der angebotenen Gültigkeitsdauern."
+
 msgid "Authentication"
 msgstr "Authentifizierung"
 
@@ -119,6 +131,24 @@ msgstr "Aktives Registrierungspasswort"
 
 msgid "Active registration passwords"
 msgstr "Aktive Registrierungspasswörter"
+
+msgid "name"
+msgstr "Name"
+
+msgid "read only"
+msgstr "nur lesen"
+
+msgid "created"
+msgstr "erstellt"
+
+msgid "Personal access token"
+msgstr "Persönliches Zugangstoken"
+
+msgid "Personal access tokens"
+msgstr "Persönliche Zugangstokens"
+
+msgid "Can create personal access tokens"
+msgstr "Kann persönliche Zugangstokens erstellen"
 
 msgid "Registration"
 msgstr "Registrierung"

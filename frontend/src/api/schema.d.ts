@@ -4348,6 +4348,50 @@ export interface paths {
         patch: operations["logindata_api_admin_router_update_registration_password"];
         trace?: never;
     };
+    "/api/logindata/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tokens
+         * @description The requesting user's own personal access tokens, newest first.
+         */
+        get: operations["logindata_api_tokens_router_list_tokens"];
+        put?: never;
+        /**
+         * Create Token
+         * @description Create a token for the requesting user; the answer is the only time it is shown.
+         */
+        post: operations["logindata_api_tokens_router_create_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logindata/tokens/{token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Token
+         * @description Revoke one of the requesting user's tokens; it stops working at once.
+         */
+        delete: operations["logindata_api_tokens_router_revoke_token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ludwigsburgalpin/public/enums": {
         parameters: {
             query?: never;
@@ -9561,6 +9605,67 @@ export interface components {
         RegistrationPasswordIn: {
             /** Password */
             password: string;
+        };
+        /** PersonalTokenOut */
+        PersonalTokenOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Read Only */
+            read_only: boolean;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created: string;
+            /**
+             * Expires
+             * Format: date-time
+             */
+            expires: string;
+        };
+        /**
+         * PersonalTokenCreated
+         * @description The created token, the one time its secret is shown.
+         */
+        PersonalTokenCreated: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Read Only */
+            read_only: boolean;
+            /**
+             * Created
+             * Format: date-time
+             */
+            created: string;
+            /**
+             * Expires
+             * Format: date-time
+             */
+            expires: string;
+            /** Token */
+            token: string;
+        };
+        /**
+         * PersonalTokenIn
+         * @description A new token: what to call it, whether it may write, how many days it lives.
+         */
+        PersonalTokenIn: {
+            /** Name */
+            name: string;
+            /**
+             * Read Only
+             * @default true
+             */
+            read_only: boolean;
+            /**
+             * Days
+             * @default 30
+             */
+            days: number;
         };
         /**
          * TerminSubmit
@@ -16697,6 +16802,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RegistrationPasswordOut"];
                 };
+            };
+        };
+    };
+    logindata_api_tokens_router_list_tokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalTokenOut"][];
+                };
+            };
+        };
+    };
+    logindata_api_tokens_router_create_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonalTokenIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalTokenCreated"];
+                };
+            };
+        };
+    };
+    logindata_api_tokens_router_revoke_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
