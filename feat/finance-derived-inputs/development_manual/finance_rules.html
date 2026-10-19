@@ -667,10 +667,13 @@ the figure where the rule will read it from:</p>
 <code class="docutils literal notranslate"><span class="pre">excursion</span></code> out and the same declaration is an ordinary question, so a case
 with <code class="docutils literal notranslate"><span class="pre">"inputs":</span> <span class="pre">{"kilometers":</span> <span class="pre">250}</span></code> and no trip is the statement that
 settles a purchase. Both arms of one declaration, in two files.</p>
-<p>Option sources are resolved for a case too, from the same context — the
-<code class="docutils literal notranslate"><span class="pre">bills</span></code> above are where <code class="docutils literal notranslate"><span class="pre">options_source="bills.payers"</span></code> finds member 7 —
-so a case that answers a party-valued question is checked against the people
-the instance would really have offered.</p>
+<p>An option source is resolved for a case too, out of the context the file
+describes: the <code class="docutils literal notranslate"><span class="pre">bills</span></code> above are where <code class="docutils literal notranslate"><span class="pre">options_source="bills.payers"</span></code>
+finds member 7. A case’s own answers are not validated against it — the case
+runner types them and nothing more, the same as it has always done — but
+<code class="docutils literal notranslate"><span class="pre">--fuzz</span></code> answers a party-valued question out of exactly that set, so a
+ruleset whose option source comes out empty is a ruleset the fuzzer will keep
+offering nobody to.</p>
 </section>
 </section>
 <section id="checking-a-ruleset">
@@ -822,6 +825,19 @@ raise for a problem with the statement; raising is for a broken
 which is enough for a ruleset whose <code class="docutils literal notranslate"><span class="pre">inputs</span></code> branches on them — drop
 the question about the price per night once „no subsidy“ has been
 answered, and it stops being asked.</p>
+<p>This and <a class="reference internal" href="#kompass.rules.Ruleset.inputs" title="kompass.rules.Ruleset.inputs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">inputs()</span></code></a> have different jobs, and overriding this one
+overrides only the second of them. <code class="docutils literal notranslate"><span class="pre">inputs</span></code> says what may be
+<strong>read</strong>: the whole vocabulary, every key an answer may be stored
+under, and the list that reading a key is checked against. This says
+what is being <strong>asked</strong>: the form, and the set an answer has to be in
+to count. A question this leaves out is off the form, the API refuses
+an answer for it, and the rules read it as <em>unanswered</em> — the type’s
+empty value, whatever is still stored under the key.</p>
+<p>So what the form does not ask, the rules read as unanswered, and
+retiring a question stops it moving money. Reading a retired key is
+not an error; it reads empty, because a question nobody can see is not
+something a rule should fail on. Narrow <code class="docutils literal notranslate"><span class="pre">inputs</span></code> here rather than
+widening it.</p>
 </dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="kompass.rules.Ruleset.approval">
