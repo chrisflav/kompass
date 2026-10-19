@@ -13,6 +13,7 @@ const TOKEN = {
   read_only: true,
   created: "2026-10-19T20:00:00Z",
   expires: "2099-11-18T20:00:00Z",
+  user: { id: 2, username: "hannah.becker" },
 };
 
 function listReturns(rows: unknown[] = [TOKEN]) {
@@ -70,7 +71,9 @@ describe("access tokens", () => {
     await user.click(dropdown().getByRole("button", { name: "90 Tage" }));
     await user.click(dialog.getByRole("button", { name: "Erstellen" }));
 
-    await waitFor(() => expect(body).toEqual({ name: "Claude", read_only: false, days: 90 }));
+    await waitFor(() =>
+      expect(body).toEqual({ name: "Claude", read_only: false, days: 90, user_id: null }),
+    );
     const shown = within(await screen.findByRole("dialog", { name: "Token erstellt" }));
     expect(shown.getByText("kompass_pat_geheim")).toBeInTheDocument();
     expect(shown.getByText(/Authorization: Bearer kompass_pat_geheim/)).toBeInTheDocument();
@@ -88,6 +91,69 @@ describe("access tokens", () => {
 
     await user.click(shown.getByRole("button", { name: "Fertig" }));
     expect(screen.queryByText("kompass_pat_geheim")).toBeNull();
+  });
+
+  it("creates a token that never expires", async () => {
+    useMe({ permissions: [CREATE] });
+    listReturns([{ ...TOKEN, expires: null }]);
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(api("/api/logindata/tokens"), async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...TOKEN, expires: null, token: "kompass_pat_ewig" }, { status: 201 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/tokens");
+    // Listed without an expiry.
+    expect(await screen.findByText("unbegrenzt")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Neues Token" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText(/Name/), "Skript");
+    await user.click(dialog.getByRole("button", { name: /^Gültigkeit/ }));
+    await user.click(dropdown().getByRole("button", { name: "Unbegrenzt" }));
+    expect(dialog.getByText(/Läuft nie ab/)).toBeInTheDocument();
+    // Only a superuser picks the account.
+    expect(dialog.queryByRole("button", { name: /^Konto/ })).toBeNull();
+    await user.click(dialog.getByRole("button", { name: "Erstellen" }));
+    await waitFor(() => expect(body).toMatchObject({ days: null, user_id: null }));
+  });
+
+  it("lets a superuser create a token for a bot account and see every account's", async () => {
+    useMe({ is_superuser: true });
+    listReturns([TOKEN, { ...TOKEN, id: 4, name: "Bot", user: { id: 9, username: "feedback-bot" } }]);
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.get(api("/api/logindata/users"), () =>
+        HttpResponse.json([
+          { id: 2, username: "hannah.becker", is_active: true, is_staff: true, is_superuser: true },
+          { id: 9, username: "feedback-bot", is_active: true, is_staff: false, is_superuser: false },
+        ]),
+      ),
+      http.post(api("/api/logindata/tokens"), async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { ...TOKEN, id: 5, user: { id: 9, username: "feedback-bot" }, token: "kompass_pat_bot" },
+          { status: 201 },
+        );
+      }),
+    );
+    const { user } = renderRoute("/kompass/tokens");
+    expect(await screen.findByRole("columnheader", { name: "Konto" })).toBeInTheDocument();
+    expect(screen.getByText("feedback-bot")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Neues Token" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText(/Name/), "Feedback-Bot");
+    await user.click(dialog.getByRole("button", { name: /^Konto/ }));
+    // One's own account is the default, not a choice in the list.
+    expect(dropdown().queryByRole("button", { name: "hannah.becker" })).toBeNull();
+    await user.click(await dropdown().findByRole("button", { name: "feedback-bot" }));
+    await user.click(dialog.getByRole("button", { name: "Erstellen" }));
+
+    await waitFor(() => expect(body).toMatchObject({ user_id: 9 }));
+    const shown = within(await screen.findByRole("dialog", { name: "Token erstellt" }));
+    expect(shown.getByText("feedback-bot")).toBeInTheDocument();
   });
 
   it("shows the reason a token was refused on its field", async () => {

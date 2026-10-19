@@ -137,6 +137,42 @@ class PersonalAccessTokenApiTestCase(TestCase):
         )
         self.assertEqual(self.client.get(TOKENS, **bearer(created["token"])).status_code, 401)
 
+    def test_a_token_may_never_expire(self):
+        r = self.create(days=None)
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertIsNone(r.json()["expires"])
+        self.assertIsNone(self.client.get(TOKENS, **self.session(self.owner)).json()[0]["expires"])
+        self.assertEqual(self.client.get(TOKENS, **bearer(r.json()["token"])).status_code, 200)
+
+    def test_a_superuser_creates_a_token_for_a_bot(self):
+        admin = User.objects.create_superuser("admin", password="secret")
+        bot = User.objects.create_user("feedback-bot")
+        r = self.create(headers=self.session(admin), user_id=bot.pk, days=None)
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.json()["user"], {"id": bot.pk, "username": "feedback-bot"})
+        # The token acts as the bot, which sees its own token...
+        listed = self.client.get(TOKENS, **bearer(r.json()["token"])).json()
+        self.assertEqual([t["user"]["username"] for t in listed], ["feedback-bot"])
+        # ...and the superuser, who manages every account's tokens, revokes it.
+        self.create()
+        everyone = self.client.get(TOKENS, **self.session(admin)).json()
+        self.assertEqual({t["user"]["username"] for t in everyone}, {"feedback-bot", "owner"})
+        r = self.client.delete("{}/{}".format(TOKENS, r.json()["id"]), **self.session(admin))
+        self.assertEqual(r.status_code, 204)
+        self.assertFalse(AccessToken.objects.filter(user=bot).exists())
+
+    def test_only_a_superuser_creates_tokens_for_other_accounts(self):
+        r = self.create(user_id=self.other.pk)
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(r.json()["displayable"])
+        self.assertFalse(PersonalAccessToken.objects.exists())
+        # Naming oneself is no other account.
+        self.assertEqual(self.create(user_id=self.owner.pk).status_code, 201)
+
+    def test_a_token_for_an_unknown_account_is_a_404(self):
+        admin = User.objects.create_superuser("admin", password="secret")
+        self.assertEqual(self.create(headers=self.session(admin), user_id=999999).status_code, 404)
+
     def test_a_token_is_named_by_its_name(self):
         self.create()
         self.assertEqual(str(PersonalAccessToken.objects.get()), "Feedback abholen")

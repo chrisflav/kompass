@@ -11806,7 +11806,7 @@
             }
           }
         },
-        "description": "The requesting user's own personal access tokens, newest first.",
+        "description": "The personal access tokens the requesting user manages, newest first.",
         "tags": [
           "logindata"
         ],
@@ -11873,7 +11873,7 @@
             "description": "No Content"
           }
         },
-        "description": "Revoke one of the requesting user's tokens; it stops working at once.",
+        "description": "Revoke a token the requesting user manages; it stops working at once.",
         "tags": [
           "logindata"
         ],
@@ -25113,9 +25113,19 @@
             "type": "string"
           },
           "expires": {
-            "format": "date-time",
-            "title": "Expires",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
+          "user": {
+            "$ref": "#/components/schemas/TokenOwner"
           }
         },
         "required": [
@@ -25123,9 +25133,28 @@
           "name",
           "read_only",
           "created",
-          "expires"
+          "expires",
+          "user"
         ],
         "title": "PersonalTokenOut",
+        "type": "object"
+      },
+      "TokenOwner": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username"
+        ],
+        "title": "TokenOwner",
         "type": "object"
       },
       "PersonalTokenCreated": {
@@ -25149,9 +25178,19 @@
             "type": "string"
           },
           "expires": {
-            "format": "date-time",
-            "title": "Expires",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
+          "user": {
+            "$ref": "#/components/schemas/TokenOwner"
           },
           "token": {
             "title": "Token",
@@ -25164,13 +25203,14 @@
           "read_only",
           "created",
           "expires",
+          "user",
           "token"
         ],
         "title": "PersonalTokenCreated",
         "type": "object"
       },
       "PersonalTokenIn": {
-        "description": "A new token: what to call it, whether it may write, how many days it lives.",
+        "description": "A new token: what to call it, whether it may write, how many days it lives.\n\n``days`` null makes a token that never expires. ``user_id`` names another\naccount to create it for, which only a superuser may.",
         "properties": {
           "name": {
             "title": "Name",
@@ -25182,9 +25222,27 @@
             "type": "boolean"
           },
           "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "default": 30,
-            "title": "Days",
-            "type": "integer"
+            "title": "Days"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
           }
         },
         "required": [

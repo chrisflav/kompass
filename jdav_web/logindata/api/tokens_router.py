@@ -6,14 +6,19 @@ rights and dates are listed. Creating one takes
 does not, so someone who loses the permission can still end the tokens they
 made. Neither works with a personal access token itself: a token must not mint
 longer-lived or wider tokens, nor revoke its owner's others.
+
+Superusers also create tokens for other accounts — a bot account that never
+signs in, say — and see and revoke every account's tokens.
 """
 
 import secrets
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone as dt_timezone
 
 from contrib.api.perms import authorize
 from contrib.api.perms import Forbidden
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -26,18 +31,31 @@ from oauth2_provider.models import get_access_token_model
 
 router = Router()
 
-# The lifetimes offered when creating a token; there is no token that never expires.
+# The lifetimes offered when creating a token, besides never expiring.
 LIFETIME_DAYS = (7, 30, 90)
+# The toolkit requires an expiry; a token that never expires gets the latest
+# moment the database stores, and is listed without one.
+NEVER = datetime(9999, 12, 31, tzinfo=dt_timezone.utc)
 # Recognisable in a leaked config file or a secret scanner's rules.
 TOKEN_PREFIX = "kompass_pat_"
 
 
 class PersonalTokenIn(Schema):
-    """A new token: what to call it, whether it may write, how many days it lives."""
+    """A new token: what to call it, whether it may write, how many days it lives.
+
+    ``days`` null makes a token that never expires. ``user_id`` names another
+    account to create it for, which only a superuser may.
+    """
 
     name: str
     read_only: bool = True
-    days: int = 30
+    days: int | None = 30
+    user_id: int | None = None
+
+
+class TokenOwner(Schema):
+    id: int
+    username: str
 
 
 class PersonalTokenOut(Schema):
@@ -45,7 +63,9 @@ class PersonalTokenOut(Schema):
     name: str
     read_only: bool
     created: datetime
-    expires: datetime
+    # Null for a token that never expires.
+    expires: datetime | None
+    user: TokenOwner
 
 
 class PersonalTokenCreated(PersonalTokenOut):
@@ -60,20 +80,29 @@ def _refuse_token_auth(request):
 
 
 def _out(personal):
+    access_token = personal.access_token
     return {
         "id": personal.pk,
         "name": personal.name,
         "read_only": personal.read_only,
         "created": personal.created,
-        "expires": personal.access_token.expires,
+        "expires": None if access_token.expires >= NEVER else access_token.expires,
+        "user": {"id": access_token.user.pk, "username": access_token.user.username},
     }
+
+
+def _visible_tokens(request):
+    """Every account's tokens for a superuser, one's own for anyone else."""
+    tokens = PersonalAccessToken.objects.select_related("access_token__user")
+    if request.user.is_superuser:
+        return tokens
+    return tokens.filter(access_token__user=request.user)
 
 
 @router.get("/tokens", response=list[PersonalTokenOut])
 def list_tokens(request):
-    """The requesting user's own personal access tokens, newest first."""
-    tokens = PersonalAccessToken.objects.filter(access_token__user=request.user)
-    return [_out(t) for t in tokens.select_related("access_token")]
+    """The personal access tokens the requesting user manages, newest first."""
+    return [_out(t) for t in _visible_tokens(request)]
 
 
 @router.post("/tokens", response={201: PersonalTokenCreated})
@@ -84,13 +113,22 @@ def create_token(request, payload: PersonalTokenIn):
     name = payload.name.strip()
     if not name:
         raise ValidationError({"name": [_("Give the token a name.")]})
-    if payload.days not in LIFETIME_DAYS:
+    if payload.days is not None and payload.days not in LIFETIME_DAYS:
         raise ValidationError({"days": [_("Choose one of the offered lifetimes.")]})
+    owner = request.user
+    if payload.user_id is not None and payload.user_id != request.user.pk:
+        if not request.user.is_superuser:
+            raise Forbidden(_("Only superusers can create tokens for other accounts."))
+        owner = get_object_or_404(User, pk=payload.user_id)
+    if payload.days is None:
+        expires = NEVER
+    else:
+        expires = timezone.now() + timedelta(days=payload.days)
     with transaction.atomic():
         access_token = get_access_token_model().objects.create(
-            user=request.user,
+            user=owner,
             token=TOKEN_PREFIX + secrets.token_urlsafe(32),
-            expires=timezone.now() + timedelta(days=payload.days),
+            expires=expires,
             scope="read" if payload.read_only else "read write",
         )
         personal = PersonalAccessToken.objects.create(
@@ -101,9 +139,9 @@ def create_token(request, payload: PersonalTokenIn):
 
 @router.delete("/tokens/{token_id}", response={204: None})
 def revoke_token(request, token_id: int):
-    """Revoke one of the requesting user's tokens; it stops working at once."""
+    """Revoke a token the requesting user manages; it stops working at once."""
     _refuse_token_auth(request)
-    personal = get_object_or_404(PersonalAccessToken, pk=token_id, access_token__user=request.user)
+    personal = get_object_or_404(_visible_tokens(request), pk=token_id)
     # Deleting the access token takes the personal row with it (CASCADE).
     personal.access_token.delete()
     return 204, None

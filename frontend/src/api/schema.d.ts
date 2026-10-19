@@ -4357,7 +4357,7 @@ export interface paths {
         };
         /**
          * List Tokens
-         * @description The requesting user's own personal access tokens, newest first.
+         * @description The personal access tokens the requesting user manages, newest first.
          */
         get: operations["logindata_api_tokens_router_list_tokens"];
         put?: never;
@@ -4384,7 +4384,7 @@ export interface paths {
         post?: never;
         /**
          * Revoke Token
-         * @description Revoke one of the requesting user's tokens; it stops working at once.
+         * @description Revoke a token the requesting user manages; it stops working at once.
          */
         delete: operations["logindata_api_tokens_router_revoke_token"];
         options?: never;
@@ -9619,11 +9619,16 @@ export interface components {
              * Format: date-time
              */
             created: string;
-            /**
-             * Expires
-             * Format: date-time
-             */
-            expires: string;
+            /** Expires */
+            expires: string | null;
+            user: components["schemas"]["TokenOwner"];
+        };
+        /** TokenOwner */
+        TokenOwner: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
         };
         /**
          * PersonalTokenCreated
@@ -9641,17 +9646,18 @@ export interface components {
              * Format: date-time
              */
             created: string;
-            /**
-             * Expires
-             * Format: date-time
-             */
-            expires: string;
+            /** Expires */
+            expires: string | null;
+            user: components["schemas"]["TokenOwner"];
             /** Token */
             token: string;
         };
         /**
          * PersonalTokenIn
          * @description A new token: what to call it, whether it may write, how many days it lives.
+         *
+         *     ``days`` null makes a token that never expires. ``user_id`` names another
+         *     account to create it for, which only a superuser may.
          */
         PersonalTokenIn: {
             /** Name */
@@ -9665,7 +9671,9 @@ export interface components {
              * Days
              * @default 30
              */
-            days: number;
+            days: number | null;
+            /** User Id */
+            user_id?: number | null;
         };
         /**
          * TerminSubmit

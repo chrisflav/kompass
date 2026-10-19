@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { API_BASE } from "../../api/client";
 import { ApiError, client, unwrap } from "../../api/http";
-import { usePermissions } from "../../api/me";
+import { useMe, usePermissions } from "../../api/me";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import {
   Badge,
@@ -23,10 +23,13 @@ type PersonalTokenCreated = components["schemas"]["PersonalTokenCreated"];
 
 const TOKENS_KEY = ["auth", "tokens"];
 
+const NEVER = "never";
+
 const LIFETIME_OPTIONS = [
   { value: "7", label: "7 Tage" },
   { value: "30", label: "30 Tage" },
   { value: "90", label: "90 Tage" },
+  { value: NEVER, label: "Unbegrenzt" },
 ];
 
 const ACCESS_OPTIONS = [
@@ -49,10 +52,11 @@ function formatDateTime(value: string): string {
  * The signed-in user's personal access tokens: bearer tokens for a script or an
  * assistant that should reach the API as this user, without a browser login.
  * Listing and revoking one's own tokens is open to everyone; creating one takes
- * `logindata.create_personalaccesstoken`.
+ * `logindata.create_personalaccesstoken`. A superuser manages every account's
+ * tokens and creates them for other accounts too, such as a bot's.
  */
 export function AccessTokensList() {
-  const { can } = usePermissions();
+  const { can, isSuperuser } = usePermissions();
   const toast = useToast();
   const confirm = useConfirmDialog();
   const [creating, setCreating] = useState(false);
@@ -86,9 +90,9 @@ export function AccessTokensList() {
         }
       />
       <p className="fieldset-help">
-        Ein Token handelt mit deinen Rechten — wer es kennt, sieht und (falls erlaubt) ändert,
-        was du sehen und ändern darfst. Gib es nur Programmen, denen du vertraust, und widerrufe
-        es, sobald es nicht mehr gebraucht wird.
+        Ein Token handelt mit den Rechten seines Kontos — wer es kennt, sieht und (falls erlaubt)
+        ändert, was dieses Konto sehen und ändern darf. Gib es nur Programmen, denen du vertraust,
+        und widerrufe es, sobald es nicht mehr gebraucht wird.
       </p>
       {creating && (
         <CreateTokenModal
@@ -100,13 +104,19 @@ export function AccessTokensList() {
         />
       )}
       {created && <CreatedTokenModal token={created} onClose={() => setCreated(null)} />}
-      <QueryBoundary query={query} empty="Du hast keine Zugangstokens.">
+      <QueryBoundary
+        query={query}
+        empty={isSuperuser ? "Es gibt keine Zugangstokens." : "Du hast keine Zugangstokens."}
+      >
         {(rows: PersonalTokenOut[]) => (
           <DataTable
             rows={rows}
             rowKey={(t) => t.id}
             columns={[
               { header: "Name", cell: (t) => t.name },
+              ...(isSuperuser
+                ? [{ header: "Konto", cell: (t: PersonalTokenOut) => t.user.username }]
+                : []),
               {
                 header: "Rechte",
                 cell: (t) =>
@@ -120,7 +130,9 @@ export function AccessTokensList() {
               {
                 header: "Gültig bis",
                 cell: (t) =>
-                  new Date(t.expires) <= new Date() ? (
+                  t.expires === null ? (
+                    <span className="muted">unbegrenzt</span>
+                  ) : new Date(t.expires) <= new Date() ? (
                     <Badge tone="danger">abgelaufen</Badge>
                   ) : (
                     formatDateTime(t.expires)
@@ -165,16 +177,31 @@ function CreateTokenModal({
   onCreated: (token: PersonalTokenCreated) => void;
 }) {
   const toast = useToast();
+  const { isSuperuser } = usePermissions();
+  const me = useMe();
   const [name, setName] = useState("");
   const [access, setAccess] = useState("read");
   const [days, setDays] = useState("30");
+  // "" is the signed-in account; a superuser may pick another one.
+  const [account, setAccount] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const users = useApiQuery(["auth", "users"], () => unwrap(client.GET("/api/logindata/users")), {
+    enabled: isSuperuser,
+  });
+  const accountOptions = (users.data ?? [])
+    .filter((u) => u.id !== me.data?.user_id)
+    .map((u) => ({ value: String(u.id), label: u.username }));
 
   const mutation = useApiMutation(
     () =>
       unwrap(
         client.POST("/api/logindata/tokens", {
-          body: { name, read_only: access === "read", days: Number(days) },
+          body: {
+            name,
+            read_only: access === "read",
+            days: days === NEVER ? null : Number(days),
+            user_id: account ? Number(account) : null,
+          },
         }),
       ),
     {
@@ -204,10 +231,29 @@ function CreateTokenModal({
         <Field label="Rechte" hint="„Nur lesen“ genügt, um Daten abzurufen.">
           <Select value={access} onChange={setAccess} options={ACCESS_OPTIONS} />
         </Field>
-        <Field label="Gültigkeit">
+        <Field
+          label="Gültigkeit"
+          hint={
+            days === NEVER
+              ? "Läuft nie ab — widerrufe es, sobald es nicht mehr gebraucht wird."
+              : undefined
+          }
+        >
           <Select value={days} onChange={setDays} options={LIFETIME_OPTIONS} />
           {fieldErrors.days && <div className="field-error">{fieldErrors.days.join(" ")}</div>}
         </Field>
+        {isSuperuser && (
+          <Field label="Konto" hint="Für ein anderes Konto, etwa einen Bot, der sich nie anmeldet.">
+            <Select
+              value={account}
+              onChange={setAccount}
+              options={accountOptions}
+              allowEmpty
+              emptyLabel="Mein Konto"
+              placeholder="Mein Konto"
+            />
+          </Field>
+        )}
         <div className="row-actions">
           <Button type="submit" busy={mutation.isPending} disabled={!name.trim()}>
             Erstellen
@@ -236,7 +282,8 @@ function CreatedTokenModal({
     <Modal title="Token erstellt" onClose={onClose} size="sm">
       <div className="stack">
         <p>
-          Kopiere das Token jetzt. Es wird <strong>nur dieses eine Mal</strong> angezeigt.
+          Kopiere das Token für <strong>{token.user.username}</strong> jetzt. Es wird{" "}
+          <strong>nur dieses eine Mal</strong> angezeigt.
         </p>
         <code className="token-secret">{token.token}</code>
         <p className="muted small">So wird es benutzt:</p>
