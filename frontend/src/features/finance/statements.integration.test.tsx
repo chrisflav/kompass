@@ -139,6 +139,7 @@ function declaration(overrides: Record<string, unknown>): Record<string, unknown
     options: [],
     choices: [],
     step: "",
+    derived: false,
     ...overrides,
   };
 }
@@ -901,6 +902,162 @@ describe("submission flow — Erstattung", () => {
     expect(within(refused).getByText(/keine der angebotenen Möglichkeiten/)).toBeInTheDocument();
     const other = screen.getByText("Nächte").closest(".field") as HTMLElement;
     expect(within(other).queryByText(/keine der angebotenen Möglichkeiten/)).toBeNull();
+  });
+
+  it("states a derived answer as a reading instead of asking for it", async () => {
+    // The engine resolves these from the statement's own data on every request.
+    // Rendered as a field they would read as something to fill in — and a
+    // disabled one as something broken.
+    openForm({
+      inputs: [
+        declaration({ key: "km", label: "Gefahrene Kilometer", type: "int", derived: true }),
+        declaration({ key: "fare", label: "Fahrtkosten", type: "money", derived: true }),
+        declaration({ key: "nights", label: "Nächte", type: "int" }),
+      ],
+      answers: { km: 120, fare: "36.00", nights: 2 },
+    });
+
+    const readout = (await screen.findByText("Gefahrene Kilometer")).closest(
+      ".readout",
+    ) as HTMLElement;
+    expect(readout).not.toBeNull();
+    // Where the figure comes from, in the same words the trip's own facts get.
+    expect(within(readout).getByText("Aus der Fahrt übernommen")).toBeInTheDocument();
+    expect(within(readout).getByText("120")).toBeInTheDocument();
+    // Money arrives as text, exactly as a stored answer does, and reads as money.
+    expect(within(readout).getByText("36,00 €")).toBeInTheDocument();
+    // Nothing to type into: not a control, not a disabled control.
+    expect(screen.queryByDisplayValue("120")).toBeNull();
+    expect(screen.queryByDisplayValue("36.00")).toBeNull();
+    // The question beside them is still a question.
+    expect(screen.getByDisplayValue("2")).toBeInTheDocument();
+  });
+
+  it("reads a derived answer in every shape a stored one comes in", async () => {
+    // `/form` hands a derived value over in the shape `Statement.inputs` holds
+    // it — money as text, a person as an id, a set of people as a list of ids —
+    // so one path reads both and a figure the engine supplied reads like a
+    // figure somebody answered.
+    openForm({
+      inputs: [
+        declaration({ key: "fare", label: "Fahrtkosten", type: "money", derived: true }),
+        declaration({ key: "catered", label: "Verpflegt", type: "bool", derived: true }),
+        declaration({ key: "warm", label: "Winterfahrt", type: "bool", derived: true }),
+        declaration({
+          key: "regime",
+          label: "Regelwerk",
+          type: "choice",
+          choices: REGIMES,
+          derived: true,
+        }),
+        declaration({
+          key: "regime_open",
+          label: "Zweitregelwerk",
+          type: "choice",
+          choices: REGIMES,
+          derived: true,
+        }),
+        declaration({
+          key: "lead",
+          label: "Fahrtenleitung",
+          type: "member",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "gone",
+          label: "Kassenwart",
+          type: "member",
+          options: [],
+          derived: true,
+        }),
+        declaration({
+          key: "nobody",
+          label: "Vertretung",
+          type: "member",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "crew",
+          label: "Anerkannte Leitung",
+          type: "member_set",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "extra",
+          label: "Begleitung",
+          type: "member_set",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({ key: "note", label: "Vermerk", type: "text", derived: true }),
+      ],
+      answers: {
+        fare: "36.00",
+        catered: true,
+        warm: false,
+        regime: "ehrenamt",
+        regime_open: null,
+        lead: 9,
+        gone: 4,
+        nobody: null,
+        crew: [7, 9],
+        extra: [],
+        note: "",
+      },
+    });
+
+    const readout = (await screen.findByText("Fahrtkosten")).closest(".readout") as HTMLElement;
+    const read = (label: string) =>
+      (within(readout).getByText(label).nextElementSibling as HTMLElement).textContent;
+    expect(read("Fahrtkosten")).toBe("36,00 €");
+    expect(read("Verpflegt")).toBe("Ja");
+    expect(read("Winterfahrt")).toBe("Nein");
+    // A choice reads as the label it was offered under, not as its stored value.
+    expect(read("Regelwerk")).toBe("Ehrenamtspauschale");
+    expect(read("Zweitregelwerk")).toBe("—");
+    expect(read("Fahrtenleitung")).toBe("Mila Nowak");
+    // A person the rules no longer offer: an id with no name behind it.
+    expect(read("Kassenwart")).toBe("unbekannt");
+    expect(read("Vertretung")).toBe("—");
+    expect(read("Anerkannte Leitung")).toBe("Hannah Beckers, Mila Nowak");
+    expect(read("Begleitung")).toBe("—");
+    expect(read("Vermerk")).toBe("—");
+  });
+
+  it("never sends an answer for a derived question", async () => {
+    // `PATCH` refuses a value for a derived key, keyed by that question. The
+    // form serves the figure in `answers` like any other answer, so a client
+    // that echoes back what it was served gets a 422 — neuter the filter and
+    // this goes red with `km` in the body.
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "km", label: "Gefahrene Kilometer", type: "int", derived: true }),
+        declaration({
+          key: "subsidy_to",
+          label: "Zuschuss an",
+          type: "member",
+          options: LEADERS,
+        }),
+      ],
+      answers: { km: 120, subsidy_to: null },
+    });
+
+    await screen.findByText("Zuschuss an");
+    await user.click(pickerFor("Zuschuss an"));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({ inputs: { subsidy_to: 9 } });
   });
 
   it("groups the questions into the steps the rules named", async () => {
