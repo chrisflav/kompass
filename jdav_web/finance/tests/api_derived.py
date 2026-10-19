@@ -729,15 +729,16 @@ class _DerivedShapes(TravelRules):
 
 
 class _DerivedStructure(TravelRules):
-    """A source that names a nested structure, which is a ruleset's mistake."""
+    """A source that names a nested structure, which is a ruleset's mistake.
+
+    Only ``inputs`` is overridden: ``/form`` asks nothing else, and a
+    ``transfers`` of its own would be a line no test runs.
+    """
 
     def inputs(self, ctx: RuleContext) -> list[Input]:
         return [
             Input("people", "Teilnehmende", "text", required=False, source="excursion.participants")
         ]
-
-    def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
-        return [], []
 
 
 class DerivedMemberReadTestCase(DerivedFormTestCase):
