@@ -1,0 +1,26 @@
+{
+  "name": "Tourenleitung: ab der vierten mitfahrenden Person greift der Deckel von 0,30 €/km",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "travel_to": 1,
+    "passengers": 4
+  },
+  "excursion": {
+    "duration": "1.0",
+    "nights": 0,
+    "kilometers": 100,
+    "approach": "car",
+    "leaders": [1, 2],
+    "staff_count": 2,
+    "approved_staff_count": 2
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "30.00", "travel"],
+      ["PARTICIPANTS", "SECTION", "30.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}

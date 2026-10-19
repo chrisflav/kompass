@@ -1,0 +1,26 @@
+{
+  "name": "Ehrenamt: Tagegeld Österreich über zwei Nächte, 50 € + 2 × 33 € je Person",
+  "inputs": {
+    "regime": "ehrenamt",
+    "country": "oesterreich",
+    "per_diem_to": [1, 2]
+  },
+  "excursion": {
+    "duration": "3.0",
+    "nights": 2,
+    "kilometers": 0,
+    "approach": "public",
+    "leaders": [1, 2],
+    "staff_count": 2,
+    "approved_staff_count": 2
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "116.00", "per_diem"],
+      ["SECTION", "2", "116.00", "per_diem"],
+      ["PARTICIPANTS", "SECTION", "232.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Sonderabsprache 3: ohne eigene Übernachtungskosten gibt es keine 10 € pro Nacht",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "no_night_cost": true,
+    "nights_to": [1, 2]
+  },
+  "excursion": {
+    "duration": "4.0",
+    "nights": 3,
+    "kilometers": 0,
+    "approach": "public",
+    "leaders": [1, 2],
+    "staff_count": 2,
+    "approved_staff_count": 2
+  },
+  "expect": {
+    "transfers": [
+      ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}

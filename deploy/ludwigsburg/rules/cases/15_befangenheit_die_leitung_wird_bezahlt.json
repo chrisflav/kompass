@@ -1,0 +1,35 @@
+{
+  "name": "Befangenheit: die einzige Leitung dieser Fahrt wird selbst bezahlt und darf nicht freigeben",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "travel_to": 1
+  },
+  "bills": [
+    {
+      "id": 1,
+      "amount": "40.00",
+      "covered": true,
+      "payer": 1,
+      "description": "Verpflegung für die Gruppe"
+    }
+  ],
+  "excursion": {
+    "duration": "1.0",
+    "nights": 0,
+    "kilometers": 50,
+    "approach": "car",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 1
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "40.00", "bill"],
+      ["SECTION", "1", "10.00", "travel"],
+      ["PARTICIPANTS", "SECTION", "50.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}

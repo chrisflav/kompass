@@ -1,0 +1,27 @@
+{
+  "name": "Tourenleitung kennt kein Tagegeld: nur die Übernachtungspauschale bleibt",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "country": "oesterreich",
+    "per_diem_to": [1],
+    "nights_to": [1]
+  },
+  "excursion": {
+    "duration": "3.0",
+    "nights": 2,
+    "kilometers": 0,
+    "approach": "public",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 1
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "20.00", "nights"],
+      ["PARTICIPANTS", "SECTION", "20.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}

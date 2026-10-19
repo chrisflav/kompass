@@ -1,0 +1,35 @@
+{
+  "name": "1.010 € Abrechnungssumme: dieselbe Abrechnung, zehn Euro teurer, braucht den Schatzmeister",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "travel_to": 1
+  },
+  "bills": [
+    {
+      "id": 1,
+      "amount": "950.00",
+      "covered": true,
+      "payer": 2,
+      "description": "Hüttenmiete"
+    }
+  ],
+  "excursion": {
+    "duration": "3.0",
+    "nights": 2,
+    "kilometers": 300,
+    "approach": "car",
+    "leaders": [1, 2],
+    "staff_count": 2,
+    "approved_staff_count": 2
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "2", "950.00", "bill"],
+      ["SECTION", "1", "60.00", "travel"],
+      ["PARTICIPANTS", "SECTION", "1010.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}
