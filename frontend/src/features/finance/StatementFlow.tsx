@@ -24,6 +24,7 @@ import type { components } from "../../api/schema";
 type StatementOut = components["schemas"]["StatementOut"];
 type StatementFormOut = components["schemas"]["StatementFormOut"];
 type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
+type FormStepOut = components["schemas"]["FormStepOut"];
 type TransferPartyOut = components["schemas"]["TransferPartyOut"];
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
 type ExcursionOut = components["schemas"]["ExcursionOut"];
@@ -874,16 +875,64 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
   }
   return (
     <>
-      {form.inputs.map((declaration) => (
+      {form.steps.map((step) => (
+        <AnswerGroup
+          key={step.label}
+          step={step}
+          form={form}
+          answers={answers}
+          errors={errors}
+          onChange={change}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * One group of questions, as the ruleset grouped them.
+ *
+ * `steps` always partitions the whole form, so this is the only way the form is
+ * laid out — including the degenerate case, a ruleset that named no steps,
+ * which comes back as a single group with an empty label and reads as the flat
+ * list it was before there were steps.
+ *
+ * Sections and not pages, deliberately. This form is already one leg of a
+ * wizard (`EtappenRail`), and a second wizard inside it would make "Weiter"
+ * mean two different things on one screen — and hide questions behind a step
+ * the person cannot see they still have to answer. The backend is of the same
+ * mind: `steps` carries a label and its keys and nothing else, no page state
+ * and no notion of a step being finished.
+ */
+function AnswerGroup({
+  step,
+  form,
+  answers,
+  errors,
+  onChange,
+}: {
+  step: FormStepOut;
+  form: StatementFormOut;
+  answers: Answers;
+  errors: Record<string, string[]>;
+  onChange: (declaration: InputDeclarationOut, value: unknown) => void;
+}) {
+  const declared = step.keys
+    .map((key) => form.inputs.find((declaration) => declaration.key === key))
+    .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
+  return (
+    <section className="answer-group">
+      {step.label && <h3 className="answer-group-title">{step.label}</h3>}
+      {declared.map((declaration) => (
         <AnswerField
           key={declaration.key}
           declaration={declaration}
           value={answers[declaration.key]}
           errors={errors[declaration.key]}
-          onChange={(value) => change(declaration, value)}
+          onChange={(value) => onChange(declaration, value)}
         />
       ))}
-    </>
+    </section>
   );
 }
 

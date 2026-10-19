@@ -131,8 +131,34 @@ const REGIMES = [
 ];
 
 /** One declaration, with the fields `/form` always sends. */
-function declaration(overrides: Record<string, unknown>) {
-  return { required: false, help: "", max: null, options: [], choices: [], ...overrides };
+function declaration(overrides: Record<string, unknown>): Record<string, unknown> {
+  return {
+    required: false,
+    help: "",
+    max: null,
+    options: [],
+    choices: [],
+    step: "",
+    ...overrides,
+  };
+}
+
+/**
+ * `inputs` partitioned into steps the way the API partitions them.
+ *
+ * `/form` always sends a partition of the whole form — a ruleset that named no
+ * steps comes back as one step labelled `""` — so a stub that says what the
+ * rules ask has to say how they group too. Computed the same way the backend
+ * computes it rather than written out beside every `inputs`, so a test about
+ * something else does not have to carry a grouping.
+ */
+function stepsOf(inputs: Record<string, unknown>[]) {
+  const grouped = new Map<string, string[]>();
+  for (const input of inputs) {
+    const label = String(input.step ?? "");
+    grouped.set(label, [...(grouped.get(label) ?? []), String(input.key)]);
+  }
+  return [...grouped].map(([label, keys]) => ({ label, keys }));
 }
 
 /**
@@ -142,29 +168,32 @@ function declaration(overrides: Record<string, unknown>) {
  * leg prints whatever `/preflight` finds — neither is a list of fields or a
  * list of checks written in the client any more, so both are stubbed.
  */
+const FORM_INPUTS = [
+  declaration({
+    key: "night_cost",
+    label: "Preis pro Übernachtung",
+    type: "money",
+    help: "Was eine Übernachtung pro Jugendleiter*in gekostet hat.",
+  }),
+  declaration({
+    key: "allowance_to",
+    label: "Aufwandsentschädigung an",
+    type: "member_set",
+    options: LEADERS,
+    max: 2,
+  }),
+  declaration({
+    key: "subsidy_to",
+    label: "Fahrt- und Übernachtungszuschuss an",
+    type: "member",
+    options: LEADERS,
+  }),
+];
+
 const FORM = {
   statement_id: 1,
-  inputs: [
-    declaration({
-      key: "night_cost",
-      label: "Preis pro Übernachtung",
-      type: "money",
-      help: "Was eine Übernachtung pro Jugendleiter*in gekostet hat.",
-    }),
-    declaration({
-      key: "allowance_to",
-      label: "Aufwandsentschädigung an",
-      type: "member_set",
-      options: LEADERS,
-      max: 2,
-    }),
-    declaration({
-      key: "subsidy_to",
-      label: "Fahrt- und Übernachtungszuschuss an",
-      type: "member",
-      options: LEADERS,
-    }),
-  ],
+  inputs: FORM_INPUTS,
+  steps: stepsOf(FORM_INPUTS),
   answers: { night_cost: "11.00", allowance_to: [], subsidy_to: null },
 };
 
@@ -632,10 +661,12 @@ describe("submission flow — Erstattung", () => {
   function openForm(form: Record<string, unknown> = {}) {
     flowReturns();
     detailReturns();
+    const body: Record<string, unknown> = { ...FORM, ...form };
+    // A stub that changes the questions gets the grouping that goes with them,
+    // because the API never serves one without the other.
+    if (!("steps" in form)) body.steps = stepsOf(body.inputs as Record<string, unknown>[]);
     server.use(
-      http.get(api("/api/finance/statements/1/form"), () =>
-        HttpResponse.json({ ...FORM, ...form }),
-      ),
+      http.get(api("/api/finance/statements/1/form"), () => HttpResponse.json(body)),
     );
     return renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
   }
@@ -870,6 +901,47 @@ describe("submission flow — Erstattung", () => {
     expect(within(refused).getByText(/keine der angebotenen Möglichkeiten/)).toBeInTheDocument();
     const other = screen.getByText("Nächte").closest(".field") as HTMLElement;
     expect(within(other).queryByText(/keine der angebotenen Möglichkeiten/)).toBeNull();
+  });
+
+  it("groups the questions into the steps the rules named", async () => {
+    openForm({
+      inputs: [
+        declaration({
+          key: "regime",
+          label: "Regelwerk",
+          type: "choice",
+          choices: REGIMES,
+          step: "Grundlagen",
+        }),
+        declaration({ key: "km", label: "Kilometer", type: "int", step: "Fahrtkosten" }),
+        declaration({ key: "note", label: "Anmerkung", type: "text", step: "Fahrtkosten" }),
+      ],
+      answers: { regime: null, km: 120, note: "" },
+    });
+
+    const grundlagen = (await screen.findByText("Grundlagen")).closest(
+      ".answer-group",
+    ) as HTMLElement;
+    expect(within(grundlagen).getByText("Regelwerk")).toBeInTheDocument();
+    expect(within(grundlagen).queryByText("Kilometer")).toBeNull();
+
+    const fahrtkosten = screen.getByText("Fahrtkosten").closest(".answer-group") as HTMLElement;
+    expect(within(fahrtkosten).getByText("Kilometer")).toBeInTheDocument();
+    expect(within(fahrtkosten).getByText("Anmerkung")).toBeInTheDocument();
+    expect(within(fahrtkosten).queryByText("Regelwerk")).toBeNull();
+  });
+
+  it("reads as one flat list when the rules named no steps", async () => {
+    // A ruleset that named no steps comes back as a single step labelled `""`,
+    // and that degenerate case must not look like a multi-page flow: no
+    // heading, nothing announcing a group, just the questions.
+    openForm();
+
+    expect(await screen.findByText("Preis pro Übernachtung")).toBeInTheDocument();
+    expect(FORM.steps).toEqual([
+      { label: "", keys: ["night_cost", "allowance_to", "subsidy_to"] },
+    ]);
+    expect(document.querySelector(".answer-group-title")).toBeNull();
   });
 
   it("offers nobody when the rules offer nobody", async () => {
