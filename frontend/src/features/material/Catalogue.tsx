@@ -122,6 +122,11 @@ export function Catalogue() {
   const [group, setGroup] = useState("");
   const tags = useTags();
   const groups = useOwnerGroups();
+  // A group that stops owning material leaves the list; drop it from the filter
+  // too, or the catalogue stays filtered by it with no way to clear it.
+  useEffect(() => {
+    if (group && groups.data && !groups.data.some((g) => String(g.id) === group)) setGroup("");
+  }, [group, groups.data]);
   const search = useSettled(q);
   const query = useApiQuery(
     ["material", "types", search, tag, group, cart.start, cart.end],

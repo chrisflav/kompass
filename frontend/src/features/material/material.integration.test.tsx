@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { focusManager } from "@tanstack/react-query";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { delay } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -221,6 +222,31 @@ describe("material — Materialbrowser", () => {
     expect(screen.queryByRole("button", { name: "Jugend" })).toBeNull();
     await user.click(await screen.findByRole("button", { name: "Hochtour" }));
     await waitFor(() => expect(seen[seen.length - 1]?.get("group")).toBe("6"));
+  });
+
+  it("drops a chosen group that no longer owns material", async () => {
+    let owners = OWNER_GROUPS;
+    const seen: URLSearchParams[] = [];
+    server.use(
+      http.get(api("/api/material/groups"), () => HttpResponse.json(owners)),
+      http.get(api("/api/material/types"), ({ request }) => {
+        seen.push(new URL(request.url).searchParams);
+        return HttpResponse.json([CARD]);
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: /^Gruppe:/ }));
+    await user.click(await screen.findByRole("button", { name: "Hochtour" }));
+    await waitFor(() => expect(seen[seen.length - 1]?.get("group")).toBe("6"));
+
+    // Hochtour's last piece is retired; the list is fetched again on focus.
+    owners = [];
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(seen[seen.length - 1]?.get("group")).toBeNull());
+    expect(screen.queryByRole("button", { name: /^Gruppe:/ })).toBeNull();
   });
 
   it("offers no group filter when no group owns material", async () => {

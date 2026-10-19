@@ -291,7 +291,7 @@ def list_groups(request):
     groups = Group.objects.filter(
         Q(pk__in=services.lendable().values("group")) | Q(material_sizes__quantity__gt=0)
     )
-    return [{"id": g.pk, "name": g.name} for g in groups.distinct().order_by("name")]
+    return [serialize.ref(g) for g in groups.distinct().order_by("name")]
 
 
 @router.get("/types/{type_id}", response=ProductTypeOut)
