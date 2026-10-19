@@ -218,11 +218,13 @@ class DerivedInputApiTestCase(DerivedFormTestCase):
         put a figure of its own where the excursion's kilometres belong.
 
         Neuter it — drop the ``if declaration.derived: raise`` in
-        :func:`finance.inputs.clean` — and this goes red three times over: the
-        request answers 200, the bogus figure lands in ``Statement.inputs``,
-        and the payout below is computed from 100 km while the statement
-        records 9999. Asserting only that the derived value is *correct* would
-        not notice any of it.
+        :func:`finance.inputs.clean` — and this goes red twice over: the request
+        answers 200, and the bogus figure lands in ``Statement.inputs``, where
+        the next person to read the column sees 9999 beside a trip that drove
+        100. A test asserting only that the derived value is *correct* would
+        notice neither, because the payout is right either way — the engine
+        shadows the stored figure — and that is exactly why the refusal needs a
+        test of its own.
         """
         response = self.answer_through_the_api(self.statement, {"kilometers": 9999})
         self.assertEqual(response.status_code, 422, response.content)

@@ -595,10 +595,13 @@ A case **can** prove the other half, and it is the half worth a case: leave
 with ``"inputs": {"kilometers": 250}`` and no trip is the statement that
 settles a purchase. Both arms of one declaration, in two files.
 
-Option sources are resolved for a case too, from the same context — the
-``bills`` above are where ``options_source="bills.payers"`` finds member 7 —
-so a case that answers a party-valued question is checked against the people
-the instance would really have offered.
+An option source is resolved for a case too, out of the context the file
+describes: the ``bills`` above are where ``options_source="bills.payers"``
+finds member 7. A case's own answers are not validated against it — the case
+runner types them and nothing more, the same as it has always done — but
+``--fuzz`` answers a party-valued question out of exactly that set, so a
+ruleset whose option source comes out empty is a ruleset the fuzzer will keep
+offering nobody to.
 
 
 Checking a ruleset
