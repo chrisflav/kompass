@@ -28,6 +28,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from members.models import Freizeit
 from members.models import Intervention
@@ -48,10 +49,18 @@ router = Router()
 
 
 class ExcursionParticipantOut(ModelSchema):
-    """A member-on-list row (participant / note-list entry) with its member."""
+    """A member-on-list row (participant / note-list entry) with its member.
+
+    ``age_at_excursion`` is the member's age on the excursion's first day (null
+    for note-list entries and members without a birth date). ``may_view_member``
+    says whether the requesting user may open the member's own record, which
+    seeing the list does not imply: see :func:`_with_viewer_context`.
+    """
 
     id: int
     member: MemberBrief
+    age_at_excursion: int | None = None
+    may_view_member: bool = False
 
     class Meta:
         model = NewMemberOnList
@@ -175,6 +184,21 @@ def _authorize_participant_parent(request, parent, write):
         raise Http404(_("Unknown participant list."))
 
 
+def _with_viewer_context(request, participant):
+    """Attach the per-viewer fields of :class:`ExcursionParticipantOut`.
+
+    Viewing an excursion only requires leading it, while a member's record is
+    gated on the member ACL, so a youth leader may well list a participant from
+    another group whose record they cannot open.
+    """
+    member = participant.member
+    parent = participant.memberlist
+    if isinstance(parent, Freizeit) and member.birth_date:
+        participant.age_at_excursion = member.age_at(timezone.localtime(parent.date))
+    participant.may_view_member = request.user.has_perm("members.view_obj_member", member)
+    return participant
+
+
 def _authorize_ljp(request, proposal, write):
     """Gate an LJP proposal / intervention on its excursion's change permission.
 
@@ -224,7 +248,7 @@ def list_excursion_participants(request, excursion_id: int):
     """List an excursion's participants (gated on ``view_obj_freizeit``)."""
     excursion = get_object_or_404(Freizeit, pk=excursion_id)
     _authorize_participant_parent(request, excursion, write=False)
-    return excursion.membersonlist.all()
+    return [_with_viewer_context(request, p) for p in excursion.membersonlist.all()]
 
 
 @router.post("/excursions/{excursion_id}/participants", response={201: ExcursionParticipantOut})
@@ -232,7 +256,7 @@ def add_excursion_participant(request, excursion_id: int, payload: ExcursionPart
     """Add a member to an excursion (gated on ``change_obj_freizeit``)."""
     excursion = get_object_or_404(Freizeit, pk=excursion_id)
     _authorize_participant_parent(request, excursion, write=True)
-    return 201, _create_participant(excursion, payload)
+    return 201, _with_viewer_context(request, _create_participant(excursion, payload))
 
 
 # --- note-list participants ----------------------------------------------
@@ -243,7 +267,7 @@ def list_notelist_participants(request, notelist_id: int):
     """List a note list's members (gated on ``view_membernotelist``)."""
     notelist = get_object_or_404(MemberNoteList, pk=notelist_id)
     _authorize_participant_parent(request, notelist, write=False)
-    return notelist.membersonlist.all()
+    return [_with_viewer_context(request, p) for p in notelist.membersonlist.all()]
 
 
 @router.post("/note-lists/{notelist_id}/participants", response={201: ExcursionParticipantOut})
@@ -251,7 +275,7 @@ def add_notelist_participant(request, notelist_id: int, payload: ExcursionPartic
     """Add a member to a note list (gated on ``change_membernotelist``)."""
     notelist = get_object_or_404(MemberNoteList, pk=notelist_id)
     _authorize_participant_parent(request, notelist, write=True)
-    return 201, _create_participant(notelist, payload)
+    return 201, _with_viewer_context(request, _create_participant(notelist, payload))
 
 
 def _create_participant(parent, payload):
@@ -282,7 +306,7 @@ def update_participant(request, participant_id: int, payload: ExcursionParticipa
         participant.comments = data["comments"]
         partial_clean(participant, ["comments"])
         participant.save()
-    return participant
+    return _with_viewer_context(request, participant)
 
 
 @router.delete("/participants/{participant_id}", response={204: None})

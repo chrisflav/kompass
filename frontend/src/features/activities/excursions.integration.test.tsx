@@ -449,6 +449,76 @@ describe("activities — Ausfahrt detail", () => {
     await waitFor(() => expect(created).toMatchObject({ member_id: 43 }));
   });
 
+  it("links the participants one may open and shows their age on the trip", async () => {
+    localStorage.clear();
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/excursions/3/participants"), () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            comments: "",
+            member: { id: 42, name: "Anna Ärmel", birth_date: "2012-02-20", age: 14 },
+            age_at_excursion: 13,
+            may_view_member: true,
+          },
+          {
+            id: 2,
+            comments: "",
+            member: { id: 43, name: "Mila Nowak", birth_date: null, age: null },
+            age_at_excursion: null,
+            may_view_member: false,
+          },
+        ]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
+    const toggle = await screen.findByRole("button", { name: /^Alter/ });
+    const table = within(toggle.closest("table") as HTMLElement);
+
+    expect(table.getByRole("link", { name: "Anna Ärmel" })).toHaveAttribute(
+      "href",
+      "/kompass/members/42",
+    );
+    // Leading the trip does not open every participant's record.
+    expect(table.queryByRole("link", { name: "Mila Nowak" })).toBeNull();
+    expect(table.getByText("Mila Nowak")).toBeInTheDocument();
+    // The age on the trip, not today's.
+    expect(table.getByText("13")).toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(table.getByText("20.2.2012")).toBeInTheDocument();
+    expect(table.queryByText("13")).toBeNull();
+    expect(localStorage.getItem("kompass.participants.birthColumn")).toBe("birth_date");
+
+    await user.click(table.getByRole("button", { name: /^Geburtsdatum/ }));
+    expect(table.getByText("13")).toBeInTheDocument();
+    expect(localStorage.getItem("kompass.participants.birthColumn")).toBe("age");
+  });
+
+  it("opens the participants on the birth date when that was the last choice", async () => {
+    localStorage.setItem("kompass.participants.birthColumn", "birth_date");
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/excursions/3/participants"), () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            comments: "",
+            member: { id: 42, name: "Anna Ärmel", birth_date: "2012-02-20", age: 14 },
+            age_at_excursion: 13,
+            may_view_member: true,
+          },
+        ]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
+    expect(await screen.findByText("20.2.2012")).toBeInTheDocument();
+    localStorage.clear();
+  });
+
   it("does not reload the member list it just used for the picker on save", async () => {
     detailReturns();
     let memberRequests = 0;
