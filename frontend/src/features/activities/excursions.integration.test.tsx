@@ -475,7 +475,8 @@ describe("activities — Ausfahrt detail", () => {
     );
     const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
-    const toggle = await screen.findByRole("button", { name: /^Alter/ });
+    // The header says which age it is: the one on the trip, not today's.
+    const toggle = await screen.findByRole("button", { name: /^Alter zu Beginn der Ausfahrt/ });
     const table = within(toggle.closest("table") as HTMLElement);
 
     // The tab is in the URL, so returning from a participant's record opens it.

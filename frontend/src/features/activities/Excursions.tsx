@@ -1014,6 +1014,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
                 {sectionNote("participants")}
                 <ParticipantsInline
                   title="Teilnehmer*innen"
+                  ageLabel="Alter zu Beginn der Ausfahrt"
                   editing={editing}
                   queryKey={["excursions", excursion.id, "participants"]}
                   listFn={() =>

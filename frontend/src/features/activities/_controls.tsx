@@ -177,6 +177,7 @@ export function ParticipantsInline({
   createFn,
   invalidate,
   registerFlush,
+  ageLabel = "Alter",
 }: {
   title: string;
   editing: boolean;
@@ -185,6 +186,8 @@ export function ParticipantsInline({
   createFn: (body: ExcursionParticipantCreate) => Promise<unknown>;
   invalidate: unknown[][];
   registerFlush: (fn: () => Promise<void>) => void;
+  /** Header of the age column; an excursion names the date the age is taken on. */
+  ageLabel?: string;
 }) {
   const listQuery = useApiQuery(queryKey, listFn);
   const membersQuery = useMembers({ enabled: editing });
@@ -270,9 +273,9 @@ export function ParticipantsInline({
                 type="button"
                 className="th-sort"
                 onClick={toggleBirthColumn}
-                title={birthColumn === "age" ? "Geburtsdatum anzeigen" : "Alter anzeigen"}
+                title={birthColumn === "age" ? "Geburtsdatum anzeigen" : `${ageLabel} anzeigen`}
               >
-                {birthColumn === "age" ? "Alter" : "Geburtsdatum"}
+                {birthColumn === "age" ? ageLabel : "Geburtsdatum"}
                 <span className="sort-arrow" aria-hidden="true">
                   ⇄
                 </span>
