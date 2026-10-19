@@ -278,6 +278,22 @@ def list_types(
     return [serialize.type_card(t, counts, own) for t in types]
 
 
+@router.get("/groups", response=list[Ref])
+def list_groups(request):
+    """The groups that own material, for the catalogue's group filter.
+
+    Only lendable pieces and sizes in stock count, so a group whose material is
+    all retired, built into other pieces or used up is not offered. Every member
+    sees the full list: the catalogue names each piece's group on its card
+    anyway, whereas ``/api/members/groups`` is scoped to the groups one leads.
+    """
+    get_member(request)
+    groups = Group.objects.filter(
+        Q(pk__in=services.lendable().values("group")) | Q(material_sizes__quantity__gt=0)
+    )
+    return [serialize.ref(g) for g in groups.distinct().order_by("name")]
+
+
 @router.get("/types/{type_id}", response=ProductTypeOut)
 def retrieve_type(request, type_id: int, start: date | None = None, end: date | None = None):
     member = get_member(request)

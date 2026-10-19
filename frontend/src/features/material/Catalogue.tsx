@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
-import { useGroups } from "../../api/queries";
 import {
   Badge,
   Button,
@@ -18,6 +17,7 @@ import {
   DeficitButton,
   mediaUrl,
   period,
+  useOwnerGroups,
   useTags,
   type ProductTypeCard,
 } from "./shared";
@@ -121,7 +121,12 @@ export function Catalogue() {
   const [tag, setTag] = useState("");
   const [group, setGroup] = useState("");
   const tags = useTags();
-  const groups = useGroups();
+  const groups = useOwnerGroups();
+  // A group that stops owning material leaves the list; drop it from the filter
+  // too, or the catalogue stays filtered by it with no way to clear it.
+  useEffect(() => {
+    if (group && groups.data && !groups.data.some((g) => String(g.id) === group)) setGroup("");
+  }, [group, groups.data]);
   const search = useSettled(q);
   const query = useApiQuery(
     ["material", "types", search, tag, group, cart.start, cart.end],
@@ -172,12 +177,15 @@ export function Catalogue() {
               onChange={setTag}
               options={(tags.data ?? []).map((t) => ({ value: String(t.id), label: t.name }))}
             />
-            <SearchableSelect
-              label="Gruppe"
-              value={group}
-              onChange={setGroup}
-              options={(groups.data ?? []).map((g) => ({ value: String(g.id), label: g.name }))}
-            />
+            {/* Only groups owning material are offered; with none, there is nothing to filter by. */}
+            {Boolean(groups.data?.length) && (
+              <SearchableSelect
+                label="Gruppe"
+                value={group}
+                onChange={setGroup}
+                options={(groups.data ?? []).map((g) => ({ value: String(g.id), label: g.name }))}
+              />
+            )}
           </div>
           <QueryBoundary query={query} empty="Kein Material gefunden.">
             {(cards) => (

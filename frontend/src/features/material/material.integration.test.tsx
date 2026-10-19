@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { focusManager } from "@tanstack/react-query";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { delay } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -26,6 +27,8 @@ const TAGS = [
   { id: 2, name: "Höhle" },
 ];
 const GROUPS = [{ id: 5, name: "Jugend", leiters: [] as { id: number; name: string }[] }];
+/** The groups owning material; Jugend, a group the user leads, owns none. */
+const OWNER_GROUPS = [{ id: 6, name: "Hochtour" }];
 const MEMBERS = [
   { id: 7, name: "Hannah Beckers" },
   { id: 8, name: "Peter Lustig" },
@@ -167,6 +170,7 @@ beforeEach(() => {
   localStorage.removeItem(CART_KEY);
   server.use(
     http.get(api("/api/material/categories"), () => HttpResponse.json(TAGS)),
+    http.get(api("/api/material/groups"), () => HttpResponse.json(OWNER_GROUPS)),
     http.get(api("/api/members/groups"), () => HttpResponse.json(GROUPS)),
     // Hand-overs pick from everyone, not only the members one may see.
     http.get(api("/api/material/recipients"), () => HttpResponse.json(MEMBERS)),
@@ -202,6 +206,64 @@ describe("material — Materialbrowser", () => {
     await user.type(screen.getByLabelText("Material suchen"), "seil");
     await waitFor(() => expect(seen[seen.length - 1]?.get("q")).toBe("seil"));
     expect(seen[seen.length - 1]?.get("start")).toBe(TODAY);
+  });
+
+  it("filters by the groups that own material, and only by those", async () => {
+    const seen: URLSearchParams[] = [];
+    server.use(
+      http.get(api("/api/material/types"), ({ request }) => {
+        seen.push(new URL(request.url).searchParams);
+        return HttpResponse.json([CARD]);
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await screen.findByText("Bandschlinge 120 cm");
+    await user.click(await screen.findByRole("button", { name: /^Gruppe:/ }));
+    expect(screen.queryByRole("button", { name: "Jugend" })).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Hochtour" }));
+    await waitFor(() => expect(seen[seen.length - 1]?.get("group")).toBe("6"));
+  });
+
+  it("drops a chosen group that no longer owns material", async () => {
+    let owners = OWNER_GROUPS;
+    const seen: URLSearchParams[] = [];
+    server.use(
+      http.get(api("/api/material/groups"), () => HttpResponse.json(owners)),
+      http.get(api("/api/material/types"), ({ request }) => {
+        seen.push(new URL(request.url).searchParams);
+        return HttpResponse.json([CARD]);
+      }),
+    );
+    const { user } = renderRoute("/kompass/material");
+    await user.click(await screen.findByRole("button", { name: /^Gruppe:/ }));
+    await user.click(await screen.findByRole("button", { name: "Hochtour" }));
+    await waitFor(() => expect(seen[seen.length - 1]?.get("group")).toBe("6"));
+
+    // Hochtour's last piece is retired; the list is fetched again on focus.
+    owners = [];
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(seen[seen.length - 1]?.get("group")).toBeNull());
+    expect(screen.queryByRole("button", { name: /^Gruppe:/ })).toBeNull();
+  });
+
+  it("offers no group filter when no group owns material", async () => {
+    let asked = false;
+    server.use(
+      http.get(api("/api/material/groups"), () => {
+        asked = true;
+        return HttpResponse.json([]);
+      }),
+    );
+    renderRoute("/kompass/material");
+    await screen.findByText("Bandschlinge 120 cm");
+    await waitFor(() => expect(asked).toBe(true));
+    // Let the empty answer render before looking for the filter.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole("button", { name: /^Tag:/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Gruppe:/ })).toBeNull();
   });
 
   it("reserves what is in the cart and goes to my material", async () => {

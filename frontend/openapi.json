@@ -6908,6 +6908,38 @@
         ]
       }
     },
+    "/api/material/groups": {
+      "get": {
+        "operationId": "equipment_api_router_list_groups",
+        "summary": "List Groups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Ref"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "The groups that own material, for the catalogue's group filter.\n\nOnly lendable pieces and sizes in stock count, so a group whose material is\nall retired, built into other pieces or used up is not offered. Every member\nsees the full list: the catalogue names each piece's group on its card\nanyway, whereas ``/api/members/groups`` is scoped to the groups one leads.",
+        "tags": [
+          "material"
+        ],
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ]
+      }
+    },
     "/api/material/types/{type_id}": {
       "get": {
         "operationId": "equipment_api_router_retrieve_type",

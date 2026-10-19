@@ -28,6 +28,7 @@ from equipment.models import Size
 from equipment.models import Tag
 from equipment.services import Line
 from equipment.testing import MaterialFixture
+from members.models import Group
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
@@ -195,6 +196,25 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         )
         r = self.get("alice", "/types", group=self.jugend.pk)
         self.assertEqual([c["name"] for c in r.json()], ["Gurt"])
+
+    def test_groups_with_material(self):
+        # Material the catalogue would not lend does not count.
+        Group.objects.create(name="Ohne Material")
+        retired = Group.objects.create(name="Ausgesondert")
+        self.make_part(self.sling_type, group=retired, status=Part.RETIRED)
+        built_in = Group.objects.create(name="Verbaut")
+        self.make_part(self.sling_type, group=built_in, parent=self.slings[0])
+        # A plain member sees every owner group, not only the ones they lead.
+        r = self.get("alice", "/groups")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(
+            r.json(),
+            [
+                {"id": self.hochtour.pk, "name": "Hochtour"},
+                {"id": self.jugend.pk, "name": "Jugend"},
+            ],
+        )
+        self.assertEqual(self.get("nomember", "/groups").status_code, 403)
 
     def test_type_detail(self):
         services.reserve(self.carol, day(1), day(2), [Line(self.crampon_type, 1)])
@@ -619,6 +639,15 @@ class SizeApiTestCase(ApiMixin, TestCase):
         data = self.get("alice", "/types/{}".format(self.friends_type.pk)).json()
         self.assertEqual(data["calendar"][0]["count"], 2)
         self.assertEqual(len(self.get("alice", "/sizes").json()), 3)
+
+    def test_a_group_with_sizes_in_stock_owns_material(self):
+        bigwall = Group.objects.create(name="Bigwall")
+        used_up = Group.objects.create(name="Aufgebraucht")
+        Size.objects.create(product_type=self.friends_type, name="4", quantity=1, group=bigwall)
+        Size.objects.create(product_type=self.friends_type, name="5", quantity=0, group=used_up)
+        names = [g["name"] for g in self.get("alice", "/groups").json()]
+        self.assertIn("Bigwall", names)
+        self.assertNotIn("Aufgebraucht", names)
 
     def test_editing(self):
         path = "/types/{}/sizes".format(self.friends_type.pk)
