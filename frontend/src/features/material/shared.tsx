@@ -217,6 +217,11 @@ export function useTags() {
   );
 }
 
+/** The groups that own lendable material, for filtering the catalogue by owner. */
+export function useOwnerGroups() {
+  return useApiQuery(["material", "groups"], () => unwrap(client.GET("/api/material/groups")));
+}
+
 /** Everyone material can be handed over to: every confirmed member, not only those one may see. */
 export function useRecipients() {
   return useApiQuery(["material", "recipients"], () => unwrap(client.GET("/api/material/recipients")));

@@ -2641,6 +2641,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/material/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Groups
+         * @description The groups that own material, for the catalogue's group filter.
+         *
+         *     Only lendable pieces and sizes in stock count, so a group whose material is
+         *     all retired, built into other pieces or used up is not offered. Every member
+         *     sees the full list: the catalogue names each piece's group on its card
+         *     anyway, whereas ``/api/members/groups`` is scoped to the groups one leads.
+         */
+        get: operations["equipment_api_router_list_groups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/material/types/{type_id}": {
         parameters: {
             query?: never;
@@ -13688,6 +13713,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductTypeOut"];
+                };
+            };
+        };
+    };
+    equipment_api_router_list_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ref"][];
                 };
             };
         };
