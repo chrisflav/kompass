@@ -21,23 +21,29 @@ SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 def user_for_token(token, request=None):
     """Resolve a bearer token to its user, or ``None`` if it is unusable.
 
-    With ``request``, a personal access token is recorded on it as
-    ``request.personal_token``, and a read-only one is refused (403) for any
-    method that is not safe.
+    A token of a deactivated account is unusable, whatever its expiry. With
+    ``request``, the token is recorded on it as ``request.access_token`` (and a
+    personal one as ``request.personal_token``), and a read-only personal token
+    is refused (403) for any method that is not safe.
     """
     AccessToken = get_access_token_model()
     try:
-        access_token = AccessToken.objects.select_related("user", "personal").get(token=token)
+        access_token = AccessToken.objects.select_related("user", "personal", "application").get(
+            token=token
+        )
     except AccessToken.DoesNotExist:
         return None
-    if not access_token.is_valid():
+    user = access_token.user
+    # A client-credentials token has no user to act as.
+    if not access_token.is_valid() or user is None or not user.is_active:
         return None
     personal = getattr(access_token, "personal", None)
-    if request is not None and personal is not None:
-        if personal.read_only and request.method not in SAFE_METHODS:
+    if request is not None:
+        if personal is not None and personal.read_only and request.method not in SAFE_METHODS:
             raise Forbidden(_("This access token may only read."))
+        request.access_token = access_token
         request.personal_token = personal
-    return access_token.user
+    return user
 
 
 class OAuth2Bearer(HttpBearer):

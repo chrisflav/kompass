@@ -115,7 +115,7 @@ export function AccessTokensList() {
             columns={[
               { header: "Name", cell: (t) => t.name },
               ...(isSuperuser
-                ? [{ header: "Konto", cell: (t: PersonalTokenOut) => t.user.username }]
+                ? [{ header: "Konto", cell: (t: PersonalTokenOut) => <TokenAccount token={t} /> }]
                 : []),
               {
                 header: "Rechte",
@@ -166,6 +166,19 @@ export function AccessTokensList() {
         )}
       </QueryBoundary>
     </div>
+  );
+}
+
+/** The account a token acts as, and who created it when that was someone else. */
+function TokenAccount({ token }: { token: PersonalTokenOut }) {
+  const creator = token.created_by;
+  return (
+    <>
+      {token.user.username}
+      {creator && creator.id !== token.user.id && (
+        <div className="muted small">erstellt von {creator.username}</div>
+      )}
+    </>
   );
 }
 
@@ -276,7 +289,8 @@ function CreatedTokenModal({
   onClose: () => void;
 }) {
   const toast = useToast();
-  const example = new URL("/api/feedback", API_BASE || window.location.origin).href;
+  // Built like the API client's own URLs, so a base with a path prefix is kept.
+  const example = `${API_BASE || window.location.origin}/api/feedback`;
 
   return (
     <Modal title="Token erstellt" onClose={onClose} size="sm">

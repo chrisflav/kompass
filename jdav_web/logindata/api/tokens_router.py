@@ -4,8 +4,9 @@ A token is shown once, in the answer that creates it; afterwards only its name,
 rights and dates are listed. Creating one takes
 ``logindata.create_personalaccesstoken``; listing and revoking one's own tokens
 does not, so someone who loses the permission can still end the tokens they
-made. Neither works with a personal access token itself: a token must not mint
-longer-lived or wider tokens, nor revoke its owner's others.
+made. All three need the web interface's own sign-in — a token issued to the
+frontend — so no other token, personal or issued to a third-party application,
+can mint a longer-lived or wider one, list the tokens, or revoke them.
 
 Superusers also create tokens for other accounts — a bot account that never
 signs in, say — and see and revoke every account's tokens.
@@ -18,6 +19,7 @@ from datetime import timezone as dt_timezone
 
 from contrib.api.perms import authorize
 from contrib.api.perms import Forbidden
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -66,6 +68,9 @@ class PersonalTokenOut(Schema):
     # Null for a token that never expires.
     expires: datetime | None
     user: TokenOwner
+    # Who created it, which differs from ``user`` for a superuser's token for
+    # another account; null once that account is deleted.
+    created_by: TokenOwner | None
 
 
 class PersonalTokenCreated(PersonalTokenOut):
@@ -74,9 +79,16 @@ class PersonalTokenCreated(PersonalTokenOut):
     token: str
 
 
-def _refuse_token_auth(request):
-    if getattr(request, "personal_token", None) is not None:
+def _require_session(request):
+    """Refuse any bearer token but one the frontend obtained by signing in."""
+    access_token = getattr(request, "access_token", None)
+    application = access_token.application if access_token is not None else None
+    if application is None or application.client_id != settings.FRONTEND_OAUTH_CLIENT_ID:
         raise Forbidden(_("Access tokens can only be managed after signing in."))
+
+
+def _owner(user):
+    return {"id": user.pk, "username": user.username} if user is not None else None
 
 
 def _out(personal):
@@ -87,13 +99,14 @@ def _out(personal):
         "read_only": personal.read_only,
         "created": personal.created,
         "expires": None if access_token.expires >= NEVER else access_token.expires,
-        "user": {"id": access_token.user.pk, "username": access_token.user.username},
+        "user": _owner(access_token.user),
+        "created_by": _owner(personal.created_by),
     }
 
 
 def _visible_tokens(request):
     """Every account's tokens for a superuser, one's own for anyone else."""
-    tokens = PersonalAccessToken.objects.select_related("access_token__user")
+    tokens = PersonalAccessToken.objects.select_related("access_token__user", "created_by")
     if request.user.is_superuser:
         return tokens
     return tokens.filter(access_token__user=request.user)
@@ -102,6 +115,7 @@ def _visible_tokens(request):
 @router.get("/tokens", response=list[PersonalTokenOut])
 def list_tokens(request):
     """The personal access tokens the requesting user manages, newest first."""
+    _require_session(request)
     return [_out(t) for t in _visible_tokens(request)]
 
 
@@ -109,7 +123,7 @@ def list_tokens(request):
 def create_token(request, payload: PersonalTokenIn):
     """Create a token for the requesting user; the answer is the only time it is shown."""
     authorize(request, "logindata.create_personalaccesstoken")
-    _refuse_token_auth(request)
+    _require_session(request)
     name = payload.name.strip()
     if not name:
         raise ValidationError({"name": [_("Give the token a name.")]})
@@ -132,7 +146,10 @@ def create_token(request, payload: PersonalTokenIn):
             scope="read" if payload.read_only else "read write",
         )
         personal = PersonalAccessToken.objects.create(
-            access_token=access_token, name=name, read_only=payload.read_only
+            access_token=access_token,
+            name=name,
+            read_only=payload.read_only,
+            created_by=request.user,
         )
     return 201, {**_out(personal), "token": access_token.token}
 
@@ -140,7 +157,7 @@ def create_token(request, payload: PersonalTokenIn):
 @router.delete("/tokens/{token_id}", response={204: None})
 def revoke_token(request, token_id: int):
     """Revoke a token the requesting user manages; it stops working at once."""
-    _refuse_token_auth(request)
+    _require_session(request)
     personal = get_object_or_404(_visible_tokens(request), pk=token_id)
     # Deleting the access token takes the personal row with it (CASCADE).
     personal.access_token.delete()

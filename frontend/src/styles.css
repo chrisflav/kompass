@@ -693,7 +693,6 @@ a.btn {
   color: var(--text);
 }
 
-/* Recovered admin fieldset description, shown above a detail section. */
 /* A secret to copy (a new access token): monospace, selectable whole, wrapped
    anywhere since it has no spaces to break at. */
 .token-secret {
@@ -708,6 +707,7 @@ a.btn {
   user-select: all;
 }
 
+/* Recovered admin fieldset description, shown above a detail section. */
 .fieldset-help {
   margin: 0 0 0.9rem;
   padding: 0.6rem 0.8rem;

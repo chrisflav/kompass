@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import Group as BaseAuthGroup
 from django.contrib.auth.models import User as BaseUser
 from django.db import models
@@ -48,6 +49,16 @@ class PersonalAccessToken(models.Model):
     name = models.CharField(_("name"), max_length=100)
     read_only = models.BooleanField(_("read only"), default=True)
     created = models.DateTimeField(_("created"), auto_now_add=True)
+    # The owner is the access token's user; a superuser may create a token for
+    # another account, and this keeps who did.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("created by"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
 
     def __str__(self):
         return self.name

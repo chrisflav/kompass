@@ -25126,6 +25126,16 @@
           },
           "user": {
             "$ref": "#/components/schemas/TokenOwner"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenOwner"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -25134,7 +25144,8 @@
           "read_only",
           "created",
           "expires",
-          "user"
+          "user",
+          "created_by"
         ],
         "title": "PersonalTokenOut",
         "type": "object"
@@ -25192,6 +25203,16 @@
           "user": {
             "$ref": "#/components/schemas/TokenOwner"
           },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenOwner"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "token": {
             "title": "Token",
             "type": "string"
@@ -25204,6 +25225,7 @@
           "created",
           "expires",
           "user",
+          "created_by",
           "token"
         ],
         "title": "PersonalTokenCreated",

@@ -9622,6 +9622,7 @@ export interface components {
             /** Expires */
             expires: string | null;
             user: components["schemas"]["TokenOwner"];
+            created_by: components["schemas"]["TokenOwner"] | null;
         };
         /** TokenOwner */
         TokenOwner: {
@@ -9649,6 +9650,7 @@ export interface components {
             /** Expires */
             expires: string | null;
             user: components["schemas"]["TokenOwner"];
+            created_by: components["schemas"]["TokenOwner"] | null;
             /** Token */
             token: string;
         };

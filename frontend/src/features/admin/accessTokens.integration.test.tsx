@@ -14,6 +14,7 @@ const TOKEN = {
   created: "2026-10-19T20:00:00Z",
   expires: "2099-11-18T20:00:00Z",
   user: { id: 2, username: "hannah.becker" },
+  created_by: { id: 2, username: "hannah.becker" },
 };
 
 function listReturns(rows: unknown[] = [TOKEN]) {
@@ -141,6 +142,8 @@ describe("access tokens", () => {
     const { user } = renderRoute("/kompass/tokens");
     expect(await screen.findByRole("columnheader", { name: "Konto" })).toBeInTheDocument();
     expect(screen.getByText("feedback-bot")).toBeInTheDocument();
+    // Who made a token for another account is on record; one's own needs no note.
+    expect(screen.getAllByText("erstellt von hannah.becker")).toHaveLength(1);
 
     await user.click(screen.getByRole("button", { name: "Neues Token" }));
     const dialog = within(await screen.findByRole("dialog"));
