@@ -2769,7 +2769,8 @@ export interface paths {
         get: operations["equipment_api_router_retrieve_part"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Part */
+        delete: operations["equipment_api_router_delete_part"];
         options?: never;
         head?: never;
         /** Update Part */
@@ -7499,6 +7500,20 @@ export interface components {
             /** Photo */
             photo: string | null;
         };
+        /**
+         * PartHistory
+         * @description What deleting a piece erases: its loans, past reservations, inspections and handovers.
+         */
+        PartHistory: {
+            /** Loans */
+            loans: number;
+            /** Reservations */
+            reservations: number;
+            /** Inspections */
+            inspections: number;
+            /** Handovers */
+            handovers: number;
+        };
         /** PartOut */
         PartOut: {
             /** Id */
@@ -7539,6 +7554,7 @@ export interface components {
             inspections: components["schemas"]["InspectionOut"][] | null;
             /** Custody */
             custody: components["schemas"]["CustodyEventOut"][] | null;
+            history: components["schemas"]["PartHistory"] | null;
             /** Reservations */
             reservations: components["schemas"]["PartReservation"][];
         };
@@ -13915,6 +13931,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PartOut"];
                 };
+            };
+        };
+    };
+    equipment_api_router_delete_part: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                part_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

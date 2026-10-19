@@ -132,6 +132,7 @@ function partOut(overrides: Record<string, unknown> = {}) {
     custody: [
       { id: 1, kind: "transfer", at: "2025-01-01T10:00:00Z", from_name: null, to_name: "Griffwerk", by: null },
     ],
+    history: { loans: 0, reservations: 0, inspections: 1, handovers: 0 },
     reservations: [{ id: 4, start: TOMORROW, end: TOMORROW, status: "confirmed", borrower: ref(8, "Peter Lustig") }],
     ...overrides,
   };
@@ -856,6 +857,83 @@ describe("material — Teil", () => {
     await user.click(d.getByLabelText("beschädigt"));
     await user.click(d.getByRole("button", { name: "Rückgabe bestätigen" }));
     await waitFor(() => expect(body).toEqual({ parts: [1], sizes: [], location: null, flagged: [1] }));
+  });
+
+  it("deletes a piece without history after a plain confirmation, and drops it from the cart", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let deleted = false;
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ history: { loans: 0, reservations: 0, inspections: 0, handovers: 0 } })),
+      ),
+      http.delete(api("/api/material/parts/1"), () => {
+        deleted = true;
+        return HttpResponse.json({ success: true });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "In den Korb" }));
+    expect(JSON.parse(localStorage.getItem(CART_KEY)!).lines).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    const d = await dialog();
+    expect(d.getByText("Teil löschen?")).toBeInTheDocument();
+    await user.click(d.getByRole("button", { name: "Löschen" }));
+    expect(await screen.findByText("Teil gelöscht.")).toBeInTheDocument();
+    expect(deleted).toBe(true);
+    await waitFor(() => expect(currentUrl()).toBe("/kompass/material/types/10"));
+    expect(JSON.parse(localStorage.getItem(CART_KEY)!).lines).toEqual([]);
+  });
+
+  it("warns before deleting a piece with history, and offers retiring it instead", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let deleted = false;
+    server.use(
+      http.get(api("/api/material/parts/1"), () =>
+        HttpResponse.json(partOut({ history: { loans: 2, reservations: 1, inspections: 1, handovers: 1 } })),
+      ),
+      http.delete(api("/api/material/parts/1"), () => {
+        deleted = true;
+        return HttpResponse.json({ success: true });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    let d = await dialog();
+    expect(d.getByText("Teil mit Verlauf löschen?")).toBeInTheDocument();
+    expect(
+      d.getByText(/sein Verlauf gelöscht: 2 Ausleihen, 1 vergangene Reservierung, 1 Prüfung, 1 Übergabe\./),
+    ).toBeInTheDocument();
+    expect(d.getByText(/sondere es besser über eine Prüfung aus/)).toBeInTheDocument();
+    await user.click(d.getByRole("button", { name: "Abbrechen" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(deleted).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    d = await dialog();
+    await user.click(d.getByRole("button", { name: "Trotzdem löschen" }));
+    await waitFor(() => expect(deleted).toBe(true));
+  });
+
+  it("asks for a lent piece to be taken back before it is deleted", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    server.use(http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut({ lent_until: TOMORROW }))));
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    expect(
+      await screen.findByText("Ein verliehenes Teil muss vor dem Löschen zurückgenommen werden."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("offers deleting a piece to the inventory only", async () => {
+    useMe({ permissions: ["equipment.manage_lending"] });
+    const { user } = renderRoute("/kompass/material/parts/1");
+    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
   });
 
   it("saves an edit and shows field errors", async () => {

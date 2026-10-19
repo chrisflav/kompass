@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
@@ -18,6 +18,7 @@ import {
   QueryBoundary,
   Select,
   Tabs,
+  useConfirmDialog,
   useToast,
   type DetailRow,
 } from "../../components/ui";
@@ -51,6 +52,23 @@ const KIND: Record<string, string> = {
   assemble: "Zusammenbau",
   retire: "Aussonderung",
 };
+
+function count(n: number, one: string, many: string) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** What deleting the piece would erase, as a list for the warning; empty if nothing. */
+function historyText(part: PartOut): string {
+  const h = part.history ?? { loans: 0, reservations: 0, inspections: 0, handovers: 0 };
+  return [
+    h.loans > 0 && count(h.loans, "Ausleihe", "Ausleihen"),
+    h.reservations > 0 && count(h.reservations, "vergangene Reservierung", "vergangene Reservierungen"),
+    h.inspections > 0 && count(h.inspections, "Prüfung", "Prüfungen"),
+    h.handovers > 0 && count(h.handovers, "Übergabe", "Übergaben"),
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
 
 export function PartDetailPage() {
   const { id } = useParams();
@@ -90,6 +108,8 @@ function PartDetailBody({ part }: { part: PartOut }) {
   const me = useMe();
   const cart = useCart();
   const toast = useToast();
+  const confirm = useConfirmDialog();
+  const navigate = useNavigate();
   // The groups one leads, for passing on their pieces; every group for the inventory.
   const groups = useGroups({ enabled: roles.inventory || part.group !== null });
   const locations = useLocations();
@@ -142,6 +162,42 @@ function PartDetailBody({ part }: { part: PartOut }) {
       },
     },
   );
+
+  const remove = useApiMutation(
+    () => unwrap(client.DELETE("/api/material/parts/{part_id}", { params: { path: { part_id: part.id } } })),
+    {
+      invalidate: [MATERIAL],
+      onSuccess: () => {
+        toast.success("Teil gelöscht.");
+        cart.remove(`p${part.id}`);
+        navigate(`${BASE}/types/${part.product_type.id}`);
+      },
+      onError: (e) => toast.error(errorText(e)),
+    },
+  );
+  const confirmRemove = async () => {
+    // Its loan is the only one its components are lent on, so it comes back first.
+    if (part.lent_until !== null) {
+      toast.error("Ein verliehenes Teil muss vor dem Löschen zurückgenommen werden.");
+      return;
+    }
+    const history = historyText(part);
+    const ok = history
+      ? await confirm({
+          title: "Teil mit Verlauf löschen?",
+          message: [
+            `Mit dem Teil wird sein Verlauf gelöscht: ${history}. Kommende Reservierungen bekommen, wenn möglich, ein anderes Teil.`,
+            part.status !== "retired" &&
+              "Wird das Teil nicht mehr benutzt, sondere es besser über eine Prüfung aus. Dann bleibt der Verlauf erhalten.",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          danger: true,
+          confirmLabel: "Trotzdem löschen",
+        })
+      : await confirm({ message: "Teil löschen?", danger: true, confirmLabel: "Löschen" });
+    if (ok) remove.mutate(undefined);
+  };
 
   const input = (field: keyof PartForm, inputType = "text") => (
     <input
@@ -366,6 +422,11 @@ function PartDetailBody({ part }: { part: PartOut }) {
                     }}
                   >
                     Bearbeiten
+                  </Button>
+                )}
+                {roles.inventory && (
+                  <Button variant="danger" onClick={confirmRemove}>
+                    Löschen
                   </Button>
                 )}
               </Menu>
