@@ -184,19 +184,34 @@ def _authorize_participant_parent(request, parent, write):
         raise Http404(_("Unknown participant list."))
 
 
-def _with_viewer_context(request, participant):
+def _with_viewer_context(request, parent, participants):
     """Attach the per-viewer fields of :class:`ExcursionParticipantOut`.
 
     Viewing an excursion only requires leading it, while a member's record is
     gated on the member ACL, so a youth leader may well list a participant from
-    another group whose record they cannot open.
+    another group whose record they cannot open. The record is looked up the way
+    the member detail route does (``Member.objects``, confirmed members only), so
+    a link is offered exactly when it resolves. One query covers the whole list.
     """
-    member = participant.member
-    parent = participant.memberlist
-    if isinstance(parent, Freizeit) and member.birth_date:
-        participant.age_at_excursion = member.age_at(timezone.localtime(parent.date))
-    participant.may_view_member = request.user.has_perm("members.view_obj_member", member)
-    return participant
+    participants = list(participants)
+    viewable = Member.objects.filter(pk__in={p.member_id for p in participants})
+    if not request.user.has_perm("members.view_global_member"):
+        member = getattr(request.user, "member", None)
+        viewable = viewable.filter(member.member_acl_q("view")) if member else viewable.none()
+    viewable_ids = set(viewable.values_list("pk", flat=True))
+    start = timezone.localtime(parent.date) if isinstance(parent, Freizeit) else None
+    for participant in participants:
+        member = participant.member
+        if start and member.birth_date:
+            participant.age_at_excursion = member.age_at(start)
+        participant.may_view_member = participant.member_id in viewable_ids
+    return participants
+
+
+def _participant_rows(request, parent):
+    """A parent's participant rows, with their members and groups prefetched."""
+    rows = parent.membersonlist.select_related("member").prefetch_related("member__group")
+    return _with_viewer_context(request, parent, rows)
 
 
 def _authorize_ljp(request, proposal, write):
@@ -248,7 +263,7 @@ def list_excursion_participants(request, excursion_id: int):
     """List an excursion's participants (gated on ``view_obj_freizeit``)."""
     excursion = get_object_or_404(Freizeit, pk=excursion_id)
     _authorize_participant_parent(request, excursion, write=False)
-    return [_with_viewer_context(request, p) for p in excursion.membersonlist.all()]
+    return _participant_rows(request, excursion)
 
 
 @router.post("/excursions/{excursion_id}/participants", response={201: ExcursionParticipantOut})
@@ -256,7 +271,9 @@ def add_excursion_participant(request, excursion_id: int, payload: ExcursionPart
     """Add a member to an excursion (gated on ``change_obj_freizeit``)."""
     excursion = get_object_or_404(Freizeit, pk=excursion_id)
     _authorize_participant_parent(request, excursion, write=True)
-    return 201, _with_viewer_context(request, _create_participant(excursion, payload))
+    return 201, _with_viewer_context(request, excursion, [_create_participant(excursion, payload)])[
+        0
+    ]
 
 
 # --- note-list participants ----------------------------------------------
@@ -267,7 +284,7 @@ def list_notelist_participants(request, notelist_id: int):
     """List a note list's members (gated on ``view_membernotelist``)."""
     notelist = get_object_or_404(MemberNoteList, pk=notelist_id)
     _authorize_participant_parent(request, notelist, write=False)
-    return [_with_viewer_context(request, p) for p in notelist.membersonlist.all()]
+    return _participant_rows(request, notelist)
 
 
 @router.post("/note-lists/{notelist_id}/participants", response={201: ExcursionParticipantOut})
@@ -275,7 +292,7 @@ def add_notelist_participant(request, notelist_id: int, payload: ExcursionPartic
     """Add a member to a note list (gated on ``change_membernotelist``)."""
     notelist = get_object_or_404(MemberNoteList, pk=notelist_id)
     _authorize_participant_parent(request, notelist, write=True)
-    return 201, _with_viewer_context(request, _create_participant(notelist, payload))
+    return 201, _with_viewer_context(request, notelist, [_create_participant(notelist, payload)])[0]
 
 
 def _create_participant(parent, payload):
@@ -300,13 +317,14 @@ def _create_participant(parent, payload):
 def update_participant(request, participant_id: int, payload: ExcursionParticipantUpdate):
     """Edit a participant row's comment, gated on the parent's change permission."""
     participant = get_object_or_404(NewMemberOnList, pk=participant_id)
-    _authorize_participant_parent(request, participant.memberlist, write=True)
+    parent = participant.memberlist
+    _authorize_participant_parent(request, parent, write=True)
     data = payload.dict(exclude_unset=True)
     if "comments" in data:
         participant.comments = data["comments"]
         partial_clean(participant, ["comments"])
         participant.save()
-    return _with_viewer_context(request, participant)
+    return _with_viewer_context(request, parent, [participant])[0]
 
 
 @router.delete("/participants/{participant_id}", response={204: None})

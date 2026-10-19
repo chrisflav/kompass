@@ -260,7 +260,8 @@ export function ParticipantsInline({
           {
             header: "Teilnehmende",
             cell: (row) =>
-              row.data.may_view_member && row.data.member_id !== null ? (
+              // No link while editing: leaving the page would drop the unsaved draft.
+              !editing && row.data.may_view_member && row.data.member_id !== null ? (
                 <Link to={`/kompass/members/${row.data.member_id}`}>{row.data.member_name}</Link>
               ) : (
                 row.data.member_name || "—"

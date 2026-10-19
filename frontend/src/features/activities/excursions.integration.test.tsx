@@ -451,7 +451,6 @@ describe("activities — Ausfahrt detail", () => {
   });
 
   it("links the participants one may open and shows their age on the trip", async () => {
-    localStorage.clear();
     detailReturns();
     server.use(
       http.get(api("/api/members/excursions/3/participants"), () =>
@@ -520,7 +519,32 @@ describe("activities — Ausfahrt detail", () => {
     const { user } = renderRoute("/kompass/excursions/3");
     await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
     expect(await screen.findByText("20.2.2012")).toBeInTheDocument();
-    localStorage.clear();
+  });
+
+  it("does not link a participant while editing, where leaving drops the draft", async () => {
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/excursions/3/participants"), () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            comments: "",
+            member: { id: 42, name: "Anna Ärmel", birth_date: "2012-02-20", age: 14 },
+            age_at_excursion: 13,
+            may_view_member: true,
+          },
+        ]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/excursions/3?tab=teilnehmer");
+    const table = within(
+      (await screen.findByRole("button", { name: /^Alter/ })).closest("table") as HTMLElement,
+    );
+    expect(table.getByRole("link", { name: "Anna Ärmel" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    expect(table.queryByRole("link", { name: "Anna Ärmel" })).toBeNull();
+    expect(table.getByText("Anna Ärmel")).toBeInTheDocument();
   });
 
   it("does not reload the member list it just used for the picker on save", async () => {

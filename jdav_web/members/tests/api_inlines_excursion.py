@@ -12,8 +12,10 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.db import connection
 from django.http import Http404
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from members.api.inlines_excursion import _authorize_participant_parent
 from members.api.inlines_excursion import _validate_ljp_combination
@@ -161,6 +163,54 @@ class ExcursionInlineApiTestCase(TestCase):
         self.assertEqual(
             may_view, {self.participant.pk: False, self.other.pk: True, self.leader.pk: True}
         )
+
+    def test_a_participant_whose_record_does_not_resolve_is_not_linked(self):
+        # The member detail route serves confirmed members only; an unconfirmed
+        # one would answer a link with a 404, grant or not.
+        self.participant.confirmed = False
+        self.participant.save()
+        self.excursion.add_members([self.participant])
+        PermissionMember.objects.create(member=self.leader).view_members.add(self.participant)
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(grant(self.leader_user, "view_global_member")),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(r.json()[0]["may_view_member"])
+
+    def test_the_global_view_permission_opens_every_participant(self):
+        self.excursion.add_members([self.participant, self.other])
+        viewer = grant(self.leader_user, "view_global_member")
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(viewer),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(all(row["may_view_member"] for row in r.json()))
+
+    def test_a_viewer_without_a_member_opens_no_participant(self):
+        self.excursion.add_members([self.participant])
+        reader = User.objects.create_user(username="reader", password="secret")
+        reader = grant(reader, "view_global_freizeit")
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(reader),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(r.json()[0]["may_view_member"])
+
+    def test_listing_participants_costs_the_same_whatever_their_number(self):
+        headers = self.auth(self.leader_user)
+        url = "/api/members/excursions/{}/participants".format(self.excursion.pk)
+        self.excursion.add_members([self.participant])
+        self.client.get(url, **headers)  # warm the content-type and auth caches
+        with CaptureQueriesContext(connection) as one:
+            self.client.get(url, **headers)
+        self.excursion.add_members([self.other, self.leader])
+        with CaptureQueriesContext(connection) as three:
+            r = self.client.get(url, **headers)
+        self.assertEqual(len(r.json()), 3)
+        self.assertEqual(len(three), len(one))
 
     def test_update_participant_comment_authorized(self):
         self.excursion.add_members([self.participant])
