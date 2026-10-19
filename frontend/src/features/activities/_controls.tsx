@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
 import { useMembers } from "../../api/queries";
 import { InlineTable } from "../../components/inline";
 import { useInlineDraft } from "../../components/inlineDraft";
-import { Button, Field, Modal, MultiSelect, Select } from "../../components/ui";
+import { Button, Field, Modal, MultiSelect, Select, formatDate } from "../../components/ui";
 import type { components } from "../../api/schema";
 
 // Re-export the shared searchable-badge MultiSelect so activities call sites
@@ -132,8 +133,41 @@ type ExcursionParticipantCreate = components["schemas"]["ExcursionParticipantCre
  * list query key, the fetcher and the creator; removal and comment edits go
  * through the shared `/participants/{id}` endpoint. Supports add, per-row
  * comment edit and delete.
+ *
+ * Each name links to the member's record when the API says the viewer may open
+ * it (leading an excursion shows its list, not every participant's record). A
+ * further column shows the age — on an excursion the age on its first day — or,
+ * switched by its header, the birth date; the choice is remembered per browser.
  */
-type ParticipantData = { member_id: number | null; member_name: string; comments: string };
+type ParticipantData = {
+  member_id: number | null;
+  member_name: string;
+  comments: string;
+  /** Read-only facts from the server; unknown for a row not yet saved. */
+  age?: number | null;
+  birth_date?: string | null;
+  may_view_member?: boolean;
+};
+
+type BirthColumn = "age" | "birth_date";
+const BIRTH_COLUMN_KEY = "kompass.participants.birthColumn";
+
+function readBirthColumn(): BirthColumn {
+  try {
+    if (localStorage.getItem(BIRTH_COLUMN_KEY) === "birth_date") return "birth_date";
+  } catch {
+    // Unreadable storage: fall through to the default.
+  }
+  return "age";
+}
+
+function storeBirthColumn(choice: BirthColumn) {
+  try {
+    localStorage.setItem(BIRTH_COLUMN_KEY, choice);
+  } catch {
+    // Unwritable storage: the choice still holds for this page, just not beyond.
+  }
+}
 
 export function ParticipantsInline({
   title,
@@ -143,6 +177,7 @@ export function ParticipantsInline({
   createFn,
   invalidate,
   registerFlush,
+  ageLabel = "Alter",
 }: {
   title: string;
   editing: boolean;
@@ -151,6 +186,8 @@ export function ParticipantsInline({
   createFn: (body: ExcursionParticipantCreate) => Promise<unknown>;
   invalidate: unknown[][];
   registerFlush: (fn: () => Promise<void>) => void;
+  /** Header of the age column; an excursion names the date the age is taken on. */
+  ageLabel?: string;
 }) {
   const listQuery = useApiQuery(queryKey, listFn);
   const membersQuery = useMembers({ enabled: editing });
@@ -182,7 +219,14 @@ export function ParticipantsInline({
 
   const serverRows = (listQuery.data ?? []).map((r) => ({
     id: r.id,
-    data: { member_id: r.member.id, member_name: r.member.name, comments: r.comments ?? "" } as ParticipantData,
+    data: {
+      member_id: r.member.id,
+      member_name: r.member.name,
+      comments: r.comments ?? "",
+      age: r.age_at_excursion ?? r.member.age,
+      birth_date: r.member.birth_date,
+      may_view_member: r.may_view_member,
+    } as ParticipantData,
   }));
 
   const { rows, setRow, removeRow, addRow } = useInlineDraft<ParticipantData>({
@@ -195,6 +239,12 @@ export function ParticipantsInline({
   });
 
   const [adding, setAdding] = useState<ParticipantData | null>(null);
+  const [birthColumn, setBirthColumn] = useState<BirthColumn>(readBirthColumn);
+  const toggleBirthColumn = () => {
+    const next = birthColumn === "age" ? "birth_date" : "age";
+    setBirthColumn(next);
+    storeBirthColumn(next);
+  };
 
   return (
     <>
@@ -207,7 +257,34 @@ export function ParticipantsInline({
         onAdd={() => setAdding({ member_id: null, member_name: "", comments: "" })}
         addLabel="Teilnehmende"
         columns={[
-          { header: "Teilnehmende", cell: (row) => row.data.member_name || "—" },
+          {
+            header: "Teilnehmende",
+            cell: (row) =>
+              // No link while editing: leaving the page would drop the unsaved draft.
+              !editing && row.data.may_view_member && row.data.member_id !== null ? (
+                <Link to={`/kompass/members/${row.data.member_id}`}>{row.data.member_name}</Link>
+              ) : (
+                row.data.member_name || "—"
+              ),
+          },
+          {
+            header: "Alter / Geburtsdatum",
+            headerCell: (
+              <button
+                type="button"
+                className="th-sort"
+                onClick={toggleBirthColumn}
+                title={birthColumn === "age" ? "Geburtsdatum anzeigen" : `${ageLabel} anzeigen`}
+              >
+                {birthColumn === "age" ? ageLabel : "Geburtsdatum"}
+                <span className="sort-arrow" aria-hidden="true">
+                  ⇄
+                </span>
+              </button>
+            ),
+            cell: (row) =>
+              birthColumn === "age" ? (row.data.age ?? "—") : formatDate(row.data.birth_date),
+          },
           {
             header: "Kommentar",
             cell: (row) =>

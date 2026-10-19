@@ -24,7 +24,9 @@ export function InlineTable<T>({
 }: {
   title: string;
   rows: T[];
-  columns: { header: string; cell: (row: T) => ReactNode }[];
+  /** `header` keys the column; `headerCell`, when set, is rendered in its place
+   *  (e.g. a button that switches what the column shows). */
+  columns: { header: string; headerCell?: ReactNode; cell: (row: T) => ReactNode }[];
   rowKey: (row: T) => string | number;
   editing: boolean;
   /** Shows a "Entfernen" button per row when editing. */
@@ -55,7 +57,7 @@ export function InlineTable<T>({
             <thead>
               <tr>
                 {columns.map((c) => (
-                  <th key={c.header}>{c.header}</th>
+                  <th key={c.header}>{c.headerCell ?? c.header}</th>
                 ))}
                 {showActions && <th className="inline-actions" aria-label="Aktionen" />}
               </tr>

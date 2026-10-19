@@ -16233,7 +16233,7 @@
         "type": "object"
       },
       "ExcursionParticipantOut": {
-        "description": "A member-on-list row (participant / note-list entry) with its member.",
+        "description": "A member-on-list row (participant / note-list entry) with its member.\n\n``age_at_excursion`` is the member's age on the excursion's first day (null\nfor note-list entries and members without a birth date). ``may_view_member``\nsays whether the requesting user may open the member's own record, which\nseeing the list does not imply: see :func:`_with_viewer_context`.",
         "properties": {
           "id": {
             "title": "Id",
@@ -16241,6 +16241,22 @@
           },
           "member": {
             "$ref": "#/components/schemas/MemberBrief"
+          },
+          "age_at_excursion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age At Excursion"
+          },
+          "may_view_member": {
+            "default": false,
+            "title": "May View Member",
+            "type": "boolean"
           },
           "comments": {
             "anyOf": [

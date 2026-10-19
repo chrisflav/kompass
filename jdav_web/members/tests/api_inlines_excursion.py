@@ -12,8 +12,10 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.db import connection
 from django.http import Http404
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from members.api.inlines_excursion import _authorize_participant_parent
 from members.api.inlines_excursion import _validate_ljp_combination
@@ -25,6 +27,7 @@ from members.models import LJPProposal
 from members.models import Member
 from members.models import MemberNoteList
 from members.models import NewMemberOnList
+from members.models import PermissionMember
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
 
@@ -126,6 +129,88 @@ class ExcursionInlineApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200)
         self.assertEqual({p["member"]["id"] for p in r.json()}, {self.participant.pk})
+
+    def test_a_participant_row_carries_the_age_on_the_excursion(self):
+        # The age is taken on the first day, not today: the participant turns
+        # 14 a few days into the trip and is far older by now.
+        self.excursion.date = timezone.make_aware(datetime.datetime(2020, 8, 10, 9, 0))
+        self.excursion.save()
+        self.participant.birth_date = datetime.date(2006, 8, 12)
+        self.participant.save()
+        undated = Member.objects.create(
+            prename="Una", lastname="Dated", email=settings.TEST_MAIL, gender=DIVERSE
+        )
+        self.excursion.add_members([self.participant, undated])
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        ages = {row["member"]["id"]: row["age_at_excursion"] for row in r.json()}
+        self.assertEqual(ages, {self.participant.pk: 13, undated.pk: None})
+
+    def test_a_participant_row_says_whether_the_viewer_may_open_the_member(self):
+        # Leading the excursion shows its list, but a participant's record is
+        # gated on the member ACL: only an explicit grant opens it.
+        self.excursion.add_members([self.participant, self.other, self.leader])
+        PermissionMember.objects.create(member=self.leader).view_members.add(self.other)
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(self.leader_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        may_view = {row["member"]["id"]: row["may_view_member"] for row in r.json()}
+        self.assertEqual(
+            may_view, {self.participant.pk: False, self.other.pk: True, self.leader.pk: True}
+        )
+
+    def test_a_participant_whose_record_does_not_resolve_is_not_linked(self):
+        # The member detail route serves confirmed members only; an unconfirmed
+        # one would answer a link with a 404, grant or not.
+        self.participant.confirmed = False
+        self.participant.save()
+        self.excursion.add_members([self.participant])
+        PermissionMember.objects.create(member=self.leader).view_members.add(self.participant)
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(grant(self.leader_user, "view_global_member")),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(r.json()[0]["may_view_member"])
+
+    def test_the_global_view_permission_opens_every_participant(self):
+        self.excursion.add_members([self.participant, self.other])
+        viewer = grant(self.leader_user, "view_global_member")
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(viewer),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(all(row["may_view_member"] for row in r.json()))
+
+    def test_a_viewer_without_a_member_opens_no_participant(self):
+        self.excursion.add_members([self.participant])
+        reader = User.objects.create_user(username="reader", password="secret")
+        reader = grant(reader, "view_global_freizeit")
+        r = self.client.get(
+            "/api/members/excursions/{}/participants".format(self.excursion.pk),
+            **self.auth(reader),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(r.json()[0]["may_view_member"])
+
+    def test_listing_participants_costs_the_same_whatever_their_number(self):
+        headers = self.auth(self.leader_user)
+        url = "/api/members/excursions/{}/participants".format(self.excursion.pk)
+        self.excursion.add_members([self.participant])
+        self.client.get(url, **headers)  # warm the content-type and auth caches
+        with CaptureQueriesContext(connection) as one:
+            self.client.get(url, **headers)
+        self.excursion.add_members([self.other, self.leader])
+        with CaptureQueriesContext(connection) as three:
+            r = self.client.get(url, **headers)
+        self.assertEqual(len(r.json()), 3)
+        self.assertEqual(len(three), len(one))
 
     def test_update_participant_comment_authorized(self):
         self.excursion.add_members([self.participant])
@@ -440,6 +525,8 @@ class ExcursionInlineApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual({row["member"]["id"] for row in r.json()}, {self.participant.pk})
+        # A note list has no excursion date to take an age on.
+        self.assertIsNone(r.json()[0]["age_at_excursion"])
 
     def test_an_orphaned_proposal_falls_back_to_the_global_permission(self):
         # `excursion` is SET_NULL, so a proposal can outlive its excursion. With

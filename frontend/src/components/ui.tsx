@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { downloadArtifact } from "../api/http";
 
@@ -403,13 +403,27 @@ export function Tabs({
   onChange,
 }: {
   tabs: Tab[];
-  /** Controlled active tab. Omit to let Tabs keep the state itself. */
+  /** Controlled active tab. Omit to let Tabs keep it in the URL (`?tab=`). */
   active?: string;
   /** Called instead of the internal setter when the tab is controlled. */
   onChange?: (id: string) => void;
 }) {
-  const [uncontrolledActive, setActive] = useState(() => tabs[0]?.id);
-  const active = controlledActive ?? uncontrolledActive;
+  // Uncontrolled, the active tab lives in the URL (`?tab=`), so following a
+  // link out of a tab and coming back lands on that tab again. Replacing the
+  // entry keeps tab switches out of the history; the first tab is the default
+  // and leaves the URL clean.
+  const [params, setParams] = useSearchParams();
+  const setActive = (id: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (id === tabs[0]?.id) next.delete("tab");
+        else next.set("tab", id);
+        return next;
+      },
+      { replace: true },
+    );
+  const active = controlledActive ?? params.get("tab") ?? tabs[0]?.id;
   // An unknown id (a hand-edited URL, a tab that has gone away) falls back to
   // the first tab rather than rendering an empty panel.
   const activeId = tabs.some((t) => t.id === active) ? active : tabs[0]?.id;

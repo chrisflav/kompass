@@ -6037,11 +6037,23 @@ export interface components {
         /**
          * ExcursionParticipantOut
          * @description A member-on-list row (participant / note-list entry) with its member.
+         *
+         *     ``age_at_excursion`` is the member's age on the excursion's first day (null
+         *     for note-list entries and members without a birth date). ``may_view_member``
+         *     says whether the requesting user may open the member's own record, which
+         *     seeing the list does not imply: see :func:`_with_viewer_context`.
          */
         ExcursionParticipantOut: {
             /** Id */
             id: number;
             member: components["schemas"]["MemberBrief"];
+            /** Age At Excursion */
+            age_at_excursion?: number | null;
+            /**
+             * May View Member
+             * @default false
+             */
+            may_view_member: boolean;
             /**
              * Comment
              * @default

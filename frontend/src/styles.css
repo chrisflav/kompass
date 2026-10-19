@@ -528,6 +528,10 @@ a.btn {
   padding: 0;
   font: inherit;
   font-weight: 600;
+  /* Buttons don't inherit these, so a header holding one would drop the
+     uppercase, letter-spaced look of its plain siblings. */
+  letter-spacing: inherit;
+  text-transform: inherit;
   color: var(--muted);
   cursor: pointer;
   display: inline-flex;

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { api, djangoValidation, http, HttpResponse, server, useMe } from "../../test/server";
 import {
+  currentSearch,
   fillEveryField,
   pickEverySelect,
   renderRoute,
@@ -447,6 +448,103 @@ describe("activities — Ausfahrt detail", () => {
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(created).toMatchObject({ member_id: 43 }));
+  });
+
+  it("links the participants one may open and shows their age on the trip", async () => {
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/excursions/3/participants"), () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            comments: "",
+            member: { id: 42, name: "Anna Ärmel", birth_date: "2012-02-20", age: 14 },
+            age_at_excursion: 13,
+            may_view_member: true,
+          },
+          {
+            id: 2,
+            comments: "",
+            member: { id: 43, name: "Mila Nowak", birth_date: null, age: null },
+            age_at_excursion: null,
+            may_view_member: false,
+          },
+        ]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
+    // The header says which age it is: the one on the trip, not today's.
+    const toggle = await screen.findByRole("button", { name: /^Alter zu Beginn der Ausfahrt/ });
+    const table = within(toggle.closest("table") as HTMLElement);
+
+    // The tab is in the URL, so returning from a participant's record opens it.
+    expect(currentSearch()).toBe("?tab=teilnehmer");
+    expect(table.getByRole("link", { name: "Anna Ärmel" })).toHaveAttribute(
+      "href",
+      "/kompass/members/42",
+    );
+    // Leading the trip does not open every participant's record.
+    expect(table.queryByRole("link", { name: "Mila Nowak" })).toBeNull();
+    expect(table.getByText("Mila Nowak")).toBeInTheDocument();
+    // The age on the trip, not today's.
+    expect(table.getByText("13")).toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(table.getByText("20.2.2012")).toBeInTheDocument();
+    expect(table.queryByText("13")).toBeNull();
+    expect(localStorage.getItem("kompass.participants.birthColumn")).toBe("birth_date");
+
+    await user.click(table.getByRole("button", { name: /^Geburtsdatum/ }));
+    expect(table.getByText("13")).toBeInTheDocument();
+    expect(localStorage.getItem("kompass.participants.birthColumn")).toBe("age");
+  });
+
+  it("opens the participants on the birth date when that was the last choice", async () => {
+    localStorage.setItem("kompass.participants.birthColumn", "birth_date");
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/excursions/3/participants"), () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            comments: "",
+            member: { id: 42, name: "Anna Ärmel", birth_date: "2012-02-20", age: 14 },
+            age_at_excursion: 13,
+            may_view_member: true,
+          },
+        ]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("tab", { name: /Teilnehmer/ }));
+    expect(await screen.findByText("20.2.2012")).toBeInTheDocument();
+  });
+
+  it("does not link a participant while editing, where leaving drops the draft", async () => {
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/excursions/3/participants"), () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            comments: "",
+            member: { id: 42, name: "Anna Ärmel", birth_date: "2012-02-20", age: 14 },
+            age_at_excursion: 13,
+            may_view_member: true,
+          },
+        ]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/excursions/3?tab=teilnehmer");
+    const table = within(
+      (await screen.findByRole("button", { name: /^Alter/ })).closest("table") as HTMLElement,
+    );
+    expect(table.getByRole("link", { name: "Anna Ärmel" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
+    expect(table.queryByRole("link", { name: "Anna Ärmel" })).toBeNull();
+    expect(table.getByText("Anna Ärmel")).toBeInTheDocument();
   });
 
   it("does not reload the member list it just used for the picker on save", async () => {
