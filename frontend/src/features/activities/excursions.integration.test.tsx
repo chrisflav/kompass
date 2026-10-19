@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { api, djangoValidation, http, HttpResponse, server, useMe } from "../../test/server";
 import {
+  currentSearch,
   fillEveryField,
   pickEverySelect,
   renderRoute,
@@ -477,6 +478,8 @@ describe("activities — Ausfahrt detail", () => {
     const toggle = await screen.findByRole("button", { name: /^Alter/ });
     const table = within(toggle.closest("table") as HTMLElement);
 
+    // The tab is in the URL, so returning from a participant's record opens it.
+    expect(currentSearch()).toBe("?tab=teilnehmer");
     expect(table.getByRole("link", { name: "Anna Ärmel" })).toHaveAttribute(
       "href",
       "/kompass/members/42",

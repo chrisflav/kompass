@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { renderWithApp } from "../test/utils";
+import { currentSearch, renderWithApp } from "../test/utils";
 import {
   Breadcrumbs,
   DataTable,
@@ -122,6 +122,26 @@ describe("Tabs", () => {
     expect(screen.getByRole("tab", { name: "A" })).toHaveAttribute("aria-selected", "true");
 
     await user.click(screen.getByRole("button", { name: "Kürzen" }));
+    expect(screen.getByRole("tab", { name: "B" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps the active tab in the URL, so coming back opens it again", async () => {
+    const tabs = [
+      { id: "a", label: "A", content: <p>Inhalt A</p> },
+      { id: "b", label: "B", content: <p>Inhalt B</p> },
+    ];
+    const { user, unmount } = renderWithApp(<Tabs tabs={tabs} />, {
+      route: "/seite?filter=x",
+      authenticated: false,
+    });
+    await user.click(screen.getByRole("tab", { name: "B" }));
+    expect(currentSearch()).toBe("?filter=x&tab=b");
+    // The first tab is the default and leaves no trace in the URL.
+    await user.click(screen.getByRole("tab", { name: "A" }));
+    expect(currentSearch()).toBe("?filter=x");
+    unmount();
+
+    renderWithApp(<Tabs tabs={tabs} />, { route: "/seite?tab=b", authenticated: false });
     expect(screen.getByRole("tab", { name: "B" })).toHaveAttribute("aria-selected", "true");
   });
 });
