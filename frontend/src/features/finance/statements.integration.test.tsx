@@ -124,9 +124,15 @@ const LEADERS = [
   { id: 9, name: "Mila Nowak" },
 ];
 
+/** The alternatives a `choice` declaration offers, as `/form` sends them. */
+const REGIMES = [
+  { value: "ehrenamt", label: "Ehrenamtspauschale" },
+  { value: "uebungsleiter", label: "Übungsleiterpauschale" },
+];
+
 /** One declaration, with the fields `/form` always sends. */
 function declaration(overrides: Record<string, unknown>) {
-  return { required: false, help: "", max: null, options: [], ...overrides };
+  return { required: false, help: "", max: null, options: [], choices: [], ...overrides };
 }
 
 /**
@@ -655,16 +661,17 @@ describe("submission flow — Erstattung", () => {
         declaration({ key: "nights", label: "Nächte", type: "int", max: 9 }),
         declaration({ key: "catered", label: "Mit Verpflegung", type: "bool" }),
         declaration({ key: "note", label: "Anmerkung", type: "text" }),
-        declaration({ key: "pick", label: "Variante", type: "choice" }),
+        declaration({ key: "pick", label: "Variante", type: "choice", choices: REGIMES }),
       ],
-      answers: { nights: 3, catered: true, note: "eine Zeile", pick: "a" },
+      answers: { nights: 3, catered: true, note: "eine Zeile", pick: "ehrenamt" },
     });
 
     expect(await screen.findByText("Nächte")).toBeInTheDocument();
     expect(screen.getByDisplayValue("3")).toHaveAttribute("max", "9");
     expect(screen.getByRole("checkbox")).toBeChecked();
     expect(screen.getByDisplayValue("eine Zeile")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("a")).toBeInTheDocument();
+    // A picker showing the chosen alternative's label, not its stored value.
+    expect(pickerFor("Variante")).toHaveTextContent("Ehrenamtspauschale");
   });
 
   it("sends an answer under the key the rules declared", async () => {
@@ -774,6 +781,95 @@ describe("submission flow — Erstattung", () => {
     expect(
       await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
     ).toBeInTheDocument();
+  });
+
+  it("offers the alternatives the declaration names, and sends the one picked", async () => {
+    // `choice` used to be a free-text box, because a declaration had no way to
+    // name its alternatives (#573). Now it does, and the API refuses anything
+    // outside them — so typing is no longer a thing a client may offer.
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+      ],
+      answers: { regime: null },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    // Exactly the alternatives the rules offered, plus "not chosen yet" — which
+    // is an answer the API stores, not the absence of one.
+    expect(dropdown().getByText("— nicht gewählt —")).toBeInTheDocument();
+    expect(dropdown().getByText("Übungsleiterpauschale")).toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "Übungsleiterpauschale" }));
+
+    // The stored value, not the label it was picked by.
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({ inputs: { regime: "uebungsleiter" } });
+  });
+
+  it("sends each pick of a choice at once, because clicking is not typing", async () => {
+    // `choice` was a text box, so it sat in the set of controls whose change
+    // waits for a pause — a keystroke must not be a request. A picker has no
+    // keystrokes: every pick is a whole answer, so two picks are two requests
+    // and not one, which is what going back on a choice has to amount to.
+    let patches = 0;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () => {
+        patches += 1;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+      ],
+      answers: { regime: null },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Übungsleiterpauschale" }));
+
+    await waitFor(() => expect(patches).toBe(2));
+  });
+
+  it("names the question a refused choice is about", async () => {
+    // An answer outside the declaration's own choices is a 422 keyed by that
+    // question, like any other refusal — not a toast over the whole form.
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () =>
+        djangoValidation({ regime: ["Regelwerk ist keine der angebotenen Möglichkeiten."] }),
+      ),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+        declaration({ key: "nights", label: "Nächte", type: "int" }),
+      ],
+      answers: { regime: null, nights: 2 },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+
+    // Under "Regelwerk", and not under the other question on the form — in a
+    // toast as well, like any refusal.
+    const messages = await screen.findAllByText(/keine der angebotenen Möglichkeiten/);
+    expect(messages.map((node) => node.className)).toContain("field-error");
+    const refused = screen.getByText("Regelwerk").closest(".field") as HTMLElement;
+    expect(within(refused).getByText(/keine der angebotenen Möglichkeiten/)).toBeInTheDocument();
+    const other = screen.getByText("Nächte").closest(".field") as HTMLElement;
+    expect(within(other).queryByText(/keine der angebotenen Möglichkeiten/)).toBeNull();
   });
 
   it("offers nobody when the rules offer nobody", async () => {
