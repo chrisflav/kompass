@@ -24,6 +24,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
+from django.template.loader import get_template
 from django.test import Client
 from django.test import override_settings
 from django.test import RequestFactory
@@ -532,6 +533,44 @@ class PDFTestCase(TestCase):
     def test_crisis_intervention_list(self):
         context = dict(memberlist=self.ex, settings=settings)
         self._test_render_tex("members/crisis_intervention_list.tex", context)
+
+    def test_group_checklist_rows_hold_together(self):
+        """No line inside the checklist's table may render blank.
+
+        TeX reads a blank or whitespace-only line as a paragraph break; between
+        a row's ``\\`` and the next ``\\midrule``, current LaTeX then gets the
+        row heights wrong, and every name slid into the row below, struck
+        through by its rule. The template tags in the table must not leave one.
+        """
+        group = Group.objects.create(name="Klettergruppe", show_website=True, weekday=2)
+        for i, ticket_no in enumerate(["123 45", ""]):
+            member = Member.objects.create(
+                prename="Kim {}".format(i),
+                lastname="Test",
+                birth_date=timezone.now().date(),
+                email=settings.TEST_MAIL,
+                gender=FEMALE,
+                ticket_no=ticket_no,
+            )
+            member.group.add(group)
+        group.leiters.add(member)
+        context = dict(
+            groups=Group.objects.filter(pk=group.pk),
+            settings=settings,
+            week_range=range(3),
+            member_range=range(4),
+            dates=mondays_until_nth(3),
+            weekdays=[entry[1] for entry in WEEKDAYS],
+            header_text="",
+        )
+        source = get_template("members/group_checklist.tex").render(context)
+        table = source[source.index("\\begin{tabularx}") : source.index("\\end{tabularx}")]
+        self.assertEqual([line for line in table.splitlines() if not line.strip()], [])
+        self.assertIn("\\barcode", table)
+        self.assertIn("\\textbf{JL}", table)
+        self._assert_file_exists(
+            render_tex("Checkliste", "members/group_checklist.tex", context, save_only=True)
+        )
 
     def test_render_tex_without_pages(self):
         """A run that typesets nothing must not pass for a rendered PDF.
