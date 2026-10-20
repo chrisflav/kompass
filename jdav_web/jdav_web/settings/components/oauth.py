@@ -13,6 +13,11 @@ def _pkce_required(client_id):
     return client_id == FRONTEND_OAUTH_CLIENT_ID
 
 
+# The toolkit's models are swappable; the migration autodetector reads this
+# setting as soon as a model refers to the access token (logindata's personal
+# access tokens do), and the toolkit only defaults it inside its own settings.
+OAUTH2_PROVIDER_ACCESS_TOKEN_MODEL = "oauth2_provider.AccessToken"
+
 OAUTH2_PROVIDER = {
     "OIDC_ENABLED": True,
     "PKCE_REQUIRED": _pkce_required,

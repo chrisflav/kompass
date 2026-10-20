@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import Group as BaseAuthGroup
 from django.contrib.auth.models import User as BaseUser
 from django.db import models
@@ -31,6 +32,43 @@ class RegistrationPassword(models.Model):
     class Meta:
         verbose_name = _("Active registration password")
         verbose_name_plural = _("Active registration passwords")
+
+
+class PersonalAccessToken(models.Model):
+    """A bearer token a user creates in the web interface, for a script or an assistant.
+
+    It is an ordinary django-oauth-toolkit access token without an application,
+    so the API's bearer auth takes it unchanged. This row adds what the user
+    named it and whether it may only read, which ``contrib.api.auth`` enforces.
+    Revoking deletes the access token, and this row with it.
+    """
+
+    access_token = models.OneToOneField(
+        "oauth2_provider.AccessToken", on_delete=models.CASCADE, related_name="personal"
+    )
+    name = models.CharField(_("name"), max_length=100)
+    read_only = models.BooleanField(_("read only"), default=True)
+    created = models.DateTimeField(_("created"), auto_now_add=True)
+    # The owner is the access token's user; a superuser may create a token for
+    # another account, and this keeps who did.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("created by"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = _("Personal access token")
+        verbose_name_plural = _("Personal access tokens")
+        ordering = ["-created", "-pk"]
+        default_permissions = ()
+        permissions = [("create_personalaccesstoken", _("Can create personal access tokens"))]
 
 
 def initial_user_setup(user, member):

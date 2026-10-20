@@ -218,9 +218,13 @@ function NavArea({ area, activePath }: { area: NavArea; activePath: string }) {
   );
 }
 
-/** The signed-in user's menu: name → profile, plus logout. */
+/** Personal access tokens are offered to those who may create one. */
+const TOKENS_PERMISSION = "logindata.create_personalaccesstoken";
+
+/** The signed-in user's menu: name → profile, access tokens, plus logout. */
 function UserMenu({ memberId, name }: { memberId: number | null; name: string }) {
   const { logout } = useAuth();
+  const { can } = usePermissions();
   const [open, setOpen] = useState(false);
   const ref = useOutsideClose(() => setOpen(false));
   return (
@@ -245,6 +249,11 @@ function UserMenu({ memberId, name }: { memberId: number | null; name: string })
             </Link>
           ) : (
             <span className="nav-drop-item muted">Kein Teilnehmenden-Profil</span>
+          )}
+          {can(TOKENS_PERMISSION) && (
+            <Link to="/kompass/tokens" className="nav-drop-item">
+              Zugangstokens
+            </Link>
           )}
           <button type="button" className="nav-drop-item as-button" onClick={logout}>
             Abmelden
@@ -377,6 +386,7 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
   const [drawer, setDrawer] = useState(false);
   const publicNav = usePublicNav(variant === "public");
   const adminNav = useAdminNav();
+  const { can } = usePermissions();
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => setDrawer(false), [pathname]);
@@ -494,6 +504,11 @@ export function SiteHeader({ variant }: { variant: "public" | "app" }) {
               {memberId !== null && (
                 <NavLink to={`/kompass/members/${memberId}`} className="drawer-item">
                   Mein Profil
+                </NavLink>
+              )}
+              {can(TOKENS_PERMISSION) && (
+                <NavLink to="/kompass/tokens" className="drawer-item">
+                  Zugangstokens
                 </NavLink>
               )}
               <LogoutDrawerItem />
