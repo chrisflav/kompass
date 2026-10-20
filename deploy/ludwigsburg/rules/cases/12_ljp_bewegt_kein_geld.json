@@ -1,0 +1,42 @@
+{
+  "name": "Der Landesjugendplan ändert nur die Unterschriften, nicht einen Cent der Zahlungen",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "travel_to": 1,
+    "nights_to": [1, 2]
+  },
+  "excursion": {
+    "duration": "3.0",
+    "nights": 2,
+    "kilometers": 300,
+    "approach": "car",
+    "leaders": [1, 2],
+    "staff_count": 2,
+    "approved_staff_count": 2,
+    "participants": [
+      {"member": 10, "age": 14, "age_at_start": 14},
+      {"member": 11, "age": 15, "age_at_start": 15},
+      {"member": 12, "age": 16, "age_at_start": 16},
+      {"member": 13, "age": 17, "age_at_start": 17},
+      {"member": 1, "age": 24, "age_at_start": 24, "is_leader": true},
+      {"member": 2, "age": 26, "age_at_start": 26, "is_leader": true}
+    ],
+    "ljp": {
+      "goal": "participation",
+      "participant_count": 6,
+      "theoretic_participant_count": 6,
+      "duration": "2.0"
+    }
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "60.00", "travel"],
+      ["SECTION", "1", "20.00", "nights"],
+      ["SECTION", "2", "20.00", "nights"],
+      ["PARTICIPANTS", "SECTION", "100.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}

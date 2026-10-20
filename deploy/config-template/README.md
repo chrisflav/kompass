@@ -204,9 +204,16 @@ page has the rest:
 
 ### For Ludwigsburg, concretely
 
-The next ruleset to write is Ludwigsburg's, whose instance has none and is
-therefore settling under Heidelberg's rules today. What is recorded of its
-policy maps onto this template like this:
+**There is a worked example of all of this next door: `deploy/ludwigsburg/`.**
+It is the Sektion Ludwigsburg's real configuration, written out of its four
+signed documents — two parallel travel-cost policies selected by a `choice`,
+the trip's figures derived with `source=`, a statement with no trip paying a
+bill's payer, signatures routed by office with a conflict-of-interest `Forbid`,
+and twenty cases pinning the figures of both policies. Its README also names
+what it deliberately does *not* implement and every reading it had to make,
+which is the part of a ruleset that is easiest to leave unwritten.
+
+Ludwigsburg's policy maps onto this template like this:
 
 | Rule | Where it goes |
 | --- | --- |
@@ -214,13 +221,15 @@ policy maps onto this template like this:
 | *Individualisierte* Aufwandsentschädigung | A `money` key per recipient, or one key holding the shared amount plus `allowance_to` for who. Keys are free-form now (#556), so this is a ruleset decision rather than a Kompass one. |
 | Übernachtungs- und Fahrtkosten, individualisiert | Same: as many keys as the policy needs. The kilometres need no key at all — `source="excursion.kilometers"` derives them from the trip and asks for them only when there is no trip. |
 | Abrechnungen ohne Fahrt (Anschaffungen, Reparaturen) | `options_source="bills.payers"` (or `"statement.creator"`) is who may be paid when there are no youth leaders to offer. |
-| LJP wie gehabt | `ctx.excursion.ljp` carries the counts the state's regulations define, already computed. The reference ruleset's `_ljp_amount` is the worked example to read. |
+| LJP wie gehabt | `ctx.excursion.ljp` carries the counts the state's regulations define, already computed. The reference ruleset's `_ljp_amount` is the worked example to read — and it is Heidelberg's policy, not a default: in Ludwigsburg the LJP moves no money at all and only changes who signs. |
 | Einreichen nach Bestätigung aller Jugendleitenden | **Not implemented by the engine.** `Check`s are preconditions for handing in, but there is no per-leader confirmation to check for, and `Constraint`s are signatures *after* submission. It needs a pre-submission stage in the engine. |
 | Abrechnung innerhalb eines Monats: erinnern, dann forcieren | **Not implemented by the engine.** There is no clock in a rule and no deadline in the context, deliberately; a reminder is a scheduled task in Kompass, not a rule. |
 
-The first five are rules to write here today. The last two are Kompass
-features that do not exist at all, which cannot be written as rules however the
-ruleset is arranged — better known before the first pull request than after it.
+The first five are written, in `deploy/ludwigsburg/rules/`. The last two are
+Kompass features that do not exist at all, which cannot be written as rules
+however the ruleset is arranged — better known before the first pull request
+than after it.
 
-The figures themselves are the section's to decide, so nobody should write
-Ludwigsburg's ruleset without Ludwigsburg.
+The figures themselves are the section's to decide, which is why every reading
+`deploy/ludwigsburg/` had to make is listed in its README rather than settled
+quietly in a rule.

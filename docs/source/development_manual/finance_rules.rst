@@ -21,6 +21,14 @@ everything it offers is documented below.
    worked cases, the ``mypy`` and ``ruff`` configuration and a CI workflow.
    Its ``README.md`` is the section's half of this page.
 
+   And there is a real one beside it: ``deploy/ludwigsburg/`` is the Sektion
+   Ludwigsburg's own configuration, written out of its signed documents. It is
+   worth reading for the shape of a ruleset that is not a template — two
+   policies in force at once behind a ``choice``, the trip's figures derived
+   with :attr:`~kompass.rules.Input.source` so that one declaration serves a
+   trip and a purchase, signatures routed by office, and twenty cases that pin
+   the figures.
+
 
 What a ruleset is
 =================

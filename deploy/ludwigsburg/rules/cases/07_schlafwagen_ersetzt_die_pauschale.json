@@ -1,0 +1,35 @@
+{
+  "name": "Der Schlafwagen tritt an die Stelle der Übernachtung, also keine Pauschale",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "sleeper_car": true,
+    "nights_to": [1]
+  },
+  "bills": [
+    {
+      "id": 1,
+      "amount": "89.90",
+      "covered": true,
+      "payer": 1,
+      "description": "Schlafwagen, Zweibettabteil"
+    }
+  ],
+  "excursion": {
+    "duration": "2.0",
+    "nights": 1,
+    "kilometers": 0,
+    "approach": "public",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 1
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "89.90", "bill"],
+      ["PARTICIPANTS", "SECTION", "89.90", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Ehrenamt ohne Ausfahrt: Bahnbeleg erstattet, Tagestour mit 14 € Tagegeld",
+  "inputs": {
+    "regime": "ehrenamt",
+    "nights": 0,
+    "duration": "1.0",
+    "country": "deutschland",
+    "per_diem_to": [7]
+  },
+  "bills": [
+    {
+      "id": 1,
+      "amount": "30.00",
+      "covered": true,
+      "payer": 7,
+      "description": "Bahnticket 2. Klasse"
+    }
+  ],
+  "statement": {"id": 1, "creator": 7},
+  "expect": {
+    "transfers": [
+      ["SECTION", "7", "30.00", "bill"],
+      ["SECTION", "7", "14.00", "per_diem"],
+      ["PARTICIPANTS", "SECTION", "44.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true]
+  }
+}
