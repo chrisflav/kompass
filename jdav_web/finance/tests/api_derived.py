@@ -25,6 +25,7 @@ import datetime
 import uuid
 from contextlib import contextmanager
 from contextlib import ExitStack
+from dataclasses import replace
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -197,6 +198,24 @@ class DerivedFormTestCase(TestCase):
         result = evaluate_statement(Statement.objects.get(pk=statement.pk), ruleset=self.rules)
         self.assertEqual(result.errors, (), result.errors)
         return result.total_of("travel")
+
+    def read_by_the_rules(self, statement):
+        """Every answer the rules actually read, by key, in their own types.
+
+        Captured from inside ``transfers``, which is the only place the rules'
+        view of an answer exists at all. Two readings of the same statement are
+        comparable, which is what the round-trip assertions below need.
+        """
+        seen = {}
+
+        class Recording(type(self.rules)):
+            def transfers(rules, ctx):
+                seen.update({key: ctx.inputs.raw(key) for key in ctx.inputs.declared()})
+                return [], []
+
+        result = evaluate_statement(Statement.objects.get(pk=statement.pk), ruleset=Recording())
+        self.assertEqual(result.errors, (), result.errors)
+        return seen
 
 
 class DerivedInputApiTestCase(DerivedFormTestCase):
@@ -414,7 +433,7 @@ class ChoiceInputApiTestCase(DerivedFormTestCase):
 
         The *statement* route to an unanswered choice goes through
         ``coerce_input``, which makes an absent answer ``""`` on its way into
-        the context — so the ``_EMPTY["choice"]`` that taxis #573 is about is
+        the context — so the ``EMPTY["choice"]`` that taxis #573 is about is
         not what this exercises, and neutering it leaves this green. The guard
         for that is
         ``finance.tests.engine.EvaluationTestCase``'s
@@ -558,7 +577,7 @@ class NarrowedFormApiTestCase(DerivedFormTestCase):
         Note what is deliberately *not* asserted: an error. Reading a narrowed
         key is not a ruleset bug, so it does not collapse the evaluation — a
         traceback about a question nobody can see is the mistake
-        ``_EMPTY["choice"]`` used to make.
+        ``EMPTY["choice"]`` used to make.
         """
         answer(self.statement, regime="ehrenamt")
         Bill.objects.create(
@@ -763,4 +782,302 @@ class DerivedMemberReadTestCase(DerivedFormTestCase):
                 Decimal(str(self.excursion.duration)),
                 "car",
             ),
+        )
+
+
+class _TwoMinds(TravelRules):
+    """A ruleset whose two declaration methods disagree about one key.
+
+    ``inputs`` derives the kilometres from the trip; ``relevant_inputs`` names
+    the same key with no source, as a question of its own. Nobody writes this
+    on purpose — it is what a careless override of one method and not the other
+    produces — and the engine has to pick one answer, because the form and the
+    rules reading different ones is how a submitted figure ends up stored where
+    nothing reads it.
+    """
+
+    def relevant_inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            Input(entry.key, entry.label, entry.type, required=False)
+            if entry.key == "kilometers"
+            else entry
+            for entry in self.inputs(ctx)
+        ]
+
+
+class _AsksMore(TravelRules):
+    """A ruleset that asks a question it never declared."""
+
+    def relevant_inputs(self, ctx: RuleContext) -> list[Input]:
+        return [*self.inputs(ctx), Input("extra", "Noch etwas", "money", required=False)]
+
+
+class _BoundedCrew(TravelRules):
+    """The leaders, derived, bounded by how many the section pays for.
+
+    The obvious use of a derived set of people, and the one that used to pay
+    whoever the trip listed however many the section had approved. The bound is
+    a constant here rather than ``ctx.excursion.approved_staff_count``, so that
+    the test is about ``max`` and not about the participant-to-leader ratio the
+    real number comes from.
+    """
+
+    #: How many of the trip's leaders this section pays for.
+    bound = 1
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            Input(
+                "crew",
+                "Jugendleitung",
+                "member_set",
+                required=False,
+                source="excursion.leaders",
+                max=self.bound,
+            )
+        ]
+
+    def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
+        return [
+            Transfer(SECTION, member, Decimal("10.00"), "travel", rule_id="per_leader")
+            for member in ctx.inputs.members("crew")
+        ], []
+
+
+class _OneRegime(TravelRules):
+    """The same rules after the section dropped one of its two rulebooks."""
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            replace(entry, choices=(Choice("ehrenamt", "Ehrenamt"),))
+            if entry.key == "regime"
+            else entry
+            for entry in super().inputs(ctx)
+        ]
+
+
+class OneValueOneSourceTestCase(DerivedFormTestCase):
+    """The form and the rules read one value, and it comes from one place.
+
+    The property this whole branch exists to establish, asserted directly
+    rather than inferred from each of the two resolutions being load-bearing.
+    Neutering proved that ``build_context`` and ``_answered`` each matter; it
+    could not prove they *agree*, and "two sources for one value" is the shape
+    being removed.
+    """
+
+    def answerable_answers(self, body):
+        """The answers a client may send back: everything but the derived ones.
+
+        The whole of ``/form``'s contract in one expression. A derived figure is
+        served so that a client can *show* it and refused so that nobody can
+        *change* it, and the declaration says which it is — so "echo what you
+        were served" means these, and sending a derived key is the one thing a
+        client is told not to do.
+        """
+        derived = {entry["key"] for entry in body["inputs"] if entry["derived"]}
+        return {key: value for key, value in body["answers"].items() if key not in derived}
+
+    def test_everything_the_form_serves_is_accepted_straight_back(self):
+        """A client may echo what it was served — including once a domain shrinks.
+
+        A form whose own ``PATCH`` refuses an answer it served as answerable is
+        a form no client can round-trip, and the 422 names a value the UI was
+        handed and cannot display. The ordinary case is the first half below;
+        the half that used to fail is the second, where the section has
+        withdrawn the alternative the stored answer names.
+
+        Neuter :func:`finance.inputs._answer` — serve the stored value
+        unfiltered — and the second echo is a 422 on a question nobody touched.
+        """
+        answer(self.statement, regime="tourenleitung")
+        self._a_receipt_paid_by(self.leader)
+        body = self.form(self.statement)
+        echoed = self.answer_through_the_api(self.statement, self.answerable_answers(body))
+        self.assertEqual(echoed.status_code, 200, echoed.content)
+        self.assertEqual(self.form(self.statement)["answers"], body["answers"])
+        # Now the section drops the rulebook this statement named, without
+        # anybody touching the statement.
+        self.rules = _OneRegime()
+        narrowed = self.form(self.statement)
+        self.assertIsNone(narrowed["answers"]["regime"], "what it refuses it may not serve")
+        again = self.answer_through_the_api(self.statement, self.answerable_answers(narrowed))
+        self.assertEqual(again.status_code, 200, again.content)
+
+    def test_a_derived_answer_is_served_and_still_refused(self):
+        """The one exception, and it is the refusal rather than a hole in it.
+
+        A derived figure is in ``answers`` because a client has to be able to
+        show it, and ``derived`` is on the declaration because the same client
+        must not send it back. So the round-trip rule is "everything you were
+        served except those", which is what
+        :meth:`answerable_answers` spells out and what the SPA implements.
+        """
+        body = self.form(self.statement)
+        self.assertEqual(body["answers"]["kilometers"], self.kilometers)
+        refused = self.answer_through_the_api(self.statement, body["answers"])
+        self.assertEqual(refused.status_code, 422, refused.content)
+        self.assertIn("kilometers", refused.json()["errors"])
+
+    def test_the_round_trip_changes_nothing_the_rules_read(self):
+        """And the echo is inert: same questions, same answers, same money."""
+        answer(self.statement, regime="ehrenamt")
+        self._a_receipt_paid_by(self.leader)
+        self.assertEqual(
+            self.answer_through_the_api(self.statement, {"paid_to": self.leader.pk}).status_code,
+            200,
+        )
+        before = self.read_by_the_rules(self.statement)
+        body = self.form(self.statement)
+        self.assertEqual(
+            self.answer_through_the_api(self.statement, self.answerable_answers(body)).status_code,
+            200,
+        )
+        self.assertEqual(self.read_by_the_rules(self.statement), before)
+
+    def test_inputs_decides_where_one_key_comes_from(self):
+        """A key both methods declare is served with the ``inputs`` declaration.
+
+        Measured before this: the form reported ``derived: false`` for a key
+        ``inputs`` derives, a ``PATCH`` of 9999 answered 200 and stored it, and
+        the rules read the trip's 100 — exactly the outcome the refusal exists
+        to make impossible, reached by a ruleset that overrode one method
+        carelessly.
+
+        Neuter it — have ``asking`` build the form out of ``relevant_inputs``'
+        own declarations rather than filtering the vocabulary — and the form
+        says the answer is the person's to give while the engine goes on
+        supplying one.
+        """
+        self.rules = _TwoMinds()
+        self.assertTrue(self.declaration(self.form(self.statement), "kilometers")["derived"])
+        refused = self.answer_through_the_api(self.statement, {"kilometers": 9999})
+        self.assertEqual(refused.status_code, 422, refused.content)
+        self.statement.refresh_from_db()
+        self.assertNotIn("kilometers", self.statement.inputs)
+        self.assertEqual(self.read_by_the_rules(self.statement)["kilometers"], self.kilometers)
+
+    def test_a_question_only_relevant_inputs_names_is_an_error(self):
+        """``relevant_inputs`` narrows; a key only it names is reported.
+
+        It has nowhere to be stored and nowhere to be read, so the old reading
+        was the worst of both: the key was on the form, a ``PATCH`` answered
+        200 and stored the answer, the form served it back — and the rule read
+        the empty value every time with nothing said. Neuter it — drop the
+        ``widened`` arm of ``evaluate`` — and that silence comes back.
+        """
+        self.rules = _AsksMore()
+        result = evaluate_statement(self.statement, ruleset=self.rules)
+        self.assertTrue(any("extra" in error for error in result.errors), result.errors)
+        # And it is not on the form either, because it is not a declared key.
+        self.assertNotIn("extra", [entry["key"] for entry in self.form(self.statement)["inputs"]])
+
+    def test_a_supplied_value_the_bound_refuses_is_an_error_not_a_payout(self):
+        """``max`` reaches the one value a client cannot influence.
+
+        It was enforced in ``clean_value`` alone, so a submitted answer was
+        bounded and the trip's own figure was not: two leaders against a bound
+        of one paid 20.00 where the section approved 10.00, with
+        ``result.errors == ()``. Neuter it — drop ``unbounded`` from
+        ``evaluate`` — and the second allowance comes back with nothing said.
+
+        An error rather than a truncation on purpose: nobody can correct this
+        through the form, so a quietly smaller payout would be a figure no page
+        explains. The statement does not resolve while the error stands, which
+        is what stops it being handed in and what stops any row being written.
+        """
+        self.rules = _BoundedCrew()
+        self.excursion.jugendleiter.add(self.owner)
+        self.assertEqual(self.excursion.jugendleiter.count(), 2, "two led a trip paying for one")
+        result = evaluate_statement(self.statement, ruleset=self.rules)
+        self.assertTrue(
+            any("crew" in error and "at most" in error for error in result.errors), result.errors
+        )
+        self.assertFalse(result.ok, "and the statement does not resolve, so nothing is frozen")
+
+    def test_a_supplied_value_inside_the_bound_is_paid(self):
+        """The other side of it, so the error is not simply always raised."""
+        self.rules = _BoundedCrew()
+        result = evaluate_statement(self.statement, ruleset=self.rules)
+        self.assertEqual(result.errors, (), result.errors)
+        self.assertEqual(result.total_of("travel"), Decimal("10.00"))
+
+    def _a_receipt_paid_by(self, member):
+        return Bill.objects.create(
+            statement=self.statement,
+            short_description="Tankf\u00fcllung",
+            amount=Decimal("40.00"),
+            paid_by=member,
+        )
+
+
+class WithdrawnOptionTestCase(DerivedFormTestCase):
+    """An answer the rules have stopped offering stops being an answer."""
+
+    def test_a_choice_whose_option_was_withdrawn_stops_paying(self):
+        """Measured before this: it paid 30.00 and nothing said so.
+
+        ``clean_value`` validates a submitted choice against ``choices`` and
+        nothing re-validated a stored one, so narrowing the alternatives left
+        the withdrawn value in ``Statement.inputs``, reaching the rules and
+        moving money — while ``/form`` served it beside a ``choices`` list that
+        did not contain it.
+
+        Neuter it — drop the ``choice`` arm of
+        :func:`finance.engine.answers.within` — and the 30.00 comes back, and
+        the form serves a value its own ``choices`` does not offer.
+        """
+        self._a_receipt_paid_by(self.leader)
+        self.assertEqual(
+            self.answer_through_the_api(
+                self.statement, {"regime": "tourenleitung", "paid_to": self.leader.pk}
+            ).status_code,
+            200,
+        )
+        self.assertEqual(self.paid(self.statement), Decimal("30.00"))
+        # The section drops one of its two rulebooks. Nobody touches the
+        # statement, which still has the withdrawn answer stored.
+        self.rules = _OneRegime()
+        self.statement.refresh_from_db()
+        self.assertEqual(self.statement.inputs["regime"], "tourenleitung")
+        self.assertEqual(self.paid(self.statement), Decimal("0.00"))
+        body = self.form(self.statement)
+        self.assertEqual(
+            self.declaration(body, "regime")["choices"],
+            [{"value": "ehrenamt", "label": "Ehrenamt"}],
+        )
+        self.assertIsNone(body["answers"]["regime"], "the form may not serve what it refuses")
+
+    def test_a_person_the_options_no_longer_offer_stops_being_paid(self):
+        """Clearing a receipt's payer is an ordinary post-submission edit.
+
+        It empties an ``options_source="bills.payers"`` set without anybody
+        touching an answer, and the answer that still names them used to go on
+        paying. Neuter it — drop the ``member`` arm of ``within`` — and the
+        2.00 comes back for somebody the form no longer offers, served beside
+        an empty option list.
+        """
+        receipt = self._a_receipt_paid_by(self.leader)
+        self.assertEqual(
+            self.answer_through_the_api(
+                self.statement, {"regime": "ehrenamt", "paid_to": self.leader.pk}
+            ).status_code,
+            200,
+        )
+        self.assertEqual(self.paid(self.statement), Decimal("20.00"))
+        receipt.paid_by = None
+        receipt.save()
+        self.statement.refresh_from_db()
+        self.assertEqual(self.statement.inputs["paid_to"], self.leader.pk)
+        self.assertEqual(self.paid(self.statement), Decimal("0.00"))
+        body = self.form(self.statement)
+        self.assertEqual(self.declaration(body, "paid_to")["options"], [])
+        self.assertIsNone(body["answers"]["paid_to"])
+
+    def _a_receipt_paid_by(self, member):
+        return Bill.objects.create(
+            statement=self.statement,
+            short_description="Tankf\u00fcllung",
+            amount=Decimal("40.00"),
+            paid_by=member,
         )

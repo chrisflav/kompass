@@ -13,6 +13,7 @@ import json
 import sys
 import threading
 from contextlib import nullcontext
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -25,7 +26,7 @@ from django.db import connections
 from django.test import SimpleTestCase
 from django.test import TestCase
 from finance.engine import active_ruleset
-from finance.engine import ask
+from finance.engine import asking
 from finance.engine import build_context
 from finance.engine import evaluate
 from finance.engine import evaluate_statement
@@ -44,6 +45,7 @@ from finance.engine import RulesetRejected
 from finance.engine import source_hash
 from finance.engine import sum_amounts
 from finance.engine import supplied
+from finance.engine import unbounded
 from finance.engine.cases import load_cases
 from finance.engine.cases import parse_case
 from finance.engine.cases import party
@@ -182,10 +184,15 @@ class EveryWidgetCase(Ruleset):
         self.seen: tuple[object, ...] = ()
 
     def inputs(self, ctx):
+        # The two party-valued questions offer the trip's leaders, which is
+        # what every real ruleset does and what a case has to describe: a
+        # stored answer naming somebody a declaration does not offer reads as
+        # unanswered, so a case answering one has to put them on the trip.
+        leaders = ctx.excursion.leaders if ctx.excursion is not None else ()
         return [
             Input("fee", "Gebühr", "money", required=False),
-            Input("helper", "Helfer*in", "member", required=False),
-            Input("helpers", "Helfende", "member_set", required=False),
+            Input("helper", "Helfer*in", "member", required=False, options=leaders),
+            Input("helpers", "Helfende", "member_set", required=False, options=leaders),
             Input("nights", "Nächte", "int", required=False),
         ]
 
@@ -199,28 +206,36 @@ class EveryWidgetCase(Ruleset):
         return [], []
 
 
-#: One declaration of each type in the widget vocabulary, for a ruleset that is
-#: only ever asked what it asks.
-#:
-#: The reference ruleset asks for money, a person and a set of people; the other
-#: four types have no section in tree that uses them, and the coercion from what
-#: ``Statement.inputs`` stores to what a rule reads has to be right for all
-#: seven.
-EVERY_WIDGET = [
-    Input("night_cost", "Geld", "money", required=False),
-    Input("nights", "Ganze Zahl", "int", required=False, max=9),
-    Input("catered", "Ja oder nein", "bool", required=False),
-    Input("note", "Text", "text", required=False),
-    Input(
-        "pick",
-        "Auswahl",
-        "choice",
-        required=False,
-        choices=(Choice("a", "Erstes"), Choice("b", "Zweites")),
-    ),
-    Input("subsidy_to", "Eine Person", "member", required=False),
-    Input("allowance_to", "Mehrere Personen", "member_set", required=False),
-]
+def every_widget(*offered):
+    """One declaration of each type in the widget vocabulary.
+
+    The reference ruleset asks for money, a person and a set of people; the
+    other four types have no section in tree that uses them, and the coercion
+    from what ``Statement.inputs`` stores to what a rule reads has to be right
+    for all seven.
+
+    ``offered`` are the people the two party-valued questions put on offer, and
+    they have to be *somebody*: a stored answer naming a person the declaration
+    does not offer reads as unanswered, so a declaration offering nobody can
+    never be answered — which is the whole point of that reading, and makes a
+    fixture with no options a fixture that tests nothing.
+    """
+    people = tuple(Member(MemberId(person.pk)) for person in offered)
+    return [
+        Input("night_cost", "Geld", "money", required=False),
+        Input("nights", "Ganze Zahl", "int", required=False, max=9),
+        Input("catered", "Ja oder nein", "bool", required=False),
+        Input("note", "Text", "text", required=False),
+        Input(
+            "pick",
+            "Auswahl",
+            "choice",
+            required=False,
+            choices=(Choice("a", "Erstes"), Choice("b", "Zweites")),
+        ),
+        Input("subsidy_to", "Eine Person", "member", required=False, options=people),
+        Input("allowance_to", "Mehrere Personen", "member_set", required=False, options=people),
+    ]
 
 
 # --- the typed API ---------------------------------------------------------
@@ -413,6 +428,38 @@ class InputDeclarationTestCase(SimpleTestCase):
             )
         self.assertIn("say it once", str(caught.exception))
 
+    def test_saying_who_may_be_picked_for_an_answer_nobody_picks_is_refused(self):
+        """A derived answer is not picked, so an option list is a second answer.
+
+        ``options`` says "these are the people who may be named" and ``source``
+        says "the value is whoever the trip says". Both at once is a
+        declaration that can name somebody it also says may not be named, and
+        nothing re-checked a supplied value against the list — so the engine
+        would have paid whoever the source pointed at. Refused where it is
+        written instead: a derived set of people is bounded with ``max``, and
+        is statement-local already because the context is.
+        """
+        for extra in ({"options": (Member(MemberId(1)),)}, {"options_source": "bills.payers"}):
+            with self.subTest(**extra), self.assertRaises(RuleError) as caught:
+                Input("who", "Wer", "member", source="statement.creator", **extra)
+            self.assertIn("bound it with `max`", str(caught.exception))
+
+    def test_a_declaration_cannot_call_itself_derived(self):
+        """The engine sets that, from ``source``, and only ever to true.
+
+        A ruleset writing it by hand would get a question the form refuses to
+        accept an answer for and the engine never supplies a value for —
+        unanswerable, and refused with a message that is not true of it.
+        """
+        with self.assertRaises(RuleError) as caught:
+            Input("km", "Kilometer", "int", derived=True)
+        self.assertIn("nothing to derive it from", str(caught.exception))
+        # And it is accepted on a declaration that has one, because that is how
+        # the engine marks it.
+        self.assertTrue(
+            Input("km", "Kilometer", "int", source="excursion.kilometers", derived=True).derived
+        )
+
 
 class OptionSourceTestCase(SimpleTestCase):
     """Every name in the vocabulary, and what it resolves to.
@@ -502,7 +549,7 @@ class DerivedResolutionTestCase(SimpleTestCase):
         declaration = Input("km", "Kilometer", "int", source="excursion.kilometers")
         bare = context()
         self.assertEqual(supplied([declaration], bare), {})
-        asked = ask(Fixed(declarations=[declaration]), bare)
+        asked = asking(Fixed(declarations=[declaration]), bare).vocabulary
         self.assertFalse(asked[0].derived, "nothing was derived, so nothing is marked")
 
     def test_a_source_that_resolves_is_supplied_and_marked(self):
@@ -521,12 +568,55 @@ class DerivedResolutionTestCase(SimpleTestCase):
             )
         )
         self.assertEqual(supplied([declaration], with_trip), {"km": 120})
-        self.assertTrue(ask(Fixed(declarations=[declaration]), with_trip)[0].derived)
+        self.assertTrue(asking(Fixed(declarations=[declaration]), with_trip).vocabulary[0].derived)
 
     def test_a_declaration_with_neither_is_handed_back_untouched(self):
         """``replace`` is not free, and an unchanged declaration is identical."""
         declaration = Input("night_cost", "Preis", "money", required=False)
-        self.assertIs(ask(Fixed(declarations=[declaration]), context())[0], declaration)
+        self.assertIs(
+            asking(Fixed(declarations=[declaration]), context()).vocabulary[0], declaration
+        )
+
+    def test_a_bound_is_asked_of_a_supplied_value_too(self):
+        """``max`` reached a submitted answer and not the engine's own.
+
+        So the one value a client cannot influence was the one value nothing
+        bounded. Both shapes are checked here because only the set of people
+        has a client in tree: a whole number out of the trip is the other, and
+        a section deriving ``excursion.nights`` with a ceiling on it is the
+        obvious use.
+
+        Neuter either arm of :func:`finance.engine.declared.unbounded` and the
+        matching row below reports nothing — the engine paying a figure its own
+        declaration calls too large.
+        """
+        nights = Input("nights", "Nächte", "int", source="excursion.nights", max=7)
+        crew = Input(
+            "crew", "Leitung", "member_set", source="excursion.leaders", max=1, required=False
+        )
+        people = (Member(MemberId(1)), Member(MemberId(2)))
+        self.assertIn("at most 7", unbounded([nights], {"nights": 9})[0])
+        self.assertIn("'crew'", unbounded([crew], {"crew": people})[0])
+        # Inside the bound, and with no bound at all, there is nothing to say.
+        self.assertEqual(unbounded([nights], {"nights": 7}), [])
+        self.assertEqual(unbounded([crew], {"crew": people[:1]}), [])
+        self.assertEqual(unbounded([replace(nights, max=None)], {"nights": 9}), [])
+        # And a declaration the engine did not supply is not this question.
+        self.assertEqual(unbounded([nights], {}), [])
+
+    def test_a_bound_says_nothing_about_a_value_it_cannot_measure(self):
+        """A bound on a type that has no size is not a refusal.
+
+        ``max`` means a count for a set of people and a ceiling for a whole
+        number, and nothing at all for the rest of the vocabulary — so a
+        section that puts one on a derived line of text gets it ignored rather
+        than an error it cannot act on. ``bool`` is in here because it *is* an
+        ``int`` to Python, and ``True > 0`` would have been a refusal.
+        """
+        text = Input("how", "Anreise", "text", source="excursion.approach", max=1)
+        flag = Input("any", "Überhaupt", "bool", source="excursion.ljp", max=0)
+        self.assertEqual(unbounded([text], {"how": "car"}), [])
+        self.assertEqual(unbounded([flag], {"any": True}), [])
 
 
 # --- evaluation ------------------------------------------------------------
@@ -615,13 +705,13 @@ class EvaluationTestCase(SimpleTestCase):
     def test_a_declared_question_nobody_answered_reads_as_empty(self):
         """All seven types, read through the accessor each one is paired with.
 
-        ``choice`` is here because it was the one that was not: ``_EMPTY`` held
+        ``choice`` is here because it was the one that was not: ``EMPTY`` held
         ``None`` for it while :meth:`~kompass.rules.Inputs.text` type-checks
         against ``str``, so reading an unanswered one raised inside
         ``transfers`` and collapsed the whole evaluation into one traceback
         (taxis #573). Neuter it — put ``None`` back — and this goes red, which
         a test going through a *statement* would not: ``coerce_input`` makes an
-        absent answer ``""`` on its way into the context, so the ``_EMPTY``
+        absent answer ``""`` on its way into the context, so the ``EMPTY``
         branch is only reached by a context that never mentioned the key at
         all. A case file and the fuzzer are exactly that, which is why the
         guard belongs here rather than on the API.
@@ -1381,7 +1471,9 @@ class ContextTestCase(TestCase):
         }
         self.statement.inputs = answers
         self.statement.save()
-        ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
+        ctx = build_context(
+            self.statement, ruleset=Fixed(declarations=every_widget(self.member, other))
+        )
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
         self.assertEqual(ctx.inputs.number("nights"), 3)
         self.assertIs(ctx.inputs.flag("catered"), True)
@@ -1397,7 +1489,7 @@ class ContextTestCase(TestCase):
 
     def test_a_question_that_was_never_answered_reads_as_its_types_empty(self):
         blank = Statement.objects.create(short_description="Unbeantwortet")
-        ctx = build_context(blank, ruleset=Fixed(declarations=EVERY_WIDGET))
+        ctx = build_context(blank, ruleset=Fixed(declarations=every_widget(self.member)))
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("0"))
         self.assertEqual(ctx.inputs.number("nights"), 0)
         self.assertIs(ctx.inputs.flag("catered"), False)
@@ -1422,7 +1514,10 @@ class ContextTestCase(TestCase):
             with self.subTest(stored=stored):
                 self.statement.inputs = {"allowance_to": stored}
                 self.statement.save()
-                ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
+                ctx = build_context(
+                    self.statement,
+                    ruleset=Fixed(declarations=every_widget(self.member)),
+                )
                 self.assertEqual(ctx.inputs.raw("allowance_to"), stored)
                 with self.assertRaises(RuleError):
                     ctx.inputs.members("allowance_to")
@@ -1436,7 +1531,7 @@ class ContextTestCase(TestCase):
         """
         self.statement.inputs = {"night_cost": "1.00", "retired": "alt"}
         self.statement.save()
-        ctx = build_context(self.statement, ruleset=Fixed(declarations=EVERY_WIDGET))
+        ctx = build_context(self.statement, ruleset=Fixed(declarations=every_widget(self.member)))
         self.assertNotIn("retired", ctx.inputs.declared())
         with self.assertRaises(RuleError):
             ctx.inputs.raw("retired")
@@ -1617,6 +1712,11 @@ class CasesTestCase(SimpleTestCase):
         case = parse_case(
             {
                 "inputs": {"fee": "2.50", "helper": 7, "helpers": [7, 8], "nights": 3},
+                # The two people the answers name have to be on the trip, since
+                # that is where the declaration takes its options from. A case
+                # that answers a party-valued question is checked against the
+                # people the instance would really have offered.
+                "excursion": {"leaders": [7, 8]},
                 "expect": {"transfers": [["PARTICIPANTS", "SECTION", "0.00", "balance"]]},
             },
             name="custom",
