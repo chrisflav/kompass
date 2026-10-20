@@ -5,7 +5,8 @@ Continuous Integration
 =======================
 
 Every pull request and every commit on ``main`` is validated by a set of GitHub Actions workflows.
-All checks must pass before a pull request can be merged.
+All checks must pass before a pull request can be merged. Pull requests into a release branch
+(``release/X.Y``) run the same checks; see :ref:`development_manual/releases`.
 
 Workflows
 ---------
@@ -40,12 +41,17 @@ Build and test
 ^^^^^^^^^^^^^^
 
 The ``build-internal`` and ``build-fork`` workflows run on every pull request and every push to
-``main``. They build the production Docker image and then:
+``main``; ``build-internal`` also runs when a version tag (``v*``) is pushed. They build the
+production Docker image and then:
 
 - Run the full test suite.
 - Enforce 100% test coverage. Any uncovered line causes the job to fail.
 
-For pull requests, a comment is posted with the tags of the built Docker images.
+Only then are the app, nginx and SPA images published to GHCR, tagged after what was built:
+``pr-<number>`` for a pull request, ``main``, ``main-<sha>`` and ``latest`` for ``main``, and the
+tag's name (for example ``v2.0.1``) for a version tag. For pull requests, a comment is posted
+with the tags of the built Docker images. See :ref:`development_manual/releases` for how
+releases are tagged.
 
 See :ref:`development_manual/testing` for details on how to run the tests locally.
 
