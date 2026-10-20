@@ -209,19 +209,6 @@ are on GHCR under the tag’s name.</p></li>
 </span></code></pre></div>
 </div>
 </section>
-<section id="pitfalls">
-<h2>Pitfalls<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#pitfalls" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#pitfalls'">¶</a></h2>
-<dl class="simple">
-<dt>Branches cut before October 2026</dt><dd><p>CI pins Python 3.13 for <code class="docutils literal notranslate"><span class="pre">uv</span></code> since #327. Without the pin, <code class="docutils literal notranslate"><span class="pre">uv</span></code> picks the newest CPython,
-for which Pillow ships no wheel, and <code class="docutils literal notranslate"><span class="pre">check-translations</span></code> and the documentation build fail
-while building Pillow from source. Backport #327 (<code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">cherry-pick</span> <span class="pre">-x</span> <span class="pre">4a4d180d</span></code>) to such a
-branch along with the first fix.</p>
-</dd>
-<dt>A cancelled build is not a failed one</dt><dd><p>Pushing to a pull request cancels its running build. Look at the run of the current head
-commit, not at an older one that was cancelled.</p>
-</dd>
-</dl>
-</section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
@@ -247,7 +234,6 @@ commit, not at an older one that was cancelled.</p>
 <li><a :data-current="activeSection === '#docker-images-of-a-release'" class="reference internal" href="#docker-images-of-a-release">Docker images of a release</a></li>
 <li><a :data-current="activeSection === '#backporting-a-fix'" class="reference internal" href="#backporting-a-fix">Backporting a fix</a></li>
 <li><a :data-current="activeSection === '#cutting-a-release'" class="reference internal" href="#cutting-a-release">Cutting a release</a></li>
-<li><a :data-current="activeSection === '#pitfalls'" class="reference internal" href="#pitfalls">Pitfalls</a></li>
 </ul>
 </div>
 </aside>

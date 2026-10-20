@@ -86,16 +86,3 @@ To start a new maintenance branch, push the commit on ``main`` it should start f
 .. code-block:: bash
 
    git push origin <commit>:refs/heads/release/X.Y
-
-Pitfalls
---------
-
-Branches cut before October 2026
-   CI pins Python 3.13 for ``uv`` since #327. Without the pin, ``uv`` picks the newest CPython,
-   for which Pillow ships no wheel, and ``check-translations`` and the documentation build fail
-   while building Pillow from source. Backport #327 (``git cherry-pick -x 4a4d180d``) to such a
-   branch along with the first fix.
-
-A cancelled build is not a failed one
-   Pushing to a pull request cancels its running build. Look at the run of the current head
-   commit, not at an older one that was cancelled.
