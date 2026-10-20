@@ -135,7 +135,7 @@ class StatementTestCase(TestCase):
             difficulty=1,
         )
         self.st3 = Statement.objects.create(
-            excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
+            excursion=ex, inputs={"night_cost": str(self.night_cost)}
         )
         for i in range(self.participant_count):
             m = Member.objects.create(
@@ -167,6 +167,28 @@ class StatementTestCase(TestCase):
             ex.jugendleiter.add(m)
             if i < self.allowance_to_count:
                 also(self.st3, "allowance_to", m)
+
+        # One more youth leader, who hands in no bill and takes no allowance:
+        # this trip's subsidy recipient. It used to be Fritz, who does not lead
+        # this trip at all — and an answer naming somebody the declaration does
+        # not offer now reads as unanswered on the way *out* as well as on the
+        # way in, so that described a statement the form would have refused and
+        # the rules would read as nobody.
+        #
+        # He is added last, so that the five who hand in bills keep positions
+        # 0..4 in `jugendleiter`, and he is deliberately not Fritz: Fritz has to
+        # stay a *foreign* youth leader for `test_allowance_to_valid`, which is
+        # the model-level `allowance_to_valid` gate this fixture exists for.
+        self.subsidy_leader = Member.objects.create(
+            prename="Zuschuss",
+            lastname="Walter",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=MALE,
+        )
+        self.subsidy_leader.group.add(self.jl)
+        ex.jugendleiter.add(self.subsidy_leader)
+        answer(self.st3, subsidy_to=self.subsidy_leader.pk)
 
         # Create a small excursion with < 5 theoretic LJP participants for LJP contribution test
         small_ex = Freizeit.objects.create(
@@ -205,6 +227,13 @@ class StatementTestCase(TestCase):
             tour_approach=MUSKELKRAFT_ANREISE,
             difficulty=2,
         )
+        # Fritz leads this trip, which is what makes him nameable as its
+        # subsidy recipient: Heidelberg offers the trip's youth leaders and
+        # nobody else, and an answer naming somebody a declaration does not
+        # offer now reads as unanswered on the way *out* as well as on the way
+        # in. A fixture that skipped this described a statement the API could
+        # not have produced and the form would have refused.
+        ex.jugendleiter.add(self.fritz)
         self.st4 = Statement.objects.create(
             excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
         )
@@ -244,6 +273,22 @@ class StatementTestCase(TestCase):
             )
             mol = NewMemberOnList.objects.create(member=m, memberlist=ex)
             ex.membersonlist.add(mol)
+            if i == 0:
+                # One of the nine leads the trip, and is who the tests below
+                # name as its subsidy, allowance and LJP recipient. Heidelberg
+                # offers the trip's youth leaders and nobody else, and an
+                # answer naming somebody the declaration does not offer now
+                # reads as unanswered on the way *out* as well as on the way in
+                # — so naming Fritz, who does not lead this trip, described a
+                # statement the form would have refused.
+                #
+                # One of the trip's *own* nine rather than an extra person,
+                # because a youth leader counts towards the Landesjugendplan
+                # participant count: adding somebody from outside the list
+                # would have moved the LJP figure from nine participants to
+                # ten, and this fixture is about the LJP arithmetic.
+                self.st5_leader = m
+                ex.jugendleiter.add(m)
 
         ljpproposal = LJPProposal.objects.create(
             title="Test proposal",
@@ -309,7 +354,7 @@ class StatementTestCase(TestCase):
         self.assertIsNone(self.st5.org_fee_payant)
 
         # now collect subsidies
-        answer(self.st5, subsidy_to=self.fritz.pk)
+        answer(self.st5, subsidy_to=self.st5_leader.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -317,7 +362,7 @@ class StatementTestCase(TestCase):
         )
 
         # now collect allowances
-        also(self.st5, "allowance_to", self.fritz)
+        also(self.st5, "allowance_to", self.st5_leader)
         answer(self.st5, subsidy_to=None)
         self.assertEqual(
             self.st5.total_org_fee,
@@ -326,7 +371,7 @@ class StatementTestCase(TestCase):
         )
 
         # now collect both
-        answer(self.st5, subsidy_to=self.fritz.pk)
+        answer(self.st5, subsidy_to=self.st5_leader.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -335,13 +380,13 @@ class StatementTestCase(TestCase):
 
         self.assertEqual(
             self.st5.org_fee_payant,
-            self.fritz,
+            self.st5_leader,
             "Org fee payant should be the receiver allowances and subsidies.",
         )
 
         # return to previous state
         answer(self.st5, subsidy_to=None)
-        without(self.st5, "allowance_to", self.fritz)
+        without(self.st5, "allowance_to", self.st5_leader)
 
     def test_org_fee_zero_for_ljp_qualification(self):
         """Test that total_org_fee returns 0 for LJP_QUALIFICATION proposals.
@@ -393,7 +438,7 @@ class StatementTestCase(TestCase):
         )
 
         # now we want to pay out the LJP contributions
-        answer(self.st5, ljp_to=self.fritz.pk)
+        answer(self.st5, ljp_to=self.st5_leader.pk)
         self.assertEqual(
             self.st5.paid_ljp_contributions,
             expected_ljp,
@@ -508,8 +553,9 @@ class StatementTestCase(TestCase):
     def test_excursion_statement(self):
         self.assertEqual(
             self.st3.excursion.staff_count,
-            self.staff_count,
-            "Calculated staff count is not constructed staff count.",
+            self.staff_count + 1,
+            "Calculated staff count is not constructed staff count: the five who each "
+            "hand in a bill, plus Fritz, who leads the trip and takes the subsidy.",
         )
         self.assertEqual(
             self.st3.excursion.participant_count,
@@ -1068,7 +1114,7 @@ class StatementTestCase(TestCase):
         self.assertIsInstance(issues, list)
 
     def test_transaction_issues_with_ljp(self):
-        answer(self.st3, ljp_to=self.fritz.pk)
+        answer(self.st3, ljp_to=self.subsidy_leader.pk)
         self.st3.save()
         issues = self.st3.transaction_issues
         self.assertIsInstance(issues, list)
@@ -1094,14 +1140,14 @@ class StatementTestCase(TestCase):
         self.assertIsNotNone(org_fee_transaction)
 
     def test_generate_transactions_ljp(self):
-        answer(self.st3, ljp_to=self.fritz.pk)
+        answer(self.st3, ljp_to=self.subsidy_leader.pk)
         self.st3.save()
         initial_count = Transaction.objects.count()
         self.st3.generate_transactions()
         final_count = Transaction.objects.count()
         self.assertGreater(final_count, initial_count)
         ljp_transaction = Transaction.objects.filter(
-            statement=self.st3, member=self.fritz, reference__icontains="LJP"
+            statement=self.st3, member=self.subsidy_leader, reference__icontains="LJP"
         ).first()
         self.assertIsNotNone(ljp_transaction)
 

@@ -34,8 +34,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from finance.inputs import answerable
 from finance.inputs import clean_value
-from finance.inputs import declarations
 from finance.inputs import form_field
 from finance.inputs import stored as stored_answers
 from finance.models import BillOnExcursionProxy
@@ -1507,12 +1507,16 @@ class StatementOnListForm(forms.ModelForm):
 
     This was a ``ModelForm`` over four columns — the price per night and three
     recipients — with the eligible youth leaders assigned into three querysets
-    by hand. It is now derived: :func:`finance.inputs.declarations` says which
-    questions this statement's ruleset asks, :func:`finance.inputs.form_field`
-    turns each into a field with its own domain, and
-    :func:`finance.inputs.clean_value` checks what comes back against the
-    declaration it belongs to. The two messages this form used to raise itself
-    come from there now, which is why the wording is unchanged.
+    by hand. It is now derived: :func:`finance.inputs.answerable` says which
+    questions this statement's ruleset asks a *person*,
+    :func:`finance.inputs.form_field` turns each into a field with its own
+    domain, and :func:`finance.inputs.clean_value` checks what comes back
+    against the declaration it belongs to. The two messages this form used to
+    raise itself come from there now, which is why the wording is unchanged.
+
+    ``answerable`` and not ``declarations``: a question the engine derives from
+    the trip is not one this form may render, because every field it renders it
+    also writes.
 
     The fields are not on the class, because which fields there are depends on
     the excursion. :func:`statement_answer_form` builds a subclass per request
@@ -1571,7 +1575,7 @@ def statement_answer_form(statement):
     Built per request rather than per class, because the questions are the
     ruleset's and the domains are the trip's.
     """
-    declared = declarations(statement)
+    declared = answerable(statement)
     fields = {declaration.key: form_field(declaration) for declaration in declared}
     return type(
         "DerivedStatementOnListForm",
@@ -1599,7 +1603,7 @@ class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedIn
         """The declaration keys, which is what the derived form's fields are."""
         return [
             declaration.key
-            for declaration in declarations(self._asked_of(obj))
+            for declaration in answerable(self._asked_of(obj))
             if self.may_view_field(declaration.key, request, obj)
         ]
 

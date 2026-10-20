@@ -2144,7 +2144,10 @@ export interface paths {
          *     ``answers`` is what the statement carries today, restricted to the keys
          *     this form asks for — so one request is a whole form, questions and answers
          *     together, and an answer the rules have since stopped asking for is not
-         *     handed back to be re-submitted.
+         *     handed back to be re-submitted. A *derived* answer is in there too, read
+         *     off the statement's own data rather than out of storage, which is why the
+         *     whole payload comes from one call: the questions, their grouping and the
+         *     answers are all resolved against one context.
          */
         get: operations["finance_api_router_statement_form"];
         put?: never;
@@ -6830,15 +6833,56 @@ export interface components {
             ledger_id?: number | null;
         };
         /**
+         * FormStepOut
+         * @description One group of questions the rules said belong together.
+         *
+         *     A label and the keys in it, in declaration order. Nothing more: there is no
+         *     page state here and no notion of a step being finished — which questions
+         *     belong together is the section's business, and how to lay them out is the
+         *     client's.
+         */
+        FormStepOut: {
+            /** Label */
+            label: string;
+            /**
+             * Keys
+             * @default []
+             */
+            keys: string[];
+        };
+        /**
+         * InputChoiceOut
+         * @description One alternative a ``choice`` answer may be.
+         *
+         *     ``value`` is what goes back in ``inputs`` and what the rules read;
+         *     ``label`` is what the person picking it is shown.
+         */
+        InputChoiceOut: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        };
+        /**
          * InputDeclarationOut
          * @description One question the section's rules ask about a statement.
          *
          *     Derived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks
          *     for something else gets a different form without anybody editing the API.
          *     ``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,
-         *     ``choice``, ``member``, ``member_set`` — and ``options`` is the domain a
+         *     ``choice``, ``member``, ``member_set``. ``options`` is the domain a
          *     party-valued answer may be picked from, resolved to names here because the
-         *     rules themselves never see them.
+         *     rules themselves never see them; ``choices`` is the same thing for a
+         *     ``choice``.
+         *
+         *     ``derived`` says the engine supplies this answer itself, from the
+         *     statement's own data — the kilometres off the excursion rather than off a
+         *     person. The value is in ``answers`` like any other, and
+         *     ``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading
+         *     of the trip, and a wrong one is corrected on the trip.
+         *
+         *     ``step`` is the label of the group the question belongs to; see
+         *     ``StatementFormOut.steps``.
          */
         InputDeclarationOut: {
             /** Key */
@@ -6861,6 +6905,21 @@ export interface components {
              * @default []
              */
             options: components["schemas"]["InputOptionOut"][];
+            /**
+             * Choices
+             * @default []
+             */
+            choices: components["schemas"]["InputChoiceOut"][];
+            /**
+             * Step
+             * @default
+             */
+            step: string;
+            /**
+             * Derived
+             * @default false
+             */
+            derived: boolean;
         };
         /**
          * InputOptionOut
@@ -6877,11 +6936,28 @@ export interface components {
          * @description The questions this statement still has to answer, and its answers.
          *
          *     ``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a
-         *     question once an earlier answer makes it moot — and ``answers`` is
-         *     restricted to the keys that survived that, so a retired answer is not
-         *     handed back to a client to re-submit. The values are as
-         *     ``Statement.inputs`` holds them: money as a string, a person as an id, a
-         *     set of people as a list of ids.
+         *     question once an earlier answer makes it moot — and since taxis #579 that
+         *     is also the question the *rules* are asked, so a question that is not here
+         *     is one no rule reads either. ``answers`` is restricted to the keys that
+         *     survived, so a retired answer is not handed back to be re-submitted.
+         *
+         *     The values are as ``Statement.inputs`` holds them: money as a string, a
+         *     person as an id, a set of people as a list of ids. Two of them are not read
+         *     out of storage. A ``derived`` answer is resolved from the statement's own
+         *     data on every request, because nothing stores it. And an answer the
+         *     declaration no longer *offers* — a ``choice`` whose option has been
+         *     withdrawn, a person who is no longer in ``options`` because the receipt
+         *     they paid was cleared — comes back ``null``, because that is what the rules
+         *     now read and serving anything else would hand back a value this API would
+         *     refuse.
+         *
+         *     So **what this serves is what the rules read**, and a client may send it
+         *     all back except the keys marked ``derived``: those are served to be shown
+         *     and refused to be changed, which is the whole of the refusal.
+         *
+         *     ``steps`` partitions ``inputs`` into the groups the ruleset named, in
+         *     order; every key appears in exactly one, and a form whose rules named no
+         *     steps comes back as a single step with an empty label.
          */
         StatementFormOut: {
             /** Statement Id */
@@ -6891,6 +6967,11 @@ export interface components {
              * @default []
              */
             inputs: components["schemas"]["InputDeclarationOut"][];
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["FormStepOut"][];
             /**
              * Answers
              * @default {}

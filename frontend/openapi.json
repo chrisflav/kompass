@@ -5430,7 +5430,7 @@
             }
           }
         },
-        "description": "The questions the section's rules ask about this statement.\n\nDerived from the rules rather than written beside them, so a section that\nreimburses something else gets a different form without a release. The\nanswers go back through ``PATCH /statements/{id}`` as ``inputs``, and each\none is validated against the declaration it belongs to.\n\n``answers`` is what the statement carries today, restricted to the keys\nthis form asks for — so one request is a whole form, questions and answers\ntogether, and an answer the rules have since stopped asking for is not\nhanded back to be re-submitted.",
+        "description": "The questions the section's rules ask about this statement.\n\nDerived from the rules rather than written beside them, so a section that\nreimburses something else gets a different form without a release. The\nanswers go back through ``PATCH /statements/{id}`` as ``inputs``, and each\none is validated against the declaration it belongs to.\n\n``answers`` is what the statement carries today, restricted to the keys\nthis form asks for — so one request is a whole form, questions and answers\ntogether, and an answer the rules have since stopped asking for is not\nhanded back to be re-submitted. A *derived* answer is in there too, read\noff the statement's own data rather than out of storage, which is why the\nwhole payload comes from one call: the questions, their grouping and the\nanswers are all resolved against one context.",
         "tags": [
           "finance"
         ],
@@ -18178,8 +18178,49 @@
         "title": "TransactionInlineUpdate",
         "type": "object"
       },
+      "FormStepOut": {
+        "description": "One group of questions the rules said belong together.\n\nA label and the keys in it, in declaration order. Nothing more: there is no\npage state here and no notion of a step being finished — which questions\nbelong together is the section's business, and how to lay them out is the\nclient's.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "keys": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "FormStepOut",
+        "type": "object"
+      },
+      "InputChoiceOut": {
+        "description": "One alternative a ``choice`` answer may be.\n\n``value`` is what goes back in ``inputs`` and what the rules read;\n``label`` is what the person picking it is shown.",
+        "properties": {
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "InputChoiceOut",
+        "type": "object"
+      },
       "InputDeclarationOut": {
-        "description": "One question the section's rules ask about a statement.\n\nDerived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks\nfor something else gets a different form without anybody editing the API.\n``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,\n``choice``, ``member``, ``member_set`` — and ``options`` is the domain a\nparty-valued answer may be picked from, resolved to names here because the\nrules themselves never see them.",
+        "description": "One question the section's rules ask about a statement.\n\nDerived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks\nfor something else gets a different form without anybody editing the API.\n``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,\n``choice``, ``member``, ``member_set``. ``options`` is the domain a\nparty-valued answer may be picked from, resolved to names here because the\nrules themselves never see them; ``choices`` is the same thing for a\n``choice``.\n\n``derived`` says the engine supplies this answer itself, from the\nstatement's own data — the kilometres off the excursion rather than off a\nperson. The value is in ``answers`` like any other, and\n``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading\nof the trip, and a wrong one is corrected on the trip.\n\n``step`` is the label of the group the question belongs to; see\n``StatementFormOut.steps``.",
         "properties": {
           "key": {
             "title": "Key",
@@ -18220,6 +18261,24 @@
             },
             "title": "Options",
             "type": "array"
+          },
+          "choices": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputChoiceOut"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "step": {
+            "default": "",
+            "title": "Step",
+            "type": "string"
+          },
+          "derived": {
+            "default": false,
+            "title": "Derived",
+            "type": "boolean"
           }
         },
         "required": [
@@ -18251,7 +18310,7 @@
         "type": "object"
       },
       "StatementFormOut": {
-        "description": "The questions this statement still has to answer, and its answers.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot — and ``answers`` is\nrestricted to the keys that survived that, so a retired answer is not\nhanded back to a client to re-submit. The values are as\n``Statement.inputs`` holds them: money as a string, a person as an id, a\nset of people as a list of ids.",
+        "description": "The questions this statement still has to answer, and its answers.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot — and since taxis #579 that\nis also the question the *rules* are asked, so a question that is not here\nis one no rule reads either. ``answers`` is restricted to the keys that\nsurvived, so a retired answer is not handed back to be re-submitted.\n\nThe values are as ``Statement.inputs`` holds them: money as a string, a\nperson as an id, a set of people as a list of ids. Two of them are not read\nout of storage. A ``derived`` answer is resolved from the statement's own\ndata on every request, because nothing stores it. And an answer the\ndeclaration no longer *offers* — a ``choice`` whose option has been\nwithdrawn, a person who is no longer in ``options`` because the receipt\nthey paid was cleared — comes back ``null``, because that is what the rules\nnow read and serving anything else would hand back a value this API would\nrefuse.\n\nSo **what this serves is what the rules read**, and a client may send it\nall back except the keys marked ``derived``: those are served to be shown\nand refused to be changed, which is the whole of the refusal.\n\n``steps`` partitions ``inputs`` into the groups the ruleset named, in\norder; every key appears in exactly one, and a form whose rules named no\nsteps comes back as a single step with an empty label.",
         "properties": {
           "statement_id": {
             "title": "Statement Id",
@@ -18263,6 +18322,14 @@
               "$ref": "#/components/schemas/InputDeclarationOut"
             },
             "title": "Inputs",
+            "type": "array"
+          },
+          "steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FormStepOut"
+            },
+            "title": "Steps",
             "type": "array"
           },
           "answers": {

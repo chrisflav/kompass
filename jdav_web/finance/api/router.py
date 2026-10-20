@@ -29,8 +29,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from finance.inputs import clean as clean_inputs
+from finance.inputs import form as statement_form_body
 from finance.inputs import party_keys
-from finance.inputs import rendered as rendered_inputs
 from finance.inputs import stored as stored_inputs
 from finance.models import Bill
 from finance.models import Ledger
@@ -564,18 +564,13 @@ def statement_form(request, statement_id: int):
     ``answers`` is what the statement carries today, restricted to the keys
     this form asks for — so one request is a whole form, questions and answers
     together, and an answer the rules have since stopped asking for is not
-    handed back to be re-submitted.
+    handed back to be re-submitted. A *derived* answer is in there too, read
+    off the statement's own data rather than out of storage, which is why the
+    whole payload comes from one call: the questions, their grouping and the
+    answers are all resolved against one context.
     """
     statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
-    declarations = rendered_inputs(statement)
-    carried = statement.answers
-    return {
-        "statement_id": statement.pk,
-        "inputs": declarations,
-        "answers": {
-            declaration["key"]: carried.get(declaration["key"]) for declaration in declarations
-        },
-    }
+    return {"statement_id": statement.pk, **statement_form_body(statement)}
 
 
 @router.get("/statements/{statement_id}/preflight", response=PreflightOut)

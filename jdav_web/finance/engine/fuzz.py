@@ -42,8 +42,8 @@ from finance.rules_api import SECTION
 from finance.rules_api import StatementInfo
 from finance.rules_api import TourApproach
 
+from .declared import asking
 from .evaluation import evaluate
-from .guard import no_queries
 from .versions import check_directory
 from .versions import decimal_params
 from .versions import parameters_from_settings
@@ -135,15 +135,19 @@ def random_answer(rng: random.Random, declaration: Input) -> Any:
         return bool(rng.getrandbits(1))
     if declaration.type == "text":
         return rng.choice(["", "Hinweis"])
+    if declaration.type == "choice":
+        # Out of what the declaration itself offers, plus "nothing chosen" —
+        # which is a state a required question can be in while the form is
+        # being filled in, and therefore one the rules have to survive.
+        return rng.choice(["", *(choice.value for choice in declaration.choices)])
     if declaration.type == "member":
         options = list(declaration.options)
         return rng.choice(options + [None]) if options else None
-    if declaration.type == "member_set":
-        options = list(declaration.options)
-        rng.shuffle(options)
-        limit = declaration.max if declaration.max is not None else len(options)
-        return tuple(options[: rng.randint(0, min(limit, len(options)))])
-    return None
+    # `member_set`, the last of the vocabulary.
+    options = list(declaration.options)
+    rng.shuffle(options)
+    limit = declaration.max if declaration.max is not None else len(options)
+    return tuple(options[: rng.randint(0, min(limit, len(options)))])
 
 
 def fuzz(ruleset: Ruleset, rounds: int, *, seed: int | None = None) -> list[str]:
@@ -158,18 +162,25 @@ def fuzz(ruleset: Ruleset, rounds: int, *, seed: int | None = None) -> list[str]
         round_seed = round_number if seed is None else seed + round_number
         rng = random.Random(round_seed)
         context = random_context(rng, params)
-        # Guarded like every other call into a section's rules: `inputs` is a
-        # rule too, and a declaration that resolved its options with a query
-        # would be a question whose answer depends on the day it was asked.
-        # Reported rather than raised, because a fuzzer that falls over is a
-        # fuzzer that tells you nothing about the other 199 rounds.
+        # Guarded like every other call into a section's rules — `ask` is what
+        # opens the guard: `inputs` is a rule too, and a declaration that
+        # resolved its options with a query would be a question whose answer
+        # depends on the day it was asked. Reported rather than raised, because
+        # a fuzzer that falls over is a fuzzer that tells you nothing about the
+        # other 199 rounds.
         try:
-            with no_queries():
-                declarations = list(ruleset.inputs(context))
+            declarations = list(asking(ruleset, context).vocabulary)
         except Exception as problem:
             problems.append(f"seed {round_seed}: the section's rules failed: {problem}")
             continue
-        answers = {declaration.key: random_answer(rng, declaration) for declaration in declarations}
+        # A derived question is not answered at random, because it is not
+        # answered at all: `evaluate` resolves it from the context. Answering
+        # it here would be fuzzing a value no statement can ever hold.
+        answers = {
+            declaration.key: random_answer(rng, declaration)
+            for declaration in declarations
+            if not declaration.derived
+        }
         result = evaluate(ruleset, replace(context, inputs=Inputs(answers)))
         if result.errors:
             problems.append(f"seed {round_seed}: {result.errors[0]}")

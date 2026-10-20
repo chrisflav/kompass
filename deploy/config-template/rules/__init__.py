@@ -108,39 +108,44 @@ class SectionRules(Ruleset):
                 options=leaders,
                 max=approved,
             ),
-            # The next questions your section needs go here -- but read this
-            # first, because it is the one restriction that can quietly cost
-            # somebody money.
+            # The next questions your section needs go here, under any key you
+            # like: a statement stores its answers in one JSON field, so a key
+            # is a key (Kompass #556, landed). Four things are worth knowing
+            # before you add one.
             #
-            # A statement does not yet store its answers in one field. It has
-            # four columns, so these are the ONLY keys that can hold an
-            # answer today:
+            # A `choice` has to list its alternatives, and only those are
+            # accepted back:
             #
-            #     night_cost     money
-            #     allowance_to   member_set
-            #     subsidy_to     member
-            #     ljp_to         member
+            #     Input("regime", "Regelwerk", "choice", choices=(
+            #         Choice("ehrenamt", "Ehrenamtspauschale"),
+            #         Choice("tourenleitung", "Tourenleitung"),
+            #     ))
             #
-            # Declare any other key and the person is asked the question, the
-            # answer is dropped, and the rule reads that type's empty value
-            # (0.00, 0, False, "", None, ()) on every single evaluation.
-            # Nothing raises and nothing is logged. `ctx.inputs.raw(...)` does
-            # not help: the key is there, holding the empty value.
+            # A figure the statement already records is not a question. Name
+            # where it comes from and the engine supplies it, the form shows it
+            # as a figure rather than a field, and an answer submitted for it is
+            # refused:
             #
-            # A case will NOT catch this -- the case runner passes unknown
-            # keys straight through, so the case goes green while production
-            # pays zero. That is why this template declares only
-            # `allowance_to`.
+            #     Input("kilometers", "Kilometer", "int", required=False,
+            #           source="excursion.kilometers")
             #
-            # Until Kompass #556 moves the answers into one JSON field, a
-            # figure that does not fit one of those four keys belongs below as
-            # a module constant (like APPROVER_PERMISSION), where it is
-            # versioned with the rules that read it.
+            # With no excursion the same declaration is an ordinary question
+            # whose answer is stored -- and the rule reads
+            # `ctx.inputs.number("kilometers")` either way, with no branch on
+            # where the figure came from. Nothing is stored for a derived
+            # answer: it is resolved again on every evaluation, so the
+            # excursion stays the only record and a wrong figure is corrected
+            # there.
             #
-            # Also: do not use the `choice` widget yet (Kompass #573). There
-            # is no way to declare what may be chosen, nothing validates the
-            # answer, and reading an unanswered one with `ctx.inputs.text()`
-            # raises and takes the whole evaluation down with it.
+            # A question that names people can say where they come from, which
+            # is how a statement with no trip pays anybody at all:
+            #
+            #     Input("paid_to", "Auslagen an", "member", required=False,
+            #           options_source="bills.payers")
+            #
+            # And `step="..."` groups questions that belong together; the form
+            # endpoint serves the grouping in the order the labels first
+            # appear.
         ]
 
     def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:

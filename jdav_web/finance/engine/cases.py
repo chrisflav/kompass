@@ -72,8 +72,8 @@ from finance.rules_api import StatementInfo
 from finance.rules_api import Transfer
 
 from .answers import typed_inputs
+from .declared import asking
 from .evaluation import evaluate
-from .guard import no_queries
 
 
 def party(value: Any) -> Party:
@@ -234,10 +234,17 @@ def answered(ruleset: Ruleset, case: Case) -> RuleContext:
     """
     # Inside the guard like every other call into a section's own code, and
     # before `evaluate` opens its own: declaring the form is as much the
-    # ruleset's code as resolving the transfers.
-    with no_queries():
-        declarations = ruleset.inputs(case.context)
-    return replace(case.context, inputs=Inputs(typed_inputs(declarations, case.answers)))
+    # ruleset's code as resolving the transfers. `asking` is what opens it, and
+    # what fills in the parts of a declaration the engine serves — so a case
+    # answering a question whose options come from the trip is typed against
+    # the people the engine would really have offered, and a case answering a
+    # derived key is overruled by the context it describes, exactly as a real
+    # statement's stored answer is.
+    asked = asking(ruleset, case.context)
+    return replace(
+        case.context,
+        inputs=Inputs(typed_inputs(asked.vocabulary, case.answers, asked.supplied)),
+    )
 
 
 def run_case(ruleset: Ruleset, case: Case) -> list[str]:
