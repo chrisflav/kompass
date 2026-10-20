@@ -25,36 +25,28 @@
 \noindent {{ header_text }}
 \begin{table}[H]
   \centering
-%\begin{tabularx}{\textwidth}{lYY|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l}
-\begin{tabularx}{\textwidth}{X{% for i in week_range %}|l{% endfor%}}
+% No line inside the table may come out blank or whitespace-only: TeX reads one
+% as a paragraph break, and current LaTeX then misjudges the row heights.
+% Hence the trailing % after template tags. Together with the name cell below,
+% this keeps each name in its own row instead of under the next row's rule.
+\begin{tabularx}{\textwidth}{X{% for i in week_range %}|l{% endfor %}}
 \toprule
-  \textbf{Name} {% for i in week_range %}
-  & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}
-{% endfor %} \\
-
-  {% for j in member_range %}
-  {% with m=group.sorted_members|index:j %}
-  {% with codelength=m.ticket_tag|length %}
+  \textbf{Name}{% for i in week_range %}
+  & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}{% endfor %} \\
+{% for j in member_range %}{% with m=group.sorted_members|index:j %}{% with codelength=m.ticket_tag|length %}%
   \midrule
-      \begin{tabular}{@{}l}
-         {% if codelength > 2 %}
-          \barcode[
-            X=\dimexpr 3.5mm / \numexpr {{ codelength }} \relax \relax
-          ]{{ m.ticket_tag }}
-        {% else %}
-          \rule{0pt}{5mm}
-        {% endif %}
-        \vspace{-0.8ex} \\
-        {\small {{ j|plus:1 }} {% if m in group.leiters.all %}\textbf{JL}{% endif %}
-        {{ m.name|esc_all }} {% if codelength > 2 %} - {{ m.ticket_tag }}{% endif %}
-        \vspace{-3ex} }
-    \end{tabular}
-
-  {% for i in week_range %} & {% endfor %}\\
-  {% endwith %}
-  {% endwith %}
-  {% endfor %}
-
+  % The barcode above the name, centred in a row at least 9mm tall, so rows
+  % without a barcode match the others. A name too long for one line makes its
+  % row taller rather than spilling over the rules; no negative space squeezes
+  % the name out of its cell, as the old nested tabular did.
+  \rule[-4.5mm]{0pt}{9mm}\parbox[c]{\linewidth}{\raggedright%
+    {% if codelength > 2 %}\barcode[
+      X=\dimexpr 3.5mm / \numexpr {{ codelength }} \relax \relax
+    ]{{ m.ticket_tag }}\\[-0.5ex]{% endif %}%
+    {\small {{ j|plus:1 }} {% if m in group.leiters.all %}\textbf{JL}{% endif %}
+    {{ m.name|esc_all }}{% if codelength > 2 %} - {{ m.ticket_tag }}{% endif %}}%
+  }{% for i in week_range %} &{% endfor %} \\
+{% endwith %}{% endwith %}{% endfor %}%
   \bottomrule
 \end{tabularx}
 \end{table}
