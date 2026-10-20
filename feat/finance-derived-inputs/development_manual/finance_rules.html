@@ -203,9 +203,18 @@ stored answer went on reaching the rules from behind a form that no longer
 showed it and a <code class="docutils literal notranslate"><span class="pre">clean</span></code> that no longer accepted it, and the only way out was
 an admin editing JSON. Reading a retired key is <em>not</em> an error — it reads
 empty — because a traceback about a question nobody can see is worse than a
-zero a rule can handle. <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> should narrow <code class="docutils literal notranslate"><span class="pre">inputs</span></code> rather
-than widen it; a key only <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> names is resolved, but nothing
-else in Kompass will know about it.</p>
+zero a rule can handle.</p>
+<p><strong>Narrow, do not widen.</strong> <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> chooses among the questions
+<code class="docutils literal notranslate"><span class="pre">inputs</span></code> declared, and two things follow that are worth stating plainly:</p>
+<ul class="simple">
+<li><p>A key only <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> names has nowhere to be stored and nowhere to
+be read, so it is an <strong>error on the statement</strong> — not a question that
+quietly never gets an answer.</p></li>
+<li><p>A key they both name is served with the declaration <code class="docutils literal notranslate"><span class="pre">inputs</span></code> gave it: same
+label, same type, same bound, same <code class="docutils literal notranslate"><span class="pre">source</span></code>. So a ruleset that overrides
+one method and not the other cannot end up with a form that says an answer
+is the person’s to give while the engine supplies one anyway.</p></li>
+</ul>
 </section>
 <section id="how-a-ruleset-reaches-a-running-instance">
 <h2>How a ruleset reaches a running instance<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-a-ruleset-reaches-a-running-instance" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-a-ruleset-reaches-a-running-instance'">¶</a></h2>
@@ -440,9 +449,40 @@ against the options the declaration offered, so an answer can never name
 somebody the rule did not offer. A <code class="docutils literal notranslate"><span class="pre">choice</span></code> is re-validated against its own
 <a class="reference internal" href="#kompass.rules.Input.choices" title="kompass.rules.Input.choices"><code class="xref py py-attr docutils literal notranslate"><span class="pre">choices</span></code></a> in exactly the same way, so an answer can
 never be a value the rule did not offer either.</p>
-<p>The key is free: a statement stores its answers in one JSON field, so any key
-a ruleset declares can hold an answer, and the four the reference ruleset
-happens to use have no special status.</p>
+<p><strong>And it is re-validated on the way out, not only on the way in.</strong> A domain
+shrinks without anybody editing an answer: a section withdraws one of two
+alternatives, or a receipt’s payer is cleared and an
+<a class="reference internal" href="#kompass.rules.Input.options_source" title="kompass.rules.Input.options_source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options_source</span></code></a> set loses them. The answer stored
+under that key then reads as <strong>unanswered</strong> — the same reading a retired
+question gets, and for the same reason: what the form would refuse, the rules
+do not read. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">…/form</span></code> serves it as unanswered too, so a client is never
+handed a value its own option list does not contain.</p>
+<p>So one sentence holds for the whole form: <strong>what the form serves is what the
+rules read</strong>, and the only answer a client may not send back is a derived one.</p>
+<p><strong>Any key can be stored.</strong> A statement keeps its answers in one JSON field, so
+a declaration under any key a ruleset likes holds an answer and is read back by
+the rules. That is a statement about <em>storage</em>, and it is the whole of what
+#556 changed.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warnung</p>
+<p><strong>Four key names still mean something outside the engine</strong>, and a section
+that renames them loses what they do silently.
+<code class="docutils literal notranslate"><span class="pre">finance/models.py</span></code> reads <code class="docutils literal notranslate"><span class="pre">allowance_to</span></code> and <code class="docutils literal notranslate"><span class="pre">night_cost</span></code> <strong>by name</strong>,
+out of <code class="docutils literal notranslate"><span class="pre">Statement.inputs</span></code>, in properties the engine never sees:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">allowance_to_valid</span></code> → <code class="docutils literal notranslate"><span class="pre">validity</span></code> → the admin’s <code class="docutils literal notranslate"><span class="pre">confirm()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">submit_statement</span></code>. It is the <code class="docutils literal notranslate"><span class="pre">INVALID_ALLOWANCE_TO</span></code> gate, and with
+the key absent it returns <code class="docutils literal notranslate"><span class="pre">True</span></code> vacuously — so a section whose
+allowance key is called something else keeps the gate’s name on its
+screens and none of its checking.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">real_night_cost</span></code> → the statement summary’s <code class="docutils literal notranslate"><span class="pre">price_per_night</span></code>, which
+is what the printed PDF shows.</p></li>
+</ul>
+<p>Those are leftovers of the four columns rather than anything the rules
+engine asks for, and until they are derived from the declarations too, a
+section reusing the names keeps the behaviour and a section renaming them
+should know it is giving the behaviour up.</p>
+</div>
 <p>A declaration the engine cannot serve is refused where it is written, with
 <a class="reference internal" href="#kompass.rules.RuleError" title="kompass.rules.RuleError"><code class="xref py py-class docutils literal notranslate"><span class="pre">RuleError</span></code></a> — a <code class="docutils literal notranslate"><span class="pre">choice</span></code> with no choices, a
 <a class="reference internal" href="#kompass.rules.Input.source" title="kompass.rules.Input.source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">source</span></code></a> naming a field the context does not have, an
@@ -518,12 +558,33 @@ one frozen dataclass it built itself, which is what keeps the query guard’s
 story intact. A figure further in than one field —
 <code class="docutils literal notranslate"><span class="pre">ctx.excursion.ljp.participant_count</span></code> — is read off the context by the rule
 that wants it, which needs no declaration at all.</p>
-<p>The value arrives as the type the field holds, coerced like a stored answer:
-<code class="docutils literal notranslate"><span class="pre">excursion.kilometers</span></code> is a whole number, <code class="docutils literal notranslate"><span class="pre">excursion.duration</span></code> is money,
-<code class="docutils literal notranslate"><span class="pre">statement.creator</span></code> is a <a class="reference internal" href="#kompass.rules.Member" title="kompass.rules.Member"><code class="xref py py-class docutils literal notranslate"><span class="pre">Member</span></code></a>,
-<code class="docutils literal notranslate"><span class="pre">excursion.leaders</span></code> is a set of them. Match the widget to the field; naming a
-field that holds a whole nested structure is a mistake the form will show you
-as text.</p>
+<p>The value arrives as the type the field holds: <code class="docutils literal notranslate"><span class="pre">excursion.kilometers</span></code> is a
+whole number, <code class="docutils literal notranslate"><span class="pre">excursion.duration</span></code> is money, <code class="docutils literal notranslate"><span class="pre">statement.creator</span></code> is a
+<a class="reference internal" href="#kompass.rules.Member" title="kompass.rules.Member"><code class="xref py py-class docutils literal notranslate"><span class="pre">Member</span></code></a>, <code class="docutils literal notranslate"><span class="pre">excursion.leaders</span></code> is a set of them. Match
+the widget to the field; naming a field that holds a whole nested structure is
+a mistake the form will show you as text.</p>
+<p>A source resolves to nothing in exactly two cases: <strong>the root is absent</strong> (a
+statement with no excursion) or <strong>the field itself is</strong> <code class="docutils literal notranslate"><span class="pre">None</span></code>. A <code class="docutils literal notranslate"><span class="pre">0</span></code>, an
+empty string and an empty set are figures the statement <em>records</em>, so they are
+supplied like any other — a trip whose kilometres are still at the model’s
+default of <code class="docutils literal notranslate"><span class="pre">0</span></code> serves <code class="docutils literal notranslate"><span class="pre">0</span></code> and refuses a correction on the form, because the
+correction belongs on the trip. The only nullable fields are
+<a class="reference internal" href="#kompass.rules.StatementInfo" title="kompass.rules.StatementInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">StatementInfo</span></code></a>’s two people and
+<a class="reference internal" href="#kompass.rules.Excursion.ljp" title="kompass.rules.Excursion.ljp"><code class="xref py py-attr docutils literal notranslate"><span class="pre">ljp</span></code></a>.</p>
+<p><a class="reference internal" href="#kompass.rules.Input.max" title="kompass.rules.Input.max"><code class="xref py py-attr docutils literal notranslate"><span class="pre">max</span></code></a> applies to a derived value too, and that is
+worth knowing before writing <code class="docutils literal notranslate"><span class="pre">source="excursion.leaders"</span></code> with a bound on it.
+A submitted answer over the bound is refused on the way in; a <em>supplied</em> one
+cannot be, because nobody can change it here — so it is an <strong>error on the
+statement</strong> naming the source and the bound. Five leaders against three the
+section approved is a statement to fix on the excursion, and while the error
+stands the statement does not resolve and no money moves. It is deliberately
+not a truncation: paying three of five quietly is a figure no page explains.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">source</span></code> may not be stated beside <a class="reference internal" href="#kompass.rules.Input.options" title="kompass.rules.Input.options"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options</span></code></a> or
+<a class="reference internal" href="#kompass.rules.Input.options_source" title="kompass.rules.Input.options_source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options_source</span></code></a>, and that is refused where it is
+written. A derived answer is not <em>picked</em>, so „these are the people who may be
+picked“ and „the value is whoever the trip says“ are two answers to one
+question. A derived set of people is bounded by <code class="docutils literal notranslate"><span class="pre">max</span></code>, and is already
+statement-local because the context is.</p>
 </section>
 <section id="where-a-party-valued-question-s-people-come-from">
 <span id="development-manual-finance-rules-options"></span><h3>Where a party-valued question’s people come from<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#where-a-party-valued-question-s-people-come-from" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#where-a-party-valued-question-s-people-come-from'">¶</a></h3>
@@ -836,8 +897,14 @@ empty value, whatever is still stored under the key.</p>
 <p>So what the form does not ask, the rules read as unanswered, and
 retiring a question stops it moving money. Reading a retired key is
 not an error; it reads empty, because a question nobody can see is not
-something a rule should fail on. Narrow <code class="docutils literal notranslate"><span class="pre">inputs</span></code> here rather than
-widening it.</p>
+something a rule should fail on.</p>
+<p><strong>Narrow, do not widen.</strong> A key only this names is not in the
+vocabulary, so it has nowhere to be stored and nowhere to be read: the
+engine reports it as an error on the statement rather than serving a
+question whose answer would silently never arrive. And a key this
+names is served with the declaration <code class="docutils literal notranslate"><span class="pre">inputs</span></code> gave it — same label,
+same type, same bound, same <a class="reference internal" href="#kompass.rules.Input.source" title="kompass.rules.Input.source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">Input.source</span></code></a> — so the two methods
+cannot disagree about one key.</p>
 </dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="kompass.rules.Ruleset.approval">
@@ -1395,6 +1462,14 @@ in. Not both.</p>
 <dt class="sig sig-object py" id="kompass.rules.Input.max">
 <span class="sig-name descname"><span class="pre">max</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Input.max" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Input.max'">¶</a></dt>
 <dd><p>For <code class="docutils literal notranslate"><span class="pre">member_set</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code>: the largest acceptable count or value.</p>
+<p>It bounds a <em>submitted</em> answer, which is refused on the way in, and an
+answer the engine supplies from a <a class="reference internal" href="#kompass.rules.Input.source" title="kompass.rules.Input.source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">source</span></code></a>, which cannot be —
+nobody can correct that one through the form. A supplied value that
+breaks this is therefore an <strong>error on the statement</strong>, naming the
+source and the bound, rather than a truncation: five youth leaders
+against three the section approved is something to fix on the
+excursion, and while there is an error nothing is persisted and no
+money moves.</p>
 </dd></dl>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="kompass.rules.Input.choices">
@@ -1411,10 +1486,28 @@ re-validated against <a class="reference internal" href="#kompass.rules.Input.op
 <p>When the source resolves, the engine supplies the value, the declaration
 comes back <a class="reference internal" href="#kompass.rules.Input.derived" title="kompass.rules.Input.derived"><code class="xref py py-attr docutils literal notranslate"><span class="pre">derived</span></code></a>, and the form <strong>refuses</strong> a submitted answer
 for the key — the figure is corrected where it lives, not here. When it
-does not resolve — no trip, or nothing recorded — this is an ordinary
-question whose answer is stored like any other. Either way a rule reads
-it the same way, which is the whole point: one
-<code class="docutils literal notranslate"><span class="pre">ctx.inputs.number("kilometers")</span></code> and no branch on where it came from.</p>
+does not, this is an ordinary question whose answer is stored like any
+other. Either way a rule reads it the same way, which is the whole
+point: one <code class="docutils literal notranslate"><span class="pre">ctx.inputs.number("kilometers")</span></code> and no branch on where it
+came from.</p>
+<p>A source resolves to nothing in exactly two cases: the root is absent
+(a statement with no excursion) or the field itself is <code class="docutils literal notranslate"><span class="pre">None</span></code>. A
+<code class="docutils literal notranslate"><span class="pre">0</span></code>, an empty string and an empty set are values the statement
+<em>records</em>, so they are supplied like any other — a trip whose kilometres
+are still at the model’s default of <code class="docutils literal notranslate"><span class="pre">0</span></code> serves <code class="docutils literal notranslate"><span class="pre">0</span></code> and refuses a
+correction here, because the correction belongs on the trip. The
+nullable fields are <a class="reference internal" href="#kompass.rules.StatementInfo" title="kompass.rules.StatementInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">StatementInfo</span></code></a>’s two people and
+<a class="reference internal" href="#kompass.rules.Excursion.ljp" title="kompass.rules.Excursion.ljp"><code class="xref py py-attr docutils literal notranslate"><span class="pre">Excursion.ljp</span></code></a>; every other field of <a class="reference internal" href="#kompass.rules.Excursion" title="kompass.rules.Excursion"><code class="xref py py-class docutils literal notranslate"><span class="pre">Excursion</span></code></a> always
+has a value.</p>
+<p>Derivation is decided by <a class="reference internal" href="#kompass.rules.Ruleset.inputs" title="kompass.rules.Ruleset.inputs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Ruleset.inputs()</span></code></a> and nothing else. A key
+<a class="reference internal" href="#kompass.rules.Ruleset.relevant_inputs" title="kompass.rules.Ruleset.relevant_inputs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Ruleset.relevant_inputs()</span></code></a> names is served with the declaration
+<code class="docutils literal notranslate"><span class="pre">inputs</span></code> gave it, so the form and the rules cannot disagree about
+where one key’s value comes from.</p>
+<p>It may not be stated beside <a class="reference internal" href="#kompass.rules.Input.options" title="kompass.rules.Input.options"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options</span></code></a> or <a class="reference internal" href="#kompass.rules.Input.options_source" title="kompass.rules.Input.options_source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options_source</span></code></a>: a
+derived answer is not picked, so „these are the people who may be
+picked“ and „the value is whoever the trip says“ are two answers to one
+question. A derived set of people is bounded by <a class="reference internal" href="#kompass.rules.Input.max" title="kompass.rules.Input.max"><code class="xref py py-attr docutils literal notranslate"><span class="pre">max</span></code></a>, and is
+statement-local already because the context is.</p>
 <p>A derived value is <strong>not stored</strong>. It is resolved again every time a
 context is built, so there is no second copy to go stale when the trip
 changes.</p>
@@ -1441,7 +1534,9 @@ step, which is what a form without steps is.</p>
 <dt class="sig sig-object py" id="kompass.rules.Input.derived">
 <span class="sig-name descname"><span class="pre">derived</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Input.derived" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Input.derived'">¶</a></dt>
 <dd><p>Whether the engine supplies this answer itself. The <em>engine</em> sets it; a
-ruleset declares <a class="reference internal" href="#kompass.rules.Input.source" title="kompass.rules.Input.source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">source</span></code></a> and reads this back.</p>
+ruleset declares <a class="reference internal" href="#kompass.rules.Input.source" title="kompass.rules.Input.source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">source</span></code></a> and reads this back, and setting it
+without a source is refused — it would be a question nobody can ever
+answer, refused with a message that is not true of it.</p>
 </dd></dl>
 </dd></dl>
 <dl class="py class">
