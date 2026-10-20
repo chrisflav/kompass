@@ -2415,6 +2415,28 @@ button.etappe-body:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* One group of questions, as the section's rules grouped them. Labelled
+   sections and not wizard pages: the form is already one leg of a wizard, and
+   a group with no label — a ruleset that named no steps — is the flat list the
+   form was before there were steps. */
+.answer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.answer-group-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
 /* --- receipts ------------------------------------------------------------- */
 
 .beleg-list {

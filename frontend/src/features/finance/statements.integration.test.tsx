@@ -124,9 +124,42 @@ const LEADERS = [
   { id: 9, name: "Mila Nowak" },
 ];
 
+/** The alternatives a `choice` declaration offers, as `/form` sends them. */
+const REGIMES = [
+  { value: "ehrenamt", label: "Ehrenamtspauschale" },
+  { value: "uebungsleiter", label: "Übungsleiterpauschale" },
+];
+
 /** One declaration, with the fields `/form` always sends. */
-function declaration(overrides: Record<string, unknown>) {
-  return { required: false, help: "", max: null, options: [], ...overrides };
+function declaration(overrides: Record<string, unknown>): Record<string, unknown> {
+  return {
+    required: false,
+    help: "",
+    max: null,
+    options: [],
+    choices: [],
+    step: "",
+    derived: false,
+    ...overrides,
+  };
+}
+
+/**
+ * `inputs` partitioned into steps the way the API partitions them.
+ *
+ * `/form` always sends a partition of the whole form — a ruleset that named no
+ * steps comes back as one step labelled `""` — so a stub that says what the
+ * rules ask has to say how they group too. Computed the same way the backend
+ * computes it rather than written out beside every `inputs`, so a test about
+ * something else does not have to carry a grouping.
+ */
+function stepsOf(inputs: Record<string, unknown>[]) {
+  const grouped = new Map<string, string[]>();
+  for (const input of inputs) {
+    const label = String(input.step ?? "");
+    grouped.set(label, [...(grouped.get(label) ?? []), String(input.key)]);
+  }
+  return [...grouped].map(([label, keys]) => ({ label, keys }));
 }
 
 /**
@@ -136,29 +169,32 @@ function declaration(overrides: Record<string, unknown>) {
  * leg prints whatever `/preflight` finds — neither is a list of fields or a
  * list of checks written in the client any more, so both are stubbed.
  */
+const FORM_INPUTS = [
+  declaration({
+    key: "night_cost",
+    label: "Preis pro Übernachtung",
+    type: "money",
+    help: "Was eine Übernachtung pro Jugendleiter*in gekostet hat.",
+  }),
+  declaration({
+    key: "allowance_to",
+    label: "Aufwandsentschädigung an",
+    type: "member_set",
+    options: LEADERS,
+    max: 2,
+  }),
+  declaration({
+    key: "subsidy_to",
+    label: "Fahrt- und Übernachtungszuschuss an",
+    type: "member",
+    options: LEADERS,
+  }),
+];
+
 const FORM = {
   statement_id: 1,
-  inputs: [
-    declaration({
-      key: "night_cost",
-      label: "Preis pro Übernachtung",
-      type: "money",
-      help: "Was eine Übernachtung pro Jugendleiter*in gekostet hat.",
-    }),
-    declaration({
-      key: "allowance_to",
-      label: "Aufwandsentschädigung an",
-      type: "member_set",
-      options: LEADERS,
-      max: 2,
-    }),
-    declaration({
-      key: "subsidy_to",
-      label: "Fahrt- und Übernachtungszuschuss an",
-      type: "member",
-      options: LEADERS,
-    }),
-  ],
+  inputs: FORM_INPUTS,
+  steps: stepsOf(FORM_INPUTS),
   answers: { night_cost: "11.00", allowance_to: [], subsidy_to: null },
 };
 
@@ -626,10 +662,12 @@ describe("submission flow — Erstattung", () => {
   function openForm(form: Record<string, unknown> = {}) {
     flowReturns();
     detailReturns();
+    const body: Record<string, unknown> = { ...FORM, ...form };
+    // A stub that changes the questions gets the grouping that goes with them,
+    // because the API never serves one without the other.
+    if (!("steps" in form)) body.steps = stepsOf(body.inputs as Record<string, unknown>[]);
     server.use(
-      http.get(api("/api/finance/statements/1/form"), () =>
-        HttpResponse.json({ ...FORM, ...form }),
-      ),
+      http.get(api("/api/finance/statements/1/form"), () => HttpResponse.json(body)),
     );
     return renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
   }
@@ -655,16 +693,17 @@ describe("submission flow — Erstattung", () => {
         declaration({ key: "nights", label: "Nächte", type: "int", max: 9 }),
         declaration({ key: "catered", label: "Mit Verpflegung", type: "bool" }),
         declaration({ key: "note", label: "Anmerkung", type: "text" }),
-        declaration({ key: "pick", label: "Variante", type: "choice" }),
+        declaration({ key: "pick", label: "Variante", type: "choice", choices: REGIMES }),
       ],
-      answers: { nights: 3, catered: true, note: "eine Zeile", pick: "a" },
+      answers: { nights: 3, catered: true, note: "eine Zeile", pick: "ehrenamt" },
     });
 
     expect(await screen.findByText("Nächte")).toBeInTheDocument();
     expect(screen.getByDisplayValue("3")).toHaveAttribute("max", "9");
     expect(screen.getByRole("checkbox")).toBeChecked();
     expect(screen.getByDisplayValue("eine Zeile")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("a")).toBeInTheDocument();
+    // A picker showing the chosen alternative's label, not its stored value.
+    expect(pickerFor("Variante")).toHaveTextContent("Ehrenamtspauschale");
   });
 
   it("sends an answer under the key the rules declared", async () => {
@@ -774,6 +813,292 @@ describe("submission flow — Erstattung", () => {
     expect(
       await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
     ).toBeInTheDocument();
+  });
+
+  it("offers the alternatives the declaration names, and sends the one picked", async () => {
+    // `choice` used to be a free-text box, because a declaration had no way to
+    // name its alternatives (#573). Now it does, and the API refuses anything
+    // outside them — so typing is no longer a thing a client may offer.
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+      ],
+      answers: { regime: null },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    // Exactly the alternatives the rules offered, plus "not chosen yet" — which
+    // is an answer the API stores, not the absence of one.
+    expect(dropdown().getByText("— nicht gewählt —")).toBeInTheDocument();
+    expect(dropdown().getByText("Übungsleiterpauschale")).toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "Übungsleiterpauschale" }));
+
+    // The stored value, not the label it was picked by.
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({ inputs: { regime: "uebungsleiter" } });
+  });
+
+  it("sends each pick of a choice at once, because clicking is not typing", async () => {
+    // `choice` was a text box, so it sat in the set of controls whose change
+    // waits for a pause — a keystroke must not be a request. A picker has no
+    // keystrokes: every pick is a whole answer, so two picks are two requests
+    // and not one, which is what going back on a choice has to amount to.
+    let patches = 0;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () => {
+        patches += 1;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+      ],
+      answers: { regime: null },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Übungsleiterpauschale" }));
+
+    await waitFor(() => expect(patches).toBe(2));
+  });
+
+  it("names the question a refused choice is about", async () => {
+    // An answer outside the declaration's own choices is a 422 keyed by that
+    // question, like any other refusal — not a toast over the whole form.
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () =>
+        djangoValidation({ regime: ["Regelwerk ist keine der angebotenen Möglichkeiten."] }),
+      ),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+        declaration({ key: "nights", label: "Nächte", type: "int" }),
+      ],
+      answers: { regime: null, nights: 2 },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+
+    // Under "Regelwerk", and not under the other question on the form — in a
+    // toast as well, like any refusal.
+    const messages = await screen.findAllByText(/keine der angebotenen Möglichkeiten/);
+    expect(messages.map((node) => node.className)).toContain("field-error");
+    const refused = screen.getByText("Regelwerk").closest(".field") as HTMLElement;
+    expect(within(refused).getByText(/keine der angebotenen Möglichkeiten/)).toBeInTheDocument();
+    const other = screen.getByText("Nächte").closest(".field") as HTMLElement;
+    expect(within(other).queryByText(/keine der angebotenen Möglichkeiten/)).toBeNull();
+  });
+
+  it("states a derived answer as a reading instead of asking for it", async () => {
+    // The engine resolves these from the statement's own data on every request.
+    // Rendered as a field they would read as something to fill in — and a
+    // disabled one as something broken.
+    openForm({
+      inputs: [
+        declaration({ key: "km", label: "Gefahrene Kilometer", type: "int", derived: true }),
+        declaration({ key: "fare", label: "Fahrtkosten", type: "money", derived: true }),
+        declaration({ key: "nights", label: "Nächte", type: "int" }),
+      ],
+      answers: { km: 120, fare: "36.00", nights: 2 },
+    });
+
+    const readout = (await screen.findByText("Gefahrene Kilometer")).closest(
+      ".readout",
+    ) as HTMLElement;
+    expect(readout).not.toBeNull();
+    // Where the figure comes from, in the same words the trip's own facts get.
+    expect(within(readout).getByText("Aus der Fahrt übernommen")).toBeInTheDocument();
+    expect(within(readout).getByText("120")).toBeInTheDocument();
+    // Money arrives as text, exactly as a stored answer does, and reads as money.
+    expect(within(readout).getByText("36,00 €")).toBeInTheDocument();
+    // Nothing to type into: not a control, not a disabled control.
+    expect(screen.queryByDisplayValue("120")).toBeNull();
+    expect(screen.queryByDisplayValue("36.00")).toBeNull();
+    // The question beside them is still a question.
+    expect(screen.getByDisplayValue("2")).toBeInTheDocument();
+  });
+
+  it("reads a derived answer in every shape a stored one comes in", async () => {
+    // `/form` hands a derived value over in the shape `Statement.inputs` holds
+    // it — money as text, a person as an id, a set of people as a list of ids —
+    // so one path reads both and a figure the engine supplied reads like a
+    // figure somebody answered.
+    openForm({
+      inputs: [
+        declaration({ key: "fare", label: "Fahrtkosten", type: "money", derived: true }),
+        declaration({ key: "catered", label: "Verpflegt", type: "bool", derived: true }),
+        declaration({ key: "warm", label: "Winterfahrt", type: "bool", derived: true }),
+        declaration({
+          key: "regime",
+          label: "Regelwerk",
+          type: "choice",
+          choices: REGIMES,
+          derived: true,
+        }),
+        declaration({
+          key: "regime_open",
+          label: "Zweitregelwerk",
+          type: "choice",
+          choices: REGIMES,
+          derived: true,
+        }),
+        declaration({
+          key: "lead",
+          label: "Fahrtenleitung",
+          type: "member",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "gone",
+          label: "Kassenwart",
+          type: "member",
+          options: [],
+          derived: true,
+        }),
+        declaration({
+          key: "nobody",
+          label: "Vertretung",
+          type: "member",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "crew",
+          label: "Anerkannte Leitung",
+          type: "member_set",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "extra",
+          label: "Begleitung",
+          type: "member_set",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({ key: "note", label: "Vermerk", type: "text", derived: true }),
+      ],
+      answers: {
+        fare: "36.00",
+        catered: true,
+        warm: false,
+        regime: "ehrenamt",
+        regime_open: null,
+        lead: 9,
+        gone: 4,
+        nobody: null,
+        crew: [7, 9],
+        extra: [],
+        note: "",
+      },
+    });
+
+    const readout = (await screen.findByText("Fahrtkosten")).closest(".readout") as HTMLElement;
+    const read = (label: string) =>
+      (within(readout).getByText(label).nextElementSibling as HTMLElement).textContent;
+    expect(read("Fahrtkosten")).toBe("36,00 €");
+    expect(read("Verpflegt")).toBe("Ja");
+    expect(read("Winterfahrt")).toBe("Nein");
+    // A choice reads as the label it was offered under, not as its stored value.
+    expect(read("Regelwerk")).toBe("Ehrenamtspauschale");
+    expect(read("Zweitregelwerk")).toBe("—");
+    expect(read("Fahrtenleitung")).toBe("Mila Nowak");
+    // A person the rules no longer offer: an id with no name behind it.
+    expect(read("Kassenwart")).toBe("unbekannt");
+    expect(read("Vertretung")).toBe("—");
+    expect(read("Anerkannte Leitung")).toBe("Hannah Beckers, Mila Nowak");
+    expect(read("Begleitung")).toBe("—");
+    expect(read("Vermerk")).toBe("—");
+  });
+
+  it("never sends an answer for a derived question", async () => {
+    // `PATCH` refuses a value for a derived key, keyed by that question. The
+    // form serves the figure in `answers` like any other answer, so a client
+    // that echoes back what it was served gets a 422 — neuter the filter and
+    // this goes red with `km` in the body.
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "km", label: "Gefahrene Kilometer", type: "int", derived: true }),
+        declaration({
+          key: "subsidy_to",
+          label: "Zuschuss an",
+          type: "member",
+          options: LEADERS,
+        }),
+      ],
+      answers: { km: 120, subsidy_to: null },
+    });
+
+    await screen.findByText("Zuschuss an");
+    await user.click(pickerFor("Zuschuss an"));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({ inputs: { subsidy_to: 9 } });
+  });
+
+  it("groups the questions into the steps the rules named", async () => {
+    openForm({
+      inputs: [
+        declaration({
+          key: "regime",
+          label: "Regelwerk",
+          type: "choice",
+          choices: REGIMES,
+          step: "Grundlagen",
+        }),
+        declaration({ key: "km", label: "Kilometer", type: "int", step: "Fahrtkosten" }),
+        declaration({ key: "note", label: "Anmerkung", type: "text", step: "Fahrtkosten" }),
+      ],
+      answers: { regime: null, km: 120, note: "" },
+    });
+
+    const grundlagen = (await screen.findByText("Grundlagen")).closest(
+      ".answer-group",
+    ) as HTMLElement;
+    expect(within(grundlagen).getByText("Regelwerk")).toBeInTheDocument();
+    expect(within(grundlagen).queryByText("Kilometer")).toBeNull();
+
+    const fahrtkosten = screen.getByText("Fahrtkosten").closest(".answer-group") as HTMLElement;
+    expect(within(fahrtkosten).getByText("Kilometer")).toBeInTheDocument();
+    expect(within(fahrtkosten).getByText("Anmerkung")).toBeInTheDocument();
+    expect(within(fahrtkosten).queryByText("Regelwerk")).toBeNull();
+  });
+
+  it("reads as one flat list when the rules named no steps", async () => {
+    // A ruleset that named no steps comes back as a single step labelled `""`,
+    // and that degenerate case must not look like a multi-page flow: no
+    // heading, nothing announcing a group, just the questions.
+    openForm();
+
+    expect(await screen.findByText("Preis pro Übernachtung")).toBeInTheDocument();
+    expect(FORM.steps).toEqual([
+      { label: "", keys: ["night_cost", "allowance_to", "subsidy_to"] },
+    ]);
+    expect(document.querySelector(".answer-group-title")).toBeNull();
   });
 
   it("offers nobody when the rules offer nobody", async () => {

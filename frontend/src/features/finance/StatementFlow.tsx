@@ -16,7 +16,7 @@ import {
   useToast,
   euro,
 } from "../../components/ui";
-import { AnswerField, TYPED_INTO, type Answers } from "./answers";
+import { AnswerField, DerivedFacts, TYPED_INTO, type Answers } from "./answers";
 import { postMultipart } from "./Bills";
 import { Check, EtappenRail, Preflight, type Etappe } from "./stages";
 import type { components } from "../../api/schema";
@@ -24,6 +24,7 @@ import type { components } from "../../api/schema";
 type StatementOut = components["schemas"]["StatementOut"];
 type StatementFormOut = components["schemas"]["StatementFormOut"];
 type InputDeclarationOut = components["schemas"]["InputDeclarationOut"];
+type FormStepOut = components["schemas"]["FormStepOut"];
 type TransferPartyOut = components["schemas"]["TransferPartyOut"];
 type ExcursionBrief = components["schemas"]["ExcursionBrief"];
 type ExcursionOut = components["schemas"]["ExcursionOut"];
@@ -817,6 +818,25 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
   const [answers, setAnswers] = useState<Answers>(() => ({ ...form.answers }));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The keys a `PATCH` may carry, which is neither "everything answered" nor
+  // "everything declared".
+  //
+  // A ruleset may retire a question once an earlier answer makes it moot, and
+  // the API refuses a key the rules do not ask for — so sending back everything
+  // that was ever answered would turn `relevant_inputs` into a 422.
+  //
+  // And a derived answer is refused too, keyed by that question: the figure is
+  // a reading of the excursion, resolved again on every evaluation, so a value
+  // sent for it would land where nothing reads it. The form serves it in
+  // `answers` like any other answer, which is exactly why it has to come out
+  // here — echoing back the form as served is the mistake the API refuses.
+  const answerable = useMemo(
+    () =>
+      new Set(
+        form.inputs.filter((declared) => !declared.derived).map((declared) => declared.key),
+      ),
+    [form.inputs],
+  );
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -854,13 +874,8 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
     setAnswers(next);
     setErrors({});
     if (timer.current) clearTimeout(timer.current);
-    // Only the questions this form still asks. A ruleset may retire one once an
-    // earlier answer makes it moot, and the API refuses a key the rules do not
-    // ask for — so sending back everything that was ever answered would turn
-    // `relevant_inputs` into a 422.
-    const asked = new Set(form.inputs.map((declared) => declared.key));
     const body = Object.fromEntries(
-      Object.entries(next).filter(([key]) => asked.has(key)),
+      Object.entries(next).filter(([key]) => answerable.has(key)),
     );
     if (TYPED_INTO.has(declaration.type)) {
       timer.current = setTimeout(() => saveM.mutate(body), TYPING_PAUSE);
@@ -874,16 +889,75 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
   }
   return (
     <>
-      {form.inputs.map((declaration) => (
+      {form.steps.map((step) => (
+        <AnswerGroup
+          key={step.label}
+          step={step}
+          form={form}
+          answers={answers}
+          errors={errors}
+          onChange={change}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * One group of questions, as the ruleset grouped them.
+ *
+ * `steps` always partitions the whole form, so this is the only way the form is
+ * laid out — including the degenerate case, a ruleset that named no steps,
+ * which comes back as a single group with an empty label and reads as the flat
+ * list it was before there were steps.
+ *
+ * Sections and not pages, deliberately. This form is already one leg of a
+ * wizard (`EtappenRail`), and a second wizard inside it would make "Weiter"
+ * mean two different things on one screen — and hide questions behind a step
+ * the person cannot see they still have to answer. The backend is of the same
+ * mind: `steps` carries a label and its keys and nothing else, no page state
+ * and no notion of a step being finished.
+ *
+ * The readings come first within a group: what the trip says, then what it
+ * leaves to be answered.
+ */
+function AnswerGroup({
+  step,
+  form,
+  answers,
+  errors,
+  onChange,
+}: {
+  step: FormStepOut;
+  form: StatementFormOut;
+  answers: Answers;
+  errors: Record<string, string[]>;
+  onChange: (declaration: InputDeclarationOut, value: unknown) => void;
+}) {
+  const declared = step.keys
+    .map((key) => form.inputs.find((declaration) => declaration.key === key))
+    .filter((declaration): declaration is InputDeclarationOut => declaration !== undefined);
+  const derived = declared.filter((declaration) => declaration.derived);
+  const asked = declared.filter((declaration) => !declaration.derived);
+  return (
+    <section className="answer-group">
+      {step.label && <h3 className="answer-group-title">{step.label}</h3>}
+      {derived.length > 0 && (
+        // Read from `form.answers` rather than from the draft: a derived figure
+        // is resolved again on every request and nothing stores it, so the form
+        // as served is the only place it is current.
+        <DerivedFacts declarations={derived} answers={form.answers} />
+      )}
+      {asked.map((declaration) => (
         <AnswerField
           key={declaration.key}
           declaration={declaration}
           value={answers[declaration.key]}
           errors={errors[declaration.key]}
-          onChange={(value) => change(declaration, value)}
+          onChange={(value) => onChange(declaration, value)}
         />
       ))}
-    </>
+    </section>
   );
 }
 
