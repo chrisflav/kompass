@@ -126,3 +126,10 @@ docker/test/media
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+
+# Agent scratch space: git worktrees Claude Code creates under .claude/worktrees
+# are full checkouts, so the build context grew by one copy of the repo per
+# worktree. Some also hold a MariaDB data directory left by `make test`, owned
+# by the container's mysql user, which the context walk cannot read -- the build
+# then fails outright on a directory that was never meant to be shipped.
+.claude/
