@@ -19,14 +19,6 @@ Versions and branches
   release branches that need it, never the other way around, so ``main`` never lacks a fix that a
   release has.
 
-The first release is ``v2.0.1``, on ``release/2.0``: the state of ``main`` at ``ad3c31e``
-(September 2026) plus the fix for the group checklist PDF.
-
-.. note::
-
-   ``pyproject.toml`` on ``main`` also says ``2.0.1``. Bump it before tagging the next release
-   from ``main``, or two different states would claim the same version.
-
 Docker images of a release
 --------------------------
 
