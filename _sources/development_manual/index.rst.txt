@@ -18,6 +18,7 @@ This part of the documentation describes the development and maintenance of the 
    testing
    translations
    ci
+   releases
    deployment
 
 Getting started
