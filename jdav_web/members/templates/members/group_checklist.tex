@@ -26,17 +26,20 @@
 \begin{table}[H]
   \centering
 % No line inside the table may come out blank or whitespace-only: TeX reads one
-% as a paragraph break, and current LaTeX then misjudges the row heights, so
-% names slide into the next row. Hence the trailing % after template tags.
+% as a paragraph break, and current LaTeX then misjudges the row heights.
+% Hence the trailing % after template tags. Together with the name cell below,
+% this keeps each name in its own row instead of under the next row's rule.
 \begin{tabularx}{\textwidth}{X{% for i in week_range %}|l{% endfor %}}
 \toprule
   \textbf{Name}{% for i in week_range %}
   & \begin{sideways} {{ dates|index:i|add:group.weekday|date_vs }} \end{sideways}{% endfor %} \\
 {% for j in member_range %}{% with m=group.sorted_members|index:j %}{% with codelength=m.ticket_tag|length %}%
   \midrule
-  % A box of fixed height with the barcode above the name, centred: every row
-  % is equally tall, without negative space squeezing the name out of its cell.
-  \parbox[c][9mm][c]{\linewidth}{%
+  % The barcode above the name, centred in a row at least 9mm tall, so rows
+  % without a barcode match the others. A name too long for one line makes its
+  % row taller rather than spilling over the rules; no negative space squeezes
+  % the name out of its cell, as the old nested tabular did.
+  \rule[-4.5mm]{0pt}{9mm}\parbox[c]{\linewidth}{\raggedright%
     {% if codelength > 2 %}\barcode[
       X=\dimexpr 3.5mm / \numexpr {{ codelength }} \relax \relax
     ]{{ m.ticket_tag }}\\[-0.5ex]{% endif %}%

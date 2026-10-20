@@ -541,14 +541,19 @@ class PDFTestCase(TestCase):
 
         TeX reads a blank or whitespace-only line as a paragraph break; between
         a row's ``\\`` and the next ``\\midrule``, current LaTeX then gets the
-        row heights wrong, and every name slid into the row below, struck
-        through by its rule. The template tags in the table must not leave one.
+        row heights wrong. With the name cell's old negative space, every name
+        slid into the row below, struck through by its rule. Both had to go;
+        this guards the blank lines, which the template tags left behind. The
+        layout itself (a long name wraps and makes its row taller) shows only
+        in the PDF.
         """
         group = Group.objects.create(name="Klettergruppe", show_website=True, weekday=2)
-        for i, ticket_no in enumerate(["123 45", ""]):
+        # A name long enough to wrap, with a barcode; a member without a ticket.
+        people = [("Maximilian-Alexander", "Schneider-Hohenberg", "123 45"), ("Kim", "Test", "")]
+        for prename, lastname, ticket_no in people:
             member = Member.objects.create(
-                prename="Kim {}".format(i),
-                lastname="Test",
+                prename=prename,
+                lastname=lastname,
                 birth_date=timezone.now().date(),
                 email=settings.TEST_MAIL,
                 gender=FEMALE,
