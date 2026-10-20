@@ -50,10 +50,11 @@ from finance.rules_api import Member as RuleMember
 from finance.rules_api import RuleContext
 from members.models import Member
 
-from .engine import ask
+from .engine import Asked
+from .engine import asking
+from .engine import offers
 from .engine import ruleset_for
 from .engine import statement_context
-from .engine import supplied
 
 #: The input types that name people, and whether more than one may be named.
 MEMBER_TYPES = {"member": False, "member_set": True}
@@ -76,40 +77,40 @@ MONEY_DIGITS = 7
 MONEY_MAX = Decimal(10 ** (MONEY_DIGITS - MONEY_PLACES)) - Decimal("0.01")
 
 
-def asked(statement: Any) -> tuple[list[Input], RuleContext]:
-    """The questions ``statement`` still has to ask, and the context they are about.
+def asked(statement: Any) -> tuple[Asked, RuleContext]:
+    """What ``statement``'s rules ask of it, and the context they were asked about.
 
-    Asked through ``relevant_inputs`` rather than ``inputs``, against the
-    answers the statement already carries, which is what lets a ruleset retire
-    a question: once "no subsidy" is saved, the price per night comes off the
-    form rather than staying on it to be ignored. The answers it re-runs
-    against are the *saved* ones — the ones the engine holds in its own shapes
-    — so a client that wants the form to change asks for it again after the
-    ``PATCH``.
+    The form is :attr:`~finance.engine.declared.Asked.form`, which is
+    ``relevant_inputs`` — against the answers the statement already carries,
+    which is what lets a ruleset retire a question: once "no subsidy" is saved,
+    the price per night comes off the form rather than staying on it to be
+    ignored. The answers it re-runs against are the *saved* ones, so a client
+    that wants the form to change asks for it again after the ``PATCH``.
 
-    ``relevant_inputs`` is the authoritative question, and since taxis #579 it
-    is the one the rules are asked too: a question this does not return is one
-    :func:`finance.engine.evaluation.evaluate` does not read either. So the
-    answer this refuses in :func:`clean` is also an answer that moves no money,
-    which is what it means for the two sides to agree.
+    ``relevant_inputs`` is the authoritative question about what is *asked*,
+    and since taxis #579 it is the one the rules are asked too: a question it
+    does not return is one :func:`finance.engine.evaluation.evaluate` does not
+    read either. So the answer :func:`clean` refuses is also an answer that
+    moves no money, which is what it means for the two sides to agree.
 
-    The context comes back because the declarations are only half of a form: a
-    derived question's *value* is resolved from the same context
-    (:func:`finance.engine.declared.supplied`), and resolving it twice from two
-    contexts is how the form and the rules would come to disagree.
+    Everything comes out of one :func:`~finance.engine.declared.asking` call,
+    and the whole of it is returned rather than just the form: the declarations
+    are only half of a form, a derived question's *value* comes from the same
+    call, and resolving either from a second context is how the form and the
+    rules would come apart.
     """
     ruleset = ruleset_for(statement)
     context = statement_context(statement, ruleset)
-    # Inside the guard, like `transfers`, `checks` and `approval` — `ask` opens
-    # it: this is the `/form` endpoint's entry into a section's own code, and a
-    # declaration that queried would make the form depend on the day it was
-    # rendered.
-    return ask(ruleset, context, relevant=True), context
+    # Inside the guard, like `transfers`, `checks` and `approval` — `asking`
+    # opens it: this is the `/form` endpoint's entry into a section's own code,
+    # and a declaration that queried would make the form depend on the day it
+    # was rendered.
+    return asking(ruleset, context), context
 
 
 def declarations(statement: Any) -> list[Input]:
     """The questions ``statement`` still has to ask, in order (see :func:`asked`)."""
-    return asked(statement)[0]
+    return list(asked(statement)[0].form)
 
 
 def answerable(statement: Any) -> list[Input]:
@@ -197,27 +198,47 @@ def form(statement: Any) -> dict[str, Any]:
     """The whole form: the questions, how they group, and the answers they are about.
 
     ``answers`` is restricted to the keys this form asks for, so an answer the
-    rules have stopped asking for is not handed back to be re-submitted — and
-    it is **not** read out of ``Statement.inputs`` for a derived question. A
-    derived answer is resolved here, from the same context the declarations
+    rules have stopped asking for is not handed back to be re-submitted. Two
+    kinds of answer are **not** read out of ``Statement.inputs``:
+
+    A *derived* answer is resolved here, from the same call the declarations
     came from, which is why a stale value stored under its key cannot be shown:
     there is one figure, it lives on the excursion, and this is a reading of it.
+
+    An answer the declaration no longer *offers* comes back empty — a
+    ``choice`` whose option has been withdrawn, a person who is no longer
+    among the people the rules offer. It is the answer the rules read
+    (:func:`finance.engine.answers.within`), and serving anything else would
+    hand a client a value its own UI cannot display and the very same form
+    would refuse: round-tripping what ``/form`` served used to answer 422 on a
+    question nobody had touched.
+
+    So one sentence holds for every key here: **what this serves is what the
+    rules read.** A client may send it all straight back.
     """
-    declared, context = asked(statement)
+    served, context = asked(statement)
     carried = statement.answers
-    derived = supplied(declared, context)
     return {
-        "inputs": [_declaration(declaration) for declaration in declared],
-        "steps": steps(declared),
+        "inputs": [_declaration(declaration) for declaration in served.form],
+        "steps": steps(served.form),
         "answers": {
-            declaration.key: (
-                _as_json(derived[declaration.key])
-                if declaration.key in derived
-                else carried.get(declaration.key)
-            )
-            for declaration in declared
+            declaration.key: _answer(declaration, served, carried) for declaration in served.form
         },
     }
+
+
+def _answer(declaration: Input, served: Asked, carried: Mapping[str, Any]) -> Any:
+    """What ``/form`` hands back for one question: what the rules will read."""
+    if declaration.key in served.supplied:
+        return _as_json(served.supplied[declaration.key])
+    stored = carried.get(declaration.key)
+    if stored is None:
+        return None
+    # `None` rather than the type's empty value, so that an answer nobody has
+    # given and one nobody may give any more look the same to a client: both
+    # are a question still to be answered, and both come back through `clean`
+    # as the empty answer if a client sends them straight back.
+    return stored if offers(declaration, stored) else None
 
 
 def party_keys(statement: Any) -> set[str]:
@@ -241,7 +262,7 @@ def party_keys(statement: Any) -> set[str]:
     """
     ruleset = ruleset_for(statement)
     context = statement_context(statement, ruleset)
-    declared = ask(ruleset, context)
+    declared = asking(ruleset, context).vocabulary
     return {declaration.key for declaration in declared if declaration.type in MEMBER_TYPES}
 
 
@@ -330,13 +351,15 @@ def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
                 }
             )
         try:
-            cleaned[key] = clean_value(declaration, value)
+            cleaned[key] = clean_value(
+                declaration, value, about_an_excursion=statement.excursion is not None
+            )
         except ValidationError as problem:
             raise ValidationError({key: problem.messages}) from None
     return cleaned
 
 
-def clean_value(declaration: Input, value: Any) -> Any:
+def clean_value(declaration: Input, value: Any, *, about_an_excursion: bool = True) -> Any:
     """One answer, checked against one declaration and converted.
 
     Public because it is the whole of the widget vocabulary in one place:
@@ -344,9 +367,17 @@ def clean_value(declaration: Input, value: Any) -> Any:
     number, ``member`` and ``member_set`` ids from the declaration's own
     options, ``choice`` one of the declaration's own choices, ``bool`` a flag,
     and anything else text.
+
+    ``about_an_excursion`` picks the wording when somebody names a person the
+    rules did not offer. The message Kompass has always given says "youth
+    leaders of this excursion", which is true of a trip and false of a
+    statement that settles a purchase — where the people on offer come from
+    whoever paid a receipt. It defaults to the trip's wording because the
+    admin's excursion inline is always about one; :func:`clean` asks the
+    statement.
     """
     if declaration.type in MEMBER_TYPES:
-        return _clean_members(declaration, value)
+        return _clean_members(declaration, value, about_an_excursion=about_an_excursion)
     if declaration.type == "money":
         return _clean_money(declaration, value)
     if declaration.type == "int":
@@ -382,15 +413,29 @@ def _clean_choice(declaration: Input, value: Any) -> str:
     return chosen
 
 
-def _as_member(value: Any) -> int:
+def _not_offered(about_an_excursion: bool) -> ValidationError:
+    """The refusal for a person the rules did not offer, worded for the statement.
+
+    Kompass has always said "youth leaders of this excursion", and for a
+    statement that settles a trip that is both true and the most useful thing
+    to say. For one that settles a purchase it is neither: there is no
+    excursion, and the people on offer are whoever paid a receipt — so that
+    wording sent somebody looking for a trip that does not exist.
+    """
+    if about_an_excursion:
+        return ValidationError(_("Only youth leaders of this excursion may receive contributions."))
+    return ValidationError(_("This person is not one of the people these rules offer."))
+
+
+def _as_member(value: Any, *, about_an_excursion: bool) -> int:
     """``value`` as a member id, or a refusal the client can read.
 
     Whatever a client sends for a party-valued answer, this has to come back as
     a 422 and not as a 500. ``main`` got that from pydantic, which typed
     ``subsidy_to_id`` as an ``int``; now the answers arrive as a free-form
     ``dict`` and the only thing that looks at them is here. The message is the
-    one the admin and the API have always given, which is also true of a value
-    that is not a person at all: it is not one of the people the rules offered.
+    one the answer deserves, which is also true of a value that is not a person
+    at all: it is not one of the people the rules offered.
 
     ``OverflowError`` is in the list because ``1e400`` is an ordinary JSON
     number that arrives as ``float('inf')``, and ``int()`` of that overflows
@@ -399,12 +444,10 @@ def _as_member(value: Any) -> int:
     try:
         return int(value)
     except (TypeError, ValueError, OverflowError):
-        raise ValidationError(
-            _("Only youth leaders of this excursion may receive contributions.")
-        ) from None
+        raise _not_offered(about_an_excursion) from None
 
 
-def _clean_members(declaration: Input, value: Any) -> Any:
+def _clean_members(declaration: Input, value: Any, *, about_an_excursion: bool = True) -> Any:
     """Who may be named: exactly the people the rules offered, each once.
 
     This is ``_resolve_recipient`` and ``_validate_allowance_count``, both at
@@ -428,12 +471,10 @@ def _clean_members(declaration: Input, value: Any) -> Any:
         return [] if many else None
     picked = list(value) if many and isinstance(value, list) else [value]
     allowed = {member.id for member in declaration.options}
-    ids = [_as_member(member_id) for member_id in picked]
+    ids = [_as_member(member_id, about_an_excursion=about_an_excursion) for member_id in picked]
     for member_id in ids:
         if member_id not in allowed:
-            raise ValidationError(
-                _("Only youth leaders of this excursion may receive contributions.")
-            )
+            raise _not_offered(about_an_excursion)
     if not many:
         return ids[0]
     resolved = sorted(set(ids))

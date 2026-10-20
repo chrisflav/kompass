@@ -13,6 +13,22 @@ database at all. Nothing here imports anything but the typed API — though that
 is not the same as being importable without Django, which neither this module
 nor ``cases`` is: both live in :mod:`finance.engine`, whose package import
 reaches the models.
+
+**Two ways an answer can fail to fit, and they are treated differently.**
+
+A *type* that does not fit is handed through untouched, so the rule's own
+accessor raises and the evaluation reports it: that is a section retyping a key
+whose old answers are still stored, and the loud reading is the right one.
+
+A value *outside the domain its declaration offers* — a ``choice`` whose option
+has been withdrawn, a person who is no longer among the people the rules offer,
+a set larger than the bound — reads as **unanswered** instead
+(:func:`within`). It is the same decision as a retired question (taxis #579):
+what the form would not accept, the rules do not read. That matters because the
+form validates an answer on the way *in* and nothing used to re-validate one on
+the way *out*, so a withdrawn option went on paying, and ``/form`` served an
+answer that the very same form would have refused — any client that round-tripped
+what it was served got a 422 naming a value its own UI could not display.
 """
 
 from collections.abc import Iterable
@@ -24,9 +40,101 @@ from finance.rules_api import Input
 from finance.rules_api import Member
 from finance.rules_api import MemberId
 
+#: What an unanswered declaration of each type reads as.
+#:
+#: ``choice`` is ``""`` and not ``None``, which is what makes the widget
+#: readable at all (taxis #573): it is a named value out of a fixed list, a
+#: rule reads it with :meth:`~kompass.rules.Inputs.text`, and that accessor
+#: type-checks against ``str`` — so ``None`` here turned every unanswered
+#: choice into a :class:`~kompass.rules.RuleError` that collapsed the whole
+#: evaluation instead of reading as "nothing chosen yet".
+#:
+#: Here rather than in :mod:`finance.engine.evaluation` because it is now two
+#: things' answer: what a question nobody asked reads as, and what an answer
+#: outside its own domain falls back to.
+EMPTY: dict[str, object] = {
+    "money": Decimal("0.00"),
+    "int": 0,
+    "bool": False,
+    "text": "",
+    "choice": "",
+    "member": None,
+    "member_set": (),
+}
+
+
+def typed(declaration: Input, value: Any) -> object:
+    """``value`` as the type ``declaration`` promises, whatever it is worth.
+
+    The engine's own supplied values come through here and no further: they are
+    read off the context rather than submitted, so there is no domain to
+    re-check them against — ``options`` may not be stated beside a ``source``
+    at all, and a ``max`` a supplied value breaks is reported as an error on the
+    statement (:func:`finance.engine.declared.unbounded`) rather than quietly
+    emptied, because nobody can correct it through the form.
+
+    A value whose *type* does not fit is handed through untouched, not raised
+    on. A section may change what a question asks for while statements still
+    hold an answer under that key — which is the whole point of the feature —
+    and ``inputs`` keeps a retired key rather than pruning it. Raising here
+    would make every read of that statement a 500, including the ``/form``
+    request that is the only way to put a new answer in. Handed through, the
+    rule's own typed accessor raises :class:`kompass.rules.RuleError` instead,
+    which :func:`finance.engine.evaluation.evaluate` reports as an error on the
+    statement.
+    """
+    try:
+        return _fitted(declaration, value)
+    except (TypeError, ValueError, ArithmeticError):
+        return value
+
+
+def within(declaration: Input, value: Any) -> bool:
+    """Whether a typed answer is still inside the domain ``declaration`` offers.
+
+    The read side of :func:`finance.inputs.clean_value`, asked of an answer
+    that was stored when the domain was wider: a ``choice`` whose option has
+    since been withdrawn, a person the rules no longer offer — which happens
+    without anybody editing the statement, since clearing a receipt's payer
+    empties an ``options_source="bills.payers"`` set — or a set larger than a
+    bound the section has since lowered.
+
+    A value whose type does not fit is *not* judged here; it is outside every
+    domain and has to stay loud rather than read as empty, so
+    :func:`coerce_input` only asks this of a value :func:`typed` could fit.
+    """
+    if declaration.type == "choice":
+        return value == "" or value in {choice.value for choice in declaration.choices}
+    if declaration.type == "member":
+        return value is None or value in declaration.options
+    if declaration.type == "member_set":
+        if declaration.max is not None and len(value) > declaration.max:
+            return False
+        return all(member in declaration.options for member in value)
+    if declaration.type == "int":
+        return declaration.max is None or value <= declaration.max
+    return True
+
+
+def offers(declaration: Input, value: Any) -> bool:
+    """Whether the **stored** ``value`` is one ``declaration`` still offers.
+
+    What :func:`coerce_input` decides with, exposed because ``/form`` needs the
+    same answer: it serves what the rules read, so it may not hand back a value
+    the rules have stopped reading.
+
+    A value whose *type* does not fit is reported as offered, because it is not
+    this question's business: it is outside every domain, and the loud reading
+    belongs to the rule's own accessor rather than to a quiet emptying.
+    """
+    try:
+        return within(declaration, _fitted(declaration, value))
+    except (TypeError, ValueError, ArithmeticError):
+        return True
+
 
 def coerce_input(declaration: Input, value: Any) -> object:
-    """One stored answer, as the type its declaration promises.
+    """One **stored** answer, as the type its declaration promises and no wider.
 
     The other half of :func:`finance.inputs.clean_value`: that one takes what a
     client sent and makes it storable, this one takes what was stored and makes
@@ -38,20 +146,17 @@ def coerce_input(declaration: Input, value: Any) -> object:
     Money goes through ``str`` on its way to :class:`~decimal.Decimal`, so a
     JSON number never arrives as its binary expansion.
 
-    **A value that does not fit is handed through untouched**, not raised on.
-    A section may change what a question asks for while statements still hold
-    an answer under that key — which is the whole point of the feature — and
-    ``inputs`` keeps a retired key rather than pruning it. Raising here would
-    make every read of that statement a 500, including the ``/form`` request
-    that is the only way to put a new answer in. Handed through, the rule's own
-    typed accessor raises :class:`kompass.rules.RuleError` instead, which
-    :func:`finance.engine.evaluation.evaluate` reports as an error on the
-    statement.
+    An answer the declaration no longer offers reads as that empty value too
+    (:func:`within`), so that nothing is paid on a value the form would refuse.
+    A *type* that does not fit is still handed through, unjudged, so that the
+    rule's accessor raises on it: the two failures have to stay distinguishable,
+    and only one of them is a thing a person can re-answer.
     """
     try:
-        return _fitted(declaration, value)
+        fitted = _fitted(declaration, value)
     except (TypeError, ValueError, ArithmeticError):
         return value
+    return fitted if within(declaration, fitted) else EMPTY.get(declaration.type)
 
 
 def _fitted(declaration: Input, value: Any) -> object:
@@ -95,21 +200,21 @@ def typed_inputs(
     :class:`kompass.rules.RuleError`, never a string that looks like one.
 
     ``derived`` are the answers the *engine* supplies, from
-    :func:`finance.engine.declared.supplied`. They win over anything stored
-    under the same key, and that is the fail-closed half of the feature: a
-    derived figure is never editable, so a value that reached
+    :attr:`finance.engine.declared.Asked.supplied`. They win over anything
+    stored under the same key, and that is the fail-closed half of the feature:
+    a derived figure is never editable, so a value that reached
     ``Statement.inputs`` under its key — a leftover from before the question
     was derived, or a hand-crafted write — is shadowed rather than read. They
-    go through :func:`coerce_input` like a stored answer, so that one key is
-    one type however it was arrived at.
+    go through :func:`typed` rather than :func:`coerce_input`, because a
+    supplied value has no domain to be re-checked against and a bound it breaks
+    is an error rather than an empty reading.
     """
     engine_supplied = {} if derived is None else derived
     return {
-        declaration.key: coerce_input(
-            declaration,
-            engine_supplied[declaration.key]
+        declaration.key: (
+            typed(declaration, engine_supplied[declaration.key])
             if declaration.key in engine_supplied
-            else answers.get(declaration.key),
+            else coerce_input(declaration, answers.get(declaration.key))
         )
         for declaration in declarations
     }

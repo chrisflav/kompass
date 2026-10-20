@@ -46,8 +46,7 @@ from members.models import MUSKELKRAFT_ANREISE
 from members.models import OEFFENTLICHE_ANREISE
 
 from .answers import typed_inputs
-from .declared import ask
-from .declared import supplied
+from .declared import asking
 
 #: The settings a ruleset's parameters are taken from, until a ruleset brings
 #: its own (step 2 of the refactor). These are exactly the keys
@@ -280,14 +279,15 @@ def build_context(
     # that branches on an answer while declaring the questions reads them with
     # `raw`, or branches in `relevant_inputs`, which runs against the typed
     # context this returns.
-    declarations = ask(ruleset, context)
+    asked = asking(ruleset, context)
     # The derived answers are resolved here as well as in `evaluate`, and not
     # only there, because this is the context `relevant_inputs`, the form and
     # `clean` are asked against: without them, a question the engine answers
     # would read as unanswered everywhere except in the rules, and a client
-    # would be shown an empty field for a figure that is already settled.
-    # Resolved, never stored — `supplied`'s own documentation says why.
+    # would be shown an empty field for a figure that is already settled. Both
+    # resolutions ask `asking`, off `inputs`, so neither can disagree with the
+    # other. Resolved, never stored — `supplied`'s own documentation says why.
     return RuleContext(
-        inputs=Inputs(typed_inputs(declarations, stored, supplied(declarations, context))),
+        inputs=Inputs(typed_inputs(asked.vocabulary, stored, asked.supplied)),
         **around,
     )

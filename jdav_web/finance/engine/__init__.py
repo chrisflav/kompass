@@ -25,7 +25,11 @@ next one, and the two helpers that make it cheap.
 """
 
 from .answers import coerce_input
+from .answers import EMPTY
+from .answers import offers
+from .answers import typed
 from .answers import typed_inputs
+from .answers import within
 from .approval import ConstraintState
 from .approval import fully_approved
 from .approval import may_sign
@@ -35,9 +39,11 @@ from .context import build_context
 from .context import parameters
 from .context import permission_holders
 from .context import statement_inputs
-from .declared import ask
+from .declared import Asked
+from .declared import asking
 from .declared import options_from
 from .declared import supplied
+from .declared import unbounded
 from .errors import EngineError
 from .errors import QueryDuringEvaluation
 from .errors import RulesetInvalid
@@ -85,12 +91,15 @@ __all__ = [
     "active_ruleset",
     "active_version",
     "approval_states",
-    "ask",
+    "Asked",
+    "asking",
     "bind",
     "build_context",
     "cents_of",
     "check_directory",
+    "EMPTY",
     "coerce_input",
+    "offers",
     "configured_directory",
     "current_constraint_rows",
     "decimal_params",
@@ -123,7 +132,10 @@ __all__ = [
     "statement_inputs",
     "statement_params",
     "supplied",
+    "unbounded",
     "sum_amounts",
+    "typed",
     "typed_inputs",
     "verify",
+    "within",
 ]

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 22:28+0200\n"
+"POT-Creation-Date: 2026-10-20 21:26+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -294,6 +294,9 @@ msgstr "%(label)s ist keine der angebotenen Auswahlmöglichkeiten."
 
 msgid "Only youth leaders of this excursion may receive contributions."
 msgstr "Nur Jugendleiter*innen dieser Ausfahrt können Zuschüsse erhalten."
+
+msgid "This person is not one of the people these rules offer."
+msgstr "Diese Person gehört nicht zu den Personen, die diese Regeln anbieten."
 
 #, python-format
 msgid ""

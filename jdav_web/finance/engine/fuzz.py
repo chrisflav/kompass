@@ -42,7 +42,7 @@ from finance.rules_api import SECTION
 from finance.rules_api import StatementInfo
 from finance.rules_api import TourApproach
 
-from .declared import ask
+from .declared import asking
 from .evaluation import evaluate
 from .versions import check_directory
 from .versions import decimal_params
@@ -169,7 +169,7 @@ def fuzz(ruleset: Ruleset, rounds: int, *, seed: int | None = None) -> list[str]
         # a fuzzer that falls over is a fuzzer that tells you nothing about the
         # other 199 rounds.
         try:
-            declarations = list(ask(ruleset, context))
+            declarations = list(asking(ruleset, context).vocabulary)
         except Exception as problem:
             problems.append(f"seed {round_seed}: the section's rules failed: {problem}")
             continue

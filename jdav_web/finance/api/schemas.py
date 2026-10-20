@@ -531,9 +531,18 @@ class StatementFormOut(Schema):
     survived, so a retired answer is not handed back to be re-submitted.
 
     The values are as ``Statement.inputs`` holds them: money as a string, a
-    person as an id, a set of people as a list of ids. A ``derived`` answer is
-    in the same shape, but it is resolved from the statement's own data on
-    every request rather than read out of storage — nothing stores it.
+    person as an id, a set of people as a list of ids. Two of them are not read
+    out of storage. A ``derived`` answer is resolved from the statement's own
+    data on every request, because nothing stores it. And an answer the
+    declaration no longer *offers* — a ``choice`` whose option has been
+    withdrawn, a person who is no longer in ``options`` because the receipt
+    they paid was cleared — comes back ``null``, because that is what the rules
+    now read and serving anything else would hand back a value this API would
+    refuse.
+
+    So **what this serves is what the rules read**, and a client may send it
+    all back except the keys marked ``derived``: those are served to be shown
+    and refused to be changed, which is the whole of the refusal.
 
     ``steps`` partitions ``inputs`` into the groups the ruleset named, in
     order; every key appears in exactly one, and a form whose rules named no

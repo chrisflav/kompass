@@ -666,6 +666,15 @@ class Input:
     #: in. Not both.
     options: tuple[Member, ...] = ()
     #: For ``member_set`` and ``int``: the largest acceptable count or value.
+    #:
+    #: It bounds a *submitted* answer, which is refused on the way in, and an
+    #: answer the engine supplies from a :attr:`source`, which cannot be —
+    #: nobody can correct that one through the form. A supplied value that
+    #: breaks this is therefore an **error on the statement**, naming the
+    #: source and the bound, rather than a truncation: five youth leaders
+    #: against three the section approved is something to fix on the
+    #: excursion, and while there is an error nothing is persisted and no
+    #: money moves.
     max: int | None = None
     #: For ``choice``: the alternatives, which a ``choice`` has to have. A
     #: submitted answer is re-validated against them, exactly as a person is
@@ -677,10 +686,31 @@ class Input:
     #: When the source resolves, the engine supplies the value, the declaration
     #: comes back :attr:`derived`, and the form **refuses** a submitted answer
     #: for the key — the figure is corrected where it lives, not here. When it
-    #: does not resolve — no trip, or nothing recorded — this is an ordinary
-    #: question whose answer is stored like any other. Either way a rule reads
-    #: it the same way, which is the whole point: one
-    #: ``ctx.inputs.number("kilometers")`` and no branch on where it came from.
+    #: does not, this is an ordinary question whose answer is stored like any
+    #: other. Either way a rule reads it the same way, which is the whole
+    #: point: one ``ctx.inputs.number("kilometers")`` and no branch on where it
+    #: came from.
+    #:
+    #: A source resolves to nothing in exactly two cases: the root is absent
+    #: (a statement with no excursion) or the field itself is ``None``. A
+    #: ``0``, an empty string and an empty set are values the statement
+    #: *records*, so they are supplied like any other — a trip whose kilometres
+    #: are still at the model's default of ``0`` serves ``0`` and refuses a
+    #: correction here, because the correction belongs on the trip. The
+    #: nullable fields are :class:`StatementInfo`'s two people and
+    #: :attr:`Excursion.ljp`; every other field of :class:`Excursion` always
+    #: has a value.
+    #:
+    #: Derivation is decided by :meth:`Ruleset.inputs` and nothing else. A key
+    #: :meth:`Ruleset.relevant_inputs` names is served with the declaration
+    #: ``inputs`` gave it, so the form and the rules cannot disagree about
+    #: where one key's value comes from.
+    #:
+    #: It may not be stated beside :attr:`options` or :attr:`options_source`: a
+    #: derived answer is not picked, so "these are the people who may be
+    #: picked" and "the value is whoever the trip says" are two answers to one
+    #: question. A derived set of people is bounded by :attr:`max`, and is
+    #: statement-local already because the context is.
     #:
     #: A derived value is **not stored**. It is resolved again every time a
     #: context is built, so there is no second copy to go stale when the trip
@@ -700,10 +730,22 @@ class Input:
     #: step, which is what a form without steps is.
     step: str = ""
     #: Whether the engine supplies this answer itself. The *engine* sets it; a
-    #: ruleset declares :attr:`source` and reads this back.
+    #: ruleset declares :attr:`source` and reads this back, and setting it
+    #: without a source is refused — it would be a question nobody can ever
+    #: answer, refused with a message that is not true of it.
     derived: bool = False
 
     def __post_init__(self) -> None:
+        if self.derived and not self.source:
+            raise RuleError(
+                f"{self.key!r} is marked derived with nothing to derive it from; the "
+                "engine sets that itself, from `source`"
+            )
+        if self.source and (self.options or self.options_source):
+            raise RuleError(
+                f"{self.key!r} takes its value from {self.source!r} and also says who may "
+                "be picked; a derived answer is not picked, so bound it with `max` instead"
+            )
         if self.type == "choice" and not self.choices:
             raise RuleError(
                 f"the choice {self.key!r} offers no choices, which is a text field that "
@@ -886,8 +928,15 @@ class Ruleset(ABC):
         So what the form does not ask, the rules read as unanswered, and
         retiring a question stops it moving money. Reading a retired key is
         not an error; it reads empty, because a question nobody can see is not
-        something a rule should fail on. Narrow ``inputs`` here rather than
-        widening it.
+        something a rule should fail on.
+
+        **Narrow, do not widen.** A key only this names is not in the
+        vocabulary, so it has nowhere to be stored and nowhere to be read: the
+        engine reports it as an error on the statement rather than serving a
+        question whose answer would silently never arrive. And a key this
+        names is served with the declaration ``inputs`` gave it — same label,
+        same type, same bound, same :attr:`Input.source` — so the two methods
+        cannot disagree about one key.
         """
         return self.inputs(ctx)
 

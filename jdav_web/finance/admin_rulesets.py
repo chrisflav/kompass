@@ -23,7 +23,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 
-from .engine import ask
+from .engine import asking
 from .engine import configured_directory
 from .engine import evaluate_statement
 from .engine import import_from_directory
@@ -191,7 +191,7 @@ class RuleSetAdmin(ExtraButtonsMixin, admin.ModelAdmin):
                 # declarations as the form would serve them: the options of a
                 # question that names an option source filled in, and a derived
                 # question marked as one.
-                declarations = tuple(ask(loaded, context))
+                declarations = asking(loaded, context).vocabulary
                 # The same guard the real evaluation runs under: a dry run of a
                 # section's rules must not be the one place they may query.
                 with no_queries():
