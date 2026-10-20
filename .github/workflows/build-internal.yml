@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    # A version tag (v2.0.1) builds, tests and publishes images under its name.
+    tags:
+      - 'v*'
   pull_request:
 
 concurrency:
@@ -21,7 +24,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "Push to main - will run"
+            echo "Push to main or a version tag - will run"
           elif [ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]; then
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "Internal PR - will run"
