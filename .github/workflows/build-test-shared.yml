@@ -64,6 +64,11 @@ jobs:
             type=ref,event=tag
             type=sha,prefix={{branch}}-,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
+          # `latest` comes only from the rule above, i.e. from main. The
+          # default (latest=auto) would also add it for every pushed tag, so a
+          # release of an older branch would take over `latest`.
+          flavor: |
+            latest=false
 
       - name: Extract metadata for nginx image
         id: meta-nginx
@@ -76,6 +81,11 @@ jobs:
             type=ref,event=tag
             type=sha,prefix={{branch}}-,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
+          # `latest` comes only from the rule above, i.e. from main. The
+          # default (latest=auto) would also add it for every pushed tag, so a
+          # release of an older branch would take over `latest`.
+          flavor: |
+            latest=false
 
       - name: Extract metadata for spa image
         id: meta-spa
@@ -88,6 +98,11 @@ jobs:
             type=ref,event=tag
             type=sha,prefix={{branch}}-,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
+          # `latest` comes only from the rule above, i.e. from main. The
+          # default (latest=auto) would also add it for every pushed tag, so a
+          # release of an older branch would take over `latest`.
+          flavor: |
+            latest=false
 
       - name: Build application image
         uses: docker/build-push-action@v6
