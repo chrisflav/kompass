@@ -76,14 +76,22 @@ those keys belongs in `rules/` as a module constant, where it is versioned
 with the rules that read it — which is arguably where a figure your section
 voted on belongs anyway.
 
-**Input keys are free-form**, unlike the parameter names: a statement stores
-its answers in one JSON field, so `inputs` may declare any key it likes and the
-four the reference ruleset uses have no special status. What the engine does
-police is that a declaration can be *served* — a `choice` has to list its
-alternatives, a `source` has to name a real context field, an `options_source`
-has to be one of the five the engine resolves — and it refuses anything else
-where it is written, which fails a case in this repository's CI rather than
-reaching somebody's form.
+**Input keys are free-form as far as storage goes**, unlike the parameter
+names: a statement keeps its answers in one JSON field, so `inputs` may declare
+any key it likes and the rules read it back. What the engine does police is
+that a declaration can be *served* — a `choice` has to list its alternatives, a
+`source` has to name a real context field, an `options_source` has to be one of
+the five the engine resolves, and a `source` may not also say who may be picked
+— and it refuses anything else where it is written, which fails a case in this
+repository's CI rather than reaching somebody's form.
+
+> **Two key names still mean something outside the engine.** Kompass reads
+> `allowance_to` and `night_cost` **by name** in model properties the rules
+> engine never sees: `allowance_to` drives the `INVALID_ALLOWANCE_TO` gate that
+> the admin's confirm and submit both check, and it passes *vacuously* when the
+> key is absent; `night_cost` is what the printed statement summary shows as
+> the price per night. Reuse those two names and you keep that behaviour. Call
+> your allowance key something else and you give the gate up — quietly.
 
 > **A derived input is not answered, so a case cannot answer it.** A
 > declaration with `source="excursion.kilometers"` is resolved from the trip,

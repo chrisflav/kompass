@@ -84,9 +84,18 @@ stored answer went on reaching the rules from behind a form that no longer
 showed it and a ``clean`` that no longer accepted it, and the only way out was
 an admin editing JSON. Reading a retired key is *not* an error — it reads
 empty — because a traceback about a question nobody can see is worse than a
-zero a rule can handle. ``relevant_inputs`` should narrow ``inputs`` rather
-than widen it; a key only ``relevant_inputs`` names is resolved, but nothing
-else in Kompass will know about it.
+zero a rule can handle.
+
+**Narrow, do not widen.** ``relevant_inputs`` chooses among the questions
+``inputs`` declared, and two things follow that are worth stating plainly:
+
+* A key only ``relevant_inputs`` names has nowhere to be stored and nowhere to
+  be read, so it is an **error on the statement** — not a question that
+  quietly never gets an answer.
+* A key they both name is served with the declaration ``inputs`` gave it: same
+  label, same type, same bound, same ``source``. So a ruleset that overrides
+  one method and not the other cannot end up with a form that says an answer
+  is the person's to give while the engine supplies one anyway.
 
 
 How a ruleset reaches a running instance
@@ -339,9 +348,41 @@ somebody the rule did not offer. A ``choice`` is re-validated against its own
 :attr:`~kompass.rules.Input.choices` in exactly the same way, so an answer can
 never be a value the rule did not offer either.
 
-The key is free: a statement stores its answers in one JSON field, so any key
-a ruleset declares can hold an answer, and the four the reference ruleset
-happens to use have no special status.
+**And it is re-validated on the way out, not only on the way in.** A domain
+shrinks without anybody editing an answer: a section withdraws one of two
+alternatives, or a receipt's payer is cleared and an
+:attr:`~kompass.rules.Input.options_source` set loses them. The answer stored
+under that key then reads as **unanswered** — the same reading a retired
+question gets, and for the same reason: what the form would refuse, the rules
+do not read. ``GET …/form`` serves it as unanswered too, so a client is never
+handed a value its own option list does not contain.
+
+So one sentence holds for the whole form: **what the form serves is what the
+rules read**, and the only answer a client may not send back is a derived one.
+
+**Any key can be stored.** A statement keeps its answers in one JSON field, so
+a declaration under any key a ruleset likes holds an answer and is read back by
+the rules. That is a statement about *storage*, and it is the whole of what
+#556 changed.
+
+.. warning::
+   **Four key names still mean something outside the engine**, and a section
+   that renames them loses what they do silently.
+   ``finance/models.py`` reads ``allowance_to`` and ``night_cost`` **by name**,
+   out of ``Statement.inputs``, in properties the engine never sees:
+
+   * ``allowance_to_valid`` → ``validity`` → the admin's ``confirm()`` and
+     ``submit_statement``. It is the ``INVALID_ALLOWANCE_TO`` gate, and with
+     the key absent it returns ``True`` vacuously — so a section whose
+     allowance key is called something else keeps the gate's name on its
+     screens and none of its checking.
+   * ``real_night_cost`` → the statement summary's ``price_per_night``, which
+     is what the printed PDF shows.
+
+   Those are leftovers of the four columns rather than anything the rules
+   engine asks for, and until they are derived from the declarations too, a
+   section reusing the names keeps the behaviour and a section renaming them
+   should know it is giving the behaviour up.
 
 A declaration the engine cannot serve is refused where it is written, with
 :class:`~kompass.rules.RuleError` — a ``choice`` with no choices, a
@@ -429,12 +470,36 @@ story intact. A figure further in than one field —
 ``ctx.excursion.ljp.participant_count`` — is read off the context by the rule
 that wants it, which needs no declaration at all.
 
-The value arrives as the type the field holds, coerced like a stored answer:
-``excursion.kilometers`` is a whole number, ``excursion.duration`` is money,
-``statement.creator`` is a :class:`~kompass.rules.Member`,
-``excursion.leaders`` is a set of them. Match the widget to the field; naming a
-field that holds a whole nested structure is a mistake the form will show you
-as text.
+The value arrives as the type the field holds: ``excursion.kilometers`` is a
+whole number, ``excursion.duration`` is money, ``statement.creator`` is a
+:class:`~kompass.rules.Member`, ``excursion.leaders`` is a set of them. Match
+the widget to the field; naming a field that holds a whole nested structure is
+a mistake the form will show you as text.
+
+A source resolves to nothing in exactly two cases: **the root is absent** (a
+statement with no excursion) or **the field itself is** ``None``. A ``0``, an
+empty string and an empty set are figures the statement *records*, so they are
+supplied like any other — a trip whose kilometres are still at the model's
+default of ``0`` serves ``0`` and refuses a correction on the form, because the
+correction belongs on the trip. The only nullable fields are
+:class:`~kompass.rules.StatementInfo`'s two people and
+:attr:`~kompass.rules.Excursion.ljp`.
+
+:attr:`~kompass.rules.Input.max` applies to a derived value too, and that is
+worth knowing before writing ``source="excursion.leaders"`` with a bound on it.
+A submitted answer over the bound is refused on the way in; a *supplied* one
+cannot be, because nobody can change it here — so it is an **error on the
+statement** naming the source and the bound. Five leaders against three the
+section approved is a statement to fix on the excursion, and while the error
+stands the statement does not resolve and no money moves. It is deliberately
+not a truncation: paying three of five quietly is a figure no page explains.
+
+A ``source`` may not be stated beside :attr:`~kompass.rules.Input.options` or
+:attr:`~kompass.rules.Input.options_source`, and that is refused where it is
+written. A derived answer is not *picked*, so "these are the people who may be
+picked" and "the value is whoever the trip says" are two answers to one
+question. A derived set of people is bounded by ``max``, and is already
+statement-local because the context is.
 
 .. _development_manual/finance_rules/options:
 
