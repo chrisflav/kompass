@@ -356,6 +356,13 @@ person is shown.
      - :meth:`~kompass.rules.Inputs.members`
      - Several people out of :attr:`~kompass.rules.Input.options`, at most
        :attr:`~kompass.rules.Input.max` of them. Unanswered: ``()``.
+   * - ``rows``
+     - :meth:`~kompass.rules.Inputs.rows`
+     - A **repeating row**: the question asked once per row, over the cells
+       :attr:`~kompass.rules.Input.fields` declares, at most
+       :attr:`~kompass.rules.Input.max` rows of them. Each cell has one of the
+       types above and is validated by it. Unanswered: ``()``. See
+       :ref:`development_manual/finance_rules/rows`.
 
 For ``member`` and ``member_set``, the engine re-validates a submitted answer
 against the options the declaration offered, so an answer can never name
@@ -600,6 +607,226 @@ submitted answer is then re-validated against it like any other. Say it once:
 a declaration that both lists its options and names a source for them is
 refused.
 
+.. _development_manual/finance_rules/rows:
+
+Repeating rows: one question, several travellers
+------------------------------------------------
+
+A statement settles a trip that several people went on, and they travelled
+differently: one drove 120 km, one took the train, one cycled. Every
+declaration so far asks its question **once** — one ``approach``, one
+``kilometers``, one ``passengers`` — so a section whose rules pay per kilometre
+could settle exactly one journey per statement.
+
+A ``rows`` declaration asks it once per row::
+
+    Input("reisen", "Fahrten", "rows", step="Fahrt",
+          max=12,
+          options_source="bills.payers",
+          fields=(Field("member",     "Person",         "member"),
+                  Field("approach",   "Verkehrsmittel", "choice", choices=APPROACHES),
+                  Field("kilometers", "Kilometer",      "int", max=2000),
+                  Field("passengers", "Mitfahrende",    "int", required=False)))
+
+and a rule reads it back as rows::
+
+    for journey in ctx.inputs.rows("reisen"):
+        if journey.text("approach") != CAR:
+            continue                        # the train is a receipt, not a rate
+        driver = journey.member("member")
+        if driver is None:
+            continue
+        rate = travel_rate(regime, journey.number("passengers"))
+        transfers.append(Transfer(SECTION, driver,
+                                  cents(journey.number("kilometers") * rate),
+                                  "travel", rule_id="travel"))
+
+**Why a row and not a map from person to number.** Because whether somebody
+gets the rate per kilometre *at all* depends on their own mode of travel — a
+private car yes, the train no, because there the receipt is the claim, and a
+rental excludes travel costs entirely. The mode and the distance decide each
+other, so they belong to the same traveller in the same place. Keyed by person
+they come apart into two answers that can disagree about how many people there
+even were, and the rule has to pair them up again.
+
+A :class:`~kompass.rules.Row` *is* an :class:`~kompass.rules.Inputs` over one
+row, so it is read with the same accessors and they raise the same way: a cell
+the declaration did not name is a :class:`~kompass.rules.RuleError` listing the
+fields it did.
+
+Each cell is validated **by its own type**, through the same code the question
+of that type would have gone through. A ``choice`` cell is checked against its
+``choices``, an ``int`` cell against its own ``max``, and a ``member`` cell
+against the people the question offers — which is
+:attr:`~kompass.rules.Input.options`, filled in from
+:attr:`~kompass.rules.Input.options_source` exactly as it is for a ``member`` or
+a ``member_set``. The domain is stated **once, on the question**: a
+:class:`~kompass.rules.Field` has no ``options`` of its own, because one column
+served two different sets of people in two rows is not a thing a form can
+explain. Nothing else about a cell is new: :attr:`~kompass.rules.Field.max`,
+:attr:`~kompass.rules.Field.choices`, :attr:`~kompass.rules.Field.required` and
+:attr:`~kompass.rules.Field.help` are the attributes of the same name on an
+:class:`~kompass.rules.Input`, and ``rows`` is the one type a cell may not be.
+
+:attr:`~kompass.rules.Input.max` on a ``rows`` question bounds **the number of
+rows**. A cell's ceiling is on the cell. That is this attribute's second
+qualification and it is the same sentence read twice: ``max`` bounds *the
+answer* — the value of an ``int``, the count of a set of people, the count of
+rows of a table — and never anything a level further in.
+
+Three states, and all three are decided rather than left to fall out:
+
+**An empty table is an unanswered question.** ``[]``, a key nobody ever sent
+and a table the form has stopped asking for all read as ``()``, because nothing
+distinguishes them and inventing a difference would need a state nothing
+stores. A rule that pays per row pays nothing. Whether a table is *needed* is
+:attr:`~kompass.rules.Input.required` and the ruleset's own
+:class:`~kompass.rules.Check`, exactly as for every other type — the form is
+filled in gradually, and a refusal on the table somebody has not reached yet
+would make the first save of a draft impossible.
+
+**A row with an empty required cell is stored.**
+:attr:`~kompass.rules.Field.required` is advisory in the same way
+:attr:`~kompass.rules.Input.required` is: the cell is kept empty and reads as
+its type's empty value. "Für jede Fahrt braucht es ein Verkehrsmittel" is a
+:class:`~kompass.rules.Check`, where the sentence is the section's own, and a
+rule that pays per kilometre has to survive a distance of zero anyway, because
+a person can always type one.
+
+**A person named in two rows is accepted.** The engine does not know which
+field identifies a row — no declaration says so — and more to the point it
+**cannot tell a double entry from a split journey**: two rows for one person at
+120 km each is as readily a there-and-back entered in two halves as it is the
+same trip typed twice. Refusing would make the honest table unsayable in order
+to catch a mistake it cannot reliably recognise, and deduplicating would throw
+away a row somebody entered. A section that means one row per person says so in
+a ``Check`` — the same answer this page already gives for a ceiling on an
+amount, and for the same reason: the sentence is the section's.
+
+A table falls out of its domain **whole**. One cell naming somebody the rules
+no longer offer drops the whole table and the evaluation reports it, which is
+the ``member_set`` decision one level in and for the same reason: choosing
+which rows survive is a selection nobody made, and the statement is blocked
+either way.
+
+.. _development_manual/finance_rules/seed:
+
+Seeding a table: one row to correct, which is not a derivation
+--------------------------------------------------------------
+
+The trip records one distance and one mode. That is not the answer — the people
+on it travelled differently — but it is a good first row, and retyping it is
+how two figures come to disagree. A cell may therefore name where it is
+**prefilled** from::
+
+    Field("approach",   "Verkehrsmittel", "choice", choices=APPROACHES,
+          seed="excursion.approach")
+    Field("kilometers", "Kilometer",      "int", seed="excursion.kilometers")
+
+:attr:`~kompass.rules.Field.seed` uses the same ``"<root>.<field>"`` vocabulary
+as :attr:`~kompass.rules.Input.source` (:data:`~kompass.rules.SOURCE_ROOTS`)
+and means something different in every respect that matters. The two are
+deliberately not one mechanism and deliberately not one word:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * -
+     - ``source=``
+     - ``seed=``
+   * - belongs to
+     - the excursion
+     - the person filling the form in
+   * - editable
+     - no — ``clean()`` refuses a value for the key
+     - **yes, and that is the point**
+   * - stored
+     - no, re-derived on every context build
+     - **yes, written once**
+   * - the trip changes later
+     - the value follows immediately
+     - the row stays where it is
+
+Two rules follow from "written once", and both are deliberate:
+
+**Seeded exactly once, when the excursion is set.** Not on every context build,
+and *not* whenever the table happens to be empty. Either of those turns the
+prefill into a thing that fights the person: a row somebody deleted — because
+nobody drove — would come back by itself, and a row somebody split into three
+would be written over. So the trigger is an event and not a state, and the
+event is the excursion being assigned: ``POST /statements`` with an
+``excursion_id``, the excursion changing in ``PATCH /statements/{id}``, and the
+admin's excursion inline opening a statement on a trip.
+
+**Changing the excursion re-seeds.** The row described a different trip — its
+distance, its mode — so keeping it would have the statement claim a journey
+nobody made. This is the same reasoning an excursion swap already drops every
+answer that names a person by: those people led the *other* trip. An answer
+restated in the same request wins over the re-seed, so correcting the excursion
+and the table together is one call.
+
+Three smaller decisions, stated because each one is a choice:
+
+* **A seed that resolves to nothing leaves the cell empty**, and a table none of
+  whose seeds resolved gets **no row at all**. So a statement with no excursion
+  starts with an empty table rather than with a row of blank cells, and clearing
+  an excursion empties the table.
+* **A seeded value its own cell does not offer is left empty.**
+  :attr:`~kompass.rules.Excursion.approach` is one of three words Kompass uses;
+  a section's ``choice`` lists its own vocabulary, and a seed is a suggestion. A
+  value the form would refuse on the way back in is not written.
+* **A trip whose kilometres are** ``0`` **is seeded with** ``0``.
+  :attr:`~kompass.rules.Excursion.kilometers` is a non-nullable
+  ``IntegerField(default=0)``, so "nobody recorded it" and "nobody drove" are
+  the same value there and no mechanism can tell them apart. A ``source`` has to
+  serve that zero and then refuse a correction, which is the awkward case in its
+  own section above. A seed hands over the zero *and the pencil*: the person
+  fixes it in the row at the cost of a keystroke. Seeding what the trip records
+  is right here for exactly the reason supplying it is awkward there.
+
+A ``rows`` declaration may not have a ``source`` at all, and the refusal says
+why: a table is not one figure, and what prefills one is a seed.
+
+.. _development_manual/finance_rules/row_errors:
+
+Where a refusal about a cell lands
+----------------------------------
+
+A ``422`` from ``PATCH /statements/{id}`` carries ``errors``, a map from
+**where** to a list of messages, and a client prints each message against the
+control it names. A table is one question with a grid of controls, so keyed by
+the question a refusal about one person's kilometres appears under the whole
+table — which tells somebody with five journeys in front of them only that one
+of them is wrong.
+
+The keys are therefore a path:
+
+``"night_cost"``
+    the answer to that question — unchanged, and what every key not of a table
+    still looks like.
+``"reisen"``
+    the table as a whole: too many rows, or not a list of rows.
+``"reisen[1]"``
+    the row at index 1, **zero-based**, in the order the request sent the rows.
+``"reisen[1].kilometers"``
+    the ``kilometers`` cell of that row, which is where nearly every refusal
+    about a table belongs.
+
+Zero-based because the client sent an array and indexes back into it; what a
+person is shown is the client's business, and a row number in the message would
+be a second numbering to keep in step with the first. A table reports **every**
+cell it found wrong in one response, because a table is one answer and somebody
+correcting it should see all of it; across different questions the first problem
+still answers alone, as it always has.
+
+The type has not changed — string keys, lists of messages — so nothing that
+renders ``errors`` by key has to change to keep working. What changed is that a
+cell error is now placeable. The admin's excursion inline, which has one field
+per question and renders a table as JSON, folds the path into the message
+instead: ``reisen[1].kilometers: Kilometer ist keine ganze Zahl.`` That is less
+than the SPA gets and it is stated as less.
+
 .. _development_manual/finance_rules/steps:
 
 Steps: which questions belong together
@@ -724,6 +951,37 @@ A case **can** prove the other half, and it is the half worth a case: leave
 with ``"inputs": {"kilometers": 250}`` and no trip is the statement that
 settles a purchase. Both arms of one declaration, in two files.
 
+.. _development_manual/finance_rules/row_cases:
+
+How a case answers a table
+--------------------------
+
+A ``rows`` answer is written the way it is stored: a list of objects, one per
+row, keyed by the field keys the declaration names::
+
+    {
+      "name": "three people, three ways there",
+      "inputs": {"reisen": [{"member": 7, "approach": "car", "kilometers": 120,
+                             "passengers": 2},
+                            {"member": 8, "approach": "public", "kilometers": 120},
+                            {"member": 9, "approach": "muscle", "kilometers": 40}]},
+      "excursion": {"kilometers": 120, "approach": "car", "leaders": [7, 8, 9]},
+      "bills": [{"amount": "31.40", "payer": 8, "covered": true}],
+      "expect": {"transfers": ["…"]}
+    }
+
+Each cell is typed by the field that asks for it, so money in a cell is a
+string like money anywhere else and a person is an id. Nothing in the case
+format is specific to tables, and that is the point rather than an accident: a
+worked case is what gates activation, so a type a case cannot express is a type
+a section cannot ship.
+
+A **seed** is not expressible in a case, and should not be. A seed is written
+when somebody's statement gets an excursion; a case file is a context with no
+edit history, so what it states is the row as the answer it ended up being.
+Prefilling is tested where it happens — in Kompass, against the API and the
+admin — and a section's cases are about what its rules make of an answer.
+
 An option source is resolved for a case too, out of the context the file
 describes: the ``bills`` above are where ``options_source="bills.payers"``
 finds member 7. A case's own answers are not validated against it — the case
@@ -758,6 +1016,22 @@ whatever the answers are: that the rules report no error, and that the books
 balance. It is not a proof and it is not a substitute for a case with an
 expected figure — it is the cheapest way to find the rule that divides by a
 participant count nobody checked for zero.
+
+One round in four settles **no trip at all**. That is new, and it is worth
+knowing before the next run of a ruleset that passed before: until now every
+random statement had an excursion, so the arm of a declaration that answers
+"and when there is no trip" was the one arm nothing random ever reached — which
+is also the arm a ruleset is most likely to have got wrong, since a purchase or
+a repair goes through it in production every week. A table whose cells are
+seeded off the excursion has that arm by construction: with no trip there is no
+seed, so the table arrives empty and whatever the rules do with an empty table
+is what a real purchase statement will do.
+
+A ``rows`` question is answered with between zero and :attr:`~kompass.rules.Input.max`
+rows, each cell drawn from its own field's domain. Zero is in the range
+deliberately: an empty table is the state a statement is in before anybody fills
+it in and after somebody deletes the prefilled row, so a rule that divides by
+the number of rows has to survive it.
 
 A section's CI runs three commands, all three inside the image the instance
 runs, so that the API module and the interpreter match production. They do
@@ -925,13 +1199,27 @@ What a ruleset returns
 .. autoclass:: Choice
    :members:
 
+.. autoclass:: Field
+   :members:
+
+.. autoclass:: Row()
+   :members:
+
 .. py:data:: InputType
-   :value: Literal["money", "int", "bool", "text", "choice", "member", "member_set"]
+   :value: Literal["money", "int", "bool", "text", "choice", "member", "member_set", "rows"]
 
    The widget vocabulary an :class:`Input` is rendered with. It is
    presentation, not rule structure: see
    :ref:`development_manual/finance_rules/widgets` for what each one is and
-   how its answer is read.
+   how its answer is read. ``rows`` is the one entry that is a shape rather
+   than a widget — see :ref:`development_manual/finance_rules/rows`.
+
+.. py:data:: CELL_TYPES
+   :value: ("money", "int", "bool", "text", "choice", "member", "member_set")
+
+   The types a :class:`Field` — a cell of a ``rows`` question — may have:
+   :data:`InputType` without ``rows``, because there is no table inside a
+   table.
 
 .. py:data:: SOURCE_ROOTS
    :value: ("excursion", "statement")

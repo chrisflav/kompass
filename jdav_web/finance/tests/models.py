@@ -917,15 +917,15 @@ class StatementTestCase(TestCase):
 
         So a section's bug must not propagate: it would poison that
         transaction, roll the deletion back and leave the member in place.
-        Neuter the ``try`` in ``signals._party_keys`` and this raises instead,
-        with the member still there.
+        Neuter the ``try`` in ``signals._party_answers`` and this raises
+        instead, with the member still there.
         """
         ghost = Member.objects.create(
             prename="Kaputt", lastname="Regeln", email=settings.TEST_MAIL, gender=0
         )
         answer(self.st6, subsidy_to=ghost.pk)
         gone = ghost.pk
-        with patch("finance.signals.party_keys", side_effect=RuntimeError("a section's bug")):
+        with patch("finance.signals.party_answers", side_effect=RuntimeError("a section's bug")):
             ghost.delete()
         self.assertFalse(Member.objects.filter(pk=gone).exists())
         # The id stays in the draft, which is the harmless half: the readout
@@ -935,7 +935,7 @@ class StatementTestCase(TestCase):
         self.assertIsNone(self.st6.subsidy_to)
 
     def test_a_question_only_the_engine_still_reads_is_pruned_too(self):
-        """``party_keys`` asks ``inputs``, not ``relevant_inputs``.
+        """``party_answers`` asks ``inputs``, not ``relevant_inputs``.
 
         A ruleset may narrow the second to take a question off the form. The
         engine goes on reading the first, so pruning by the form's set would

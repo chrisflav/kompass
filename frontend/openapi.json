@@ -4576,7 +4576,7 @@
             }
           }
         },
-        "description": "Create a draft statement (requires the global add permission).",
+        "description": "Create a draft statement (requires the global add permission).\n\nA statement created *on* an excursion has its seeded tables filled in here\n— one row, as the trip describes it, for the person to correct or to split\n(:func:`finance.inputs.seeded`). This is one of the two moments a seed\napplies; the other is an excursion being changed in ``update_statement``.",
         "tags": [
           "finance"
         ],
@@ -4660,7 +4660,7 @@
             }
           }
         },
-        "description": "Update the editable subset of a draft statement, authorized per object.",
+        "description": "Update the editable subset of a draft statement, authorized per object.\n\nChanging the excursion does two things to the answers, for one reason: they\nwere given about a different trip. Every answer that names somebody goes,\nbecause the people the rules offer are the incoming trip's; and every seeded\ntable is re-seeded, because the row it held carried the outgoing trip's\ndistance and mode. An answer restated **in this same request** wins over\nboth, so correcting the excursion and the table together is one call.\n\nA refusal about a table is keyed per cell — ``\"reisen[1].kilometers\"`` —\nrather than by the question; see :func:`finance.inputs.row_key`.",
         "tags": [
           "finance"
         ],
@@ -17395,7 +17395,7 @@
         "type": "object"
       },
       "StatementCreate": {
-        "description": "A new draft. The answers come afterwards, through ``inputs``.\n\n``night_cost`` used to be here, because it used to be a column; a create\nnow says what the statement is for and nothing a section's rules might not\nask about.",
+        "description": "A new draft. The answers come afterwards, through ``inputs``.\n\n``night_cost`` used to be here, because it used to be a column; a create\nnow says what the statement is for and nothing a section's rules might not\nask about.\n\nOne exception, and it is not an answer this request gives: a draft created\nwith an ``excursion_id`` comes back with every **seeded** table already\nholding one row, as the trip describes it. That is the trip's own distance\nand mode written into the answers once, for the person to correct or to\nsplit into one row per traveller. ``GET .../form`` then serves it like any\nother answer.",
         "properties": {
           "short_description": {
             "title": "Short Description",
@@ -17425,7 +17425,7 @@
         "type": "object"
       },
       "StatementUpdate": {
-        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).\n\n``inputs`` is the answers by declaration key, validated against what the\nsection's rules actually ask for (``GET .../form``). It replaces the four\nfields that were here — ``night_cost``, ``allowance_to_ids``,\n``subsidy_to_id`` and ``ljp_to_id`` — which were four fields because they\nwere four columns on ``Statement``, and so a section whose rules ask a\nfifth question had no way to be asked it. A key the rules do not ask for is\nrefused; a key left out is unchanged.",
+        "description": "Editable draft fields; PATCH semantics (only supplied fields applied).\n\n``inputs`` is the answers by declaration key, validated against what the\nsection's rules actually ask for (``GET .../form``). It replaces the four\nfields that were here — ``night_cost``, ``allowance_to_ids``,\n``subsidy_to_id`` and ``ljp_to_id`` — which were four fields because they\nwere four columns on ``Statement``, and so a section whose rules ask a\nfifth question had no way to be asked it. A key the rules do not ask for is\nrefused; a key left out is unchanged.\n\n**Where a refusal lands.** A ``422`` from here is\n``{\"detail\": [...], \"errors\": {\"<where>\": [\"<message>\", ...]}}``, and\n``<where>`` is a path rather than always a bare key, so that a client can\nprint each message against the control that caused it:\n\n``\"night_cost\"``\n    the answer to that question.\n``\"reisen\"``\n    a ``rows`` answer as a whole — too many rows, or not a list of rows.\n``\"reisen[1]\"``\n    the row at index 1, **zero-based**, in the order this request sent them.\n``\"reisen[1].kilometers\"``\n    the ``kilometers`` cell of that row.\n\nA table reports **every** cell it found wrong, in one response; across\ndifferent questions the first problem still answers alone. ``\"__all__\"``\nholds a refusal about the request rather than about one answer, as it always\nhas. The type is unchanged — the keys are strings and the values are lists\nof messages — so a client that renders ``errors`` by key keeps working and\none that wants to place a cell error parses the path.",
         "properties": {
           "short_description": {
             "anyOf": [
@@ -18220,7 +18220,7 @@
         "type": "object"
       },
       "InputDeclarationOut": {
-        "description": "One question the section's rules ask about a statement.\n\nDerived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks\nfor something else gets a different form without anybody editing the API.\n``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,\n``choice``, ``member``, ``member_set``. ``options`` is the domain a\nparty-valued answer may be picked from, resolved to names here because the\nrules themselves never see them; ``choices`` is the same thing for a\n``choice``.\n\n``derived`` says the engine supplies this answer itself, from the\nstatement's own data — the kilometres off the excursion rather than off a\nperson. The value is in ``answers`` like any other, and\n``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading\nof the trip, and a wrong one is corrected on the trip.\n\n``step`` is the label of the group the question belongs to; see\n``StatementFormOut.steps``.",
+        "description": "One question the section's rules ask about a statement.\n\nDerived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks\nfor something else gets a different form without anybody editing the API.\n``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,\n``choice``, ``member``, ``member_set``, ``rows``. ``options`` is the domain a\nparty-valued answer may be picked from, resolved to names here because the\nrules themselves never see them; ``choices`` is the same thing for a\n``choice``.\n\n``rows`` is a **repeating row**: a table whose columns are ``fields`` and\nwhose answer is a list of objects keyed by those fields' keys. It exists\nbecause one statement settles a trip several people travelled differently,\nand whether somebody gets a rate per kilometre at all depends on *their*\nmode of travel — so the mode and the distance belong together, per\ntraveller, in a row. ``max`` bounds **the number of rows**; a cell's own\nbound is on its field. A party-valued cell's people are this declaration's\n``options``, not the field's. ``fields`` is empty for every other type.\n\n``derived`` says the engine supplies this answer itself, from the\nstatement's own data — the kilometres off the excursion rather than off a\nperson. The value is in ``answers`` like any other, and\n``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading\nof the trip, and a wrong one is corrected on the trip. A table is never\n``derived``: it may be *seeded* from the trip when the excursion is set, and\na seeded row is editable, stored, and does not follow the trip afterwards —\nwhich is the whole difference and why the two are not one mechanism.\n\n``step`` is the label of the group the question belongs to; see\n``StatementFormOut.steps``.",
         "properties": {
           "key": {
             "title": "Key",
@@ -18270,6 +18270,14 @@
             "title": "Choices",
             "type": "array"
           },
+          "fields": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputFieldOut"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
           "step": {
             "default": "",
             "title": "Step",
@@ -18288,6 +18296,59 @@
           "required"
         ],
         "title": "InputDeclarationOut",
+        "type": "object"
+      },
+      "InputFieldOut": {
+        "description": "One cell of a ``rows`` question — a column of the table.\n\nA cell is a question asked once per row, so everything here means what it\nmeans on ``InputDeclarationOut``: ``type`` is the same widget vocabulary\nminus ``rows`` (there is no table inside a table), ``choices`` are a\n``choice`` cell's own alternatives, and ``max`` is that cell's ceiling or\ncount — never the number of rows, which is the question's own ``max``.\n\nThere is no ``options`` here on purpose. The people a party-valued cell may\nname are the **question's** ``options``, stated once for the whole table, so\none column cannot be served two different domains in two rows.\n\n``required`` is advisory, exactly as it is on a question: an empty cell is\naccepted and stored, and what refuses to hand the statement in is the\nsection's own checks (``GET …/preflight``).",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "help": {
+            "default": "",
+            "title": "Help",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "choices": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InputChoiceOut"
+            },
+            "title": "Choices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required"
+        ],
+        "title": "InputFieldOut",
         "type": "object"
       },
       "InputOptionOut": {
@@ -18310,7 +18371,7 @@
         "type": "object"
       },
       "StatementFormOut": {
-        "description": "The questions this statement still has to answer, and its answers.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot — and since taxis #579 that\nis also the question the *rules* are asked, so a question that is not here\nis one no rule reads either. ``answers`` is restricted to the keys that\nsurvived, so a retired answer is not handed back to be re-submitted.\n\nThe values are as ``Statement.inputs`` holds them: money as a string, a\nperson as an id, a set of people as a list of ids. Two of them are not read\nout of storage. A ``derived`` answer is resolved from the statement's own\ndata on every request, because nothing stores it. And an answer the\ndeclaration no longer *offers* — a ``choice`` whose option has been\nwithdrawn, a person who is no longer in ``options`` because the receipt\nthey paid was cleared — comes back ``null``, because that is what the rules\nnow read and serving anything else would hand back a value this API would\nrefuse.\n\nSo **what this serves is what the rules read**, and a client may send back\neverything except the keys marked ``derived``: those are served to be shown\nand refused to be changed, which is the whole of the refusal.\n\nOne further exception: an answer whose stored *type* no longer fits its\ndeclaration — because the section retyped the key — is served as it stands\nand refused on the way back, since it is a broken answer rather than a\nwithdrawn one and the rules report it rather than reading it as\nunanswered. Answering that question properly clears it.\n\n``steps`` partitions ``inputs`` into the groups the ruleset named, in\norder; every key appears in exactly one, and a form whose rules named no\nsteps comes back as a single step with an empty label.",
+        "description": "The questions this statement still has to answer, and its answers.\n\n``relevant_inputs`` is asked, not ``inputs``, so a ruleset may retire a\nquestion once an earlier answer makes it moot — and since taxis #579 that\nis also the question the *rules* are asked, so a question that is not here\nis one no rule reads either. ``answers`` is restricted to the keys that\nsurvived, so a retired answer is not handed back to be re-submitted.\n\nThe values are as ``Statement.inputs`` holds them: money as a string, a\nperson as an id, a set of people as a list of ids, a ``rows`` answer as a\nlist of objects keyed by that question's field keys — with each cell in the\nshape its own type would have had as a question, so money in a cell is a\nstring too. Two of them are not read\nout of storage. A ``derived`` answer is resolved from the statement's own\ndata on every request, because nothing stores it. And an answer the\ndeclaration no longer *offers* — a ``choice`` whose option has been\nwithdrawn, a person who is no longer in ``options`` because the receipt\nthey paid was cleared — comes back ``null``, because that is what the rules\nnow read and serving anything else would hand back a value this API would\nrefuse.\n\nSo **what this serves is what the rules read**, and a client may send back\neverything except the keys marked ``derived``: those are served to be shown\nand refused to be changed, which is the whole of the refusal.\n\nOne further exception: an answer whose stored *type* no longer fits its\ndeclaration — because the section retyped the key — is served as it stands\nand refused on the way back, since it is a broken answer rather than a\nwithdrawn one and the rules report it rather than reading it as\nunanswered. Answering that question properly clears it.\n\n``steps`` partitions ``inputs`` into the groups the ruleset named, in\norder; every key appears in exactly one, and a form whose rules named no\nsteps comes back as a single step with an empty label.",
         "properties": {
           "statement_id": {
             "title": "Statement Id",

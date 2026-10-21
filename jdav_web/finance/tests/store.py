@@ -1043,10 +1043,23 @@ class FuzzTestCase(SimpleTestCase):
         self.assertEqual(fuzz(HeidelbergRules(), 200, seed=1), [])
 
     def test_a_random_statement_is_a_statement_somebody_could_have_handed_in(self):
+        """Including one that settles no trip, which is now one round in four.
+
+        This used to assert ``assertIsNotNone(context.excursion)``, and it was
+        true: every random statement had an excursion, so the arm of a
+        declaration that answers "and when there is no trip" was the one arm
+        nothing random ever reached. A purchase or a repair goes through it
+        every week. The invariants that hold in *both* arms are the ones below —
+        a receipt always has a payer, and the statement always names its
+        creator, so a party-valued question is answerable either way.
+        """
         context = random_context(Random(7), {"ALLOWANCE_PER_DAY": Decimal("22")})
-        self.assertIsNotNone(context.excursion)
         self.assertTrue(all(bill.payer is not None for bill in context.bills))
+        self.assertIsNotNone(context.statement.creator)
         self.assertEqual(context.params.ALLOWANCE_PER_DAY, Decimal("22"))
+        built = [random_context(Random(seed), {}) for seed in range(40)]
+        self.assertTrue([ctx for ctx in built if ctx.excursion is not None])
+        self.assertTrue([ctx for ctx in built if ctx.excursion is None])
 
     def test_an_answer_stays_inside_the_domain_the_rules_declared(self):
         rng = Random(3)

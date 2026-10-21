@@ -17,6 +17,20 @@ and typed by the declaration that asks for it when the case runs
 (:func:`answered`), so a case can answer any input a ruleset declares and not
 only the four the reference ruleset happens to.
 
+A ``rows`` answer is written the way it is stored — a list of objects, one per
+row, keyed by the field keys the declaration names::
+
+    "inputs": {"reisen": [{"member": 7, "approach": "car", "kilometers": 120},
+                          {"member": 8, "approach": "public", "kilometers": 120}]}
+
+which needs nothing of its own here: :func:`answered` types a case's answers
+with the ruleset's declarations, and a table is one of those. That it needs
+nothing is the point rather than a happy accident — a worked case is what gates
+activation, so a type a case cannot express is a type a section cannot ship.
+A **seed** is not expressible and should not be: a seed is written when a
+person's statement gets an excursion, and a case file is a context with no edit
+history at all. What a case states is the row, as the answer it ends up being.
+
 A case file::
 
     {
