@@ -105,6 +105,12 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
   const presetExcursion = params.get("excursion");
   const [draft, setDraft] = useState<Draft>(() => seed(statement, presetExcursion));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  // A receipt is only saved by the button that adds it. Its form is state on a
+  // panel this flow throws away whenever the leg changes (`key={step}`), so
+  // leaving the Belege leg with one open used to drop what had been typed
+  // without a word — and the leader who then saved the draft found no receipt
+  // in it. The flow stays put instead, and says what is in the way.
+  const [enteringBill, setEnteringBill] = useState(false);
 
   const requested = (params.get("stage") ?? "purpose") as StepId;
   // Whether this statement has an Erstattung leg, asked of the rules rather
@@ -135,6 +141,21 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
   // back rather than render a leg that can't work.
   const step: StepId = !statement ? "purpose" : steps.includes(requested) ? requested : "purpose";
   const goto = (next: StepId) => setParams({ stage: next }, { replace: false });
+
+  /**
+   * Run `go`, unless something on this leg would be lost by moving.
+   *
+   * Every way out of a leg goes through here — Weiter, Zurück, a leg picked off
+   * the rail and the draft that ends the flow — because an unsaved receipt is
+   * lost by all four of them equally.
+   */
+  function leaving(go: () => void) {
+    if (enteringBill) {
+      toast.error("Der Beleg ist noch nicht hinzugefügt. Füge ihn hinzu oder verwirf ihn.");
+      return;
+    }
+    go();
+  }
 
   const excursionId = draft.excursion_id ? Number(draft.excursion_id) : null;
   const excursions = useExcursions();
@@ -262,7 +283,7 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
         }
       />
 
-      <EtappenRail etappen={etappen} onSelect={(id) => goto(id as StepId)} />
+      <EtappenRail etappen={etappen} onSelect={(id) => leaving(() => goto(id as StepId))} />
 
       <div className="flow-panel" key={step}>
         {step === "purpose" && (
@@ -276,7 +297,11 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
           />
         )}
         {step === "receipts" && statement && (
-          <BelegeStep statement={statement} excursion={excursion} />
+          <BelegeStep
+            statement={statement}
+            excursion={excursion}
+            onEntering={setEnteringBill}
+          />
         )}
         {step === "reimbursement" && statement && <ErstattungStep statement={statement} />}
         {step === "submit" && statement && <AbschlussStep statement={statement} />}
@@ -285,7 +310,10 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
       <div className="flow-nav">
         <div className="flow-nav-back">
           {steps.indexOf(step) > 0 && (
-            <Button variant="ghost" onClick={() => goto(steps[steps.indexOf(step) - 1])}>
+            <Button
+              variant="ghost"
+              onClick={() => leaving(() => goto(steps[steps.indexOf(step) - 1]))}
+            >
               Zurück
             </Button>
           )}
@@ -297,10 +325,12 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
                 variant="ghost"
                 busy={saveM.isPending}
                 onClick={() =>
-                  save(() => {
-                    toast.success("Entwurf gespeichert.");
-                    navigate(`${STATEMENTS}/${statement?.id}`);
-                  })
+                  leaving(() =>
+                    save((saved) => {
+                      toast.success("Entwurf gespeichert.");
+                      navigate(`${STATEMENTS}/${saved.id}`);
+                    }),
+                  )
                 }
               >
                 Als Entwurf speichern
@@ -324,16 +354,18 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
             <Button
               busy={saveM.isPending}
               onClick={() =>
-                save((saved) => {
-                  const next = steps[steps.indexOf(step) + 1];
-                  if (!statement) {
-                    navigate(`${STATEMENTS}/${saved.id}/edit?stage=receipts`, {
-                      replace: true,
-                    });
-                  } else {
-                    goto(next);
-                  }
-                })
+                leaving(() =>
+                  save((saved) => {
+                    const next = steps[steps.indexOf(step) + 1];
+                    if (!statement) {
+                      navigate(`${STATEMENTS}/${saved.id}/edit?stage=receipts`, {
+                        replace: true,
+                      });
+                    } else {
+                      goto(next);
+                    }
+                  }),
+                )
               }
             >
               Weiter
@@ -539,14 +571,27 @@ const emptyBillDraft: BillDraft = {
 function BelegeStep({
   statement,
   excursion,
+  onEntering,
 }: {
   statement: StatementOut;
   excursion: ExcursionOut | null;
+  /** Whether a receipt form is open, so the flow can refuse to throw it away. */
+  onEntering: (entering: boolean) => void;
 }) {
   const toast = useToast();
   const confirm = useConfirmDialog();
   const [adding, setAdding] = useState<BillDraft | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  // Reported upwards rather than asked for from above, because the flow's nav
+  // is the only thing that needs to know and this step is the only thing that
+  // does. The unmount case matters as much as the open one: once the receipt is
+  // added the form closes, and the flow has to be let go of again.
+  const entering = adding !== null || editingId !== null;
+  useEffect(() => {
+    onEntering(entering);
+    return () => onEntering(false);
+  }, [entering, onEntering]);
 
   const members = useMembers();
   // The people who actually went are the plausible payers; everyone else stays

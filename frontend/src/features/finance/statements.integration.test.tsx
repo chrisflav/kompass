@@ -11,7 +11,7 @@ import {
   server,
   useMe,
 } from "../../test/server";
-import { renderRoute, sortByEveryColumn } from "../../test/utils";
+import { currentSearch, renderRoute, sortByEveryColumn } from "../../test/utils";
 
 const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
 
@@ -642,6 +642,71 @@ describe("submission flow — Belege", () => {
     renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
     expect(await screen.findByText("Bild fehlt")).toBeInTheDocument();
     expect(screen.getByText("kein Zahler eingetragen")).toBeInTheDocument();
+  });
+
+  it("refuses to move on while a receipt is still being entered", async () => {
+    // Reported from the running instance: a receipt typed into the form was
+    // gone after saving the draft. Nothing had posted it — the form is local
+    // state on a panel that `key={step}` throws away when the flow moves — so
+    // "Weiter" dropped what was typed without saying anything.
+    flowReturns();
+    detailReturns();
+    let posted = 0;
+    server.use(
+      http.post(api("/api/finance/bills"), () => {
+        posted += 1;
+        return HttpResponse.json({ id: 13 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    expect(await screen.findByText(/Der Beleg ist noch nicht hinzugefügt/)).toBeInTheDocument();
+    // Still on the receipts leg, with what was typed still on screen — and
+    // nothing invented a receipt out of a half-filled form either.
+    expect(currentSearch()).toBe("?stage=receipts");
+    expect(screen.getByDisplayValue("Sprit")).toBeInTheDocument();
+    expect(posted).toBe(0);
+  });
+
+  it("moves on once the receipt is added", async () => {
+    // The other half of the guard: it must let go of the flow again, or the
+    // receipts leg becomes a dead end.
+    flowReturns();
+    detailReturns();
+    server.use(
+      http.post(api("/api/finance/bills"), () => HttpResponse.json({ id: 13 })),
+      http.patch(api("/api/finance/statements/1"), () => HttpResponse.json(statement())),
+    );
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    await user.click(screen.getByRole("button", { name: "Beleg hinzufügen" }));
+    await screen.findByText("Beleg hinzugefügt.");
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    await waitFor(() => expect(currentSearch()).toBe("?stage=reimbursement"));
+  });
+
+  it("lets a receipt being entered be abandoned deliberately", async () => {
+    flowReturns();
+    detailReturns();
+    server.use(http.patch(api("/api/finance/statements/1"), () => HttpResponse.json(statement())));
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    // Scoped to the receipt form: the page header carries an "Abbrechen" too,
+    // and that one leaves the whole flow.
+    const form = within(document.querySelector(".beleg-form") as HTMLElement);
+    await user.click(form.getByRole("button", { name: "Abbrechen" }));
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    await waitFor(() => expect(currentSearch()).toBe("?stage=reimbursement"));
   });
 });
 
