@@ -2,10 +2,11 @@
 
 The cases a ruleset ships are the situations its author thought of. The fuzzer
 is for the ones they did not: it builds a statement out of random but *valid*
-data — a trip of some length, some participants of some ages, some receipts
-somebody paid — asks the ruleset what to ask the person, answers those
-questions at random within the domains the ruleset itself declared, and checks
-the two things that must hold whatever the answers are:
+data — a trip of some length (or **no trip at all**, one round in
+:data:`NO_TRIP_IN`), some participants of some ages, some receipts somebody
+paid — asks the ruleset what to ask the person, answers those questions at
+random within the domains the ruleset itself declared, and checks the two things
+that must hold whatever the answers are:
 
 * the rules report no error, because every input was one they offered, and
 * the books balance, because the engine closed them.
@@ -36,6 +37,7 @@ from finance.rules_api import MemberId
 from finance.rules_api import Params
 from finance.rules_api import Participant
 from finance.rules_api import Roles
+from finance.rules_api import Row
 from finance.rules_api import RuleContext
 from finance.rules_api import Ruleset
 from finance.rules_api import SECTION
@@ -61,8 +63,29 @@ GOALS: tuple[LJPGoal | None, ...] = (
 )
 
 
+#: How often a random statement settles no trip.
+#:
+#: One in four, because the trip-less statement is not an edge case: a purchase,
+#: a repair, a course fee. Until this, every round the fuzzer ever ran had an
+#: excursion — so the arm of a declaration that answers "and when there is no
+#: trip" was the one arm nothing random ever reached, which is exactly the arm a
+#: ruleset is most likely to have got wrong. A ``rows`` question whose cells are
+#: seeded off the excursion has that arm by construction: with no trip there is
+#: no seed, so the table arrives empty and whatever the rules do with an empty
+#: table is what a real purchase statement will do.
+NO_TRIP_IN = 4
+
+
 def random_context(rng: random.Random, params: dict[str, Decimal]) -> RuleContext:
-    """A statement that could plausibly have been handed in."""
+    """A statement that could plausibly have been handed in — with or without a trip.
+
+    The people are built first and the trip second, because a statement that
+    settles no trip still has people in it: whoever paid a receipt, and whoever
+    created it. So an ``options_source="bills.payers"`` question is answerable in
+    both arms, and an ``options_source="excursion.leaders"`` one is offered
+    nobody in the trip-less arm — which is a state the rules have to survive and
+    now do get asked about.
+    """
     leaders = tuple(Member(MemberId(index)) for index in range(1, rng.randint(1, 6) + 1))
     people = tuple(
         Participant(
@@ -98,12 +121,10 @@ def random_context(rng: random.Random, params: dict[str, Decimal]) -> RuleContex
         )
         for index in range(rng.randint(0, 6))
     )
-    return RuleContext(
-        version=CONTEXT_VERSION,
-        params=Params(params),
-        inputs=Inputs({}),
-        bills=bills,
-        excursion=Excursion(
+    excursion = (
+        None
+        if rng.randint(1, NO_TRIP_IN) == 1
+        else Excursion(
             duration=Decimal(rng.randint(1, 2 * (nights + 1))) / 2,
             nights=nights,
             kilometers=rng.randint(0, 2000),
@@ -113,7 +134,14 @@ def random_context(rng: random.Random, params: dict[str, Decimal]) -> RuleContex
             approved_staff_count=rng.randint(0, len(leaders) + 2),
             participants=people,
             ljp=ljp,
-        ),
+        )
+    )
+    return RuleContext(
+        version=CONTEXT_VERSION,
+        params=Params(params),
+        inputs=Inputs({}),
+        bills=bills,
+        excursion=excursion,
         statement=StatementInfo(id=1, creator=leaders[0], submitter=None),
         # Unresolved rather than empty: a random statement is not a statement
         # where nobody holds any role, it is one where the roles were never
@@ -143,6 +171,20 @@ def random_answer(rng: random.Random, declaration: Input) -> Any:
     if declaration.type == "member":
         options = list(declaration.options)
         return rng.choice(options + [None]) if options else None
+    if declaration.type == "rows":
+        # Zero rows included, deliberately: an empty table is the state a
+        # statement is in before anybody fills it in and after somebody deletes
+        # the prefilled row, so a rule that divides by the number of rows has to
+        # survive it. Each row is answered cell by cell through this same
+        # function, against the one-question declaration each field makes — so
+        # the fuzzer offers exactly what the table's own domains allow, with no
+        # second notion of what a `choice` or a person may be.
+        cells = [cell.as_input(declaration.options) for cell in declaration.fields]
+        limit = declaration.max if declaration.max is not None else 4
+        return tuple(
+            Row(declaration.key, {cell.key: random_answer(rng, cell) for cell in cells})
+            for _row in range(rng.randint(0, limit))
+        )
     # `member_set`, the last of the vocabulary.
     options = list(declaration.options)
     rng.shuffle(options)
