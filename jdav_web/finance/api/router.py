@@ -31,6 +31,7 @@ from django.utils.translation import gettext_lazy as _
 from finance.inputs import clean as clean_inputs
 from finance.inputs import form as statement_form_body
 from finance.inputs import party_keys
+from finance.inputs import seeded as seeded_rows
 from finance.inputs import stored as stored_inputs
 from finance.models import Bill
 from finance.models import Ledger
@@ -147,7 +148,13 @@ def list_statements(request):
 
 @router.post("/statements", response=StatementOut)
 def create_statement(request, payload: StatementCreate):
-    """Create a draft statement (requires the global add permission)."""
+    """Create a draft statement (requires the global add permission).
+
+    A statement created *on* an excursion has its seeded tables filled in here
+    — one row, as the trip describes it, for the person to correct or to split
+    (:func:`finance.inputs.seeded`). This is one of the two moments a seed
+    applies; the other is an excursion being changed in ``update_statement``.
+    """
     authorize(request, "finance.add_global_statement")
     excursion = None
     if payload.excursion_id is not None:
@@ -156,12 +163,18 @@ def create_statement(request, payload: StatementCreate):
         # for the same excursion surfaces as a raw IntegrityError (500).
         if Statement.objects.filter(excursion=excursion).exists():
             raise ValidationError(_("This excursion already has a statement."))
-    statement = Statement.objects.create(
+    statement = Statement(
         short_description=payload.short_description,
         explanation=payload.explanation,
         excursion=excursion,
         created_by=get_member(request),
     )
+    # Resolved against the unsaved row, so the statement is written once: the
+    # declarations only need the excursion, and a statement with no bills yet is
+    # a context the engine already builds (``_bills`` answers ``()`` for an
+    # unsaved one, for the admin's inline).
+    statement.inputs = seeded_rows(statement)
+    statement.save()
     # Read the row back so every field carries its database-native type before
     # the computed money properties run during serialization.
     statement.refresh_from_db()
@@ -245,7 +258,18 @@ def statement_finance_overview(request, statement_id: int):
 
 @router.patch("/statements/{statement_id}", response=StatementOut)
 def update_statement(request, statement_id: int, payload: StatementUpdate):
-    """Update the editable subset of a draft statement, authorized per object."""
+    """Update the editable subset of a draft statement, authorized per object.
+
+    Changing the excursion does two things to the answers, for one reason: they
+    were given about a different trip. Every answer that names somebody goes,
+    because the people the rules offer are the incoming trip's; and every seeded
+    table is re-seeded, because the row it held carried the outgoing trip's
+    distance and mode. An answer restated **in this same request** wins over
+    both, so correcting the excursion and the table together is one call.
+
+    A refusal about a table is keyed per cell — ``"reisen[1].kilometers"`` —
+    rather than by the question; see :func:`finance.inputs.row_key`.
+    """
     statement = get_authorized(request, Statement, statement_id, "finance.change_obj_statement")
     # Match the admin, which freezes all fields once a statement is submitted
     # (StatementAdmin.get_readonly_fields / has_change_permission).
@@ -279,6 +303,11 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
         # it. Which answers those are is the declarations' business, not a list
         # of three keys the API happens to know.
         kept = {key: value for key, value in kept.items() if key not in party_keys(statement)}
+        # And every seeded table is **re-seeded**, on the same reasoning: the
+        # row it held described the outgoing trip — its distance, its mode — so
+        # keeping it would be this statement claiming a journey nobody made.
+        # Clearing the excursion seeds nothing, which empties the table.
+        kept = dict(kept, **seeded_rows(statement))
     with transaction.atomic():
         set_scalar_fields(statement, data, list(data.keys()))
         statement.inputs = dict(kept, **stored_inputs(cleaned))
