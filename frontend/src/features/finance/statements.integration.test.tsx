@@ -11,7 +11,7 @@ import {
   server,
   useMe,
 } from "../../test/server";
-import { renderRoute, sortByEveryColumn } from "../../test/utils";
+import { currentSearch, renderRoute, sortByEveryColumn } from "../../test/utils";
 
 const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
 
@@ -643,6 +643,71 @@ describe("submission flow — Belege", () => {
     expect(await screen.findByText("Bild fehlt")).toBeInTheDocument();
     expect(screen.getByText("kein Zahler eingetragen")).toBeInTheDocument();
   });
+
+  it("refuses to move on while a receipt is still being entered", async () => {
+    // Reported from the running instance: a receipt typed into the form was
+    // gone after saving the draft. Nothing had posted it — the form is local
+    // state on a panel that `key={step}` throws away when the flow moves — so
+    // "Weiter" dropped what was typed without saying anything.
+    flowReturns();
+    detailReturns();
+    let posted = 0;
+    server.use(
+      http.post(api("/api/finance/bills"), () => {
+        posted += 1;
+        return HttpResponse.json({ id: 13 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    expect(await screen.findByText(/Der Beleg ist noch nicht hinzugefügt/)).toBeInTheDocument();
+    // Still on the receipts leg, with what was typed still on screen — and
+    // nothing invented a receipt out of a half-filled form either.
+    expect(currentSearch()).toBe("?stage=receipts");
+    expect(screen.getByDisplayValue("Sprit")).toBeInTheDocument();
+    expect(posted).toBe(0);
+  });
+
+  it("moves on once the receipt is added", async () => {
+    // The other half of the guard: it must let go of the flow again, or the
+    // receipts leg becomes a dead end.
+    flowReturns();
+    detailReturns();
+    server.use(
+      http.post(api("/api/finance/bills"), () => HttpResponse.json({ id: 13 })),
+      http.patch(api("/api/finance/statements/1"), () => HttpResponse.json(statement())),
+    );
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    await user.click(screen.getByRole("button", { name: "Beleg hinzufügen" }));
+    await screen.findByText("Beleg hinzugefügt.");
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    await waitFor(() => expect(currentSearch()).toBe("?stage=reimbursement"));
+  });
+
+  it("lets a receipt being entered be abandoned deliberately", async () => {
+    flowReturns();
+    detailReturns();
+    server.use(http.patch(api("/api/finance/statements/1"), () => HttpResponse.json(statement())));
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    // Scoped to the receipt form: the page header carries an "Abbrechen" too,
+    // and that one leaves the whole flow.
+    const form = within(document.querySelector(".beleg-form") as HTMLElement);
+    await user.click(form.getByRole("button", { name: "Abbrechen" }));
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    await waitFor(() => expect(currentSearch()).toBe("?stage=reimbursement"));
+  });
 });
 
 describe("submission flow — Erstattung", () => {
@@ -808,11 +873,56 @@ describe("submission flow — Erstattung", () => {
     });
   });
 
+  it("asks the ruleset's questions of a statement without a trip", async () => {
+    // Reported from the running instance: the flow offered no way to say which
+    // set of rules applies. The statement in question named no excursion — both
+    // trips already had one — and this leg, the only place the ruleset's
+    // questions are asked, was gated on there being a trip. A leftover from
+    // when the leg was four fields about a trip's allowances: the section's
+    // rules ask the same `regime` of a training as of a Freizeit.
+    flowReturns();
+    detailReturns({ excursion: null });
+    const inputs = [
+      declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+    ];
+    server.use(
+      http.get(api("/api/finance/statements/1/form"), () =>
+        HttpResponse.json({ ...FORM, inputs, steps: stepsOf(inputs), answers: { regime: null } }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
+
+    expect(await screen.findByText("Regelwerk")).toBeInTheDocument();
+    // And it is on the rail, so it is reachable without typing a URL.
+    expect(screen.getByRole("navigation", { name: "Etappen" })).toHaveTextContent("Erstattung");
+  });
+
   it("says so when the rules ask for nothing", async () => {
     openForm({ inputs: [], answers: {} });
     expect(
       await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
     ).toBeInTheDocument();
+    // The leg a person is standing on is never retired under them: bouncing
+    // back to Anlass because a query landed is worse than a leg that says the
+    // rules ask nothing.
+    expect(screen.getByRole("navigation", { name: "Etappen" })).toHaveTextContent("Erstattung");
+  });
+
+  it("retires the leg on a statement whose rules ask nothing", async () => {
+    // The other side of the same coin: the leg follows what the rules ask, so
+    // it is neither pinned to the excursion nor simply always there.
+    flowReturns();
+    detailReturns({ excursion: null });
+    server.use(
+      http.get(api("/api/finance/statements/1/form"), () =>
+        HttpResponse.json({ ...FORM, inputs: [], steps: [], answers: {} }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    const rail = await screen.findByRole("navigation", { name: "Etappen" });
+    await waitFor(() => expect(rail).not.toHaveTextContent("Erstattung"));
+    expect(rail).toHaveTextContent("Belege");
   });
 
   it("offers the alternatives the declaration names, and sends the one picked", async () => {
