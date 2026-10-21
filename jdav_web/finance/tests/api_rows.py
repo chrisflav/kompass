@@ -61,6 +61,7 @@ from finance.inputs import party_answers
 from finance.inputs import row_key
 from finance.models import Bill
 from finance.models import Statement
+from finance.rules_api import Bill as RuleBill
 from finance.rules_api import CELL_TYPES
 from finance.rules_api import Choice
 from finance.rules_api import Excursion
@@ -197,13 +198,33 @@ def trip(**changed: object) -> Excursion:
     return Excursion(**fields)  # type: ignore[arg-type]
 
 
-def context(excursion: Excursion | None = None, **answers: object) -> RuleContext:
-    """A context with ``answers`` typed by :func:`travel_rows`'s declaration."""
+def context(
+    excursion: Excursion | None = None, payers: tuple[int, ...] = (), **answers: object
+) -> RuleContext:
+    """A context with ``answers`` typed by :func:`travel_rows`'s declaration.
+
+    ``payers`` are the receipts, which is how the table comes to offer anybody:
+    its ``options_source`` is ``bills.payers``. A context with none offers
+    nobody, which is a state worth having on purpose — but a test about
+    something *other* than the domain has to hand over a receipt, or the domain
+    check answers first and the test passes for the wrong reason.
+    """
+    bills = tuple(
+        RuleBill(
+            id=index + 1,
+            amount=Decimal("40.00"),
+            covered=False,
+            payer=RuleMember(MemberId(pk)),
+            has_proof=True,
+            description="Tankfüllung",
+        )
+        for index, pk in enumerate(payers)
+    )
     return RuleContext(
         version=1,
         params=Params({}),
         inputs=Inputs(typed_inputs([travel_rows()], answers)),
-        bills=(),
+        bills=bills,
         excursion=excursion,
         statement=StatementInfo(id=1, creator=None, submitter=None),
         roles=Roles({}),
@@ -407,7 +428,10 @@ class RowCellTestCase(SimpleTestCase):
         which is a figure no page explains.
         """
         four = [{"member": 7, "approach": "car", "kilometers": 10}] * 4
-        result = evaluate(JourneyRules(), context(trip(), reisen=four))
+        # Member 7 paid a receipt, so the *domain* is satisfied and the only
+        # thing left to drop the table is the bound — without which this passes
+        # for the wrong reason, which is how it first did.
+        result = evaluate(JourneyRules(), context(trip(), payers=(7,), reisen=four))
         self.assertFalse(result.ok)
         self.assertTrue(any("reisen" in error for error in result.errors), result.errors)
         self.assertEqual(result.total_of("travel"), Decimal("0.00"))
@@ -602,14 +626,20 @@ class RowCaseAndFuzzTestCase(SimpleTestCase):
         self.assertNotEqual(run_case(JourneyRules(), case), [])
 
     def test_the_fuzzer_answers_a_table_inside_its_own_domains(self):
+        """Both halves: rows do get built, and every cell is inside its domain.
+
+        The second half alone is vacuous — a fuzzer that answered every table
+        with ``()`` would satisfy every assertion in the loop and exercise
+        nothing, which is what it did when this test was first written. So the
+        counts are asserted too: some round fills a table, some round leaves it
+        empty, and no round goes over the bound.
+        """
         rng = Random(5)
-        declaration = replace(
-            travel_rows(),
-            options=(RuleMember(MemberId(1)), RuleMember(MemberId(2))),
-            options_source="",
-        )
+        declaration = offering(1, 2)
+        sizes = set()
         for _round in range(20):
             rows = random_answer(rng, declaration)
+            sizes.add(len(rows))
             self.assertLessEqual(len(rows), 3)
             for row in rows:
                 self.assertIsInstance(row, Row)
@@ -617,6 +647,8 @@ class RowCaseAndFuzzTestCase(SimpleTestCase):
                 self.assertIn(row.text("approach"), ("", "car", "public", "bike"))
                 self.assertLessEqual(row.number("kilometers"), 2000)
                 self.assertLessEqual(row.number("passengers"), 4)
+        self.assertTrue(sizes - {0}, "no round ever filled a row")
+        self.assertIn(0, sizes, "no round ever left the table empty")
 
     def test_a_random_statement_sometimes_settles_no_trip_at_all(self):
         """The arm nothing random ever reached, which a ``rows`` input needs.
