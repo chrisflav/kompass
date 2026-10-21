@@ -95,11 +95,25 @@ The only identity a rule ever sees. Names, addresses and bank details are
 resolved by the engine after evaluation, so that a ruleset cannot leak them.
 """
 
-InputType = Literal["money", "int", "bool", "text", "choice", "member", "member_set"]
+InputType = Literal["money", "int", "bool", "text", "choice", "member", "member_set", "rows"]
 """The widget vocabulary an :class:`Input` is rendered with.
 
 This is presentation, not rule structure: ``money`` and ``int`` are both
 numbers, and the difference is the field the person is shown.
+
+``rows`` is the one entry that is not a widget but a *shape*: a table whose
+rows repeat, each row a little form over the cells :attr:`Input.fields`
+declares. Every cell's own type comes from this same list, which is what lets
+one validation path serve a question and a cell alike.
+"""
+
+CELL_TYPES: Final = ("money", "int", "bool", "text", "choice", "member", "member_set")
+"""The types a cell of a ``rows`` question may have — :data:`InputType` minus
+``rows`` itself.
+
+There is no nesting, and that is a decision rather than an omission: a table
+inside a table is a shape no form can lay out and no error key can name, and
+nothing a section settles needs one.
 """
 
 
@@ -290,8 +304,8 @@ class Inputs:
     ``ctx.inputs.night_cost`` reads the same answer untyped, for a quick look.
     A key that happens to be named like one of the accessors — ``money``,
     ``member``, ``members``, ``number``, ``flag``, ``text``, ``raw``,
-    ``declared`` — is readable through those and through :meth:`raw`, but not
-    as an attribute, where the method wins.
+    ``rows``, ``declared`` — is readable through those and through
+    :meth:`raw`, but not as an attribute, where the method wins.
     """
 
     __slots__ = ("_values",)
@@ -369,6 +383,57 @@ class Inputs:
             return value
         raise RuleError(f"input {key!r} is not a set of members")
 
+    def rows(self, key: str) -> tuple["Row", ...]:
+        """The rows of a ``rows`` answer, each a :class:`Row` of typed cells.
+
+        A table nobody has filled in reads as ``()``, like an unanswered set of
+        people — and so does one whose every row was deleted, because those are
+        the same state and nothing distinguishes them. A rule that pays per row
+        therefore pays nothing for an empty table without having to ask whether
+        it was ever answered::
+
+            for journey in ctx.inputs.rows("reisen"):
+                if journey.text("approach") != CAR:
+                    continue
+                owed += journey.number("kilometers") * rate
+        """
+        value = self.raw(key)
+        if isinstance(value, tuple) and all(isinstance(item, Row) for item in value):
+            return value
+        raise RuleError(f"input {key!r} is not a table of rows")
+
+
+class Row(Inputs):
+    """One row of a ``rows`` answer — its cells, by field key, typed.
+
+    An :class:`Inputs` over one row, which is the whole of the idea: a row is a
+    little form, so the accessors that read a form's answers read a row's cells
+    as well, with the same types and the same refusals. A cell the question did
+    not declare raises :class:`RuleError` naming the fields it does have.
+
+    Frozen in the sense :class:`Inputs` is: the cells are copied in and there is
+    no way to put one back.
+    """
+
+    __slots__ = ("_question",)
+
+    def __init__(self, question: str, values: Mapping[str, object]) -> None:
+        super().__init__(values)
+        self._question = question
+
+    def __repr__(self) -> str:
+        return f"Row({self._question!r}, {self._values!r})"
+
+    def raw(self, key: str) -> object:
+        """The cell ``key``, untyped — or a refusal naming the row's own fields."""
+        try:
+            return self._values[key]
+        except KeyError:
+            raise RuleError(
+                f"undeclared field {key!r} of the table {self._question!r}; its "
+                f"fields are {', '.join(self._values) or 'none'}"
+            ) from None
+
 
 class Params:
     """The section's numbers, as :class:`~decimal.Decimal`\\ s.
@@ -422,7 +487,7 @@ class Roles(Mapping[str, tuple[Member, ...]]):
     engine offers that it says so by failing loudly.
     """
 
-    __slots__ = ("_values", "_resolved")
+    __slots__ = ("_resolved", "_values")
 
     def __init__(self, values: Mapping[str, tuple[Member, ...]] | None = None) -> None:
         self._resolved = values is not None
@@ -607,7 +672,9 @@ OPTION_SOURCES: Final = (
 )
 
 #: The widget types whose answer names people, and so the only ones an option
-#: source means anything for.
+#: source means anything for. Asked of a cell as well as of a question: a
+#: ``rows`` question with one of these among its :attr:`Input.fields` is a
+#: question that names people.
 _PARTY_INPUT_TYPES: Final = ("member", "member_set")
 
 
@@ -631,6 +698,112 @@ def _check_source(source: str) -> None:
 
 
 @dataclass(frozen=True, slots=True)
+class Field:
+    """One cell of a ``rows`` question — a question asked once per row.
+
+    A cell is a question in its own right, with one thing taken away and one
+    added. Taken away: it does not say who may be picked. Who a ``rows``
+    question's people are is the *question's* business
+    (:attr:`Input.options` / :attr:`Input.options_source`), stated once for the
+    whole table, so that two cells of one row cannot offer two different sets
+    and the error about somebody the rules did not offer reads the same
+    wherever it comes from. Added: :attr:`seed`.
+
+    Everything else is the cell's own and means exactly what it means on an
+    :class:`Input` — which is not a coincidence but the implementation:
+    :meth:`as_input` turns a cell into the question it is, and that is the
+    declaration the engine validates its value against. There is one validation
+    path for a ``choice``, and a ``choice`` cell is on it.
+    """
+
+    #: The key the cell is read back under, inside its row.
+    key: str
+    #: What the person is asked, as the column heading.
+    label: str
+    #: Which widget to render; one of :data:`CELL_TYPES`. ``rows`` is refused:
+    #: there is no table inside a table.
+    type: InputType
+    #: Whether a row may be handed in with this cell empty.
+    #:
+    #: Advisory, exactly as :attr:`Input.required` is: a form is filled in
+    #: gradually, so an empty cell is *stored* and reads as its type's empty
+    #: value, and what refuses to hand the statement in is the section's own
+    #: :class:`Check`. Nothing here is the difference between a journey that
+    #: was entered and one that was not.
+    required: bool = True
+    #: A sentence of help, if the heading is not enough.
+    help: str = ""
+    #: For a ``member_set`` or an ``int`` cell: the largest acceptable count or
+    #: value, with the same meaning — and the same silence on every other type
+    #: — it has on an :class:`Input`. What bounds the number of *rows* is the
+    #: question's own :attr:`Input.max`.
+    max: int | None = None
+    #: For a ``choice`` cell: the alternatives, which a ``choice`` has to have.
+    choices: tuple[Choice, ...] = ()
+    #: Where this cell is **prefilled** from when the statement's excursion is
+    #: set: ``"excursion.kilometers"``, the same ``"<root>.<field>"`` vocabulary
+    #: an :attr:`Input.source` uses (:data:`SOURCE_ROOTS`).
+    #:
+    #: A seed is not a derivation, and the two differ in all four of the ways
+    #: that matter. A :attr:`Input.source` belongs to the excursion: it is
+    #: refused on the form, never stored, re-resolved on every context build, so
+    #: it follows the trip the moment the trip changes. A seed belongs to the
+    #: **person filling the form in**: it is written once, stored like any other
+    #: answer, and theirs to correct or to split into several rows — which is
+    #: the whole point, because the trip records one distance and one mode while
+    #: the people on it travelled differently.
+    #:
+    #: It is applied **exactly once, when the excursion is set**, and again when
+    #: the excursion is *changed* — the old row described a different trip. Not
+    #: on every context build, and not whenever the table happens to be empty:
+    #: either of those would make a deleted row come back by itself and an
+    #: edited one be overwritten, which is the one failure a seed must not have.
+    #:
+    #: A seeded cell whose value its own declaration does not offer — a
+    #: ``choice`` the section does not list, a person the question does not
+    #: offer — is left empty rather than stored outside its domain. A seed that
+    #: resolves to nothing (no excursion, or the field itself unset) is left
+    #: empty too, and a table none of whose seeds resolved gets **no row at
+    #: all**: there is nothing to prefill.
+    seed: str = ""
+
+    def __post_init__(self) -> None:
+        if self.type == "rows":
+            raise RuleError(
+                f"the field {self.key!r} is a table of its own, and there is no table "
+                f"inside a table; a cell is one of {', '.join(CELL_TYPES)}"
+            )
+        if self.seed:
+            _check_source(self.seed)
+        # The cell as the question it is, which is what the engine validates its
+        # value against — so every refusal `Input` writes for a question is a
+        # refusal this writes for a cell, at the line the cell is declared on,
+        # rather than a second list of the same rules drifting from the first.
+        self.as_input()
+
+    def as_input(self, options: tuple[Member, ...] = ()) -> "Input":
+        """This cell as the one-question :class:`Input` it is.
+
+        ``options`` are the table's people, passed in because they belong to the
+        question rather than to the cell. Everything that validates an answer —
+        :func:`finance.inputs.clean_value`, :func:`finance.engine.answers.within`,
+        :func:`finance.engine.answers.coerce_input`,
+        :func:`finance.engine.fuzz.random_answer`, the admin's own form field —
+        is given one of these and needs to know nothing about rows.
+        """
+        return Input(
+            key=self.key,
+            label=self.label,
+            type=self.type,
+            required=self.required,
+            help=self.help,
+            options=options,
+            max=self.max,
+            choices=self.choices,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Input:
     """One question the statement's form has to ask.
 
@@ -641,10 +814,10 @@ class Input:
     A declaration the engine cannot serve is refused where it is written, with
     :class:`RuleError`: a ``choice`` with nothing to choose from, a
     :attr:`source` that names no context field, an :attr:`options_source` on a
-    question that names no people. The engine refuses a nonsense
-    :attr:`Ruleset.balance` for the same reason — it is a bug in the rules, and
-    a case in the section's own CI should fail on it rather than a person's
-    form quietly losing a question.
+    question that names no people, a ``rows`` question with no cells. The engine
+    refuses a nonsense :attr:`Ruleset.balance` for the same reason — it is a bug
+    in the rules, and a case in the section's own CI should fail on it rather
+    than a person's form quietly losing a question.
     """
 
     #: The key the answer is read back under.
@@ -664,14 +837,27 @@ class Input:
     #: A ruleset either lists the people itself, out of the context it was
     #: given, or names an :attr:`options_source` and lets the engine fill this
     #: in. Not both.
+    #:
+    #: For a ``rows`` question it is the domain of **every party-valued cell**
+    #: of every row, stated once for the whole table: who may be named is the
+    #: question's business, not each column's.
     options: tuple[Member, ...] = ()
-    #: For ``member_set`` and ``int``, and for **those two only**: the largest
-    #: acceptable count or value. It is ignored on every other type —
-    #: ``money`` included, which is worth knowing because an amount is the
+    #: For ``member_set``, ``int`` and ``rows``, and for **those three only**:
+    #: the largest acceptable count or value. It is ignored on every other type
+    #: — ``money`` included, which is worth knowing because an amount is the
     #: other thing one would expect a ceiling on. A money answer is bounded by
     #: the resolution and ceiling of the field itself
     #: (``finance.inputs.MONEY_MAX``) and not by this; a section wanting its
     #: own maximum writes a :class:`Check`.
+    #:
+    #: On a ``rows`` question it bounds **the number of rows** and nothing
+    #: inside one. A cell's own ceiling is its :attr:`Field.max`, so a table of
+    #: at most five journeys of at most 2000 km each says ``max=5`` here and
+    #: ``max=2000`` on the ``kilometers`` field. This is the second time this
+    #: attribute has had to be qualified, and both qualifications are the same
+    #: sentence read twice: ``max`` bounds *the answer* — the value for an
+    #: ``int``, the count for a set of people, the count of rows for a table —
+    #: and says nothing about anything one level further in.
     #:
     #: It bounds a *submitted* answer, which is refused on the way in, and an
     #: answer the engine supplies from a :attr:`source`, which cannot be —
@@ -686,6 +872,17 @@ class Input:
     #: submitted answer is re-validated against them, exactly as a person is
     #: re-validated against :attr:`options`.
     choices: tuple[Choice, ...] = ()
+    #: For ``rows``: the cells one row has, in the order they are shown. A
+    #: ``rows`` question has to have some, and no other type may.
+    #:
+    #: A table exists for the question a map from person to number cannot
+    #: answer. Whether somebody gets the rate per kilometre at all depends on
+    #: *their* mode of travel — a private car yes, the train no, because there
+    #: the receipt is the claim — so the mode and the distance belong together,
+    #: per traveller, in one row. Keyed by person they come apart, and the rule
+    #: has to pair them up again from two answers that may disagree about how
+    #: many people there were.
+    fields: tuple[Field, ...] = ()
     #: Where the engine takes this answer *from* instead of asking for it:
     #: ``"excursion.kilometers"`` (see :data:`SOURCE_ROOTS`).
     #:
@@ -769,6 +966,27 @@ class Input:
             )
         if self.choices and self.type != "choice":
             raise RuleError(f"{self.key!r} is a {self.type} input, so its choices are never shown")
+        if self.type == "rows" and not self.fields:
+            raise RuleError(
+                f"the table {self.key!r} declares no fields, which is a question with no "
+                "cells to answer; list them in `fields`"
+            )
+        if self.fields and self.type != "rows":
+            raise RuleError(f"{self.key!r} is a {self.type} input, so it has no rows")
+        seen: set[str] = set()
+        for cell in self.fields:
+            if cell.key in seen:
+                raise RuleError(
+                    f"the table {self.key!r} declares the field {cell.key!r} twice; a row "
+                    "keeps one value per field, so the second would shadow the first"
+                )
+            seen.add(cell.key)
+        if self.type == "rows" and self.source:
+            raise RuleError(
+                f"the table {self.key!r} names a source, and a table is not derived from "
+                "one figure; what prefills a table is `seed` on the fields that have one, "
+                "and that answer stays the person's to edit"
+            )
         if self.source:
             _check_source(self.source)
         if not self.options_source:
@@ -778,13 +996,27 @@ class Input:
                 f"{self.options_source!r} is not an option source; the engine serves "
                 f"{', '.join(OPTION_SOURCES)}"
             )
-        if self.type not in _PARTY_INPUT_TYPES:
+        if not self.names_people():
             raise RuleError(f"{self.key!r} is a {self.type} input, so it names no people")
         if self.options:
             raise RuleError(
                 f"{self.key!r} both lists its options and names {self.options_source!r} to "
                 "take them from; say it once"
             )
+
+    def names_people(self) -> bool:
+        """Whether an answer to this question can name somebody.
+
+        True for ``member`` and ``member_set``, and for a ``rows`` question with
+        one of those among its :attr:`fields` — which is one question with three
+        consequences: it may take an :attr:`options_source`, the answer has to
+        be cleaned of a deleted member
+        (:func:`finance.inputs.party_answers`), and it is dropped when the
+        statement's excursion is swapped for another.
+        """
+        if self.type in _PARTY_INPUT_TYPES:
+            return True
+        return any(cell.type in _PARTY_INPUT_TYPES for cell in self.fields)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1018,33 +1250,36 @@ def first_of(*parties: Party | None) -> Party | None:
 
 
 __all__ = [
+    "CELL_TYPES",
     "CENT",
     "CONTEXT_VERSION",
+    "LJP",
+    "OPTION_SOURCES",
+    "PARTICIPANTS",
+    "SECTION",
+    "SOURCE_ROOTS",
     "Bill",
     "Check",
     "Choice",
     "Constraint",
     "Excursion",
+    "Field",
     "Forbid",
     "Input",
     "InputType",
     "Inputs",
-    "LJP",
     "LJPGoal",
     "Member",
     "MemberId",
-    "OPTION_SOURCES",
-    "PARTICIPANTS",
     "Params",
     "Participant",
     "Participants",
     "Party",
+    "Roles",
+    "Row",
     "RuleContext",
     "RuleError",
-    "Roles",
     "Ruleset",
-    "SECTION",
-    "SOURCE_ROOTS",
     "Section",
     "StatementInfo",
     "TourApproach",

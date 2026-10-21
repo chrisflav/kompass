@@ -43,6 +43,7 @@ from .context import statement_inputs
 from .declared import Asked
 from .declared import asking
 from .declared import options_from
+from .declared import seeds
 from .declared import supplied
 from .declared import unbounded
 from .errors import EngineError
@@ -129,6 +130,7 @@ __all__ = [
     "ruleset_directory",
     "ruleset_for",
     "ruleset_from_sources",
+    "seeds",
     "source_hash",
     "statement_context",
     "statement_inputs",

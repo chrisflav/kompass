@@ -8,12 +8,14 @@ section's rules to the real, documented type.
 """
 
 from finance.rules_api import Bill as Bill
+from finance.rules_api import CELL_TYPES as CELL_TYPES
 from finance.rules_api import CENT as CENT
 from finance.rules_api import Check as Check
 from finance.rules_api import Choice as Choice
 from finance.rules_api import Constraint as Constraint
 from finance.rules_api import CONTEXT_VERSION as CONTEXT_VERSION
 from finance.rules_api import Excursion as Excursion
+from finance.rules_api import Field as Field
 from finance.rules_api import first_of as first_of
 from finance.rules_api import Forbid as Forbid
 from finance.rules_api import Input as Input
@@ -32,6 +34,7 @@ from finance.rules_api import Party as Party
 from finance.rules_api import pct as pct
 from finance.rules_api import quantize as quantize
 from finance.rules_api import Roles as Roles
+from finance.rules_api import Row as Row
 from finance.rules_api import RuleContext as RuleContext
 from finance.rules_api import RuleError as RuleError
 from finance.rules_api import Ruleset as Ruleset

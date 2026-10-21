@@ -33,6 +33,16 @@ The domain is only ever asked of an answer somebody **gave**. A value the
 engine supplies from a :attr:`~kompass.rules.Input.source` comes out of the
 statement's own data instead, and what bounds that is
 :func:`finance.engine.declared.unbounded`.
+
+**A ``rows`` answer is one answer**, and both paragraphs above apply to it
+whole. Each cell is typed and domain-checked by the one-question declaration
+:meth:`~kompass.rules.Field.as_input` makes of it, so there is no second
+vocabulary and no second domain check; but a cell that fails takes the table
+with it — a type error makes the whole table read as the raw JSON and raise, a
+withdrawn option drops the whole table and reports it. That is the
+``member_set`` decision ("dropped **whole**, not member by member") read for a
+table, and for the same reason: which rows survive is a selection nobody made,
+and the statement is blocked either way.
 """
 
 from collections.abc import Iterable
@@ -43,6 +53,7 @@ from typing import Any
 from finance.rules_api import Input
 from finance.rules_api import Member
 from finance.rules_api import MemberId
+from finance.rules_api import Row
 
 #: What an unanswered declaration of each type reads as.
 #:
@@ -56,6 +67,12 @@ from finance.rules_api import MemberId
 #: Here rather than in :mod:`finance.engine.evaluation` because it is now two
 #: things' answer: what a question nobody asked reads as, and what an answer
 #: outside its own domain falls back to.
+#:
+#: ``rows`` is ``()``, and that is the whole of what an empty table means: a
+#: table nobody has filled in, a table whose rows were all deleted and a table
+#: the form has stopped asking for read the same, because they *are* the same
+#: and inventing a difference would need a state nothing stores. A rule that
+#: pays per row pays nothing for any of the three.
 EMPTY: dict[str, object] = {
     "money": Decimal("0.00"),
     "int": 0,
@@ -64,6 +81,7 @@ EMPTY: dict[str, object] = {
     "choice": "",
     "member": None,
     "member_set": (),
+    "rows": (),
 }
 
 
@@ -131,6 +149,18 @@ def within(declaration: Input, value: Any) -> bool:
         if isinstance(value, bool) or not isinstance(value, int):
             return True
         return declaration.max is None or value <= declaration.max
+    if declaration.type == "rows":
+        if not isinstance(value, tuple) or not all(isinstance(row, Row) for row in value):
+            return True
+        if declaration.max is not None and len(value) > declaration.max:
+            return False
+        # A table is dropped **whole**, exactly as a `member_set` is, and for
+        # the same reason: picking which rows survive is a selection nobody
+        # made. One journey naming somebody the rules no longer offer stops the
+        # statement paying any of them, the evaluation says so, and nothing is
+        # paid until the table is given again.
+        cells = _cells(declaration)
+        return all(within(cell, row.raw(cell.key)) for row in value for cell in cells)
     return True
 
 
@@ -156,7 +186,7 @@ def coerce_input(declaration: Input, value: Any) -> object:
 
     The other half of :func:`finance.inputs.clean_value`: that one takes what a
     client sent and makes it storable, this one takes what was stored and makes
-    it readable by a rule. The vocabulary is the same seven types, and an
+    it readable by a rule. The vocabulary is the same eight types, and an
     unanswered question reads as its type's empty value — ``0.00`` for money,
     ``None`` for a person, ``()`` for a set of them — because
     :class:`kompass.rules.Inputs` promises exactly that.
@@ -187,7 +217,50 @@ def coerce_input(declaration: Input, value: Any) -> object:
         return value
 
 
+def _cells(declaration: Input) -> tuple[Input, ...]:
+    """Each cell of a ``rows`` question as the one-question declaration it is.
+
+    The table's people are passed down to every party-valued cell, because who
+    may be named belongs to the question and not to the column
+    (:attr:`kompass.rules.Input.options`). Everything below then validates a
+    cell with the same functions it validates an answer with, which is the
+    point: there is one domain check for a ``choice``, and a ``choice`` cell is
+    on it.
+    """
+    return tuple(cell.as_input(declaration.options) for cell in declaration.fields)
+
+
+def _fitted_row(declaration: Input, cells: tuple[Input, ...], row: Any) -> Row:
+    """One row, as the :class:`~kompass.rules.Row` of typed cells a rule reads.
+
+    Every declared field is present whether the row answered it or not, so a
+    rule reading a cell nobody filled in gets that type's empty value rather
+    than a :class:`~kompass.rules.RuleError` — the same promise
+    :class:`~kompass.rules.Inputs` makes about a question. A key the row carries
+    and the declaration does not is dropped here, for the same reason
+    :func:`typed_inputs` restricts the answers: the rules stopped asking.
+
+    A cell whose *type* does not fit raises, which takes the **whole table**
+    through :func:`typed`'s ``except`` and hands it to the rules as the raw
+    JSON — so ``ctx.inputs.rows(...)`` raises and the evaluation reports it.
+    That is the retyped-key reading, applied to a table: loud, because a section
+    that changed what a column asks for while answers are stored under it has a
+    statement somebody has to look at, not a figure to quietly read as zero.
+    """
+    if not isinstance(row, Mapping):
+        raise TypeError(f"a row is not {type(row).__name__}")
+    return Row(declaration.key, {cell.key: _fitted(cell, row.get(cell.key)) for cell in cells})
+
+
 def _fitted(declaration: Input, value: Any) -> object:
+    if declaration.type == "rows":
+        # A string is iterable and a dict iterates its keys, so the same guard
+        # `member_set` needs applies here and for the same reason: a section
+        # retyping a key that already holds a text answer.
+        if value is not None and not isinstance(value, list | tuple):
+            raise TypeError(f"a table of rows is not {type(value).__name__}")
+        cells = _cells(declaration)
+        return tuple(_fitted_row(declaration, cells, row) for row in value or ())
     if declaration.type == "member_set":
         # A string is iterable and a dict iterates its keys, so without this
         # `"27"` would read back as two members and `{"3": 1}` as one — against

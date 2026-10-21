@@ -26,6 +26,14 @@ being owed and the participants' contribution would be re-struck, with no error
 and nothing superseded. ``inputs`` has no supersede mechanism and
 ``CommonModel`` keeps no history, so there would be no trace either.
 
+An answer to a ``rows`` question needs one more thing of this, and it is why
+:func:`finance.inputs.party_answers` reports the *fields* and not only the key:
+the answer is a list of objects, so the ids sit one level further in than this
+used to reach. Told only the key, the scan would walk past them and the pruning
+would clear nothing — which is precisely the dangling ``destination_member_id``
+the whole module exists to prevent. The cell is cleared and the row stays; see
+:func:`_pruned_rows` for why that and not the other way round.
+
 Which answers name people is the ruleset's declaration rather than a list of
 three keys, so it is asked — of :meth:`~kompass.rules.Ruleset.inputs` and not
 of ``relevant_inputs``, because the question this has to match is the one
@@ -42,7 +50,7 @@ from django.db.models.signals import post_delete
 from members.models import Member
 from members.models import MemberUnconfirmedProxy
 
-from .inputs import party_keys
+from .inputs import party_answers
 from .models import Statement
 
 logger = logging.getLogger(__name__)
@@ -78,14 +86,16 @@ def forget_member(member_id: int) -> list[int]:
         pk__in=mentions, status=Statement.UNSUBMITTED
     ).select_for_update()
     for statement in locked:
-        keys = _party_keys(statement)
-        if keys is None:
+        answering = _party_answers(statement)
+        if answering is None:
             continue
         answers = statement.answers
         pruned = dict(answers)
-        for key in keys:
+        for key, cells in answering.items():
             value = answers.get(key)
-            if isinstance(value, list):
+            if cells:
+                pruned[key] = _pruned_rows(value, cells, member_id)
+            elif isinstance(value, list):
                 pruned[key] = [pk for pk in value if not _is(pk, member_id)]
             elif _is(value, member_id):
                 pruned[key] = None
@@ -96,7 +106,42 @@ def forget_member(member_id: int) -> list[int]:
     return changed
 
 
-def _party_keys(statement: Any) -> set[str] | None:
+def _pruned_rows(value: Any, cells: frozenset[str], member_id: int) -> Any:
+    """``value``, a table, with ``member_id`` out of every cell that named them.
+
+    **The cell is cleared; the row stays.** That is the reading the four columns
+    had — ``subsidy_to`` was ``SET_NULL``, so deleting a member left the
+    statement and emptied the answer — applied one level in. Dropping the row
+    instead would throw away a journey somebody entered, in a draft, with no
+    trace and nothing to put it back; cleared, the row is still there with its
+    distance and its mode, the cell is empty, and the question is visibly
+    unanswered for whoever opens the statement next. A rule reading a journey
+    with nobody in it pays nobody, which is the same thing an unanswered
+    ``member`` answer does.
+
+    Only the cells :func:`finance.inputs.party_answers` named, never every cell:
+    a count of kilometres can equal a member's id, and clearing that would be
+    this function inventing a figure.
+    """
+    if not isinstance(value, list):
+        return value
+    pruned = []
+    for row in value:
+        if not isinstance(row, dict):
+            pruned.append(row)
+            continue
+        kept = dict(row)
+        for cell in cells:
+            held = row.get(cell)
+            if isinstance(held, list):
+                kept[cell] = [pk for pk in held if not _is(pk, member_id)]
+            elif _is(held, member_id):
+                kept[cell] = None
+        pruned.append(kept)
+    return pruned
+
+
+def _party_answers(statement: Any) -> dict[str, frozenset[str]] | None:
     """Which answers name people, or ``None`` when the rules would not say.
 
     Asking is a call into a section's own Python, and this one runs inside the
@@ -107,7 +152,7 @@ def _party_keys(statement: Any) -> set[str] | None:
     *draft*, which the readouts drop and which nothing has frozen.
     """
     try:
-        return party_keys(statement)
+        return party_answers(statement)
     except Exception as problem:
         logger.warning(
             "statement %s could not say which of its answers name people (%s: %s); "
@@ -137,12 +182,23 @@ def _mentions(answers: dict[str, Any], member_id: int) -> bool:
     an answer that names somebody. A number that happens to equal a member's id
     — a count of nights, say — costs one context and keeps its value, which is
     the right way round.
+
+    It looks **inside a row**, because an answer to a ``rows`` question is a list
+    of objects and the ids are in their values. This is the scan that decides
+    whether a statement is read at all, so missing a table here would make the
+    pruning below unreachable for exactly the answers it was extended to reach.
     """
-    for value in answers.values():
-        if _is(value, member_id):
-            return True
-        if isinstance(value, list) and any(_is(entry, member_id) for entry in value):
-            return True
+    return any(_mentions_value(value, member_id) for value in answers.values())
+
+
+def _mentions_value(value: Any, member_id: int) -> bool:
+    """Whether ``member_id`` is in ``value``, one level into a list or a row."""
+    if _is(value, member_id):
+        return True
+    if isinstance(value, list):
+        return any(_mentions_value(entry, member_id) for entry in value)
+    if isinstance(value, dict):
+        return any(_mentions_value(cell, member_id) for cell in value.values())
     return False
 
 

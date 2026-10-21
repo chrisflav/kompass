@@ -36,7 +36,9 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from finance.inputs import answerable
 from finance.inputs import clean_value
+from finance.inputs import flat_messages
 from finance.inputs import form_field
+from finance.inputs import seeded as seeded_rows
 from finance.inputs import stored as stored_answers
 from finance.models import BillOnExcursionProxy
 from finance.models import Statement
@@ -1540,6 +1542,14 @@ class StatementOnListForm(forms.ModelForm):
         # form needs it now, to show whom the rules offer.
         if self.instance.excursion_id is None:
             self.instance.excursion = excursion
+            # Setting the excursion is the one moment a seeded table is filled
+            # in, so a statement opened on a trip starts with the row that trip
+            # describes — and from here the row is the person's, exactly as it
+            # is through the API. Seeded onto the in-memory instance before
+            # ``initial`` is read below, so the field shows the seed; on a bound
+            # form whatever was submitted wins, which is what makes an edit
+            # survive rather than be written over.
+            self.instance.inputs = dict(self.instance.answers, **seeded_rows(self.instance))
         carried = self.instance.answers
         for declaration in self.answer_declarations:
             self.initial.setdefault(declaration.key, carried.get(declaration.key))
@@ -1560,7 +1570,12 @@ class StatementOnListForm(forms.ModelForm):
             try:
                 answers[declaration.key] = clean_value(declaration, cleaned.get(declaration.key))
             except ValidationError as problem:
-                self.add_error(declaration.key, problem)
+                # A table refuses per cell, keyed ``"reisen[1].kilometers"``, and
+                # this form has one field per question with nowhere to put that
+                # — so the paths are folded into the messages rather than
+                # dropped. ``add_error`` refuses a keyed error against a named
+                # field outright, so this is not a nicety either.
+                self.add_error(declaration.key, flat_messages(problem))
         self.answers = answers
         return cleaned
 

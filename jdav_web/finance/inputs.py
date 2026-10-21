@@ -34,6 +34,16 @@ or the admin.
 The validation is pessimistic on purpose — everything is checked before
 anything is written — because approval must never fail on arithmetic that
 could have been checked when the form was submitted.
+
+**A table is validated cell by cell, by the same code as a question.** A
+``rows`` declaration asks one question several times over
+(:class:`~kompass.rules.Field`), and :func:`clean_value` is given each cell as
+the one-question :class:`~kompass.rules.Input` it is — so there is no second
+vocabulary, no second domain check and no second set of messages to drift from
+the first. What the table *does* need of its own is somewhere to put the
+refusal: :func:`row_key` is the error-key grammar that lets a ``422`` about one
+person's kilometres land on that cell instead of on the whole table, and it is
+the one part of this feature a client depends on by shape rather than by value.
 """
 
 from collections.abc import Iterable
@@ -45,6 +55,7 @@ from typing import Any
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from finance.rules_api import Choice
 from finance.rules_api import Input
 from finance.rules_api import Member as RuleMember
 from finance.rules_api import RuleContext
@@ -54,6 +65,7 @@ from .engine import Asked
 from .engine import asking
 from .engine import offers
 from .engine import ruleset_for
+from .engine import seeds
 from .engine import statement_context
 
 #: The input types that name people, and whether more than one may be named.
@@ -75,6 +87,66 @@ MEMBER_TYPES = {"member": False, "member_set": True}
 MONEY_PLACES = 2
 MONEY_DIGITS = 7
 MONEY_MAX = Decimal(10 ** (MONEY_DIGITS - MONEY_PLACES)) - Decimal("0.01")
+
+
+def row_key(key: str, index: int) -> str:
+    """``"reisen[1]"`` — the error key for one whole row of a table.
+
+    The 422 this API answers is ``{"errors": {"<key>": [...]}}``, one entry per
+    *question*, which a client prints under the field it names. A table is one
+    question with a grid of fields, so a refusal about one person's kilometres
+    had nowhere to land: keyed by the question it appears under the whole table,
+    which tells somebody with five journeys in front of them that one of them is
+    wrong.
+
+    The keys are therefore a path, and this is the whole grammar:
+
+    ``"reisen"``
+        the table itself — too many rows, or not a table at all.
+    ``"reisen[1]"``
+        the row at index 1, zero-based, in the order the request sent them —
+        a row that is not a set of answers, or answers a field that does not
+        exist.
+    ``"reisen[1].kilometers"``
+        the ``kilometers`` cell of that row, which is where almost every
+        refusal about a table actually belongs.
+
+    Zero-based because the client sent an array and will index back into it;
+    what a person is shown is the client's business, and a row number in the
+    *message* would be a second numbering to keep in step with the first.
+
+    Every key not in this shape is a question key exactly as before, so nothing
+    that reads ``errors`` has to change to keep working — the type is still
+    ``Record<string, string[]>``. What changes is that a cell error is now
+    *placeable*, and that is the one decision in this feature that is hard to
+    take back: an error key is what a client renders against, so it is settled
+    here, in the one function both the message side and the documentation point
+    at.
+    """
+    return f"{key}[{index}]"
+
+
+def cell_key(key: str, index: int, field: str) -> str:
+    """``"reisen[1].kilometers"`` — the error key for one cell (see :func:`row_key`)."""
+    return f"{row_key(key, index)}.{field}"
+
+
+def flat_messages(problem: ValidationError) -> list[str]:
+    """``problem``'s messages as one flat list, cell paths folded into the text.
+
+    For a form with one field per question and nowhere to put a per-cell error:
+    the admin's excursion inline, which renders a table as one JSON field.
+    ``"reisen[1].kilometers: Kilometer ist keine ganze Zahl."`` says the same
+    thing in one string that the API says in a key, which is less than the SPA
+    gets and is stated as less.
+    """
+    if not hasattr(problem, "error_dict"):
+        return list(problem.messages)
+    return [
+        f"{where}: {message}"
+        for where, messages in problem.message_dict.items()
+        for message in messages
+    ]
 
 
 def asked(statement: Any) -> tuple[Asked, RuleContext]:
@@ -139,8 +211,24 @@ def options_for(declaration: Input) -> list[dict[str, Any]]:
     return [{"id": pk, "name": by_id[pk].name} for pk in ids if pk in by_id]
 
 
+def _choices(choices: Iterable[Choice]) -> list[dict[str, Any]]:
+    """The alternatives a ``choice`` offers, as a client needs them.
+
+    Takes the tuple rather than the declaration, because a question and a cell
+    of a table both have one and neither is the other's special case.
+    """
+    return [{"value": choice.value, "label": str(choice.label)} for choice in choices]
+
+
 def _declaration(declaration: Input) -> dict[str, Any]:
-    """One declaration as a client needs it, with its options resolved."""
+    """One declaration as a client needs it, with its options resolved.
+
+    ``fields`` is the cells of a ``rows`` question and empty for every other
+    type. The people a party-valued cell may name are **not** repeated per
+    field: they are the question's ``options``, once, because that is where the
+    declaration puts them — so a client renders the same picker in every row of
+    that column and cannot be handed two different domains for one table.
+    """
     return {
         "key": declaration.key,
         "label": str(declaration.label),
@@ -149,8 +237,18 @@ def _declaration(declaration: Input) -> dict[str, Any]:
         "help": str(declaration.help),
         "max": declaration.max,
         "options": options_for(declaration),
-        "choices": [
-            {"value": choice.value, "label": str(choice.label)} for choice in declaration.choices
+        "choices": _choices(declaration.choices),
+        "fields": [
+            {
+                "key": cell.key,
+                "label": str(cell.label),
+                "type": cell.type,
+                "required": cell.required,
+                "help": str(cell.help),
+                "max": cell.max,
+                "choices": _choices(cell.choices),
+            }
+            for cell in declaration.fields
         ],
         "step": str(declaration.step),
         "derived": declaration.derived,
@@ -177,18 +275,26 @@ def steps(declarations_: Iterable[Input]) -> list[dict[str, Any]]:
 
 
 def _as_json(value: Any) -> Any:
-    """A derived value the way ``Statement.inputs`` would have held it.
+    """A derived or seeded value the way ``Statement.inputs`` would have held it.
 
     So that one client-side code path reads a derived answer and a stored one:
-    money as text, a person as an id, a set of people as a list of ids. A value
-    that is none of those — a source naming a nested structure rather than a
-    figure, which is a ruleset's mistake — comes back as text rather than as a
-    500 on the one endpoint that would say what is wrong.
+    money as text, a person as an id, a set of people as a list of ids, a row as
+    an object of those. A value that is none of those — a source naming a nested
+    structure rather than a figure, which is a ruleset's mistake — comes back as
+    text rather than as a 500 on the one endpoint that would say what is wrong.
+
+    It is also what writes a seed down, which is why a mapping is in the list:
+    a seeded row *is* stored, so its cells have to come out in exactly the JSON
+    a client would have sent for them —
+    :func:`finance.engine.declared.seeds` hands over the typed values and this
+    is where they become an answer.
     """
     if isinstance(value, RuleMember):
         return int(value.id)
     if isinstance(value, tuple):
         return [_as_json(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _as_json(item) for key, item in value.items()}
     if value is None or isinstance(value, bool | int | str):
         return value
     return str(value)
@@ -249,6 +355,83 @@ def _answer(declaration: Input, served: Asked, carried: Mapping[str, Any]) -> An
     return stored if offers(declaration, stored) else None
 
 
+def vocabulary(statement: Any) -> tuple[tuple[Input, ...], RuleContext]:
+    """Every key ``statement``'s rules may read or store, and the context asked.
+
+    ``inputs`` and not ``relevant_inputs``, for the two callers whose question
+    is about *storage* rather than about the form: which answers name people,
+    and which tables are seeded. Both write to or prune ``Statement.inputs``, so
+    both have to match :func:`finance.engine.context.build_context`'s own
+    vocabulary rather than the narrowed form — a key the form has retired still
+    holds an answer, and an answer with a dangling member id in it is a
+    constraint violation whether the form shows it or not.
+
+    The context comes back with it, like :func:`asked`'s does and for the same
+    reason: a seed is resolved against the context the declarations were asked
+    about, and resolving it against a second one is how the two would come
+    apart.
+    """
+    ruleset = ruleset_for(statement)
+    context = statement_context(statement, ruleset)
+    return asking(ruleset, context, form=False).vocabulary, context
+
+
+def seeded(statement: Any) -> dict[str, list[dict[str, Any]]]:
+    """The rows every seeded table starts with, as ``Statement.inputs`` holds them.
+
+    Called at the one moment a seed applies — when the statement's excursion is
+    **set or changed** — and nowhere else. Three call sites, all of them places
+    where somebody is editing a statement:
+    :func:`finance.api.router.create_statement`,
+    :func:`finance.api.router.update_statement` and the admin's excursion
+    inline. Not :func:`finance.engine.context.build_context`, and that is the
+    whole difference between a seed and a derived value: a context build is a
+    read, and a seed is an edit made once on the person's behalf.
+
+    What it must not be is state-triggered. "Seed when the table is empty" is
+    the obvious shortcut and it is wrong in the way that matters: a person who
+    deletes the prefilled row — because nobody drove — would watch it come back
+    on the next page load, with no way to say no. "Seed on every build" is worse
+    still: it overwrites the split they just entered. So the trigger is an
+    event, the event is the excursion being set, and the answer is the person's
+    from then on.
+
+    Every seeded table is in the result, including as an **empty list** when
+    none of its seeds resolved — that is what empties the row when an excursion
+    is cleared or swapped for a trip-less statement. A table with no seeded
+    field at all is not here, so changing the excursion leaves it alone.
+    """
+    declared, context = vocabulary(statement)
+    return {key: [_as_json(row) for row in rows] for key, rows in seeds(declared, context).items()}
+
+
+def party_answers(statement: Any) -> dict[str, frozenset[str]]:
+    """Every key whose answer can name people, mapped to the cells that do.
+
+    A ``member`` or ``member_set`` question maps to the empty set — the answer
+    itself names somebody. A ``rows`` question maps to the keys of its
+    party-valued **fields**, because that is where the ids are: the answer is a
+    list of objects, and a pruner that treated it as a list of ids would walk
+    past every one of them.
+
+    Which is not a hypothetical. :mod:`finance.signals` takes a deleted member
+    out of a draft's answers precisely to stop an ``Obligation`` being written
+    with a ``destination_member_id`` that has no row behind it; told only the
+    *key*, it would clear nothing inside a table and leave exactly that. And it
+    may not guess, either: a cell holding a count of kilometres can equal a
+    member's id, so the fields are asked for by name.
+    """
+    found: dict[str, frozenset[str]] = {}
+    for declaration in vocabulary(statement)[0]:
+        if declaration.type in MEMBER_TYPES:
+            found[declaration.key] = frozenset()
+        elif declaration.type == "rows":
+            cells = frozenset(cell.key for cell in declaration.fields if cell.type in MEMBER_TYPES)
+            if cells:
+                found[declaration.key] = cells
+    return found
+
+
 def party_keys(statement: Any) -> set[str]:
     """Every key that names people, asked of ``inputs`` and not of the form.
 
@@ -267,11 +450,13 @@ def party_keys(statement: Any) -> set[str]:
     Over-eager by design — pruning a key the rules are not currently reading
     costs nothing, and missing one leaves a dangling id in a column with a real
     foreign key behind it.
+
+    A ``rows`` question with a party-valued cell is one of these: its answer
+    names people, so it is dropped when the excursion is swapped like any other.
+    A caller that has to reach *inside* a row asks :func:`party_answers`, which
+    this is the key set of.
     """
-    ruleset = ruleset_for(statement)
-    context = statement_context(statement, ruleset)
-    declared = asking(ruleset, context, form=False).vocabulary
-    return {declaration.key for declaration in declared if declaration.type in MEMBER_TYPES}
+    return set(party_answers(statement))
 
 
 def form_field(declaration: Input) -> Any:
@@ -316,6 +501,19 @@ def form_field(declaration: Input) -> Any:
         )
     if declaration.type == "bool":
         return forms.BooleanField(**common)
+    if declaration.type == "rows":
+        # A table, as JSON in a textarea. The admin's inline writes every field
+        # it renders, and there is no stock Django widget for a repeating row —
+        # a formset inside a nested inline inside a formset is not a thing this
+        # form can build per request. So the table is shown as the list of
+        # objects it is, `clean_value` checks it exactly as it checks the SPA's,
+        # and the refusals arrive folded into one message list
+        # (:func:`flat_messages`).
+        #
+        # That is less than the SPA gets and it is stated as less. A section
+        # whose rules ask for a table is a section whose people use the SPA; the
+        # admin stays able to read and correct one, which is what it is for.
+        return forms.JSONField(**common)
     return forms.CharField(**common)
 
 
@@ -363,6 +561,13 @@ def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
                 declaration, value, about_an_excursion=statement.excursion is not None
             )
         except ValidationError as problem:
+            # A table's refusal is **already keyed**, per cell (:func:`row_key`),
+            # so it is raised as it stands. Re-keying it by the question would
+            # throw away the only thing that makes it placeable, and the keys it
+            # carries all start with this question's own key, so nothing else
+            # can claim them.
+            if hasattr(problem, "error_dict"):
+                raise
             raise ValidationError({key: problem.messages}) from None
     return cleaned
 
@@ -376,6 +581,17 @@ def clean_value(declaration: Input, value: Any, *, about_an_excursion: bool = Tr
     options, ``choice`` one of the declaration's own choices, ``bool`` a flag,
     and anything else text.
 
+    ``rows`` is a list of rows, each row a mapping over the declaration's own
+    fields, and every cell goes back through **this function** against the
+    one-question declaration :meth:`~kompass.rules.Field.as_input` makes of its
+    field. That is not a convenience: it is the guarantee that a ``choice`` cell
+    is checked against its choices and a ``member`` cell against the table's
+    people, by the same code and with the same message as the question of that
+    type a section could have asked instead. A table refuses with a
+    ``ValidationError`` **keyed per cell** rather than with a flat message list
+    (:func:`row_key`), which is the one way this function's contract differs by
+    type.
+
     ``about_an_excursion`` picks the wording when somebody names a person the
     rules did not offer. The message Kompass has always given says "youth
     leaders of this excursion", which is true of a trip and false of a
@@ -384,6 +600,8 @@ def clean_value(declaration: Input, value: Any, *, about_an_excursion: bool = Tr
     admin's excursion inline is always about one; :func:`clean` asks the
     statement.
     """
+    if declaration.type == "rows":
+        return _clean_rows(declaration, value, about_an_excursion=about_an_excursion)
     if declaration.type in MEMBER_TYPES:
         return _clean_members(declaration, value, about_an_excursion=about_an_excursion)
     if declaration.type == "money":
@@ -395,6 +613,102 @@ def clean_value(declaration: Input, value: Any, *, about_an_excursion: bool = Tr
     if declaration.type == "bool":
         return bool(value)
     return "" if value is None else str(value)
+
+
+def _clean_rows(
+    declaration: Input, value: Any, *, about_an_excursion: bool = True
+) -> list[dict[str, Any]]:
+    """A table of rows, every cell against the field that asks for it.
+
+    **Three states are decided here, and all three are decisions.**
+
+    *An empty table is an unanswered question.* ``[]`` and a key nobody sent
+    mean the same thing, are stored the same way and read as ``()``. Nothing
+    here refuses one: whether a table is *needed* is
+    :attr:`~kompass.rules.Input.required` and the section's own
+    :class:`~kompass.rules.Check`, exactly as it is for every other type — a
+    form is filled in gradually, and a ``422`` on a table somebody has not
+    reached yet would make the first ``PATCH`` of a draft impossible.
+
+    *A row with an empty required cell is accepted and stored.*
+    :attr:`~kompass.rules.Field.required` is advisory in the same way
+    :attr:`~kompass.rules.Input.required` is: the cell is stored empty and reads
+    as its type's empty value, and what refuses to hand the statement in is the
+    section's ``checks``, where the sentence is in the section's own words
+    ("Für jede Fahrt braucht es ein Verkehrsmittel"). Enforcing it here instead
+    would put the one wording Kompass can write in the way of a half-filled
+    form, and a rule that pays per kilometre already has to survive a row with
+    no distance, because a person can always type ``0``.
+
+    *A member named in two rows is accepted*, and this is the one that deserves
+    its reason stated. The engine does not know which field identifies a row —
+    nothing in the declaration says so — and more to the point **it cannot tell
+    a double entry from a split journey**: two rows for one person at 120 km
+    each is a there-and-back that was entered in two halves as readily as it is
+    the same trip typed twice. Refusing would make the honest table unsayable in
+    order to catch a mistake it cannot reliably recognise, and deduplicating
+    would silently discard somebody's row. A section that means one row per
+    person says so in a ``Check``, which is the same answer this module already
+    gives for a ceiling on an amount, and for the same reason: the sentence is
+    the section's.
+
+    **Every cell error at once.** A table is one answer with a grid of fields,
+    and a person correcting it wants to see all of what is wrong rather than one
+    cell per round trip. Across *questions* the first problem still raises, as
+    it always has; within a table nothing is raised until every cell has been
+    checked.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValidationError(
+            {
+                declaration.key: [
+                    _("%(label)s is a list of rows.") % {"label": str(declaration.label)}
+                ]
+            }
+        )
+    if declaration.max is not None and len(value) > declaration.max:
+        raise ValidationError(
+            {
+                declaration.key: [
+                    _("%(label)s may have at most %(max)s rows, but you gave %(count)s.")
+                    % {
+                        "label": str(declaration.label),
+                        "max": str(declaration.max),
+                        "count": str(len(value)),
+                    }
+                ]
+            }
+        )
+    cells = [cell.as_input(declaration.options) for cell in declaration.fields]
+    problems: dict[str, list[str]] = {}
+    rows: list[dict[str, Any]] = []
+    for index, row in enumerate(value):
+        if not isinstance(row, dict):
+            problems[row_key(declaration.key, index)] = [
+                str(_("This row is not a set of answers."))
+            ]
+            continue
+        unknown = sorted(set(row) - {cell.key for cell in cells})
+        if unknown:
+            problems[row_key(declaration.key, index)] = [
+                _("This row answers %(keys)s, which these rules do not ask for.")
+                % {"keys": ", ".join(unknown)}
+            ]
+            continue
+        cleaned: dict[str, Any] = {}
+        for cell in cells:
+            try:
+                cleaned[cell.key] = clean_value(
+                    cell, row.get(cell.key), about_an_excursion=about_an_excursion
+                )
+            except ValidationError as problem:
+                problems[cell_key(declaration.key, index, cell.key)] = problem.messages
+        rows.append(cleaned)
+    if problems:
+        raise ValidationError(problems)
+    return rows
 
 
 def _clean_choice(declaration: Input, value: Any) -> str:
@@ -556,6 +870,20 @@ def stored(values: Mapping[str, Any]) -> dict[str, Any]:
     through :func:`clean`, so an answer in it has been checked against the
     declaration it belongs to.
     """
-    return {
-        key: str(value) if isinstance(value, Decimal) else value for key, value in values.items()
-    }
+    return {key: _stored_value(value) for key, value in values.items()}
+
+
+def _stored_value(value: Any) -> Any:
+    """One cleaned answer as JSON, to any depth a table takes it.
+
+    Money is text wherever it sits, including inside a row: a ``Decimal`` is not
+    JSON and a float is not money, so a cent in a cell goes through ``str`` for
+    the same reason a cent in an answer does.
+    """
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, list):
+        return [_stored_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _stored_value(item) for key, item in value.items()}
+    return value

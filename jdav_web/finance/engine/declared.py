@@ -54,6 +54,15 @@ copy in ``Statement.inputs`` would be one more thing to go stale when the
 kilometres on the trip are corrected, and there would then be a question about
 which of the two is right. There is nothing to re-seed and nothing to
 reconcile — the excursion is the only record, and a wrong figure is fixed there.
+
+**A seed is the other arrangement, on purpose** (:func:`seeds`). A ``rows``
+question's cells may name a :attr:`~kompass.rules.Field.seed`, and that value
+*is* written to ``Statement.inputs`` — once, at the moment the excursion is set,
+and again when it is changed. It is editable from then on, it does not follow
+the trip, and nothing here resolves it on a context build. Which is why it is
+not called ``source``: a derived figure is the excursion's and a seeded row is
+the person's, and a mechanism that confused the two would either overwrite
+somebody's edit or refuse it.
 """
 
 from collections.abc import Iterable
@@ -67,6 +76,8 @@ from finance.rules_api import Member
 from finance.rules_api import RuleContext
 from finance.rules_api import Ruleset
 
+from .answers import typed
+from .answers import within
 from .guard import no_queries
 
 
@@ -156,6 +167,69 @@ def supplied(declarations: Iterable[Input], ctx: RuleContext) -> dict[str, objec
         if value is not None:
             values[declaration.key] = value
     return values
+
+
+def seeds(
+    declarations: Iterable[Input], ctx: RuleContext
+) -> dict[str, tuple[dict[str, object], ...]]:
+    """The row every seeded table starts with, by key — **typed**, not JSON.
+
+    A seed is the opposite half of :func:`supplied`, and the two differ in all
+    four of the ways that matter. A :attr:`~kompass.rules.Input.source` belongs
+    to the excursion: refused on the form, never stored, resolved again on every
+    context build, so the figure follows the trip the moment the trip is
+    corrected. A :attr:`~kompass.rules.Field.seed` belongs to the **person
+    filling the form in**: written once, stored like any other answer, and
+    theirs to correct or to split into several rows. That is why it is not
+    spelled ``source``, and why nothing here is called from
+    :func:`finance.engine.context.build_context`: *this is an edit*, made once
+    on somebody's behalf at the moment the excursion is set, and a context build
+    is a read.
+
+    **Exactly one row**, because a trip records one distance and one mode. The
+    table then says what the trip cannot: who drove, who took the train, who
+    cycled.
+
+    **A table none of whose seeds resolved gets no row at all.** With no
+    excursion every ``excursion.*`` seed comes to nothing, and a row of empty
+    cells is not a prefill — it is a row nobody asked for, in a table the person
+    would then have to delete. So the key comes back with an empty tuple, which
+    is also what re-seeding does when an excursion is cleared: the row described
+    a trip this statement no longer settles.
+
+    **A seeded cell outside its own domain is left empty.** ``excursion.approach``
+    is one of three words Kompass uses; a section's ``choice`` lists its own, and
+    a seed is only a suggestion. One that would be refused on the way back in is
+    not written, rather than stored where the rules would drop it and report it.
+
+    A trip whose ``kilometers`` are the model's own default of ``0`` is seeded
+    with ``0``, deliberately, and this is the one place the ``seed``/``source``
+    difference decides something: ``Excursion.kilometers`` cannot tell "nobody
+    recorded it" from "nobody drove", because the column is a non-nullable
+    ``IntegerField(default=0)``. A :attr:`~kompass.rules.Input.source` has to
+    serve that ``0`` and then refuse a correction, which is the awkward case in
+    its own documentation. A seed hands over the ``0`` *and the pencil* — the
+    person corrects it in the row, where a wrong figure costs nothing but a
+    keystroke — so seeding what the trip records is right here for exactly the
+    reason supplying it is awkward there.
+    """
+    rows: dict[str, tuple[dict[str, object], ...]] = {}
+    for declaration in declarations:
+        if declaration.type != "rows" or not any(cell.seed for cell in declaration.fields):
+            continue
+        row: dict[str, object] = {}
+        for cell in declaration.fields:
+            if not cell.seed:
+                continue
+            value = _at(ctx, cell.seed)
+            if value is None:
+                continue
+            asked_as = cell.as_input(declaration.options)
+            fitted = typed(asked_as, value)
+            if within(asked_as, fitted):
+                row[cell.key] = fitted
+        rows[declaration.key] = (row,) if row else ()
+    return rows
 
 
 def unbounded(declarations: Iterable[Input], values: Mapping[str, object]) -> list[str]:

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 21:26+0200\n"
+"POT-Creation-Date: 2026-10-22 00:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -287,6 +287,23 @@ msgid ""
 msgstr ""
 "%(label)s wird aus den Daten der Abrechnung übernommen und kann hier nicht "
 "beantwortet werden."
+
+#, python-format
+msgid "%(label)s is a list of rows."
+msgstr "%(label)s ist eine Liste von Zeilen."
+
+#, python-format
+msgid "%(label)s may have at most %(max)s rows, but you gave %(count)s."
+msgstr ""
+"%(label)s darf höchstens %(max)s Zeilen haben, du hast aber %(count)s "
+"angegeben."
+
+msgid "This row is not a set of answers."
+msgstr "Diese Zeile besteht nicht aus Antworten."
+
+#, python-format
+msgid "This row answers %(keys)s, which these rules do not ask for."
+msgstr "Diese Zeile beantwortet %(keys)s – das fragen diese Regeln nicht ab."
 
 #, python-format
 msgid "%(label)s is not one of the options offered."
