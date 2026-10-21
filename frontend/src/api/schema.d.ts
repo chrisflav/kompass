@@ -1819,6 +1819,11 @@ export interface paths {
         /**
          * Create Statement
          * @description Create a draft statement (requires the global add permission).
+         *
+         *     A statement created *on* an excursion has its seeded tables filled in here
+         *     — one row, as the trip describes it, for the person to correct or to split
+         *     (:func:`finance.inputs.seeded`). This is one of the two moments a seed
+         *     applies; the other is an excursion being changed in ``update_statement``.
          */
         post: operations["finance_api_router_create_statement"];
         delete?: never;
@@ -1851,6 +1856,16 @@ export interface paths {
         /**
          * Update Statement
          * @description Update the editable subset of a draft statement, authorized per object.
+         *
+         *     Changing the excursion does two things to the answers, for one reason: they
+         *     were given about a different trip. Every answer that names somebody goes,
+         *     because the people the rules offer are the incoming trip's; and every seeded
+         *     table is re-seeded, because the row it held carried the outgoing trip's
+         *     distance and mode. An answer restated **in this same request** wins over
+         *     both, so correcting the excursion and the table together is one call.
+         *
+         *     A refusal about a table is keyed per cell — ``"reisen[1].kilometers"`` —
+         *     rather than by the question; see :func:`finance.inputs.row_key`.
          */
         patch: operations["finance_api_router_update_statement"];
         trace?: never;
@@ -6458,6 +6473,13 @@ export interface components {
          *     ``night_cost`` used to be here, because it used to be a column; a create
          *     now says what the statement is for and nothing a section's rules might not
          *     ask about.
+         *
+         *     One exception, and it is not an answer this request gives: a draft created
+         *     with an ``excursion_id`` comes back with every **seeded** table already
+         *     holding one row, as the trip describes it. That is the trip's own distance
+         *     and mode written into the answers once, for the person to correct or to
+         *     split into one row per traveller. ``GET .../form`` then serves it like any
+         *     other answer.
          */
         StatementCreate: {
             /** Short Description */
@@ -6481,6 +6503,27 @@ export interface components {
          *     were four columns on ``Statement``, and so a section whose rules ask a
          *     fifth question had no way to be asked it. A key the rules do not ask for is
          *     refused; a key left out is unchanged.
+         *
+         *     **Where a refusal lands.** A ``422`` from here is
+         *     ``{"detail": [...], "errors": {"<where>": ["<message>", ...]}}``, and
+         *     ``<where>`` is a path rather than always a bare key, so that a client can
+         *     print each message against the control that caused it:
+         *
+         *     ``"night_cost"``
+         *         the answer to that question.
+         *     ``"reisen"``
+         *         a ``rows`` answer as a whole — too many rows, or not a list of rows.
+         *     ``"reisen[1]"``
+         *         the row at index 1, **zero-based**, in the order this request sent them.
+         *     ``"reisen[1].kilometers"``
+         *         the ``kilometers`` cell of that row.
+         *
+         *     A table reports **every** cell it found wrong, in one response; across
+         *     different questions the first problem still answers alone. ``"__all__"``
+         *     holds a refusal about the request rather than about one answer, as it always
+         *     has. The type is unchanged — the keys are strings and the values are lists
+         *     of messages — so a client that renders ``errors`` by key keeps working and
+         *     one that wants to place a cell error parses the path.
          */
         StatementUpdate: {
             /** Short Description */
@@ -6795,16 +6838,28 @@ export interface components {
          *     Derived from :meth:`kompass.rules.Ruleset.inputs`, so a section that asks
          *     for something else gets a different form without anybody editing the API.
          *     ``type`` is the widget vocabulary — ``money``, ``int``, ``bool``, ``text``,
-         *     ``choice``, ``member``, ``member_set``. ``options`` is the domain a
+         *     ``choice``, ``member``, ``member_set``, ``rows``. ``options`` is the domain a
          *     party-valued answer may be picked from, resolved to names here because the
          *     rules themselves never see them; ``choices`` is the same thing for a
          *     ``choice``.
+         *
+         *     ``rows`` is a **repeating row**: a table whose columns are ``fields`` and
+         *     whose answer is a list of objects keyed by those fields' keys. It exists
+         *     because one statement settles a trip several people travelled differently,
+         *     and whether somebody gets a rate per kilometre at all depends on *their*
+         *     mode of travel — so the mode and the distance belong together, per
+         *     traveller, in a row. ``max`` bounds **the number of rows**; a cell's own
+         *     bound is on its field. A party-valued cell's people are this declaration's
+         *     ``options``, not the field's. ``fields`` is empty for every other type.
          *
          *     ``derived`` says the engine supplies this answer itself, from the
          *     statement's own data — the kilometres off the excursion rather than off a
          *     person. The value is in ``answers`` like any other, and
          *     ``PATCH /statements/{id}`` **refuses** a value for the key: it is a reading
-         *     of the trip, and a wrong one is corrected on the trip.
+         *     of the trip, and a wrong one is corrected on the trip. A table is never
+         *     ``derived``: it may be *seeded* from the trip when the excursion is set, and
+         *     a seeded row is editable, stored, and does not follow the trip afterwards —
+         *     which is the whole difference and why the two are not one mechanism.
          *
          *     ``step`` is the label of the group the question belongs to; see
          *     ``StatementFormOut.steps``.
@@ -6836,6 +6891,11 @@ export interface components {
              */
             choices: components["schemas"]["InputChoiceOut"][];
             /**
+             * Fields
+             * @default []
+             */
+            fields: components["schemas"]["InputFieldOut"][];
+            /**
              * Step
              * @default
              */
@@ -6845,6 +6905,46 @@ export interface components {
              * @default false
              */
             derived: boolean;
+        };
+        /**
+         * InputFieldOut
+         * @description One cell of a ``rows`` question — a column of the table.
+         *
+         *     A cell is a question asked once per row, so everything here means what it
+         *     means on ``InputDeclarationOut``: ``type`` is the same widget vocabulary
+         *     minus ``rows`` (there is no table inside a table), ``choices`` are a
+         *     ``choice`` cell's own alternatives, and ``max`` is that cell's ceiling or
+         *     count — never the number of rows, which is the question's own ``max``.
+         *
+         *     There is no ``options`` here on purpose. The people a party-valued cell may
+         *     name are the **question's** ``options``, stated once for the whole table, so
+         *     one column cannot be served two different domains in two rows.
+         *
+         *     ``required`` is advisory, exactly as it is on a question: an empty cell is
+         *     accepted and stored, and what refuses to hand the statement in is the
+         *     section's own checks (``GET …/preflight``).
+         */
+        InputFieldOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Type */
+            type: string;
+            /** Required */
+            required: boolean;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
+            /** Max */
+            max?: number | null;
+            /**
+             * Choices
+             * @default []
+             */
+            choices: components["schemas"]["InputChoiceOut"][];
         };
         /**
          * InputOptionOut
@@ -6867,7 +6967,10 @@ export interface components {
          *     survived, so a retired answer is not handed back to be re-submitted.
          *
          *     The values are as ``Statement.inputs`` holds them: money as a string, a
-         *     person as an id, a set of people as a list of ids. Two of them are not read
+         *     person as an id, a set of people as a list of ids, a ``rows`` answer as a
+         *     list of objects keyed by that question's field keys — with each cell in the
+         *     shape its own type would have had as a question, so money in a cell is a
+         *     string too. Two of them are not read
          *     out of storage. A ``derived`` answer is resolved from the statement's own
          *     data on every request, because nothing stores it. And an answer the
          *     declaration no longer *offers* — a ``choice`` whose option has been
