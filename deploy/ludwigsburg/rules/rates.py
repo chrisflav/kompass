@@ -53,11 +53,19 @@ PASSENGER_PER_KM: Final = Decimal("0.03")
 
 #: Q3: „Maximal sind 0,30 € pro Fahrt möglich.“
 #:
-#: Read as a ceiling on the rate **per kilometre**, which is the only reading
-#: the engine can express — it has `kilometers` as one total and no notion of a
-#: single "Fahrt" — and the one the surrounding sentences support, since both
-#: figures it caps are per kilometre. So the cap starts biting at four
-#: passengers: 0,20 + 4 × 0,03 = 0,32 is paid as 0,30.
+#: Read as a ceiling on the rate **per kilometre**, and applied per row of
+#: ``reisen`` — which is one journey, so „pro Fahrt“ is now the grain the cap is
+#: applied at even though it is not the unit it is measured in.
+#:
+#: That the engine *could* not express a single „Fahrt“ used to be half the
+#: argument for this reading, and the table has taken that half away: a row is a
+#: Fahrt. What is left is the whole of it, and it was always the stronger half —
+#: both figures the sentence caps are per kilometre, and a ceiling of 0,30 € on
+#: a whole journey would pay 0,30 € for 300 km next to a rate of 0,20 €/km,
+#: which cannot be what a travel-cost policy means. So the cap starts biting at
+#: four passengers: 0,20 + 4 × 0,03 = 0,32 is paid as 0,30. It is in the README
+#: as a reading for the section to confirm, and the section can now confirm the
+#: other one too — per journey is a thing these rules could say.
 TOURENLEITUNG_MAX_PER_KM: Final = Decimal("0.30")
 
 #: Q3 § 3: 10 € per night, flat.
@@ -123,9 +131,16 @@ def travel_rate(regime: str, passengers: int) -> Decimal:
     """What one kilometre in a private car is worth under ``regime``.
 
     ``passengers`` are the „weitere Mitfahrende“ of Q3 § 1.5 and are worth
-    0,03 € each, up to a rate of 0,30 €. Under Q2 they are worth nothing
-    („Bei weiteren Mitfahrenden werden keine zusätzlichen Kosten erstattet“),
-    and the question is not even asked — so this never sees a count there.
+    0,03 € each, up to a rate of 0,30 €. Under Q2 they are worth nothing („Bei
+    weiteren Mitfahrenden werden keine zusätzlichen Kosten erstattet“), and
+    **this function is the only place that is true**: the count is a cell of the
+    ``reisen`` table, a table keeps its columns under both regimes, and so a Q2
+    statement does carry a count and the rule above does read it. It cannot
+    raise anything, because Q2's arm here does not look at it.
+
+    Both arms are per *journey*. One row of ``reisen`` is one car with one
+    driver and the people in it, and the cap belongs to that car — four
+    passengers in one of two cars does not raise the rate of the other.
 
     With no regime chosen the rate is nothing, because a statement that does
     not say which policy it is settled under settles nothing.

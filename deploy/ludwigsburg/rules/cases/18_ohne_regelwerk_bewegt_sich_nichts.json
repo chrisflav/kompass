@@ -1,7 +1,9 @@
 {
   "name": "Ohne gewähltes Regelwerk gibt es keinen Satz, also kein Geld — und der Check sagt es",
   "inputs": {
-    "travel_to": 1
+    "reisen": [
+      {"member": 1, "approach": "car", "kilometers": 300}
+    ]
   },
   "excursion": {
     "duration": "1.0",
@@ -17,6 +19,6 @@
       ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
     ],
     "errors": [],
-    "checks": [true, false, true, true, true]
+    "checks": [true, false, true, true, true, true]
   }
 }

@@ -19,6 +19,6 @@
     "errors": [
       "Für den übernommenen Beleg „Bahnfahrt“ ist nicht eingetragen, wer ihn bezahlt hat."
     ],
-    "checks": [true, true, true, true, true]
+    "checks": [true, true, true, true, true, true]
   }
 }

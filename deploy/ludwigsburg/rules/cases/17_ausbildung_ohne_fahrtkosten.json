@@ -4,7 +4,9 @@
     "regime": "tourenleitung",
     "participant_list_filed": true,
     "training_or_work": true,
-    "travel_to": 1
+    "reisen": [
+      {"member": 1, "approach": "car", "kilometers": 200}
+    ]
   },
   "excursion": {
     "duration": "2.0",
@@ -20,6 +22,6 @@
       ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
     ],
     "errors": [],
-    "checks": [true, true, true, true, true]
+    "checks": [true, true, true, true, true, true]
   }
 }

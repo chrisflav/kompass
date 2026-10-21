@@ -3,7 +3,9 @@
   "inputs": {
     "regime": "tourenleitung",
     "participant_list_filed": true,
-    "travel_to": 1
+    "reisen": [
+      {"member": 1, "approach": "car", "kilometers": 50}
+    ]
   },
   "bills": [
     {
@@ -30,6 +32,6 @@
       ["PARTICIPANTS", "SECTION", "50.00", "participant_contribution"]
     ],
     "errors": [],
-    "checks": [true, true, true, true, true]
+    "checks": [true, true, true, true, true, true]
   }
 }

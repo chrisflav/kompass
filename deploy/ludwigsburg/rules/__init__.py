@@ -20,13 +20,27 @@ questions the other one asks. A question that is put away reads as its type's
 empty value, so the regime cannot be worked around by an answer left over from
 before it was changed.
 
-**The trip's own figures are not questions.** The kilometres, the nights, the
-duration and how the group travelled are declared with
-:attr:`~kompass.rules.Input.source`, so the engine supplies them from the
-excursion and the form shows them as figures. A statement that settles a
-purchase or a repair has no excursion, and the same four declarations are then
+**The trip's own figures are not questions.** The nights and the duration are
+declared with :attr:`~kompass.rules.Input.source`, so the engine supplies them
+from the excursion and the form shows them as figures. A statement that settles
+a purchase or a repair has no excursion, and the same declarations are then
 ordinary questions. Either way the rules read them the same way, which is why
 there is not one ``if ctx.excursion is None`` in this file.
+
+**The journeys are a table, one row per traveller.** A statement settles a trip
+several people went on, and they travelled differently: one drove, one took the
+train, one cycled. Whether somebody gets the rate per kilometre *at all* is
+decided by *their* means of travel — a private car yes, the Bahn no, because
+there the ticket is the claim — so the means and the distance belong to the same
+person in the same row. ``reisen`` is therefore a
+:data:`~kompass.rules.InputType` ``rows`` question, and ``_travel`` pays each
+row under its own approach at its own distance. The two cells the trip does
+record, the kilometres and the approach, name a
+:attr:`~kompass.rules.Field.seed`: a trip opens the statement with **one row**,
+already filled in, which the person then corrects or splits into as many as
+there were travellers. A seed is written once and stays theirs — unlike a
+``source``, which is the excursion's and is refused on the form. A statement
+with no trip seeds no row and the table starts empty.
 
 The policy, in the order the transfers come out:
 
@@ -37,11 +51,12 @@ also the whole of Q2's overnight rule and of both policies' rules for Bahn,
 Fernbus and ÖPNV: those are reimbursed against their receipts, and a receipt
 needs no rate.
 
-**Fahrtkosten** — the kilometres of a *private car* at the regime's rate, to
-the person who drove. Nothing when the section booked a Stadtmobil (Q2/Q3:
-„Eine Abrechnung weiterer Fahrtkosten ist nicht möglich“) and nothing for a
-journey to a Aus-/Fortbildung or a Arbeitseinsatz, where both policies refuse
-travel costs outright.
+**Fahrtkosten** — per row of ``reisen``: the kilometres of a *private car* at
+the regime's rate, to the person who drove that row. Nothing when the section
+booked a Stadtmobil (Q2/Q3: „Eine Abrechnung weiterer Fahrtkosten ist nicht
+möglich“) and nothing for a journey to a Aus-/Fortbildung or a Arbeitseinsatz,
+where both policies refuse travel costs outright — both of those are facts of
+the whole statement and take the table away whole.
 
 **Übernachtungspauschale** — Q3 only: 10 € per night to each Tourenleitung
 named. Not claimable when a sleeper replaced the night (Q2/Q3 § 1.1) and not
@@ -72,10 +87,12 @@ from kompass.rules import CENT
 from kompass.rules import Check
 from kompass.rules import Choice
 from kompass.rules import Constraint
+from kompass.rules import Field
 from kompass.rules import Forbid
 from kompass.rules import Input
 from kompass.rules import Member
 from kompass.rules import PARTICIPANTS
+from kompass.rules import Row
 from kompass.rules import RuleContext
 from kompass.rules import Ruleset
 from kompass.rules import SECTION
@@ -129,17 +146,66 @@ SIGNING_ROLES = (
 #: rates apply to. Muscle power is free and public transport is a receipt.
 CAR = "car"
 
+#: How somebody got there, as one row of ``reisen`` says it.
+#:
+#: Kompass's own three words, and that is not an economy: a cell that names a
+#: :attr:`~kompass.rules.Field.seed` is prefilled from
+#: :attr:`~kompass.rules.Excursion.approach`, and a seeded value its own cell
+#: does not offer is left empty. Listing exactly what the trip can record is
+#: what makes the prefilled row arrive filled in.
+#:
+#: Bahn, Fernbus and ÖPNV are one word here — ``public`` — because this ruleset
+#: never has to tell them apart: all three are reimbursed „in Höhe der Kosten
+#: gegen Vorlage von Belegen“, which is an ordinary covered bill and no rate at
+#: all. What the row records about them is that this person did not drive.
+APPROACHES = (
+    Choice("muscle", "Muskelkraft"),
+    Choice("public", "Öffentliche Verkehrsmittel (Bahn, Fernbus, ÖPNV)"),
+    Choice(CAR, "Privatfahrzeug"),
+)
+
+#: How many journeys one statement may list.
+#:
+#: Generous on purpose: the rows are not one per leader but one per *traveller*,
+#: and a there-and-back somebody chose to enter in two halves is two of them.
+#: What bounds it in practice is who may be named — the trip's leaders, or
+#: whoever paid a receipt — and not this number, which is here so that a
+#: mis-sent request is refused rather than stored.
+MAX_JOURNEYS = 12
+
+#: The longest single journey a row may claim, in kilometres.
+#:
+#: Q2 and Q3 both say „kürzeste der möglichen Verbindungen“, and there is no
+#: shortest connection from Ludwigsburg longer than this. A row that breaks it
+#: is a typo — a decimal point in the wrong place — and the form refuses it
+#: where it was typed.
+MAX_KILOMETERS = 2000
+
+#: The most „weitere Mitfahrende“ one car may carry (Q3 § 1.5).
+#:
+#: The cap of 0,30 €/km is reached at four, so everything above it is worth the
+#: same; the ceiling is here to catch the row that meant the whole group.
+MAX_PASSENGERS = 8
+
 #: The questions only Q2 asks. Under Q3 they are off the form and read empty.
 EHRENAMT_ONLY = frozenset({"country", "per_diem_to"})
 
 #: The questions only Q3 asks. Under Q2 they are off the form and read empty —
 #: which is what makes the regime decide the money rather than merely label it:
-#: a passenger count answered under Q3 and left behind when the regime was
-#: corrected to Q2 cannot raise Q2's rate, because Q2 never reads it.
+#: an hour count answered under Q3 and left behind when the regime was
+#: corrected to Q2 cannot pay a Vergütung Q2 does not know, because Q2 never
+#: reads it.
+#:
+#: ``reisen`` is in neither set, and its ``passengers`` cell therefore cannot be
+#: taken off the form under Q2: the cells of a table belong to the declaration,
+#: and a regime narrows *keys* rather than columns. Nothing moves on it all the
+#: same — :func:`travel_rate` is where „Bei weiteren Mitfahrenden werden keine
+#: zusätzlichen Kosten erstattet“ lives, and Q2's rate does not read the count.
+#: The column says whose it is in its own help text, and ``cases/04`` pins that
+#: a count of five does not move Q2 by a cent.
 TOURENLEITUNG_ONLY = frozenset(
     {
         "participant_list_filed",
-        "passengers",
         "sleeper_car",
         "no_night_cost",
         "nights_to",
@@ -194,6 +260,30 @@ def payee_source(ctx: RuleContext) -> str:
     if any(bill.payer is not None for bill in ctx.bills):
         return "bills.payers"
     return "statement.creator"
+
+
+def driver_of(journey: Row) -> Member | None:
+    """Who one row of ``reisen`` owes the per-kilometre rate to, or ``None``.
+
+    One definition of "this row claims the Kilometerpauschale", read by
+    :meth:`LudwigsburgRules._travel` and by the two checks that are about the
+    same thing, so that the money and the sentences cannot drift apart.
+
+    Three ways a row claims nothing, and none of them is an error:
+
+    * **Another means of travel.** Muskelkraft costs nothing, and Bahn, Fernbus
+      and ÖPNV are reimbursed against their receipts — the row records that this
+      person did not drive, which is worth recording and worth no rate.
+    * **Nobody named.** A row is filled in gradually and a cell may be empty;
+      an empty one reads as ``None`` and pays nobody.
+    * **No distance.** A person can always type a zero, and a journey of no
+      kilometres is worth no kilometres.
+    """
+    if journey.text("approach") != CAR:
+        return None
+    if journey.number("kilometers") <= 0:
+        return None
+    return journey.member("member")
 
 
 class LudwigsburgRules(Ruleset):
@@ -274,29 +364,6 @@ class LudwigsburgRules(Ruleset):
                 help="Voraussetzung für die Genehmigung einer Tourenleitungsabrechnung (3+1).",
             ),
             Input(
-                "approach",
-                "Verkehrsmittel",
-                "choice",
-                required=False,
-                step="Fahrt",
-                source="excursion.approach",
-                help="Die Kilometerpauschale gibt es nur für das Privatfahrzeug.",
-                choices=(
-                    Choice("muscle", "Muskelkraft"),
-                    Choice("public", "Öffentliche Verkehrsmittel"),
-                    Choice(CAR, "Privatfahrzeug"),
-                ),
-            ),
-            Input(
-                "kilometers",
-                "Gefahrene Kilometer",
-                "int",
-                required=False,
-                step="Fahrt",
-                source="excursion.kilometers",
-                help="Nur die kürzeste der möglichen Verbindungen; Parkgebühren sind abgedeckt.",
-            ),
-            Input(
                 "stadtmobil",
                 "Fahrzeug über Stadtmobil gebucht",
                 "bool",
@@ -305,22 +372,59 @@ class LudwigsburgRules(Ruleset):
                 help="Stadtmobil rechnet direkt mit der Sektion ab.",
             ),
             Input(
-                "passengers",
-                "Weitere Mitfahrende",
-                "int",
+                "reisen",
+                "Fahrten",
+                "rows",
                 required=False,
                 step="Fahrt",
-                max=8,
-                help="Je Person 0,03 € pro Kilometer, insgesamt höchstens 0,30 € pro Kilometer.",
-            ),
-            Input(
-                "travel_to",
-                "Fahrtkosten an",
-                "member",
-                required=False,
-                step="Fahrt",
+                max=MAX_JOURNEYS,
                 options_source=payees,
-                help="Wer mit dem eigenen Fahrzeug gefahren ist.",
+                help=(
+                    "Eine Zeile je Person. Die Kilometerpauschale gibt es nur für das "
+                    "Privatfahrzeug; Bahn, Fernbus und ÖPNV werden gegen Beleg "
+                    "erstattet. Hin- und Rückfahrt zusammen in eine Zeile."
+                ),
+                fields=(
+                    Field(
+                        "member",
+                        "Person",
+                        "member",
+                        help="Wer diese Strecke zurückgelegt hat.",
+                    ),
+                    Field(
+                        "approach",
+                        "Verkehrsmittel",
+                        "choice",
+                        choices=APPROACHES,
+                        # Prefilled from the trip, and then the person's own:
+                        # the excursion records how the *group* travelled, and
+                        # the group is exactly who travelled differently.
+                        seed="excursion.approach",
+                    ),
+                    Field(
+                        "kilometers",
+                        "Kilometer",
+                        "int",
+                        max=MAX_KILOMETERS,
+                        seed="excursion.kilometers",
+                        help=(
+                            "Nur die kürzeste der möglichen Verbindungen; "
+                            "Parkgebühren sind abgedeckt."
+                        ),
+                    ),
+                    Field(
+                        "passengers",
+                        "Mitfahrende",
+                        "int",
+                        required=False,
+                        max=MAX_PASSENGERS,
+                        help=(
+                            "Nur Tourenleitung: je Person 0,03 € pro Kilometer, "
+                            "insgesamt höchstens 0,30 € pro Kilometer. Das Ehrenamt "
+                            "erstattet keine Zuschläge und liest die Zahl nicht."
+                        ),
+                    ),
+                ),
             ),
             Input(
                 "nights",
@@ -409,12 +513,19 @@ class LudwigsburgRules(Ruleset):
     def relevant_inputs(self, ctx: RuleContext) -> list[Input]:
         """The vocabulary without the other regime's questions.
 
-        The trip's own figures — kilometres, nights, duration, approach — stay
-        in both arms: they are facts of the statement rather than questions,
-        and each regime's arithmetic reads the ones it needs. Everything the
-        other policy asks for is off the form, and the rules read it as
-        unanswered, so no leftover answer can move money under a regime that
-        does not know the question.
+        The trip's own figures — nights, duration — stay in both arms: they are
+        facts of the statement rather than questions, and each regime's
+        arithmetic reads the ones it needs. So does ``reisen``: both policies
+        pay a private car, only at different rates, and a journey is a fact of
+        the statement in the same way. Everything the other policy *asks* for is
+        off the form, and the rules read it as unanswered, so no leftover answer
+        can move money under a regime that does not know the question.
+
+        A table is narrowed by key and not by column, so ``reisen`` keeps its
+        ``passengers`` cell under Q2 as well. Q2's rate does not read it —
+        :func:`travel_rate` is the one place the surcharge exists — so the
+        guarantee this method is for still holds for the count; what it does not
+        buy is taking the column off the form.
 
         Until a regime is chosen, neither half is asked. That is the first
         step of the form doing its job, and the check below says so.
@@ -431,9 +542,11 @@ class LudwigsburgRules(Ruleset):
     def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
         """Resolve the statement into transfers, plus anything wrong with it.
 
-        No branch on whether there is an excursion: the four figures a trip
-        would carry are declared with a ``source`` and read the same way
-        either way.
+        No branch on whether there is an excursion: the figures a trip would
+        carry are declared with a ``source`` and read the same way either way,
+        and the journeys are a table that a trip merely *seeds* — an empty one
+        is what a statement settling a purchase arrives with, and a table pays
+        per row, so nothing here asks whether there was a trip.
         """
         transfers: list[Transfer] = []
         errors: list[str] = []
@@ -469,35 +582,54 @@ class LudwigsburgRules(Ruleset):
         return transfers, errors
 
     def _travel(self, ctx: RuleContext, regime: str) -> list[Transfer]:
-        """The kilometres of a private car, at the regime's rate (Q2/Q3 § 1).
+        """Each traveller's own kilometres, at the regime's rate (Q2/Q3 § 1).
 
-        Bahn, Fernbus and ÖPNV are not here and need nothing: both policies
-        reimburse them „in Höhe der Kosten gegen Vorlage von Belegen“, which is
-        an ordinary covered bill. What this rule is for is the one case where
-        the section owes money against no receipt at all.
+        One transfer per row of ``reisen`` that drove: its own distance, its own
+        passenger count, to the person the row names. Which is the whole reason
+        the question is a table — the rate is not a property of the statement
+        but of a journey, and the journeys of one statement differ.
+
+        Bahn, Fernbus and ÖPNV need no rule: both policies reimburse them „in
+        Höhe der Kosten gegen Vorlage von Belegen“, which is an ordinary covered
+        bill. Their rows are still worth entering — they are how the statement
+        says who travelled how — and they pay nothing here, because the receipt
+        is the claim. What this rule is for is the one case where the section
+        owes money against no receipt at all.
+
+        Two facts take the whole table away rather than a row, because that is
+        the grain they are true at: a Stadtmobil booked through the
+        Service-Center is settled with the section directly („Eine Abrechnung
+        weiterer Fahrtkosten ist nicht möglich“), and on a journey to a
+        Aus-/Fortbildung or a Arbeitseinsatz both policies refuse travel costs
+        outright. Neither is asked per person today — see the README.
         """
-        driver = ctx.inputs.member("travel_to")
-        kilometers = ctx.inputs.number("kilometers")
-        if driver is None or kilometers <= 0:
-            return []
-        if ctx.inputs.text("approach") != CAR:
-            return []
         if ctx.inputs.flag("stadtmobil") or ctx.inputs.flag("training_or_work"):
             return []
-        rate = travel_rate(regime, ctx.inputs.number("passengers"))
-        if rate == ZERO:
-            return []
-        return [
-            Transfer(
-                source=SECTION,
-                destination=driver,
-                amount=cents(kilometers * rate),
-                category="travel",
-                rule_id="travel",
-                label="Fahrtkosten",
-                explanation=f"{kilometers} km × {euro(rate)} €",
+        transfers: list[Transfer] = []
+        for journey in ctx.inputs.rows("reisen"):
+            driver = driver_of(journey)
+            if driver is None:
+                continue
+            # The count is read under both regimes, because a table's columns
+            # do not change with the regime — and it moves nothing under Q2,
+            # because `travel_rate` is where „Bei weiteren Mitfahrenden werden
+            # keine zusätzlichen Kosten erstattet“ lives.
+            rate = travel_rate(regime, journey.number("passengers"))
+            if rate == ZERO:
+                continue
+            kilometers = journey.number("kilometers")
+            transfers.append(
+                Transfer(
+                    source=SECTION,
+                    destination=driver,
+                    amount=cents(kilometers * rate),
+                    category="travel",
+                    rule_id="travel",
+                    label="Fahrtkosten",
+                    explanation=f"{kilometers} km × {euro(rate)} €",
+                )
             )
-        ]
+        return transfers
 
     def _nights(self, ctx: RuleContext, regime: str) -> list[Transfer]:
         """Q3 § 3: 10 € per night to each Tourenleitung named.
@@ -592,13 +724,18 @@ class LudwigsburgRules(Ruleset):
     def checks(self, ctx: RuleContext) -> list[Check]:
         """What has to be true before the statement may be handed in.
 
-        Always the same five, in the same order, whatever the statement looks
+        Always the same six, in the same order, whatever the statement looks
         like: a check carries its message in both states, and a list that
         changed length with the regime would make a case's ``checks`` depend on
         which arm it is in.
         """
         regime = ctx.inputs.text("regime")
-        driver = ctx.inputs.member("travel_to")
+        journeys = ctx.inputs.rows("reisen")
+        travellers = [
+            person
+            for person in (journey.member("member") for journey in journeys)
+            if person is not None
+        ]
         return [
             Check(
                 ok=all(bill.has_proof for bill in ctx.bills),
@@ -614,17 +751,41 @@ class LudwigsburgRules(Ruleset):
                 ),
             ),
             Check(
-                ok=not (ctx.inputs.flag("stadtmobil") and driver is not None),
+                ok=not (
+                    ctx.inputs.flag("stadtmobil")
+                    and any(driver_of(journey) is not None for journey in journeys)
+                ),
                 message=(
                     "Läuft die Fahrt über Stadtmobil, rechnet die Sektion direkt ab; "
                     "weitere Fahrtkosten sind dann nicht abrechenbar."
                 ),
             ),
             Check(
-                ok=driver is None or ctx.inputs.text("approach") == CAR,
+                # A cell may be empty — the form is filled in gradually and the
+                # engine stores a row either way — so the sentence that refuses
+                # a half-filled journey is the section's own. Without it the row
+                # would simply pay nothing, which is the silence this replaces.
+                ok=all(
+                    journey.member("member") is not None and journey.text("approach") != ""
+                    for journey in journeys
+                ),
                 message=(
-                    "Die Kilometerpauschale gibt es nur für das Privatfahrzeug. "
+                    "Jede Fahrt braucht eine Person und ein Verkehrsmittel. "
+                    "Die Kilometerpauschale gibt es nur für das Privatfahrzeug; "
                     "Bahn, Fernbus und ÖPNV werden gegen Beleg erstattet."
+                ),
+            ),
+            Check(
+                # The engine accepts the same person in two rows on purpose: it
+                # cannot tell a double entry from a there-and-back somebody
+                # split in two, and refusing would make the honest table
+                # unsayable to catch a mistake it cannot recognise. So the
+                # sentence is Ludwigsburg's, and it says how to write the
+                # journey it would otherwise be mistaken for.
+                ok=len(set(travellers)) == len(travellers),
+                message=(
+                    "Jede Person steht höchstens einmal in der Fahrtentabelle. "
+                    "Hin- und Rückfahrt gehören als Gesamtstrecke in eine Zeile."
                 ),
             ),
             Check(

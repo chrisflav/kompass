@@ -4,7 +4,9 @@
     "regime": "tourenleitung",
     "participant_list_filed": true,
     "stadtmobil": true,
-    "travel_to": 1
+    "reisen": [
+      {"member": 1, "approach": "car", "kilometers": 180}
+    ]
   },
   "excursion": {
     "duration": "1.0",
@@ -20,6 +22,6 @@
       ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
     ],
     "errors": [],
-    "checks": [true, true, false, true, true]
+    "checks": [true, true, false, true, true, true]
   }
 }
