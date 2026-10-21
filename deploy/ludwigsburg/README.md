@@ -12,7 +12,7 @@ for every figure.
 └── rules/
     ├── __init__.py         the rules: inputs, transfers, checks, approval
     ├── rates.py            every figure, each with the clause it comes from
-    └── cases/*.json        twenty worked examples; these gate activation
+    └── cases/*.json        twenty-six worked examples; these gate activation
 ```
 
 The policy it implements comes from four documents:
@@ -51,13 +51,57 @@ the form. A question that is off the form reads as its type's **empty value**,
 so an answer left behind when a regime was corrected cannot move money under
 the regime that replaced it.
 
-The trip's own figures are **not** questions. Kilometres, nights, duration and
-how the group travelled are declared with `source="excursion.…"`, so the
-engine supplies them from the excursion and the form shows them as figures.
-A statement that settles a purchase or a repair has no excursion, and the same
-four declarations are then ordinary questions. The rules read them the same way
-either way, which is why there is not one `if ctx.excursion is None` in
-`rules/__init__.py`.
+The trip's own figures are **not** questions. Nights and duration are declared
+with `source="excursion.…"`, so the engine supplies them from the excursion and
+the form shows them as figures. A statement that settles a purchase or a repair
+has no excursion, and the same declarations are then ordinary questions. The
+rules read them the same way either way, which is why there is not one
+`if ctx.excursion is None` in `rules/__init__.py`.
+
+## The Fahrten are a table, one row per traveller
+
+A statement settles a trip several people went on, and they travelled
+differently: one drove, one took the train, one cycled. Whether somebody gets
+the Kilometerpauschale **at all** is decided by *their* means of travel — a
+private car yes, the Bahn no, because there the ticket is the claim — so the
+means and the distance belong to the same person in the same row.
+
+`reisen` is therefore one `rows` question with four cells, and `_travel` pays
+each row under its own approach at its own distance:
+
+| Cell | Heading | What it holds |
+| --- | --- | --- |
+| `member` | Person | who covered this stretch |
+| `approach` | Verkehrsmittel | Muskelkraft, ÖPNV/Bahn/Fernbus, or Privatfahrzeug — **seeded from the trip** |
+| `kilometers` | Kilometer | the shortest connection; parking is covered — **seeded from the trip** |
+| `passengers` | Mitfahrende | Q3's „weitere Mitfahrende“; Q2 does not read it |
+
+A row whose approach is not the Privatfahrzeug pays nothing and is still worth
+entering: it is how the statement records who did not drive, and Bahn, Fernbus
+and ÖPNV are reimbursed against their receipts as ordinary covered bills.
+
+**The two cells the trip records are seeded, not derived.** A `seed` is written
+**once**, when the statement's excursion is set, and is then the person's own to
+correct or to split into as many rows as there were travellers — where a
+`source` belongs to the excursion, is refused on the form and is re-resolved on
+every read. A statement with no trip seeds no row and the table starts empty;
+`cases/24` is exactly that statement, with its rows typed by hand.
+
+**Two people in one car is one row, and the cap belongs to the car.** Four
+„weitere Mitfahrende“ raise 0,20 €/km to the ceiling of 0,30 €/km for *that*
+journey and leave a second car at its own rate — `cases/23`.
+
+**Hin- und Rückfahrt belong in one row, as the total distance.** The engine
+accepts the same person in two rows deliberately: it cannot tell a double entry
+from a there-and-back somebody split in half, and refusing would make the
+honest table unsayable in order to catch a mistake it cannot recognise. So
+which of the two Ludwigsburg means is a `Check` of its own — the statement is
+blocked, nothing is deduplicated, and `cases/25` pins that both rows are paid
+while the check says `false`.
+
+**Stadtmobil and Aus-/Fortbildung take the whole table away**, not a row: both
+are facts of the statement rather than of one journey. That is a limitation as
+much as a decision — see reading 11 below.
 
 ## What is implemented
 
@@ -67,6 +111,7 @@ either way, which is why there is not one `if ctx.excursion is None` in
 | Bahn, Schlafwagen, Fahrradmitnahme, Fernbus, ÖPNV, Q2-Übernachtungen — gegen Beleg | Q2/Q3 §§ 1.1–1.2, Q2 § 4 | nothing to write: a covered bill |
 | 0,30 €/km im Privatfahrzeug (Ehrenamt) | Q2 „Privatfahrzeug“ | `rates.travel_rate` |
 | 0,20 €/km + 0,03 €/km je Mitfahrender, höchstens 0,30 €/km (Tourenleitung) | Q3 § 1.5 | `rates.travel_rate` |
+| Je Fahrt eine Zeile, mit eigenem Verkehrsmittel und eigener Strecke | Q2/Q3 § 1, gelesen | `reisen`, `_travel` |
 | Stadtmobil: keine weiteren Fahrtkosten | Q2/Q3 „Stadtmobil“ | `_travel` plus a check |
 | Keine Fahrtkosten bei Aus-/Fortbildung und Arbeitseinsatz | Q3 § 5, Q2 § 7 | `_travel` |
 | Übernachtungspauschale 10 €/Nacht je Leitung | Q3 § 3 | `_nights` |
@@ -147,12 +192,17 @@ reading, say so in a comment at the line, and list it here. **Each of these is
 for the section to confirm.**
 
 1. **„Maximal sind 0,30 € pro Fahrt möglich“ (Q3 § 1.5) is read as a ceiling on
-   the rate per kilometre.** Both figures it caps are per kilometre, and the
-   engine has the trip's kilometres as one total with no notion of a single
-   „Fahrt“. So the cap starts biting at four passengers: 0,20 + 4 × 0,03 = 0,32
-   is paid as 0,30. Read as a ceiling per *journey* it would be nearly
-   worthless (0,30 € for a 300 km drive), which is the other reason this
-   reading is the one implemented.
+   the rate per kilometre**, applied per row of `reisen`. Both figures the
+   sentence caps are per kilometre, and read as a ceiling per *journey* it would
+   be nearly worthless — 0,30 € for a 300 km drive, next to a rate of
+   0,20 €/km. So the cap starts biting at four passengers:
+   0,20 + 4 × 0,03 = 0,32 is paid as 0,30.
+
+   Half of this argument used to be that the engine *could* not say „Fahrt“: it
+   had the trip's kilometres as one total. The table has taken that half away —
+   a row is a Fahrt — so **the section can now choose the other reading**, and
+   this one is implemented because the sentence reads that way and not because
+   nothing else was expressible.
 2. **The Tagegeld's two tiers are applied the statutory way:** every full day
    away at the „ab 24 Stunden“ rate and the day of departure and of return at
    the „ab 8 Stunden“ rate each, so a trip of *n* nights has *n − 1* full days
@@ -187,6 +237,20 @@ for the section to confirm.**
     `PARTICIPANTS → SECTION`. The engine allows no third party there and
     refuses a member, so that row is the section's own budget carrying the
     cost rather than a contribution anybody collects.
+11. **Stadtmobil and Aus-/Fortbildung are asked once for the whole statement**,
+    and they take the whole Fahrten table away. Before `reisen` there was only
+    one journey and the question did not arise; now it does, and the honest
+    answer is that **a statement on which one person took the Stadtmobil and
+    another drove their own car cannot be written down** — the flag suppresses
+    both. Two statements, or a `Verkehrsmittel` choice of its own per row, are
+    the two ways out, and the section should say which it wants before this is
+    in front of anybody.
+12. **The `Mitfahrende` column is on the form under Q2 as well**, where Q2 pays
+    no supplement at all. A regime takes *questions* off the form and the cells
+    of a table are not questions, so the column stays; it says in its help text
+    that it is the Tourenleitung's, `rates.travel_rate` is the one place the
+    supplement exists, and `cases/04` pins that a count of five does not move
+    the Ehrenamt rate by a cent.
 
 ## The six roles, which somebody has to assign
 
@@ -285,14 +349,25 @@ docker run --rm \
 
 ### What the cases prove, and the one thing they cannot
 
-The twenty cases in `rules/cases/` pin the figures of both regimes, with and
-without a trip: the per-kilometre rate with no passengers, with three, and at
-the cap; the flat rate per night and the two reasons it may not be claimed; the
-Tagegeld; the Tourenleitervergütung; a purchase with no excursion, where the
-kilometres are a question rather than a figure off the trip; and the statement
-totals the 1.000-€ threshold is read against, at 1.000,00 € exactly and at
-1.010,00 €. They gate activation: a failing case means the version is not
-activated.
+The twenty-six cases in `rules/cases/` pin the figures of both regimes, with
+and without a trip: the per-kilometre rate with no passengers, with three, and
+at the cap; the flat rate per night and the two reasons it may not be claimed;
+the Tagegeld; the Tourenleitervergütung; a purchase with no excursion, where
+nothing is seeded and the rows are typed by hand; and the statement totals the
+1.000-€ threshold is read against, at 1.000,00 € exactly and at 1.010,00 €.
+They gate activation: a failing case means the version is not activated.
+
+Six of them are about the table, and each states something the four
+single-journey questions could not: two leaders driving different distances
+(21), one driving while another takes the train (22), two cars where the cap
+bites in one of them (23), a trip-less statement whose rows were typed by hand
+(24), the same person in two rows paid twice with the check saying so (25), and
+a row with no Verkehrsmittel paying nothing with the check saying so (26).
+
+**What no case can prove is the seed.** A seed is written when a statement gets
+an excursion, and a case file is a context with no edit history — so what a
+case states is the row as the answer it ended up being. The prefill is tested
+in Kompass, against the API and the admin.
 
 **What no case can assert is `approval()`.** The case runner compares
 transfers, errors and checks, and the fuzzer insists that every random
