@@ -808,11 +808,56 @@ describe("submission flow — Erstattung", () => {
     });
   });
 
+  it("asks the ruleset's questions of a statement without a trip", async () => {
+    // Reported from the running instance: the flow offered no way to say which
+    // set of rules applies. The statement in question named no excursion — both
+    // trips already had one — and this leg, the only place the ruleset's
+    // questions are asked, was gated on there being a trip. A leftover from
+    // when the leg was four fields about a trip's allowances: the section's
+    // rules ask the same `regime` of a training as of a Freizeit.
+    flowReturns();
+    detailReturns({ excursion: null });
+    const inputs = [
+      declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+    ];
+    server.use(
+      http.get(api("/api/finance/statements/1/form"), () =>
+        HttpResponse.json({ ...FORM, inputs, steps: stepsOf(inputs), answers: { regime: null } }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
+
+    expect(await screen.findByText("Regelwerk")).toBeInTheDocument();
+    // And it is on the rail, so it is reachable without typing a URL.
+    expect(screen.getByRole("navigation", { name: "Etappen" })).toHaveTextContent("Erstattung");
+  });
+
   it("says so when the rules ask for nothing", async () => {
     openForm({ inputs: [], answers: {} });
     expect(
       await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
     ).toBeInTheDocument();
+    // The leg a person is standing on is never retired under them: bouncing
+    // back to Anlass because a query landed is worse than a leg that says the
+    // rules ask nothing.
+    expect(screen.getByRole("navigation", { name: "Etappen" })).toHaveTextContent("Erstattung");
+  });
+
+  it("retires the leg on a statement whose rules ask nothing", async () => {
+    // The other side of the same coin: the leg follows what the rules ask, so
+    // it is neither pinned to the excursion nor simply always there.
+    flowReturns();
+    detailReturns({ excursion: null });
+    server.use(
+      http.get(api("/api/finance/statements/1/form"), () =>
+        HttpResponse.json({ ...FORM, inputs: [], steps: [], answers: {} }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    const rail = await screen.findByRole("navigation", { name: "Etappen" });
+    await waitFor(() => expect(rail).not.toHaveTextContent("Erstattung"));
+    expect(rail).toHaveTextContent("Belege");
   });
 
   it("offers the alternatives the declaration names, and sends the one picked", async () => {

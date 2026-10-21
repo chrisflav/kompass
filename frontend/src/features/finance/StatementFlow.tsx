@@ -106,13 +106,32 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
   const [draft, setDraft] = useState<Draft>(() => seed(statement, presetExcursion));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const isExcursion = draft.mode === "excursion";
-  const steps: StepId[] = isExcursion
-    ? ["purpose", "receipts", "reimbursement", "submit"]
-    : ["purpose", "receipts", "submit"];
   const requested = (params.get("stage") ?? "purpose") as StepId;
+  // Whether this statement has an Erstattung leg, asked of the rules rather
+  // than of the excursion.
+  //
+  // The leg used to appear only for a statement that named a trip, from when it
+  // was four fields about a trip's allowances. It asks the *ruleset's*
+  // questions now, and a ruleset does not care whether there was a trip:
+  // Ludwigsburg's asks the same `regime` of a Fortbildung as of a Freizeit. So
+  // gating the leg on the excursion hid all eight questions the rules ask of a
+  // statement without one — among them the only place to say which part of the
+  // regulation applies.
+  //
+  // Unknown counts as "asks something", in both directions: the rail is drawn
+  // before the form lands, and neither a leg that appears late nor a
+  // `?stage=reimbursement` that bounces to Anlass while the form is in flight
+  // is something a person should see. The leg is retired only once the rules
+  // are known to ask nothing — and never out from under somebody standing on
+  // it, which is why `requested` counts as well.
+  const formQ = useStatementForm(statement);
+  const asksNothing = formQ.data !== undefined && formQ.data.inputs.length === 0;
+  const steps: StepId[] =
+    asksNothing && requested !== "reimbursement"
+      ? ["purpose", "receipts", "submit"]
+      : ["purpose", "receipts", "reimbursement", "submit"];
   // A statement that doesn't exist yet has nothing to hang the later legs on,
-  // and dropping the excursion retires the Erstattung leg — in both cases fall
+  // and a hand-written `?stage=` may name no leg at all — in both cases fall
   // back rather than render a leg that can't work.
   const step: StepId = !statement ? "purpose" : steps.includes(requested) ? requested : "purpose";
   const goto = (next: StepId) => setParams({ stage: next }, { replace: false });
@@ -397,7 +416,7 @@ function AnlassStep({
           // the excursion, so an answer naming somebody goes with it.
           onSelect={() => setDraft({ ...draft, mode: "other", excursion_id: "" })}
           title="Sonstige Ausgabe"
-          hint="Material, Miete, Gebühren — nur Belege"
+          hint="Material, Miete, Gebühren, Fortbildung"
         />
       </div>
 
@@ -788,13 +807,7 @@ function BillForm({
  * earlier answer makes it moot (`relevant_inputs`).
  */
 function ErstattungStep({ statement }: { statement: StatementOut }) {
-  const formQ = useApiQuery(["finance", "statements", statement.id, "form"], () =>
-    unwrap(
-      client.GET("/api/finance/statements/{statement_id}/form", {
-        params: { path: { statement_id: statement.id } },
-      }),
-    ),
-  );
+  const formQ = useStatementForm(statement);
   return (
     <section className="flow-step">
       <h2 className="flow-title">Wer bekommt was?</h2>
@@ -1067,6 +1080,27 @@ function AbschlussStep({ statement }: { statement: StatementOut }) {
           two summaries of one statement must never disagree. */}
       <PayoutPreview statement={statement} />
     </section>
+  );
+}
+
+/**
+ * The questions the section's rules ask about this statement, and its answers.
+ *
+ * Asked for at two levels off one cache entry: the leg renders the form, and
+ * the flow above it needs to know whether there is anything to render at all —
+ * a statement whose rules ask nothing has no Erstattung leg. One key, so the
+ * two are never out of step and only one request goes out.
+ */
+function useStatementForm(statement: StatementOut | null) {
+  return useApiQuery(
+    ["finance", "statements", statement?.id ?? 0, "form"],
+    () =>
+      unwrap(
+        client.GET("/api/finance/statements/{statement_id}/form", {
+          params: { path: { statement_id: statement?.id as number } },
+        }),
+      ),
+    { enabled: statement !== null },
   );
 }
 
