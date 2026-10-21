@@ -215,6 +215,12 @@ label, same type, same bound, same <code class="docutils literal notranslate"><s
 one method and not the other cannot end up with a form that says an answer
 is the person’s to give while the engine supplies one anyway.</p></li>
 </ul>
+<p><code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> is given the answers <strong>typed</strong>, as this says, and
+<code class="docutils literal notranslate"><span class="pre">inputs</span></code> is not: it is asked while the context is still being built, before
+anything knows which key is money and which is a person, so a declaration that
+branches on an answer there reads it with <a class="reference internal" href="#kompass.rules.Inputs.raw" title="kompass.rules.Inputs.raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">raw()</span></code></a>.
+That is the difference between the two in practice, and it is why branching
+belongs in <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> when it can.</p>
 </section>
 <section id="how-a-ruleset-reaches-a-running-instance">
 <h2>How a ruleset reaches a running instance<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-a-ruleset-reaches-a-running-instance" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-a-ruleset-reaches-a-running-instance'">¶</a></h2>
@@ -457,8 +463,41 @@ under that key then reads as <strong>unanswered</strong> — the same reading a 
 question gets, and for the same reason: what the form would refuse, the rules
 do not read. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">…/form</span></code> serves it as unanswered too, so a client is never
 handed a value its own option list does not contain.</p>
+<p><strong>And the statement says so.</strong> Dropping the answer is only half of it: the
+evaluation reports it, which makes <code class="xref py py-attr docutils literal notranslate"><span class="pre">ok</span></code> false, so
+nothing is materialised, nothing is frozen, <code class="docutils literal notranslate"><span class="pre">/preflight</span></code> stops saying <code class="docutils literal notranslate"><span class="pre">ok</span></code>
+and the admin’s pages stop saying „everything is correct“. Without that, the
+one state with no witness appeared — a statement owing somebody money closing
+at <code class="docutils literal notranslate"><span class="pre">0.00</span></code>, the recipient still named on every page, no error, and every
+<code class="docutils literal notranslate"><span class="pre">Check</span></code> the ruleset wrote going vacuous because it reads the already-dropped
+value. So removing a youth leader from a trip <em>blocks</em> the statement that was
+paying them until somebody answers the question again, which is the honest
+outcome.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">member_set</span></code> is dropped <strong>whole</strong>, not member by member. A trip that loses
+one of three allowance recipients stops paying all three rather than two,
+because picking which two survive is a selection nobody made — and since the
+statement is blocked either way, nothing is paid until the set is given again.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warnung</p>
+<p><strong>Which statements this can reach.</strong> A <em>draft</em> is resolved live on every
+read, so it is affected at once. A <strong>confirmed</strong> statement is never resolved
+again. A statement that has been handed in but not yet confirmed is in
+between, and it is the case to know about: <code class="docutils literal notranslate"><span class="pre">Bill.save()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Bill.delete()</span></code> re-freeze it, which re-runs the rules and <strong>supersedes</strong>
+its rows — so a finance officer covering a receipt after submission is
+enough to re-settle it. Under this reading the re-run reports the dropped
+answer instead, which means the rows are retired rather than rewritten at a
+figure nobody chose, and the statement shows as unresolved until the answer
+is given again. That is the better of the two outcomes, but it is not
+„nothing happens“: a settled-looking statement can still change until it is
+confirmed.</p>
+</div>
 <p>So one sentence holds for the whole form: <strong>what the form serves is what the
-rules read</strong>, and the only answer a client may not send back is a derived one.</p>
+rules read</strong>. A client may send all of it back except the keys marked
+<code class="docutils literal notranslate"><span class="pre">derived</span></code>. The one exception is an answer whose stored <em>type</em> no longer fits
+its declaration, because the section retyped the key: that is served as it
+stands and refused on the way back, since it is a broken answer rather than a
+withdrawn one and the rules report it loudly rather than reading it as empty.</p>
 <p><strong>Any key can be stored.</strong> A statement keeps its answers in one JSON field, so
 a declaration under any key a ruleset likes holds an answer and is read back by
 the rules. That is a statement about <em>storage</em>, and it is the whole of what
@@ -579,12 +618,25 @@ statement</strong> naming the source and the bound. Five leaders against three t
 section approved is a statement to fix on the excursion, and while the error
 stands the statement does not resolve and no money moves. It is deliberately
 not a truncation: paying three of five quietly is a figure no page explains.</p>
-<p>A <code class="docutils literal notranslate"><span class="pre">source</span></code> may not be stated beside <a class="reference internal" href="#kompass.rules.Input.options" title="kompass.rules.Input.options"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options</span></code></a> or
-<a class="reference internal" href="#kompass.rules.Input.options_source" title="kompass.rules.Input.options_source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options_source</span></code></a>, and that is refused where it is
-written. A derived answer is not <em>picked</em>, so „these are the people who may be
-picked“ and „the value is whoever the trip says“ are two answers to one
-question. A derived set of people is bounded by <code class="docutils literal notranslate"><span class="pre">max</span></code>, and is already
-statement-local because the context is.</p>
+<p><code class="docutils literal notranslate"><span class="pre">max</span></code> means a count for a <code class="docutils literal notranslate"><span class="pre">member_set</span></code> and a ceiling for an <code class="docutils literal notranslate"><span class="pre">int</span></code>, <strong>and
+nothing at all for any other type</strong> — <code class="docutils literal notranslate"><span class="pre">money</span></code> included, which is the other
+one you would expect a ceiling on. A money answer is bounded only by the
+field’s own resolution and ceiling; a section wanting its own maximum writes a
+<a class="reference internal" href="#kompass.rules.Check" title="kompass.rules.Check"><code class="xref py py-class docutils literal notranslate"><span class="pre">Check</span></code></a>, where the sentence is its own too.</p>
+<p>A party-valued <code class="docutils literal notranslate"><span class="pre">source</span></code> should be stated <strong>together with</strong> an
+<a class="reference internal" href="#kompass.rules.Input.options_source" title="kompass.rules.Input.options_source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options_source</span></code></a> (or a hand-listed
+<a class="reference internal" href="#kompass.rules.Input.options" title="kompass.rules.Input.options"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options</span></code></a>), and the two never both apply: when the
+source resolves, the engine supplies the answer and the options go unread; when
+it does not, the options are who may be picked. <code class="docutils literal notranslate"><span class="pre">source="excursion.leaders"</span></code>
+with <code class="docutils literal notranslate"><span class="pre">options_source="bills.payers"</span></code> is the whole of „whoever led the trip,
+or whoever paid a receipt when there was no trip“.</p>
+<p>Without that second half such a question cannot be answered at all on a
+statement with no excursion — the source resolves to nothing, the declaration
+offers nobody, and a party-valued declaration offering nobody offers nobody. So
+the rule is one sentence: <strong>who may be picked bounds the answer when it is
+asked for, and says nothing about one the engine supplies.</strong> A supplied one
+comes out of the statement’s own data, which is what makes it safe without a
+domain, and what bounds it is <code class="docutils literal notranslate"><span class="pre">max</span></code>.</p>
 </section>
 <section id="where-a-party-valued-question-s-people-come-from">
 <span id="development-manual-finance-rules-options"></span><h3>Where a party-valued question’s people come from<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#where-a-party-valued-question-s-people-come-from" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#where-a-party-valued-question-s-people-come-from'">¶</a></h3>
@@ -1461,7 +1513,13 @@ in. Not both.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="kompass.rules.Input.max">
 <span class="sig-name descname"><span class="pre">max</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Input.max" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Input.max'">¶</a></dt>
-<dd><p>For <code class="docutils literal notranslate"><span class="pre">member_set</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code>: the largest acceptable count or value.</p>
+<dd><p>For <code class="docutils literal notranslate"><span class="pre">member_set</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code>, and for <strong>those two only</strong>: the largest
+acceptable count or value. It is ignored on every other type —
+<code class="docutils literal notranslate"><span class="pre">money</span></code> included, which is worth knowing because an amount is the
+other thing one would expect a ceiling on. A money answer is bounded by
+the resolution and ceiling of the field itself
+(<code class="docutils literal notranslate"><span class="pre">finance.inputs.MONEY_MAX</span></code>) and not by this; a section wanting its
+own maximum writes a <a class="reference internal" href="#kompass.rules.Check" title="kompass.rules.Check"><code class="xref py py-class docutils literal notranslate"><span class="pre">Check</span></code></a>.</p>
 <p>It bounds a <em>submitted</em> answer, which is refused on the way in, and an
 answer the engine supplies from a <a class="reference internal" href="#kompass.rules.Input.source" title="kompass.rules.Input.source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">source</span></code></a>, which cannot be —
 nobody can correct that one through the form. A supplied value that
@@ -1503,11 +1561,19 @@ has a value.</p>
 <a class="reference internal" href="#kompass.rules.Ruleset.relevant_inputs" title="kompass.rules.Ruleset.relevant_inputs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Ruleset.relevant_inputs()</span></code></a> names is served with the declaration
 <code class="docutils literal notranslate"><span class="pre">inputs</span></code> gave it, so the form and the rules cannot disagree about
 where one key’s value comes from.</p>
-<p>It may not be stated beside <a class="reference internal" href="#kompass.rules.Input.options" title="kompass.rules.Input.options"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options</span></code></a> or <a class="reference internal" href="#kompass.rules.Input.options_source" title="kompass.rules.Input.options_source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options_source</span></code></a>: a
-derived answer is not picked, so „these are the people who may be
-picked“ and „the value is whoever the trip says“ are two answers to one
-question. A derived set of people is bounded by <a class="reference internal" href="#kompass.rules.Input.max" title="kompass.rules.Input.max"><code class="xref py py-attr docutils literal notranslate"><span class="pre">max</span></code></a>, and is
-statement-local already because the context is.</p>
+<p>For a <code class="docutils literal notranslate"><span class="pre">member</span></code> or <code class="docutils literal notranslate"><span class="pre">member_set</span></code> it should be stated <em>with</em>
+<a class="reference internal" href="#kompass.rules.Input.options" title="kompass.rules.Input.options"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options</span></code></a> or an <a class="reference internal" href="#kompass.rules.Input.options_source" title="kompass.rules.Input.options_source"><code class="xref py py-attr docutils literal notranslate"><span class="pre">options_source</span></code></a>, and the two never both
+apply: when the source resolves the engine supplies the answer and the
+options go unread; when it does not, the options are who may be picked.
+<code class="docutils literal notranslate"><span class="pre">source="excursion.leaders"</span></code> with <code class="docutils literal notranslate"><span class="pre">options_source="bills.payers"</span></code> is
+the whole of „the people who led the trip, or whoever paid a receipt
+when there was no trip“ — and <strong>without the second half the question
+cannot be answered at all</strong> on a statement with no excursion, because a
+party-valued declaration offering nobody offers nobody.</p>
+<p>So: who may be picked bounds the answer when it is <em>asked for</em>, and says
+nothing about one the engine supplies. A supplied one comes out of the
+statement’s own data, which is what makes it safe without a domain, and
+what bounds it is <a class="reference internal" href="#kompass.rules.Input.max" title="kompass.rules.Input.max"><code class="xref py py-attr docutils literal notranslate"><span class="pre">max</span></code></a>.</p>
 <p>A derived value is <strong>not stored</strong>. It is resolved again every time a
 context is built, so there is no second copy to go stale when the trip
 changes.</p>
