@@ -26,6 +26,7 @@ next one, and the two helpers that make it cheap.
 
 from .answers import coerce_input
 from .answers import EMPTY
+from .answers import no_longer_offered
 from .answers import offers
 from .answers import typed
 from .answers import typed_inputs
@@ -99,6 +100,7 @@ __all__ = [
     "check_directory",
     "EMPTY",
     "coerce_input",
+    "no_longer_offered",
     "offers",
     "configured_directory",
     "current_constraint_rows",

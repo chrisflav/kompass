@@ -213,8 +213,16 @@ def form(statement: Any) -> dict[str, Any]:
     would refuse: round-tripping what ``/form`` served used to answer 422 on a
     question nobody had touched.
 
-    So one sentence holds for every key here: **what this serves is what the
-    rules read.** A client may send it all straight back.
+    So **a client may send back everything here except the keys marked
+    derived**, which are served to be shown and refused to be changed.
+
+    One exception, and it is deliberate: an answer whose stored *type* no
+    longer fits its declaration — a section retyped the key — is served as it
+    stands and refused on the way back. :func:`finance.engine.answers.offers`
+    reports it as offered on purpose, because it is not a withdrawn option but
+    a broken one, and the rules report it loudly rather than reading it as
+    unanswered. Echoing it back is a 422 naming that key; answering the
+    question properly clears it.
     """
     served, context = asked(statement)
     carried = statement.answers
@@ -262,7 +270,7 @@ def party_keys(statement: Any) -> set[str]:
     """
     ruleset = ruleset_for(statement)
     context = statement_context(statement, ruleset)
-    declared = asking(ruleset, context).vocabulary
+    declared = asking(ruleset, context, form=False).vocabulary
     return {declaration.key for declaration in declared if declaration.type in MEMBER_TYPES}
 
 

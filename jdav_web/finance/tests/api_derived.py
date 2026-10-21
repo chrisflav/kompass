@@ -31,11 +31,16 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from finance.api.tests import AccessToken
 from finance.api.tests import Application
+from finance.api.tests import grant
 from finance.api.tests import make_member_user
 from finance.engine import evaluate_statement
+from finance.engine import import_from_directory
+from finance.engine import reference_directory
 from finance.models import Bill
+from finance.models import Ledger
 from finance.models import Statement
 from finance.rules_api import Choice
 from finance.rules_api import Input
@@ -49,6 +54,7 @@ from finance.testing import answer
 from members.models import FAHRGEMEINSCHAFT_ANREISE
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
+from members.models import MUSKELKRAFT_ANREISE
 from members.models import NewMemberOnList
 
 #: The two rates the regime question picks between, per kilometre.
@@ -193,11 +199,32 @@ class DerivedFormTestCase(TestCase):
         """One declaration out of a ``/form`` body, by key."""
         return next(entry for entry in body["inputs"] if entry["key"] == key)
 
+    def resolved(self, statement):
+        """``statement`` resolved against ``self.rules``, errors and all."""
+        return evaluate_statement(Statement.objects.get(pk=statement.pk), ruleset=self.rules)
+
     def paid(self, statement):
         """What ``TravelRules`` pays out as travel money on ``statement``."""
-        result = evaluate_statement(Statement.objects.get(pk=statement.pk), ruleset=self.rules)
+        result = self.resolved(statement)
         self.assertEqual(result.errors, (), result.errors)
         return result.total_of("travel")
+
+    def blocked_on(self, statement, key):
+        """Assert ``statement`` does not resolve, because of ``key``, owing nothing.
+
+        The shape every dropped answer has to have: nothing paid **and**
+        somebody told. A payout of zero on its own is the state this branch was
+        sent back for — every page naming a recipient while the statement
+        quietly closed at nothing.
+        """
+        result = self.resolved(statement)
+        self.assertTrue(
+            any(key in error for error in result.errors),
+            f"nothing reported {key!r}: {result.errors}",
+        )
+        self.assertFalse(result.ok)
+        self.assertEqual(result.total_of("travel"), Decimal("0.00"))
+        return result
 
     def read_by_the_rules(self, statement):
         """Every answer the rules actually read, by key, in their own types.
@@ -316,6 +343,15 @@ class DerivedInputApiTestCase(DerivedFormTestCase):
         run, a case or a fuzz round could each assert a figure production will
         never produce.
         """
+        # A receipt they paid, so that `paid_to` names somebody the declaration
+        # offers: an answer it does not offer is reported, including on this
+        # route, which is a different claim tested elsewhere.
+        Bill.objects.create(
+            statement=self.statement,
+            short_description="Tankfüllung",
+            amount=Decimal("40.00"),
+            paid_by=self.leader,
+        )
         result = evaluate_statement(
             self.statement,
             ruleset=self.rules,
@@ -649,6 +685,49 @@ class NarrowedFormApiTestCase(DerivedFormTestCase):
         self.assertNotIn("kilometers", body["answers"])
         result = evaluate_statement(Statement.objects.get(pk=self.statement.pk), ruleset=self.rules)
         self.assertEqual([entry.key for entry in result.declarations], ["regime"])
+
+    def test_a_retired_derived_question_is_not_blocked_on_its_bound(self):
+        """A bound is asked of what is *asked*, not of the whole vocabulary.
+
+        The trip has one leader and the declaration pays for none, so the
+        bound is broken — but the question is retired, nobody is asked it and
+        no rule reads it. Reporting it would be a blocking error about a
+        question with no way to clear it.
+
+        Neuter it — ``unbounded(asked.vocabulary, …)`` — and this statement can
+        never resolve again.
+        """
+        self.rules = _RetiredBound()
+        self.assertEqual([entry["key"] for entry in self.form(self.statement)["inputs"]], [])
+        result = evaluate_statement(Statement.objects.get(pk=self.statement.pk), ruleset=self.rules)
+        self.assertEqual(result.errors, (), result.errors)
+
+
+class _RetiredBound(TravelRules):
+    """A derived question with a broken bound, retired off the form.
+
+    The trip has a leader and this pays for none of them, so the bound is
+    broken — and the question is not being asked, so there is nothing to do
+    about it and nothing to report.
+    """
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            Input(
+                "crew",
+                "Jugendleitung",
+                "member_set",
+                required=False,
+                source="excursion.leaders",
+                max=0,
+            )
+        ]
+
+    def relevant_inputs(self, ctx: RuleContext) -> list[Input]:
+        return []
+
+    def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
+        return [], []
 
 
 class _NoJourney(TravelRules):
@@ -1023,9 +1102,13 @@ class WithdrawnOptionTestCase(DerivedFormTestCase):
         moving money — while ``/form`` served it beside a ``choices`` list that
         did not contain it.
 
-        Neuter it — drop the ``choice`` arm of
-        :func:`finance.engine.answers.within` — and the 30.00 comes back, and
-        the form serves a value its own ``choices`` does not offer.
+        And it is **reported**, not merely dropped. Dropping it quietly was the
+        second half of the same bug: zero paid, the recipient still named, no
+        error, every check vacuous and ``validity`` saying everything was in
+        order. Neuter either half — the ``choice`` arm of
+        :func:`finance.engine.answers.within`, or the ``dropped`` arm of
+        ``evaluate`` — and this goes red, the first with 30.00 coming back, the
+        second with a silent 0.00.
         """
         self._a_receipt_paid_by(self.leader)
         self.assertEqual(
@@ -1040,22 +1123,28 @@ class WithdrawnOptionTestCase(DerivedFormTestCase):
         self.rules = _OneRegime()
         self.statement.refresh_from_db()
         self.assertEqual(self.statement.inputs["regime"], "tourenleitung")
-        self.assertEqual(self.paid(self.statement), Decimal("0.00"))
+        self.blocked_on(self.statement, "regime")
         body = self.form(self.statement)
         self.assertEqual(
             self.declaration(body, "regime")["choices"],
             [{"value": "ehrenamt", "label": "Ehrenamt"}],
         )
         self.assertIsNone(body["answers"]["regime"], "the form may not serve what it refuses")
+        # And answering it again clears both the error and the silence.
+        self.assertEqual(
+            self.answer_through_the_api(self.statement, {"regime": "ehrenamt"}).status_code, 200
+        )
+        self.assertEqual(self.paid(self.statement), Decimal("20.00"))
 
     def test_a_person_the_options_no_longer_offer_stops_being_paid(self):
         """Clearing a receipt's payer is an ordinary post-submission edit.
 
         It empties an ``options_source="bills.payers"`` set without anybody
         touching an answer, and the answer that still names them used to go on
-        paying. Neuter it — drop the ``member`` arm of ``within`` — and the
-        2.00 comes back for somebody the form no longer offers, served beside
-        an empty option list.
+        paying. Neuter the ``member`` arm of ``within`` and the 2.00 comes back
+        for somebody the form no longer offers; neuter ``evaluate``'s
+        ``dropped`` arm and it goes to zero with nothing said, which is the
+        state this branch was sent back for.
         """
         receipt = self._a_receipt_paid_by(self.leader)
         self.assertEqual(
@@ -1069,7 +1158,7 @@ class WithdrawnOptionTestCase(DerivedFormTestCase):
         receipt.save()
         self.statement.refresh_from_db()
         self.assertEqual(self.statement.inputs["paid_to"], self.leader.pk)
-        self.assertEqual(self.paid(self.statement), Decimal("0.00"))
+        self.blocked_on(self.statement, "paid_to")
         body = self.form(self.statement)
         self.assertEqual(self.declaration(body, "paid_to")["options"], [])
         self.assertIsNone(body["answers"]["paid_to"])
@@ -1081,3 +1170,159 @@ class WithdrawnOptionTestCase(DerivedFormTestCase):
             amount=Decimal("40.00"),
             paid_by=member,
         )
+
+
+class _EitherWay(TravelRules):
+    """The party question a trip-or-no-trip ruleset actually wants.
+
+    ``source`` on the trip's leaders *and* an ``options_source`` for when there
+    is no trip. The two arms never overlap -- when the source resolves the
+    engine supplies the answer and the options go unread; when it does not,
+    they are who may be picked -- so this is the whole of "the people who led
+    the trip, or whoever paid a receipt when there was none".
+
+    Without the pairing the no-trip arm offers nobody, and a party-valued
+    declaration offering nobody can never be answered: the headline example of
+    this feature would not have held for party types.
+    """
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            Input(
+                "crew",
+                "Jugendleitung",
+                "member_set",
+                required=False,
+                source="excursion.leaders",
+                options_source="bills.payers",
+            )
+        ]
+
+    def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
+        return [
+            Transfer(SECTION, member, Decimal("10.00"), "travel", rule_id="per_leader")
+            for member in ctx.inputs.members("crew")
+        ], []
+
+
+class PartyEitherWayTestCase(DerivedFormTestCase):
+    """One party-valued declaration, derived with a trip and asked without one."""
+
+    def setUp(self):
+        super().setUp()
+        self.rules = _EitherWay()
+
+    def test_with_a_trip_the_leaders_are_supplied(self):
+        body = self.form(self.statement)
+        self.assertTrue(self.declaration(body, "crew")["derived"])
+        self.assertEqual(body["answers"]["crew"], [self.leader.pk])
+        self.assertEqual(self.paid(self.statement), Decimal("10.00"))
+
+    def test_without_a_trip_the_same_question_can_still_be_answered(self):
+        """Which it could not be while `options_source` was refused here.
+
+        Neuter it -- refuse `options_source` beside a `source` again, or stop
+        resolving it on the non-derived arm -- and the option list is empty, the
+        `PATCH` is a 422, and this statement can never pay anybody.
+        """
+        Bill.objects.create(
+            statement=self.loose,
+            short_description="Seil",
+            amount=Decimal("90.00"),
+            paid_by=self.owner,
+        )
+        body = self.form(self.loose)
+        self.assertFalse(self.declaration(body, "crew")["derived"])
+        self.assertEqual(
+            self.declaration(body, "crew")["options"],
+            [{"id": self.owner.pk, "name": self.owner.name}],
+        )
+        response = self.answer_through_the_api(self.loose, {"crew": [self.owner.pk]})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.paid(self.loose), Decimal("10.00"))
+
+    def test_the_domain_does_not_bind_the_supplied_arm(self):
+        """Who may be picked bounds the *asked* answer, and only that one.
+
+        The trip's leader is not among this statement's receipt payers, so the
+        option list does not contain them — and the derived arm pays them
+        anyway, because a supplied value comes out of the statement's own data
+        rather than out of the list. That is the rule stated once; neuter it by
+        applying ``within`` to a supplied value and the trip's own leaders stop
+        being payable on the very trip that names them.
+        """
+        body = self.form(self.statement)
+        self.assertEqual(
+            self.declaration(body, "crew")["options"], [], "nobody has paid a receipt yet"
+        )
+        self.assertEqual(body["answers"]["crew"], [self.leader.pk])
+        self.assertEqual(self.paid(self.statement), Decimal("10.00"))
+
+
+class ReferenceRulesetDropTestCase(TestCase):
+    """The reference ruleset, and the one members-admin edit that reaches it.
+
+    Not a ruleset written for the test: Heidelberg, settling a trip, with a
+    youth leader removed from the excursion by the ordinary members admin. That
+    is all it takes, and before the answer was reported it produced the state
+    with no witness -- `total` 10.00 -> 0.00, the readout still naming the
+    recipient, `errors ()`, every check ok, `validity` "Alles in Ordnung",
+    `submit` accepted, `confirm()` true, and not one transaction written.
+    """
+
+    def setUp(self):
+        import_from_directory(reference_directory())
+        self.user, self.officer = make_member_user("rdrop")
+        self.user = grant(self.user, "process_statementsubmitted")
+        self.leader_user, self.leader = make_member_user("rleader")
+        self.excursion = Freizeit.objects.create(
+            name="Reference trip",
+            kilometers_traveled=0,
+            tour_type=GEMEINSCHAFTS_TOUR,
+            tour_approach=MUSKELKRAFT_ANREISE,
+            difficulty=1,
+        )
+        self.excursion.jugendleiter.add(self.leader)
+        for index in range(4):
+            _user, participant = make_member_user(f"rteil{index}")
+            NewMemberOnList.objects.create(member=participant, memberlist=self.excursion)
+        self.statement = Statement.objects.create(
+            short_description="Referenz", excursion=self.excursion, created_by=self.officer
+        )
+        answer(self.statement, allowance_to=[self.leader.pk])
+        # Settled as far as a statement gets before somebody confirms it, so
+        # that `validity` has nothing else to complain about and the sentence
+        # it gives really is about this.
+        self.statement.generate_transactions()
+        self.statement.transaction_set.update(ledger=Ledger.objects.create(name="Konto"))
+
+    def test_removing_a_youth_leader_blocks_the_statement_it_was_paying(self):
+        """The blocker, end to end on the ruleset that ships in the image.
+
+        Neuter the ``dropped`` arm of ``evaluate`` and every assertion after
+        the removal goes back to the silent version: nothing owed, nothing
+        wrong, everything correct, and a statement that closes at zero while
+        naming the person it owes.
+        """
+        self.assertGreater(self.statement.total_allowance, Decimal("0.00"))
+        self.assertEqual(self.statement.rule_result.errors, ())
+        self.assertEqual(self.statement.validity, Statement.VALID)
+        self.assertTrue(self.statement.is_valid())
+
+        # One ordinary edit in the members admin.
+        self.excursion.jugendleiter.remove(self.leader)
+
+        fresh = Statement.objects.get(pk=self.statement.pk)
+        self.assertEqual(
+            fresh.allowance_to, [self.leader], "the readout still names them, as it always did"
+        )
+        self.assertTrue(
+            any("allowance_to" in error for error in fresh.rule_result.errors),
+            fresh.rule_result.errors,
+        )
+        self.assertEqual(fresh.total_allowance, Decimal("0.00"))
+        self.assertNotEqual(
+            fresh.validity, Statement.VALID, "and the pages say so rather than 'correct'"
+        )
+        self.assertNotEqual(str(fresh.validity_display), str(_("Everything is correct.")))
+        self.assertFalse(fresh.is_valid())

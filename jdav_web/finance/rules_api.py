@@ -665,7 +665,13 @@ class Input:
     #: given, or names an :attr:`options_source` and lets the engine fill this
     #: in. Not both.
     options: tuple[Member, ...] = ()
-    #: For ``member_set`` and ``int``: the largest acceptable count or value.
+    #: For ``member_set`` and ``int``, and for **those two only**: the largest
+    #: acceptable count or value. It is ignored on every other type —
+    #: ``money`` included, which is worth knowing because an amount is the
+    #: other thing one would expect a ceiling on. A money answer is bounded by
+    #: the resolution and ceiling of the field itself
+    #: (``finance.inputs.MONEY_MAX``) and not by this; a section wanting its
+    #: own maximum writes a :class:`Check`.
     #:
     #: It bounds a *submitted* answer, which is refused on the way in, and an
     #: answer the engine supplies from a :attr:`source`, which cannot be —
@@ -706,11 +712,20 @@ class Input:
     #: ``inputs`` gave it, so the form and the rules cannot disagree about
     #: where one key's value comes from.
     #:
-    #: It may not be stated beside :attr:`options` or :attr:`options_source`: a
-    #: derived answer is not picked, so "these are the people who may be
-    #: picked" and "the value is whoever the trip says" are two answers to one
-    #: question. A derived set of people is bounded by :attr:`max`, and is
-    #: statement-local already because the context is.
+    #: For a ``member`` or ``member_set`` it should be stated *with*
+    #: :attr:`options` or an :attr:`options_source`, and the two never both
+    #: apply: when the source resolves the engine supplies the answer and the
+    #: options go unread; when it does not, the options are who may be picked.
+    #: ``source="excursion.leaders"`` with ``options_source="bills.payers"`` is
+    #: the whole of "the people who led the trip, or whoever paid a receipt
+    #: when there was no trip" — and **without the second half the question
+    #: cannot be answered at all** on a statement with no excursion, because a
+    #: party-valued declaration offering nobody offers nobody.
+    #:
+    #: So: who may be picked bounds the answer when it is *asked for*, and says
+    #: nothing about one the engine supplies. A supplied one comes out of the
+    #: statement's own data, which is what makes it safe without a domain, and
+    #: what bounds it is :attr:`max`.
     #:
     #: A derived value is **not stored**. It is resolved again every time a
     #: context is built, so there is no second copy to go stale when the trip
@@ -741,11 +756,12 @@ class Input:
                 f"{self.key!r} is marked derived with nothing to derive it from; the "
                 "engine sets that itself, from `source`"
             )
-        if self.source and (self.options or self.options_source):
-            raise RuleError(
-                f"{self.key!r} takes its value from {self.source!r} and also says who may "
-                "be picked; a derived answer is not picked, so bound it with `max` instead"
-            )
+        # A `source` beside `options` or an `options_source` is *not* refused,
+        # and the rule that makes it unambiguous is one sentence: who may be
+        # picked bounds the answer when it is asked for, and says nothing about
+        # one the engine supplies. The two arms never both apply — see
+        # `source` — so for a `member` or `member_set` this is the pairing that
+        # makes one question answerable with a trip and without one.
         if self.type == "choice" and not self.choices:
             raise RuleError(
                 f"the choice {self.key!r} offers no choices, which is a text field that "

@@ -105,6 +105,13 @@ zero a rule can handle.
   one method and not the other cannot end up with a form that says an answer
   is the person's to give while the engine supplies one anyway.
 
+``relevant_inputs`` is given the answers **typed**, as this says, and
+``inputs`` is not: it is asked while the context is still being built, before
+anything knows which key is money and which is a person, so a declaration that
+branches on an answer there reads it with :meth:`~kompass.rules.Inputs.raw`.
+That is the difference between the two in practice, and it is why branching
+belongs in ``relevant_inputs`` when it can.
+
 
 How a ruleset reaches a running instance
 ========================================
@@ -365,8 +372,42 @@ question gets, and for the same reason: what the form would refuse, the rules
 do not read. ``GET …/form`` serves it as unanswered too, so a client is never
 handed a value its own option list does not contain.
 
+**And the statement says so.** Dropping the answer is only half of it: the
+evaluation reports it, which makes :attr:`~finance.engine.Result.ok` false, so
+nothing is materialised, nothing is frozen, ``/preflight`` stops saying ``ok``
+and the admin's pages stop saying "everything is correct". Without that, the
+one state with no witness appeared — a statement owing somebody money closing
+at ``0.00``, the recipient still named on every page, no error, and every
+``Check`` the ruleset wrote going vacuous because it reads the already-dropped
+value. So removing a youth leader from a trip *blocks* the statement that was
+paying them until somebody answers the question again, which is the honest
+outcome.
+
+A ``member_set`` is dropped **whole**, not member by member. A trip that loses
+one of three allowance recipients stops paying all three rather than two,
+because picking which two survive is a selection nobody made — and since the
+statement is blocked either way, nothing is paid until the set is given again.
+
+.. warning::
+   **Which statements this can reach.** A *draft* is resolved live on every
+   read, so it is affected at once. A **confirmed** statement is never resolved
+   again. A statement that has been handed in but not yet confirmed is in
+   between, and it is the case to know about: ``Bill.save()`` and
+   ``Bill.delete()`` re-freeze it, which re-runs the rules and **supersedes**
+   its rows — so a finance officer covering a receipt after submission is
+   enough to re-settle it. Under this reading the re-run reports the dropped
+   answer instead, which means the rows are retired rather than rewritten at a
+   figure nobody chose, and the statement shows as unresolved until the answer
+   is given again. That is the better of the two outcomes, but it is not
+   "nothing happens": a settled-looking statement can still change until it is
+   confirmed.
+
 So one sentence holds for the whole form: **what the form serves is what the
-rules read**, and the only answer a client may not send back is a derived one.
+rules read**. A client may send all of it back except the keys marked
+``derived``. The one exception is an answer whose stored *type* no longer fits
+its declaration, because the section retyped the key: that is served as it
+stands and refused on the way back, since it is a broken answer rather than a
+withdrawn one and the rules report it loudly rather than reading it as empty.
 
 **Any key can be stored.** A statement keeps its answers in one JSON field, so
 a declaration under any key a ruleset likes holds an answer and is read back by
@@ -502,12 +543,27 @@ section approved is a statement to fix on the excursion, and while the error
 stands the statement does not resolve and no money moves. It is deliberately
 not a truncation: paying three of five quietly is a figure no page explains.
 
-A ``source`` may not be stated beside :attr:`~kompass.rules.Input.options` or
-:attr:`~kompass.rules.Input.options_source`, and that is refused where it is
-written. A derived answer is not *picked*, so "these are the people who may be
-picked" and "the value is whoever the trip says" are two answers to one
-question. A derived set of people is bounded by ``max``, and is already
-statement-local because the context is.
+``max`` means a count for a ``member_set`` and a ceiling for an ``int``, **and
+nothing at all for any other type** — ``money`` included, which is the other
+one you would expect a ceiling on. A money answer is bounded only by the
+field's own resolution and ceiling; a section wanting its own maximum writes a
+:class:`~kompass.rules.Check`, where the sentence is its own too.
+
+A party-valued ``source`` should be stated **together with** an
+:attr:`~kompass.rules.Input.options_source` (or a hand-listed
+:attr:`~kompass.rules.Input.options`), and the two never both apply: when the
+source resolves, the engine supplies the answer and the options go unread; when
+it does not, the options are who may be picked. ``source="excursion.leaders"``
+with ``options_source="bills.payers"`` is the whole of "whoever led the trip,
+or whoever paid a receipt when there was no trip".
+
+Without that second half such a question cannot be answered at all on a
+statement with no excursion — the source resolves to nothing, the declaration
+offers nobody, and a party-valued declaration offering nobody offers nobody. So
+the rule is one sentence: **who may be picked bounds the answer when it is
+asked for, and says nothing about one the engine supplies.** A supplied one
+comes out of the statement's own data, which is what makes it safe without a
+domain, and what bounds it is ``max``.
 
 .. _development_manual/finance_rules/options:
 

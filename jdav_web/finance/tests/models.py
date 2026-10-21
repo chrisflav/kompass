@@ -555,7 +555,8 @@ class StatementTestCase(TestCase):
             self.st3.excursion.staff_count,
             self.staff_count + 1,
             "Calculated staff count is not constructed staff count: the five who each "
-            "hand in a bill, plus Fritz, who leads the trip and takes the subsidy.",
+            "hand in a bill, plus the sixth who takes the subsidy and hands in none. "
+            "Not Fritz, who leads no trip here on purpose — see the fixture.",
         )
         self.assertEqual(
             self.st3.excursion.participant_count,
@@ -716,11 +717,22 @@ class StatementTestCase(TestCase):
         # should be invalid
         self.assertFalse(self.st3.allowance_to_valid)
 
-        self.st3.generate_transactions()
-        for trans in self.st3.transaction_set.all():
-            trans.ledger = self.personal_account
-            trans.save()
+        # No transactions to settle first, as this used to do before asserting:
+        # the rules report the answer, so `materialise` retires the rows and
+        # `generate_transactions` has nothing to write. `validity` reaches the
+        # gate before it looks at transactions at all, which is the point.
+        # Still `INVALID_ALLOWANCE_TO`, and now for two reasons at once: the
+        # gate says so, and the engine reports the answer as one these rules no
+        # longer offer. `validity` asks the gate first precisely so that the
+        # sentence names the answer rather than the bookkeeping that follows
+        # from it — with the rows retired there are no transactions to match,
+        # and "the transactions do not match" is the symptom.
+        self.assertFalse(self.st3.is_valid())
         self.assertEqual(self.st3.validity, Statement.INVALID_ALLOWANCE_TO)
+        self.assertTrue(
+            any("allowance_to" in error for error in self.st3.rule_result.errors),
+            self.st3.rule_result.errors,
+        )
 
     def test_the_answers_are_read_from_one_field_by_the_rules_own_keys(self):
         """What the four columns used to be, as a reading of ``inputs``.

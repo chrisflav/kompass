@@ -33,6 +33,7 @@ from finance.engine import evaluate_statement
 from finance.engine import load
 from finance.engine import manifest
 from finance.engine import manifest_hash
+from finance.engine import no_longer_offered
 from finance.engine import no_queries
 from finance.engine import options_from
 from finance.engine import parameters
@@ -428,21 +429,29 @@ class InputDeclarationTestCase(SimpleTestCase):
             )
         self.assertIn("say it once", str(caught.exception))
 
-    def test_saying_who_may_be_picked_for_an_answer_nobody_picks_is_refused(self):
-        """A derived answer is not picked, so an option list is a second answer.
+    def test_who_may_be_picked_may_be_stated_beside_a_source(self):
+        """Because the two arms never both apply, and both halves are needed.
 
-        ``options`` says "these are the people who may be named" and ``source``
-        says "the value is whoever the trip says". Both at once is a
-        declaration that can name somebody it also says may not be named, and
-        nothing re-checked a supplied value against the list — so the engine
-        would have paid whoever the source pointed at. Refused where it is
-        written instead: a derived set of people is bounded with ``max``, and
-        is statement-local already because the context is.
+        A party-valued question with a ``source`` and no domain can be answered
+        only on the arm where the engine supplies it: with no trip it offers
+        nobody, and a declaration offering nobody offers nobody. So the pairing
+        is the point rather than an ambiguity — who may be picked bounds the
+        answer when it is *asked for*, and says nothing about one the engine
+        supplies out of the statement's own data.
+
+        It is also the shape the engine itself produces: filling ``options``
+        from an ``options_source`` leaves a declaration carrying both, so a
+        refusal here would have been a refusal of the engine's own answer —
+        raised from inside ``replace``, as a 500 on every page that builds a
+        context. Either way round, this has to build.
         """
-        for extra in ({"options": (Member(MemberId(1)),)}, {"options_source": "bills.payers"}):
-            with self.subTest(**extra), self.assertRaises(RuleError) as caught:
-                Input("who", "Wer", "member", source="statement.creator", **extra)
-            self.assertIn("bound it with `max`", str(caught.exception))
+        for domain in (
+            {"options": (Member(MemberId(1)),)},
+            {"options_source": "bills.payers"},
+        ):
+            with self.subTest(**domain):
+                declaration = Input("who", "Wer", "member", source="statement.creator", **domain)
+                self.assertEqual(declaration.source, "statement.creator")
 
     def test_a_declaration_cannot_call_itself_derived(self):
         """The engine sets that, from ``source``, and only ever to true.
@@ -603,6 +612,84 @@ class DerivedResolutionTestCase(SimpleTestCase):
         self.assertEqual(unbounded([replace(nights, max=None)], {"nights": 9}), [])
         # And a declaration the engine did not supply is not this question.
         self.assertEqual(unbounded([nights], {}), [])
+
+    def test_one_key_declared_twice_does_not_mark_the_other_copy(self):
+        """``derived`` is keyed to the declaration, not to the key.
+
+        A ruleset naming one key twice with a ``source`` on only one of the two
+        is a mistake, but it must not be a *crash*: keyed by key, the sourceless
+        copy was handed ``derived=True``, which :class:`~kompass.rules.Input`
+        refuses — from inside ``replace``, so the ``RuleError`` came out of
+        ``asking`` rather than being reported. That is a 500 on the statement
+        list and on ``/form``, and a traceback out of ``checkruleset`` and
+        ``importruleset`` instead of a refusal to import, because ``run_case``
+        calls ``asking`` outside any ``try``.
+
+        Neuter it — key the flag by ``declaration.key in values`` — and this
+        raises instead of answering.
+        """
+        with_trip = context(
+            excursion=Excursion(
+                duration=Decimal("1.0"),
+                nights=0,
+                kilometers=120,
+                approach="car",
+                leaders=(),
+                staff_count=0,
+                approved_staff_count=0,
+                participants=(),
+                ljp=None,
+            )
+        )
+        twice = [
+            Input("km", "Kilometer", "int", source="excursion.kilometers"),
+            Input("km", "Kilometer, noch einmal", "int", required=False),
+        ]
+        asked = asking(Fixed(declarations=twice), with_trip)
+        self.assertEqual([entry.derived for entry in asked.vocabulary], [True, False])
+        # And the form is one question rather than two sharing a key.
+        self.assertEqual([entry.key for entry in asked.form], ["km"])
+
+    def test_a_retyped_answer_is_not_called_a_withdrawn_one(self):
+        """``within`` judges only what it recognises, and that is load-bearing.
+
+        The two ways an answer can fail to fit need different treatment. A
+        value outside the domain is dropped and reported as "not one these
+        rules offer any more", which is a sentence somebody can act on by
+        answering again. A value of the *wrong type* — a section retyped the
+        key — is handed through so the rule's own accessor raises and the
+        evaluation reports the type error with a traceback.
+
+        Without the guard, a retyped answer falls out of every domain
+        comparison and gets the first treatment: the wrong sentence, and the
+        right one lost, because an emptied value never reaches the accessor.
+        Neuter any arm's ``isinstance`` guard and its row below reports a
+        withdrawal that did not happen.
+        """
+        offered = (Member(MemberId(1)),)
+        cases = {
+            "member_set": (Input("a", "A", "member_set", options=offered), {"3": 1}),
+            "member": (Input("b", "B", "member", options=offered), "nobody"),
+            "choice": (Input("c", "C", "choice", choices=(Choice("x", "X"),)), 7),
+            "int": (Input("d", "D", "int", max=3), "viele"),
+        }
+        for kind, (declaration, stored) in cases.items():
+            with self.subTest(type=kind):
+                self.assertEqual(no_longer_offered([declaration], {declaration.key: stored}), [])
+        # And a genuine withdrawal in each of them *is* reported, so the guard
+        # is not simply switching the question off.
+        withdrawn = {
+            "member_set": (cases["member_set"][0], (Member(MemberId(9)),)),
+            "member": (cases["member"][0], Member(MemberId(9))),
+            "choice": (cases["choice"][0], "y"),
+            "int": (cases["int"][0], 9),
+        }
+        for kind, (declaration, stored) in withdrawn.items():
+            with self.subTest(type=kind, withdrawn=True):
+                self.assertEqual(
+                    no_longer_offered([declaration], {declaration.key: stored}),
+                    [declaration.key],
+                )
 
     def test_a_bound_says_nothing_about_a_value_it_cannot_measure(self):
         """A bound on a type that has no size is not a refusal.
@@ -1535,6 +1622,38 @@ class ContextTestCase(TestCase):
         self.assertNotIn("retired", ctx.inputs.declared())
         with self.assertRaises(RuleError):
             ctx.inputs.raw("retired")
+
+    def test_relevant_inputs_is_never_asked_against_the_raw_answers(self):
+        """It is promised the answers *typed*, so it is only asked where they are.
+
+        ``build_context`` asks ``inputs`` alone, because the vocabulary is what
+        it needs to type the stored answers with — and at that point the
+        answers are still the JSON the column holds. A ruleset written to the
+        documented instruction, reading ``ctx.inputs.money(…)`` in
+        ``relevant_inputs``, would raise straight out of the context build, the
+        statement list and ``/form``.
+
+        Neuter it — have ``build_context`` ask both — and this goes red with
+        ``input 'night_cost' is not a money value, but str``.
+        """
+
+        seen = []
+
+        class ReadsTyped(Fixed):
+            def relevant_inputs(self, ctx):
+                # Exactly what the manual tells a ruleset it may do here.
+                seen.append(ctx.inputs.money("night_cost"))
+                return self.inputs(ctx)
+
+        declarations = [Input("night_cost", "Preis", "money", required=False)]
+        ruleset = ReadsTyped(declarations=declarations)
+        ctx = build_context(self.statement, ruleset=ruleset)
+        self.assertEqual(seen, [], "it was not asked here, which is the whole point")
+        self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
+        # And asked where the context *is* typed, it answers rather than raising.
+        asked = asking(ruleset, ctx)
+        self.assertEqual([entry.key for entry in asked.form], ["night_cost"])
+        self.assertEqual(seen, [Decimal("12.50")])
 
     def test_without_a_ruleset_the_answers_are_the_column_as_it_is(self):
         """Nobody but the rules can type them, so nothing else pretends to."""

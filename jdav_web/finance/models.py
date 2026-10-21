@@ -625,13 +625,21 @@ class Statement(CommonModel):
         statement used to report "everything is correct", which is exactly when
         it is not. `confirm` refuses on `is_valid`, so this is also what keeps
         money from moving on a statement the rules could not settle.
+
+        ``INVALID_ALLOWANCE_TO`` is asked **first**, by the same argument read
+        the other way. It is the only one of these about an *answer* rather
+        than about the bookkeeping that follows from one, and it names the
+        thing to go and change. Everything downstream of a bad answer — no
+        rows written, so no transactions, so a total that does not match — is a
+        symptom, and showing a symptom when the cause has a sentence of its own
+        is the mistake this ordering exists to avoid.
         """
+        if not self.allowance_to_valid:
+            return Statement.INVALID_ALLOWANCE_TO
         if not self.transactions_match_expenses:
             return Statement.NON_MATCHING_TRANSACTIONS
         if not self.ledgers_configured:
             return Statement.MISSING_LEDGER
-        if not self.allowance_to_valid:
-            return Statement.INVALID_ALLOWANCE_TO
         if not self.total_valid:
             return Statement.INVALID_TOTAL
         if self.rule_result.errors:

@@ -577,9 +577,16 @@ def statement_form(request, statement_id: int):
 def statement_preflight(request, statement_id: int):
     """What stands between this statement and being handed in.
 
-    The ruleset's own checks, plus anything its ``transfers`` reported — the
-    two lists ``submit`` refuses on — so a client can show them before somebody
-    presses the button rather than after.
+    The ruleset's own checks, plus anything the evaluation reported, so that a
+    client can show them before somebody presses the button rather than after.
+
+    Neither list is what ``POST …/submit`` itself refuses on: that endpoint
+    reproduces the excursion overview's two guards (valid allowance recipients,
+    and a proof per bill when LJP contributions are claimed) and consults
+    neither ``checks`` nor ``errors``. What an error *does* do is stop the
+    statement resolving, so nothing is materialised and nothing is frozen —
+    which is why a client should read this before submitting and why a failing
+    check here is advice rather than a lock.
     """
     statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
     result = statement.rule_result

@@ -2169,9 +2169,16 @@ export interface paths {
          * Statement Preflight
          * @description What stands between this statement and being handed in.
          *
-         *     The ruleset's own checks, plus anything its ``transfers`` reported — the
-         *     two lists ``submit`` refuses on — so a client can show them before somebody
-         *     presses the button rather than after.
+         *     The ruleset's own checks, plus anything the evaluation reported, so that a
+         *     client can show them before somebody presses the button rather than after.
+         *
+         *     Neither list is what ``POST …/submit`` itself refuses on: that endpoint
+         *     reproduces the excursion overview's two guards (valid allowance recipients,
+         *     and a proof per bill when LJP contributions are claimed) and consults
+         *     neither ``checks`` nor ``errors``. What an error *does* do is stop the
+         *     statement resolving, so nothing is materialised and nothing is frozen —
+         *     which is why a client should read this before submitting and why a failing
+         *     check here is advice rather than a lock.
          */
         get: operations["finance_api_router_statement_preflight"];
         put?: never;
@@ -6951,9 +6958,15 @@ export interface components {
          *     now read and serving anything else would hand back a value this API would
          *     refuse.
          *
-         *     So **what this serves is what the rules read**, and a client may send it
-         *     all back except the keys marked ``derived``: those are served to be shown
+         *     So **what this serves is what the rules read**, and a client may send back
+         *     everything except the keys marked ``derived``: those are served to be shown
          *     and refused to be changed, which is the whole of the refusal.
+         *
+         *     One further exception: an answer whose stored *type* no longer fits its
+         *     declaration — because the section retyped the key — is served as it stands
+         *     and refused on the way back, since it is a broken answer rather than a
+         *     withdrawn one and the rules report it rather than reading it as
+         *     unanswered. Answering that question properly clears it.
          *
          *     ``steps`` partitions ``inputs`` into the groups the ruleset named, in
          *     order; every key appears in exactly one, and a form whose rules named no
