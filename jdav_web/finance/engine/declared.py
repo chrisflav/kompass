@@ -88,20 +88,37 @@ class Asked:
     widened: tuple[str, ...]
 
 
-def asking(ruleset: Ruleset, ctx: RuleContext) -> Asked:
+def asking(ruleset: Ruleset, ctx: RuleContext, *, form: bool = True) -> Asked:
     """``ruleset``'s declarations for ``ctx``, with the engine's parts filled in.
 
-    Both declaration methods, once, inside the guard: declaring the form is as
-    much the section's code as resolving the transfers, and a declaration that
-    queried would be a question whose answer depended on the day it was
-    rendered.
+    Inside the guard: declaring the form is as much the section's code as
+    resolving the transfers, and a declaration that queried would be a question
+    whose answer depended on the day it was rendered.
+
+    ``form=False`` skips :meth:`~kompass.rules.Ruleset.relevant_inputs`
+    altogether and reports the whole vocabulary as the form, for the one caller
+    that has no use for the narrowing:
+    :func:`finance.engine.context.build_context`, which needs the vocabulary to
+    type the stored answers with and discards everything else. It matters more
+    than saving a call. ``relevant_inputs`` is documented to run *against the
+    answers so far*, and inside ``build_context`` the answers are still the raw
+    JSON — so a ruleset written to that instruction, reading
+    ``ctx.inputs.money(…)`` there, would raise out of the context build, the
+    statement list and ``/form``. Asked only where the context is typed, it
+    sees what it was promised.
     """
     with no_queries():
         declared = list(ruleset.inputs(ctx))
-        relevant = list(ruleset.relevant_inputs(ctx))
+        relevant = declared if not form else list(ruleset.relevant_inputs(ctx))
     values = supplied(declared, ctx)
+    # Keyed to the *declaration* and not to the key: a ruleset naming one key
+    # twice, with a source on only one of the two, would otherwise hand the
+    # sourceless copy `derived=True` — which `Input` refuses, from inside
+    # `replace`, as a 500 on every page that builds a context and a traceback
+    # out of `checkruleset` rather than a refusal to import.
     vocabulary = tuple(
-        _served(declaration, ctx, declaration.key in values) for declaration in declared
+        _served(declaration, ctx, bool(declaration.source) and declaration.key in values)
+        for declaration in declared
     )
     by_key = {declaration.key: declaration for declaration in vocabulary}
     # `dict.fromkeys` keeps the order and drops a repeat, so a key named twice

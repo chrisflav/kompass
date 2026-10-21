@@ -37,6 +37,7 @@ from finance.rules_api import Section
 from finance.rules_api import Transfer
 
 from .answers import EMPTY
+from .answers import no_longer_offered
 from .answers import typed
 from .declared import Asked
 from .declared import asking
@@ -258,8 +259,8 @@ def _net_out(transfers: Iterable[Transfer], party: Party) -> Decimal:
     return total
 
 
-def _answered(asked: Asked, ctx: RuleContext) -> Inputs:
-    """The answers a rule reads: what is *asked*, over the whole vocabulary.
+def _answered(asked: Asked, ctx: RuleContext) -> tuple[Inputs, list[str]]:
+    """The answers a rule reads, and the keys whose answer was dropped.
 
     Two sets, because a ruleset answers two questions about its form.
     :attr:`~finance.engine.declared.Asked.vocabulary` is
@@ -290,12 +291,23 @@ def _answered(asked: Asked, ctx: RuleContext) -> Inputs:
     unsaved answers, and on those routes nothing else would. Both resolutions
     ask :mod:`finance.engine.declared` off ``inputs``, so "again" cannot mean
     "differently".
+
+    An answer the declaration **no longer offers** is dropped here, and the key
+    is handed back so that :func:`evaluate` can say so. Dropping it where
+    nobody could be told — in ``coerce_input``, which has no way to report —
+    produced the one state with no witness: a statement owing somebody money
+    closing at ``0.00`` with the recipient still named on every page, no error,
+    no failing check (the ruleset's own checks read the already-emptied value
+    and go vacuous), and ``validity`` answering "everything is correct".
+    Reported, it is simply a statement that does not resolve until somebody
+    answers the question again.
     """
     # Everything declared reads as unanswered to begin with, so that a question
     # the form is not asking is readable but empty.
     answers: dict[str, object] = {
         declaration.key: EMPTY.get(declaration.type) for declaration in asked.vocabulary
     }
+    stored: dict[str, object] = {}
     for declaration in asked.form:
         if declaration.key in asked.supplied:
             # `typed` and not `coerce_input`: a supplied value has no domain to
@@ -304,10 +316,16 @@ def _answered(asked: Asked, ctx: RuleContext) -> Inputs:
             answers[declaration.key] = typed(declaration, asked.supplied[declaration.key])
             continue
         try:
-            answers[declaration.key] = ctx.inputs.raw(declaration.key)
+            stored[declaration.key] = ctx.inputs.raw(declaration.key)
         except RuleError:
             answers[declaration.key] = EMPTY.get(declaration.type)
-    return Inputs(answers)
+    asked_and_stored = [entry for entry in asked.form if entry.key in stored]
+    dropped = no_longer_offered(asked_and_stored, stored)
+    for declaration in asked_and_stored:
+        answers[declaration.key] = (
+            EMPTY.get(declaration.type) if declaration.key in dropped else stored[declaration.key]
+        )
+    return Inputs(answers), dropped
 
 
 def evaluate(ruleset: Ruleset, ctx: RuleContext) -> Result:
@@ -328,17 +346,27 @@ def evaluate(ruleset: Ruleset, ctx: RuleContext) -> Result:
             # to see or change.
             asked = asking(ruleset, ctx)
             declarations = asked.form
-            answered = replace(ctx, inputs=_answered(asked, ctx))
+            inputs, dropped = _answered(asked, ctx)
+            answered = replace(ctx, inputs=inputs)
             returned, reported = ruleset.transfers(answered)
             checks = tuple(ruleset.checks(answered))
             transfers, problems = _validate(returned)
             balance = _balance_for(ruleset, transfers)
-            # Two things the *declarations* got wrong, reported like a bad
-            # transfer rather than raised: a bound the statement's own data
-            # breaks, and a question `relevant_inputs` asks that `inputs` never
-            # declared. Both leave the books addable and neither may be paid,
-            # which is what `errors` being non-empty guarantees.
-            problems += unbounded(asked.vocabulary, asked.supplied)
+            # Three things that are wrong with the *answers or the
+            # declarations* rather than with a transfer, reported the same way
+            # and for the same reason: each of them leaves the books addable,
+            # so nothing refuses on its own, and each of them would otherwise
+            # be a figure nobody can account for. While `errors` is non-empty
+            # nothing is persisted and no money moves.
+            problems += [
+                f"the answer to {key!r} is not one these rules offer any more; "
+                "it is not read, so answer it again"
+                for key in dropped
+            ]
+            # `asked.form` and not the vocabulary: a derived question the rules
+            # have retired is one nobody is asked and no rule reads, so a bound
+            # it breaks would be an error with nothing to do about it.
+            problems += unbounded(asked.form, asked.supplied)
             problems += [
                 f"relevant_inputs asks for {key!r}, which inputs does not declare; "
                 "relevant_inputs narrows the questions, it does not add any"

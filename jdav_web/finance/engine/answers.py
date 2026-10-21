@@ -22,13 +22,17 @@ whose old answers are still stored, and the loud reading is the right one.
 
 A value *outside the domain its declaration offers* — a ``choice`` whose option
 has been withdrawn, a person who is no longer among the people the rules offer,
-a set larger than the bound — reads as **unanswered** instead
-(:func:`within`). It is the same decision as a retired question (taxis #579):
-what the form would not accept, the rules do not read. That matters because the
-form validates an answer on the way *in* and nothing used to re-validate one on
-the way *out*, so a withdrawn option went on paying, and ``/form`` served an
-answer that the very same form would have refused — any client that round-tripped
-what it was served got a 422 naming a value its own UI could not display.
+a set larger than the bound — is **dropped and reported**
+(:func:`within`, applied in :func:`finance.engine.evaluation._answered`). The
+rules read it as unanswered, which is the same decision as a retired question
+(taxis #579), *and* the evaluation says so, which is the part that cannot be
+left out: a statement that owes somebody money must not close at ``0.00``
+while every page still names the recipient.
+
+The domain is only ever asked of an answer somebody **gave**. A value the
+engine supplies from a :attr:`~kompass.rules.Input.source` comes out of the
+statement's own data instead, and what bounds that is
+:func:`finance.engine.declared.unbounded`.
 """
 
 from collections.abc import Iterable
@@ -99,19 +103,33 @@ def within(declaration: Input, value: Any) -> bool:
     empties an ``options_source="bills.payers"`` set — or a set larger than a
     bound the section has since lowered.
 
-    A value whose type does not fit is *not* judged here; it is outside every
-    domain and has to stay loud rather than read as empty, so
-    :func:`coerce_input` only asks this of a value :func:`typed` could fit.
+    **It judges only what it recognises.** A value whose type does not fit its
+    declaration is outside every domain, and reading it as "no longer offered"
+    would be the wrong story *and* would hide the right one: a retyped key has
+    to stay loud, so that the rule's own accessor raises and the evaluation
+    reports it as the type error it is. So each arm below asks its question of
+    a value of its own type and answers ``True`` for anything else.
+
+    The domain is asked of an answer somebody *gave*. It says nothing about one
+    the engine supplies from a :attr:`~kompass.rules.Input.source`: that value
+    comes out of the statement's own data rather than out of this list, and
+    what bounds it is :func:`finance.engine.declared.unbounded`.
     """
     if declaration.type == "choice":
+        if not isinstance(value, str):
+            return True
         return value == "" or value in {choice.value for choice in declaration.choices}
     if declaration.type == "member":
-        return value is None or value in declaration.options
+        return not isinstance(value, Member) or value in declaration.options
     if declaration.type == "member_set":
+        if not isinstance(value, tuple) or not all(isinstance(who, Member) for who in value):
+            return True
         if declaration.max is not None and len(value) > declaration.max:
             return False
-        return all(member in declaration.options for member in value)
+        return all(who in declaration.options for who in value)
     if declaration.type == "int":
+        if isinstance(value, bool) or not isinstance(value, int):
+            return True
         return declaration.max is None or value <= declaration.max
     return True
 
@@ -134,7 +152,7 @@ def offers(declaration: Input, value: Any) -> bool:
 
 
 def coerce_input(declaration: Input, value: Any) -> object:
-    """One **stored** answer, as the type its declaration promises and no wider.
+    """One **stored** answer, as the type its declaration promises.
 
     The other half of :func:`finance.inputs.clean_value`: that one takes what a
     client sent and makes it storable, this one takes what was stored and makes
@@ -146,17 +164,27 @@ def coerce_input(declaration: Input, value: Any) -> object:
     Money goes through ``str`` on its way to :class:`~decimal.Decimal`, so a
     JSON number never arrives as its binary expansion.
 
-    An answer the declaration no longer offers reads as that empty value too
-    (:func:`within`), so that nothing is paid on a value the form would refuse.
-    A *type* that does not fit is still handed through, unjudged, so that the
-    rule's accessor raises on it: the two failures have to stay distinguishable,
-    and only one of them is a thing a person can re-answer.
+    **A value that does not fit is handed through untouched**, not raised on.
+    A section may change what a question asks for while statements still hold
+    an answer under that key, and ``inputs`` keeps a retired key rather than
+    pruning it. Raising here would make every read of that statement a 500,
+    including the ``/form`` request that is the only way to put a new answer
+    in. Handed through, the rule's own typed accessor raises
+    :class:`kompass.rules.RuleError` instead, which
+    :func:`finance.engine.evaluation.evaluate` reports.
+
+    What it deliberately does **not** do is drop an answer the declaration no
+    longer offers. That is :func:`within`'s question, and it is asked in
+    :func:`finance.engine.evaluation._answered` instead — because dropping an
+    answer is a thing somebody has to be *told* about, and ``evaluate`` is
+    where a thing can be told. Dropping it here left the one state nobody
+    could see: zero paid, the recipient still named on every page, no error, no
+    failing check, and ``validity`` reporting that everything was in order.
     """
     try:
-        fitted = _fitted(declaration, value)
+        return _fitted(declaration, value)
     except (TypeError, ValueError, ArithmeticError):
         return value
-    return fitted if within(declaration, fitted) else EMPTY.get(declaration.type)
 
 
 def _fitted(declaration: Input, value: Any) -> object:
@@ -204,10 +232,15 @@ def typed_inputs(
     stored under the same key, and that is the fail-closed half of the feature:
     a derived figure is never editable, so a value that reached
     ``Statement.inputs`` under its key — a leftover from before the question
-    was derived, or a hand-crafted write — is shadowed rather than read. They
-    go through :func:`typed` rather than :func:`coerce_input`, because a
-    supplied value has no domain to be re-checked against and a bound it breaks
-    is an error rather than an empty reading.
+    was derived, or a hand-crafted write — is shadowed rather than read.
+
+    Nothing here drops an answer for being outside its domain: that is
+    :func:`finance.engine.evaluation._answered`'s job, where it can be
+    reported. So the context this builds carries the answer as *stored*, which
+    is what :meth:`~kompass.rules.Ruleset.relevant_inputs` and ``/form`` are
+    asked about — and an answer in that state is one the evaluation refuses to
+    settle, so there is no steady state in which the two could disagree about
+    a figure that matters.
     """
     engine_supplied = {} if derived is None else derived
     return {
@@ -218,3 +251,21 @@ def typed_inputs(
         )
         for declaration in declarations
     }
+
+
+def no_longer_offered(declarations: Iterable[Input], answers: Mapping[str, object]) -> list[str]:
+    """Every *typed* answer in ``answers`` its declaration no longer offers.
+
+    Asked of a context's own answers rather than of the stored JSON, so that
+    one implementation serves every route: a statement, a case file and the
+    fuzzer all arrive here as typed values.
+
+    Keys the engine supplied are not in scope, and are the caller's to leave
+    out: a derived figure is not an answer somebody gave, so there is no domain
+    it could have fallen out of.
+    """
+    return [
+        declaration.key
+        for declaration in declarations
+        if not within(declaration, answers.get(declaration.key))
+    ]

@@ -540,9 +540,15 @@ class StatementFormOut(Schema):
     now read and serving anything else would hand back a value this API would
     refuse.
 
-    So **what this serves is what the rules read**, and a client may send it
-    all back except the keys marked ``derived``: those are served to be shown
+    So **what this serves is what the rules read**, and a client may send back
+    everything except the keys marked ``derived``: those are served to be shown
     and refused to be changed, which is the whole of the refusal.
+
+    One further exception: an answer whose stored *type* no longer fits its
+    declaration — because the section retyped the key — is served as it stands
+    and refused on the way back, since it is a broken answer rather than a
+    withdrawn one and the rules report it rather than reading it as
+    unanswered. Answering that question properly clears it.
 
     ``steps`` partitions ``inputs`` into the groups the ruleset named, in
     order; every key appears in exactly one, and a form whose rules named no

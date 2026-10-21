@@ -273,13 +273,18 @@ def build_context(
     if ruleset is None or inputs is not None:
         return context
     # Asking the ruleset which answers it declares is a call into a section's
-    # own code, so it happens inside the guard — `ask` opens it — and it
+    # own code, so it happens inside the guard — `asking` opens it — and it
     # happens *after* everything above, which is the last query this context
-    # needs. The answers it is asked against are the untyped ones: a ruleset
-    # that branches on an answer while declaring the questions reads them with
-    # `raw`, or branches in `relevant_inputs`, which runs against the typed
-    # context this returns.
-    asked = asking(ruleset, context)
+    # needs.
+    #
+    # `form=False`: only `inputs` is asked here, because only the vocabulary is
+    # wanted — it is what the stored answers are typed by. And the answers it
+    # is asked against are still the raw JSON, so a ruleset branching on one
+    # while declaring the questions has to read it with `raw`.
+    # `relevant_inputs` is promised the *typed* answers, so it is asked where
+    # that is true: in `finance.inputs.asked` for the form and in `evaluate`
+    # for the rules, both against the context this returns.
+    asked = asking(ruleset, context, form=False)
     # The derived answers are resolved here as well as in `evaluate`, and not
     # only there, because this is the context `relevant_inputs`, the form and
     # `clean` are asked against: without them, a question the engine answers
