@@ -717,10 +717,10 @@ class StatementTestCase(TestCase):
         # should be invalid
         self.assertFalse(self.st3.allowance_to_valid)
 
-        self.st3.generate_transactions()
-        for trans in self.st3.transaction_set.all():
-            trans.ledger = self.personal_account
-            trans.save()
+        # No transactions to settle first, as this used to do before asserting:
+        # the rules report the answer, so `materialise` retires the rows and
+        # `generate_transactions` has nothing to write. `validity` reaches the
+        # gate before it looks at transactions at all, which is the point.
         # Still `INVALID_ALLOWANCE_TO`, and now for two reasons at once: the
         # gate says so, and the engine reports the answer as one these rules no
         # longer offer. `validity` asks the gate first precisely so that the

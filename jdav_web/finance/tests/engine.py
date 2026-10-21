@@ -1637,19 +1637,23 @@ class ContextTestCase(TestCase):
         ``input 'night_cost' is not a money value, but str``.
         """
 
+        seen = []
+
         class ReadsTyped(Fixed):
             def relevant_inputs(self, ctx):
                 # Exactly what the manual tells a ruleset it may do here.
-                if ctx.inputs.money("night_cost") > Decimal("0"):
-                    return self.inputs(ctx)
-                return []
+                seen.append(ctx.inputs.money("night_cost"))
+                return self.inputs(ctx)
 
         declarations = [Input("night_cost", "Preis", "money", required=False)]
-        ctx = build_context(self.statement, ruleset=ReadsTyped(declarations=declarations))
+        ruleset = ReadsTyped(declarations=declarations)
+        ctx = build_context(self.statement, ruleset=ruleset)
+        self.assertEqual(seen, [], "it was not asked here, which is the whole point")
         self.assertEqual(ctx.inputs.money("night_cost"), Decimal("12.50"))
         # And asked where the context *is* typed, it answers rather than raising.
-        asked = asking(ReadsTyped(declarations=declarations), ctx)
+        asked = asking(ruleset, ctx)
         self.assertEqual([entry.key for entry in asked.form], ["night_cost"])
+        self.assertEqual(seen, [Decimal("12.50")])
 
     def test_without_a_ruleset_the_answers_are_the_column_as_it_is(self):
         """Nobody but the rules can type them, so nothing else pretends to."""
