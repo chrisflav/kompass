@@ -10,6 +10,9 @@ module is a claim about one of its four halves:
   type goes through (:class:`RowCellTestCase`, :class:`RowPatchTestCase`),
 * a **seed** prefills one row, once, and the person's edit survives
   (:class:`RowSeedTestCase`),
+* a **column** comes and goes with the declaration, and a cell it has put away
+  is ignored and kept rather than refused or dropped
+  (:class:`RowRegimeColumnTestCase`),
 * and a refusal about a cell lands **on that cell**
   (:class:`RowErrorKeyTestCase`).
 
@@ -48,6 +51,7 @@ from finance.engine import evaluate
 from finance.engine import evaluate_statement
 from finance.engine import seeds
 from finance.engine import typed_inputs
+from finance.engine import within
 from finance.engine.cases import parse_case
 from finance.engine.cases import run_case
 from finance.engine.fuzz import fuzz
@@ -58,6 +62,7 @@ from finance.inputs import clean_value
 from finance.inputs import flat_messages
 from finance.inputs import form_field
 from finance.inputs import party_answers
+from finance.inputs import retired_cells
 from finance.inputs import row_key
 from finance.models import Bill
 from finance.models import Statement
@@ -105,6 +110,9 @@ APPROACHES = (
 #: What a kilometre in a private car is worth, and what each passenger adds.
 RATE = Decimal("0.30")
 PER_PASSENGER = Decimal("0.02")
+
+#: :func:`travel_rows`'s columns, in the order a form serves them.
+RATE_COLUMNS = ["member", "approach", "kilometers", "passengers"]
 
 
 def travel_rows() -> Input:
@@ -159,6 +167,101 @@ class JourneyRules(Ruleset):
             amount = (journey.number("kilometers") * rate).quantize(Decimal("0.01"))
             if not amount:
                 continue
+            transfers.append(
+                Transfer(SECTION, driver, amount, "travel", rule_id="travel", label="Fahrtkosten")
+            )
+        return transfers, []
+
+
+#: The two regimes :class:`RegimeRules` settles under, as Ludwigsburg's are.
+EHRENAMT = "ehrenamt"
+TOURENLEITUNG = "tourenleitung"
+
+
+def columns_for(regime: str) -> tuple[Field, ...]:
+    """:func:`travel_rows`'s cells, with the passenger count only under Q3.
+
+    Ludwigsburg's real shape: the surcharge per „weitere Mitfahrende“ exists in
+    one of two travel-cost policies, so the count is a column of that policy's
+    table and no column at all of the other's. A form that asked for it anyway
+    would be asking for a figure that cannot change the answer.
+    """
+    cells = travel_rows().fields
+    if regime == TOURENLEITUNG:
+        return cells
+    return tuple(cell for cell in cells if cell.key != "passengers")
+
+
+def regime_of(ctx: RuleContext) -> str:
+    """The regime the answers so far name, read the way ``inputs`` has to read.
+
+    With :meth:`~kompass.rules.Inputs.raw` and defensively, because
+    :meth:`~kompass.rules.Ruleset.inputs` is asked while the context is still
+    being built: the answers are the stored JSON, and on a statement nobody has
+    answered — or in the fuzzer — the key is not there at all.
+    """
+    if "regime" not in ctx.inputs.declared():
+        return ""
+    answer = ctx.inputs.raw("regime")
+    return answer if isinstance(answer, str) else ""
+
+
+def passengers_of(journey: Row) -> int:
+    """A row's passenger count, or none where its table has no such column.
+
+    The read a ruleset whose columns move has to make, and the counterpart of
+    :func:`regime_of`: the engine builds a row out of the declaration of the
+    moment, so a cell no declaration names is not in the row and asking for it
+    by name raises.
+    """
+    if "passengers" not in journey.declared():
+        return 0
+    return journey.number("passengers")
+
+
+class RegimeRules(Ruleset):
+    """A table whose **columns** depend on an answer.
+
+    :meth:`~kompass.rules.Ruleset.inputs` is given the context, so ``fields``
+    may branch on an answer — which is the only place a column can be narrowed:
+    :meth:`~kompass.rules.Ruleset.relevant_inputs` chooses among keys, and a
+    cell of a table is part of that table's declaration rather than a key of
+    its own.
+
+    The rate is a function of the column's *presence* and of nothing else, on
+    purpose: that is what makes a test about the column a test about the money.
+    """
+
+    name = "regimes"
+    context_version = 1
+    balance = (PARTICIPANTS, SECTION, "participant_contribution")
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            Input(
+                "regime",
+                "Regelwerk",
+                "choice",
+                required=False,
+                choices=(
+                    Choice(EHRENAMT, "Ehrenamt"),
+                    Choice(TOURENLEITUNG, "Tourenleitung"),
+                ),
+            ),
+            replace(travel_rows(), fields=columns_for(regime_of(ctx))),
+        ]
+
+    def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
+        transfers: list[Transfer] = []
+        for journey in ctx.inputs.rows("reisen"):
+            driver = journey.member("member")
+            if driver is None or journey.text("approach") != "car":
+                continue
+            # No zero-amount guard, unlike `JourneyRules`: nothing here settles
+            # a journey of no kilometres, and a branch no test reaches is a
+            # statement no test covers.
+            rate = RATE + PER_PASSENGER * passengers_of(journey)
+            amount = (journey.number("kilometers") * rate).quantize(Decimal("0.01"))
             transfers.append(
                 Transfer(SECTION, driver, amount, "travel", rule_id="travel", label="Fahrtkosten")
             )
@@ -436,6 +539,27 @@ class RowCellTestCase(SimpleTestCase):
         self.assertTrue(any("reisen" in error for error in result.errors), result.errors)
         self.assertEqual(result.total_of("travel"), Decimal("0.00"))
 
+    def test_a_row_short_of_a_declared_cell_is_inside_its_domain(self):
+        """A column the row does not carry is empty, not out of the domain.
+
+        The stored route never gets here short of a cell, because
+        ``_fitted_row`` fills every declared one in. The already-typed routes do
+        — the fuzzer answers a table against one declaration and the rules are
+        asked against the one those answers produce — so this is a row built the
+        way those build one.
+
+        Neuter it — ask :meth:`~kompass.rules.Row.raw` for the cell in
+        :func:`finance.engine.answers.within`, as it used to — and the call
+        raises :class:`~kompass.rules.RuleError` out of a function whose whole
+        job is to answer yes or no, which collapses the evaluation over a cell
+        nobody can see.
+        """
+        short = Row(
+            "reisen",
+            {"member": RuleMember(MemberId(1)), "approach": "car", "kilometers": 10},
+        )
+        self.assertTrue(within(offering(1), (short,)))
+
     def test_a_table_whose_type_no_longer_fits_stays_loud(self):
         """A section retyped the key; the rule's own accessor says so.
 
@@ -520,6 +644,42 @@ class RowCellTestCase(SimpleTestCase):
         with self.assertRaises(ValidationError) as refusal:
             clean_value(offering(7), [{"member": 7}, "nope"])
         self.assertEqual(list(refusal.exception.message_dict), ["reisen[1]"])
+
+
+class RowRetiredCellsTestCase(SimpleTestCase):
+    """:func:`finance.inputs.retired_cells`, which is the witness in this feature.
+
+    A cell key a stored row carries and the declaration does not is a column
+    some declaration asked for, because nothing reaches ``Statement.inputs``
+    except through ``clean``. That is what tells a retired column from a typo,
+    and everything this asks is about that reading being narrow.
+    """
+
+    def test_the_keys_a_stored_row_carries_and_the_declaration_does_not(self):
+        self.assertEqual(
+            retired_cells(
+                replace(travel_rows(), fields=columns_for(EHRENAMT)),
+                [
+                    {"member": 1, "approach": "car", "kilometers": 10, "passengers": 2},
+                    {"member": 2, "approach": "bike", "kilometers": 5, "hund": True},
+                ],
+            ),
+            frozenset({"passengers", "hund"}),
+        )
+
+    def test_a_declaration_whose_cells_are_all_still_asked_for_retires_nothing(self):
+        self.assertEqual(
+            retired_cells(travel_rows(), [{"member": 1, "passengers": 2}]), frozenset()
+        )
+
+    def test_a_question_that_is_not_a_table_retires_nothing(self):
+        """Asked of every declaration, so it has to answer for every type."""
+        self.assertEqual(retired_cells(Input("hours", "Stunden", "int"), 7), frozenset())
+
+    def test_a_stored_answer_that_is_not_a_list_of_rows_retires_nothing(self):
+        """A retyped key, which is reported loudly elsewhere rather than read here."""
+        self.assertEqual(retired_cells(travel_rows(), "weit"), frozenset())
+        self.assertEqual(retired_cells(travel_rows(), [7, None]), frozenset())
 
 
 class RowSeedResolutionTestCase(SimpleTestCase):
@@ -854,8 +1014,8 @@ class RowPatchTestCase(RowFormTestCase):
 
         Not merely worth ``0.00``: a transfer of nothing is a row in the books
         and a line on every readout that explains where the money went, about a
-        journey that moved none. Neuter it — drop the ``if not amount`` in
-        :class:`JourneyRules` — and the assertion on the categories goes red
+        journey that moved none. Neuter it — drop the ``if not amount``
+        in :class:`JourneyRules` — and the assertion on the categories goes red
         while a total of ``0.00`` would not have noticed.
         """
         statement = self.a_statement(self.excursion)
@@ -995,6 +1155,191 @@ class RowErrorKeyTestCase(RowFormTestCase):
         response = self.patch(statement, inputs={"nonsense": 1})
         self.assertEqual(response.status_code, 422, response.content)
         self.assertEqual(list(response.json()["errors"]), ["__all__"])
+
+
+class RowRegimeColumnTestCase(RowFormTestCase):
+    """A table narrowed by **column**, and what becomes of the cell put away.
+
+    :class:`RegimeRules` is Ludwigsburg's shape: two policies, one of which pays
+    a supplement per passenger and the other of which does not, so the count is
+    a column of the first and no column of the second. ``inputs`` decides that,
+    because ``relevant_inputs`` chooses among keys and a cell is not a key.
+
+    What is actually hard here is not the narrowing but the row that was stored
+    while the column was asked for. Three things have to be true of it at once —
+    it is **not read**, it is **not refused**, and it is **not thrown away** —
+    and each test below names the one it would notice losing.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rules = RegimeRules()
+
+    def under(self, statement, regime):
+        """Answer the regime and assert it was accepted."""
+        response = self.patch(statement, inputs={"regime": regime})
+        self.assertEqual(response.status_code, 200, response.content)
+        return statement
+
+    def columns(self, statement):
+        return [cell["key"] for cell in self.declaration(self.form(statement))["fields"]]
+
+    def a_journey(self, statement, **cells):
+        response = self.patch(
+            statement,
+            inputs={
+                "reisen": [
+                    {"member": self.driver.pk, "approach": "car", "kilometers": 100, **cells}
+                ]
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        return statement
+
+    def test_the_form_asks_for_the_columns_this_regime_has_and_no_others(self):
+        """Neuter it — return :func:`travel_rows`'s cells whatever the regime —
+        and the Ehrenamt form asks for a count its own rate cannot read, which is
+        the state this change is about."""
+        statement = self.a_statement(self.excursion)
+        self.assertEqual(self.columns(self.under(statement, TOURENLEITUNG)), RATE_COLUMNS)
+        self.assertEqual(self.columns(self.under(statement, EHRENAMT)), RATE_COLUMNS[:-1])
+
+    def test_a_cell_the_column_no_longer_asks_for_moves_no_money(self):
+        """The guarantee, for a column rather than for a question.
+
+        Neuter it — hand the raw row to the rules rather than building it from
+        the declaration in :func:`finance.engine.answers._fitted_row` — and the
+        count goes on paying a supplement the policy in force does not know,
+        which is taxis #579 one level in.
+        """
+        statement = self.a_journey(
+            self.under(self.a_statement(self.excursion), TOURENLEITUNG), passengers=3
+        )
+        self.assertEqual(self.paid(statement), Decimal("36.00"))
+        self.under(statement, EHRENAMT)
+        self.assertEqual(self.paid(statement), Decimal("30.00"))
+
+    def test_the_count_survives_an_edit_made_while_its_column_is_away(self):
+        """**Ignored and kept, not dropped.** The one this feature is for.
+
+        A count answered under the one policy, the regime corrected to the
+        other, **the row then edited** — a distance corrected, which is the
+        ordinary thing to do to a journey — and the regime corrected back. The
+        number has to still be there, and the supplement paid again on the new
+        distance is the proof that it is the stored count rather than a zero.
+
+        The edit is what makes this more than the other tests: an answer the
+        request does not mention is left alone by ``PATCH`` anyway, so a test
+        that only changes the regime proves nothing about what ``clean`` does
+        with the cell. Neuter it — drop the ``cleaned.update`` in
+        :func:`finance.inputs._clean_rows`, which is the line that puts the
+        retired cell back — and the count is gone the moment somebody fixes a
+        distance, with the supplement gone with it.
+        """
+        statement = self.a_journey(
+            self.under(self.a_statement(self.excursion), TOURENLEITUNG), passengers=3
+        )
+        self.under(statement, EHRENAMT)
+        # Still in the JSON, under a column no form shows and no rule reads.
+        self.assertEqual(
+            self.rows_of(statement),
+            [{"member": self.driver.pk, "approach": "car", "kilometers": 100, "passengers": 3}],
+        )
+        corrected = [dict(row, kilometers=150) for row in self.form(statement)["answers"]["reisen"]]
+        response = self.patch(statement, inputs={"reisen": corrected})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.paid(statement), Decimal("45.00"))
+        self.under(statement, TOURENLEITUNG)
+        self.assertEqual(self.rows_of(statement)[0]["passengers"], 3)
+        self.assertEqual(self.paid(statement), Decimal("54.00"))
+
+    def test_a_row_handed_back_while_the_column_is_away_is_accepted_and_keeps_it(self):
+        """The round trip, which is where refusing it would actually hurt.
+
+        ``GET …/form`` serves the row as stored, retired cell and all, and a
+        client that hands that back has to be answered 200 — otherwise
+        correcting the regime makes every later edit of the table impossible
+        over a column nobody can see.
+
+        Neuter it — refuse an unknown cell whatever the storage says, which is
+        :func:`finance.inputs._clean_rows` without its ``retired`` carve-out —
+        and this is the 422 the bug was.
+        """
+        statement = self.a_journey(
+            self.under(self.a_statement(self.excursion), TOURENLEITUNG), passengers=3
+        )
+        self.under(statement, EHRENAMT)
+        served = self.form(statement)["answers"]["reisen"]
+        self.assertEqual(served[0]["passengers"], 3)
+        response = self.patch(statement, inputs={"reisen": served})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.rows_of(statement), served)
+        self.under(statement, TOURENLEITUNG)
+        self.assertEqual(self.paid(statement), Decimal("36.00"))
+
+    def test_a_column_no_declaration_ever_named_is_still_refused(self):
+        """A key the storage does not know either is the typo it looks like.
+
+        The sharp half of the witness: this statement really does carry a
+        retired ``passengers``, so a row answering both it and ``fahrzeug`` has
+        to be refused for ``fahrzeug`` alone. Neuter it — accept every unknown
+        cell once any is retired — and a misspelt column is stored where nothing
+        will ever read it and nobody is told.
+        """
+        statement = self.a_journey(
+            self.under(self.a_statement(self.excursion), TOURENLEITUNG), passengers=3
+        )
+        self.under(statement, EHRENAMT)
+        response = self.patch(
+            statement,
+            inputs={
+                "reisen": [
+                    {
+                        "member": self.driver.pk,
+                        "approach": "car",
+                        "kilometers": 100,
+                        "passengers": 3,
+                        "fahrzeug": "Bus",
+                    }
+                ]
+            },
+        )
+        self.assertEqual(response.status_code, 422, response.content)
+        self.assertEqual(list(response.json()["errors"]), [row_key("reisen", 0)])
+        message = response.json()["errors"]["reisen[0]"][0]
+        self.assertIn("fahrzeug", message)
+        self.assertNotIn("passengers", message)
+
+    def test_a_column_the_statement_never_answered_is_refused_as_before(self):
+        """The witness is the storage, so a fresh statement has none.
+
+        Neuter it — read the retired cells off the *incoming* answers in
+        :func:`finance.inputs.clean` — and a request could widen its own
+        vocabulary by inventing a column and claiming it had been put away.
+        """
+        statement = self.under(self.a_statement(self.excursion), EHRENAMT)
+        response = self.patch(
+            statement,
+            inputs={"reisen": [{"member": self.driver.pk, "passengers": 3}]},
+        )
+        self.assertEqual(response.status_code, 422, response.content)
+        self.assertIn("passengers", response.json()["errors"]["reisen[0]"][0])
+
+
+class RowRegimeColumnFuzzTestCase(SimpleTestCase):
+    """:class:`RegimeRules` against random statements, which is the awkward route.
+
+    The fuzzer asks for the declarations against a context with no answers,
+    answers them at random, and the rules are then asked against the context
+    those answers make — a different declaration, because the regime it just
+    chose at random decides the table's columns. So a row answered under one
+    declaration is read under another, which is the state
+    :func:`finance.engine.answers._cell_of` exists for and the one no real
+    statement reaches.
+    """
+
+    def test_a_ruleset_whose_columns_move_survives_two_hundred_random_statements(self):
+        self.assertEqual(fuzz(RegimeRules(), 200, seed=11), [])
 
 
 class RowSeedTestCase(RowFormTestCase):
@@ -1249,9 +1594,9 @@ class _PrunerRules(JourneyRules):
     """A table with both kinds of party-valued cell, for the pruner's sake.
 
     Only the declaration is ever asked for: :func:`finance.signals.forget_member`
-    reads :func:`finance.inputs.party_answers`, and nothing evaluates this. So it
-    inherits its ``transfers`` rather than stating a stub of its own, which was a
-    statement no test could reach.
+    reads :func:`finance.inputs.party_answers` and nothing evaluates this. So it
+    inherits its ``transfers`` rather than stating a stub of its own, which was
+    a statement no test could reach.
     """
 
     name = "pruner"
