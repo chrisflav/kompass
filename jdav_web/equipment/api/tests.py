@@ -24,6 +24,7 @@ from equipment.models import Deficit
 from equipment.models import Inspection
 from equipment.models import Loan
 from equipment.models import Part
+from equipment.models import ProductType
 from equipment.models import Size
 from equipment.models import Tag
 from equipment.services import Line
@@ -248,6 +249,32 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         self.assertEqual(r.status_code, 403)
         self.assertTrue(r.json()["displayable"])
         self.assertEqual(self.post("alice", "/types", {"name": "X"}).status_code, 403)
+
+    def test_a_type_with_only_retired_pieces_is_deleted_with_them(self):
+        # The knife from the feedback: its last piece was retired, which hid it
+        # from the type page, yet it still held the type back from deletion.
+        knife_type = ProductType.objects.create(name="Messer")
+        retired = self.make_part(knife_type, location=self.cupboard)
+        services.inspect(retired, Inspection.RETIRED, by=self.inventory, comment="Klinge stumpf")
+        active = self.make_part(knife_type, location=self.cupboard)
+        path = "/types/{}".format(knife_type.pk)
+
+        # The material team sees the retired piece apart from the stock.
+        data = self.get("ida", path).json()
+        self.assertEqual([p["id"] for p in data["parts"]], [active.pk])
+        self.assertEqual([p["id"] for p in data["retired_parts"]], [retired.pk])
+        self.assertIsNone(self.get("alice", path).json()["retired_parts"])
+
+        # A piece still in the stock holds the type back...
+        r = self.delete("ida", path)
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(Part.objects.filter(pk=retired.pk).exists())
+        # ...a retired one does not, and goes with it, its record included.
+        services.delete_part(active)
+        self.assertEqual(self.delete("ida", path).status_code, 200)
+        self.assertFalse(ProductType.objects.filter(pk=knife_type.pk).exists())
+        self.assertFalse(Part.objects.filter(pk=retired.pk).exists())
+        self.assertFalse(Inspection.objects.filter(part_id=retired.pk).exists())
 
     def test_upload_limits(self):
         path = "/types/{}/photo".format(self.sling_type.pk)

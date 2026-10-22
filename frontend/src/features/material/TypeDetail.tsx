@@ -40,6 +40,7 @@ import {
   useMaterialRoles,
   useTags,
   Whereabouts,
+  type PartBrief,
   type ProductTypeOut,
   type SizeOut,
 } from "./shared";
@@ -337,23 +338,40 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
     { id: "availability", label: "Verfügbarkeit", content: availability },
     { id: "calendar", label: "Belegung", content: calendar },
   ];
+  // Retired pieces are out of the stock but still on record; they are listed
+  // apart, and deleting the type deletes them too.
+  const retired = type.retired_parts ?? [];
+  const partColumns = [
+    { header: "ID", cell: (p: PartBrief) => <span className="mono">{p.label}</span> },
+    { header: "Gruppe", cell: (p: PartBrief) => p.group?.name ?? "Sektion" },
+    { header: "Wo", cell: (p: PartBrief) => <Whereabouts part={p} /> },
+    { header: "Status", cell: (p: PartBrief) => <PartStatus status={p.status} /> },
+  ];
   if (type.parts && type.sizes.length === 0) {
     tabs.push({
       id: "parts",
       label: `Teile (${type.parts.length})`,
       content: (
-        <DataTable
-          rows={type.parts}
-          rowKey={(p) => p.id}
-          onRowClick={(p) => navigate(`${BASE}/parts/${p.id}`)}
-          empty="Noch keine Teile."
-          columns={[
-            { header: "ID", cell: (p) => <span className="mono">{p.label}</span> },
-            { header: "Gruppe", cell: (p) => p.group?.name ?? "Sektion" },
-            { header: "Wo", cell: (p) => <Whereabouts part={p} /> },
-            { header: "Status", cell: (p) => <PartStatus status={p.status} /> },
-          ]}
-        />
+        <>
+          <DataTable
+            rows={type.parts}
+            rowKey={(p) => p.id}
+            onRowClick={(p) => navigate(`${BASE}/parts/${p.id}`)}
+            empty="Noch keine Teile."
+            columns={partColumns}
+          />
+          {retired.length > 0 && (
+            <section className="inline-section">
+              <h3 className="fieldset-title">Ausgesondert ({retired.length})</h3>
+              <DataTable
+                rows={retired}
+                rowKey={(p) => p.id}
+                onRowClick={(p) => navigate(`${BASE}/parts/${p.id}`)}
+                columns={partColumns.filter((c) => c.header !== "Wo")}
+              />
+            </section>
+          )}
+        </>
       ),
     });
   }
@@ -403,7 +421,15 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
                   <Button
                     variant="danger"
                     onClick={async () => {
-                      if (await confirm({ message: "Materialtyp löschen?", danger: true, confirmLabel: "Löschen" }))
+                      const message =
+                        retired.length === 0
+                          ? "Materialtyp löschen?"
+                          : `Materialtyp löschen? ${
+                              retired.length === 1
+                                ? "Das ausgesonderte Teil wird"
+                                : `Die ${retired.length} ausgesonderten Teile werden`
+                            } mit ihm gelöscht, samt Prüfungen und Ausleihen.`;
+                      if (await confirm({ message, danger: true, confirmLabel: "Löschen" }))
                         remove.mutate(undefined);
                     }}
                   >

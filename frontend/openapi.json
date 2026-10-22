@@ -7074,6 +7074,7 @@
             "description": "OK"
           }
         },
+        "description": "Delete a type that has no pieces left in the stock.\n\nRetired pieces do not hold it back: they are out of the stock, and the type\npage lists them apart from the others. They are deleted with the type, with\neverything recorded about them, which the page says before asking.",
         "tags": [
           "material"
         ],
@@ -19585,6 +19586,20 @@
               }
             ],
             "title": "Parts"
+          },
+          "retired_parts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PartBrief"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired Parts"
           }
         },
         "required": [
