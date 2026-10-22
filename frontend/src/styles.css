@@ -2508,7 +2508,12 @@ button.etappe-body:hover {
   text-align: right;
 }
 
-.rows-cell.has-error input {
+/* A refused cell, whatever its control is. The global `.has-error` rule reaches
+   the native ones; a picker is a button, so it is named here — a refused choice
+   has to look refused and not merely carry a sentence. */
+.rows-cell.has-error input,
+.rows-cell.has-error .ss-trigger,
+.rows-cell.has-error .ms-toggle {
   border-color: var(--danger);
 }
 

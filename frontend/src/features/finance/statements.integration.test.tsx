@@ -1483,8 +1483,11 @@ describe("submission flow — Erstattung", () => {
       await screen.findByText("Kilometer darf höchstens 2000 sein.");
       const refused = cellAt("Kilometer", 2).closest(".rows-cell") as HTMLElement;
       expect(within(refused).getByText(/höchstens 2000/)).toBeInTheDocument();
+      // And marked, so the cell looks refused and not merely annotated.
+      expect(refused).toHaveClass("has-error");
       const wrongMode = cellAt("Verkehrsmittel", 1).closest(".rows-cell") as HTMLElement;
       expect(within(wrongMode).getByText(/keine der angebotenen/)).toBeInTheDocument();
+      expect(wrongMode).toHaveClass("has-error");
 
       // And not under the whole table, nor against the row that is fine.
       const table = document.querySelector(".rows-field") as HTMLElement;
