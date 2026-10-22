@@ -1011,7 +1011,10 @@ function AnswerGroup({
           key={declaration.key}
           declaration={declaration}
           value={answers[declaration.key]}
-          errors={errors[declaration.key]}
+          // The whole map, not this key's messages: a table's refusals are
+          // keyed by a path into it (`"reisen[1].kilometers"`), so where a
+          // message lands is the renderer's business and not the form's.
+          errors={errors}
           onChange={(value) => onChange(declaration, value)}
         />
       ))}

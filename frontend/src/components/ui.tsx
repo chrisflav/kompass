@@ -699,6 +699,7 @@ export function MultiSelect({
   onChange,
   placeholder = "Auswählen…",
   emptyText = "Keine Einträge.",
+  ariaLabel,
 }: {
   options: MultiOption[];
   selected: number[];
@@ -706,6 +707,12 @@ export function MultiSelect({
   searchable?: boolean;
   placeholder?: string;
   emptyText?: string;
+  /**
+   * The accessible name of the trigger, for a picker with no visible label of
+   * its own — a cell of a repeating row, where the column heading says what
+   * the cell is and every row repeats it.
+   */
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -739,7 +746,12 @@ export function MultiSelect({
             </button>
           </span>
         ))}
-        <button type="button" className="ms-toggle" onClick={() => setOpen((o) => !o)}>
+        <button
+          type="button"
+          className="ms-toggle"
+          aria-label={ariaLabel}
+          onClick={() => setOpen((o) => !o)}
+        >
           + {placeholder}
         </button>
       </div>
@@ -892,6 +904,7 @@ export function Select({
   placeholder = "Auswählen…",
   allowEmpty = false,
   emptyLabel = "—",
+  ariaLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -899,6 +912,8 @@ export function Select({
   placeholder?: string;
   allowEmpty?: boolean;
   emptyLabel?: string;
+  /** See `MultiSelect.ariaLabel`: a picker with no visible label beside it. */
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -918,7 +933,12 @@ export function Select({
 
   return (
     <div className="searchselect ss-field" ref={ref}>
-      <button type="button" className="ss-trigger" onClick={() => setOpen((o) => !o)}>
+      <button
+        type="button"
+        className="ss-trigger"
+        aria-label={ariaLabel}
+        onClick={() => setOpen((o) => !o)}
+      >
         <span className={current ? "ss-value" : "muted"}>
           {current ? current.label : placeholder}
         </span>
