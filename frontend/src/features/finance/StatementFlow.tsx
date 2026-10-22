@@ -873,9 +873,17 @@ const TYPING_PAUSE = 500;
 
 function AnswerForm({ statement, form }: { statement: StatementOut; form: StatementFormOut }) {
   const toast = useToast();
+  // The leg's own query, read here for its *state* rather than its answer:
+  // whether a fetch is in flight is whether the questions in hand may already
+  // be history. One cache entry, so this is the same request and not a second.
+  const formQ = useStatementForm(statement);
   const [answers, setAnswers] = useState<Answers>(() => ({ ...form.answers }));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Whether a typed-into control is still inside its pause. */
+  const pausing = useRef(false);
+  /** Bumped when the unsent edits are due to go out. */
+  const [due, setDue] = useState(0);
   /**
    * The edits the server has not been told about yet, by key.
    *
@@ -943,31 +951,52 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
   );
 
   /**
-   * Hand the unsent edits over, minus anything the form does not ask for.
+   * Hand the unsent edits over, once it is clear what the form still asks.
    *
-   * A key is dropped from `unsent` as it goes rather than once it lands: a
-   * refusal is reported where it belongs (`onError`) and the answer stays on
-   * the form, but a body the API has already refused must not be sent again on
-   * the next edit — or every later request would carry the same 422 with it.
+   * The send sits in an effect rather than in `change` so that it reads the
+   * form of the render it goes from. Answering `regime` changes which questions
+   * the rules ask: the save retires some of them and the form is fetched again
+   * to find out which. Until that fetch lands the client is holding the
+   * previous set — so an edit made in that window **waits** (`settling`)
+   * instead of racing it, and one that was already waiting out a typing pause
+   * is weighed against the questions as they are by then, not as they were when
+   * it was typed. Both were a `PATCH` answering a question the rules had
+   * stopped asking, which is a 422 by design (#579).
+   *
+   * A key the form does not ask for **stays** in `unsent`: not sending is the
+   * right answer to "the rules have stopped asking this", and forgetting it is
+   * not — the Regelwerk can be switched back, and the answer then goes out
+   * with its question. A key that does go is dropped as it goes rather than
+   * once it lands: a refusal is reported where it belongs (`onError`) and the
+   * answer stays on the form, but a body the API has refused must not ride
+   * along with every later edit.
    */
-  function send() {
+  const settling = saveM.isPending || formQ.isFetching;
+  useEffect(() => {
+    if (settling || pausing.current) return;
     const body = Object.fromEntries(
       Object.entries(unsent.current).filter(([key]) => answerable.has(key)),
     );
     if (Object.keys(body).length === 0) return;
     for (const key of Object.keys(body)) delete unsent.current[key];
     saveM.mutate(body);
-  }
+  }, [due, settling, answerable, saveM.mutate]);
 
   function change(declaration: InputDeclarationOut, value: unknown) {
     setAnswers((previous) => ({ ...previous, [declaration.key]: value }));
     setErrors({});
     unsent.current[declaration.key] = value;
     if (timer.current) clearTimeout(timer.current);
-    if (TYPED_INTO.has(declaration.type)) {
-      timer.current = setTimeout(send, TYPING_PAUSE);
+    // A keystroke must not be a request, so a typed-into control waits out the
+    // pause; anything else is a whole answer the moment it is picked.
+    pausing.current = TYPED_INTO.has(declaration.type);
+    if (pausing.current) {
+      timer.current = setTimeout(() => {
+        pausing.current = false;
+        setDue((count) => count + 1);
+      }, TYPING_PAUSE);
     } else {
-      send();
+      setDue((count) => count + 1);
     }
   }
 
