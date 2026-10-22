@@ -825,10 +825,11 @@ describe("submission flow — Erstattung", () => {
     await user.click(pickerFor("Fahrt- und Übernachtungszuschuss an"));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
 
+    // That key and nothing else: the API merges answers by key, and a body
+    // restating the questions nobody touched is how an answer the rules have
+    // since retired used to travel with an unrelated edit.
     await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toEqual({
-      inputs: { night_cost: "11.00", allowance_to: [], subsidy_to: 9 },
-    });
+    expect(patched).toEqual({ inputs: { subsidy_to: 9 } });
   });
 
   it("picks several people for a set-valued answer", async () => {
@@ -890,8 +891,10 @@ describe("submission flow — Erstattung", () => {
 
   it("sends back only the questions the form still asks", async () => {
     // A ruleset may retire a question once an earlier answer makes it moot, and
-    // the API refuses a key the rules do not ask for. Neuter it — send the
-    // whole local draft — and this goes red with a 422 on `retired`.
+    // the API refuses a key the rules do not ask for — `retired` here is an
+    // answer the form served without asking for it. Neuter it — send the whole
+    // local draft along with the edit — and this goes red with `retired` in the
+    // body, which is a 422 on the running instance.
     let patched: Record<string, unknown> | null = null;
     server.use(
       http.patch(api("/api/finance/statements/1"), async ({ request }) => {
@@ -908,9 +911,7 @@ describe("submission flow — Erstattung", () => {
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
 
     await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toEqual({
-      inputs: { night_cost: "11.00", allowance_to: [], subsidy_to: 9 },
-    });
+    expect(patched).toEqual({ inputs: { subsidy_to: 9 } });
   });
 
   it("asks the ruleset's questions of a statement without a trip", async () => {
@@ -1180,8 +1181,11 @@ describe("submission flow — Erstattung", () => {
   it("never sends an answer for a derived question", async () => {
     // `PATCH` refuses a value for a derived key, keyed by that question. The
     // form serves the figure in `answers` like any other answer, so a client
-    // that echoes back what it was served gets a 422 — neuter the filter and
-    // this goes red with `km` in the body.
+    // that echoes back what it was served gets a 422. Two locks: a derived
+    // declaration is a reading and never a control, so nothing can edit one,
+    // and the send filters against the questions the form asks. Neuter either —
+    // render the readings as fields, or send the whole draft — and this goes
+    // red with `km` in the body.
     let patched: Record<string, unknown> | null = null;
     server.use(
       http.patch(api("/api/finance/statements/1"), async ({ request }) => {
@@ -1436,9 +1440,8 @@ describe("submission flow — Erstattung", () => {
 
     it("waits for a pause before a typed cell becomes a request", async () => {
       // `TYPED_INTO` is keyed by the declaration's type, so a table left out of
-      // it makes every keystroke in every cell a `PATCH` — and `change` sends
-      // the whole answerable subset, so a wide table would re-send the entire
-      // form per character.
+      // it makes every keystroke in every cell a `PATCH` — and a table goes
+      // back whole, so that is the entire table per character.
       const seen = recordPatches();
       const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 0 }]);
 
@@ -1464,20 +1467,17 @@ describe("submission flow — Erstattung", () => {
           }),
         ),
       );
-      // Provoked by a question beside the table, because `change` re-sends the
-      // whole answerable subset: the table goes back with every edit, so its
-      // cells are refused without anybody having touched them.
-      const { user } = openRows(
-        [
-          { member: 7, approach: "flug", kilometers: 120 },
-          { member: 9, approach: "pkw", kilometers: 9000 },
-        ],
-        [declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES })],
-      );
+      // Provoked by correcting one cell, because a table goes back whole: the
+      // request carries every row, so cells nobody touched are refused along
+      // with the one that was.
+      const { user } = openRows([
+        { member: 7, approach: "flug", kilometers: 120 },
+        { member: 9, approach: "pkw", kilometers: 9000 },
+      ]);
 
-      await screen.findByText("Regelwerk");
-      await user.click(pickerFor("Regelwerk"));
-      await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+      await screen.findByText("Fahrten");
+      await user.click(cellAt("Verkehrsmittel", 1));
+      await user.click(dropdown().getByRole("button", { name: "Bahn" }));
 
       // Every bad cell at once, each against the cell that caused it.
       await screen.findByText("Kilometer darf höchstens 2000 sein.");

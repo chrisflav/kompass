@@ -47,11 +47,10 @@ export type Answers = Record<string, unknown>;
  *
  * `rows` is in here because a table *contains* typed-into cells. This set is
  * keyed by the declaration's own type, so a table left out of it would make
- * every keystroke in every cell a request — and `AnswerForm.change` sends the
- * whole answerable subset each time, so a wide table would re-send the entire
- * form once per character. The price is that adding or removing a row waits
- * for the same pause, which nobody sees: the row appears at once and only the
- * save is deferred.
+ * every keystroke in every cell a request — and a table goes back whole, so
+ * that is the entire table once per character. The price is that adding or
+ * removing a row waits for the same pause, which nobody sees: the row appears
+ * at once and only the save is deferred.
  */
 export const TYPED_INTO = new Set(["money", "int", "text", "rows"]);
 

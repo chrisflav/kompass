@@ -876,18 +876,33 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
   const [answers, setAnswers] = useState<Answers>(() => ({ ...form.answers }));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * The edits the server has not been told about yet, by key.
+   *
+   * A `PATCH` carries these and nothing else. It used to carry the whole
+   * answerable subset on every edit, which is how an answer nobody had touched
+   * travelled with somebody else's — and a key the rules have since retired is
+   * refused (#579), so re-asserting one turned an unrelated edit into "Diese
+   * Regeln fragen Teilnehmerliste nicht ab.". `PATCH … {inputs}` merges by key,
+   * so one key is a whole request.
+   *
+   * An edit still waiting out a typing pause is in here too: a pick that
+   * arrives during the pause cancels the timer, and what had been typed goes
+   * out with the pick rather than being dropped.
+   */
+  const unsent = useRef<Answers>({});
   // The keys a `PATCH` may carry, which is neither "everything answered" nor
   // "everything declared".
   //
   // A ruleset may retire a question once an earlier answer makes it moot, and
-  // the API refuses a key the rules do not ask for — so sending back everything
-  // that was ever answered would turn `relevant_inputs` into a 422.
+  // the API refuses a key the rules do not ask for — so an edit to a question
+  // that has since gone off the form is held back rather than sent.
   //
   // And a derived answer is refused too, keyed by that question: the figure is
   // a reading of the excursion, resolved again on every evaluation, so a value
-  // sent for it would land where nothing reads it. The form serves it in
-  // `answers` like any other answer, which is exactly why it has to come out
-  // here — echoing back the form as served is the mistake the API refuses.
+  // sent for it would land where nothing reads it. Nothing renders a control
+  // for one, so nothing should ever put one in `unsent`; this is the second
+  // lock on the mistake the API refuses — echoing the form back as served.
   const answerable = useMemo(
     () =>
       new Set(
@@ -927,18 +942,32 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
     },
   );
 
-  function change(declaration: InputDeclarationOut, value: unknown) {
-    const next = { ...answers, [declaration.key]: value };
-    setAnswers(next);
-    setErrors({});
-    if (timer.current) clearTimeout(timer.current);
+  /**
+   * Hand the unsent edits over, minus anything the form does not ask for.
+   *
+   * A key is dropped from `unsent` as it goes rather than once it lands: a
+   * refusal is reported where it belongs (`onError`) and the answer stays on
+   * the form, but a body the API has already refused must not be sent again on
+   * the next edit — or every later request would carry the same 422 with it.
+   */
+  function send() {
     const body = Object.fromEntries(
-      Object.entries(next).filter(([key]) => answerable.has(key)),
+      Object.entries(unsent.current).filter(([key]) => answerable.has(key)),
     );
+    if (Object.keys(body).length === 0) return;
+    for (const key of Object.keys(body)) delete unsent.current[key];
+    saveM.mutate(body);
+  }
+
+  function change(declaration: InputDeclarationOut, value: unknown) {
+    setAnswers((previous) => ({ ...previous, [declaration.key]: value }));
+    setErrors({});
+    unsent.current[declaration.key] = value;
+    if (timer.current) clearTimeout(timer.current);
     if (TYPED_INTO.has(declaration.type)) {
-      timer.current = setTimeout(() => saveM.mutate(body), TYPING_PAUSE);
+      timer.current = setTimeout(send, TYPING_PAUSE);
     } else {
-      saveM.mutate(body);
+      send();
     }
   }
 
