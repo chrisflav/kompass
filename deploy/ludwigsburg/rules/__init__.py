@@ -20,6 +20,15 @@ questions the other one asks. A question that is put away reads as its type's
 empty value, so the regime cannot be worked around by an answer left over from
 before it was changed.
 
+The regime narrows the Fahrtentabelle's **columns** the same way, and in the
+same place it narrows anything else: :meth:`LudwigsburgRules.inputs` declares
+``reisen`` with the cells the chosen policy has, so ``passengers`` is a column
+under Q3 and no column at all under Q2 — which pays no supplement for
+„weitere Mitfahrende“ and has no business asking how many there were. A count
+stored under Q3 and left behind when the regime is corrected is kept and not
+read, so correcting the regime does not lose it and putting it back finds it
+again.
+
 **The trip's own figures are not questions.** The nights and the duration are
 declared with :attr:`~kompass.rules.Input.source`, so the engine supplies them
 from the excursion and the form shows them as figures. A statement that settles
@@ -40,7 +49,9 @@ record, the kilometres and the approach, name a
 already filled in, which the person then corrects or splits into as many as
 there were travellers. A seed is written once and stays theirs — unlike a
 ``source``, which is the excursion's and is refused on the form. A statement
-with no trip seeds no row and the table starts empty.
+with no trip seeds no row and the table starts empty. How many columns the
+table has is the regime's, as above: four under Tourenleitung, three under
+Ehrenamt.
 
 The policy, in the order the transfers come out:
 
@@ -196,13 +207,14 @@ EHRENAMT_ONLY = frozenset({"country", "per_diem_to"})
 #: corrected to Q2 cannot pay a Vergütung Q2 does not know, because Q2 never
 #: reads it.
 #:
-#: ``reisen`` is in neither set, and its ``passengers`` cell therefore cannot be
-#: taken off the form under Q2: the cells of a table belong to the declaration,
-#: and a regime narrows *keys* rather than columns. Nothing moves on it all the
-#: same — :func:`travel_rate` is where „Bei weiteren Mitfahrenden werden keine
-#: zusätzlichen Kosten erstattet“ lives, and Q2's rate does not read the count.
-#: The column says whose it is in its own help text, and ``cases/04`` pins that
-#: a count of five does not move Q2 by a cent.
+#: ``reisen`` is in neither set, because the table is asked under both policies
+#: — both pay a private car — and what the regime takes away is one of its
+#: *columns*. That is :func:`journey_fields`'s job rather than this set's: a
+#: column is not a key, so it is narrowed where the declaration is written and
+#: not where the keys are chosen. ``cases/04`` pins that a count stored under
+#: Q3 pays Q2's plain rate once the regime is corrected, and
+#: ``cases/27`` that the very same stored row pays the supplement again under
+#: Q3 — the count is kept, not read.
 TOURENLEITUNG_ONLY = frozenset(
     {
         "participant_list_filed",
@@ -262,6 +274,89 @@ def payee_source(ctx: RuleContext) -> str:
     return "statement.creator"
 
 
+def journey_fields(regime: str) -> tuple[Field, ...]:
+    """The columns one row of ``reisen`` has under ``regime``.
+
+    Three of them under every policy — who travelled, how, and how far — and a
+    fourth only under Tourenleitung: Q3 § 1.5 pays 0,03 € per kilometre for each
+    „weitere Mitfahrende“ and Q2 pays „keine zusätzlichen Kosten“ for any of
+    them, so the count is a column of the one and no column of the other. A
+    question the other policy does not ask comes off the form
+    (:data:`TOURENLEITUNG_ONLY`); this is the same sentence about a column, and
+    it is said here because a table's cells are part of its declaration and
+    :meth:`~kompass.rules.Ruleset.relevant_inputs` narrows keys.
+
+    Asking for a figure that cannot change the answer is the whole of what is
+    wrong with keeping the column under Q2: it invites somebody to count the
+    people in the car for nothing, and a form that asks questions it does not
+    read teaches people not to read it.
+
+    A count stored while the column was asked for is **kept and not read** — the
+    engine leaves a cell no declaration names out of the row a rule gets — so
+    correcting the regime to Ehrenamt does not throw the number away, and
+    correcting it back finds it again.
+    """
+    columns = (
+        Field(
+            "member",
+            "Person",
+            "member",
+            help="Wer diese Strecke zurückgelegt hat.",
+        ),
+        Field(
+            "approach",
+            "Verkehrsmittel",
+            "choice",
+            choices=APPROACHES,
+            # Prefilled from the trip, and then the person's own: the excursion
+            # records how the *group* travelled, and the group is exactly who
+            # travelled differently.
+            seed="excursion.approach",
+        ),
+        Field(
+            "kilometers",
+            "Kilometer",
+            "int",
+            max=MAX_KILOMETERS,
+            seed="excursion.kilometers",
+            help="Nur die kürzeste der möglichen Verbindungen; Parkgebühren sind abgedeckt.",
+        ),
+    )
+    if regime != TOURENLEITUNG:
+        return columns
+    return (
+        *columns,
+        Field(
+            "passengers",
+            "Mitfahrende",
+            "int",
+            required=False,
+            max=MAX_PASSENGERS,
+            help=(
+                "Je Person 0,03 € pro Kilometer, insgesamt höchstens 0,30 € pro "
+                "Kilometer. Nur weitere Mitfahrende, die Fahrende nicht."
+            ),
+        ),
+    )
+
+
+def passengers_of(journey: Row) -> int:
+    """How many „weitere Mitfahrende“ one row claims, or none where it has no column.
+
+    Read defensively, for the reason :func:`chosen_regime` is: the column exists
+    only under Tourenleitung, and the engine hands a rule the cells the
+    declaration of the moment names. On a real statement that is settled before
+    ``transfers`` runs — the row is typed against the same declaration — but a
+    context can also arrive already typed, from the fuzzer or from a dry run
+    against unsaved answers, and there the row may have been answered under one
+    declaration and read under the other. A column that is not there is no
+    passengers, which is what Q2 pays for them anyway.
+    """
+    if "passengers" not in journey.declared():
+        return 0
+    return journey.number("passengers")
+
+
 def driver_of(journey: Row) -> Member | None:
     """Who one row of ``reisen`` owes the per-kilometre rate to, or ``None``.
 
@@ -316,12 +411,19 @@ class LudwigsburgRules(Ruleset):
     def inputs(self, ctx: RuleContext) -> list[Input]:
         """Every answer the rules below may read, in the order to ask for them.
 
-        This is the whole vocabulary, both regimes included;
-        :meth:`relevant_inputs` is what decides which half is on the form. It
-        reads no answer, because the context it is asked against during a
-        context build still holds the raw stored JSON.
+        This is the whole vocabulary of *keys*, both regimes included;
+        :meth:`relevant_inputs` is what decides which half is on the form. The
+        Fahrtentabelle's **columns** are the one thing decided here rather than
+        there, because they belong to a declaration (:func:`journey_fields`).
+
+        So it reads exactly one answer, and with
+        :meth:`~kompass.rules.Inputs.raw` rather than through a typed accessor:
+        the context this is asked against during a context build still holds
+        the stored JSON, so :func:`chosen_regime` is as far as reading an
+        answer can go here.
         """
         payees = payee_source(ctx)
+        regime = chosen_regime(ctx)
         return [
             Input(
                 "regime",
@@ -384,47 +486,7 @@ class LudwigsburgRules(Ruleset):
                     "Privatfahrzeug; Bahn, Fernbus und ÖPNV werden gegen Beleg "
                     "erstattet. Hin- und Rückfahrt zusammen in eine Zeile."
                 ),
-                fields=(
-                    Field(
-                        "member",
-                        "Person",
-                        "member",
-                        help="Wer diese Strecke zurückgelegt hat.",
-                    ),
-                    Field(
-                        "approach",
-                        "Verkehrsmittel",
-                        "choice",
-                        choices=APPROACHES,
-                        # Prefilled from the trip, and then the person's own:
-                        # the excursion records how the *group* travelled, and
-                        # the group is exactly who travelled differently.
-                        seed="excursion.approach",
-                    ),
-                    Field(
-                        "kilometers",
-                        "Kilometer",
-                        "int",
-                        max=MAX_KILOMETERS,
-                        seed="excursion.kilometers",
-                        help=(
-                            "Nur die kürzeste der möglichen Verbindungen; "
-                            "Parkgebühren sind abgedeckt."
-                        ),
-                    ),
-                    Field(
-                        "passengers",
-                        "Mitfahrende",
-                        "int",
-                        required=False,
-                        max=MAX_PASSENGERS,
-                        help=(
-                            "Nur Tourenleitung: je Person 0,03 € pro Kilometer, "
-                            "insgesamt höchstens 0,30 € pro Kilometer. Das Ehrenamt "
-                            "erstattet keine Zuschläge und liest die Zahl nicht."
-                        ),
-                    ),
-                ),
+                fields=journey_fields(regime),
             ),
             Input(
                 "nights",
@@ -521,11 +583,11 @@ class LudwigsburgRules(Ruleset):
         off the form, and the rules read it as unanswered, so no leftover answer
         can move money under a regime that does not know the question.
 
-        A table is narrowed by key and not by column, so ``reisen`` keeps its
-        ``passengers`` cell under Q2 as well. Q2's rate does not read it —
-        :func:`travel_rate` is the one place the surcharge exists — so the
-        guarantee this method is for still holds for the count; what it does not
-        buy is taking the column off the form.
+        What ``reisen`` does not keep is the other policy's *column*:
+        ``passengers`` is declared under Q3 and not under Q2, which this method
+        cannot do and :meth:`inputs` can — this one chooses among keys, and a
+        cell is part of a declaration rather than a key of its own
+        (:func:`journey_fields`).
 
         Until a regime is chosen, neither half is asked. That is the first
         step of the form doing its job, and the check below says so.
@@ -585,9 +647,10 @@ class LudwigsburgRules(Ruleset):
         """Each traveller's own kilometres, at the regime's rate (Q2/Q3 § 1).
 
         One transfer per row of ``reisen`` that drove: its own distance, its own
-        passenger count, to the person the row names. Which is the whole reason
-        the question is a table — the rate is not a property of the statement
-        but of a journey, and the journeys of one statement differ.
+        passenger count where the regime has that column, to the person the row
+        names. Which is the whole reason the question is a table — the rate is
+        not a property of the statement but of a journey, and the journeys of
+        one statement differ.
 
         Bahn, Fernbus and ÖPNV need no rule: both policies reimburse them „in
         Höhe der Kosten gegen Vorlage von Belegen“, which is an ordinary covered
@@ -610,11 +673,11 @@ class LudwigsburgRules(Ruleset):
             driver = driver_of(journey)
             if driver is None:
                 continue
-            # The count is read under both regimes, because a table's columns
-            # do not change with the regime — and it moves nothing under Q2,
-            # because `travel_rate` is where „Bei weiteren Mitfahrenden werden
-            # keine zusätzlichen Kosten erstattet“ lives.
-            rate = travel_rate(regime, journey.number("passengers"))
+            # The count only exists as a column under Q3, which is where the
+            # supplement exists: „Bei weiteren Mitfahrenden werden keine
+            # zusätzlichen Kosten erstattet“ is Q2's own sentence, and under Q2
+            # the row has no such cell to read (`passengers_of`).
+            rate = travel_rate(regime, passengers_of(journey))
             if rate == ZERO:
                 continue
             kilometers = journey.number("kilometers")

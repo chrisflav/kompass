@@ -1,9 +1,9 @@
 {
-  "name": "Ehrenamt: 0,30 €/km, und die Mitfahrenden in der Zeile ändern den Satz nicht",
+  "name": "Ehrenamt: 0,30 €/km, und die unter Tourenleitung erfasste Mitfahrendenzahl bleibt liegen",
   "inputs": {
     "regime": "ehrenamt",
     "reisen": [
-      {"member": 1, "approach": "car", "kilometers": 120, "passengers": 5}
+      {"member": 1, "approach": "car", "kilometers": 120, "passengers": 2}
     ]
   },
   "excursion": {

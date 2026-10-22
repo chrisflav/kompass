@@ -42,7 +42,8 @@ from typing import Final
 EHRENAMT: Final = "ehrenamt"
 TOURENLEITUNG: Final = "tourenleitung"
 
-#: Q2 Privatfahrzeug: 0,30 € per kilometre, no surcharge for passengers.
+#: Q2 Privatfahrzeug: 0,30 € per kilometre, no surcharge for passengers — which
+#: is why the Ehrenamt form has no column for them at all.
 EHRENAMT_PER_KM: Final = Decimal("0.30")
 
 #: Q3 Privatfahrzeug: 0,20 € per kilometre.
@@ -132,11 +133,13 @@ def travel_rate(regime: str, passengers: int) -> Decimal:
 
     ``passengers`` are the „weitere Mitfahrende“ of Q3 § 1.5 and are worth
     0,03 € each, up to a rate of 0,30 €. Under Q2 they are worth nothing („Bei
-    weiteren Mitfahrenden werden keine zusätzlichen Kosten erstattet“), and
-    **this function is the only place that is true**: the count is a cell of the
-    ``reisen`` table, a table keeps its columns under both regimes, and so a Q2
-    statement does carry a count and the rule above does read it. It cannot
-    raise anything, because Q2's arm here does not look at it.
+    weiteren Mitfahrenden werden keine zusätzlichen Kosten erstattet“), which
+    is why Q2 is not **asked** either: ``journey_fields`` declares the count as
+    a column of the Fahrtentabelle under Tourenleitung and not under Ehrenamt,
+    so a Q2 form has no such cell and ``passengers_of`` reads zero for it.
+    Q2's arm here does not look at the number all the same, so a count left
+    over from before the regime was corrected is worth nothing twice over: it
+    is not read, and it would not be paid if it were.
 
     Both arms are per *journey*. One row of ``reisen`` is one car with one
     driver and the people in it, and the cap belongs to that car — four

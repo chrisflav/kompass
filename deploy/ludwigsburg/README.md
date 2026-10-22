@@ -51,6 +51,15 @@ the form. A question that is off the form reads as its type's **empty value**,
 so an answer left behind when a regime was corrected cannot move money under
 the regime that replaced it.
 
+The regime narrows the Fahrten table's **columns** on the same reasoning:
+`Mitfahrende` is a column under Q3, which pays 0,03 €/km for each of them, and
+no column at all under Q2, which pays „keine zusätzlichen Kosten“ for any. That
+is `journey_fields` in `rules/__init__.py` rather than `relevant_inputs`,
+because a cell is part of a declaration and `relevant_inputs` chooses among
+keys. A count entered under Q3 and left behind when the regime is corrected is
+**kept and not read** — correcting the regime does not throw the number away,
+and correcting it back finds it again (`cases/04` and `cases/27`).
+
 The trip's own figures are **not** questions. Nights and duration are declared
 with `source="excursion.…"`, so the engine supplies them from the excursion and
 the form shows them as figures. A statement that settles a purchase or a repair
@@ -66,15 +75,15 @@ the Kilometerpauschale **at all** is decided by *their* means of travel — a
 private car yes, the Bahn no, because there the ticket is the claim — so the
 means and the distance belong to the same person in the same row.
 
-`reisen` is therefore one `rows` question with four cells, and `_travel` pays
-each row under its own approach at its own distance:
+`reisen` is therefore one `rows` question — three cells under Q2 and four under
+Q3 — and `_travel` pays each row under its own approach at its own distance:
 
 | Cell | Heading | What it holds |
 | --- | --- | --- |
 | `member` | Person | who covered this stretch |
 | `approach` | Verkehrsmittel | Muskelkraft, ÖPNV/Bahn/Fernbus, or Privatfahrzeug — **seeded from the trip** |
 | `kilometers` | Kilometer | the shortest connection; parking is covered — **seeded from the trip** |
-| `passengers` | Mitfahrende | Q3's „weitere Mitfahrende“; Q2 does not read it |
+| `passengers` | Mitfahrende | Q3's „weitere Mitfahrende“ — **only a column under Tourenleitung** |
 
 A row whose approach is not the Privatfahrzeug pays nothing and is still worth
 entering: it is how the statement records who did not drive, and Bahn, Fernbus
@@ -245,12 +254,14 @@ for the section to confirm.**
     both. Two statements, or a `Verkehrsmittel` choice of its own per row, are
     the two ways out, and the section should say which it wants before this is
     in front of anybody.
-12. **The `Mitfahrende` column is on the form under Q2 as well**, where Q2 pays
-    no supplement at all. A regime takes *questions* off the form and the cells
-    of a table are not questions, so the column stays; it says in its help text
-    that it is the Tourenleitung's, `rates.travel_rate` is the one place the
-    supplement exists, and `cases/04` pins that a count of five does not move
-    the Ehrenamt rate by a cent.
+12. **A count entered under Q3 and left behind is kept, not cleared.** The
+    `Mitfahrende` column is off the form under Q2, and the number stays in
+    `Statement.inputs` where nothing reads it. Clearing it would throw away an
+    answer somebody gave; refusing the row it sits in would make switching the
+    regime back and forth refuse every later edit over a column nobody can see.
+    So it is simply not read, and `cases/04` and `cases/27` pin both halves of
+    that: Q2 pays its plain rate with the count lying there, and Q3 pays the
+    supplement from the very same stored row.
 
 ## The six roles, which somebody has to assign
 
@@ -349,7 +360,7 @@ docker run --rm \
 
 ### What the cases prove, and the one thing they cannot
 
-The twenty-six cases in `rules/cases/` pin the figures of both regimes, with
+The twenty-seven cases in `rules/cases/` pin the figures of both regimes, with
 and without a trip: the per-kilometre rate with no passengers, with three, and
 at the cap; the flat rate per night and the two reasons it may not be claimed;
 the Tagegeld; the Tourenleitervergütung; a purchase with no excursion, where
@@ -363,6 +374,11 @@ single-journey questions could not: two leaders driving different distances
 bites in one of them (23), a trip-less statement whose rows were typed by hand
 (24), the same person in two rows paid twice with the check saying so (25), and
 a row with no Verkehrsmittel paying nothing with the check saying so (26).
+
+Two more are one stored row read under each regime in turn, which is how the
+`Mitfahrende` column being Q3's alone is pinned from both sides: the count lies
+unread under Q2 and the plain rate is paid (4), and the identical answer pays
+the supplement again under Q3 (27).
 
 **What no case can prove is the seed.** A seed is written when a statement gets
 an excursion, and a case file is a context with no edit history — so what a
