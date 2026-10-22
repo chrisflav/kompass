@@ -367,7 +367,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
                 rows={retired}
                 rowKey={(p) => p.id}
                 onRowClick={(p) => navigate(`${BASE}/parts/${p.id}`)}
-                columns={partColumns.filter((c) => c.header !== "Wo")}
+                columns={partColumns}
               />
             </section>
           )}

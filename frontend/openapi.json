@@ -19623,7 +19623,8 @@
           "inspection_interval_days",
           "daily_rate",
           "calendar",
-          "parts"
+          "parts",
+          "retired_parts"
         ],
         "title": "ProductTypeOut",
         "type": "object"

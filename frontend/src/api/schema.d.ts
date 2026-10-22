@@ -7455,7 +7455,7 @@ export interface components {
             /** Parts */
             parts: components["schemas"]["PartBrief"][] | null;
             /** Retired Parts */
-            retired_parts?: components["schemas"]["PartBrief"][] | null;
+            retired_parts: components["schemas"]["PartBrief"][] | null;
         };
         /** ProductTypeIn */
         ProductTypeIn: {

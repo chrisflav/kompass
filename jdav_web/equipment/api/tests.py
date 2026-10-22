@@ -276,6 +276,45 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         self.assertFalse(Part.objects.filter(pk=retired.pk).exists())
         self.assertFalse(Inspection.objects.filter(part_id=retired.pk).exists())
 
+    def test_a_retired_piece_out_on_loan_holds_its_type_back(self):
+        # Retiring does not wait for the loan to end; the piece has to come back
+        # first, and the refusal says which one and who has it.
+        knife_type = ProductType.objects.create(name="Messer")
+        knife = self.make_part(knife_type, location=self.cupboard, home_location=self.cupboard)
+        services.lend(self.alice, [knife], self.alice, due=day(3))
+        services.inspect(knife, Inspection.RETIRED, by=self.inventory)
+        r = self.delete("ida", "/types/{}".format(knife_type.pk))
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("#{} (Alice Test)".format(knife.pk), r.json()["detail"][0])
+        self.assertTrue(Part.objects.filter(pk=knife.pk).exists())
+
+    def test_deleting_a_type_rolls_back_when_a_size_is_reserved(self):
+        self.setUpSizes()
+        retired = self.make_part(self.friends_type, location=self.cupboard)
+        services.inspect(retired, Inspection.RETIRED, by=self.inventory)
+        services.reserve(self.bob, day(1), day(1), [Line(size=self.size2, quantity=2)])
+        r = self.delete("ida", "/types/{}".format(self.friends_type.pk))
+        self.assertEqual(r.status_code, 422)
+        # The retired piece deleted before the size refused is back.
+        self.assertTrue(Part.objects.filter(pk=retired.pk).exists())
+
+    def test_a_type_of_retired_assemblies_is_deleted_without_their_other_parts(self):
+        set_type = ProductType.objects.create(name="Expressset")
+        other_type = ProductType.objects.create(name="Karabiner")
+        assembly = self.make_part(set_type, location=self.cupboard)
+        component = self.make_part(set_type, location=self.cupboard)
+        foreign = self.make_part(other_type, location=self.cupboard)
+        services.assemble(component, assembly, self.inventory)
+        services.assemble(foreign, assembly, self.inventory)
+        for piece in (component, assembly):
+            piece.refresh_from_db()
+            services.inspect(piece, Inspection.RETIRED, by=self.inventory)
+        self.assertEqual(self.delete("ida", "/types/{}".format(set_type.pk)).status_code, 200)
+        self.assertFalse(Part.objects.filter(product_type=set_type).exists())
+        # A component of another type stays, now on its own.
+        foreign.refresh_from_db()
+        self.assertIsNone(foreign.parent_id)
+
     def test_upload_limits(self):
         path = "/types/{}/photo".format(self.sling_type.pk)
         r = self.upload("ida", path, {"photo": self.image(content_type="text/plain")})
