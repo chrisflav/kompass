@@ -849,6 +849,27 @@ class RowPatchTestCase(RowFormTestCase):
         self.assertEqual(self.paid(statement), Decimal("38.40"))
         self.assertEqual(self.form(statement)["answers"]["reisen"], self.rows_of(statement))
 
+    def test_a_journey_of_no_kilometres_is_no_line_in_the_books(self):
+        """A person can always type a zero, and a zero is worth no transfer.
+
+        Not merely worth ``0.00``: a transfer of nothing is a row in the books
+        and a line on every readout that explains where the money went, about a
+        journey that moved none. Neuter it — drop the ``if not amount`` in
+        :class:`JourneyRules` — and the assertion on the categories goes red
+        while a total of ``0.00`` would not have noticed.
+        """
+        statement = self.a_statement(self.excursion)
+        response = self.patch(
+            statement,
+            inputs={"reisen": [{"member": self.driver.pk, "approach": "car", "kilometers": 0}]},
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        result = evaluate_statement(Statement.objects.get(pk=statement.pk), ruleset=self.rules)
+        self.assertEqual(result.errors, ())
+        self.assertEqual(
+            [transfer.category for transfer in result.transfers], ["participant_contribution"]
+        )
+
     def test_an_empty_table_is_an_answer_and_not_a_refusal(self):
         """Including the delete that empties it, which is what makes a seed safe.
 
@@ -1224,12 +1245,16 @@ class RowPrunerShapeTestCase(TestCase):
         self.assertEqual(statement.inputs["reisen"], [{"mitfahrende": [999], "member": 999}])
 
 
-class _PrunerRules(Ruleset):
-    """A table with both kinds of party-valued cell, for the pruner's sake."""
+class _PrunerRules(JourneyRules):
+    """A table with both kinds of party-valued cell, for the pruner's sake.
+
+    Only the declaration is ever asked for: :func:`finance.signals.forget_member`
+    reads :func:`finance.inputs.party_answers`, and nothing evaluates this. So it
+    inherits its ``transfers`` rather than stating a stub of its own, which was a
+    statement no test could reach.
+    """
 
     name = "pruner"
-    context_version = 1
-    balance = (PARTICIPANTS, SECTION, "participant_contribution")
 
     def inputs(self, ctx: RuleContext) -> list[Input]:
         return [
@@ -1244,9 +1269,6 @@ class _PrunerRules(Ruleset):
                 ),
             )
         ]
-
-    def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
-        return [], []
 
 
 class RowAdminFormTestCase(TestCase):
