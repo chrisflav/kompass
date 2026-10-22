@@ -1529,6 +1529,197 @@ describe("submission flow — Erstattung", () => {
       expect(screen.getByText(/Noch keine Zeile/)).toBeInTheDocument();
     });
   });
+
+  /**
+   * What answering the regime does to the rest of the form.
+   *
+   * `regime` decides which questions the rules ask at all:
+   * `participant_list_filed` is in Ludwigsburg's `TOURENLEITUNG_ONLY` set, so
+   * choosing Ehrenamt takes it off the form — and `PATCH` then *refuses* a body
+   * that still carries it, because a question the rules have retired must not
+   * move money (#579).
+   *
+   * Reported from the running instance: switching the Regelwerk back and forth
+   * produced "Diese Regeln fragen Teilnehmerliste nicht ab." — *sometimes*.
+   * What decided it was whether the refetched form had landed before the next
+   * edit went out, so these hold the refetch open rather than hope to lose the
+   * race.
+   */
+  describe("Regelwerk — ein Wechsel ändert, was gefragt wird", () => {
+    const REGELWERKE = [
+      { value: "ehrenamt", label: "Ehrenamt und Verwaltung" },
+      { value: "tourenleitung", label: "Tourenleitung" },
+    ];
+
+    const REGIME = declaration({
+      key: "regime",
+      label: "Regelwerk",
+      type: "choice",
+      choices: REGELWERKE,
+    });
+
+    /** Tourenleitung's question, and nobody else's. */
+    const LISTE = declaration({
+      key: "participant_list_filed",
+      label: "Teilnehmerliste lag vor Antritt vor",
+      type: "bool",
+    });
+
+    /**
+     * The two halves of the engine this is about, as a server.
+     *
+     * `GET …/form` answers with the questions the rules ask *of the answers as
+     * stored*, and `PATCH` refuses a key they do not ask — where
+     * `finance.inputs.clean` refuses it, against the declarations the stored
+     * answers imply rather than the ones the request would imply. A handler
+     * that merely recorded bodies could not go red on this bug: the refusal is
+     * the bug.
+     *
+     * `hold` is what makes the race a test rather than a coin toss. A form
+     * fetch taken while it is held does not answer until `release`, so the
+     * window between "the regime is saved" and "the client knows what the rules
+     * ask now" is as wide as the test needs.
+     */
+    function rulesBackend(initial: Record<string, unknown>) {
+      const stored: Record<string, unknown> = { ...initial };
+      const patches: Record<string, unknown>[] = [];
+      const refused: string[] = [];
+      let waiting = 0;
+      let held: Promise<void> | null = null;
+      let release = () => {};
+      const asked = () => (stored.regime === "tourenleitung" ? [REGIME, LISTE] : [REGIME]);
+      server.use(
+        http.get(api("/api/finance/statements/1/form"), async () => {
+          if (held) {
+            waiting += 1;
+            await held;
+          }
+          const inputs = asked();
+          return HttpResponse.json({
+            statement_id: 1,
+            inputs,
+            steps: stepsOf(inputs),
+            answers: Object.fromEntries(
+              inputs.map((input) => [input.key, stored[input.key as string] ?? null]),
+            ),
+          });
+        }),
+        http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+          const body = (await request.json()) as { inputs: Record<string, unknown> };
+          patches.push(body.inputs);
+          const keys = asked().map((input) => input.key as string);
+          const stray = Object.keys(body.inputs).find((key) => !keys.includes(key));
+          if (stray !== undefined) {
+            refused.push(stray);
+            return djangoValidation({ __all__: [`Diese Regeln fragen ${stray} nicht ab.`] });
+          }
+          Object.assign(stored, body.inputs);
+          return HttpResponse.json(statement());
+        }),
+      );
+      return {
+        stored,
+        patches,
+        refused,
+        /**
+         * How many form fetches have run into the hold and are stuck in it.
+         *
+         * More than one is normal: a save invalidates three keys and the form's
+         * is a prefix of all three, so the refetch is started (and the previous
+         * one cancelled) once per key. One stuck fetch is already the thing
+         * these tests wait for — no form can have landed since the hold.
+         */
+        waiting: () => waiting,
+        /** Stop answering form fetches, so the client keeps the old questions. */
+        hold: () => {
+          held = new Promise<void>((resolve) => {
+            release = () => {
+              held = null;
+              resolve();
+            };
+          });
+        },
+        release: () => release(),
+      };
+    }
+
+    /** Open the reimbursement leg against a server that answers as the rules do. */
+    function openRules(initial: Record<string, unknown>) {
+      flowReturns();
+      detailReturns();
+      const backend = rulesBackend(initial);
+      const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
+      return { backend, user };
+    }
+
+    /** Pick `label` under the Regelwerk question. */
+    async function pickRegime(user: ReturnType<typeof renderRoute>["user"], label: string) {
+      await user.click(pickerFor("Regelwerk"));
+      await user.click(dropdown().getByRole("button", { name: label }));
+    }
+
+    it("never re-answers a question the regime has just retired", async () => {
+      // The reported bug as a sequence rather than as a stroke of luck: pick a
+      // regime, and before the form that goes with it has landed, pick the
+      // other one. The second request used to carry the whole answerable
+      // subset — the Teilnehmerliste nobody had touched included — against a
+      // statement that was by then not being asked about it at all.
+      const { backend, user } = openRules({
+        regime: "tourenleitung",
+        participant_list_filed: true,
+      });
+
+      await screen.findByText("Regelwerk");
+      expect(screen.getByRole("checkbox")).toBeChecked();
+
+      backend.hold();
+      await pickRegime(user, "Ehrenamt und Verwaltung");
+      await waitFor(() => expect(backend.patches).toHaveLength(1));
+      // The form that retires the Teilnehmerliste is in flight and stuck there,
+      // so the client is holding the questions of the regime it has just left.
+      await waitFor(() => expect(backend.waiting()).toBeGreaterThan(0));
+      expect(screen.getByRole("checkbox")).toBeInTheDocument();
+
+      await pickRegime(user, "Tourenleitung");
+      backend.release();
+
+      await waitFor(() => expect(backend.patches).toHaveLength(2));
+      // Nothing was refused, because nothing answered a retired question.
+      expect(backend.refused).toEqual([]);
+      expect(backend.stored.regime).toBe("tourenleitung");
+      // And switching away never dropped the answer: the question is back, and
+      // so is what was said about it — on the form and on the server.
+      expect(await screen.findByRole("checkbox")).toBeChecked();
+      expect(screen.getByText(/Teilnehmerliste/)).toBeInTheDocument();
+      expect(backend.stored.participant_list_filed).toBe(true);
+    });
+
+    it("holds an edit back until it is known whether the rules still ask it", async () => {
+      // The same window from the other side: the question is still on screen
+      // while the form that retires it is in flight, so it can still be
+      // answered — and that answer must not go out to rules that have stopped
+      // asking it.
+      const { backend, user } = openRules({
+        regime: "tourenleitung",
+        participant_list_filed: false,
+      });
+
+      await screen.findByText("Regelwerk");
+      backend.hold();
+      await pickRegime(user, "Ehrenamt und Verwaltung");
+      await waitFor(() => expect(backend.patches).toHaveLength(1));
+      await waitFor(() => expect(backend.waiting()).toBeGreaterThan(0));
+
+      // Answered inside the window, against questions that are already history.
+      await user.click(screen.getByRole("checkbox"));
+      backend.release();
+
+      // The form lands, the question is gone, and it was never answered.
+      await waitFor(() => expect(screen.queryByRole("checkbox")).toBeNull());
+      expect(backend.refused).toEqual([]);
+      expect(backend.stored.participant_list_filed).toBe(false);
+    });
+  });
 });
 
 describe("submission flow — Abschluss", () => {
