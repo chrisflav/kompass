@@ -138,11 +138,51 @@ function declaration(overrides: Record<string, unknown>): Record<string, unknown
     max: null,
     options: [],
     choices: [],
+    fields: [],
     step: "",
     derived: false,
     ...overrides,
   };
 }
+
+/**
+ * One cell of a `rows` declaration, with the fields `/form` always sends.
+ *
+ * No `options` of its own, and that is the contract rather than an omission:
+ * the people a party-valued cell may name are the *question's* options, stated
+ * once for the whole table, because one column served two different sets of
+ * people in two rows is not a thing a form can explain.
+ */
+function cell(overrides: Record<string, unknown>): Record<string, unknown> {
+  return { required: false, help: "", max: null, choices: [], ...overrides };
+}
+
+/** How a section's rules name the ways somebody got to the trip. */
+const APPROACHES = [
+  { value: "pkw", label: "PKW" },
+  { value: "bahn", label: "Bahn" },
+  { value: "rad", label: "Fahrrad" },
+];
+
+/**
+ * The repeating row, as `/form` declares one.
+ *
+ * `max` is the number of **rows**; the ceiling on a cell is on the cell. The
+ * people are on the question.
+ */
+const REISEN = declaration({
+  key: "reisen",
+  label: "Fahrten",
+  type: "rows",
+  help: "Für jede Person, die unterwegs war, eine Zeile.",
+  max: 3,
+  options: LEADERS,
+  fields: [
+    cell({ key: "member", label: "Person", type: "member" }),
+    cell({ key: "approach", label: "Verkehrsmittel", type: "choice", choices: APPROACHES }),
+    cell({ key: "kilometers", label: "Kilometer", type: "int", max: 2000 }),
+  ],
+});
 
 /**
  * `inputs` partitioned into steps the way the API partitions them.
@@ -1219,6 +1259,272 @@ describe("submission flow — Erstattung", () => {
     await screen.findByText("An");
     await user.click(pickerFor("An"));
     expect(dropdown().getByText("Hier bieten die Regeln niemanden an.")).toBeInTheDocument();
+  });
+
+  /**
+   * The repeating row.
+   *
+   * A statement settles a trip several people went on and they travelled
+   * differently — one drove, one took the train, one cycled — and whether
+   * somebody gets the rate per kilometre at all depends on *their* approach.
+   * So approach and distance belong to the same traveller, which is a row.
+   */
+  describe("Fahrten — eine Zeile pro Person", () => {
+    /** The table and nothing else, answered with `rows`. */
+    function openRows(rows: unknown, extra: Record<string, unknown>[] = []) {
+      return openForm({
+        inputs: [REISEN, ...extra],
+        answers: {
+          reisen: rows,
+          ...Object.fromEntries(extra.map((input) => [input.key as string, null])),
+        },
+      });
+    }
+
+    /** The control in the `label` column of the `index`-th row, 1-based. */
+    function cellAt(label: string, index: number) {
+      return screen.getByLabelText(`${label}, Zeile ${index}`);
+    }
+
+    /** What the last `PATCH` sent under `reisen`. */
+    function sentRows(patched: unknown) {
+      return (patched as { inputs: { reisen: unknown } }).inputs.reisen;
+    }
+
+    /** Record every `PATCH` body, and answer each one with a plain statement. */
+    function recordPatches() {
+      const seen: Record<string, unknown>[] = [];
+      server.use(
+        http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+          seen.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json(statement());
+        }),
+      );
+      return seen;
+    }
+
+    it("renders one row per answer, with the people the question offers", async () => {
+      openRows([
+        { member: 7, approach: "pkw", kilometers: 120 },
+        { member: 9, approach: "bahn", kilometers: 0 },
+      ]);
+
+      await screen.findByText("Fahrten");
+      // One column per declared field, said once above the grid rather than
+      // once per row.
+      const table = document.querySelector(".rows-table") as HTMLElement;
+      expect(within(table).getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+        "Nr.",
+        "Person",
+        "Verkehrsmittel",
+        "Kilometer",
+        "",
+      ]);
+      // Two answers, two rows — and each cell answered where its own row is.
+      expect(within(table).getAllByRole("row")).toHaveLength(3); // + the heading
+      expect(cellAt("Person", 1)).toHaveTextContent("Hannah Beckers");
+      expect(cellAt("Verkehrsmittel", 1)).toHaveTextContent("PKW");
+      expect(cellAt("Kilometer", 1)).toHaveValue(120);
+      expect(cellAt("Person", 2)).toHaveTextContent("Mila Nowak");
+      expect(cellAt("Verkehrsmittel", 2)).toHaveTextContent("Bahn");
+      expect(cellAt("Kilometer", 2)).toHaveValue(0);
+      // A cell's own ceiling is on the cell; the question's `max` is the row
+      // count and has nothing to do with it.
+      expect(cellAt("Kilometer", 1)).toHaveAttribute("max", "2000");
+    });
+
+    it("offers a party-valued cell the question's own people", async () => {
+      // The domain is stated once, on the declaration, because a `Field`
+      // carries no `options`. A renderer that looked for them on the field
+      // would offer an empty picker in every row.
+      const { user } = openRows([{ member: null, approach: "", kilometers: 0 }]);
+
+      await screen.findByText("Fahrten");
+      await user.click(cellAt("Person", 1));
+      expect(dropdown().getByRole("button", { name: "Hannah Beckers" })).toBeInTheDocument();
+      expect(dropdown().getByRole("button", { name: "Mila Nowak" })).toBeInTheDocument();
+    });
+
+    it("invites a first row instead of reading as broken", async () => {
+      // `[]`, an absent key and a table the rules have retired all mean the
+      // same thing — a question nobody has answered yet — so nothing here is a
+      // refusal, and there is something to do.
+      openRows([]);
+
+      expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+      expect(screen.getByText(/Noch keine Zeile/)).toBeInTheDocument();
+      expect(document.querySelector(".rows-table")).toBeNull();
+      expect(document.querySelector(".rows-field .field-error")).toBeNull();
+      expect(screen.getByRole("button", { name: "+ Zeile hinzufügen" })).toBeEnabled();
+    });
+
+    it("adds a row and sends the longer list", async () => {
+      const seen = recordPatches();
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 120 }]);
+
+      await screen.findByText("Fahrten");
+      await user.click(screen.getByRole("button", { name: "+ Zeile hinzufügen" }));
+
+      // The row is there to type into at once…
+      expect(cellAt("Kilometer", 2)).toBeInTheDocument();
+      // …and the answer that goes back is the whole list, the new row included.
+      // An empty object and not a row of blanks: the API fills every cell it
+      // asks for with its type's own empty value.
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+      expect(sentRows(seen[0])).toEqual([{ member: 7, approach: "pkw", kilometers: 120 }, {}]);
+    });
+
+    it("stops offering a row at the number of rows the question allows", async () => {
+      // `max` on a table bounds the rows. Read as a cell's ceiling instead, a
+      // three-row table would accept any number of them and the API would
+      // refuse the fourth.
+      recordPatches();
+      const { user } = openRows([
+        { member: 7, approach: "pkw", kilometers: 120 },
+        { member: 9, approach: "bahn", kilometers: 0 },
+      ]);
+
+      await screen.findByText("Fahrten");
+      const add = screen.getByRole("button", { name: "+ Zeile hinzufügen" });
+      expect(add).toBeEnabled();
+      await user.click(add);
+
+      await waitFor(() => expect(add).toBeDisabled());
+      expect(screen.getByText("Höchstens 3 Zeilen.")).toBeInTheDocument();
+    });
+
+    it("removes a row and sends what is left", async () => {
+      const seen = recordPatches();
+      const { user } = openRows([
+        { member: 7, approach: "pkw", kilometers: 120 },
+        { member: 9, approach: "bahn", kilometers: 0 },
+      ]);
+
+      await screen.findByText("Fahrten");
+      await user.click(screen.getByRole("button", { name: "Zeile 1 entfernen" }));
+
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+      expect(sentRows(seen[0])).toEqual([{ member: 9, approach: "bahn", kilometers: 0 }]);
+      // And the row that is left is the one that is left, renumbered.
+      expect(cellAt("Person", 1)).toHaveTextContent("Mila Nowak");
+      expect(screen.queryByLabelText("Person, Zeile 2")).toBeNull();
+    });
+
+    it("lets a seeded row be corrected, and sends the correction", async () => {
+      // The trip records one distance and one mode, and a seed writes them into
+      // the first row *once*. That is an answer and not a reading: it is
+      // stored, it does not follow the trip afterwards, and the whole point is
+      // that it can be edited — so it must not be rendered the way a `derived`
+      // value is.
+      const seen = recordPatches();
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 120 }]);
+
+      await screen.findByText("Fahrten");
+      // Not a reading: a control, and not a disabled one.
+      const km = cellAt("Kilometer", 1);
+      expect(km).toBeEnabled();
+      expect(document.querySelector(".rows-field .readout")).toBeNull();
+
+      await user.clear(km);
+      await user.type(km, "96");
+
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+      expect(sentRows(seen[seen.length - 1])).toEqual([
+        { member: 7, approach: "pkw", kilometers: "96" },
+      ]);
+    });
+
+    it("waits for a pause before a typed cell becomes a request", async () => {
+      // `TYPED_INTO` is keyed by the declaration's type, so a table left out of
+      // it makes every keystroke in every cell a `PATCH` — and `change` sends
+      // the whole answerable subset, so a wide table would re-send the entire
+      // form per character.
+      const seen = recordPatches();
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 0 }]);
+
+      await screen.findByText("Fahrten");
+      const km = cellAt("Kilometer", 1);
+      await user.clear(km);
+      await user.type(km, "120");
+
+      // Four edits, not four requests.
+      expect(seen).toHaveLength(0);
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+    });
+
+    it("prints a refusal about a cell against that cell", async () => {
+      // The 422's keys are a path — `reisen[1].kilometers` — precisely so that
+      // an error about one person's kilometres does not surface under the whole
+      // table. Zero-based, in the order the request sent the rows.
+      server.use(
+        http.patch(api("/api/finance/statements/1"), () =>
+          djangoValidation({
+            "reisen[1].kilometers": ["Kilometer darf höchstens 2000 sein."],
+            "reisen[0].approach": ["Verkehrsmittel ist keine der angebotenen Möglichkeiten."],
+          }),
+        ),
+      );
+      // Provoked by a question beside the table, because `change` re-sends the
+      // whole answerable subset: the table goes back with every edit, so its
+      // cells are refused without anybody having touched them.
+      const { user } = openRows(
+        [
+          { member: 7, approach: "flug", kilometers: 120 },
+          { member: 9, approach: "pkw", kilometers: 9000 },
+        ],
+        [declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES })],
+      );
+
+      await screen.findByText("Regelwerk");
+      await user.click(pickerFor("Regelwerk"));
+      await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+
+      // Every bad cell at once, each against the cell that caused it.
+      await screen.findByText("Kilometer darf höchstens 2000 sein.");
+      const refused = cellAt("Kilometer", 2).closest(".rows-cell") as HTMLElement;
+      expect(within(refused).getByText(/höchstens 2000/)).toBeInTheDocument();
+      const wrongMode = cellAt("Verkehrsmittel", 1).closest(".rows-cell") as HTMLElement;
+      expect(within(wrongMode).getByText(/keine der angebotenen/)).toBeInTheDocument();
+
+      // And not under the whole table, nor against the row that is fine.
+      const table = document.querySelector(".rows-field") as HTMLElement;
+      expect(
+        [...table.querySelectorAll(":scope > .field-error")].map((n) => n.textContent),
+      ).toEqual([]);
+      const fine = cellAt("Kilometer", 1).closest(".rows-cell") as HTMLElement;
+      expect(within(fine).queryByText(/höchstens 2000/)).toBeNull();
+    });
+
+    it("prints a refusal about the table under the table", async () => {
+      // The other end of the path: too many rows, or an answer that is not a
+      // list of rows at all, is about the question and belongs under it.
+      server.use(
+        http.patch(api("/api/finance/statements/1"), () =>
+          djangoValidation({ reisen: ["Fahrten darf höchstens 3 Zeilen haben."] }),
+        ),
+      );
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 120 }]);
+
+      await screen.findByText("Fahrten");
+      await user.click(screen.getByRole("button", { name: "Zeile 1 entfernen" }));
+
+      const table = await waitFor(() => {
+        const field = document.querySelector(".rows-field") as HTMLElement;
+        expect(field.querySelector(":scope > .field-error")).not.toBeNull();
+        return field;
+      });
+      expect(within(table).getByText(/höchstens 3 Zeilen/)).toBeInTheDocument();
+    });
+
+    it("renders a row the rules no longer offer as an unanswered table", async () => {
+      // A table falls out of its domain whole: one cell naming somebody the
+      // rules no longer offer drops the table, and `/form` serves `null` for
+      // it, which is the shape an unanswered question comes in.
+      openRows(null);
+
+      expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+      expect(screen.getByText(/Noch keine Zeile/)).toBeInTheDocument();
+    });
   });
 });
 
