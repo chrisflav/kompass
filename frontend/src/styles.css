@@ -2437,6 +2437,195 @@ button.etappe-body:hover {
   border-bottom: 1px solid var(--border);
 }
 
+/* One question asked once per traveller: the mode of travel and the distance
+   belong to the same person, so they are a row. A grid rather than a stack of
+   labelled fields, because the columns are the same question asked again —
+   the heading says what a cell is once and every row answers it. */
+.rows-field {
+  gap: 0.4rem;
+}
+
+.rows-wrap {
+  /* Flush with the `.field-label` above rather than inset like a page table:
+     this is one answer on a form, not a datasheet of its own. */
+  margin-top: 0.25rem;
+}
+
+.rows-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rows-table th {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* A cell's own help, under its column heading — said once for the column and
+   not once per row. */
+.rows-th-help {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  white-space: normal;
+  max-width: 14rem;
+}
+
+.rows-table td {
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.rows-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* The row number: 1-based for the person, while the API's error paths are
+   0-based for the array they index into. The contour colour because it is a
+   margin annotation and not an answer. */
+.rows-num {
+  width: 2.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--contour);
+  text-align: right;
+}
+
+.rows-cell.has-error input {
+  border-color: var(--danger);
+}
+
+.rows-cell .field-error {
+  /* Narrower than the column, so one refused cell does not widen the grid. */
+  max-width: 14rem;
+}
+
+.rows-row-error td {
+  padding-top: 0;
+  background: var(--danger-weak);
+}
+
+.rows-drop {
+  width: 2.5rem;
+}
+
+.rows-remove {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+}
+
+.rows-remove:hover {
+  color: var(--danger);
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+
+/* An empty table is an unanswered question and never an error, so it says what
+   to do next rather than what is missing. */
+.rows-empty {
+  margin: 0.25rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.rows-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+/* Too narrow for a grid: each row becomes its own small stack, and the column
+   heading moves in beside the cell it names. */
+@media (max-width: 720px) {
+  .rows-wrap {
+    border: none;
+    background: none;
+    box-shadow: none;
+    overflow-x: visible;
+  }
+
+  .rows-table thead {
+    display: none;
+  }
+
+  .rows-table,
+  .rows-table tbody,
+  .rows-table tr,
+  .rows-table td {
+    display: block;
+    width: auto;
+  }
+
+  .rows-table tbody tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.6rem;
+    position: relative;
+  }
+
+  .rows-table tbody tr.rows-row-error {
+    border-color: var(--danger);
+    background: var(--danger-weak);
+  }
+
+  .rows-table td {
+    border-bottom: none;
+    padding: 0.3rem 0;
+  }
+
+  .rows-cell::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+  }
+
+  .rows-num {
+    width: auto;
+    text-align: left;
+  }
+
+  .rows-drop {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.4rem;
+    width: auto;
+  }
+}
+
 /* --- receipts ------------------------------------------------------------- */
 
 .beleg-list {
