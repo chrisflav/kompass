@@ -44,6 +44,25 @@ the first. What the table *does* need of its own is somewhere to put the
 refusal: :func:`row_key` is the error-key grammar that lets a ``422`` about one
 person's kilometres land on that cell instead of on the whole table, and it is
 the one part of this feature a client depends on by shape rather than by value.
+
+**A cell the declaration no longer names is ignored, not refused.**
+:meth:`~kompass.rules.Ruleset.inputs` may declare a table's
+:attr:`~kompass.rules.Input.fields` differently depending on an answer, so a
+column can belong to one regime and not to the other — and a row stored while
+it was asked for still carries it. Refusing that row would make switching the
+regime back and forth refuse every later edit over a column nobody can see,
+which is the shape of the bug taxis #579 fixed one level up. So the cell is
+passed through to storage unread and unchecked (:func:`_clean_rows`), it moves
+no money while the column is away —
+:func:`finance.engine.answers._fitted_row` leaves it out of the row a rule gets
+— and it is checked by the declaration that asks for it when the column comes
+back.
+
+What tells a retired cell from a typo is the statement's **own stored answer**:
+:func:`retired_cells` reads the keys the stored rows carry, and nothing reaches
+``Statement.inputs`` except through here, so a key in there is a key some
+version of this declaration asked for. A key in neither the declaration nor the
+storage is refused exactly as before.
 """
 
 from collections.abc import Iterable
@@ -329,6 +348,15 @@ def form(statement: Any) -> dict[str, Any]:
     a broken one, and the rules report it loudly rather than reading it as
     unanswered. Echoing it back is a 422 naming that key; answering the
     question properly clears it.
+
+    **A table is served with its rows as stored**, which means a row may carry
+    a cell this form's ``fields`` does not name: a column the declaration has
+    put away, holding the answer somebody gave while it was asked for. It is
+    served rather than stripped because serving it is what lets a client hand
+    it back — :func:`clean` ignores it rather than refusing it, so an echo of
+    this payload keeps the value, and a payload that leaves it out drops it.
+    Nothing reads it while the column is away, and what makes it readable again
+    is the answer that brings the column back.
     """
     served, context = asked(statement)
     carried = statement.answers
@@ -420,6 +448,15 @@ def party_answers(statement: Any) -> dict[str, frozenset[str]]:
     *key*, it would clear nothing inside a table and leave exactly that. And it
     may not guess, either: a cell holding a count of kilometres can equal a
     member's id, so the fields are asked for by name.
+
+    A **retired** party-valued cell — a column the declaration does not
+    currently name — is not in this list, because nothing can be asked of a
+    declaration that is not there. A deleted member's id therefore stays inside
+    it, and that fails closed rather than open: the cell is unread while the
+    column is away, and when the column comes back the id is no longer one the
+    rules offer, so :func:`finance.engine.answers.within` drops the table and
+    the evaluation says so. Nothing is paid to a member who no longer exists;
+    the statement stops resolving until the table is given again.
     """
     found: dict[str, frozenset[str]] = {}
     for declaration in vocabulary(statement)[0]:
@@ -517,6 +554,36 @@ def form_field(declaration: Input) -> Any:
     return forms.CharField(**common)
 
 
+def retired_cells(declaration: Input, stored: Any) -> frozenset[str]:
+    """The cells ``stored`` answers that ``declaration`` does not name any more.
+
+    The witness for "this column was once asked for". A ruleset may declare a
+    table's :attr:`~kompass.rules.Input.fields` differently depending on an
+    answer, and the engine then has to tell two unknown cell keys apart: one a
+    regime has put away, whose stored value is somebody's answer and has to
+    survive, and one that is not a column of this table and never was.
+    Nothing reaches ``Statement.inputs`` except through :func:`clean` and the
+    seeds it checks against the same declarations, so a key the stored rows
+    carry is a key a declaration asked for — which makes the storage the only
+    record of the wider declaration there is, and the right thing to read.
+
+    It is asked of the **stored** answer and never of the incoming one, so a
+    request cannot widen its own vocabulary by inventing a column and then
+    claiming it had been put away.
+
+    Anything that is not a list of objects answers the empty set. A table whose
+    stored value does not fit its declaration at all is a retyped key, which is
+    reported loudly elsewhere (:func:`finance.engine.answers.typed`) and is not
+    this function's business.
+    """
+    if declaration.type != "rows" or not isinstance(stored, list):
+        return frozenset()
+    declared = {cell.key for cell in declaration.fields}
+    return frozenset(
+        key for row in stored if isinstance(row, Mapping) for key in row if key not in declared
+    )
+
+
 def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
     """Validate ``values`` against the declarations, or raise.
 
@@ -537,8 +604,20 @@ def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
     matters: a hand-crafted ``PATCH`` cannot put a figure of its own where the
     excursion's kilometres belong, and nor can a client that simply echoed back
     the whole form it was served.
+
+    A **retired cell** of a table is the one thing neither refused nor checked:
+    a column the declaration does not name but this statement's stored rows do
+    (:func:`retired_cells`) is passed through to storage as it came. There is no
+    declaration left to check it against, nothing reads it while the column is
+    away, and it is the answer somebody gave while it was asked for — so the
+    choice is between keeping it and throwing it away, and refusing the row it
+    sits in would do neither while making the form unusable. A cell key the
+    storage does not know either is refused exactly as before.
     """
     by_key = {declaration.key: declaration for declaration in declarations(statement)}
+    # Read once: `answers` copies the JSON column on every access, and the only
+    # thing wanted of it here is the record of a column that has been put away.
+    carried = statement.answers
     cleaned = {}
     for key, value in values.items():
         declaration = by_key.get(key)
@@ -558,7 +637,14 @@ def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
             )
         try:
             cleaned[key] = clean_value(
-                declaration, value, about_an_excursion=statement.excursion is not None
+                declaration,
+                value,
+                about_an_excursion=statement.excursion is not None,
+                # Read off this statement's own stored answer, which is the only
+                # record of a column the declaration has since put away
+                # (:func:`retired_cells`). Without it a row echoed back from
+                # ``/form`` would be refused over a cell nobody can see.
+                retired=retired_cells(declaration, carried.get(key)),
             )
         except ValidationError as problem:
             # A table's refusal is **already keyed**, per cell (:func:`row_key`),
@@ -572,7 +658,13 @@ def clean(statement: Any, values: Mapping[str, Any]) -> dict[str, Any]:
     return cleaned
 
 
-def clean_value(declaration: Input, value: Any, *, about_an_excursion: bool = True) -> Any:
+def clean_value(
+    declaration: Input,
+    value: Any,
+    *,
+    about_an_excursion: bool = True,
+    retired: frozenset[str] = frozenset(),
+) -> Any:
     """One answer, checked against one declaration and converted.
 
     Public because it is the whole of the widget vocabulary in one place:
@@ -599,9 +691,18 @@ def clean_value(declaration: Input, value: Any, *, about_an_excursion: bool = Tr
     whoever paid a receipt. It defaults to the trip's wording because the
     admin's excursion inline is always about one; :func:`clean` asks the
     statement.
+
+    ``retired`` are the cell keys of a ``rows`` ``declaration`` that a stored
+    answer carries and the declaration does not, which :func:`clean` resolves
+    from the statement (:func:`retired_cells`). They are ignored rather than
+    refused, and they default to none, which is what a caller holding a
+    declaration and nothing else can honestly say: there is no statement to read
+    a wider vocabulary off, so every unknown cell is a typo.
     """
     if declaration.type == "rows":
-        return _clean_rows(declaration, value, about_an_excursion=about_an_excursion)
+        return _clean_rows(
+            declaration, value, about_an_excursion=about_an_excursion, retired=retired
+        )
     if declaration.type in MEMBER_TYPES:
         return _clean_members(declaration, value, about_an_excursion=about_an_excursion)
     if declaration.type == "money":
@@ -616,7 +717,11 @@ def clean_value(declaration: Input, value: Any, *, about_an_excursion: bool = Tr
 
 
 def _clean_rows(
-    declaration: Input, value: Any, *, about_an_excursion: bool = True
+    declaration: Input,
+    value: Any,
+    *,
+    about_an_excursion: bool = True,
+    retired: frozenset[str] = frozenset(),
 ) -> list[dict[str, Any]]:
     """A table of rows, every cell against the field that asks for it.
 
@@ -651,6 +756,18 @@ def _clean_rows(
     person says so in a ``Check``, which is the same answer this module already
     gives for a ceiling on an amount, and for the same reason: the sentence is
     the section's.
+
+    *A cell the declaration no longer names is ignored and kept.* ``retired``
+    is the set of them, read off the statement's stored answer by
+    :func:`retired_cells`, and a row carrying one is neither refused nor
+    stripped: the value goes back where it came from, untouched and unchecked.
+    A ruleset may declare a table's columns differently depending on an answer,
+    so switching that answer back and forth would otherwise refuse every later
+    edit over a column nobody can see — the bug taxis #579 fixed for a whole
+    question, one level further in. Nothing reads it while the column is away
+    (:func:`finance.engine.answers._fitted_row`), so it moves no money; the
+    declaration that asks for it checks it again when it returns. An unknown
+    cell the storage does not know either is still a refusal keyed to the row.
 
     **Every cell error at once.** A table is one answer with a grid of fields,
     and a person correcting it wants to see all of what is wrong rather than one
@@ -691,10 +808,14 @@ def _clean_rows(
             ]
             continue
         unknown = sorted(set(row) - {cell.key for cell in cells})
-        if unknown:
+        # A cell this statement already answers is a column a declaration asked
+        # for and this one does not: ignored, not refused. A cell nothing has
+        # ever stored is a typo, and the message is the one it always was.
+        bogus = [key for key in unknown if key not in retired]
+        if bogus:
             problems[row_key(declaration.key, index)] = [
                 _("This row answers %(keys)s, which these rules do not ask for.")
-                % {"keys": ", ".join(unknown)}
+                % {"keys": ", ".join(bogus)}
             ]
             continue
         cleaned: dict[str, Any] = {}
@@ -705,6 +826,12 @@ def _clean_rows(
                 )
             except ValidationError as problem:
                 problems[cell_key(declaration.key, index, cell.key)] = problem.messages
+        # The retired cells last, as they came. Kept because the value is the
+        # person's answer from when the column was asked for, and unchecked
+        # because there is no declaration left to check it against — which costs
+        # nothing while it is unread, and is checked by the declaration that
+        # asks for it the moment the column comes back.
+        cleaned.update({key: row[key] for key in unknown})
         rows.append(cleaned)
     if problems:
         raise ValidationError(problems)
