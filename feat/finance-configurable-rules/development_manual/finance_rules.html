@@ -229,6 +229,14 @@ anything knows which key is money and which is a person, so a declaration that
 branches on an answer there reads it with <a class="reference internal" href="#kompass.rules.Inputs.raw" title="kompass.rules.Inputs.raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">raw()</span></code></a>.
 That is the difference between the two in practice, and it is why branching
 belongs in <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> when it can.</p>
+<p><strong>One thing it cannot narrow, and that is where the division of labour bites:
+a column.</strong> <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> chooses among keys, and the cells of a <code class="docutils literal notranslate"><span class="pre">rows</span></code>
+question are part of that question’s declaration rather than keys of their own.
+So a ruleset that wants a table’s <code class="docutils literal notranslate"><span class="pre">fields</span></code> to depend on an answer — a
+passenger count only one of two travel-cost regimes pays a surcharge for —
+declares it in <code class="docutils literal notranslate"><span class="pre">inputs</span></code>, branching there on the answer read with <code class="docutils literal notranslate"><span class="pre">raw</span></code>.
+What happens to a cell the declaration then stops naming is
+<a class="reference internal" href="#development-manual-finance-rules-retired-cell"><span class="std std-ref">A column that comes and goes</span></a>.</p>
 </section>
 <section id="how-a-ruleset-reaches-a-running-instance">
 <h2>How a ruleset reaches a running instance<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-a-ruleset-reaches-a-running-instance" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-a-ruleset-reaches-a-running-instance'">¶</a></h2>
@@ -774,6 +782,53 @@ no longer offer drops the whole table and the evaluation reports it, which is
 the <code class="docutils literal notranslate"><span class="pre">member_set</span></code> decision one level in and for the same reason: choosing
 which rows survive is a selection nobody made, and the statement is blocked
 either way.</p>
+</section>
+<section id="a-column-that-comes-and-goes">
+<span id="development-manual-finance-rules-retired-cell"></span><h3>A column that comes and goes<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#a-column-that-comes-and-goes" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#a-column-that-comes-and-goes'">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">fields</span></code> is part of a declaration, and <a class="reference internal" href="#kompass.rules.Ruleset.inputs" title="kompass.rules.Ruleset.inputs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">inputs()</span></code></a>
+is given the context — so a ruleset may declare a table with different columns
+depending on an answer:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">def</span><span class="w"> </span><span class="nf">inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">RuleContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Input</span><span class="p">]:</span>
+</span><span id="line-2">    <span class="n">regime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">regime_of</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>          <span class="c1"># read with `raw`: see above</span>
+</span><span id="line-3">    <span class="k">return</span> <span class="p">[</span><span class="o">...</span><span class="p">,</span>
+</span><span id="line-4">            <span class="n">Input</span><span class="p">(</span><span class="s2">"reisen"</span><span class="p">,</span> <span class="s2">"Fahrten"</span><span class="p">,</span> <span class="s2">"rows"</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+</span><span id="line-5">                  <span class="n">options_source</span><span class="o">=</span><span class="s2">"bills.payers"</span><span class="p">,</span>
+</span><span id="line-6">                  <span class="n">fields</span><span class="o">=</span><span class="n">journey_fields</span><span class="p">(</span><span class="n">regime</span><span class="p">))]</span>
+</span></code></pre></div>
+</div>
+<p>That is how a regime narrows a table, and it is deliberately <em>not</em>
+<code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code>: that method chooses among keys, and a column is not a key
+(see <a class="reference internal" href="#what-a-ruleset-is">What a ruleset is</a>). A column the declaration does not name is not on
+the form, no rule can read it, and nothing it holds can move money — which is
+the whole of the guarantee, stated for a column rather than for a question.</p>
+<p>Rows stored while it <em>was</em> named still carry it, and there is one reading of
+that and it is the same one taxis <strong>#579</strong> settled a level up: <strong>the cell is
+ignored, not refused, and not thrown away.</strong></p>
+<ul class="simple">
+<li><p>A rule never sees it. The <a class="reference internal" href="#kompass.rules.Row" title="kompass.rules.Row"><code class="xref py py-class docutils literal notranslate"><span class="pre">Row</span></code></a> a rule reads is built
+from the declaration, so a cell it does not name is not in the row at all and
+<code class="docutils literal notranslate"><span class="pre">journey.number("passengers")</span></code> raises <a class="reference internal" href="#kompass.rules.RuleError" title="kompass.rules.RuleError"><code class="xref py py-class docutils literal notranslate"><span class="pre">RuleError</span></code></a>
+naming the fields the row does have. A ruleset whose columns move therefore
+reads such a cell defensively — <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">"passengers"</span> <span class="pre">in</span> <span class="pre">journey.declared()</span></code> —
+exactly as it reads the answer it branches on.</p></li>
+<li><p>The domain says nothing about it. <code class="xref py py-func docutils literal notranslate"><span class="pre">finance.engine.answers.within()</span></code> judges
+the cells the declaration names, so a stored count outside a bound the column
+no longer has does not drop the table.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">…/form</span></code> serves the row <strong>as stored</strong>, retired cell included, and
+<code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/statements/{id}</span></code> accepts it without checking it. So a client that
+hands back what it was served keeps the value, and one that leaves the cell
+out drops it.</p></li>
+<li><p>The value stays in <code class="docutils literal notranslate"><span class="pre">Statement.inputs</span></code>. It is the answer somebody gave while
+the column was asked for, so putting the regime back finds the count again
+rather than an empty cell, and the declaration that asks for it checks it
+again then.</p></li>
+</ul>
+<p>What is still <strong>refused</strong> is a cell key no version of the declaration ever
+named. The two are told apart by the statement’s own stored answer: nothing
+reaches <code class="docutils literal notranslate"><span class="pre">Statement.inputs</span></code> except through <code class="docutils literal notranslate"><span class="pre">clean</span></code>, so a key the stored rows
+carry is a key some declaration asked for, and a key in neither the declaration
+nor the storage is the typo it looks like — a <code class="docutils literal notranslate"><span class="pre">422</span></code> keyed to the row, exactly
+as before.</p>
 </section>
 <section id="seeding-a-table-one-row-to-correct-which-is-not-a-derivation">
 <span id="development-manual-finance-rules-seed"></span><h3>Seeding a table: one row to correct, which is not a derivation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#seeding-a-table-one-row-to-correct-which-is-not-a-derivation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#seeding-a-table-one-row-to-correct-which-is-not-a-derivation'">¶</a></h3>
@@ -2255,6 +2310,7 @@ somebody and there is more than one candidate: <code class="docutils literal not
 <li><a :data-current="activeSection === '#derived-inputs-a-figure-the-statement-already-knows'" class="reference internal" href="#derived-inputs-a-figure-the-statement-already-knows">Derived inputs: a figure the statement already knows</a></li>
 <li><a :data-current="activeSection === '#where-a-party-valued-question-s-people-come-from'" class="reference internal" href="#where-a-party-valued-question-s-people-come-from">Where a party-valued question’s people come from</a></li>
 <li><a :data-current="activeSection === '#repeating-rows-one-question-several-travellers'" class="reference internal" href="#repeating-rows-one-question-several-travellers">Repeating rows: one question, several travellers</a></li>
+<li><a :data-current="activeSection === '#a-column-that-comes-and-goes'" class="reference internal" href="#a-column-that-comes-and-goes">A column that comes and goes</a></li>
 <li><a :data-current="activeSection === '#seeding-a-table-one-row-to-correct-which-is-not-a-derivation'" class="reference internal" href="#seeding-a-table-one-row-to-correct-which-is-not-a-derivation">Seeding a table: one row to correct, which is not a derivation</a></li>
 <li><a :data-current="activeSection === '#where-a-refusal-about-a-cell-lands'" class="reference internal" href="#where-a-refusal-about-a-cell-lands">Where a refusal about a cell lands</a></li>
 <li><a :data-current="activeSection === '#steps-which-questions-belong-together'" class="reference internal" href="#steps-which-questions-belong-together">Steps: which questions belong together</a></li>

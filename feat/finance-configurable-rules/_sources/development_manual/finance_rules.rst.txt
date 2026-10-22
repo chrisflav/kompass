@@ -112,6 +112,15 @@ branches on an answer there reads it with :meth:`~kompass.rules.Inputs.raw`.
 That is the difference between the two in practice, and it is why branching
 belongs in ``relevant_inputs`` when it can.
 
+**One thing it cannot narrow, and that is where the division of labour bites:
+a column.** ``relevant_inputs`` chooses among keys, and the cells of a ``rows``
+question are part of that question's declaration rather than keys of their own.
+So a ruleset that wants a table's ``fields`` to depend on an answer — a
+passenger count only one of two travel-cost regimes pays a surcharge for —
+declares it in ``inputs``, branching there on the answer read with ``raw``.
+What happens to a cell the declaration then stops naming is
+:ref:`development_manual/finance_rules/retired_cell`.
+
 
 How a ruleset reaches a running instance
 ========================================
@@ -708,6 +717,57 @@ no longer offer drops the whole table and the evaluation reports it, which is
 the ``member_set`` decision one level in and for the same reason: choosing
 which rows survive is a selection nobody made, and the statement is blocked
 either way.
+
+.. _development_manual/finance_rules/retired_cell:
+
+A column that comes and goes
+----------------------------
+
+``fields`` is part of a declaration, and :meth:`~kompass.rules.Ruleset.inputs`
+is given the context — so a ruleset may declare a table with different columns
+depending on an answer::
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        regime = self.regime_of(ctx)          # read with `raw`: see above
+        return [...,
+                Input("reisen", "Fahrten", "rows", max=12,
+                      options_source="bills.payers",
+                      fields=journey_fields(regime))]
+
+That is how a regime narrows a table, and it is deliberately *not*
+``relevant_inputs``: that method chooses among keys, and a column is not a key
+(see `What a ruleset is`_). A column the declaration does not name is not on
+the form, no rule can read it, and nothing it holds can move money — which is
+the whole of the guarantee, stated for a column rather than for a question.
+
+Rows stored while it *was* named still carry it, and there is one reading of
+that and it is the same one taxis **#579** settled a level up: **the cell is
+ignored, not refused, and not thrown away.**
+
+* A rule never sees it. The :class:`~kompass.rules.Row` a rule reads is built
+  from the declaration, so a cell it does not name is not in the row at all and
+  ``journey.number("passengers")`` raises :class:`~kompass.rules.RuleError`
+  naming the fields the row does have. A ruleset whose columns move therefore
+  reads such a cell defensively — ``if "passengers" in journey.declared()`` —
+  exactly as it reads the answer it branches on.
+* The domain says nothing about it. :func:`finance.engine.answers.within` judges
+  the cells the declaration names, so a stored count outside a bound the column
+  no longer has does not drop the table.
+* ``GET …/form`` serves the row **as stored**, retired cell included, and
+  ``PATCH /statements/{id}`` accepts it without checking it. So a client that
+  hands back what it was served keeps the value, and one that leaves the cell
+  out drops it.
+* The value stays in ``Statement.inputs``. It is the answer somebody gave while
+  the column was asked for, so putting the regime back finds the count again
+  rather than an empty cell, and the declaration that asks for it checks it
+  again then.
+
+What is still **refused** is a cell key no version of the declaration ever
+named. The two are told apart by the statement's own stored answer: nothing
+reaches ``Statement.inputs`` except through ``clean``, so a key the stored rows
+carry is a key some declaration asked for, and a key in neither the declaration
+nor the storage is the typo it looks like — a ``422`` keyed to the row, exactly
+as before.
 
 .. _development_manual/finance_rules/seed:
 
