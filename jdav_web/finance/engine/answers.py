@@ -43,6 +43,25 @@ withdrawn option drops the whole table and reports it. That is the
 ``member_set`` decision ("dropped **whole**, not member by member") read for a
 table, and for the same reason: which rows survive is a selection nobody made,
 and the statement is blocked either way.
+
+**A column comes and goes with the declaration, and a stored cell outlives
+it.** :meth:`~kompass.rules.Ruleset.inputs` is given the context and may
+declare a table's :attr:`~kompass.rules.Input.fields` differently depending on
+an answer — a passenger count that only one of two travel-cost regimes pays a
+surcharge for is a column only that regime has. So a stored row can carry a
+cell the declaration of the moment does not name, and there is exactly one
+reading of it here: **it is not read**. :func:`_fitted_row` leaves it out, so
+no rule can reach it and :meth:`~kompass.rules.Row.raw` refuses it by name;
+:func:`within` judges the cells the declaration *does* name and says nothing
+about the others. Which is the decision :meth:`~kompass.rules.Ruleset.relevant_inputs`
+already made one level up (taxis #579) read one level in: what the form does
+not ask reads as unanswered, and a column it does not have is not asked.
+
+Not read is not the same as gone. The value stays in ``Statement.inputs``,
+because it is the answer somebody gave while the column was asked for — so
+putting the regime back finds the count again rather than an empty cell. What
+keeps it there is :func:`finance.inputs._clean_rows`, which ignores a retired
+cell on the way in instead of refusing the row it sits in.
 """
 
 from collections.abc import Iterable
@@ -159,8 +178,12 @@ def within(declaration: Input, value: Any) -> bool:
         # made. One journey naming somebody the rules no longer offer stops the
         # statement paying any of them, the evaluation says so, and nothing is
         # paid until the table is given again.
+        #
+        # The cells the *declaration* names, and only those: a row may carry a
+        # cell it does not — a column the regime has put away — and a cell it
+        # does not carry is read as empty rather than asked about (`_cell_of`).
         cells = _cells(declaration)
-        return all(within(cell, row.raw(cell.key)) for row in value for cell in cells)
+        return all(within(cell, _cell_of(cell, row)) for row in value for cell in cells)
     return True
 
 
@@ -217,6 +240,32 @@ def coerce_input(declaration: Input, value: Any) -> object:
         return value
 
 
+def _cell_of(cell: Input, row: Row) -> object:
+    """``cell``'s value in ``row``, or its type's empty value when the row has none.
+
+    A row is read against the declaration of the moment, and that need not be
+    the declaration it was given under: a ruleset may declare a table's
+    :attr:`~kompass.rules.Input.fields` differently depending on an answer, so a
+    column comes and goes while the rows stay. The stored route never arrives
+    here short of a cell — :func:`_fitted_row` fills every declared one in — but
+    the already-typed routes do, and they are not exotic: the fuzzer answers a
+    table against the declaration it was handed and the rules are then asked
+    against the one those answers produce, which is the same shape as a dry run
+    against unsaved answers.
+
+    Empty rather than refused, because that is the decision one level up read
+    one level in: a question the form stopped asking reads as its type's empty
+    value, and so does a column a table does not have. Asking
+    :meth:`~kompass.rules.Row.raw` for it instead would raise
+    :class:`~kompass.rules.RuleError` out of :func:`within`, which is no
+    judgement about a domain at all — it would collapse the evaluation over a
+    cell nobody can see.
+    """
+    if cell.key not in row.declared():
+        return EMPTY.get(cell.type)
+    return row.raw(cell.key)
+
+
 def _cells(declaration: Input) -> tuple[Input, ...]:
     """Each cell of a ``rows`` question as the one-question declaration it is.
 
@@ -238,7 +287,12 @@ def _fitted_row(declaration: Input, cells: tuple[Input, ...], row: Any) -> Row:
     than a :class:`~kompass.rules.RuleError` — the same promise
     :class:`~kompass.rules.Inputs` makes about a question. A key the row carries
     and the declaration does not is dropped here, for the same reason
-    :func:`typed_inputs` restricts the answers: the rules stopped asking.
+    :func:`typed_inputs` restricts the answers: the rules stopped asking. Which
+    a ruleset can do to one *column* without touching the key, because the
+    ``fields`` it declares may depend on an answer — so this is the line that
+    makes a retired column unreadable rather than merely unasked: the cell is
+    not in the :class:`~kompass.rules.Row`, so no rule can reach it, and the
+    stored value is untouched because nothing here writes.
 
     A cell whose *type* does not fit raises, which takes the **whole table**
     through :func:`typed`'s ``except`` and hands it to the rules as the raw
