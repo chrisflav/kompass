@@ -161,6 +161,9 @@ class ProductTypeOut(ProductTypeCard):
     calendar: list[CalendarEntry]
     #: Only for those who manage material; others see counts.
     parts: list[PartBrief] | None
+    #: The type's retired pieces, likewise only for the material team. They are
+    #: out of the stock but still on record, and deleting the type deletes them.
+    retired_parts: list[PartBrief] | None
 
 
 class ProductTypeIn(Schema):

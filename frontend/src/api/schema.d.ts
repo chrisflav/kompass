@@ -2677,7 +2677,14 @@ export interface paths {
         get: operations["equipment_api_router_retrieve_type"];
         put?: never;
         post?: never;
-        /** Delete Type */
+        /**
+         * Delete Type
+         * @description Delete a type that has no pieces left in the stock.
+         *
+         *     Retired pieces do not hold it back: they are out of the stock, and the type
+         *     page lists them apart from the others. They are deleted with the type, with
+         *     everything recorded about them, which the page says before asking.
+         */
         delete: operations["equipment_api_router_delete_type"];
         options?: never;
         head?: never;
@@ -7447,6 +7454,8 @@ export interface components {
             calendar: components["schemas"]["CalendarEntry"][];
             /** Parts */
             parts: components["schemas"]["PartBrief"][] | null;
+            /** Retired Parts */
+            retired_parts: components["schemas"]["PartBrief"][] | null;
         };
         /** ProductTypeIn */
         ProductTypeIn: {

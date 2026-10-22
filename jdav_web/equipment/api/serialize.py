@@ -234,15 +234,14 @@ def type_detail(product_type, start, end, member, manager):
                 "borrower": ref(reservation.borrower),
             }
         )
-    parts = None
+    parts = retired_parts = None
     if manager:
         rows = list(
-            product_type.parts.exclude(status=Part.RETIRED).select_related(
-                "group", "holder", "location", "product_type"
-            )
+            product_type.parts.select_related("group", "holder", "location", "product_type")
         )
         dues = services.open_loan_dues([p.pk for p in rows])
-        parts = [part_brief(p, dues.get(p.pk)) for p in rows]
+        parts = [part_brief(p, dues.get(p.pk)) for p in rows if p.status != Part.RETIRED]
+        retired_parts = [part_brief(p, dues.get(p.pk)) for p in rows if p.status == Part.RETIRED]
     data.update(
         {
             "description": product_type.description,
@@ -253,6 +252,7 @@ def type_detail(product_type, start, end, member, manager):
             "daily_rate": product_type.daily_rate,
             "calendar": calendar,
             "parts": parts,
+            "retired_parts": retired_parts,
         }
     )
     return data

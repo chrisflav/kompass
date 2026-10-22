@@ -552,6 +552,66 @@ describe("material — Materialtyp", () => {
     expect(screen.getAllByText("Peter Lustig").length).toBeGreaterThan(0);
   });
 
+  it("lists retired pieces apart and says they go with a deleted type", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    let deleted = false;
+    server.use(
+      http.get(api("/api/material/types/10"), () =>
+        HttpResponse.json({
+          ...TYPE,
+          parts: [],
+          retired_parts: [part(7, { status: "retired", location: null }), part(8, { status: "retired" })],
+        }),
+      ),
+      http.delete(api("/api/material/types/10"), () => {
+        deleted = true;
+        return HttpResponse.json({ success: true });
+      }),
+    );
+    const { user } = renderRoute("/kompass/material/types/10?tab=parts");
+    // An empty stock, but the retired pieces are on record.
+    expect(await screen.findByText("Ausgesondert (2)")).toBeInTheDocument();
+    expect(screen.getByText("Noch keine Teile.")).toBeInTheDocument();
+    expect(screen.getByText("S7")).toBeInTheDocument();
+    expect(screen.getAllByText("ausgesondert")).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    const confirmation = await screen.findByRole("dialog");
+    expect(
+      within(confirmation).getByText(/Die 2 ausgesonderten Teile werden mit ihm gelöscht/),
+    ).toBeInTheDocument();
+    await user.click(within(confirmation).getByRole("button", { name: "Löschen" }));
+    await waitFor(() => expect(deleted).toBe(true));
+    expect(await screen.findByText("Materialtyp gelöscht.")).toBeInTheDocument();
+  });
+
+  it("names a single retired piece, and asks plainly when there is none", async () => {
+    useMe({ permissions: ["equipment.manage_inventory"] });
+    server.use(
+      http.get(api("/api/material/types/10"), () =>
+        HttpResponse.json({ ...TYPE, parts: [], retired_parts: [part(7, { status: "retired" })] }),
+      ),
+    );
+    const { user, unmount } = renderRoute("/kompass/material/types/10");
+    await screen.findByText("Genähte Schlinge");
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    expect(
+      within(await screen.findByRole("dialog")).getByText(/Das ausgesonderte Teil wird/),
+    ).toBeInTheDocument();
+    unmount();
+
+    server.use(http.get(api("/api/material/types/10"), () => HttpResponse.json(TYPE)));
+    const second = renderRoute("/kompass/material/types/10");
+    await screen.findByText("Genähte Schlinge");
+    await second.user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
+    await second.user.click(screen.getByRole("button", { name: "Löschen" }));
+    expect(
+      within(await screen.findByRole("dialog")).getByText("Materialtyp löschen?"),
+    ).toBeInTheDocument();
+  });
+
   it("puts one in the cart, whose amount the cart changes", async () => {
     const { user } = renderRoute("/kompass/material/types/10");
     await screen.findByText("Genähte Schlinge");

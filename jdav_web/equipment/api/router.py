@@ -329,12 +329,37 @@ def update_type(request, type_id: int, payload: ProductTypeUpdate):
 
 @router.delete("/types/{type_id}")
 def delete_type(request, type_id: int):
+    """Delete a type that has no pieces left in the stock.
+
+    Retired pieces do not hold it back: they are out of the stock, and the type
+    page lists them apart from the others. They are deleted with the type, with
+    everything recorded about them, which the page says before asking.
+    """
     authorize(request, INVENTORY)
     product_type = get_object_or_404(ProductType, pk=type_id)
-    if product_type.parts.exists():
+    if product_type.parts.exclude(status=Part.RETIRED).exists():
         raise Forbidden(_("A type that still has pieces cannot be deleted."))
+    # Retiring does not wait for a loan to end, so a retired piece may still be
+    # out. Name each one and who has it, rather than fail on the first.
+    retired = {part.pk: part for part in product_type.parts.all()}
+    lent = services.open_loan_lines(list(retired.values()))
+    if lent:
+        pieces = ", ".join(
+            "{} ({})".format(
+                serialize.part_label(retired[part_id]),
+                line.loan.borrower.name if line.loan.borrower else "?",
+            )
+            for part_id, line in sorted(lent.items())
+        )
+        raise ValidationError(
+            _("Retired pieces still out on loan have to be taken back first: %(pieces)s.")
+            % {"pieces": pieces}
+        )
     try:
-        product_type.delete()
+        with transaction.atomic():
+            for part in product_type.parts.all():
+                services.delete_part(part)
+            product_type.delete()
     except ProtectedError:
         raise ValidationError(
             _("A size of this type has been reserved or lent. Set its stock to 0 instead.")
