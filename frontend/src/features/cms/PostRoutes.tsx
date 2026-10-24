@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 
@@ -133,7 +133,7 @@ function PostForm({
         />
         {errors.detailed && <div className="field-error">{errors.detailed.join(" ")}</div>}
       </Field>
-      <Field label="Gruppen">
+      <Field group label="Gruppen">
         <MultiSelect
           options={groups.map((g) => ({ value: g.id, label: g.name }))}
           selected={form.group_ids}
@@ -471,16 +471,16 @@ function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
         breadcrumbs={crumbs}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={saving}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -504,7 +504,7 @@ function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />
@@ -808,7 +808,7 @@ function PostPersonsInline({
       {adding && (
         <Modal title="Person hinzufügen" onClose={() => setAdding(null)} size="sm">
           <div className="stack">
-            <Field label="Teilnehmende">{memberSelect(adding, setAdding)}</Field>
+            <Field group label="Teilnehmende">{memberSelect(adding, setAdding)}</Field>
             <Field label="Beschreibung">
               <input
                 value={adding.description}

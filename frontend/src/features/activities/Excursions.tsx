@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -295,18 +295,20 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
           options={TOUR_TYPE_OPTIONS}
         />
       </Field>
-      <Field label="Gruppen">
+      <Field group label="Gruppen">
         <MultiSelect
           options={groupOptions}
           selected={form.group_ids}
           onChange={(ids) => setForm({ ...form, group_ids: ids })}
+          placeholder="Gruppe hinzufügen…"
         />
       </Field>
-      <Field label="Leiter*innen">
+      <Field group label="Leiter*innen">
         <MultiSelect
           options={memberOptions}
           selected={form.jugendleiter_ids}
           onChange={(ids) => setForm({ ...form, jugendleiter_ids: ids })}
+          placeholder="Leiter*in hinzufügen…"
           searchable
         />
       </Field>
@@ -598,6 +600,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
           options={groupOptions}
           selected={form.group_ids}
           onChange={(ids) => setForm({ ...form, group_ids: ids })}
+          placeholder="Gruppe hinzufügen…"
         />
       ),
     },
@@ -612,6 +615,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
           options={memberOptions}
           selected={form.jugendleiter_ids}
           onChange={(ids) => setForm({ ...form, jugendleiter_ids: ids })}
+          placeholder="Leiter*in hinzufügen…"
           searchable
         />
       ),
@@ -857,7 +861,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         ]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
@@ -867,9 +871,9 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
               >
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -971,7 +975,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />

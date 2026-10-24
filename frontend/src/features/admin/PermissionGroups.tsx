@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -154,7 +154,7 @@ function PermissionGroupForm({ onDone }: { onDone: () => void }) {
         <input value={name} onChange={(e) => setName(e.target.value)} required />
         {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
       </Field>
-      <Field label="Rechte">
+      <Field group label="Rechte">
         <PermissionPicker selected={permissionIds} onChange={setPermissionIds} />
       </Field>
       <div className="row-actions">
@@ -287,16 +287,16 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
         ]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={save.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -334,7 +334,7 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
                   Bearbeiten
                 </Button>
               )}
-            </>
+            </Fragment>
           )
         }
       />

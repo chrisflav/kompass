@@ -12,6 +12,7 @@
   --contour: #a8683c; /* bistre contour line — the cartographic signature */
   --contour-weak: rgba(168, 104, 60, 0.13);
   --nord: #c8452d; /* compass-needle red — the one sharp accent + danger */
+  --nord-hover: #a5361f;
   --nord-weak: #f6e6e1;
 
   --panel: #ffffff;
@@ -27,6 +28,7 @@
   --accent-hover: var(--fels-hover);
   --accent-weak: var(--gletscher);
   --danger: var(--nord);
+  --danger-hover: var(--nord-hover);
   --danger-weak: var(--nord-weak);
   --warning: #8a5a10; /* topographic amber */
   --warning-weak: #f4ead4;
@@ -74,6 +76,7 @@
   --contour: #c98d60;
   --contour-weak: rgba(201, 141, 96, 0.16);
   --nord: #ef7a64;
+  --nord-hover: #f49a89;
   --nord-weak: #3b221e;
 
   --panel: #16222a;
@@ -176,6 +179,13 @@ a.btn {
 
 .btn.danger {
   background: var(--danger);
+}
+
+/* Without its own hover a hovered danger button took the generic blue hover
+   (`.btn:hover:not(:disabled)` outranks `.btn.danger`), and on touch screens a
+   tap's hover sticks to the button until the next tap elsewhere. */
+.btn.danger:hover:not(:disabled) {
+  background: var(--danger-hover);
 }
 
 .btn.icon {
@@ -2039,11 +2049,25 @@ a:focus-visible,
     display: inline-flex;
   }
 
+  /* The drawer sits in the sticky top bar, so it gets the viewport below the
+     60px brand row (plus the bar's border) and scrolls on its own; a swipe that
+     reaches its end does not chain on to the page, which is locked meanwhile. */
   .topnav-drawer {
     display: block;
+    max-height: calc(100vh - 61px);
+    max-height: calc(100dvh - 61px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 0.5rem 2rem 1rem;
     border-top: 1px solid var(--border);
     background: var(--panel);
+  }
+
+  /* The root only: its overflow applies to the viewport. Hiding body's too
+     would make body a scroll container and pin the sticky top bar to the top
+     of the document instead of the screen. */
+  html.nav-drawer-open {
+    overflow: hidden;
   }
 }
 

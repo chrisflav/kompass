@@ -237,7 +237,11 @@ describe("members list — extras", () => {
     await user.type(dialog.getByLabelText("Nachname"), "Person");
     await user.click(dialog.getByRole("button", { name: "Geschlecht" }));
     await user.click(dropdown().getByRole("button", { name: "Weiblich" }));
-    await user.click(dialog.getByRole("button", { name: "Gruppen" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Gruppen" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
 

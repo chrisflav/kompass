@@ -1,5 +1,5 @@
 import { keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
@@ -342,7 +342,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           <div className="field-error">{fieldErrors.content.join(" ")}</div>
         )}
       </Field>
-      <Field label="Empfänger-Gruppen">
+      <Field group label="Empfänger-Gruppen">
         <MultiSelect
           options={groupOptions}
           selected={form.to_groups}
@@ -350,7 +350,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           placeholder="Gruppe hinzufügen"
         />
       </Field>
-      <Field label="Empfänger-Teilnehmende">
+      <Field group label="Empfänger-Teilnehmende">
         <MultiSelect
           options={memberOptions}
           selected={form.to_members}
@@ -365,7 +365,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           onChange={(v) => setForm({ ...form, to_freizeit: v })}
         />
       </Field>
-      <Field label="Antwort an (Teilnehmende)">
+      <Field group label="Antwort an (Teilnehmende)">
         <MultiSelect
           options={memberOptions}
           selected={form.reply_to}
@@ -373,7 +373,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           placeholder="Teilnehmende hinzufügen"
         />
       </Field>
-      <Field label="Antwort an (E-Mail-Adressen)">
+      <Field group label="Antwort an (E-Mail-Adressen)">
         <MultiSelect
           options={addressOptions}
           selected={form.reply_to_email_address}
@@ -626,16 +626,16 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
         breadcrumbs={crumbs}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={saving}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -666,7 +666,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
                   </Button>
                 </>
               )}
-            </>
+            </Fragment>
           )
         }
       />

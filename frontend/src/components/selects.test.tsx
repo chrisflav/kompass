@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { api, http, HttpResponse, server } from "../test/server";
 import { renderWithApp } from "../test/utils";
 import { InlineTable } from "./inline";
-import { DownloadButton, MultiSelect, SearchableSelect, Select } from "./ui";
+import { DownloadButton, Field, MultiSelect, SearchableSelect, Select } from "./ui";
 
 const OPTIONS = [
   { value: 1, label: "Klettergruppe" },
@@ -45,6 +45,33 @@ describe("MultiSelect", () => {
     const { user } = renderWithApp(<Harness initial={[1, 2]} />, { authenticated: false });
     const badge = screen.getByText("Klettergruppe").closest(".ms-badge") as HTMLElement;
     await user.click(within(badge).getByRole("button"));
+    expect(screen.getByTestId("value")).toHaveTextContent("2");
+  });
+
+  it("keeps its picks on a click on its field's caption or a badge", async () => {
+    function InField() {
+      const [selected, setSelected] = useState([1, 2]);
+      return (
+        <>
+          <span data-testid="value">{selected.join(",")}</span>
+          <Field group label="Gruppen">
+            <MultiSelect options={OPTIONS} selected={selected} onChange={setSelected} />
+          </Field>
+        </>
+      );
+    }
+    const { user } = renderWithApp(<InField />, { authenticated: false });
+    const group = screen.getByRole("group", { name: "Gruppen" });
+    const badges = within(group.querySelector(".ms-badges") as HTMLElement);
+
+    await user.click(screen.getByText("Gruppen"));
+    await user.click(badges.getByText("Klettergruppe"));
+    await user.click(badges.getByText("Jugendleiter"));
+    expect(screen.getByTestId("value")).toHaveTextContent("1,2");
+    expect(document.querySelector(".ms-dropdown")).toBeNull();
+
+    // Each badge's × names what it removes.
+    await user.click(badges.getByRole("button", { name: "Klettergruppe entfernen" }));
     expect(screen.getByTestId("value")).toHaveTextContent("2");
   });
 

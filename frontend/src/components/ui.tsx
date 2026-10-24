@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -550,11 +551,28 @@ export function Field({
   label,
   children,
   hint,
+  group = false,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  /** The control is a composite of several buttons (e.g. a MultiSelect): name
+   * it as a group. A <label> would forward a click on its caption, or on any
+   * plain text inside it, to its first button, such as a badge's remove ×. */
+  group?: boolean;
 }) {
+  const id = useId();
+  if (group) {
+    return (
+      <div className="field" role="group" aria-labelledby={id}>
+        <span id={id} className="field-label">
+          {label}
+        </span>
+        {children}
+        {hint && <span className="field-hint">{hint}</span>}
+      </div>
+    );
+  }
   return (
     <label className="field">
       <span className="field-label">{label}</span>
@@ -732,7 +750,7 @@ export function MultiSelect({
             <button
               type="button"
               className="ms-remove"
-              aria-label="Entfernen"
+              aria-label={`${byValue.get(v) ?? v} entfernen`}
               onClick={() => toggle(v)}
             >
               ×

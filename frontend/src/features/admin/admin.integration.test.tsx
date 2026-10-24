@@ -567,7 +567,11 @@ describe("permission groups", () => {
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getByRole("button", { name: "Anlegen" })).toBeDisabled();
     await user.type(dialog.getByLabelText(/^Name/), "Kassenwart");
-    await user.click(dialog.getByRole("button", { name: "Rechte" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Rechte" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     // The codename is shown alongside the label so it is recognisable.
     await user.click(
       within(document.querySelector(".ms-dropdown") as HTMLElement).getByRole("button", {
