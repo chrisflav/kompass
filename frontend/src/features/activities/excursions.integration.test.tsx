@@ -482,12 +482,46 @@ describe("activities — Ausfahrt detail", () => {
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
 
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => expect(created).toMatchObject({ member_id: 43 }));
+  });
+
+  it("adds several participants at once with a shared comment", async () => {
+    detailReturns();
+    const created: unknown[] = [];
+    server.use(
+      http.patch(api("/api/members/excursions/3"), () => HttpResponse.json(EXCURSION)),
+      http.post(api("/api/members/excursions/3/participants"), async ({ request }) => {
+        created.push(await request.json());
+        return HttpResponse.json({ id: 40 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
+    await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
+    await user.click(await dropdown().findByRole("button", { name: "Anna Ärmel" }));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+    // A badge's × takes a member back off the selection; the list stays open.
+    await user.click(dialog.getByRole("button", { name: "Mila Nowak entfernen" }));
+    expect(dialog.queryByRole("button", { name: "Mila Nowak entfernen" })).not.toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+    await user.type(dialog.getByLabelText("Kommentar"), "Bus");
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+
+    await waitFor(() => expect(created).toHaveLength(2));
+    expect(created).toEqual([
+      { member_id: 42, comments: "Bus" },
+      { member_id: 43, comments: "Bus" },
+    ]);
   });
 
   it("links the participants one may open and shows their age on the trip", async () => {
@@ -605,7 +639,7 @@ describe("activities — Ausfahrt detail", () => {
     await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(await dropdown().findByRole("button", { name: "Mila Nowak" }));
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
     expect(memberRequests).toBe(1);

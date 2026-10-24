@@ -22,7 +22,7 @@ import {
 } from "../../components/ui";
 import { InlineTable } from "../../components/inline";
 import { useFlushRegistry, useInlineDraft } from "../../components/inlineDraft";
-import { MultiSelect, type Option } from "./_controls";
+import { AddMembersModal, MultiSelect, type Option } from "./_controls";
 import type { components } from "../../api/schema";
 
 type KlettertreffBrief = components["schemas"]["KlettertreffBrief"];
@@ -542,7 +542,7 @@ function KlettertreffAttendeesInline({
     remove: (id) => removeM.mutateAsync(id),
     registerFlush,
   });
-  const [adding, setAdding] = useState<AttendeeData | null>(null);
+  const [adding, setAdding] = useState(false);
 
   return (
     <>
@@ -552,43 +552,21 @@ function KlettertreffAttendeesInline({
         rowKey={(row) => row.key}
         editing={editing}
         onDelete={(row) => removeRow(row)}
-        onAdd={() => setAdding({ member_id: null, member_name: "" })}
+        onAdd={() => setAdding(true)}
         addLabel="Teilnehmende"
         columns={[{ header: "Teilnehmende", cell: (row) => row.data.member_name || "—" }]}
       />
       {adding && (
-        <Modal title="Teilnehmende hinzufügen" onClose={() => setAdding(null)} size="sm">
-          <div className="stack">
-            <Field label="Teilnehmende">
-              <Select
-                value={adding.member_id === null ? "" : String(adding.member_id)}
-                onChange={(v) =>
-                  setAdding({
-                    member_id: v === "" ? null : Number(v),
-                    member_name: memberOptions.find((o) => String(o.value) === v)?.label ?? "",
-                  })
-                }
-                options={memberOptions}
-                placeholder="Teilnehmende wählen …"
-              />
-            </Field>
-            <div className="row-actions">
-              <Button
-                type="button"
-                disabled={adding.member_id === null}
-                onClick={() => {
-                  addRow(adding);
-                  setAdding(null);
-                }}
-              >
-                Hinzufügen
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
-                Abbrechen
-              </Button>
-            </div>
-          </div>
-        </Modal>
+        <AddMembersModal
+          options={memberOptions}
+          loading={membersQuery.isLoading}
+          excludeIds={rows.map((row) => row.data.member_id)}
+          onAdd={(members) => {
+            members.forEach((m) => addRow({ member_id: m.value, member_name: m.label }));
+            setAdding(false);
+          }}
+          onClose={() => setAdding(false)}
+        />
       )}
     </>
   );
