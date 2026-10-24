@@ -394,6 +394,12 @@ describe("SiteHeader — mobile drawer", () => {
     expect(document.querySelector(".topnav-drawer")).toBeNull();
     expect(root).not.toHaveClass(DRAWER_OPEN_CLASS);
 
+    // Escape closes it like the other menus.
+    await user.click(toggle);
+    await user.keyboard("{Escape}");
+    expect(document.querySelector(".topnav-drawer")).toBeNull();
+    expect(root).not.toHaveClass(DRAWER_OPEN_CLASS);
+
     // Leaving the page with the drawer open must not leave the lock behind.
     await user.click(toggle);
     expect(root).toHaveClass(DRAWER_OPEN_CLASS);

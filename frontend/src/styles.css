@@ -2053,8 +2053,10 @@ a:focus-visible,
     background: var(--panel);
   }
 
-  html.nav-drawer-open,
-  html.nav-drawer-open body {
+  /* The root only: its overflow applies to the viewport. Hiding body's too
+     would make body a scroll container and pin the sticky top bar to the top
+     of the document instead of the screen. */
+  html.nav-drawer-open {
     overflow: hidden;
   }
 }
