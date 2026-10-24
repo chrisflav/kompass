@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { client, unwrap } from "../../api/http";
@@ -104,6 +104,61 @@ export function ChoiceSelect({
   allowEmpty?: boolean;
 }) {
   return <Select value={value} onChange={onChange} options={options} allowEmpty={allowEmpty} />;
+}
+
+/**
+ * Picks several members at once to stage on an inline: the klettertreff
+ * attendees and the excursion / note-list participants. Members already on the
+ * list (saved or staged) are not offered again, so none is added twice.
+ */
+export function AddMembersModal({
+  options,
+  excludeIds,
+  onAdd,
+  onClose,
+  children,
+}: {
+  options: Option[];
+  excludeIds: (number | null)[];
+  /** Receives the picked members in the order of `options`. */
+  onAdd: (members: Option[]) => void;
+  onClose: () => void;
+  /** Further fields that apply to every picked member (e.g. a comment). */
+  children?: ReactNode;
+}) {
+  const [selected, setSelected] = useState<number[]>([]);
+  const available = useMemo(() => {
+    const taken = new Set(excludeIds);
+    return options.filter((o) => !taken.has(o.value));
+  }, [options, excludeIds]);
+
+  return (
+    <Modal title="Teilnehmende hinzufügen" onClose={onClose} size="sm">
+      <div className="stack">
+        <Field label="Teilnehmende" group>
+          <MultiSelect
+            options={available}
+            selected={selected}
+            onChange={setSelected}
+            placeholder="Teilnehmende"
+          />
+        </Field>
+        {children}
+        <div className="row-actions">
+          <Button
+            type="button"
+            disabled={selected.length === 0}
+            onClick={() => onAdd(available.filter((o) => selected.includes(o.value)))}
+          >
+            Hinzufügen
+          </Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Abbrechen
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 /** ISO datetime → value for `<input type="datetime-local">` (local time, no tz). */
@@ -238,7 +293,9 @@ export function ParticipantsInline({
     registerFlush,
   });
 
-  const [adding, setAdding] = useState<ParticipantData | null>(null);
+  // The comment typed while adding, applied to every picked member; null when
+  // the dialog is closed.
+  const [adding, setAdding] = useState<string | null>(null);
   const [birthColumn, setBirthColumn] = useState<BirthColumn>(readBirthColumn);
   const toggleBirthColumn = () => {
     const next = birthColumn === "age" ? "birth_date" : "age";
@@ -254,7 +311,7 @@ export function ParticipantsInline({
         rowKey={(row) => row.key}
         editing={editing}
         onDelete={(row) => removeRow(row)}
-        onAdd={() => setAdding({ member_id: null, member_name: "", comments: "" })}
+        onAdd={() => setAdding("")}
         addLabel="Teilnehmende"
         columns={[
           {
@@ -299,46 +356,22 @@ export function ParticipantsInline({
           },
         ]}
       />
-      {adding && (
-        <Modal title="Teilnehmende hinzufügen" onClose={() => setAdding(null)} size="sm">
-          <div className="stack">
-            <Field label="Teilnehmende">
-              <Select
-                value={adding.member_id === null ? "" : String(adding.member_id)}
-                onChange={(v) =>
-                  setAdding({
-                    ...adding,
-                    member_id: v === "" ? null : Number(v),
-                    member_name: memberOptions.find((o) => String(o.value) === v)?.label ?? "",
-                  })
-                }
-                options={memberOptions}
-                placeholder="Teilnehmende wählen …"
-              />
-            </Field>
-            <Field label="Kommentar">
-              <input
-                value={adding.comments}
-                onChange={(e) => setAdding({ ...adding, comments: e.target.value })}
-              />
-            </Field>
-            <div className="row-actions">
-              <Button
-                type="button"
-                disabled={adding.member_id === null}
-                onClick={() => {
-                  addRow(adding);
-                  setAdding(null);
-                }}
-              >
-                Hinzufügen
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
-                Abbrechen
-              </Button>
-            </div>
-          </div>
-        </Modal>
+      {adding !== null && (
+        <AddMembersModal
+          options={memberOptions}
+          excludeIds={rows.map((row) => row.data.member_id)}
+          onAdd={(members) => {
+            members.forEach((m) =>
+              addRow({ member_id: m.value, member_name: m.label, comments: adding }),
+            );
+            setAdding(null);
+          }}
+          onClose={() => setAdding(null)}
+        >
+          <Field label="Kommentar">
+            <input value={adding} onChange={(e) => setAdding(e.target.value)} />
+          </Field>
+        </AddMembersModal>
       )}
     </>
   );
