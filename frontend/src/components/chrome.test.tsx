@@ -375,6 +375,32 @@ describe("SiteHeader — mobile drawer", () => {
     expect(localStorage.getItem("kompass_token")).toBeNull();
   });
 
+  it("locks the page's scrolling while it is open", async () => {
+    const DRAWER_OPEN_CLASS = "nav-drawer-open";
+    const root = document.documentElement;
+    const { user, unmount } = renderWithApp(<SiteHeader variant="app" />, { route: "/kompass" });
+    expect(root).not.toHaveClass(DRAWER_OPEN_CLASS);
+
+    const toggle = screen.getByRole("button", { name: "Menü" });
+    await user.click(toggle);
+    expect(root).toHaveClass(DRAWER_OPEN_CLASS);
+    await user.click(toggle);
+    expect(root).not.toHaveClass(DRAWER_OPEN_CLASS);
+
+    // Following a link closes the drawer and releases the lock with it.
+    await user.click(toggle);
+    const drawer = document.querySelector(".topnav-drawer") as HTMLElement;
+    await user.click(within(drawer).getByRole("link", { name: "Ausfahrten" }));
+    expect(document.querySelector(".topnav-drawer")).toBeNull();
+    expect(root).not.toHaveClass(DRAWER_OPEN_CLASS);
+
+    // Leaving the page with the drawer open must not leave the lock behind.
+    await user.click(toggle);
+    expect(root).toHaveClass(DRAWER_OPEN_CLASS);
+    unmount();
+    expect(root).not.toHaveClass(DRAWER_OPEN_CLASS);
+  });
+
   it("offers only a login link to a signed-out visitor", async () => {
     navReturns();
     const { user } = renderWithApp(<SiteHeader variant="public" />, {

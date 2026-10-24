@@ -2039,11 +2039,23 @@ a:focus-visible,
     display: inline-flex;
   }
 
+  /* The drawer sits in the sticky top bar, so it gets the viewport below the
+     60px brand row (plus the bar's border) and scrolls on its own; a swipe that
+     reaches its end does not chain on to the page, which is locked meanwhile. */
   .topnav-drawer {
     display: block;
+    max-height: calc(100vh - 61px);
+    max-height: calc(100dvh - 61px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 0.5rem 2rem 1rem;
     border-top: 1px solid var(--border);
     background: var(--panel);
+  }
+
+  html.nav-drawer-open,
+  html.nav-drawer-open body {
+    overflow: hidden;
   }
 }
 
