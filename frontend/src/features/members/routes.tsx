@@ -810,7 +810,7 @@ function MemberCreateForm({ onDone }: { onDone: () => void }) {
           <div className="field-error">{fieldErrors.phone_number.join(" ")}</div>
         )}
       </Field>
-      <Field label="Gruppen">
+      <Field group label="Gruppen">
         <MultiSelect
           options={groups.map((g) => ({ value: g.id, label: g.name }))}
           selected={groupIds}

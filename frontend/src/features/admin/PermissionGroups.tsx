@@ -154,7 +154,7 @@ function PermissionGroupForm({ onDone }: { onDone: () => void }) {
         <input value={name} onChange={(e) => setName(e.target.value)} required />
         {fieldErrors.name && <div className="field-error">{fieldErrors.name.join(" ")}</div>}
       </Field>
-      <Field label="Rechte">
+      <Field group label="Rechte">
         <PermissionPicker selected={permissionIds} onChange={setPermissionIds} />
       </Field>
       <div className="row-actions">

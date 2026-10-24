@@ -278,9 +278,9 @@ describe("activities — Ausfahrten list", () => {
     await user.click(dropdown().getByRole("button", { name: "schwer" }));
     await user.click(dialog.getByRole("button", { name: "Tourtyp" }));
     await user.click(dropdown().getByRole("button", { name: "Ausbildung" }));
-    await user.click(dialog.getByRole("button", { name: "Gruppen" }));
+    await user.click(dialog.getByRole("button", { name: "+ Gruppe hinzufügen…" }));
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
-    await user.click(dialog.getByRole("button", { name: /Jugendleiter/ }));
+    await user.click(dialog.getByRole("button", { name: "+ Leiter*in hinzufügen…" }));
     await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
 
@@ -298,6 +298,46 @@ describe("activities — Ausfahrten list", () => {
     });
     expect(String(body!.date)).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(await screen.findByText("Ausfahrt angelegt.")).toBeInTheDocument();
+  });
+
+  it("keeps the picked groups and leaders when their field is clicked", async () => {
+    // Feedback #13: the pickers sat inside the field's <label>, so a click on
+    // its caption or on a picked name "activated" the first badge's remove ×.
+    listReturns();
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(api("/api/members/excursions"), async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(EXCURSION);
+      }),
+    );
+    detailReturns();
+    const { user } = renderRoute("/kompass/excursions");
+    await user.click(await screen.findByRole("button", { name: "Neue Ausfahrt" }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText("Aktivität"), "Skifreizeit");
+    await user.click(dialog.getByRole("button", { name: "+ Gruppe hinzufügen…" }));
+    await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
+    await user.click(dropdown().getByRole("button", { name: "Bouldergruppe" }));
+    await user.click(dialog.getByRole("button", { name: "+ Leiter*in hinzufügen…" }));
+    await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
+    await user.click(dialog.getByLabelText("Aktivität"));
+
+    const groups = within(dialog.getByRole("group", { name: "Gruppen" }));
+    const leaders = within(dialog.getByRole("group", { name: "Jugendleiter*innen" }));
+    // Clicks on the field's caption and on a picked name leave the picks alone.
+    await user.click(dialog.getByText("Gruppen"));
+    await user.click(groups.getByText("Klettergruppe"));
+    await user.click(dialog.getByText("Jugendleiter*innen"));
+    await user.click(leaders.getByText("Anna Ärmel"));
+    expect(groups.getByRole("button", { name: "Klettergruppe entfernen" })).toBeInTheDocument();
+    expect(groups.getByRole("button", { name: "Bouldergruppe entfernen" })).toBeInTheDocument();
+    expect(leaders.getByRole("button", { name: "Anna Ärmel entfernen" })).toBeInTheDocument();
+
+    await user.click(dialog.getByRole("button", { name: "Anlegen" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ group_ids: [5, 6], jugendleiter_ids: [42] });
   });
 
   it("sends a null place when it is left blank", async () => {
