@@ -14,6 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from django.db.models import prefetch_related_objects
 from finance.models import Bill
 from finance.models import Statement
 from finance.models import Transaction
@@ -75,6 +76,21 @@ class TransferOut(Schema):
     label: str = ""
     explanation: str = ""
     reference: str = ""
+
+
+def bills():
+    """Bills with their payer and the payer's groups for :class:`MemberBrief`."""
+    return Bill.objects.select_related("paid_by").prefetch_related("paid_by__group")
+
+
+def transactions():
+    """Transactions with what :class:`TransactionOut` resolves loaded in bulk.
+
+    Recipient and confirmer are :class:`MemberBrief` s, each with its groups.
+    """
+    return Transaction.objects.select_related("member", "ledger", "confirmed_by").prefetch_related(
+        "member__group", "confirmed_by__group"
+    )
 
 
 class BillBrief(ModelSchema):
@@ -236,7 +252,10 @@ class StatementOut(ModelSchema):
 
     @staticmethod
     def resolve_transaction_issues(obj):
-        return obj.transaction_issues
+        issues = obj.transaction_issues
+        # Each issue names its member as a MemberBrief, with groups.
+        prefetch_related_objects([issue.member for issue in issues], "group")
+        return issues
 
     @staticmethod
     def resolve_allowance_to(obj):
@@ -252,7 +271,15 @@ class StatementOut(ModelSchema):
 
     @staticmethod
     def resolve_transfers(obj):
-        return obj.transfer_payload()
+        transfers = obj.transfer_payload()
+        members = [
+            party["member"]
+            for transfer in transfers
+            for party in (transfer["source"], transfer["destination"])
+            if party["member"] is not None
+        ]
+        prefetch_related_objects(members, "group")
+        return transfers
 
 
 class TransactionBrief(ModelSchema):

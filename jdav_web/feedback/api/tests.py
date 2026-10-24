@@ -11,11 +11,14 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from feedback.models import Feedback
 from members.models import DIVERSE
+from members.models import Group
 from members.models import Member
 from oauth2_provider.models import get_access_token_model
 from oauth2_provider.models import get_application_model
@@ -134,6 +137,34 @@ class FeedbackApiTestCase(TestCase):
         r = self.client.get("/api/feedback", **self.auth(self.reader))
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual([row["id"] for row in r.json()], [new.pk, old.pk])
+
+    def test_listing_queries_do_not_grow_with_senders(self):
+        def add_feedback(n):
+            for _feedback in range(n):
+                sender = Member.objects.create(
+                    prename="Sender",
+                    lastname="Test",
+                    birth_date=timezone.now().date(),
+                    email=settings.TEST_MAIL,
+                    gender=DIVERSE,
+                )
+                sender.group.add(Group.objects.create(name="Gruppe {}".format(sender.pk)))
+                Feedback.objects.create(message="Hinweis", submitted_by=sender)
+
+        def count_queries():
+            with CaptureQueriesContext(connection) as queries:
+                r = self.client.get("/api/feedback", **headers)
+            self.assertEqual(r.status_code, 200, r.content)
+            return r.json(), len(queries)
+
+        headers = self.auth(self.reader)
+        add_feedback(2)
+        few = count_queries()[1]
+        add_feedback(4)
+        body, many = count_queries()
+        self.assertEqual(many, few)
+        self.assertEqual(len(body), 6)
+        self.assertTrue(all(len(row["submitted_by"]["groups"]) == 1 for row in body))
 
     def test_detail_exposes_the_browser_only_on_the_single_view(self):
         feedback = Feedback.objects.create(message="Mit Kontext", user_agent="Mozilla/5.0")

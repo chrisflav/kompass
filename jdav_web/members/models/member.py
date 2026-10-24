@@ -530,7 +530,10 @@ class Member(Person):
 
     def filter_statements_by_permissions(self, queryset, annotate=False):
         # ignores annotate
-        return queryset.filter(Q(created_by=self) | Q(excursion__jugendleiter=self))
+        # Through a subquery: joining the youth leaders lists a statement once
+        # per youth leader of its excursion.
+        mine = queryset.filter(Q(created_by=self) | Q(excursion__jugendleiter=self))
+        return queryset.filter(pk__in=mine.values("pk"))
 
     def filter_excursions_by_permissions(self, queryset, annotate=False):
         # ignores annotate
@@ -542,8 +545,8 @@ class Member(Person):
     def filter_waiters_by_permissions(self, queryset, annotate=False):
         # ignores annotate
         # return waiters that have a pending, expired or rejected group invitation for a group
-        # led by the member
-        return queryset.filter(invitationtogroup__group__leiters=self)
+        # led by the member; once each, however many such invitations they have
+        return queryset.filter(invitationtogroup__group__leiters=self).distinct()
 
     def may_list(self, other):
         if self.pk == other.pk:

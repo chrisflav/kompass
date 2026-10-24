@@ -60,7 +60,9 @@ class MemberWaitingList(Person):
         }
 
     def latest_group_invitation(self):
-        gi = self.invitationtogroup_set.order_by("-pk").first()
+        # Picked in Python, so a list that prefetched the invitations asks
+        # nothing more per row.
+        gi = max(self.invitationtogroup_set.all(), key=lambda inv: inv.pk, default=None)
         if gi:
             return "{group}: {status}".format(group=gi.group.name, status=gi.status())
         else:

@@ -23,6 +23,7 @@ from members.models import Member
 from members.models import MemberNoteList
 from members.models import MemberTraining
 from members.models import MemberWaitingList
+from members.models import NewMemberOnList
 from members.models import TrainingCategory
 from ninja import ModelSchema
 from ninja import Schema
@@ -303,12 +304,41 @@ class GroupOut(ModelSchema):
         return obj.leiters.all()
 
 
-def prefetch_excursion_leaders():
+def waiters():
+    """Waiters with their invitations and the invited groups loaded in bulk.
+
+    Both waiter schemas name the latest invitation's group, and the detail
+    lists every invitation with its group.
+    """
+    return MemberWaitingList.objects.prefetch_related(
+        Prefetch(
+            "invitationtogroup_set", queryset=InvitationToGroup.objects.select_related("group")
+        )
+    )
+
+
+def excursion_detail():
+    """Excursions with the relations :class:`ExcursionOut` resolves loaded in bulk.
+
+    The counts read the youth leaders and the member list from these
+    prefetches, and every youth leader is a :class:`MemberBrief` with groups.
+    The leaders of its groups are what ``is_leader`` asks about.
+    """
+    return Freizeit.objects.prefetch_related(
+        "groups__leiters",
+        "activity",
+        Prefetch("jugendleiter", queryset=Member.objects.prefetch_related("group")),
+        Prefetch("membersonlist", queryset=NewMemberOnList.objects.select_related("member")),
+    )
+
+
+def prefetch_excursion_leaders(lookup="jugendleiter"):
     """Prefetch an excursion's youth leaders for :class:`ExcursionBrief`.
 
     The brief reads only their ids, so the full member rows are not loaded.
+    ``lookup`` reaches the leaders from another model.
     """
-    return Prefetch("jugendleiter", queryset=Member.objects.only("pk"))
+    return Prefetch(lookup, queryset=Member.objects.only("pk"))
 
 
 class ExcursionBrief(ModelSchema):
@@ -1034,7 +1064,7 @@ class WaiterOut(ModelSchema):
 
     @staticmethod
     def resolve_invitations(obj):
-        return obj.invitationtogroup_set.order_by("-pk")
+        return sorted(obj.invitationtogroup_set.all(), key=lambda inv: inv.pk, reverse=True)
 
 
 class WaiterUpdate(Schema):

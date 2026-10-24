@@ -6,11 +6,14 @@ always-present relation) is declared explicitly because ``ModelSchema`` would
 otherwise mark the ``AutoField`` optional/nullable.
 """
 
+from django.db.models import Prefetch
 from mailer.models import EmailAddress
 from mailer.models import Message
 from members.api.schemas import ExcursionBrief
 from members.api.schemas import GroupBrief
 from members.api.schemas import MemberBrief
+from members.api.schemas import prefetch_excursion_leaders
+from members.models import Member
 from ninja import ModelSchema
 from ninja import Schema
 
@@ -39,6 +42,18 @@ class EmailAddressBrief(ModelSchema):
     @staticmethod
     def resolve_email(obj) -> str:
         return obj.email
+
+
+def members_with_groups():
+    """Members with their groups, for a list of :class:`MemberBrief` s."""
+    return Member.objects.prefetch_related("group")
+
+
+def email_address_detail():
+    """Aliases with the relations :class:`EmailAddressOut` resolves loaded in bulk."""
+    return EmailAddress.objects.prefetch_related(
+        Prefetch("to_members", queryset=members_with_groups()), "to_groups", "allowed_senders"
+    )
 
 
 class EmailAddressOut(ModelSchema):
@@ -114,6 +129,25 @@ class MessageBrief(ModelSchema):
     @staticmethod
     def resolve_recipients(obj) -> str:
         return obj.get_recipients()
+
+
+def message_detail():
+    """Messages with the relations :class:`MessageOut` resolves loaded in bulk.
+
+    A message sent to a selection of members can name hundreds of them, and
+    each is a :class:`MemberBrief` with its groups.
+    """
+    return Message.objects.select_related("created_by", "to_freizeit").prefetch_related(
+        "created_by__group",
+        "to_freizeit__groups",
+        prefetch_excursion_leaders("to_freizeit__jugendleiter"),
+        "to_freizeit__membersonlist",
+        "to_groups",
+        Prefetch("to_members", queryset=members_with_groups()),
+        Prefetch("reply_to", queryset=members_with_groups()),
+        "reply_to_email_address",
+        "attachment_set",
+    )
 
 
 class MessageOut(ModelSchema):

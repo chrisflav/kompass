@@ -63,7 +63,7 @@ def create_feedback(request, payload: FeedbackIn):
 def list_feedback(request):
     """All feedback, newest first."""
     authorize(request, "feedback.view_feedback")
-    return Feedback.objects.select_related("submitted_by").all()
+    return Feedback.objects.select_related("submitted_by").prefetch_related("submitted_by__group")
 
 
 def _get_feedback(feedback_id):
