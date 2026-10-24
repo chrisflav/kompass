@@ -184,7 +184,7 @@ have to change it.
 
 ## Writing the rules
 
-Three things are worth knowing before the first rule, and the documentation
+Four things are worth knowing before the first rule, and the documentation
 page has the rest:
 
 - **A rule may read only its `RuleContext`.** No database (the engine refuses
@@ -196,6 +196,13 @@ page has the rest:
   the residual party in `balance`, and the engine appends the one transfer that
   makes the books add up. That is why a case's last expected transfer is the
   balance.
+- **An amount that may not share a bank transfer says so on its transfer.**
+  Kompass bundles amounts owed to the same person out of the same ledger into
+  one payment, which is the right default and wrong for anything that has to be
+  payable separately — a tax-relevant Vergütung, say. Give such a transfer a
+  `settlement_group="…"`, a token of your own choosing, and it is bundled only
+  with transfers naming the same one. A ruleset that names no groups bundles
+  exactly as every ruleset did before this existed.
 - **The import whitelist is a lint, not a sandbox.** Whoever can write this
   repository already holds the instance's database password, so executing
   Python from here grants no new privilege. What the whitelist catches is the
