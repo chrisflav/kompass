@@ -229,6 +229,28 @@ anything knows which key is money and which is a person, so a declaration that
 branches on an answer there reads it with <a class="reference internal" href="#kompass.rules.Inputs.raw" title="kompass.rules.Inputs.raw"><code class="xref py py-meth docutils literal notranslate"><span class="pre">raw()</span></code></a>.
 That is the difference between the two in practice, and it is why branching
 belongs in <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> when it can.</p>
+<p><strong>A first question that gates the rest</strong> needs nothing beyond this. A ruleset
+whose later questions have no meaning until an earlier one is answered —
+Ludwigsburg settles under one of two travel-cost policies, and until it is said
+which, a night is neither a receipt nor a flat rate and a kilometre has no rate
+at all — returns <em>that question alone</em> from <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> and nothing
+else. Everything follows from the paragraphs above: the form is that one
+question, the rules read every other key as unanswered, and <code class="docutils literal notranslate"><span class="pre">PATCH</span></code> refuses
+an answer to any of them. There is no flag on a declaration saying „this one
+comes first“, because a gate is not a property of a question: it is what a
+ruleset does with the answers it has so far.</p>
+<p>Give the gate a <code class="docutils literal notranslate"><span class="pre">step</span></code> of its own and the SPA lays it out as the opening step
+of the form — a labelled group, with a line saying the rest is waiting on it,
+and no payout preview, since every figure in one would be a reading of an
+answer nobody has been asked for yet. That reading is „the form came back as a
+single <em>named</em> step“, so it needs no new field either: a ruleset that names no
+steps comes back as one step labelled <code class="docutils literal notranslate"><span class="pre">""</span></code> and is laid out as the flat list
+it has always been.</p>
+<p>What a gate does <strong>not</strong> touch is what is already stored. A
+<a class="reference internal" href="#kompass.rules.Field.seed" title="kompass.rules.Field.seed"><code class="xref py py-attr docutils literal notranslate"><span class="pre">seed</span></code></a> is written out of <code class="docutils literal notranslate"><span class="pre">inputs</span></code> when the
+excursion is set, not out of the form, so the prefilled row of a table the gate
+is hiding is written anyway, waits there, and is served intact by the form the
+answer reveals.</p>
 <p><strong>One thing it cannot narrow, and that is where the division of labour bites:
 a column.</strong> <code class="docutils literal notranslate"><span class="pre">relevant_inputs</span></code> chooses among keys, and the cells of a <code class="docutils literal notranslate"><span class="pre">rows</span></code>
 question are part of that question’s declaration rather than keys of their own.

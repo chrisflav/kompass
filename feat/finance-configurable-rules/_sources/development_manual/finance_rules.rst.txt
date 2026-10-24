@@ -112,6 +112,31 @@ branches on an answer there reads it with :meth:`~kompass.rules.Inputs.raw`.
 That is the difference between the two in practice, and it is why branching
 belongs in ``relevant_inputs`` when it can.
 
+**A first question that gates the rest** needs nothing beyond this. A ruleset
+whose later questions have no meaning until an earlier one is answered —
+Ludwigsburg settles under one of two travel-cost policies, and until it is said
+which, a night is neither a receipt nor a flat rate and a kilometre has no rate
+at all — returns *that question alone* from ``relevant_inputs`` and nothing
+else. Everything follows from the paragraphs above: the form is that one
+question, the rules read every other key as unanswered, and ``PATCH`` refuses
+an answer to any of them. There is no flag on a declaration saying "this one
+comes first", because a gate is not a property of a question: it is what a
+ruleset does with the answers it has so far.
+
+Give the gate a ``step`` of its own and the SPA lays it out as the opening step
+of the form — a labelled group, with a line saying the rest is waiting on it,
+and no payout preview, since every figure in one would be a reading of an
+answer nobody has been asked for yet. That reading is "the form came back as a
+single *named* step", so it needs no new field either: a ruleset that names no
+steps comes back as one step labelled ``""`` and is laid out as the flat list
+it has always been.
+
+What a gate does **not** touch is what is already stored. A
+:attr:`~kompass.rules.Field.seed` is written out of ``inputs`` when the
+excursion is set, not out of the form, so the prefilled row of a table the gate
+is hiding is written anyway, waits there, and is served intact by the form the
+answer reveals.
+
 **One thing it cannot narrow, and that is where the division of labour bites:
 a column.** ``relevant_inputs`` chooses among keys, and the cells of a ``rows``
 question are part of that question's declaration rather than keys of their own.
