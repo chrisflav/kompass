@@ -482,7 +482,7 @@ describe("activities — Ausfahrt detail", () => {
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
 
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "+ Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -506,7 +506,7 @@ describe("activities — Ausfahrt detail", () => {
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
 
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "+ Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(await dropdown().findByRole("button", { name: "Anna Ärmel" }));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
     // A badge's × takes a member back off the selection; the list stays open.
@@ -639,7 +639,7 @@ describe("activities — Ausfahrt detail", () => {
     await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "+ Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(await dropdown().findByRole("button", { name: "Mila Nowak" }));
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
     expect(memberRequests).toBe(1);

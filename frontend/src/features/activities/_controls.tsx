@@ -113,12 +113,15 @@ export function ChoiceSelect({
  */
 export function AddMembersModal({
   options,
+  loading,
   excludeIds,
   onAdd,
   onClose,
   children,
 }: {
   options: Option[];
+  /** The member list is still being fetched. */
+  loading: boolean;
   excludeIds: (number | null)[];
   /** Receives the picked members in the order of `options`. */
   onAdd: (members: Option[]) => void;
@@ -127,10 +130,13 @@ export function AddMembersModal({
   children?: ReactNode;
 }) {
   const [selected, setSelected] = useState<number[]>([]);
-  const available = useMemo(() => {
-    const taken = new Set(excludeIds);
-    return options.filter((o) => !taken.has(o.value));
-  }, [options, excludeIds]);
+  const taken = new Set(excludeIds);
+  const available = options.filter((o) => !taken.has(o.value));
+  const emptyText = loading
+    ? "Mitglieder werden geladen …"
+    : available.length === 0 && options.length > 0
+      ? "Alle Mitglieder sind bereits eingetragen."
+      : "Keine Treffer.";
 
   return (
     <Modal title="Teilnehmende hinzufügen" onClose={onClose} size="sm">
@@ -140,7 +146,8 @@ export function AddMembersModal({
             options={available}
             selected={selected}
             onChange={setSelected}
-            placeholder="Teilnehmende"
+            placeholder="Mitglieder wählen…"
+            emptyText={emptyText}
           />
         </Field>
         {children}
@@ -359,6 +366,7 @@ export function ParticipantsInline({
       {adding !== null && (
         <AddMembersModal
           options={memberOptions}
+          loading={membersQuery.isLoading}
           excludeIds={rows.map((row) => row.data.member_id)}
           onAdd={(members) => {
             members.forEach((m) =>

@@ -798,7 +798,7 @@ describe("activities — Notizlisten", () => {
 
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
-    await user.click(dialog.getByRole("button", { name: "+ Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
     await user.type(dialog.getByLabelText("Kommentar"), "kommt später");
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));

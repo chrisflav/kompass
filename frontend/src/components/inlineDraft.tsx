@@ -97,6 +97,8 @@ export function useInlineDraft<T>({
   const [pendingNew, setPendingNew] = useState<{ key: string; data: T }[]>([]);
   const [deleted, setDeleted] = useState<Set<number>>(() => new Set());
   const tempSeq = useRef(0);
+  // Deletions a failed Save already applied: a retry must not send them again.
+  const removed = useRef(new Set<number>());
 
   // Discard the working set whenever we leave edit mode (Cancel or after Save).
   useEffect(() => {
@@ -104,6 +106,7 @@ export function useInlineDraft<T>({
       setEdits({});
       setPendingNew([]);
       setDeleted(new Set());
+      removed.current = new Set();
     }
   }, [editing]);
 
@@ -152,15 +155,25 @@ export function useInlineDraft<T>({
   // Reassigned every render so it always closes over the latest staged state;
   // the registered wrapper is stable and just calls the current impl.
   const flushImpl = useRef<() => Promise<void>>(async () => {});
+  // Each applied step leaves the working set as it succeeds, so a Save that
+  // fails partway is retried with only what is still outstanding: the rows it
+  // created come back as server rows and are neither shown nor created twice.
   flushImpl.current = async () => {
-    for (const id of deleted) await remove(id);
+    for (const id of deleted) {
+      if (removed.current.has(id)) continue;
+      await remove(id);
+      removed.current.add(id);
+    }
     for (const [idStr, data] of Object.entries(edits)) {
       const id = Number(idStr);
       if (deleted.has(id)) continue;
       const orig = originalById.get(id);
       if (orig === undefined || dirty(data, orig)) await update(id, data);
     }
-    for (const n of pendingNew) await create(n.data);
+    for (const n of pendingNew) {
+      await create(n.data);
+      setPendingNew((prev) => prev.filter((p) => p.key !== n.key));
+    }
   };
   const flush = useCallback(() => flushImpl.current(), []);
   useEffect(() => registerFlush(flush), [registerFlush, flush]);

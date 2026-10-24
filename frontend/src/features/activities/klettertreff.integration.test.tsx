@@ -340,7 +340,7 @@ describe("activities — Klettertreff detail", () => {
 
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
-    await user.click(dialog.getByRole("button", { name: "+ Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
 
@@ -367,7 +367,7 @@ describe("activities — Klettertreff detail", () => {
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
 
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "+ Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     expect(dropdown().queryByRole("button", { name: "Anna Ärmel" })).not.toBeInTheDocument();
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
     await user.click(dropdown().getByRole("button", { name: "Jonas Berg" }));
@@ -380,13 +380,109 @@ describe("activities — Klettertreff detail", () => {
     // Staged rows are not offered again either.
     await user.click(screen.getByRole("button", { name: "+ Teilnehmende" }));
     const again = within(await screen.findByRole("dialog"));
-    await user.click(again.getByRole("button", { name: "+ Teilnehmende" }));
-    expect(dropdown().getByText("Keine Einträge.")).toBeInTheDocument();
+    await user.click(again.getByRole("button", { name: "+ Mitglieder wählen…" }));
+    expect(dropdown().getByText("Alle Mitglieder sind bereits eingetragen.")).toBeInTheDocument();
     await user.click(again.getByRole("button", { name: "Abbrechen" }));
 
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(created).toHaveLength(2));
     expect(created).toEqual([{ member_id: 43 }, { member_id: 44 }]);
+  });
+
+  it("retries a Save that failed partway with only what is still outstanding", async () => {
+    const name = (id: number) => MEMBERS.find((m) => m.id === id)!.name;
+    let attendees = [{ id: 30, klettertreff_id: 9, member: { id: 42, name: "Anna Ärmel" } }];
+    const posted: number[] = [];
+    let deletes = 0;
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/klettertreff/9"), () => HttpResponse.json({ ...KT, attendees })),
+      http.patch(api("/api/members/klettertreff/9"), () => HttpResponse.json(KT)),
+      http.delete(api("/api/members/attendees/:id"), ({ params }) => {
+        deletes += 1;
+        attendees = attendees.filter((a) => a.id !== Number(params.id));
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.post(api("/api/members/klettertreff/9/attendees"), async ({ request }) => {
+        const { member_id } = (await request.json()) as { member_id: number };
+        posted.push(member_id);
+        // Jonas fails the first time only.
+        if (member_id === 44 && posted.filter((id) => id === 44).length === 1) {
+          return djangoValidation({ member: ["Gerade nicht möglich."] });
+        }
+        const row = {
+          id: 30 + posted.length,
+          klettertreff_id: 9,
+          member: { id: member_id, name: name(member_id) },
+        };
+        attendees = [...attendees, row];
+        return HttpResponse.json(row, { status: 201 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/klettertreff/9");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
+    const panel = within(document.querySelector(".tab-panel:not([hidden])") as HTMLElement);
+    await panel.findByText("Anna Ärmel");
+    await user.click(panel.getByRole("button", { name: "Entfernen" }));
+    await user.click(screen.getByRole("button", { name: "+ Teilnehmende" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+    await user.click(dropdown().getByRole("button", { name: "Jonas Berg" }));
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText(/Gerade nicht möglich\./)).toBeInTheDocument();
+    expect(posted).toEqual([43, 44]);
+    // Mila is saved and comes back from the server, but is listed once.
+    await waitFor(() => expect(attendees.map((a) => a.member.id)).toEqual([43]));
+    await waitFor(() => expect(panel.getAllByText("Mila Nowak")).toHaveLength(1));
+    expect(panel.getAllByText("Jonas Berg")).toHaveLength(1);
+    expect(panel.queryByText("Anna Ärmel")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
+    expect(posted).toEqual([43, 44, 44]);
+    expect(deletes).toBe(1);
+    await waitFor(() => expect(panel.getAllByText("Jonas Berg")).toHaveLength(1));
+    expect(panel.getAllByText("Mila Nowak")).toHaveLength(1);
+  });
+
+  it("removes and re-adds the same attendee in one edit, deleting first", async () => {
+    detailReturns({
+      attendees: [{ id: 30, klettertreff_id: 9, member: { id: 42, name: "Anna Ärmel" } }],
+    });
+    const calls: string[] = [];
+    server.use(
+      http.patch(api("/api/members/klettertreff/9"), () => HttpResponse.json(KT)),
+      http.delete(api("/api/members/attendees/30"), () => {
+        calls.push("delete 30");
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.post(api("/api/members/klettertreff/9/attendees"), async ({ request }) => {
+        const { member_id } = (await request.json()) as { member_id: number };
+        calls.push(`create ${member_id}`);
+        return HttpResponse.json({ id: 31 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/klettertreff/9");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: /Teilnehmer/ }));
+    const panel = within(document.querySelector(".tab-panel:not([hidden])") as HTMLElement);
+    await panel.findByText("Anna Ärmel");
+    await user.click(panel.getByRole("button", { name: "Entfernen" }));
+
+    // Once removed, Anna is offered again.
+    await user.click(screen.getByRole("button", { name: "+ Teilnehmende" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
+    await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
+    expect(calls).toEqual(["delete 30", "create 42"]);
   });
 
   it("removes an attendee on save", async () => {
@@ -645,7 +741,7 @@ describe("activities — Klettertreff: remaining paths", () => {
     await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
     await user.click(await screen.findByRole("button", { name: "+ Teilnehmende" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("button", { name: "+ Teilnehmende" }));
+    await user.click(dialog.getByRole("button", { name: "+ Mitglieder wählen…" }));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
     await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
     await user.click(screen.getByRole("button", { name: "Speichern" }));

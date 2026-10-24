@@ -559,6 +559,7 @@ function KlettertreffAttendeesInline({
       {adding && (
         <AddMembersModal
           options={memberOptions}
+          loading={membersQuery.isLoading}
           excludeIds={rows.map((row) => row.data.member_id)}
           onAdd={(members) => {
             members.forEach((m) => addRow({ member_id: m.value, member_name: m.label }));
