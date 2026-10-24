@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
@@ -459,8 +460,6 @@ class MembersApiTestCase(TestCase):
         )
 
     def test_request_echo_self_allowed(self):
-        from django.core import mail
-
         r = self.client.post(
             "/api/members/{}/request-echo".format(self.owner.pk), **self.auth(self.owner_user)
         )
@@ -473,13 +472,18 @@ class MembersApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 403)
 
-    def test_request_echo_without_newsletter_rejected(self):
+    def test_request_echo_without_newsletter_sends_mail(self):
+        # The newsletter opt-out covers bulk mail, not the echo (Feedback #8).
         self.owner.gets_newsletter = False
         self.owner.save()
+        mail.outbox = []
         r = self.client.post(
             "/api/members/{}/request-echo".format(self.owner.pk), **self.auth(self.owner_user)
         )
-        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(len(mail.outbox), 1)
+        self.owner.refresh_from_db()
+        self.assertFalse(self.owner.gets_newsletter)
 
     def test_unconfirm_self_allowed(self):
         r = self.client.post(

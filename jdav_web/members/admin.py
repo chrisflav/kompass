@@ -571,8 +571,6 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
         success = False
 
         for member in queryset:
-            if not member.gets_newsletter:
-                continue
             if not member.birth_date:
                 messages.error(
                     request,
@@ -591,11 +589,7 @@ class MemberAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
     @extra_button(_("Request echo"), url_name="requestecho")
     def request_echo_view(self, request, member):
         """Request echo from a single member from Button in single member view."""
-        if not member.gets_newsletter:
-            messages.warning(
-                request, _("%(name)s does not receive the newsletter.") % {"name": member.name}
-            )
-        elif not member.birth_date:
+        if not member.birth_date:
             messages.error(
                 request,
                 _(
