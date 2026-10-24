@@ -371,3 +371,61 @@ describe("member detail — Nutzer*in (login account)", () => {
     expect(seen.body).not.toHaveProperty("user_id");
   });
 });
+
+/* The access list grants rights over other members, so like the admin it needs
+ * the PermissionMember model permissions — changing the member is not enough. */
+describe("member detail — Berechtigungen", () => {
+  const withoutAcl = DEFAULT_ME.permissions.filter((p) => !p.endsWith("_permissionmember"));
+
+  it("is hidden from an account without the PermissionMember permissions", async () => {
+    useMe({ permissions: withoutAcl });
+    detailReturns();
+    const requested: string[] = [];
+    const record = ({ request }: { request: Request }) => {
+      requested.push(new URL(request.url).pathname);
+    };
+    server.events.on("request:start", record);
+    try {
+      renderRoute("/kompass/members/42");
+      await screen.findByText("anna@example.org");
+      expect(screen.getByRole("tab", { name: "Ausbildungen" })).toBeInTheDocument();
+      expect(screen.queryByRole("tab", { name: "Berechtigungen" })).not.toBeInTheDocument();
+      expect(requested).not.toContain("/api/members/42/permission-members");
+    } finally {
+      server.events.removeListener("request:start", record);
+    }
+  });
+
+  it("is read-only to an account that may only view it", async () => {
+    useMe({ permissions: [...withoutAcl, "members.view_permissionmember"] });
+    detailReturns();
+    server.use(
+      http.get(api("/api/members/42/permission-members"), () =>
+        HttpResponse.json([
+          {
+            id: 4,
+            list_member_ids: [42],
+            view_member_ids: [],
+            change_member_ids: [],
+            delete_member_ids: [],
+            list_group_ids: [],
+            view_group_ids: [],
+            change_group_ids: [],
+            delete_group_ids: [],
+          },
+        ]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/members/42");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: "Berechtigungen" }));
+    const panel = document.querySelector(".tab-panel:not([hidden])") as HTMLElement;
+    // Shown as the read-only summary even in edit mode (the id stays an id,
+    // as no member list is returned here).
+    await waitFor(() => expect(panel.textContent).toContain("Teilnehmende: #42"));
+    expect(within(panel).queryByRole("button", { name: "Entfernen" })).not.toBeInTheDocument();
+    expect(
+      within(panel).queryByRole("button", { name: "+ Berechtigungssatz" }),
+    ).not.toBeInTheDocument();
+  });
+});

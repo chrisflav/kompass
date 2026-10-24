@@ -3107,7 +3107,7 @@
             }
           }
         },
-        "description": "List a member's ACL row(s) (SENSITIVE → gated on parent ``change``).",
+        "description": "List a member's ACL row(s) (SENSITIVE → parent ``change`` + model permission).",
         "tags": [
           "members-inlines"
         ],
@@ -3143,7 +3143,7 @@
             }
           }
         },
-        "description": "Create a member's ACL row (SENSITIVE → gated on parent ``change``).\n\n``PermissionMember`` is a ``OneToOneField`` to the member, so ``full_clean``\nrejects a second row for the same member (→ 422).",
+        "description": "Create a member's ACL row (SENSITIVE → parent ``change`` + model permission).\n\n``PermissionMember`` is a ``OneToOneField`` to the member, so ``full_clean``\nrejects a second row for the same member (→ 422).",
         "tags": [
           "members-inlines"
         ],
@@ -3191,7 +3191,7 @@
             }
           }
         },
-        "description": "Edit a member's ACL row (SENSITIVE → gated on parent ``change``).",
+        "description": "Edit a member's ACL row (SENSITIVE → parent ``change`` + model permission).",
         "tags": [
           "members-inlines"
         ],
@@ -3230,7 +3230,7 @@
             "description": "No Content"
           }
         },
-        "description": "Delete a member's ACL row (SENSITIVE → gated on parent ``change``).",
+        "description": "Delete a member's ACL row (SENSITIVE → parent ``change`` + model permission).",
         "tags": [
           "members-inlines"
         ],

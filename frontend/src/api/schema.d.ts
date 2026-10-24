@@ -1341,13 +1341,13 @@ export interface paths {
         };
         /**
          * List Permission Members
-         * @description List a member's ACL row(s) (SENSITIVE → gated on parent ``change``).
+         * @description List a member's ACL row(s) (SENSITIVE → parent ``change`` + model permission).
          */
         get: operations["members_api_inlines_member_list_permission_members"];
         put?: never;
         /**
          * Create Permission Member
-         * @description Create a member's ACL row (SENSITIVE → gated on parent ``change``).
+         * @description Create a member's ACL row (SENSITIVE → parent ``change`` + model permission).
          *
          *     ``PermissionMember`` is a ``OneToOneField`` to the member, so ``full_clean``
          *     rejects a second row for the same member (→ 422).
@@ -1371,14 +1371,14 @@ export interface paths {
         post?: never;
         /**
          * Delete Permission Member
-         * @description Delete a member's ACL row (SENSITIVE → gated on parent ``change``).
+         * @description Delete a member's ACL row (SENSITIVE → parent ``change`` + model permission).
          */
         delete: operations["members_api_inlines_member_delete_permission_member"];
         options?: never;
         head?: never;
         /**
          * Update Permission Member
-         * @description Edit a member's ACL row (SENSITIVE → gated on parent ``change``).
+         * @description Edit a member's ACL row (SENSITIVE → parent ``change`` + model permission).
          */
         patch: operations["members_api_inlines_member_update_permission_member"];
         trace?: never;

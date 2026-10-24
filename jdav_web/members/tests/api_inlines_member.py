@@ -170,12 +170,25 @@ class MemberInlineApiTestCase(TestCase):
 
     # --- permission (ACL) rows -------------------------------------------
 
+    # The owner may change their own record, so the ACL additionally needs the
+    # global ``PermissionMember`` model permissions the admin inline required.
+    ACL_PERMS = (
+        "view_permissionmember",
+        "add_permissionmember",
+        "change_permissionmember",
+        "delete_permissionmember",
+    )
+
+    def acl_admin(self):
+        return grant(self.owner_user, *self.ACL_PERMS)
+
     def test_create_and_list_permission_member_self(self):
+        user = self.acl_admin()
         r = self.client.post(
             "/api/members/{}/permission-members".format(self.owner.pk),
             data={"view_member_ids": [self.other.pk]},
             content_type="application/json",
-            **self.auth(self.owner_user),
+            **self.auth(user),
         )
         self.assertEqual(r.status_code, 201, r.content)
         permission = PermissionMember.objects.get(member=self.owner)
@@ -183,13 +196,63 @@ class MemberInlineApiTestCase(TestCase):
 
         r = self.client.get(
             "/api/members/{}/permission-members".format(self.owner.pk),
-            **self.auth(self.owner_user),
+            **self.auth(user),
         )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()[0]["view_member_ids"], [self.other.pk])
 
-    def test_permission_member_other_forbidden(self):
-        # Listing another member's ACL is a sensitive escalation surface → 403.
+    def test_list_permission_member_with_change_only(self):
+        # Like the admin, ``change`` admits viewing without ``view``.
+        PermissionMember.objects.create(member=self.owner)
+        user = grant(self.owner_user, "change_permissionmember")
+        r = self.client.get(
+            "/api/members/{}/permission-members".format(self.owner.pk),
+            **self.auth(user),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.json()), 1)
+
+    def test_own_acl_needs_model_permissions(self):
+        # Changing oneself must not extend to granting oneself rights.
+        r = self.client.get(
+            "/api/members/{}/permission-members".format(self.owner.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+
+        r = self.client.post(
+            "/api/members/{}/permission-members".format(self.owner.pk),
+            data={"change_member_ids": [self.other.pk]},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(PermissionMember.objects.filter(member=self.owner).exists())
+
+        permission = PermissionMember.objects.create(member=self.owner)
+        r = self.client.patch(
+            "/api/members/permission-members/{}".format(permission.pk),
+            data={"change_member_ids": [self.other.pk]},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(list(permission.change_members.all()), [])
+
+        r = self.client.delete(
+            "/api/members/permission-members/{}".format(permission.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(PermissionMember.objects.filter(pk=permission.pk).exists())
+
+    def test_changeable_members_acl_needs_model_permissions(self):
+        # A youth leader granted change rights over a member may edit that
+        # member, but not that member's ACL.
+        leader_acl = PermissionMember.objects.create(member=self.owner)
+        leader_acl.change_members.add(self.other)
+        self.assertTrue(self.owner_user.has_perm("members.change_obj_member", self.other))
+
         r = self.client.get(
             "/api/members/{}/permission-members".format(self.other.pk),
             **self.auth(self.owner_user),
@@ -198,9 +261,45 @@ class MemberInlineApiTestCase(TestCase):
 
         r = self.client.post(
             "/api/members/{}/permission-members".format(self.other.pk),
-            data={"change_member_ids": [self.owner.pk]},
+            data={"view_member_ids": [self.owner.pk]},
             content_type="application/json",
             **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(PermissionMember.objects.filter(member=self.other).exists())
+
+        permission = PermissionMember.objects.create(member=self.other)
+        r = self.client.patch(
+            "/api/members/permission-members/{}".format(permission.pk),
+            data={"view_member_ids": [self.owner.pk]},
+            content_type="application/json",
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(list(permission.view_members.all()), [])
+
+        r = self.client.delete(
+            "/api/members/permission-members/{}".format(permission.pk),
+            **self.auth(self.owner_user),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(PermissionMember.objects.filter(pk=permission.pk).exists())
+
+    def test_permission_member_other_forbidden(self):
+        # The model permissions do not lift the parent ``change`` gate: another
+        # member's ACL stays out of reach.
+        user = self.acl_admin()
+        r = self.client.get(
+            "/api/members/{}/permission-members".format(self.other.pk),
+            **self.auth(user),
+        )
+        self.assertEqual(r.status_code, 403)
+
+        r = self.client.post(
+            "/api/members/{}/permission-members".format(self.other.pk),
+            data={"change_member_ids": [self.owner.pk]},
+            content_type="application/json",
+            **self.auth(user),
         )
         self.assertEqual(r.status_code, 403)
         self.assertFalse(PermissionMember.objects.filter(member=self.other).exists())
@@ -211,7 +310,7 @@ class MemberInlineApiTestCase(TestCase):
             "/api/members/{}/permission-members".format(self.owner.pk),
             data={},
             content_type="application/json",
-            **self.auth(self.owner_user),
+            **self.auth(self.acl_admin()),
         )
         self.assertEqual(r.status_code, 422, r.content)
 
@@ -393,18 +492,19 @@ class MemberInlineApiTestCase(TestCase):
 
     def test_update_and_delete_permission_member(self):
         permission = PermissionMember.objects.create(member=self.owner)
+        user = self.acl_admin()
         r = self.client.patch(
             "/api/members/permission-members/{}".format(permission.pk),
             data={"view_member_ids": [self.other.pk]},
             content_type="application/json",
-            **self.auth(self.owner_user),
+            **self.auth(user),
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(list(permission.view_members.all()), [self.other])
 
         r = self.client.delete(
             "/api/members/permission-members/{}".format(permission.pk),
-            **self.auth(self.owner_user),
+            **self.auth(user),
         )
         self.assertEqual(r.status_code, 204, r.content)
         self.assertFalse(PermissionMember.objects.filter(pk=permission.pk).exists())
@@ -413,18 +513,19 @@ class MemberInlineApiTestCase(TestCase):
         # These rows grant object permissions, so the escalation guard matters
         # more here than anywhere else in the inline surface.
         permission = PermissionMember.objects.create(member=self.other)
+        user = self.acl_admin()
         r = self.client.patch(
             "/api/members/permission-members/{}".format(permission.pk),
             data={"view_member_ids": [self.owner.pk]},
             content_type="application/json",
-            **self.auth(self.owner_user),
+            **self.auth(user),
         )
         self.assertEqual(r.status_code, 403)
         self.assertEqual(list(permission.view_members.all()), [])
 
         r = self.client.delete(
             "/api/members/permission-members/{}".format(permission.pk),
-            **self.auth(self.owner_user),
+            **self.auth(user),
         )
         self.assertEqual(r.status_code, 403)
         self.assertTrue(PermissionMember.objects.filter(pk=permission.pk).exists())

@@ -879,6 +879,7 @@ function MemberDetailPage() {
 function MemberInlinesPrefetch({ memberId }: { memberId: number }) {
   // A malformed id in the URL leaves the page to report the missing member.
   const opts = { enabled: Number.isFinite(memberId) };
+  const { canAny } = usePermissions();
   useApiQuery(
     queryKeys.memberEmergencyContacts(memberId),
     () => fetchEmergencyContacts(memberId),
@@ -886,7 +887,11 @@ function MemberInlinesPrefetch({ memberId }: { memberId: number }) {
   );
   useApiQuery(queryKeys.memberDocuments(memberId), () => fetchMemberDocuments(memberId), opts);
   useApiQuery(queryKeys.memberTrainings(memberId), () => fetchMemberTrainings(memberId), opts);
-  useApiQuery(queryKeys.memberPermissions(memberId), () => fetchPermissionMembers(memberId), opts);
+  // The access list is only readable with the PermissionMember model permission.
+  useApiQuery(queryKeys.memberPermissions(memberId), () => fetchPermissionMembers(memberId), {
+    enabled:
+      opts.enabled && canAny("members.view_permissionmember", "members.change_permissionmember"),
+  });
   useTrainingCategories(opts);
   return null;
 }
@@ -944,7 +949,7 @@ function MembersOfGroup() {
 function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb[] }) {
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
-  const { can } = usePermissions();
+  const { can, canAny } = usePermissions();
   const removeMutation = useApiMutation(
     () =>
       unwrap(
@@ -1514,17 +1519,24 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
               </>
             ),
           },
-          {
-            id: "berechtigungen",
-            label: "Berechtigungen",
-            content: (
-              <PermissionMembersInline
-                memberId={member.id}
-                editing={editing}
-                registerFlush={getRegistrar("berechtigungen")}
-              />
-            ),
-          },
+          // The access list grants rights over other members, so like the admin
+          // it needs the PermissionMember model permissions on top of being able
+          // to change this member.
+          ...(canAny("members.view_permissionmember", "members.change_permissionmember")
+            ? [
+                {
+                  id: "berechtigungen",
+                  label: "Berechtigungen",
+                  content: (
+                    <PermissionMembersInline
+                      memberId={member.id}
+                      editing={editing}
+                      registerFlush={getRegistrar("berechtigungen")}
+                    />
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
     </form>
@@ -2162,6 +2174,10 @@ function PermissionMembersInline({
 }) {
   const listKey = queryKeys.memberPermissions(memberId);
   const query = useApiQuery<MemberPermissionOut[]>(listKey, () => fetchPermissionMembers(memberId));
+  const { can } = usePermissions();
+  const canAdd = can("members.add_permissionmember");
+  const canChange = can("members.change_permissionmember");
+  const canDelete = can("members.delete_permissionmember");
 
   const optionsEnabled = editing || (query.data?.length ?? 0) > 0;
   const membersQuery = useMembers({ enabled: optionsEnabled });
@@ -2247,14 +2263,14 @@ function PermissionMembersInline({
       rows={rows}
       rowKey={(row) => row.key}
       editing={editing}
-      onDelete={(row) => removeRow(row)}
-      onAdd={() => addRow({ ...emptyPerm })}
+      onDelete={canDelete ? (row) => removeRow(row) : undefined}
+      onAdd={canAdd ? () => addRow({ ...emptyPerm }) : undefined}
       addLabel="Berechtigungssatz"
       empty="Keine Berechtigungen."
       columns={PERM_ROWS.map((p) => ({
         header: p.label,
         cell: (row: DraftRow<PermData>) =>
-          editing ? (
+          editing && (row.id === null ? canAdd : canChange) ? (
             <div className="stack">
               {memberSelect(row.data[p.mk], (v) =>
                 setRow(row, { ...row.data, [p.mk]: v } as PermData),
