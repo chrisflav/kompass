@@ -1010,6 +1010,90 @@ rather than passing as agreement.
    all.
 
 
+.. _development_manual/finance_rules/payout:
+
+Who makes the transfers
+=======================
+
+Two arrangements exist among JDAV sections, and they differ in what the last
+step of a review *is*.
+
+Where the person reviewing the statement makes the bank transfers, Kompass
+shows them the accounts and the EPC-QR codes, asks them to confirm that the
+transfers have been made, and the statement ends up **ausgezahlt**. Where the
+section's Geschäftsstelle makes them, the review ends in a **handoff**: the
+Beleg with its payment orders goes to the office, the statement ends up **zur
+Auszahlung übergeben**, and whether the money has moved is something this
+instance never learns.
+
+There is no wording true in both. So a ruleset says which it is::
+
+    from kompass.rules import OFFICE_PAYMENT, Ruleset
+
+    class TownRules(Ruleset):
+        payout = OFFICE_PAYMENT    # or SELF_PAYMENT, which is the default
+
+What changes, exactly: the heading, the lead and the button of the review's
+last leg; whether a QR code is drawn at all; whether the reviewer is asked to
+acknowledge having made the transfers; what the statement says about itself
+afterwards; and what the summary document carries.
+
+**The default is self-payment.** A ruleset that says nothing goes on behaving
+exactly as every ruleset did before this existed, and no statement already
+settled moves. Declare it anyway: it is one of the things a section asserts
+about its own finances, and a reader of your rules should not have to know what
+Kompass falls back to.
+
+.. important::
+   **In handoff mode the status moves only once the mail has gone.** "Zur
+   Auszahlung übergeben" asserts that somebody else now holds the instruction,
+   and asserting it over a mail the server refused would be a status claiming
+   an act that did not happen.
+
+   So the summary is sent from inside the release, before the status changes,
+   and a send that fails leaves the statement submitted. The signatures that
+   are already in stay in — they are facts — so pressing the button again
+   retries the handoff and records no second signature. The failure costs a
+   click rather than a statement, which is what makes "leave it where it was"
+   the affordable half of the trade.
+
+.. note::
+   **Why this is a declaration of the rules and not a setting.**
+
+   It belongs with the other things a section asserts about its finances, beside
+   :attr:`~kompass.rules.Ruleset.balance` and
+   :attr:`~kompass.rules.Ruleset.valid_from`: who pays is as much part of the
+   procedure as which rates apply and who signs.
+
+   It is **hashed into the version**, with the rest of the sources, so changing
+   how a section pays is a new version with its own validity — on the record,
+   rather than a line somebody edited in a configuration file one afternoon.
+
+   And a statement is **bound** to it like everything else about a version. A
+   statement released under rules that say the office pays reads as handed over
+   for ever; a later change of arrangement cannot rewrite what its terminal act
+   meant. The cost of that is the other way round and it is bounded: a
+   statement opened before a change is reviewed under the old wording, once.
+
+   ``ctx.params`` could not have carried it in any case — it is a fixed
+   seven-key list of *numbers* (see below), and nothing in it would take a mode
+   without engine work.
+
+**What the summary document carries then.** In handoff mode the Beleg is the
+only thing the person making the transfers ever sees, so it carries one payment
+order per booking: the recipient, their IBAN, the reference, the amount, and —
+where two amounts to one person may not be combined
+(:ref:`development_manual/finance_rules/settlement_groups`) — that fact with the
+group's own name beside it. In self-payment mode it carries none of that, by the
+same argument read the other way: the transfers were made from the review
+screen, so an instruction to make them would be an instruction to do something
+twice.
+
+A mode Kompass does not know is **not** a fallback: the version is stored as a
+draft, it never applies, and the previous version goes on being in force.
+``manage.py checkruleset`` says so before the import ever happens.
+
+
 The section's numbers
 =====================
 
