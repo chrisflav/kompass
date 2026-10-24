@@ -1,6 +1,6 @@
 import { keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
 import { usePermissions } from "../../api/me";
@@ -72,17 +72,6 @@ function twelveMonthsAgo(): string {
 export function MessagesList() {
   const { can } = usePermissions();
   const navigate = useNavigate();
-  // `?compose=1` opens the create dialog straight away, so a "Nachricht senden"
-  // shortcut (e.g. from the dashboard) lands directly in composing.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [creating, setCreating] = useState(() => searchParams.get("compose") === "1");
-  const closeCreate = () => {
-    setCreating(false);
-    if (searchParams.has("compose")) {
-      searchParams.delete("compose");
-      setSearchParams(searchParams, { replace: true });
-    }
-  };
   // The list loads the past 12 months (and every draft) unless the user asks
   // for the older messages, so search, filter and sort stay instant on the rows
   // loaded. While the older ones load, the recent rows stay on screen.
@@ -151,15 +140,12 @@ export function MessagesList() {
         subtitle={`${view.rows.length} / ${view.total}`}
         actions={
           can("mailer.add_global_message") && (
-            <Button onClick={() => setCreating(true)}>Neue Nachricht</Button>
+            <Button onClick={() => navigate("/kompass/mailer/messages/new")}>
+              Neue Nachricht
+            </Button>
           )
         }
       />
-      {creating && (
-        <Modal title="Neue Nachricht" onClose={closeCreate}>
-          <MessageCreateDialog onClose={closeCreate} />
-        </Modal>
-      )}
       <ListToolbar view={view} />
       {(!showAll || query.isPlaceholderData) && (
         <div className="list-window">
@@ -203,37 +189,30 @@ export function MessagesList() {
   );
 }
 
-/* --- create dialog ------------------------------------------------------- */
+/* --- compose ------------------------------------------------------------- */
 
 /**
- * Create form rendered inside the messages-list modal. Offers three actions:
- * "Senden" (create then trigger the send action), "Als Entwurf speichern"
- * (create without sending) and "Abbrechen" (confirms discarding when the form
- * carries any input).
+ * New message, composed on a page of its own in the layout of the detail page
+ * (Details + Anhänge tabs, in edit mode from the start), so the text gets the
+ * full width and attachments can be added before the message exists. Offers
+ * "Senden" (create, upload the attachments, then send), "Als Entwurf speichern"
+ * (create and upload only) and "Abbrechen" (confirms discarding any input).
  */
-function MessageCreateDialog({ onClose }: { onClose: () => void }) {
+export function MessageComposePage() {
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirmDialog();
   const [form, setForm] = useState<MessageFormState>(() => emptyMessage());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-
-  const members = useMembers();
-  const groups = useGroups();
-  const excursions = useExcursions();
-  const addresses = useEmailAddresses();
+  const [busy, setBusy] = useState(false);
+  const { getRegistrar, runFlushes } = useFlushRegistry();
+  // The staged attachments are uploaded to the message Save just created.
+  const createdId = useRef<number | null>(null);
 
   const create = useApiMutation(
     (body: MessageIn) => unwrap(client.POST("/api/mailer/messages", { body })),
-    {
-      invalidate: [queryKeys.messages()],
-      onError: (e: Error) => {
-        if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
-        toast.error(e.message);
-      },
-    },
+    { invalidate: [queryKeys.messages()] },
   );
-
   const submit = useApiMutation(
     (id: number) =>
       unwrap(
@@ -241,28 +220,11 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           params: { path: { message_id: id } },
         }),
       ),
-    {
-      invalidate: [queryKeys.messages()],
-      onError: (e: Error) => toast.error(e.message),
-    },
+    { invalidate: [queryKeys.messages()] },
   );
 
-  const memberOptions: Option[] = (members.data ?? []).map((m) => ({
-    value: m.id,
-    label: m.name,
-  }));
-  const groupOptions: Option[] = (groups.data ?? []).map((g) => ({
-    value: g.id,
-    label: g.name,
-  }));
-  const excursionOptions: Option[] = (excursions.data ?? []).map((e) => ({
-    value: e.id,
-    label: `${e.code} · ${e.name}`,
-  }));
-  const addressOptions: Option[] = (addresses.data ?? []).map((a) => ({
-    value: a.id,
-    label: a.email,
-  }));
+  // The read-only rows (status, author, …) only exist once the message does.
+  const rows = useMessageRows(null, form, setForm, true).filter((r) => r.edit !== undefined);
 
   const dirty =
     form.subject.trim() !== "" ||
@@ -273,127 +235,237 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
     form.reply_to.length > 0 ||
     form.reply_to_email_address.length > 0;
 
-  const busy = create.isPending || submit.isPending;
-
   async function requestCancel() {
     if (dirty && !(await confirm("Änderungen verwerfen?"))) return;
-    onClose();
+    navigate("/kompass/mailer/messages");
   }
 
-  function valid(): boolean {
+  async function save(send: boolean) {
     if (!form.subject.trim() || !form.content.trim()) {
       toast.error("Betreff und Inhalt sind erforderlich.");
-      return false;
+      return;
     }
-    return true;
-  }
-
-  // Both mutations report their own failure through `onError` (toast + field
-  // errors), so the rejection is swallowed here — leaving it unhandled would
-  // only surface as an "unhandled promise rejection" in the console.
-  async function saveDraft() {
-    if (!valid()) return;
+    if (send && !(await confirm("Nachricht jetzt an alle Empfänger versenden?"))) return;
     setFieldErrors({});
+    setBusy(true);
     try {
       const msg = await create.mutateAsync(form);
-      toast.success("Als Entwurf gespeichert.");
-      onClose();
+      createdId.current = msg.id;
+      await runFlushes();
+      if (send) await submit.mutateAsync(msg.id);
+      toast.success(send ? "Nachricht versendet." : "Als Entwurf gespeichert.");
       navigate(`/kompass/mailer/messages/${msg.id}`);
-    } catch {
-      /* reported by the mutation's onError */
-    }
-  }
-
-  async function sendNow() {
-    if (!valid()) return;
-    if (!(await confirm("Nachricht jetzt an alle Empfänger versenden?"))) return;
-    setFieldErrors({});
-    try {
-      const msg = await create.mutateAsync(form);
-      await submit.mutateAsync(msg.id);
-      toast.success("Nachricht versendet.");
-      onClose();
-      navigate(`/kompass/mailer/messages/${msg.id}`);
-    } catch {
-      /* reported by the mutation's onError */
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+      if (createdId.current === null) {
+        if (err instanceof ApiError) setFieldErrors(err.fieldErrors);
+        setBusy(false);
+      } else {
+        // The draft exists by now: carry on from its own page, so a retry edits
+        // or sends it rather than creating a second one.
+        navigate(`/kompass/mailer/messages/${createdId.current}`);
+      }
     }
   }
 
   return (
-    <div className="stack">
-      <Field label="Betreff">
+    <div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Nachrichten", to: "/kompass/mailer/messages" },
+          { label: "Neue Nachricht" },
+        ]}
+        actions={
+          <>
+            <Button type="button" variant="ghost" disabled={busy} onClick={requestCancel}>
+              Abbrechen
+            </Button>
+            <Button type="button" variant="ghost" busy={busy} onClick={() => save(false)}>
+              Als Entwurf speichern
+            </Button>
+            <Button type="button" busy={busy} onClick={() => save(true)}>
+              Senden
+            </Button>
+          </>
+        }
+      />
+      <Tabs
+        tabs={[
+          {
+            id: "details",
+            label: "Details",
+            content: <EditableDetail rows={rows} editing errors={fieldErrors} />,
+          },
+          {
+            id: "anhaenge",
+            label: "Anhänge",
+            content: (
+              <Attachments
+                messageId={null}
+                uploadTo={() => createdId.current as number}
+                editing
+                registerFlush={getRegistrar("attachments")}
+              />
+            ),
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+/* --- shared fields ------------------------------------------------------- */
+
+/**
+ * The message's fields as detail rows, for the detail page and the compose
+ * page alike. The read-only values are the names `message` itself carries (none
+ * while composing); the full lists only back the edit pickers, so they load
+ * once editing starts.
+ */
+function useMessageRows(
+  message: MessageOut | null,
+  form: MessageFormState,
+  setForm: (next: MessageFormState) => void,
+  editing: boolean,
+): DetailRow[] {
+  const members = useMembers({ enabled: editing });
+  const groups = useGroups({ enabled: editing });
+  const excursions = useExcursions({ enabled: editing });
+  const addresses = useEmailAddresses({ enabled: editing });
+
+  // Seeded from the message's own recipients while the lists are still loading.
+  const asOption = (r: { id: number; name: string }) => ({ value: r.id, label: r.name });
+  const memberOptions: Option[] = withSelected(
+    (members.data ?? []).map(asOption),
+    message ? [...message.to_members, ...message.reply_to].map(asOption) : [],
+  );
+  const groupOptions: Option[] = withSelected(
+    (groups.data ?? []).map(asOption),
+    message ? message.to_groups.map(asOption) : [],
+  );
+  const excursionLabel = (e: { id: number; code: string; name: string }) => ({
+    value: e.id,
+    label: `${e.code} · ${e.name}`,
+  });
+  const excursionOptions: Option[] = withSelected(
+    (excursions.data ?? []).map(excursionLabel),
+    message?.to_freizeit ? [excursionLabel(message.to_freizeit)] : [],
+  );
+  const addressLabel = (a: { id: number; email: string }) => ({ value: a.id, label: a.email });
+  const addressOptions: Option[] = withSelected(
+    (addresses.data ?? []).map(addressLabel),
+    message ? message.reply_to_email_address.map(addressLabel) : [],
+  );
+
+  return [
+    {
+      label: "Betreff",
+      field: "subject",
+      value: message?.subject,
+      edit: (
         <input
+          aria-label="Betreff"
           value={form.subject}
           onChange={(e) => setForm({ ...form, subject: e.target.value })}
           required
         />
-        {fieldErrors.subject && (
-          <div className="field-error">{fieldErrors.subject.join(" ")}</div>
-        )}
-      </Field>
-      <Field label="Inhalt">
-        <textarea
-          rows={8}
-          value={form.content}
-          onChange={(e) => setForm({ ...form, content: e.target.value })}
-          required
-        />
-        {fieldErrors.content && (
-          <div className="field-error">{fieldErrors.content.join(" ")}</div>
-        )}
-      </Field>
-      <Field label="Empfänger-Gruppen">
+      ),
+    },
+    ...(message
+      ? [
+          {
+            label: "Status",
+            value: message.sent ? (
+              <Badge tone="success">Gesendet</Badge>
+            ) : (
+              <Badge tone="warning">Entwurf</Badge>
+            ),
+          },
+          { label: "Empfänger", value: message.recipients },
+          { label: "Erstellt von", value: message.created_by?.name ?? "—" },
+        ]
+      : []),
+    {
+      label: "Gruppen",
+      field: "to_groups",
+      value: message && (message.to_groups.map((g) => g.name).join(", ") || "—"),
+      edit: (
         <MultiSelect
           options={groupOptions}
           selected={form.to_groups}
           onChange={(v) => setForm({ ...form, to_groups: v })}
           placeholder="Gruppe hinzufügen"
         />
-      </Field>
-      <Field label="Empfänger-Teilnehmende">
+      ),
+    },
+    {
+      label: "Teilnehmende",
+      field: "to_members",
+      value: message && (message.to_members.map((m) => m.name).join(", ") || "—"),
+      edit: (
         <MultiSelect
           options={memberOptions}
           selected={form.to_members}
           onChange={(v) => setForm({ ...form, to_members: v })}
           placeholder="Teilnehmende hinzufügen"
         />
-      </Field>
-      <Field label="Freizeit-Teilnehmer">
+      ),
+    },
+    {
+      label: "Freizeit",
+      field: "to_freizeit",
+      value: message?.to_freizeit
+        ? `${message.to_freizeit.code} · ${message.to_freizeit.name}`
+        : "—",
+      edit: (
         <SingleSelect
           options={excursionOptions}
           value={form.to_freizeit ?? null}
           onChange={(v) => setForm({ ...form, to_freizeit: v })}
         />
-      </Field>
-      <Field label="Antwort an (Teilnehmende)">
+      ),
+    },
+    {
+      label: "Antwort an (Teilnehmende)",
+      field: "reply_to",
+      value: message && (message.reply_to.map((m) => m.name).join(", ") || "—"),
+      edit: (
         <MultiSelect
           options={memberOptions}
           selected={form.reply_to}
           onChange={(v) => setForm({ ...form, reply_to: v })}
           placeholder="Teilnehmende hinzufügen"
         />
-      </Field>
-      <Field label="Antwort an (E-Mail-Adressen)">
+      ),
+    },
+    {
+      label: "Antwort an (E-Mail)",
+      field: "reply_to_email_address",
+      value: message && (message.reply_to_email_address.map((a) => a.email).join(", ") || "—"),
+      edit: (
         <MultiSelect
           options={addressOptions}
           selected={form.reply_to_email_address}
           onChange={(v) => setForm({ ...form, reply_to_email_address: v })}
           placeholder="Adresse hinzufügen"
         />
-      </Field>
-      <div className="row-actions">
-        <Button type="button" busy={busy} onClick={sendNow}>
-          Senden
-        </Button>
-        <Button type="button" variant="ghost" busy={busy} onClick={saveDraft}>
-          Als Entwurf speichern
-        </Button>
-        <Button type="button" variant="ghost" disabled={busy} onClick={requestCancel}>
-          Abbrechen
-        </Button>
-      </div>
-    </div>
-  );
+      ),
+    },
+    {
+      label: "Inhalt",
+      field: "content",
+      value: <span style={{ whiteSpace: "pre-wrap" }}>{message?.content}</span>,
+      edit: (
+        <textarea
+          aria-label="Inhalt"
+          rows={14}
+          value={form.content}
+          onChange={(e) => setForm({ ...form, content: e.target.value })}
+          required
+        />
+      ),
+    },
+  ];
 }
 
 /* --- detail -------------------------------------------------------------- */
@@ -428,13 +500,6 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirmDialog();
-
-  // The read-only view renders the names the message itself carries; the full
-  // lists only back the edit pickers, so they load once editing starts.
-  const members = useMembers({ enabled: editing });
-  const groups = useGroups({ enabled: editing });
-  const excursions = useExcursions({ enabled: editing });
-  const addresses = useEmailAddresses({ enabled: editing });
 
   const { getRegistrar, runFlushes } = useFlushRegistry();
   const [saving, setSaving] = useState(false);
@@ -475,133 +540,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
     setEditing(true);
   }
 
-  // Seeded from the message's own recipients while the lists are still loading.
-  const asOption = (r: { id: number; name: string }) => ({ value: r.id, label: r.name });
-  const memberOptions: Option[] = withSelected(
-    (members.data ?? []).map(asOption),
-    [...message.to_members, ...message.reply_to].map(asOption),
-  );
-  const groupOptions: Option[] = withSelected(
-    (groups.data ?? []).map(asOption),
-    message.to_groups.map(asOption),
-  );
-  const excursionLabel = (e: { id: number; code: string; name: string }) => ({
-    value: e.id,
-    label: `${e.code} · ${e.name}`,
-  });
-  const excursionOptions: Option[] = withSelected(
-    (excursions.data ?? []).map(excursionLabel),
-    message.to_freizeit ? [excursionLabel(message.to_freizeit)] : [],
-  );
-  const addressLabel = (a: { id: number; email: string }) => ({ value: a.id, label: a.email });
-  const addressOptions: Option[] = withSelected(
-    (addresses.data ?? []).map(addressLabel),
-    message.reply_to_email_address.map(addressLabel),
-  );
-
-  const rows: DetailRow[] = [
-    {
-      label: "Betreff",
-      field: "subject",
-      value: message.subject,
-      edit: (
-        <input
-          value={form.subject}
-          onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          required
-        />
-      ),
-    },
-    {
-      label: "Status",
-      value: message.sent ? (
-        <Badge tone="success">Gesendet</Badge>
-      ) : (
-        <Badge tone="warning">Entwurf</Badge>
-      ),
-    },
-    { label: "Empfänger", value: message.recipients },
-    { label: "Erstellt von", value: message.created_by?.name ?? "—" },
-    {
-      label: "Gruppen",
-      field: "to_groups",
-      value: message.to_groups.map((g) => g.name).join(", ") || "—",
-      edit: (
-        <MultiSelect
-          options={groupOptions}
-          selected={form.to_groups}
-          onChange={(v) => setForm({ ...form, to_groups: v })}
-          placeholder="Gruppe hinzufügen"
-        />
-      ),
-    },
-    {
-      label: "Teilnehmende",
-      field: "to_members",
-      value: message.to_members.map((m) => m.name).join(", ") || "—",
-      edit: (
-        <MultiSelect
-          options={memberOptions}
-          selected={form.to_members}
-          onChange={(v) => setForm({ ...form, to_members: v })}
-          placeholder="Teilnehmende hinzufügen"
-        />
-      ),
-    },
-    {
-      label: "Freizeit",
-      field: "to_freizeit",
-      value: message.to_freizeit
-        ? `${message.to_freizeit.code} · ${message.to_freizeit.name}`
-        : "—",
-      edit: (
-        <SingleSelect
-          options={excursionOptions}
-          value={form.to_freizeit ?? null}
-          onChange={(v) => setForm({ ...form, to_freizeit: v })}
-        />
-      ),
-    },
-    {
-      label: "Antwort an (Teilnehmende)",
-      field: "reply_to",
-      value: message.reply_to.map((m) => m.name).join(", ") || "—",
-      edit: (
-        <MultiSelect
-          options={memberOptions}
-          selected={form.reply_to}
-          onChange={(v) => setForm({ ...form, reply_to: v })}
-          placeholder="Teilnehmende hinzufügen"
-        />
-      ),
-    },
-    {
-      label: "Antwort an (E-Mail)",
-      field: "reply_to_email_address",
-      value: message.reply_to_email_address.map((a) => a.email).join(", ") || "—",
-      edit: (
-        <MultiSelect
-          options={addressOptions}
-          selected={form.reply_to_email_address}
-          onChange={(v) => setForm({ ...form, reply_to_email_address: v })}
-          placeholder="Adresse hinzufügen"
-        />
-      ),
-    },
-    {
-      label: "Inhalt",
-      field: "content",
-      value: <span style={{ whiteSpace: "pre-wrap" }}>{message.content}</span>,
-      edit: (
-        <textarea
-          rows={8}
-          value={form.content}
-          onChange={(e) => setForm({ ...form, content: e.target.value })}
-          required
-        />
-      ),
-    },
-  ];
+  const rows = useMessageRows(message, form, setForm, editing);
 
   return (
     <form
@@ -680,7 +619,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
           {
             id: "anhaenge",
             label: "Anhänge",
-            content: <Attachments message={message} editing={editing} registerFlush={getRegistrar("attachments")} />,
+            content: <Attachments messageId={message.id} editing={editing} registerFlush={getRegistrar("attachments")} />,
           },
         ]}
       />
@@ -726,31 +665,42 @@ function SubmitAction({ message }: { message: MessageOut }) {
 
 type AttachmentData = { filename: string; file: File | null; url: string | null };
 
+/**
+ * The message's attachments, staged while editing and applied on Save. While
+ * composing there is no message yet (`messageId` null): nothing is loaded, and
+ * the staged files are uploaded to the message `uploadTo` names once Save has
+ * created it.
+ */
 function Attachments({
-  message,
+  messageId,
+  uploadTo = () => messageId as number,
   editing,
   registerFlush,
 }: {
-  message: MessageOut;
+  messageId: number | null;
+  uploadTo?: () => number;
   editing: boolean;
   registerFlush: (fn: () => Promise<void>) => void;
 }) {
-  const query = useApiQuery(["mailer", "messages", message.id, "attachments"], () =>
-    unwrap(
-      client.GET("/api/mailer/messages/{message_id}/attachments", {
-        params: { path: { message_id: message.id } },
-      }),
-    ),
+  const query = useApiQuery(
+    ["mailer", "messages", messageId, "attachments"],
+    () =>
+      unwrap(
+        client.GET("/api/mailer/messages/{message_id}/attachments", {
+          params: { path: { message_id: messageId as number } },
+        }),
+      ),
+    { enabled: messageId !== null },
   );
   const invalidate = [
-    ["mailer", "messages", message.id, "attachments"],
-    ["mailer", "messages", message.id],
+    ["mailer", "messages", messageId, "attachments"],
+    ["mailer", "messages", messageId],
   ];
   const uploadM = useApiMutation(
     (file: File) =>
       unwrap(
         client.POST("/api/mailer/messages/{message_id}/attachments", {
-          params: { path: { message_id: message.id } },
+          params: { path: { message_id: uploadTo() } },
           // Multipart upload: the field name is `f`; a custom serializer builds
           // the FormData because openapi-fetch would otherwise JSON-encode it.
           body: { f: file as unknown as string },

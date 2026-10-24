@@ -159,7 +159,7 @@ export function Dashboard() {
           <p className="dash-hero-sub">Kompass · Verwaltung der {site.display_name}</p>
         </div>
         <div className="dash-hero-side">
-          <Link to="/kompass/mailer/messages?compose=1" className="btn dash-hero-cta">
+          <Link to="/kompass/mailer/messages/new" className="btn dash-hero-cta">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="3" y="5" width="18" height="14" rx="2" />
               <path d="m3 7 9 6 9-6" />

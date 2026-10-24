@@ -874,6 +874,13 @@ textarea {
   width: 100%;
 }
 
+/* A textarea grows downwards only: dragging its handle sideways would push it
+   past its form (or out of a dialog) instead of giving the text more room. */
+textarea {
+  resize: vertical;
+  max-width: 100%;
+}
+
 input:focus,
 select:focus,
 textarea:focus {

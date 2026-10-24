@@ -420,7 +420,7 @@ describe("Dashboard", () => {
 
     expect(screen.getByRole("link", { name: /Nachricht senden/ })).toHaveAttribute(
       "href",
-      "/kompass/mailer/messages?compose=1",
+      "/kompass/mailer/messages/new",
     );
     expect(await screen.findByRole("link", { name: "Alle Gruppen →" })).toHaveAttribute(
       "href",
