@@ -300,6 +300,7 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
           options={groupOptions}
           selected={form.group_ids}
           onChange={(ids) => setForm({ ...form, group_ids: ids })}
+          placeholder="Gruppe hinzufügen…"
         />
       </Field>
       <Field label="Jugendleiter*innen">
@@ -307,6 +308,7 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
           options={memberOptions}
           selected={form.jugendleiter_ids}
           onChange={(ids) => setForm({ ...form, jugendleiter_ids: ids })}
+          placeholder="Jugendleiter*in hinzufügen…"
           searchable
         />
       </Field>
@@ -598,6 +600,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
           options={groupOptions}
           selected={form.group_ids}
           onChange={(ids) => setForm({ ...form, group_ids: ids })}
+          placeholder="Gruppe hinzufügen…"
         />
       ),
     },
@@ -612,6 +615,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
           options={memberOptions}
           selected={form.jugendleiter_ids}
           onChange={(ids) => setForm({ ...form, jugendleiter_ids: ids })}
+          placeholder="Jugendleiter*in hinzufügen…"
           searchable
         />
       ),

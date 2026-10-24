@@ -300,6 +300,51 @@ describe("activities — Ausfahrten list", () => {
     expect(await screen.findByText("Ausfahrt angelegt.")).toBeInTheDocument();
   });
 
+  it("keeps the picked groups and leaders when their field is clicked", async () => {
+    // Feedback #13: the pickers sit inside the field's <label>, so a click on
+    // the label or a chip used to "activate" the first chip's remove button.
+    listReturns();
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.post(api("/api/members/excursions"), async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(EXCURSION);
+      }),
+    );
+    detailReturns();
+    const { user } = renderRoute("/kompass/excursions");
+    await user.click(await screen.findByRole("button", { name: "Neue Ausfahrt" }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText("Aktivität"), "Skifreizeit");
+    await user.click(dialog.getByRole("button", { name: "Gruppen" }));
+    await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
+    await user.click(dropdown().getByRole("button", { name: "Bouldergruppe" }));
+    await user.click(dialog.getByRole("button", { name: /Jugendleiter/ }));
+    await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
+
+    // Clicks on the field's caption and on a picked chip leave the picks alone.
+    await user.click(dialog.getByText("Gruppen"));
+    await user.click(dialog.getByText("Klettergruppe"));
+    await user.click(dialog.getByText("Jugendleiter*innen"));
+    await user.click(dialog.getByText("Anna Ärmel"));
+    await user.click(dialog.getByLabelText("Aktivität"));
+    expect(dialog.getByText("Klettergruppe")).toBeInTheDocument();
+    expect(dialog.getByText("Bouldergruppe")).toBeInTheDocument();
+    expect(dialog.getByText("Anna Ärmel")).toBeInTheDocument();
+    // The field still names its add button, which says what it adds.
+    expect(dialog.getByRole("button", { name: /^Gruppen/ })).toHaveTextContent(
+      "+ Gruppe hinzufügen…",
+    );
+    expect(dialog.getByRole("button", { name: /^Jugendleiter/ })).toHaveTextContent(
+      "+ Jugendleiter*in hinzufügen…",
+    );
+
+    await user.click(dialog.getByRole("button", { name: "Anlegen" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ group_ids: [5, 6], jugendleiter_ids: [42] });
+  });
+
   it("sends a null place when it is left blank", async () => {
     listReturns();
     let body: Record<string, unknown> | null = null;

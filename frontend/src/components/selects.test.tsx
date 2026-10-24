@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { api, http, HttpResponse, server } from "../test/server";
 import { renderWithApp } from "../test/utils";
 import { InlineTable } from "./inline";
-import { DownloadButton, MultiSelect, SearchableSelect, Select } from "./ui";
+import { DownloadButton, Field, MultiSelect, SearchableSelect, Select } from "./ui";
 
 const OPTIONS = [
   { value: 1, label: "Klettergruppe" },
@@ -46,6 +46,27 @@ describe("MultiSelect", () => {
     const badge = screen.getByText("Klettergruppe").closest(".ms-badge") as HTMLElement;
     await user.click(within(badge).getByRole("button"));
     expect(screen.getByTestId("value")).toHaveTextContent("2");
+  });
+
+  it("opens the list, not drops a pick, on a click on its field's caption or a badge", async () => {
+    function InField() {
+      const [selected, setSelected] = useState([1, 2]);
+      return (
+        <>
+          <span data-testid="value">{selected.join(",")}</span>
+          <Field label="Gruppen">
+            <MultiSelect options={OPTIONS} selected={selected} onChange={setSelected} />
+          </Field>
+        </>
+      );
+    }
+    const { user } = renderWithApp(<InField />, { authenticated: false });
+
+    await user.click(screen.getByText("Gruppen"));
+    expect(document.querySelector(".ms-dropdown")).toBeInTheDocument();
+    await user.click(screen.getAllByText("Klettergruppe")[0]);
+    await user.click(screen.getByText("Jugendleiter"));
+    expect(screen.getByTestId("value")).toHaveTextContent("1,2");
   });
 
   it("shows the raw id for a value the options no longer contain", () => {

@@ -726,6 +726,14 @@ export function MultiSelect({
   return (
     <div className="multiselect" ref={ref}>
       <div className="ms-badges">
+        {/* The toggle comes first in the DOM (CSS puts it after the badges):
+            inside a <Field>'s <label>, a click on the caption or on a badge's
+            text activates the label's first button. Were that a badge's ×, the
+            click would silently drop a selection; on the toggle it opens the
+            list. */}
+        <button type="button" className="ms-toggle" onClick={() => setOpen((o) => !o)}>
+          + {placeholder}
+        </button>
         {selected.map((v) => (
           <span className="badge ms-badge" key={v}>
             {byValue.get(v) ?? v}
@@ -739,9 +747,6 @@ export function MultiSelect({
             </button>
           </span>
         ))}
-        <button type="button" className="ms-toggle" onClick={() => setOpen((o) => !o)}>
-          + {placeholder}
-        </button>
       </div>
       {open && (
         <AnchoredDropdown anchorRef={ref} panelRef={panelRef}>
