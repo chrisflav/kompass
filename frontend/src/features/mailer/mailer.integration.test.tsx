@@ -528,24 +528,19 @@ describe("mailer — Nachrichten", () => {
     expect(screen.queryByRole("button", { name: "Neue Nachricht" })).not.toBeInTheDocument();
   });
 
-  it("opens the compose dialog straight from ?compose=1", async () => {
+  it("composes a new message on a page of its own", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();
-    renderRoute("/kompass/mailer/messages?compose=1");
-    // The dashboard's "Nachricht senden" shortcut lands here.
-    expect(await screen.findByRole("dialog", { name: "Neue Nachricht" })).toBeInTheDocument();
-  });
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-  it("drops ?compose=1 from the URL when the dialog is closed", async () => {
-    useMe({ permissions: ["mailer.add_global_message"] });
-    listReturns();
-    const { user } = renderRoute("/kompass/mailer/messages?compose=1");
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Abbrechen" }),
-    );
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    // Reopening is then a deliberate click, not a leftover query parameter.
-    expect(screen.getByRole("button", { name: "Neue Nachricht" })).toBeInTheDocument();
+    // The detail page's layout in edit mode, not a dialog: the fields, and the
+    // attachments tab right next to them.
+    expect(await screen.findByLabelText("Betreff")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Anhänge" })).toBeInTheDocument();
+    // The read-only rows wait for the message to exist.
+    expect(screen.queryByText("Erstellt von")).not.toBeInTheDocument();
   });
 
   it("shows a rejected content on the compose form", async () => {
@@ -559,10 +554,10 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Betreff"), "S");
-    await user.type(dialog.getByLabelText("Inhalt"), "I");
-    await user.click(dialog.getByRole("button", { name: "Als Entwurf speichern" }));
+    await screen.findByLabelText("Betreff");
+    await user.type(screen.getByLabelText("Betreff"), "S");
+    await user.type(screen.getByLabelText("Inhalt"), "I");
+    await user.click(screen.getByRole("button", { name: "Als Entwurf speichern" }));
     expect(await screen.findAllByText("Der Inhalt ist zu lang.")).not.toHaveLength(0);
   });
 
@@ -634,9 +629,7 @@ describe("mailer — Nachrichten", () => {
     );
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Als Entwurf speichern" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Als Entwurf speichern" }));
 
     expect(await screen.findByText("Betreff und Inhalt sind erforderlich.")).toBeInTheDocument();
     expect(posted).toBe(false);
@@ -657,24 +650,16 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Betreff"), "Sommerfahrt");
-    await user.type(dialog.getByLabelText("Inhalt"), "Bitte anmelden.");
-    await user.click(
-      within(dialog.getByRole("group", { name: "Empfänger-Gruppen" })).getByRole("button", {
-        name: /^\+ /,
-      }),
-    );
+    await screen.findByLabelText("Betreff");
+    await user.type(screen.getByLabelText("Betreff"), "Sommerfahrt");
+    await user.type(screen.getByLabelText("Inhalt"), "Bitte anmelden.");
+    await user.click(screen.getByRole("button", { name: "+ Gruppe hinzufügen" }));
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
-    await user.click(dialog.getByRole("button", { name: "Freizeit-Teilnehmer" }));
+    await user.click(screen.getByRole("button", { name: /^—/ }));
     await user.click(dropdown().getByRole("button", { name: "F26-01 · Skifreizeit" }));
-    await user.click(
-      within(dialog.getByRole("group", { name: "Antwort an (E-Mail-Adressen)" })).getByRole("button", {
-        name: /^\+ /,
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "+ Adresse hinzufügen" }));
     await user.click(dropdown().getByRole("button", { name: "jugend@example.org" }));
-    await user.click(dialog.getByRole("button", { name: "Als Entwurf speichern" }));
+    await user.click(screen.getByRole("button", { name: "Als Entwurf speichern" }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
@@ -703,10 +688,10 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Betreff"), "Sommerfahrt");
-    await user.type(dialog.getByLabelText("Inhalt"), "Bitte anmelden.");
-    await user.click(dialog.getByRole("button", { name: "Senden" }));
+    await screen.findByLabelText("Betreff");
+    await user.type(screen.getByLabelText("Betreff"), "Sommerfahrt");
+    await user.type(screen.getByLabelText("Inhalt"), "Bitte anmelden.");
+    await user.click(screen.getByRole("button", { name: "Senden" }));
 
     const confirmDialog = await screen.findByText(
       "Nachricht jetzt an alle Empfänger versenden?",
@@ -736,10 +721,10 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Betreff"), "S");
-    await user.type(dialog.getByLabelText("Inhalt"), "I");
-    await user.click(dialog.getByRole("button", { name: "Senden" }));
+    await screen.findByLabelText("Betreff");
+    await user.type(screen.getByLabelText("Betreff"), "S");
+    await user.type(screen.getByLabelText("Inhalt"), "I");
+    await user.click(screen.getByRole("button", { name: "Senden" }));
 
     const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
     await user.click(
@@ -756,9 +741,9 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Betreff"), "Angefangen");
-    await user.click(dialog.getByRole("button", { name: "Abbrechen" }));
+    await screen.findByLabelText("Betreff");
+    await user.type(screen.getByLabelText("Betreff"), "Angefangen");
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
 
     const confirmText = await screen.findByText("Änderungen verwerfen?");
     await user.click(
@@ -769,13 +754,15 @@ describe("mailer — Nachrichten", () => {
     expect(screen.getByDisplayValue("Angefangen")).toBeInTheDocument();
   });
 
-  it("closes an untouched compose dialog without asking", async () => {
+  it("leaves an untouched compose page without asking", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Abbrechen" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(await screen.findByRole("button", { name: "Abbrechen" }));
+    // Back on the list, without a confirmation in between.
+    expect(await screen.findByText("Sommerfahrt")).toBeInTheDocument();
+    expect(screen.queryByText("Änderungen verwerfen?")).not.toBeInTheDocument();
   });
 
   it("reports a rejected create on the compose form", async () => {
@@ -789,15 +776,15 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Betreff"), "S");
-    await user.type(dialog.getByLabelText("Inhalt"), "I");
-    await user.click(dialog.getByRole("button", { name: "Als Entwurf speichern" }));
+    await screen.findByLabelText("Betreff");
+    await user.type(screen.getByLabelText("Betreff"), "S");
+    await user.type(screen.getByLabelText("Inhalt"), "I");
+    await user.click(screen.getByRole("button", { name: "Als Entwurf speichern" }));
 
     expect(await screen.findAllByText("Der Betreff ist zu lang.")).not.toHaveLength(0);
   });
 
-  it("reports a rejected send without closing the compose dialog", async () => {
+  it("reports a rejected send without leaving the compose page", async () => {
     useMe({ permissions: ["mailer.add_global_message"] });
     listReturns();
     server.use(
@@ -808,10 +795,10 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = within(screen.getByRole("dialog"));
-    await user.type(dialog.getByLabelText("Betreff"), "S");
-    await user.type(dialog.getByLabelText("Inhalt"), "I");
-    await user.click(dialog.getByRole("button", { name: "Senden" }));
+    await screen.findByLabelText("Betreff");
+    await user.type(screen.getByLabelText("Betreff"), "S");
+    await user.type(screen.getByLabelText("Inhalt"), "I");
+    await user.click(screen.getByRole("button", { name: "Senden" }));
 
     const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
     await user.click(
@@ -822,6 +809,218 @@ describe("mailer — Nachrichten", () => {
 
     expect(await screen.findAllByText("Der Betreff ist zu lang.")).not.toHaveLength(0);
     expect(screen.getByDisplayValue("S")).toBeInTheDocument();
+  });
+
+  /** Opens the compose page, fills subject and content and stages one file. */
+  async function composeWithAttachment(user: ReturnType<typeof renderRoute>["user"]) {
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    await user.type(await screen.findByLabelText("Betreff"), "Sommerfahrt");
+    await user.type(screen.getByLabelText("Inhalt"), "Bitte anmelden.");
+    await user.click(screen.getByRole("tab", { name: "Anhänge" }));
+    await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.upload(
+      dialog.getByLabelText(/^Datei/),
+      new File(["x"], "Programm.pdf", { type: "application/pdf" }),
+    );
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+    expect(screen.getByText("(neu)")).toBeInTheDocument();
+  }
+
+  it("uploads an attachment staged while composing to the new draft", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const calls: string[] = [];
+    server.use(
+      http.post(api("/api/mailer/messages"), () => {
+        calls.push("create");
+        return HttpResponse.json(MESSAGE);
+      }),
+      http.post(api("/api/mailer/messages/4/attachments"), async ({ request }) => {
+        calls.push(`upload ${(await multipartFilenames(request)).join()}`);
+        return HttpResponse.json({ id: 9, filename: "Programm.pdf", url: "/media/p.pdf" });
+      }),
+      http.get(api("/api/mailer/messages/4"), () => HttpResponse.json(MESSAGE)),
+      http.get(api("/api/mailer/messages/4/attachments"), () =>
+        HttpResponse.json([{ id: 9, filename: "Programm.pdf", url: "/media/p.pdf" }]),
+      ),
+    );
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await composeWithAttachment(user);
+    expect(calls).toEqual([]);
+
+    await user.click(screen.getByRole("button", { name: "Als Entwurf speichern" }));
+    expect(await screen.findByText("Als Entwurf gespeichert.")).toBeInTheDocument();
+    expect(calls).toEqual(["create", "upload Programm.pdf"]);
+    // On to the draft's own page.
+    expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
+  });
+
+  it("sends only once the attachments are up", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const calls: string[] = [];
+    server.use(
+      http.post(api("/api/mailer/messages"), () => {
+        calls.push("create");
+        return HttpResponse.json(MESSAGE);
+      }),
+      http.post(api("/api/mailer/messages/4/attachments"), () => {
+        calls.push("upload");
+        return HttpResponse.json({ id: 9, filename: "Programm.pdf", url: "/media/p.pdf" });
+      }),
+      http.post(api("/api/mailer/messages/4/submit"), () => {
+        calls.push("submit");
+        return HttpResponse.json({ ...MESSAGE, sent: true });
+      }),
+      http.get(api("/api/mailer/messages/4"), () => HttpResponse.json({ ...MESSAGE, sent: true })),
+      http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
+    );
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await composeWithAttachment(user);
+
+    await user.click(screen.getByRole("button", { name: "Senden" }));
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    await user.click(
+      within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
+        name: "Bestätigen",
+      }),
+    );
+    expect(await screen.findByText("Nachricht versendet.")).toBeInTheDocument();
+    expect(calls).toEqual(["create", "upload", "submit"]);
+  });
+
+  it("carries on from the created draft when an attachment fails to upload", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    let creates = 0;
+    let submitted = false;
+    server.use(
+      http.post(api("/api/mailer/messages"), () => {
+        creates += 1;
+        return HttpResponse.json(MESSAGE);
+      }),
+      http.post(api("/api/mailer/messages/4/attachments"), () =>
+        djangoValidation({ f: ["Die Datei ist zu groß."] }),
+      ),
+      http.post(api("/api/mailer/messages/4/submit"), () => {
+        submitted = true;
+        return HttpResponse.json({ ...MESSAGE, sent: true });
+      }),
+      http.get(api("/api/mailer/messages/4"), () => HttpResponse.json(MESSAGE)),
+      http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
+    );
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await composeWithAttachment(user);
+
+    await user.click(screen.getByRole("button", { name: "Senden" }));
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    await user.click(
+      within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
+        name: "Bestätigen",
+      }),
+    );
+
+    expect(await screen.findByText(/„Programm\.pdf“: Die Datei ist zu groß\./)).toBeInTheDocument();
+    // The draft exists, so a retry happens on its page rather than creating a
+    // second one; and nothing went out without its attachment.
+    expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
+    expect(creates).toBe(1);
+    expect(submitted).toBe(false);
+  });
+
+  it("carries on from the created draft when the send is refused", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    let creates = 0;
+    server.use(
+      http.post(api("/api/mailer/messages"), () => {
+        creates += 1;
+        return HttpResponse.json(MESSAGE);
+      }),
+      http.post(api("/api/mailer/messages/4/submit"), () =>
+        HttpResponse.json({ detail: "Keine Berechtigung zum Versenden." }, { status: 403 }),
+      ),
+      http.get(api("/api/mailer/messages/4"), () => HttpResponse.json(MESSAGE)),
+      http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
+    );
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    await user.type(await screen.findByLabelText("Betreff"), "Sommerfahrt");
+    await user.type(screen.getByLabelText("Inhalt"), "Bitte anmelden.");
+    await user.click(screen.getByRole("button", { name: "Senden" }));
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    await user.click(
+      within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
+        name: "Bestätigen",
+      }),
+    );
+
+    expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
+    expect(creates).toBe(1);
+  });
+
+  it("asks before discarding a page whose only input is a staged attachment", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    await user.click(await screen.findByRole("tab", { name: "Anhänge" }));
+    await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.upload(
+      dialog.getByLabelText(/^Datei/),
+      new File(["x"], "Programm.pdf", { type: "application/pdf" }),
+    );
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(await screen.findByText("Änderungen verwerfen?")).toBeInTheDocument();
+  });
+
+  it("warns before the tab is closed only while there is unsaved input", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    const unload = () => {
+      const e = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+
+    await user.type(await screen.findByLabelText("Betreff"), "Angefangen");
+    expect(unload()).toBe(true);
+  });
+
+  it("refuses an attachment over the 10 MiB limit when it is picked", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    await user.click(await screen.findByRole("tab", { name: "Anhänge" }));
+    await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    const big = new File(["x"], "Video.mp4", { type: "video/mp4" });
+    Object.defineProperty(big, "size", { value: 12.5 * 1024 * 1024 });
+    await user.upload(dialog.getByLabelText(/^Datei/), big);
+
+    expect(
+      dialog.getByText("Die Datei ist 12,5 MiB groß; erlaubt sind höchstens 10 MiB."),
+    ).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
+  });
+
+  it("does not offer the compose page without the permission", async () => {
+    useMe({ permissions: [] });
+    listReturns();
+    renderRoute("/kompass/mailer/messages/new");
+    expect(
+      await screen.findByText("Du darfst keine Nachrichten verfassen."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Betreff")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Senden" })).not.toBeInTheDocument();
   });
 
   it("offers editing, sending and deleting on an unsent message", async () => {
@@ -1068,17 +1267,6 @@ describe("mailer — remaining paths", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
-  it("closes the compose dialog with ×", async () => {
-    useMe({ permissions: ["mailer.add_global_message"] });
-    messageListReturns();
-    const { user } = renderRoute("/kompass/mailer/messages");
-    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Schließen" }),
-    );
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  });
-
   it("reports a rejected save whose body is not JSON", async () => {
     messageBase();
     server.use(
@@ -1226,10 +1414,10 @@ describe("mailer — every field", () => {
     const { user } = renderRoute("/kompass/mailer/messages");
     await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
 
-    const dialog = await screen.findByRole("dialog");
-    await fillEveryField(user, dialog);
-    await pickEverySelect(user, dialog);
-    await user.click(within(dialog).getByRole("button", { name: "Als Entwurf speichern" }));
+    const panel = (await screen.findByLabelText("Betreff")).closest(".tab-panel") as HTMLElement;
+    await fillEveryField(user, panel);
+    await pickEverySelect(user, panel);
+    await user.click(screen.getByRole("button", { name: "Als Entwurf speichern" }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
