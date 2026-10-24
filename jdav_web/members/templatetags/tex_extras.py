@@ -20,6 +20,16 @@ def esc_all(val):
 
 
 @register.filter
+def esc_lines(val):
+    """Like ``esc_all``, keeping each line of a multi-line text as its own line.
+
+    A single newline is only a space to LaTeX, and pandoc drops ``\\newline``
+    inside a table cell, so the lines are separated as paragraphs instead.
+    """
+    return mark_safe("\\par ".join(esc_all(line) for line in str(val).splitlines()))
+
+
+@register.filter
 def index(sequence, position):
     try:
         return sequence[position]

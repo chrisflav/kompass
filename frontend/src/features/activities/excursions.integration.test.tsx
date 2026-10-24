@@ -969,6 +969,98 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
     await waitFor(() => expect(deleted).toBe(true));
   });
 
+  it("edits a schedule activity in a large dialog", async () => {
+    detailReturns({}, {
+      ...LJP,
+      interventions: [
+        { id: 7, date_start: "2026-02-14T09:00:00Z", duration: 2, activity: "Materialkunde" },
+      ],
+    });
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/members/excursions/3"), () => HttpResponse.json(EXCURSION)),
+      http.patch(api("/api/members/ljp-proposals/4"), () => HttpResponse.json(LJP)),
+      http.patch(api("/api/members/interventions/7"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 7 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
+
+    // The activity is a multi-line text area in the widest column, unlike the
+    // narrow start and duration columns.
+    const cell = (await screen.findByDisplayValue("Materialkunde")) as HTMLTextAreaElement;
+    expect(cell.tagName).toBe("TEXTAREA");
+    expect(cell.closest("td")).toHaveClass("schedule-activity");
+    expect(screen.getByRole("columnheader", { name: "Beginn" })).toHaveClass("schedule-start");
+
+    // Cancelling the dialog leaves the row as it was…
+    const expand = screen.getByRole("button", {
+      name: "Aktion / Methode im großen Fenster bearbeiten",
+    });
+    await user.click(expand);
+    let dialog = within(await screen.findByRole("dialog", { name: "Aktion / Methode" }));
+    await user.type(dialog.getByLabelText("Aktion / Methode"), " und Verworfenes");
+    await user.click(dialog.getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(cell.value).toBe("Materialkunde");
+
+    // …applying it writes the longer text back to the row.
+    await user.click(expand);
+    dialog = within(await screen.findByRole("dialog", { name: "Aktion / Methode" }));
+    const large = dialog.getByLabelText("Aktion / Methode") as HTMLTextAreaElement;
+    expect(large.value).toBe("Materialkunde");
+    // Opened with the caret after the text, so typing continues it.
+    expect(large).toHaveFocus();
+    expect(large.selectionStart).toBe("Materialkunde".length);
+    await user.type(large, "{Enter}Seile, Karabiner und Gurte im Stationenbetrieb");
+    await user.click(dialog.getByRole("button", { name: "Übernehmen" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(cell.value).toBe("Materialkunde\nSeile, Karabiner und Gurte im Stationenbetrieb");
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(patched).toMatchObject({
+        activity: "Materialkunde\nSeile, Karabiner und Gurte im Stationenbetrieb",
+      }),
+    );
+  });
+
+  it("edits the activity of an unsaved schedule entry in the large dialog", async () => {
+    detailReturns({}, { ...LJP, interventions: [] });
+    let created: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/members/excursions/3"), () => HttpResponse.json(EXCURSION)),
+      http.patch(api("/api/members/ljp-proposals/4"), () => HttpResponse.json(LJP)),
+      http.post(api("/api/members/ljp-proposals/4/interventions"), async ({ request }) => {
+        created = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 8 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
+
+    await user.click(await screen.findByRole("button", { name: "+ Programmpunkt" }));
+    let dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText("Beginn"), "2026-02-15T10:00");
+    await user.type(dialog.getByLabelText(/Aktion/), "Standplatzbau");
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+
+    await user.click(
+      screen.getByRole("button", { name: "Aktion / Methode im großen Fenster bearbeiten" }),
+    );
+    dialog = within(await screen.findByRole("dialog", { name: "Aktion / Methode" }));
+    await user.type(dialog.getByLabelText("Aktion / Methode"), " an Bohrhaken");
+    await user.click(dialog.getByRole("button", { name: "Übernehmen" }));
+    expect(screen.getByDisplayValue("Standplatzbau an Bohrhaken")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() => expect(created).toMatchObject({ activity: "Standplatzbau an Bohrhaken" }));
+  });
+
   it("shows the schedule read-only outside edit mode", async () => {
     detailReturns({}, {
       ...LJP,

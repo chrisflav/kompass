@@ -65,7 +65,7 @@
     {% for intervention in memberlist.ljpproposal.intervention_set.all %}
     {{ intervention.date_start|localtime|date_short }}
                    & {{ intervention.date_start|localtime|time_short }}
-                   & \multicolumn{4}{l}{ {{ intervention.activity|esc_all }} }
+                   & \multicolumn{4}{l}{ {{ intervention.activity|esc_lines }} }
                    & {{ intervention.duration }} h  \\
     {% endfor %}
     \bottomrule
