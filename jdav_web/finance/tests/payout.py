@@ -27,9 +27,11 @@ What this module pins:
   which is the shipped behaviour and the reference ruleset.
 """
 
+import pathlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from django.conf import settings
 from django.test import SimpleTestCase
 from django.test import TestCase
 from finance.engine import check_directory
@@ -247,6 +249,39 @@ class StoredPayoutModeTestCase(TestCase):
         self.assertTrue(problems)
         self.assertEqual(row.state, RuleSet.DRAFT)
         self.assertEqual(row.payout, SELF_PAYMENT)
+
+
+# --- the rulesets in this repository ---------------------------------------
+
+
+class DeployedRulesetsTestCase(SimpleTestCase):
+    """What the two rulesets in this repository's ``deploy/`` actually declare.
+
+    Nothing else pins them. ``manage.py checkruleset`` passes under either
+    mode — the declaration is valid, not wrong — so a declaration dropped in a
+    rebase would take Ludwigsburg's whole handoff with it and no gate would
+    say a word. The sections' own configuration lives in this repository, so
+    the assertion does too; ``contrib.tests`` reaches outside ``jdav_web`` for
+    ``frontend/openapi.json`` for the same reason.
+    """
+
+    def declared_in(self, section):
+        directory = pathlib.Path(settings.BASE_DIR).parent / "deploy" / section / "rules"
+        self.assertTrue(directory.is_dir(), f"{directory} is not in this checkout")
+        loaded, problems = check_directory(directory)
+        self.assertEqual(problems, [])
+        return loaded.payout
+
+    def test_ludwigsburgs_geschaeftsstelle_makes_the_transfers(self):
+        self.assertEqual(self.declared_in("ludwigsburg"), OFFICE_PAYMENT)
+
+    def test_the_template_a_section_copies_pays_from_the_review_screen(self):
+        """The default, so that copying the template changes nothing.
+
+        A template that declared a handoff would hand every new section the
+        arrangement of exactly one of them, and the one Kompass cannot observe.
+        """
+        self.assertEqual(self.declared_in("config-template"), SELF_PAYMENT)
 
 
 # --- the binding -----------------------------------------------------------

@@ -114,6 +114,7 @@ from kompass.rules import Field
 from kompass.rules import Forbid
 from kompass.rules import Input
 from kompass.rules import Member
+from kompass.rules import OFFICE_PAYMENT
 from kompass.rules import PARTICIPANTS
 from kompass.rules import Row
 from kompass.rules import RuleContext
@@ -467,6 +468,16 @@ class LudwigsburgRules(Ruleset):
     #: party here, and a member may not be one, so this is the shape the
     #: residue has either way.
     balance = (PARTICIPANTS, SECTION, "participant_contribution")
+    #: The Geschäftsstelle makes the transfers, not the person who reviews the
+    #: statement. Q1 §4 routes the signatures; the money leaves the section's
+    #: account afterwards, through the office, from the Beleg it receives.
+    #:
+    #: So the last step of a review here is a **handoff**: Kompass records that
+    #: the statement was handed over for payment, and it records that only once
+    #: the Beleg has actually been sent. Whether the money has moved is not
+    #: something this instance can know, and "ausgezahlt" is therefore a word
+    #: it must not use.
+    payout = OFFICE_PAYMENT
 
     def inputs(self, ctx: RuleContext) -> list[Input]:
         """Every answer the rules below may read, in the order to ask for them.
