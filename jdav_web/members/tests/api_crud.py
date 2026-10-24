@@ -727,18 +727,12 @@ class MembersCrudApiTestCase(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r.json(), [])
 
-    def test_request_echo_needs_a_newsletter_subscriber_with_a_birth_date(self):
+    def test_request_echo_needs_a_birth_date(self):
         member = Member.objects.create(
             prename="Ohne", lastname="Geburtstag", gender=DIVERSE, email=settings.TEST_MAIL
         )
         headers = self.as_admin("change_global_member", "view_global_member")
 
-        member.gets_newsletter = False
-        member.save()
-        refused = self.post("/api/members/{}/request-echo".format(member.pk), {}, **headers)
-        self.assertEqual(refused.status_code, 422, refused.content)
-
-        member.gets_newsletter = True
         member.birth_date = None
         member.save()
         no_birthday = self.post("/api/members/{}/request-echo".format(member.pk), {}, **headers)

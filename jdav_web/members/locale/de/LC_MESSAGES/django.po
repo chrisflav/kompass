@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 17:09+0200\n"
+"POT-Creation-Date: 2026-10-24 17:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -150,10 +150,6 @@ msgstr "Rückmeldungsaufforderung an ausgewählte Teilnehmer*innen verschicken"
 
 msgid "Request echo"
 msgstr "Rückmeldungsaufforderung verschicken"
-
-#, python-format
-msgid "%(name)s does not receive the newsletter."
-msgstr "%(name)s erhält den Newsletter nicht"
 
 #, python-format
 msgid "Successfully requested echo from %(name)s."
@@ -569,9 +565,6 @@ msgstr "Diese Einladung ist nicht mehr gültig."
 
 msgid "Unknown action."
 msgstr "Unbekannte Aktion."
-
-msgid "Member does not receive the newsletter."
-msgstr "Diese Person erhält den Newsletter nicht."
 
 msgid "Member has no birth date set, which is mandatory for echo requests."
 msgstr ""

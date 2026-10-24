@@ -1101,6 +1101,14 @@ class MemberAdminTestCase(AdminTestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+        # expect: success for peter alone, although he does not get the newsletter
+        response = c.post(
+            url,
+            data={"action": "request_echo", "_selected_action": [self.peter.pk]},
+            follow=True,
+        )
+        self.assertContains(response, _("Successfully requested echo from selected members."))
+
     def test_request_echo_fail_on_missing_birthdate(self):
         self.peter.birth_date = None
         self.peter.save()
@@ -1128,6 +1136,9 @@ class MemberAdminTestCase(AdminTestCase):
         self.fritz.save()
         response = c.get(url, follow=True)
         self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertContains(
+            response, _("Successfully requested echo from %(name)s.") % {"name": self.fritz.name}
+        )
 
         url = reverse("admin:members_member_requestecho", args=(self.peter.pk,))
         self.peter.gets_newsletter = True

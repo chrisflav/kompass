@@ -768,12 +768,11 @@ def delete_waiter(request, waiter_id: int):
 def request_echo(request, member_id: int):
     """Send an echo (address-confirmation) request to the member.
 
-    Mirrors ``MemberAdmin.request_echo``: the member must receive the newsletter
-    and have a birth date (both mandatory for the echo mail).
+    Mirrors ``MemberAdmin.request_echo``: the member must have a birth date
+    (mandatory for the echo mail). The newsletter opt-out does not apply: the
+    echo is an operational mail, like an invite or a password reset.
     """
     member = get_authorized(request, Member, member_id, "members.change_obj_member")
-    if not member.gets_newsletter:
-        raise ValidationError(_("Member does not receive the newsletter."))
     if not member.birth_date:
         raise ValidationError(
             _("Member has no birth date set, which is mandatory for echo requests.")
