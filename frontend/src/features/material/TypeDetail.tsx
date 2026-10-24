@@ -494,12 +494,17 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
   );
 }
 
-/** Add pieces of a type: one with its IDs, or several identical ones. */
+/**
+ * Add pieces of a type: one with its IDs, or several identical ones. With
+ * ``parent``, the new pieces are built into it.
+ */
 export function AddPartsModal({
   type,
+  parent,
   onClose,
 }: {
   type: Pick<ProductTypeOut, "id" | "name" | "is_psa">;
+  parent?: Pick<PartBrief, "id" | "label" | "product_type">;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -529,6 +534,7 @@ export function AddPartsModal({
             manufactured_on: form.manufactured_on || null,
             buy_date: form.buy_date || null,
             note: "",
+            parent: parent?.id ?? null,
           },
         }),
       ),
@@ -555,7 +561,14 @@ export function AddPartsModal({
     </Field>
   );
   return (
-    <Modal title={`${type.name}: Teile hinzufügen`} onClose={onClose}>
+    <Modal
+      title={
+        parent
+          ? `${type.name} in ${parent.product_type.name} ${parent.label} einbauen`
+          : `${type.name}: Teile hinzufügen`
+      }
+      onClose={onClose}
+    >
       <form
         className="stack"
         onSubmit={(e) => {

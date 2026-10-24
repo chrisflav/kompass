@@ -14005,6 +14005,7 @@ export interface operations {
                 holder?: number | null;
                 location?: number | null;
                 status?: string | null;
+                top_level?: boolean;
             };
             header?: never;
             path?: never;
