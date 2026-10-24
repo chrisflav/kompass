@@ -1379,6 +1379,12 @@ function InterventionsInline({
     registerFlush,
   });
   const [adding, setAdding] = useState<InterventionData | null>(null);
+  // An activity opened in the large dialog: the row it belongs to and the text
+  // being edited there, written back only on "Übernehmen".
+  const [expanded, setExpanded] = useState<{
+    row: DraftRow<InterventionData>;
+    text: string;
+  } | null>(null);
 
   // A schedule is read in time order, so show it that way rather than in the
   // order the entries happened to be typed.
@@ -1439,6 +1445,7 @@ function InterventionsInline({
         columns={[
           {
             header: "Beginn",
+            className: "schedule-start",
             cell: (row: DraftRow<InterventionData>) =>
               editing ? (
                 <input
@@ -1452,6 +1459,7 @@ function InterventionsInline({
           },
           {
             header: "Dauer (h)",
+            className: "schedule-duration",
             cell: (row: DraftRow<InterventionData>) =>
               editing ? (
                 <input
@@ -1471,12 +1479,29 @@ function InterventionsInline({
           },
           {
             header: "Aktion / Methode",
+            // The description is the substance of a schedule entry, so it takes
+            // the room the start and duration do not need, and a longer one can
+            // be opened in a dialog rather than typed through a narrow cell.
+            className: "schedule-activity",
             cell: (row: DraftRow<InterventionData>) =>
               editing ? (
-                <input
-                  value={row.data.activity}
-                  onChange={(e) => setRow(row, { ...row.data, activity: e.target.value })}
-                />
+                <div className="schedule-activity-edit">
+                  <textarea
+                    rows={2}
+                    aria-label="Aktion / Methode"
+                    value={row.data.activity}
+                    onChange={(e) => setRow(row, { ...row.data, activity: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="btn ghost icon"
+                    aria-label="Aktion / Methode im großen Fenster bearbeiten"
+                    title="Im großen Fenster bearbeiten"
+                    onClick={() => setExpanded({ row, text: row.data.activity })}
+                  >
+                    ⤢
+                  </button>
+                </div>
               ) : (
                 row.data.activity || "—"
               ),
@@ -1484,7 +1509,7 @@ function InterventionsInline({
         ]}
       />
       {adding && (
-        <Modal title="Programmpunkt hinzufügen" onClose={() => setAdding(null)} size="sm">
+        <Modal title="Programmpunkt hinzufügen" onClose={() => setAdding(null)}>
           <div className="stack">
             <Field label="Beginn">
               <input
@@ -1505,7 +1530,8 @@ function InterventionsInline({
               />
             </Field>
             <Field label="Aktion / Methode">
-              <input
+              <textarea
+                rows={6}
                 value={adding.activity}
                 onChange={(e) => setAdding({ ...adding, activity: e.target.value })}
               />
@@ -1522,6 +1548,35 @@ function InterventionsInline({
                 Hinzufügen
               </Button>
               <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {expanded && (
+        <Modal title="Aktion / Methode" onClose={() => setExpanded(null)} size="lg">
+          <div className="stack">
+            <Field label="Aktion / Methode">
+              <textarea
+                className="schedule-activity-large"
+                rows={16}
+                autoFocus
+                value={expanded.text}
+                onChange={(e) => setExpanded({ ...expanded, text: e.target.value })}
+              />
+            </Field>
+            <div className="row-actions">
+              <Button
+                type="button"
+                onClick={() => {
+                  setRow(expanded.row, { ...expanded.row.data, activity: expanded.text });
+                  setExpanded(null);
+                }}
+              >
+                Übernehmen
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setExpanded(null)}>
                 Abbrechen
               </Button>
             </div>

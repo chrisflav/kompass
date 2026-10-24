@@ -25,8 +25,14 @@ export function InlineTable<T>({
   title: string;
   rows: T[];
   /** `header` keys the column; `headerCell`, when set, is rendered in its place
-   *  (e.g. a button that switches what the column shows). */
-  columns: { header: string; headerCell?: ReactNode; cell: (row: T) => ReactNode }[];
+   *  (e.g. a button that switches what the column shows). `className` lands on
+   *  both the header and the body cells, so a column can be sized as a whole. */
+  columns: {
+    header: string;
+    headerCell?: ReactNode;
+    className?: string;
+    cell: (row: T) => ReactNode;
+  }[];
   rowKey: (row: T) => string | number;
   editing: boolean;
   /** Shows a "Entfernen" button per row when editing. */
@@ -57,7 +63,9 @@ export function InlineTable<T>({
             <thead>
               <tr>
                 {columns.map((c) => (
-                  <th key={c.header}>{c.headerCell ?? c.header}</th>
+                  <th key={c.header} className={c.className}>
+                    {c.headerCell ?? c.header}
+                  </th>
                 ))}
                 {showActions && <th className="inline-actions" aria-label="Aktionen" />}
               </tr>
@@ -66,7 +74,9 @@ export function InlineTable<T>({
               {rows.map((row) => (
                 <tr key={rowKey(row)}>
                   {columns.map((c) => (
-                    <td key={c.header}>{c.cell(row)}</td>
+                    <td key={c.header} className={c.className}>
+                      {c.cell(row)}
+                    </td>
                   ))}
                   {showActions && (
                     <td className="inline-actions">

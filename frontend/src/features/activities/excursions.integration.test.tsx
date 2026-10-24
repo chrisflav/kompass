@@ -929,6 +929,62 @@ describe("activities — Ausfahrt LJP-Antrag", () => {
     await waitFor(() => expect(deleted).toBe(true));
   });
 
+  it("edits a schedule activity in a large dialog", async () => {
+    detailReturns({}, {
+      ...LJP,
+      interventions: [
+        { id: 7, date_start: "2026-02-14T09:00:00Z", duration: 2, activity: "Materialkunde" },
+      ],
+    });
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/members/excursions/3"), () => HttpResponse.json(EXCURSION)),
+      http.patch(api("/api/members/ljp-proposals/4"), () => HttpResponse.json(LJP)),
+      http.patch(api("/api/members/interventions/7"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 7 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/excursions/3");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("tab", { name: "LJP-Antrag" }));
+
+    // The activity is a multi-line text area in the widest column, unlike the
+    // narrow start and duration columns.
+    const cell = (await screen.findByDisplayValue("Materialkunde")) as HTMLTextAreaElement;
+    expect(cell.tagName).toBe("TEXTAREA");
+    expect(cell.closest("td")).toHaveClass("schedule-activity");
+    expect(screen.getByRole("columnheader", { name: "Beginn" })).toHaveClass("schedule-start");
+
+    // Cancelling the dialog leaves the row as it was…
+    const expand = screen.getByRole("button", {
+      name: "Aktion / Methode im großen Fenster bearbeiten",
+    });
+    await user.click(expand);
+    let dialog = within(await screen.findByRole("dialog", { name: "Aktion / Methode" }));
+    await user.type(dialog.getByLabelText("Aktion / Methode"), " und Verworfenes");
+    await user.click(dialog.getByRole("button", { name: "Abbrechen" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(cell.value).toBe("Materialkunde");
+
+    // …applying it writes the longer text back to the row.
+    await user.click(expand);
+    dialog = within(await screen.findByRole("dialog", { name: "Aktion / Methode" }));
+    const large = dialog.getByLabelText("Aktion / Methode") as HTMLTextAreaElement;
+    expect(large.value).toBe("Materialkunde");
+    await user.type(large, "{Enter}Seile, Karabiner und Gurte im Stationenbetrieb");
+    await user.click(dialog.getByRole("button", { name: "Übernehmen" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(cell.value).toBe("Materialkunde\nSeile, Karabiner und Gurte im Stationenbetrieb");
+
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await waitFor(() =>
+      expect(patched).toMatchObject({
+        activity: "Materialkunde\nSeile, Karabiner und Gurte im Stationenbetrieb",
+      }),
+    );
+  });
+
   it("shows the schedule read-only outside edit mode", async () => {
     detailReturns({}, {
       ...LJP,

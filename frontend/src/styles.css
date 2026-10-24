@@ -3499,6 +3499,50 @@ button.etappe-body:hover {
   margin-bottom: 0.6rem;
 }
 
+/* The schedule's start and duration are short and fixed-width; the activity is
+   the entry's actual description and takes the rest of the row. */
+.data-table .schedule-start {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.data-table td.schedule-start input {
+  width: 13.5rem;
+}
+
+.data-table .schedule-duration {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.data-table td.schedule-duration input {
+  width: 6rem;
+}
+
+.data-table td.schedule-activity {
+  min-width: 18rem;
+  white-space: pre-wrap;
+}
+
+.schedule-activity-edit {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+/* Grows with its text where the browser can, and can always be pulled taller. */
+.schedule-activity-edit textarea {
+  flex: 1;
+  min-height: 2.6rem;
+  resize: vertical;
+  field-sizing: content;
+}
+
+.schedule-activity-large {
+  min-height: 50vh;
+  resize: vertical;
+}
+
 /* Standalone flow pages carry no site navigation. The brand and the closing
    link are the way back, so arriving from the site's own menu is not a dead end. */
 .flow-home {
