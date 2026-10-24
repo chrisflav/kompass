@@ -1,6 +1,6 @@
 [project]
 name = "kompass"
-version = "2.0.1"
+version = "2.0.2"
 description = "Administration platform for local sections of the Young German Alpine Club"
 readme = "README.md"
 requires-python = ">=3.13"
