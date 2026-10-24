@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { hoveredValue } from "../../test/css";
 import { api, djangoValidation, http, HttpResponse, server, useMe } from "../../test/server";
 import {
   fillEveryField,
@@ -287,6 +288,22 @@ describe("activities — Klettertreff detail", () => {
       jugendleiter_ids: [42, 43],
     });
     expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
+  });
+
+  it("keeps the delete button red after a save, under the pointer too", async () => {
+    // Feedback #25: after a save the delete button sits where the pointer (or
+    // the tap) last was, so it must stay red when hovered.
+    useMe({ permissions: ["members.delete_klettertreff", "members.change_klettertreff"] });
+    detailReturns();
+    server.use(http.patch(api("/api/members/klettertreff/9"), () => HttpResponse.json(KT)));
+    const { user } = renderRoute("/kompass/klettertreff/9");
+    await user.click(await screen.findByRole("button", { name: "Bearbeiten" }));
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Gespeichert.")).toBeInTheDocument();
+
+    const remove = await screen.findByRole("button", { name: "Löschen" });
+    expect(remove).toHaveClass("btn", "danger");
+    expect(hoveredValue(remove, "background")).toBe("var(--danger-hover)");
   });
 
   it("reports a rejected save and leaves edit mode on Abbrechen", async () => {

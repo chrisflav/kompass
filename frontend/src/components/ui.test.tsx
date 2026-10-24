@@ -2,7 +2,9 @@ import { act, render, renderHook, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { hoveredValue } from "../test/css";
 import {
+  Button,
   ConfirmProvider,
   DataTable,
   formatDate,
@@ -28,6 +30,23 @@ describe("formatDate", () => {
 
   it("handles a full timestamp", () => {
     expect(formatDate("2026-08-30T10:15:00Z")).toBe("30.8.2026");
+  });
+});
+
+describe("Button", () => {
+  it("keeps each variant's own colour under the pointer", () => {
+    render(
+      <>
+        <Button>Speichern</Button>
+        <Button variant="ghost">Zurück</Button>
+        <Button variant="danger">Löschen</Button>
+      </>,
+    );
+    const hovered = (name: string) =>
+      hoveredValue(screen.getByRole("button", { name }), "background");
+    expect(hovered("Speichern")).toBe("var(--accent-hover)");
+    expect(hovered("Zurück")).toBe("var(--accent-weak)");
+    expect(hovered("Löschen")).toBe("var(--danger-hover)");
   });
 });
 
