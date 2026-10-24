@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -390,16 +390,16 @@ function PartDetailBody({ part }: { part: PartOut }) {
         ]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" form={formId} busy={save.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -451,7 +451,7 @@ function PartDetailBody({ part }: { part: PartOut }) {
                   In den Korb
                 </Button>
               )}
-            </>
+            </Fragment>
           )
         }
       />

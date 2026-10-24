@@ -1,5 +1,5 @@
 import { keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
@@ -626,16 +626,16 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
         breadcrumbs={crumbs}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={saving}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -666,7 +666,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
                   </Button>
                 </>
               )}
-            </>
+            </Fragment>
           )
         }
       />

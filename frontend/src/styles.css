@@ -181,10 +181,9 @@ a.btn {
   background: var(--danger);
 }
 
-/* Without its own hover a danger button took the generic blue hover
-   (`.btn:hover:not(:disabled)` outranks `.btn.danger`) and stayed blue wherever
-   the pointer or a tap rested on it, as when "Löschen" takes the place of
-   "Speichern" after a save. */
+/* Without its own hover a hovered danger button took the generic blue hover
+   (`.btn:hover:not(:disabled)` outranks `.btn.danger`), and on touch screens a
+   tap's hover sticks to the button until the next tap elsewhere. */
 .btn.danger:hover:not(:disabled) {
   background: var(--danger-hover);
 }

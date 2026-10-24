@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 
@@ -471,16 +471,16 @@ function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
         breadcrumbs={crumbs}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={saving}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -504,7 +504,7 @@ function PostDetailBody({ post, crumbs }: { post: PostOut; crumbs: Crumb[] }) {
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />

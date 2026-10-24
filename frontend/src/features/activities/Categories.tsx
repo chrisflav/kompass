@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -335,16 +335,16 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
         ]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={mutation.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -368,7 +368,7 @@ function ActivityCategoryDetailBody({ cat }: { cat: ActivityCategoryOut }) {
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />
@@ -588,16 +588,16 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
         ]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={mutation.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -621,7 +621,7 @@ function TrainingCategoryDetailBody({ cat }: { cat: TrainingCategoryOut }) {
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />

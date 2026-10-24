@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -344,16 +344,16 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
         breadcrumbs={[{ label: "Benutzer", to: "/kompass/users" }, { label: user.username }]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={save.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -399,7 +399,7 @@ function UserDetailBody({ user }: { user: LoginUserOut }) {
                   Bearbeiten
                 </Button>
               )}
-            </>
+            </Fragment>
           )
         }
       />

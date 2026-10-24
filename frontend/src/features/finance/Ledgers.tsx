@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -221,16 +221,16 @@ function LedgerDetailBody({ ledger, crumbs }: { ledger: LedgerDetailOut; crumbs:
         breadcrumbs={crumbs}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={mutation.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -254,7 +254,7 @@ function LedgerDetailBody({ ledger, crumbs }: { ledger: LedgerDetailOut; crumbs:
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />

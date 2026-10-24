@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -382,16 +382,16 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
         breadcrumbs={[{ label: "Material", to: BASE }, { label: type.name }]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" form={formId} busy={save.isPending}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -461,7 +461,7 @@ function TypeDetailBody({ type }: { type: ProductTypeOut }) {
                   In den Korb
                 </Button>
               )}
-            </>
+            </Fragment>
           )
         }
       />
