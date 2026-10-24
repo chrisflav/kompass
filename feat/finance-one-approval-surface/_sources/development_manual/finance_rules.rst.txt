@@ -936,6 +936,80 @@ present them is the client's, and a wizard in the backend would be Kompass
 deciding both.
 
 
+.. _development_manual/finance_rules/settlement_groups:
+
+Which amounts may not share a bank transfer
+===========================================
+
+Kompass bundles the payout before anybody makes a payment: two amounts owed to
+the same person out of the same ledger become **one** booking, with a reference
+that itemises what it covers, so that one bank transfer settles both. That is
+the right default — nobody wants to make four transfers to one youth leader for
+one weekend — and it is wrong for money that has to be payable *separately*.
+
+The one every section runs into is tax. A Tourenleitervergütung is an
+Ehrenamtspauschale under § 3 Nr. 26 EStG; the section has to be able to point
+at the payment that carried it, and adding it to the same person's mileage
+produces one amount that is neither. Ludwigsburg's own note says it in one
+line: „Steuerrelevante Abrechnungen werden getrennt von anderen überwiesen
+aber als ein Prozess bearbeitet.“ One statement, one approval, one process —
+two transfers.
+
+So a transfer may name a **settlement group**::
+
+    Transfer(SECTION, leader, cents(hours * FEE_PER_HOUR),
+             "tour_leader_fee", rule_id="tour_leader_fee",
+             label="Tourenleitervergütung",
+             settlement_group="steuerrelevant")
+
+What the engine does with it is one thing and nothing else: what may be bundled
+into one booking is ``(member, ledger, settlement_group)`` instead of
+``(member, ledger)``. Everything follows from that.
+
+* A transfer that names a group **never shares a transfer with anything
+  outside it**, so the example above is paid on its own.
+* Two transfers that name the **same** group still travel together, which is
+  why this is a token and not a ``separate`` flag: a flag can only say "this
+  one stands alone", and a token can also say "these three belong together but
+  not with those" at no extra cost. Two Vergütungen on one statement are one
+  transfer; the mileage beside them is another.
+* A transfer that names **no** group is bundled with the other ungrouped ones,
+  exactly as every transfer was before this existed. **A ruleset that declares
+  no settlement groups merges precisely as it did**, and nothing about an
+  already-settled statement moves.
+
+The token is the ruleset's own vocabulary — free text, at most
+:data:`~kompass.rules.SETTLEMENT_GROUP_LENGTH` characters, never interpreted.
+Kompass does not know that ``"steuerrelevant"`` is about tax and does not treat
+it specially; it compares tokens. A longer one is an error on the statement
+rather than a value cut to fit, because a token truncated on its way into the
+database would merge amounts a section wrote it to keep apart.
+
+**What it is not.** It says nothing about *when* or *by whom* money is paid, and
+it adds no state to the statement: Kompass produces a payment instruction, and
+the group is a constraint on the shape of that instruction. The group is written
+to the obligation row with the rest of the transfer, so a statement settled
+years ago still says which of its amounts were kept apart, and
+``manage.py verifyrulesets`` compares it on a replay — a change that would now
+merge a taxable payment into somebody's travel costs is reported as drift
+rather than passing as agreement.
+
+.. tip::
+   **The reference text is the other half of the instruction, and it is
+   unchanged on purpose.** A bundled booking still itemises what it covers
+   (``"Fahrtkosten EUR 24.00, Tagegeld EUR 28.00"``) and a booking that stayed
+   on its own still carries its transfer's own reference — which is exactly
+   what bundling used to destroy, since "Tourenleitervergütung" concatenated
+   into a mileage claim is not an instruction anybody can act on. The group
+   token itself is **not** written into the reference: it is your rules' word
+   for a category of money, not German prose for whoever reads the paper.
+
+   Write the :attr:`~kompass.rules.Transfer.label` of a separately-settled
+   transfer so that it stands on its own, because that is the line somebody
+   will read off a statement they got as a PDF, with no access to Kompass at
+   all.
+
+
 The section's numbers
 =====================
 
@@ -1000,6 +1074,11 @@ and never activated.
   order the rules produced them, and **the engine's balancing transfer is the
   last one**. A case that leaves it out fails, which is deliberate: it makes
   the case say out loud what the participants end up contributing.
+* A transfer may be written with a **fifth** element, its
+  :ref:`settlement group <development_manual/finance_rules/settlement_groups>`.
+  A row of four says nothing about the group; a row of five pins it, and ``""``
+  pins *no group*. Both halves are worth writing down — see
+  :ref:`development_manual/finance_rules/settlement_group_cases`.
 * ``errors`` is the list of messages :meth:`~kompass.rules.Ruleset.transfers`
   returned, compared exactly.
 * ``checks`` is the expected ``ok`` state of each check, in order. Leaving the
@@ -1074,6 +1153,40 @@ runner types them and nothing more, the same as it has always done — but
 ``--fuzz`` answers a party-valued question out of exactly that set, so a
 ruleset whose option source comes out empty is a ruleset the fuzzer will keep
 offering nobody to.
+
+.. _development_manual/finance_rules/settlement_group_cases:
+
+How a case pins a settlement group
+----------------------------------
+
+Write the fifth element, and write it on both sides::
+
+    "expect": {
+      "transfers": [
+        ["SECTION", "7", "24.00", "travel", ""],
+        ["SECTION", "7", "15.00", "tour_leader_fee", "steuerrelevant"],
+        ["PARTICIPANTS", "SECTION", "39.00", "participant_contribution", ""]
+      ]
+    }
+
+That case says two things, and the second is the one that keeps working: the
+Vergütung is in a group of its own, **and the travel costs are in none**. A
+case that only names the group on the Vergütung would go on passing if a later
+edit put every transfer in ``"steuerrelevant"`` — at which point the two merge
+again, into one bank transfer, and the separation the section asked for is
+gone with every check still green.
+
+The comparison is per row and per width: a row of four is not compared on the
+group, so every case written before groups existed passes unchanged, and a row
+of five is compared on it exactly.
+
+What a case **cannot** prove is the merging itself. A case runs the rules; it
+has no database, no ledgers and no bookings, and what may share a bank transfer
+is settled where the bookings are bundled. So a case pins the tokens and
+Kompass's own suite pins what the tokens do to
+``Statement.reduce_transactions`` — the same division of
+labour as :meth:`~kompass.rules.Ruleset.approval`, which a case cannot assert
+either.
 
 
 Checking a ruleset
@@ -1347,3 +1460,12 @@ Helpers
    :value: Decimal("0.01")
 
    One cent — the resolution of every amount in a :class:`Transfer`.
+
+.. py:data:: SETTLEMENT_GROUP_LENGTH
+   :type: int
+   :value: 50
+
+   How long a :attr:`Transfer.settlement_group` token may be — the width of
+   the column it is stored in. A longer one is an error on the statement
+   rather than a value cut to fit; see
+   :ref:`development_manual/finance_rules/settlement_groups`.

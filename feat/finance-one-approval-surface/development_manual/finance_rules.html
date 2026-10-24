@@ -989,6 +989,73 @@ present them is the client’s, and a wizard in the backend would be Kompass
 deciding both.</p>
 </section>
 </section>
+<section id="which-amounts-may-not-share-a-bank-transfer">
+<span id="development-manual-finance-rules-settlement-groups"></span><h2>Which amounts may not share a bank transfer<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#which-amounts-may-not-share-a-bank-transfer" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#which-amounts-may-not-share-a-bank-transfer'">¶</a></h2>
+<p>Kompass bundles the payout before anybody makes a payment: two amounts owed to
+the same person out of the same ledger become <strong>one</strong> booking, with a reference
+that itemises what it covers, so that one bank transfer settles both. That is
+the right default — nobody wants to make four transfers to one youth leader for
+one weekend — and it is wrong for money that has to be payable <em>separately</em>.</p>
+<p>The one every section runs into is tax. A Tourenleitervergütung is an
+Ehrenamtspauschale under § 3 Nr. 26 EStG; the section has to be able to point
+at the payment that carried it, and adding it to the same person’s mileage
+produces one amount that is neither. Ludwigsburg’s own note says it in one
+line: „Steuerrelevante Abrechnungen werden getrennt von anderen überwiesen
+aber als ein Prozess bearbeitet.“ One statement, one approval, one process —
+two transfers.</p>
+<p>So a transfer may name a <strong>settlement group</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">Transfer</span><span class="p">(</span><span class="n">SECTION</span><span class="p">,</span> <span class="n">leader</span><span class="p">,</span> <span class="n">cents</span><span class="p">(</span><span class="n">hours</span> <span class="o">*</span> <span class="n">FEE_PER_HOUR</span><span class="p">),</span>
+</span><span id="line-2">         <span class="s2">"tour_leader_fee"</span><span class="p">,</span> <span class="n">rule_id</span><span class="o">=</span><span class="s2">"tour_leader_fee"</span><span class="p">,</span>
+</span><span id="line-3">         <span class="n">label</span><span class="o">=</span><span class="s2">"Tourenleitervergütung"</span><span class="p">,</span>
+</span><span id="line-4">         <span class="n">settlement_group</span><span class="o">=</span><span class="s2">"steuerrelevant"</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p>What the engine does with it is one thing and nothing else: what may be bundled
+into one booking is <code class="docutils literal notranslate"><span class="pre">(member,</span> <span class="pre">ledger,</span> <span class="pre">settlement_group)</span></code> instead of
+<code class="docutils literal notranslate"><span class="pre">(member,</span> <span class="pre">ledger)</span></code>. Everything follows from that.</p>
+<ul class="simple">
+<li><p>A transfer that names a group <strong>never shares a transfer with anything
+outside it</strong>, so the example above is paid on its own.</p></li>
+<li><p>Two transfers that name the <strong>same</strong> group still travel together, which is
+why this is a token and not a <code class="docutils literal notranslate"><span class="pre">separate</span></code> flag: a flag can only say „this
+one stands alone“, and a token can also say „these three belong together but
+not with those“ at no extra cost. Two Vergütungen on one statement are one
+transfer; the mileage beside them is another.</p></li>
+<li><p>A transfer that names <strong>no</strong> group is bundled with the other ungrouped ones,
+exactly as every transfer was before this existed. <strong>A ruleset that declares
+no settlement groups merges precisely as it did</strong>, and nothing about an
+already-settled statement moves.</p></li>
+</ul>
+<p>The token is the ruleset’s own vocabulary — free text, at most
+<a class="reference internal" href="#kompass.rules.SETTLEMENT_GROUP_LENGTH" title="kompass.rules.SETTLEMENT_GROUP_LENGTH"><code class="xref py py-data docutils literal notranslate"><span class="pre">SETTLEMENT_GROUP_LENGTH</span></code></a> characters, never interpreted.
+Kompass does not know that <code class="docutils literal notranslate"><span class="pre">"steuerrelevant"</span></code> is about tax and does not treat
+it specially; it compares tokens. A longer one is an error on the statement
+rather than a value cut to fit, because a token truncated on its way into the
+database would merge amounts a section wrote it to keep apart.</p>
+<p><strong>What it is not.</strong> It says nothing about <em>when</em> or <em>by whom</em> money is paid, and
+it adds no state to the statement: Kompass produces a payment instruction, and
+the group is a constraint on the shape of that instruction. The group is written
+to the obligation row with the rest of the transfer, so a statement settled
+years ago still says which of its amounts were kept apart, and
+<code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">verifyrulesets</span></code> compares it on a replay — a change that would now
+merge a taxable payment into somebody’s travel costs is reported as drift
+rather than passing as agreement.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tipp</p>
+<p><strong>The reference text is the other half of the instruction, and it is
+unchanged on purpose.</strong> A bundled booking still itemises what it covers
+(<code class="docutils literal notranslate"><span class="pre">"Fahrtkosten</span> <span class="pre">EUR</span> <span class="pre">24.00,</span> <span class="pre">Tagegeld</span> <span class="pre">EUR</span> <span class="pre">28.00"</span></code>) and a booking that stayed
+on its own still carries its transfer’s own reference — which is exactly
+what bundling used to destroy, since „Tourenleitervergütung“ concatenated
+into a mileage claim is not an instruction anybody can act on. The group
+token itself is <strong>not</strong> written into the reference: it is your rules‘ word
+for a category of money, not German prose for whoever reads the paper.</p>
+<p>Write the <a class="reference internal" href="#kompass.rules.Transfer.label" title="kompass.rules.Transfer.label"><code class="xref py py-attr docutils literal notranslate"><span class="pre">label</span></code></a> of a separately-settled
+transfer so that it stands on its own, because that is the line somebody
+will read off a statement they got as a PDF, with no access to Kompass at
+all.</p>
+</div>
+</section>
 <section id="the-section-s-numbers">
 <h2>The section’s numbers<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#the-section-s-numbers" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#the-section-s-numbers'">¶</a></h2>
 <p>A figure that the section votes on rather than a rule that it writes — the
@@ -1049,6 +1116,11 @@ carries a binary float.</p></li>
 order the rules produced them, and <strong>the engine’s balancing transfer is the
 last one</strong>. A case that leaves it out fails, which is deliberate: it makes
 the case say out loud what the participants end up contributing.</p></li>
+<li><p>A transfer may be written with a <strong>fifth</strong> element, its
+<a class="reference internal" href="#development-manual-finance-rules-settlement-groups"><span class="std std-ref">settlement group</span></a>.
+A row of four says nothing about the group; a row of five pins it, and <code class="docutils literal notranslate"><span class="pre">""</span></code>
+pins <em>no group</em>. Both halves are worth writing down — see
+<a class="reference internal" href="#development-manual-finance-rules-settlement-group-cases"><span class="std std-ref">How a case pins a settlement group</span></a>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">errors</span></code> is the list of messages <a class="reference internal" href="#kompass.rules.Ruleset.transfers" title="kompass.rules.Ruleset.transfers"><code class="xref py py-meth docutils literal notranslate"><span class="pre">transfers()</span></code></a>
 returned, compared exactly.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">checks</span></code> is the expected <code class="docutils literal notranslate"><span class="pre">ok</span></code> state of each check, in order. Leaving the
@@ -1114,6 +1186,35 @@ runner types them and nothing more, the same as it has always done — but
 <code class="docutils literal notranslate"><span class="pre">--fuzz</span></code> answers a party-valued question out of exactly that set, so a
 ruleset whose option source comes out empty is a ruleset the fuzzer will keep
 offering nobody to.</p>
+</section>
+<section id="how-a-case-pins-a-settlement-group">
+<span id="development-manual-finance-rules-settlement-group-cases"></span><h3>How a case pins a settlement group<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-a-case-pins-a-settlement-group" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-a-case-pins-a-settlement-group'">¶</a></h3>
+<p>Write the fifth element, and write it on both sides:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="s2">"expect"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-2">  <span class="s2">"transfers"</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="line-3">    <span class="p">[</span><span class="s2">"SECTION"</span><span class="p">,</span> <span class="s2">"7"</span><span class="p">,</span> <span class="s2">"24.00"</span><span class="p">,</span> <span class="s2">"travel"</span><span class="p">,</span> <span class="s2">""</span><span class="p">],</span>
+</span><span id="line-4">    <span class="p">[</span><span class="s2">"SECTION"</span><span class="p">,</span> <span class="s2">"7"</span><span class="p">,</span> <span class="s2">"15.00"</span><span class="p">,</span> <span class="s2">"tour_leader_fee"</span><span class="p">,</span> <span class="s2">"steuerrelevant"</span><span class="p">],</span>
+</span><span id="line-5">    <span class="p">[</span><span class="s2">"PARTICIPANTS"</span><span class="p">,</span> <span class="s2">"SECTION"</span><span class="p">,</span> <span class="s2">"39.00"</span><span class="p">,</span> <span class="s2">"participant_contribution"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
+</span><span id="line-6">  <span class="p">]</span>
+</span><span id="line-7"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<p>That case says two things, and the second is the one that keeps working: the
+Vergütung is in a group of its own, <strong>and the travel costs are in none</strong>. A
+case that only names the group on the Vergütung would go on passing if a later
+edit put every transfer in <code class="docutils literal notranslate"><span class="pre">"steuerrelevant"</span></code> — at which point the two merge
+again, into one bank transfer, and the separation the section asked for is
+gone with every check still green.</p>
+<p>The comparison is per row and per width: a row of four is not compared on the
+group, so every case written before groups existed passes unchanged, and a row
+of five is compared on it exactly.</p>
+<p>What a case <strong>cannot</strong> prove is the merging itself. A case runs the rules; it
+has no database, no ledgers and no bookings, and what may share a bank transfer
+is settled where the bookings are bundled. So a case pins the tokens and
+Kompass’s own suite pins what the tokens do to
+<code class="docutils literal notranslate"><span class="pre">Statement.reduce_transactions</span></code> — the same division of
+labour as <a class="reference internal" href="#kompass.rules.Ruleset.approval" title="kompass.rules.Ruleset.approval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">approval()</span></code></a>, which a case cannot assert
+either.</p>
 </section>
 </section>
 <section id="checking-a-ruleset">
@@ -1767,7 +1868,7 @@ that a ruleset cannot leak them.</p>
 <h3>What a ruleset returns<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#what-a-ruleset-returns" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#what-a-ruleset-returns'">¶</a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="kompass.rules.Transfer">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">kompass.rules.</span></span><span class="sig-name descname"><span class="pre">Transfer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#kompass.rules.Member" title="finance.rules_api.Member"><span class="pre">Member</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Section" title="finance.rules_api.Section"><span class="pre">Section</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Participants" title="finance.rules_api.Participants"><span class="pre">Participants</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#kompass.rules.Member" title="finance.rules_api.Member"><span class="pre">Member</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Section" title="finance.rules_api.Section"><span class="pre">Section</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Participants" title="finance.rules_api.Participants"><span class="pre">Participants</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">amount</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Decimal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">category</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">explanation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Transfer" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Transfer'">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">kompass.rules.</span></span><span class="sig-name descname"><span class="pre">Transfer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#kompass.rules.Member" title="finance.rules_api.Member"><span class="pre">Member</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Section" title="finance.rules_api.Section"><span class="pre">Section</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Participants" title="finance.rules_api.Participants"><span class="pre">Participants</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#kompass.rules.Member" title="finance.rules_api.Member"><span class="pre">Member</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Section" title="finance.rules_api.Section"><span class="pre">Section</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#kompass.rules.Participants" title="finance.rules_api.Participants"><span class="pre">Participants</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">amount</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Decimal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">category</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">explanation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settlement_group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Transfer" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Transfer'">¶</a></dt>
 <dd><p>Money owed by one party to another, because of one rule.</p>
 <p>A transfer is the whole output of a ruleset. Expressing a payout as a
 movement between two parties rather than as a number on a member makes the
@@ -1816,6 +1917,31 @@ description.</p>
 <dt class="sig sig-object py" id="kompass.rules.Transfer.explanation">
 <span class="sig-name descname"><span class="pre">explanation</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Transfer.explanation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Transfer.explanation'">¶</a></dt>
 <dd><p>Room for the arithmetic, if it is worth showing: „4 Tage × 22 €“.</p>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="kompass.rules.Transfer.settlement_group">
+<span class="sig-name descname"><span class="pre">settlement_group</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.Transfer.settlement_group" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.Transfer.settlement_group'">¶</a></dt>
+<dd><p>Which <strong>bank transfer</strong> this amount may share, as a token of the
+ruleset’s own choosing — <code class="docutils literal notranslate"><span class="pre">"steuerrelevant"</span></code>, <code class="docutils literal notranslate"><span class="pre">"vorschuss"</span></code>, whatever
+the section has to keep apart. Two amounts owed to the same person out
+of the same account are bundled into one payment only when their tokens
+are equal, so a transfer that names its own group is transferred on its
+own, and two that name the same one still travel together.</p>
+<p>The default — no group at all — is what every ruleset had before this
+existed, and amounts with no group go on being bundled with each other.
+A token is therefore a statement about <em>separation</em>, and it never has to
+be written for an amount that is happy to be merged.</p>
+<p>The one Ludwigsburg needs is the tax one: the Tourenleitervergütung is
+tax-relevant under § 3 Nr. 26 EStG and has to reach the recipient as its
+own transfer, although it is settled, approved and paid out as one
+process with their travel costs. A token rather than a <code class="docutils literal notranslate"><span class="pre">separate</span></code>
+flag, because a flag can only say „this one stands alone“ — it cannot
+say „these three belong together but not with those“, which costs
+nothing more to express and is the shape the next separation will want.</p>
+<p>Free text, at most <a class="reference internal" href="#kompass.rules.SETTLEMENT_GROUP_LENGTH" title="kompass.rules.SETTLEMENT_GROUP_LENGTH"><code class="xref py py-data docutils literal notranslate"><span class="pre">SETTLEMENT_GROUP_LENGTH</span></code></a> characters: it is
+written to the obligation row and to the booking, so a token too long to
+be stored is an error on the statement rather than a truncation that
+merges what it was written to keep apart.</p>
 </dd></dl>
 </dd></dl>
 <dl class="py class">
@@ -2291,6 +2417,14 @@ somebody and there is more than one candidate: <code class="docutils literal not
 <span class="sig-prename descclassname"><span class="pre">kompass.rules.</span></span><span class="sig-name descname"><span class="pre">CENT</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Decimal</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">Decimal("0.01")</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.CENT" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.CENT'">¶</a></dt>
 <dd><p>One cent — the resolution of every amount in a <a class="reference internal" href="#kompass.rules.Transfer" title="kompass.rules.Transfer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Transfer</span></code></a>.</p>
 </dd></dl>
+<dl class="py data">
+<dt class="sig sig-object py" id="kompass.rules.SETTLEMENT_GROUP_LENGTH">
+<span class="sig-prename descclassname"><span class="pre">kompass.rules.</span></span><span class="sig-name descname"><span class="pre">SETTLEMENT_GROUP_LENGTH</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">50</span></span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#kompass.rules.SETTLEMENT_GROUP_LENGTH" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#kompass.rules.SETTLEMENT_GROUP_LENGTH'">¶</a></dt>
+<dd><p>How long a <a class="reference internal" href="#kompass.rules.Transfer.settlement_group" title="kompass.rules.Transfer.settlement_group"><code class="xref py py-attr docutils literal notranslate"><span class="pre">Transfer.settlement_group</span></code></a> token may be — the width of
+the column it is stored in. A longer one is an error on the statement
+rather than a value cut to fit; see
+<a class="reference internal" href="#development-manual-finance-rules-settlement-groups"><span class="std std-ref">Which amounts may not share a bank transfer</span></a>.</p>
+</dd></dl>
 </section>
 </section>
 </section>
@@ -2338,10 +2472,12 @@ somebody and there is more than one candidate: <code class="docutils literal not
 <li><a :data-current="activeSection === '#steps-which-questions-belong-together'" class="reference internal" href="#steps-which-questions-belong-together">Steps: which questions belong together</a></li>
 </ul>
 </li>
+<li><a :data-current="activeSection === '#which-amounts-may-not-share-a-bank-transfer'" class="reference internal" href="#which-amounts-may-not-share-a-bank-transfer">Which amounts may not share a bank transfer</a></li>
 <li><a :data-current="activeSection === '#the-section-s-numbers'" class="reference internal" href="#the-section-s-numbers">The section’s numbers</a></li>
 <li><a :data-current="activeSection === '#cases-a-ruleset-s-own-tests'" class="reference internal" href="#cases-a-ruleset-s-own-tests">Cases: a ruleset’s own tests</a><ul>
 <li><a :data-current="activeSection === '#what-a-case-cannot-prove-about-a-derived-input'" class="reference internal" href="#what-a-case-cannot-prove-about-a-derived-input">What a case cannot prove about a derived input</a></li>
 <li><a :data-current="activeSection === '#how-a-case-answers-a-table'" class="reference internal" href="#how-a-case-answers-a-table">How a case answers a table</a></li>
+<li><a :data-current="activeSection === '#how-a-case-pins-a-settlement-group'" class="reference internal" href="#how-a-case-pins-a-settlement-group">How a case pins a settlement group</a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#checking-a-ruleset'" class="reference internal" href="#checking-a-ruleset">Checking a ruleset</a></li>
@@ -2464,6 +2600,7 @@ somebody and there is more than one candidate: <code class="docutils literal not
 <li><a :data-current="activeSection === '#kompass.rules.Transfer.rule_id'" class="reference internal" href="#kompass.rules.Transfer.rule_id"><code class="docutils literal notranslate"><span class="pre">Transfer.rule_id</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Transfer.label'" class="reference internal" href="#kompass.rules.Transfer.label"><code class="docutils literal notranslate"><span class="pre">Transfer.label</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.Transfer.explanation'" class="reference internal" href="#kompass.rules.Transfer.explanation"><code class="docutils literal notranslate"><span class="pre">Transfer.explanation</span></code></a></li>
+<li><a :data-current="activeSection === '#kompass.rules.Transfer.settlement_group'" class="reference internal" href="#kompass.rules.Transfer.settlement_group"><code class="docutils literal notranslate"><span class="pre">Transfer.settlement_group</span></code></a></li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#kompass.rules.Input'" class="reference internal" href="#kompass.rules.Input"><code class="docutils literal notranslate"><span class="pre">Input</span></code></a><ul>
@@ -2535,6 +2672,7 @@ somebody and there is more than one candidate: <code class="docutils literal not
 <li><a :data-current="activeSection === '#kompass.rules.quantize'" class="reference internal" href="#kompass.rules.quantize"><code class="docutils literal notranslate"><span class="pre">quantize()</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.first_of'" class="reference internal" href="#kompass.rules.first_of"><code class="docutils literal notranslate"><span class="pre">first_of()</span></code></a></li>
 <li><a :data-current="activeSection === '#kompass.rules.CENT'" class="reference internal" href="#kompass.rules.CENT"><code class="docutils literal notranslate"><span class="pre">CENT</span></code></a></li>
+<li><a :data-current="activeSection === '#kompass.rules.SETTLEMENT_GROUP_LENGTH'" class="reference internal" href="#kompass.rules.SETTLEMENT_GROUP_LENGTH"><code class="docutils literal notranslate"><span class="pre">SETTLEMENT_GROUP_LENGTH</span></code></a></li>
 </ul>
 </li>
 </ul>
