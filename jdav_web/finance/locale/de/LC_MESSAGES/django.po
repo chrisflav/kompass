@@ -256,6 +256,12 @@ msgstr ""
 "Die Buchungen konnten nicht erzeugt werden. Bitte trage bei jedem "
 "übernommenen Beleg ein, wer ihn bezahlt hat."
 
+msgid ""
+"The statement is still waiting for approvals and cannot be paid out yet."
+msgstr ""
+"Diese Abrechnung wartet noch auf Freigaben und kann noch nicht ausgezahlt "
+"werden."
+
 msgid "Statement is not ready to be confirmed."
 msgstr "Diese Abrechnung kann noch nicht bestätigt werden."
 

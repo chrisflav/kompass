@@ -458,6 +458,11 @@ class FinanceFormApiTestCase(TestCase):
         body = r.json()
         self.assertFalse(body["approved"])
         self.assertTrue(body["may_approve"])
+        # Heidelberg asks for one signature, so this manager's signature is the
+        # one that pays the statement out — which is what the page needs to know
+        # before offering the act, because signing and paying out are the same
+        # click here and two different clicks where a section asks for more.
+        self.assertTrue(body["completes_approval"])
         constraint = body["constraints"][0]
         self.assertEqual(constraint["name"], "Freigabe")
         self.assertEqual(constraint["required"], 1)

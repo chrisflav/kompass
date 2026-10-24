@@ -16,7 +16,9 @@ transfers*, after rule expansion, which is what lets a rule say "nobody who
 receives money from this statement".
 """
 
+import datetime
 import os
+import uuid
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
@@ -30,9 +32,12 @@ from django.db import IntegrityError
 from django.db import transaction
 from django.test import SimpleTestCase
 from django.test import TestCase
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from finance.api.approval import approval_payload
 from finance.api.approval import state_display
+from finance.api.tests import AccessToken
+from finance.api.tests import Application
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
 from finance.engine.approval import Exclusion
@@ -793,6 +798,31 @@ def rebook(statement, ledger):
     return Statement.objects.get(pk=statement.pk)
 
 
+def bearer(user):
+    """An ``Authorization`` header for ``user``, for the tests that post.
+
+    The API takes bearer tokens only, and the one refusal worth asserting from
+    outside — what ``/confirm`` says when it has just taken a signature short
+    of a quorum — needs a section whose rules ask for more than one. That
+    section lives here rather than beside the other endpoint tests, so the
+    plumbing does too.
+    """
+    application = Application.objects.create(
+        name="approval-{}".format(uuid.uuid4().hex[:8]),
+        client_type=Application.CLIENT_CONFIDENTIAL,
+        authorization_grant_type=Application.GRANT_PASSWORD,
+        client_secret="test-secret",
+    )
+    token = AccessToken.objects.create(
+        user=user,
+        application=application,
+        token="tok-{}".format(uuid.uuid4().hex),
+        expires=timezone.now() + datetime.timedelta(days=1),
+        scope="read write",
+    )
+    return {"HTTP_AUTHORIZATION": "Bearer {}".format(token.token)}
+
+
 def a_user(name, *, permitted=False):
     user = User.objects.create_user(name, password="secret")
     if permitted:
@@ -861,6 +891,57 @@ class HeidelbergApprovalTestCase(TestCase):
         self.assertTrue(self.statement.confirm(self.treasurer))
         self.statement.refresh_from_db()
         self.assertTrue(self.statement.confirmed)
+
+    def test_the_one_signature_is_the_one_that_pays_out(self):
+        """Heidelberg's signature and Heidelberg's payout are the same click.
+
+        Which is what one surface has to be able to say before the click, so
+        that it asks for the payout's acknowledgement rather than describing a
+        signature it is not about to stop at.
+        """
+        self.assertTrue(self.statement.signature_completes_approval(self.treasurer))
+        self.assertTrue(self.statement.approve(self.treasurer))
+        self.statement.refresh_from_db()
+        # And a paid statement has no next signature at all.
+        self.assertFalse(self.statement.signature_completes_approval(self.treasurer))
+
+    def test_a_signature_from_somebody_the_rules_did_not_name_completes_nothing(self):
+        self.assertFalse(self.statement.signature_completes_approval(self.other))
+
+    def test_a_draft_has_no_signature_that_completes_it(self):
+        draft = Statement.objects.create(short_description="Entwurf")
+        self.assertFalse(draft.signature_completes_approval(self.treasurer))
+
+    def test_nobody_is_not_a_signer(self):
+        """The question is what *this person's* click does, so no person is no.
+
+        The payload is also built for the admin's overview page, which asks it
+        of whoever is looking — and an account with no member record looking at
+        somebody else's statement is not an answer about anybody.
+        """
+        self.assertFalse(self.statement.signature_completes_approval())
+        self.assertFalse(approval_payload(self.statement)["completes_approval"])
+
+    def test_an_account_with_no_member_record_counts_as_its_account(self):
+        """One signature from one administrator, as `Approval.signer` counts it.
+
+        The capability layer lets whoever holds the permission confirm, member
+        record or not, and `approve` records such a signature against the
+        account. So the question "would your signature be the last one" has to
+        be asked of the account as well, or the one person Kompass documents as
+        the bootstrap administrator is told their click only signs.
+        """
+        admin = User.objects.create_user("verwaltung", password="secret")
+        self.assertTrue(self.statement.signature_completes_approval(None, admin))
+        payload = approval_payload(self.statement, None, admin)
+        self.assertTrue(payload["completes_approval"])
+        self.assertFalse(payload["may_approve"], "the rules name no member for them")
+
+    def test_the_payload_says_whose_signature_would_be_the_last(self):
+        payload = approval_payload(self.statement, self.treasurer)
+        self.assertTrue(payload["completes_approval"])
+        self.assertTrue(payload["may_approve"])
+        self.assertFalse(approval_payload(self.statement, self.other)["completes_approval"])
 
     def test_somebody_the_rules_did_not_name_signs_nothing(self):
         self.assertFalse(self.statement.approve(self.other))
@@ -1203,6 +1284,88 @@ class SectionWithTwoSignaturesTestCase(TestCase):
         self.assertEqual(big.approval_set.count(), 1)
         self.assertTrue(big.approve(self.bernd))
         self.assertTrue(Statement.objects.get(pk=big.pk).confirmed)
+
+    def test_a_signature_short_of_the_quorum_is_not_the_one_that_pays_out(self):
+        """The case the two-door interface described wrongly.
+
+        Over a thousand euro this section asks for one signature from the
+        cash desk and two from the board. The first signature settles the
+        first step and leaves the second one short — so it is recorded and
+        nothing is paid out, which is exactly what a surface offering "sign
+        and pay out" must not say it is about to do. The signature that *does*
+        complete it says so beforehand.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.signature_completes_approval(self.anna))
+        self.assertFalse(big.approve(self.anna))
+        big = Statement.objects.get(pk=big.pk)
+        self.assertFalse(big.confirmed, "and the money has not moved")
+        # Her own signature is in, so hers is not the one that is missing.
+        self.assertFalse(big.signature_completes_approval(self.anna))
+        self.assertTrue(big.signature_completes_approval(self.bernd))
+        payload = approval_payload(big, self.bernd)
+        self.assertTrue(payload["completes_approval"])
+        self.assertTrue(big.approve(self.bernd))
+        self.assertTrue(Statement.objects.get(pk=big.pk).confirmed)
+
+    def test_confirming_short_of_the_quorum_says_what_it_did(self):
+        """The refusal that read as "nothing happened" over a signature.
+
+        ``/confirm`` is one signature among however many the rules ask for, and
+        a signature short of the quorum is *taken* and returns ``False``. The
+        endpoint answered that with "Statement is not ready to be confirmed.",
+        which is true about the payout and false about the request: the
+        signature is on the record and the statement is one signature further
+        on. It now says which of its two refusals it was.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        r = self.client.post(
+            "/api/finance/statements/{}/confirm".format(big.pk), **bearer(self.anna_user)
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertEqual(
+            r.json()["detail"],
+            [_("The statement is still waiting for approvals and cannot be paid out yet.")],
+        )
+        big = Statement.objects.get(pk=big.pk)
+        self.assertEqual([a.member for a in big.approval_set.all()], [self.anna])
+        self.assertFalse(big.confirmed)
+        # And the record the page reads says the same thing in detail.
+        payload = approval_payload(big, self.anna, self.anna_user)
+        self.assertFalse(payload["approved"])
+        self.assertFalse(payload["completes_approval"])
+        missing = {c["name"]: c["missing"] for c in payload["constraints"]}
+        self.assertEqual(missing, {"Kasse": 0, "Vorstand": 1})
+
+    def test_a_confirmed_statement_is_still_told_it_is_not_ready(self):
+        """The other refusal: nothing to do with the signatures.
+
+        A statement that has been paid out is not waiting for approvals, so
+        the old wording is the right one — which is the whole point of the
+        branch being asked rather than the message being swapped.
+        """
+        big = self.statement_for(Decimal("1200.00"), self.clara)
+        self.assertFalse(big.approve(self.anna))
+        self.assertTrue(Statement.objects.get(pk=big.pk).approve(self.bernd))
+        r = self.client.post(
+            "/api/finance/statements/{}/confirm".format(big.pk), **bearer(self.clara_user)
+        )
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertEqual(r.json()["detail"], [_("Statement is not ready to be confirmed.")])
+
+    def test_a_small_statement_is_settled_by_the_first_signature(self):
+        """The same section under its own threshold: one step, one click.
+
+        The board's step does not apply, so the cash desk's single signature
+        is the whole of the approval — and the interface has to read as the
+        single act it is, not as the first of two.
+        """
+        small = self.statement_for(Decimal("100.00"), self.clara)
+        self.assertTrue(small.signature_completes_approval(self.anna))
+
+    def test_somebody_a_forbid_excluded_completes_nothing(self):
+        big = self.statement_for(Decimal("1200.00"), self.anna)
+        self.assertFalse(big.signature_completes_approval(self.anna))
 
     def test_a_forbid_cannot_be_overridden_by_the_person_it_excluded(self):
         """Recording an override is a mitigation; refusing it is the control.

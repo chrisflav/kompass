@@ -18626,7 +18626,7 @@
         "type": "object"
       },
       "StatementApprovalOut": {
-        "description": "Who has to sign a statement off, and who has.\n\nRouting runs on the resolved transfers rather than on the statement's\nfields, which is what lets a rule say \"nobody who receives money from this\nstatement\" — so this list is frozen at submission, beside the payout.",
+        "description": "Who has to sign a statement off, and who has.\n\nRouting runs on the resolved transfers rather than on the statement's\nfields, which is what lets a rule say \"nobody who receives money from this\nstatement\" — so this list is frozen at submission, beside the payout.\n\n``may_approve`` says whether the asking person has anything left to sign;\n``completes_approval`` says whether signing it would be the last signature,\nwhich is the difference between recording a signature and paying the\nstatement out. One surface shows both acts, so it has to know which one a\nclick is about to be.",
         "properties": {
           "statement_id": {
             "title": "Statement Id",
@@ -18638,6 +18638,10 @@
           },
           "may_approve": {
             "title": "May Approve",
+            "type": "boolean"
+          },
+          "completes_approval": {
+            "title": "Completes Approval",
             "type": "boolean"
           },
           "constraints": {
@@ -18660,7 +18664,8 @@
         "required": [
           "statement_id",
           "approved",
-          "may_approve"
+          "may_approve",
+          "completes_approval"
         ],
         "title": "StatementApprovalOut",
         "type": "object"

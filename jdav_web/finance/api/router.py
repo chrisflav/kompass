@@ -388,6 +388,16 @@ def confirm_statement(request, statement_id: int, send: bool = False):
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.process_statementsubmitted")
     if not statement.confirm(get_member(request), user=request.user):
+        # Confirming is a signature, and a signature short of the quorum is
+        # *recorded* rather than refused — `approve` returns False having taken
+        # it. "Not ready to be confirmed" is then the wrong half of the truth:
+        # it reads as "nothing happened" over something that did. Which of the
+        # two refusals it was is a question the statement can answer, so say
+        # it; the clients that render the whole record say more (`/approval`).
+        if statement.submitted and not statement.fully_approved:
+            raise ValidationError(
+                _("The statement is still waiting for approvals and cannot be paid out yet.")
+            )
         raise ValidationError(_("Statement is not ready to be confirmed."))
     if send:
         member = get_member(request)
@@ -634,7 +644,7 @@ def statement_preflight(request, statement_id: int):
 def statement_approval(request, statement_id: int):
     """Who has to sign this statement off, and who has."""
     statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
-    return approval_payload(statement, get_member(request))
+    return approval_payload(statement, get_member(request), request.user)
 
 
 @router.post("/statements/{statement_id}/approve", response=StatementApprovalOut)
@@ -652,7 +662,7 @@ def approve_statement(request, statement_id: int, payload: ApprovalCreate):
     # administrator with no member record is one signature from one person.
     statement.approve(member, note=payload.note, user=request.user)
     statement.refresh_from_db()
-    return approval_payload(statement, member)
+    return approval_payload(statement, member, request.user)
 
 
 @router.post("/statements/{statement_id}/override-approval", response=StatementApprovalOut)
@@ -681,4 +691,4 @@ def override_statement_approval(request, statement_id: int, payload: ApprovalOve
         raise ValidationError(refusal)
     statement.override_approval(payload.name, member, payload.reason)
     statement.refresh_from_db()
-    return approval_payload(statement, member)
+    return approval_payload(statement, member, request.user)

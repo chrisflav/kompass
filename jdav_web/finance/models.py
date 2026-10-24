@@ -743,6 +743,42 @@ class Statement(CommonModel):
             return False
         return may_sign(self.live_approval_states, member.pk)
 
+    def signature_completes_approval(self, member=None, user=None):
+        """Whether one signature from this signer would settle the last step.
+
+        The question an interface has to ask *before* the click, because
+        :meth:`approve` pays out on the signature that completes the quorum
+        and records one that does not — two different acts behind the same
+        call. A page that cannot tell them apart has to describe one of them
+        wrongly, and the one it described wrongly was the signature short of a
+        quorum: it reported "not ready to be confirmed" over a signature it had
+        just taken.
+
+        Asked of the *gate* rather than the record, with this signer's
+        signature added to the ones already in — as a member if they have a
+        member record, otherwise as their account, which is how
+        :attr:`finance.store.Approval.signer` counts them. A signer who has
+        already signed gets the honest answer for free: adding their signature
+        again changes nothing, so this is then simply whether the statement is
+        approved already.
+
+        Nobody — no member and no account — is not a signer, and the answer is
+        no rather than "whatever the statement says", because the point of the
+        question is what *this person's* next click does.
+        """
+        if not self.submitted or self.confirmed:
+            return False
+        if member is None and user is None:
+            return False
+        members, others = self._signatures()
+        if member is not None:
+            members = [*members, member.pk]
+        else:
+            others = {*others, ("user", user.pk)}
+        return fully_approved(
+            approval_states(current_constraint_rows(self), members, uncredited=others)
+        )
+
     def approve(self, member=None, note="", user=None):
         """Record a signature, and pay out once the last one is in.
 

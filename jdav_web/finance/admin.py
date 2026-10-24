@@ -400,7 +400,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             object=statement,
             settings=settings,
             transaction_issues=statement.transaction_issues,
-            approval=approval_payload(statement, get_member(request)),
+            approval=approval_payload(statement, get_member(request), request.user),
             **statement.template_context(),
         )
 

@@ -712,11 +712,18 @@ class StatementApprovalOut(Schema):
     Routing runs on the resolved transfers rather than on the statement's
     fields, which is what lets a rule say "nobody who receives money from this
     statement" — so this list is frozen at submission, beside the payout.
+
+    ``may_approve`` says whether the asking person has anything left to sign;
+    ``completes_approval`` says whether signing it would be the last signature,
+    which is the difference between recording a signature and paying the
+    statement out. One surface shows both acts, so it has to know which one a
+    click is about to be.
     """
 
     statement_id: int
     approved: bool
     may_approve: bool
+    completes_approval: bool
     constraints: list[ApprovalConstraintOut] = []
     signatures: list[SignatureOut] = []
 

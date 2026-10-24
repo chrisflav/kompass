@@ -68,12 +68,22 @@ def state_display(state: ConstraintState) -> str:
     return text
 
 
-def approval_payload(statement: Any, member: Any = None) -> dict[str, Any]:
+def approval_payload(statement: Any, member: Any = None, user: Any = None) -> dict[str, Any]:
     """Who has to sign ``statement`` off, and who has.
 
     ``member`` is the person asking, so the payload can say whether *they* may
     still sign — which is the one thing a client needs in order to decide
-    whether to offer the button.
+    whether to offer the button. ``user`` is the account they are asking from,
+    for the one question that has to count a signature nobody can attribute to
+    a member: ``completes_approval``.
+
+    That field is what lets one surface describe two acts truthfully. A
+    signature that completes the quorum pays the statement out, and one short
+    of it does not, and both are :meth:`~finance.models.Statement.approve` —
+    so a page that offers "sign" without knowing which of the two it is about
+    to do either skips the payout's own acknowledgement or claims a payout that
+    did not happen. See
+    :meth:`~finance.models.Statement.signature_completes_approval`.
     """
     states = (
         statement.live_approval_states
@@ -121,6 +131,7 @@ def approval_payload(statement: Any, member: Any = None) -> dict[str, Any]:
         "statement_id": statement.pk,
         "approved": statement.fully_approved,
         "may_approve": statement.may_be_approved_by(member),
+        "completes_approval": statement.signature_completes_approval(member, user),
         "constraints": constraints,
         "signatures": [
             {
