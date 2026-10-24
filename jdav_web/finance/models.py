@@ -419,6 +419,10 @@ class Statement(CommonModel):
         For a caller that reads many figures off an instance it does not
         change, such as an API response: each of them goes through
         :attr:`rule_result`, which resolves a draft anew every time.
+
+        A pinned result is never invalidated: a later change to the instance,
+        its answers or its bills is not reflected in it. Pin only on a read
+        path, never on an instance that is about to be changed or saved.
         """
         self.__dict__["_frozen_result"] = self.rule_result
         return self

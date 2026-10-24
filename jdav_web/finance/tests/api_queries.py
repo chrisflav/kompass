@@ -89,6 +89,38 @@ class StatementListQueryCountTestCase(QueryCountMixin, TestCase):
         self.assertTrue(all(s.paid_ljp_contributions > 0 for s in ljp))
         self.assertTrue(all(len(s["created_by"]["groups"]) == 1 for s in body))
 
+    def test_list_statements_scoped(self):
+        """A member without global permissions lists their own statements, once each.
+
+        Half of them belong to an excursion with two youth leaders, which
+        listed them twice before.
+        """
+        user, member = make_member_user("creator")
+        # Somebody else's statement is not listed.
+        self.make_statement(with_excursion=True, with_ljp=False)
+        own = []
+
+        def make_rows(n):
+            for i in range(n):
+                statement = self.make_statement(with_excursion=i % 2 == 0, with_ljp=False)
+                Statement.objects.filter(pk=statement.pk).update(created_by=member)
+                own.append(statement.pk)
+
+        body = self.assertConstantQueries("/api/finance/statements", user, make_rows)
+        self.assertEqual(sorted(s["id"] for s in body), sorted(own))
+        self.assertEqual(
+            {s["id"]: s["total"] for s in body},
+            {s.pk: float(s.total) for s in Statement.objects.filter(pk__in=own)},
+        )
+
+    def test_list_statements_as_youth_leader(self):
+        """A youth leader of the excursion lists its statement once."""
+        user, member = make_member_user("yl")
+        statement = self.make_statement(with_excursion=True, with_ljp=False)
+        statement.excursion.jugendleiter.add(member)
+        r = self.client.get("/api/finance/statements", **self.auth(user))
+        self.assertEqual([s["id"] for s in r.json()], [statement.pk])
+
     def add_bill_and_transaction(self, statement):
         """A covered bill and a transaction, each naming members with a group."""
         payer, recipient, confirmer = (self.make_member() for _ in range(3))

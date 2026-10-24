@@ -341,6 +341,33 @@ class WaitersQueryCountTestCase(QueryCountMixin, TestCase):
         body = self.assertConstantQueries("/api/members/waiters", self.admin_user, make_rows)
         self.assertEqual({w["id"]: w["latest_group_invitation"] for w in body}, latest)
 
+    def test_list_waiters_scoped(self):
+        """A leader without global permissions sees each invited waiter once.
+
+        Every waiter is invited twice to one of the leader's groups and once to
+        the other, which listed them three times before.
+        """
+        leader_user, leader = make_member_user("leader")
+        first, second = self.make_group(), self.make_group()
+        first.leiters.add(leader)
+        second.leiters.add(leader)
+        # Invited only to a group the leader does not lead: not listed.
+        self.invite(self.make_waiter())
+        listed = []
+
+        def make_rows(n):
+            for _ in range(n):
+                waiter = self.make_waiter()
+                for group in (first, first, second):
+                    InvitationToGroup.objects.create(
+                        waiter=waiter, group=group, date=datetime.date.today()
+                    )
+                listed.append(waiter.pk)
+
+        body = self.assertConstantQueries("/api/members/waiters", leader_user, make_rows)
+        self.assertEqual([w["id"] for w in body], listed)
+        self.assertTrue(all(w["latest_group_invitation"].startswith(second.name) for w in body))
+
     def test_retrieve_waiter(self):
         waiter = self.make_waiter()
 
