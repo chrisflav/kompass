@@ -20,6 +20,14 @@ questions the other one asks. A question that is put away reads as its type's
 empty value, so the regime cannot be worked around by an answer left over from
 before it was changed.
 
+**And it is asked first, on its own.** Until it is answered it is the only
+question on the form (:data:`ASKED_FIRST`) — not both halves taken away and the
+shared questions left standing, because a night or a kilometre means something
+different under each policy and asking for one before the rate is known is
+asking a question whose own meaning is undecided. ``relevant_inputs`` returning
+one question is the whole of it: the engine serves that form, reads nothing
+else, and refuses an answer to anything it is not asking.
+
 The regime narrows the Fahrtentabelle's **columns** the same way, and in the
 same place it narrows anything else: :meth:`LudwigsburgRules.inputs` declares
 ``reisen`` with the cells the chosen policy has, so ``passengers`` is a column
@@ -198,6 +206,36 @@ MAX_KILOMETERS = 2000
 #: same; the ceiling is here to catch the row that meant the whole group.
 MAX_PASSENGERS = 8
 
+#: The key of the question that has to be answered before any other.
+#:
+#: A key and not a flag on the declaration: the gate is not a property of the
+#: question but what :meth:`LudwigsburgRules.relevant_inputs` does with the
+#: answers so far, and a narrowed form is something the engine already serves
+#: and already enforces.
+REGIME = "regime"
+
+#: The questions asked while no regime is chosen — which is this one, alone.
+#:
+#: Every other question on this form means something different under the two
+#: policies, or means nothing at all: a night is a receipt under Q2 and a 10 €
+#: Pauschale under Q3, a kilometre is 0,30 € or 0,20 €, and „weitere
+#: Mitfahrende“ is a column of the one and no column of the other. Asking any
+#: of them first is asking a question whose own meaning is not decided yet, and
+#: answering it would be answering under none of the rates.
+#:
+#: The engine needs nothing new for this. ``relevant_inputs`` narrowing to one
+#: question is what takes the others off ``GET …/form``, what makes the rules
+#: read them as unanswered, and what makes a ``PATCH`` naming one refused —
+#: „Diese Regeln fragen … nicht ab.“ All three already held for the other
+#: regime's questions, and hold here for the same reason.
+#:
+#: What is **not** taken away is anything already stored. A seeded ``reisen``
+#: row is written at creation out of the *vocabulary* rather than out of the
+#: form, so the row is there while the table is away, and the form the regime
+#: reveals serves it again, intact. ``cases/28`` pins the other half of that —
+#: that none of those answers pays anything while the gate is open.
+ASKED_FIRST = frozenset({REGIME})
+
 #: The questions only Q2 asks. Under Q3 they are off the form and read empty.
 EHRENAMT_ONLY = frozenset({"country", "per_diem_to"})
 
@@ -252,9 +290,9 @@ def chosen_regime(ctx: RuleContext) -> str:
     ``transfers`` and ``checks`` it is always there, because the engine fills
     the whole vocabulary in, and those read it through the typed accessor.
     """
-    if "regime" not in ctx.inputs.declared():
+    if REGIME not in ctx.inputs.declared():
         return ""
-    answer = ctx.inputs.raw("regime")
+    answer = ctx.inputs.raw(REGIME)
     return answer if isinstance(answer, str) else ""
 
 
@@ -426,7 +464,7 @@ class LudwigsburgRules(Ruleset):
         regime = chosen_regime(ctx)
         return [
             Input(
-                "regime",
+                REGIME,
                 "Nach welchem Regelwerk wird abgerechnet?",
                 "choice",
                 step="Grundlagen",
@@ -589,8 +627,19 @@ class LudwigsburgRules(Ruleset):
         cell is part of a declaration rather than a key of its own
         (:func:`journey_fields`).
 
-        Until a regime is chosen, neither half is asked. That is the first
-        step of the form doing its job, and the check below says so.
+        **Until a regime is chosen, the regime is the only question.** Not both
+        halves taken away and the shared ones left standing, which is what this
+        did before: that asked „wie viele Nächte“ of a form that did not yet
+        know whether a night is a receipt or a Pauschale, and „wie viele
+        Kilometer“ without a rate to read them at (:data:`ASKED_FIRST`). So the
+        form opens as one step, the engine refuses an answer to anything else,
+        and the rest arrives with the answer that gives it a meaning.
+
+        That makes the opening a step rather than a preamble, and this method is
+        the only thing that says so: one named step is what a client lays out as
+        the first of several, and a ruleset that narrows nothing never produces
+        one. The check below is the other half — a statement handed in with no
+        regime is refused by name, not merely left unresolved.
         """
         regime = chosen_regime(ctx)
         if regime == EHRENAMT:
@@ -598,7 +647,9 @@ class LudwigsburgRules(Ruleset):
         elif regime == TOURENLEITUNG:
             hidden = EHRENAMT_ONLY
         else:
-            hidden = EHRENAMT_ONLY | TOURENLEITUNG_ONLY
+            return [
+                declaration for declaration in self.inputs(ctx) if declaration.key in ASKED_FIRST
+            ]
         return [declaration for declaration in self.inputs(ctx) if declaration.key not in hidden]
 
     def transfers(self, ctx: RuleContext) -> tuple[list[Transfer], list[str]]:
@@ -636,7 +687,7 @@ class LudwigsburgRules(Ruleset):
                 )
             )
 
-        regime = ctx.inputs.text("regime")
+        regime = ctx.inputs.text(REGIME)
         transfers.extend(self._travel(ctx, regime))
         transfers.extend(self._nights(ctx, regime))
         transfers.extend(self._per_diem(ctx, regime))
@@ -792,7 +843,7 @@ class LudwigsburgRules(Ruleset):
         changed length with the regime would make a case's ``checks`` depend on
         which arm it is in.
         """
-        regime = ctx.inputs.text("regime")
+        regime = ctx.inputs.text(REGIME)
         journeys = ctx.inputs.rows("reisen")
         travellers = [
             person

@@ -51,6 +51,21 @@ the form. A question that is off the form reads as its type's **empty value**,
 so an answer left behind when a regime was corrected cannot move money under
 the regime that replaced it.
 
+It is asked **first and on its own**: while no regime is chosen,
+`relevant_inputs` returns that one question and nothing else (`ASKED_FIRST`).
+Not just the other policy's half taken away — *everything* else, including the
+questions both policies share, because a night is a receipt under Q2 and a 10 €
+Pauschale under Q3 and a kilometre is 0,30 € or 0,20 €, so a form that does not
+yet know the regime cannot ask for either without asking something it cannot
+read. The engine needs nothing new for it: a narrowed `relevant_inputs` is
+already what `GET …/form` serves, what the rules read, and what a `PATCH` is
+refused against. The SPA lays the result out as the opening step of the
+Erstattung leg, which it recognises as *one named step* — so a ruleset that
+names no steps, or that narrows nothing, is laid out exactly as before.
+`cases/28` pins that every other answer sits there paying nothing while the
+question is open; a seeded Fahrten row is written out of the **vocabulary**
+rather than out of the form, so it survives the wait and comes back intact.
+
 The regime narrows the Fahrten table's **columns** on the same reasoning:
 `Mitfahrende` is a column under Q3, which pays 0,03 €/km for each of them, and
 no column at all under Q2, which pays „keine zusätzlichen Kosten“ for any. That

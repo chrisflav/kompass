@@ -268,6 +268,47 @@ class RegimeRules(Ruleset):
         return transfers, []
 
 
+#: The label :class:`GatedRules` groups its first question under.
+#:
+#: A step and not a bare question, because that is the shape the gate state is
+#: *read* in: a form narrowed to one named step is what a client lays out as
+#: the opening one, and a ruleset that names no steps comes back as a single
+#: step with an empty label and is laid out as the flat list it always was.
+GATE_STEP = "Grundlagen"
+
+
+class GatedRules(RegimeRules):
+    """:class:`RegimeRules` with the regime asked **first and on its own**.
+
+    Ludwigsburg's real form. Everything after the first question means
+    something different under each of its two travel-cost policies — a
+    kilometre is one rate or the other, and „weitere Mitfahrende“ is a column
+    of the one and no column of the other — so asking for any of it before the
+    regime is known is asking a question whose own meaning is undecided.
+
+    It needs nothing of the engine, which is the claim
+    :class:`RowGatedFormTestCase` is really about: ``relevant_inputs``
+    returning one question is already what ``GET …/form`` serves, what the
+    rules read (taxis #579), and what a ``PATCH`` naming anything else is
+    refused against. There is no flag on a declaration saying "this one gates
+    the rest" and there does not need to be.
+    """
+
+    name = "gated"
+
+    def inputs(self, ctx: RuleContext) -> list[Input]:
+        return [
+            replace(entry, step=GATE_STEP) if entry.key == "regime" else entry
+            for entry in super().inputs(ctx)
+        ]
+
+    def relevant_inputs(self, ctx: RuleContext) -> list[Input]:
+        declarations = self.inputs(ctx)
+        if not regime_of(ctx):
+            return [entry for entry in declarations if entry.key == "regime"]
+        return declarations
+
+
 def offering(*ids: int) -> Input:
     """:func:`travel_rows` with its people already resolved, as the engine serves it.
 
@@ -1324,6 +1365,119 @@ class RowRegimeColumnTestCase(RowFormTestCase):
         )
         self.assertEqual(response.status_code, 422, response.content)
         self.assertIn("passengers", response.json()["errors"]["reisen[0]"][0])
+
+
+class RowGatedFormTestCase(RowFormTestCase):
+    """A form narrowed to its **first question**, and the seeded row that waits.
+
+    :class:`GatedRules` asks the regime alone until it is answered. Three
+    claims, and the engine was already good for all three — which is the point
+    of testing them here rather than adding a mechanism:
+
+    * the form **is** that one question, as one named step, so a client has
+      something to lay out as the opening step rather than a lone field that
+      reads as an error,
+    * an answer to anything else is **refused** while the gate is open, which
+      is the same refusal that already guards a retired question, and
+    * the seeded row is **written out of the vocabulary**, so it is there while
+      the table is away and the form the answer reveals serves it intact.
+
+    The third is the one with something to lose: the seed and the gate meet at
+    statement creation, and a seed resolved off the *form* would write nothing
+    at all here — a statement whose prefilled journey never existed, with
+    nothing to notice it by until somebody wonders why their trip did not fill
+    itself in.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.rules = GatedRules()
+
+    def asked(self, statement):
+        """The keys the form asks for, in order."""
+        return [entry["key"] for entry in self.form(statement)["inputs"]]
+
+    def under(self, statement, regime):
+        response = self.patch(statement, inputs={"regime": regime})
+        self.assertEqual(response.status_code, 200, response.content)
+        return statement
+
+    def columns_of(self, body):
+        return [cell["key"] for cell in self.declaration(body)["fields"]]
+
+    def test_until_the_first_question_is_answered_it_is_the_only_one(self):
+        """One question, and one step carrying its label.
+
+        Neuter it — have :meth:`GatedRules.relevant_inputs` return the whole
+        vocabulary whatever has been answered — and the form opens by asking
+        how far somebody drove before it knows what a kilometre is worth, which
+        is the state this change is about.
+        """
+        statement = self.a_statement(self.excursion)
+        body = self.form(statement)
+        self.assertEqual([entry["key"] for entry in body["inputs"]], ["regime"])
+        self.assertEqual(body["steps"], [{"label": GATE_STEP, "keys": ["regime"]}])
+        # The answers are restricted to the keys asked for, so nothing invites
+        # a client to hand the table back while it is away.
+        self.assertEqual(list(body["answers"]), ["regime"])
+
+    def test_answering_it_reveals_the_rest_with_the_seeded_row_still_in_it(self):
+        """The one this change is for, both halves in one statement.
+
+        The seeded journey is written when the excursion is set — out of
+        ``inputs`` and not out of the narrowed form — so it is in storage while
+        the gate is open and comes back whole, cells and all, in the form the
+        answer reveals. Neuter it — resolve
+        :func:`finance.inputs.seeded` off ``relevant_inputs`` by passing
+        ``form=True`` in :func:`finance.inputs.vocabulary` — and the gate eats
+        the prefilled row: the table arrives empty, which looks like a trip
+        that recorded nothing.
+        """
+        statement = self.a_statement(self.excursion)
+        self.assertEqual(self.asked(statement), ["regime"])
+        # Stored while nothing asks for it: the seed is the vocabulary's.
+        self.assertEqual(self.rows_of(statement), [{"approach": "car", "kilometers": 120}])
+        self.under(statement, TOURENLEITUNG)
+        body = self.form(statement)
+        self.assertEqual([entry["key"] for entry in body["inputs"]], ["regime", "reisen"])
+        self.assertEqual(body["answers"]["reisen"], [{"approach": "car", "kilometers": 120}])
+        self.assertEqual([step["label"] for step in body["steps"]], [GATE_STEP, travel_rows().step])
+        self.assertEqual(self.columns_of(body), RATE_COLUMNS)
+
+    def test_an_answer_to_anything_else_is_refused_while_the_gate_is_open(self):
+        """Which is why the client has to be told, and not merely styled.
+
+        The engine already refuses a key the rules are not asking, so the gate
+        enforces itself — a leader who kept the old form in a tab cannot write
+        a journey behind a question they have not answered. Neuter it — accept
+        a key off the form in :func:`finance.inputs.clean` — and the row is
+        stored under no regime at all, and read under whichever one is chosen
+        later.
+        """
+        statement = self.a_statement(self.excursion)
+        response = self.patch(
+            statement,
+            inputs={"reisen": [{"member": self.driver.pk, "approach": "car", "kilometers": 300}]},
+        )
+        self.assertEqual(response.status_code, 422, response.content)
+        self.assertIn("reisen", response.json()["errors"]["__all__"][0])
+        self.assertEqual(self.rows_of(statement), [{"approach": "car", "kilometers": 120}])
+
+    def test_a_statement_that_already_answered_it_is_asked_everything_at_once(self):
+        """No regression for a statement written before the gate existed.
+
+        The answer is read out of storage rather than out of the ``PATCH`` that
+        set it, so the first form such a statement is served is the whole one —
+        there is no second request to wait for and no empty step to pass
+        through. Neuter it — key the gate on the request instead, by having
+        :func:`regime_of` read nothing — and every statement in the database
+        reopens at its first question with its answers hidden behind it.
+        """
+        statement = answer(self.a_statement(self.excursion), regime=EHRENAMT)
+        body = self.form(statement)
+        self.assertEqual([entry["key"] for entry in body["inputs"]], ["regime", "reisen"])
+        self.assertEqual(body["answers"]["regime"], EHRENAMT)
+        self.assertEqual(self.columns_of(body), RATE_COLUMNS[:-1])
 
 
 class RowRegimeColumnFuzzTestCase(SimpleTestCase):
