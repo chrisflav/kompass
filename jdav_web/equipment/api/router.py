@@ -399,6 +399,7 @@ def list_parts(
     holder: int | None = None,
     location: int | None = None,
     status: str | None = None,
+    top_level: bool = False,
 ):
     get_member(request)
     if not _manager(request):
@@ -419,6 +420,8 @@ def list_parts(
         "status": status,
     }
     parts = parts.filter(**{k: v for k, v in filters.items() if v is not None})
+    if top_level:
+        parts = parts.filter(parent__isnull=True)
     if status is None:
         parts = parts.exclude(status=Part.RETIRED)
     lent = services.open_loan_dues()

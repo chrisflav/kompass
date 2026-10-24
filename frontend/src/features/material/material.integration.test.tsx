@@ -869,18 +869,14 @@ describe("material — Teil", () => {
 
   it("builds a piece from the stock into this one, leaving out what cannot go in", async () => {
     useMe({ permissions: ["equipment.manage_inventory"] });
-    const calls: { q?: string | null; body?: unknown } = {};
+    const calls: { query?: URLSearchParams; body?: unknown } = {};
     server.use(
-      http.get(api("/api/material/parts/1"), () =>
-        HttpResponse.json(partOut({ parent: part(4), components: [part(3)] })),
-      ),
+      http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut({ components: [part(3)] }))),
       http.get(api("/api/material/parts"), ({ request }) => {
-        calls.q = new URL(request.url).searchParams.get("q");
+        calls.query = new URL(request.url).searchParams;
         return HttpResponse.json([
           part(1),
           part(2, { holder: ref(8, "Peter Lustig"), location: null, lent_until: TOMORROW }),
-          part(3),
-          part(4),
           part(5, { product_type: ref(12, "Karabiner") }),
         ]);
       }),
@@ -895,9 +891,10 @@ describe("material — Teil", () => {
     const d = await dialog();
     await user.type(d.getByLabelText("Teil suchen"), "Kara");
     const add = await d.findByRole("button", { name: "Karabiner S5 einbauen" });
-    expect(calls.q).toBe("Kara");
-    // Not itself, what it is in, what is in it already, nor a piece on loan.
-    for (const id of [1, 2, 3, 4]) {
+    // Only pieces in no other set, and neither the piece itself nor one on loan.
+    expect(calls.query?.get("q")).toBe("Kara");
+    expect(calls.query?.get("top_level")).toBe("true");
+    for (const id of [1, 2]) {
       expect(d.queryByRole("button", { name: `Bandschlinge 120 cm S${id} einbauen` })).not.toBeInTheDocument();
     }
     await user.click(add);
@@ -962,11 +959,22 @@ describe("material — Teil", () => {
       ),
     );
     const { user, unmount } = renderRoute("/kompass/material/parts/1");
-    await user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    await user.click(await screen.findByRole("tab", { name: "Bestandteile" }));
+    // A lent set keeps its pieces.
+    expect(screen.queryByRole("button", { name: /ausbauen/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aktionen ▾" }));
     expect(screen.getByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Teil einbauen" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Neues Teil einbauen" })).not.toBeInTheDocument();
     unmount();
+
+    // A set is put together from the top, not from one of its pieces.
+    server.use(http.get(api("/api/material/parts/1"), () => HttpResponse.json(partOut({ parent: part(4) }))));
+    const nested = renderRoute("/kompass/material/parts/1");
+    await nested.user.click(await screen.findByRole("button", { name: "Aktionen ▾" }));
+    expect(screen.getByRole("button", { name: "Ausbauen" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Teil einbauen" })).not.toBeInTheDocument();
+    nested.unmount();
 
     useMe({ permissions: [] });
     server.use(

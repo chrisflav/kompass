@@ -340,6 +340,11 @@ class MaterialApiTestCase(ApiMixin, TestCase):
         self.slings[1].save()
         self.assertEqual(len(self.get("ida", "/parts", product_type=self.sling_type.pk).json()), 3)
         self.assertEqual(len(self.get("ida", "/parts", status="retired").json()), 1)
+        # Only what is not built into another piece.
+        self.slings[2].parent = self.slings[3]
+        self.slings[2].save()
+        r = self.get("ida", "/parts", product_type=self.sling_type.pk, top_level=True)
+        self.assertEqual({row["id"] for row in r.json()}, {self.slings[0].pk, self.slings[3].pk})
 
     def test_lookup(self):
         self.slings[1].serial_number = "B77"

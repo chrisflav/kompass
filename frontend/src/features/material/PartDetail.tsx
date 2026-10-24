@@ -183,8 +183,9 @@ function PartDetailBody({ part }: { part: PartOut }) {
       onError: (e) => toast.error(errorText(e)),
     },
   );
-  // A piece is built into another while neither is out on loan.
-  const assemblable = part.status !== "retired" && part.lent_until === null;
+  // Sets are put together from the top: pieces go into a piece that is in no
+  // other, while it is not out on loan. A lent set keeps its pieces.
+  const assemblable = part.status !== "retired" && part.lent_until === null && !part.parent;
 
   const remove = useApiMutation(
     () => unwrap(client.DELETE("/api/material/parts/{part_id}", { params: { path: { part_id: part.id } } })),
@@ -342,7 +343,7 @@ function PartDetailBody({ part }: { part: PartOut }) {
           columns={[
             { header: "Teil", cell: (c) => <PartLink part={c} /> },
             { header: "Status", cell: (c) => <PartStatus status={c.status} /> },
-            ...(roles.inventory
+            ...(roles.inventory && part.lent_until === null
               ? [
                   {
                     header: "",
@@ -464,7 +465,11 @@ function PartDetailBody({ part }: { part: PartOut }) {
                   </Button>
                 )}
                 {roles.inventory && part.parent && (
-                  <Button variant="ghost" busy={detach.isPending} onClick={() => detach.mutate(part)}>
+                  <Button
+                    variant="ghost"
+                    busy={detach.isPending && detach.variables?.id === part.id}
+                    onClick={() => detach.mutate(part)}
+                  >
                     Ausbauen
                   </Button>
                 )}
@@ -547,13 +552,13 @@ function AssembleModal({ part, onClose }: { part: PartOut; onClose: () => void }
   const term = q.trim();
   const found = useApiQuery(
     ["material", "parts", "search", term],
-    () => unwrap(client.GET("/api/material/parts", { params: { query: { q: term } } })),
+    () =>
+      unwrap(client.GET("/api/material/parts", { params: { query: { q: term, top_level: true } } })),
     { enabled: term.length > 0, placeholderData: keepPreviousData },
   );
-  // Neither the piece itself, what it is built into, nor what is in it already;
-  // a piece out on loan comes back before it is built in.
-  const taken = new Set([part.id, part.parent?.id, ...part.components.map((c) => c.id)]);
-  const candidates = (found.data ?? []).filter((p) => !taken.has(p.id) && p.lent_until === null);
+  // Only pieces in no other set: a piece is taken out of its set before it goes
+  // into another. Not the piece itself, and none out on loan.
+  const candidates = (found.data ?? []).filter((p) => p.id !== part.id && p.lent_until === null);
   const mutation = useApiMutation(
     (piece: PartBrief) =>
       unwrap(
