@@ -5252,8 +5252,6 @@ export interface components {
             active?: boolean | null;
             /** Photos May Be Taken */
             photos_may_be_taken?: boolean | null;
-            /** Gets Newsletter */
-            gets_newsletter?: boolean | null;
             /** May Cancel Appointment Independently */
             may_cancel_appointment_independently?: boolean | null;
             /** Group Ids */

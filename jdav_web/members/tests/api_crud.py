@@ -744,30 +744,6 @@ class MembersCrudApiTestCase(TestCase):
         no_birthday = self.post("/api/members/{}/request-echo".format(member.pk), {}, **headers)
         self.assertEqual(no_birthday.status_code, 422, no_birthday.content)
 
-    def test_newsletter_flag_is_editable_so_an_echo_can_be_requested(self):
-        # The echo is refused to members without the newsletter; whoever may
-        # edit the member must be able to set the flag again (Feedback #8).
-        member = Member.objects.create(
-            prename="Ohne",
-            lastname="Newsletter",
-            gender=DIVERSE,
-            email=settings.TEST_MAIL,
-            birth_date=datetime.date(2010, 1, 1),
-            gets_newsletter=False,
-        )
-        headers = self.as_admin("change_global_member", "view_global_member")
-
-        r = self.patch("/api/members/{}".format(member.pk), {"gets_newsletter": True}, **headers)
-        self.assertEqual(r.status_code, 200, r.content)
-        self.assertTrue(r.json()["gets_newsletter"])
-        member.refresh_from_db()
-        self.assertTrue(member.gets_newsletter)
-
-        mail.outbox = []
-        echo = self.post("/api/members/{}/request-echo".format(member.pk), {}, **headers)
-        self.assertEqual(echo.status_code, 200, echo.content)
-        self.assertEqual(len(mail.outbox), 1)
-
     def test_request_password_reset_without_a_linked_account(self):
         member = Member.objects.create(
             prename="Ohne", lastname="Konto", gender=DIVERSE, email=settings.TEST_MAIL
