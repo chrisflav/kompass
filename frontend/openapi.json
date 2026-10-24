@@ -4899,7 +4899,7 @@
             }
           }
         },
-        "description": "Confirm (pay out) a submitted statement, optionally mailing the summary.",
+        "description": "Release a submitted statement: pay it out, or hand it over to the office.",
         "tags": [
           "finance"
         ],

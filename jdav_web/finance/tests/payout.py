@@ -28,25 +28,40 @@ What this module pins:
 """
 
 import pathlib
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.conf import settings
+from django.contrib.auth.models import Permission
+from django.contrib.auth.models import User
+from django.core import mail
 from django.test import SimpleTestCase
 from django.test import TestCase
+from django.urls import reverse
+from django.utils.translation import gettext as _
 from finance.engine import check_directory
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
 from finance.engine.versions import active_version
 from finance.engine.versions import declared_payout
 from finance.engine.versions import payout_problems
+from finance.models import Bill
+from finance.models import Ledger
 from finance.models import Statement
 from finance.rules_api import OFFICE_PAYMENT
 from finance.rules_api import SELF_PAYMENT
 from finance.rulesets.heidelberg import HeidelbergRules
 from finance.store import ImmutableRuleSet
 from finance.store import RuleSet
+from finance.tests.approval import a_user
+from finance.tests.approval import bearer
 from finance.tests.store import querying_field
+from mailer.mailutils import NOT_SENT
+from mailer.mailutils import SENT
+from members.models import MALE
+from members.models import Member
 
 #: ``HANDOFF`` with a quorum of two, for the refusal short of one.
 #:
@@ -330,3 +345,369 @@ class StatementPayoutModeTestCase(TestCase):
         unbound.ruleset_snapshot = {"payout": "irgendwas"}
         self.assertEqual(unbound.payout_mode, SELF_PAYMENT)
         self.assertFalse(unbound.payout_handoff)
+
+
+# --- the handoff -----------------------------------------------------------
+
+
+class HandoffTestCase(TestCase):
+    """Releasing a statement where the Geschäftsstelle makes the transfers."""
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        self.clara_user, self.clara = a_user("clara", permitted=True)
+        self.ledger = Ledger.objects.create(name="Konto")
+        row, problems = imported(HANDOFF, "handoff")
+        self.assertEqual(problems, [])
+        self.version = row
+
+    def a_statement(self, amount=Decimal("100.00")):
+        """A statement that is ready to be released, and nothing more."""
+        statement = Statement.objects.create(short_description="Übergabe")
+        Bill.objects.create(
+            statement=statement,
+            short_description="Bus",
+            amount=amount,
+            costs_covered=True,
+            paid_by=self.clara,
+        )
+        statement.submit(submitter=self.clara)
+        statement.generate_transactions()
+        statement.transaction_set.update(ledger=self.ledger)
+        return Statement.objects.get(pk=statement.pk)
+
+    def test_the_release_mails_the_office_and_then_moves_the_status(self):
+        statement = self.a_statement()
+        mail.outbox = []
+        self.assertTrue(statement.approve(self.anna))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [settings.SEKTION_FINANCE_MAIL])
+        self.assertEqual(mail.outbox[0].cc, [self.anna.email])
+        statement.refresh_from_db()
+        self.assertTrue(statement.confirmed)
+
+    def test_a_mail_that_did_not_go_leaves_the_statement_where_it_was(self):
+        """The decision, and the reason it is the right way round.
+
+        In this mode "Completed" asserts that somebody else now holds the
+        instruction. Asserting it over a mail the server refused is exactly
+        the defect — a status claiming an act that did not happen — so the
+        send comes first and the status waits for it.
+
+        What the failure costs is a click. The signature is a fact and stays
+        on the record; the statement is submitted, fully approved and not
+        released, and pressing the button again retries the handoff without
+        recording a second signature. That is why "leave it where it was" is
+        affordable here: there is no half-released state to get stuck in.
+        """
+        statement = self.a_statement()
+        mail.outbox = []
+        with patch("finance.models.send_mail", return_value=NOT_SENT) as refused:
+            self.assertFalse(statement.approve(self.anna))
+        self.assertEqual(refused.call_count, 1)
+        statement.refresh_from_db()
+        self.assertFalse(statement.confirmed)
+        self.assertTrue(statement.submitted)
+        self.assertTrue(statement.fully_approved, "the signature is a fact and stays")
+        self.assertEqual(statement.approval_set.count(), 1)
+        self.assertEqual(mail.outbox, [])
+
+        # And the retry goes through, on the signature that is already in.
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertTrue(statement.approve(self.anna))
+        self.assertEqual(statement.approval_set.count(), 1, "signing twice is signing once")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_the_handoff_happens_on_a_waiver_as_well(self):
+        """Every release goes through one funnel, which is why it is there.
+
+        ``_pay_out`` is reached from the signature that completes the quorum
+        **and** from a step somebody waived. An endpoint that sent the mail
+        instead would leave the second route able to mark a statement handed
+        over with nothing handed over.
+        """
+        statement = self.a_statement()
+        mail.outbox = []
+        self.assertTrue(statement.override_approval("Freigabe", self.anna, "Frist"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_nothing_is_sent_for_a_statement_that_cannot_be_released(self):
+        """The mail is the last thing before the status, not the first thing.
+
+        A statement whose bookings do not reconcile is refused before the
+        send, so an unreleasable statement does not reach the office at all.
+        """
+        statement = self.a_statement()
+        statement.transaction_set.all().delete()
+        mail.outbox = []
+        self.assertFalse(statement.approve(self.anna))
+        self.assertEqual(mail.outbox, [])
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_send_summary_says_whether_it_went(self):
+        """Which is the value the status of a handed-over statement hangs on.
+
+        ``mailer.mailutils.send`` catches its own exceptions and answers with a
+        status, so "the mail did not go" is a value rather than a traceback —
+        and the only honest reading of "the handoff happened" that Kompass can
+        get at.
+        """
+        statement = self.a_statement()
+        self.assertEqual(statement.send_summary(), SENT)
+        with patch("finance.models.send_mail", return_value=NOT_SENT):
+            self.assertEqual(statement.send_summary(), NOT_SENT)
+            self.assertFalse(statement.hand_over(self.anna))
+
+    def test_a_handoff_nobody_can_be_copied_in_on_still_goes(self):
+        """A release with no member behind it copies nobody, and still sends.
+
+        ``confirm`` takes a member where there is one and ``None`` where the
+        account has no member record — which is a signer the approval engine
+        counts by account. The courtesy copy is the only thing that is then
+        missing, and it is not the handoff.
+        """
+        statement = self.a_statement()
+        mail.outbox = []
+        self.assertTrue(statement.hand_over())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].cc, [])
+
+
+class SelfPaymentIsUntouchedTestCase(TestCase):
+    """The shipped behaviour, asserted as behaviour rather than assumed.
+
+    Heidelberg's release is a payout the reviewer has already made, so the
+    mail is a courtesy that the ``send`` flag asks for. Nothing about the mode
+    may start sending one by itself: neuter the ``payout_handoff`` test in
+    ``_pay_out`` and this goes red.
+    """
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        import_from_directory(reference_directory())
+
+    def test_releasing_a_statement_mails_nothing_by_itself(self):
+        statement = Statement.objects.create(short_description="Auszahlung")
+        statement.submit(submitter=self.anna)
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertEqual(statement.payout_mode, SELF_PAYMENT)
+        mail.outbox = []
+        self.assertTrue(statement.confirm(self.anna))
+        self.assertEqual(mail.outbox, [], "the summary is sent when somebody asks for it")
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+
+# --- the endpoint ----------------------------------------------------------
+
+
+class ReleaseEndpointTestCase(TestCase):
+    """``POST /confirm`` under each mode, from outside.
+
+    The server decides what releasing means, not the client: a client that
+    forgot the ``send`` flag must not be able to mark a statement handed over
+    with nothing handed over, and one that passes it must not cause two mails
+    for one act.
+    """
+
+    def setUp(self):
+        self.anna_user, self.anna = a_user("anna", permitted=True)
+        self.bernd_user, self.bernd = a_user("bernd", permitted=True)
+        self.anna_user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="finance", codename="view_global_statement"
+            )
+        )
+        self.anna_user = User.objects.get(pk=self.anna_user.pk)
+        self.ledger = Ledger.objects.create(name="Konto")
+
+    def a_statement(self, source=HANDOFF, name="handoff"):
+        row, problems = imported(source, name)
+        self.assertEqual(problems, [])
+        statement = Statement.objects.create(short_description="Übergabe")
+        Bill.objects.create(
+            statement=statement,
+            short_description="Bus",
+            amount=Decimal("100.00"),
+            costs_covered=True,
+            paid_by=self.bernd,
+        )
+        statement.submit(submitter=self.bernd)
+        statement.generate_transactions()
+        statement.transaction_set.update(ledger=self.ledger)
+        return Statement.objects.get(pk=statement.pk)
+
+    def release(self, statement, query=""):
+        return self.client.post(
+            "/api/finance/statements/{}/confirm{}".format(statement.pk, query),
+            **bearer(self.anna_user),
+        )
+
+    def test_the_payload_says_who_makes_the_transfers(self):
+        """Per statement, because a statement is bound to its own version.
+
+        The screen has to know before it can describe its own last button, and
+        it cannot ask the instance: two statements open at once may have been
+        created under different arrangements.
+        """
+        handoff = self.a_statement()
+        r = self.client.get(
+            "/api/finance/statements/{}".format(handoff.pk), **bearer(self.anna_user)
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["payout_mode"], OFFICE_PAYMENT)
+
+        imported(with_mode(HANDOFF, "'self'"), "handoff")
+        own = Statement.objects.create(short_description="Selbst")
+        r = self.client.get("/api/finance/statements/{}".format(own.pk), **bearer(self.anna_user))
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["payout_mode"], SELF_PAYMENT)
+        # And the one created before the change still answers the old mode,
+        # from the same endpoint, in the same process.
+        r = self.client.get(
+            "/api/finance/statements/{}".format(handoff.pk), **bearer(self.anna_user)
+        )
+        self.assertEqual(r.json()["payout_mode"], OFFICE_PAYMENT)
+
+    def test_the_handoff_is_sent_once_whatever_the_client_asks_for(self):
+        """Without the flag, because the mail is the act and not an extra."""
+        statement = self.a_statement()
+        mail.outbox = []
+        r = self.release(statement)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_asking_for_the_summary_as_well_does_not_send_it_twice(self):
+        statement = self.a_statement()
+        mail.outbox = []
+        r = self.release(statement, "?send=true")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(len(mail.outbox), 1, "one act, one mail")
+
+    def test_a_mail_that_did_not_go_is_a_refusal_that_says_so(self):
+        """And it says which refusal it is, which is the whole point.
+
+        Everything else about the statement is in — the signatures, the
+        bookings, the rules — so "not ready to be confirmed" would send
+        somebody looking for a problem that is not there. The one thing that
+        failed is the only thing left to name.
+        """
+        statement = self.a_statement()
+        mail.outbox = []
+        with patch("finance.models.send_mail", return_value=NOT_SENT):
+            r = self.release(statement)
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertEqual(
+            r.json()["detail"],
+            [
+                _(
+                    "The summary could not be sent to the office, so the statement "
+                    "was not handed over. Nothing was changed — try again."
+                )
+            ],
+        )
+        self.assertEqual(mail.outbox, [])
+        self.assertFalse(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_short_of_a_quorum_the_refusal_is_worded_for_the_mode(self):
+        """Neither sentence is true in the other section.
+
+        "Cannot be paid out yet" is false where nobody on this screen pays
+        anything, so the handoff gets its own refusal — and the reference
+        ruleset's refusal is the one it always had, which the parity suite in
+        ``finance.tests.approval`` holds down from the other side.
+        """
+        statement = self.a_statement(
+            HANDOFF.replace(TWO_OF_THEM, "    required=2,"), name="handoff-twice"
+        )
+        mail.outbox = []
+        r = self.release(statement)
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertEqual(
+            r.json()["detail"],
+            [_("The statement is still handed in for approvals and cannot be handed over yet.")],
+        )
+        statement = Statement.objects.get(pk=statement.pk)
+        self.assertEqual([a.member for a in statement.approval_set.all()], [self.anna])
+        self.assertFalse(statement.confirmed)
+        self.assertEqual(mail.outbox, [], "nothing reaches the office short of a quorum")
+
+    def test_a_released_statement_is_told_it_is_not_ready_like_any_other(self):
+        """The third refusal, which the mode does not change.
+
+        A statement that has been handed over is not waiting for approvals and
+        its mail did not fail, so the general wording is the right one — which
+        is why the branch is asked rather than the message swapped.
+        """
+        statement = self.a_statement()
+        self.assertEqual(self.release(statement).status_code, 200)
+        r = self.release(Statement.objects.get(pk=statement.pk))
+        self.assertEqual(r.status_code, 422, r.content)
+        self.assertEqual(r.json()["detail"], [_("Statement is not ready to be confirmed.")])
+
+
+class LegacyAdminReleaseTestCase(TestCase):
+    """The admin's confirm page, which is a second door onto the same act.
+
+    It calls ``Statement.confirm`` directly and then offers to mail the
+    summary, which is right where the reviewer makes the transfers: the mail
+    is a receipt they ask for. In a handoff the mail has already gone —
+    ``_pay_out`` sent it, and refused to move the status until it had — so
+    sending it again here would put a second copy of one handoff in the
+    office's inbox. Putting the handoff in the model rather than in the
+    endpoint is what makes this a *duplicate* to suppress rather than a hole
+    to plug.
+    """
+
+    def setUp(self):
+        self.superuser = User.objects.create_superuser(
+            "chef", "chef@localhost", "secret", is_staff=True
+        )
+        Member.objects.create(
+            prename="Chef",
+            lastname="Test",
+            email="chef@localhost",
+            gender=MALE,
+            user=self.superuser,
+        )
+        self.bernd_user, self.bernd = a_user("bernd", permitted=True)
+        self.ledger = Ledger.objects.create(name="Konto")
+
+    def a_statement(self, source):
+        row, problems = imported(source, "admin-handoff")
+        self.assertEqual(problems, [])
+        statement = Statement.objects.create(short_description="Übergabe")
+        Bill.objects.create(
+            statement=statement,
+            short_description="Bus",
+            amount=Decimal("100.00"),
+            costs_covered=True,
+            paid_by=self.bernd,
+        )
+        statement.submit(submitter=self.bernd)
+        statement.generate_transactions()
+        statement.transaction_set.update(ledger=self.ledger)
+        return Statement.objects.get(pk=statement.pk)
+
+    def confirm_and_send(self, statement):
+        self.client.force_login(self.superuser)
+        url = reverse("admin:finance_statement_overview", args=(statement.pk,))
+        return self.client.post(url, data={"transaction_execution_confirm_and_send": ""})
+
+    def test_a_handoff_is_not_mailed_twice_from_the_admin(self):
+        statement = self.a_statement(HANDOFF)
+        mail.outbox = []
+        response = self.confirm_and_send(statement)
+        self.assertEqual(response.status_code, 302, response.content[:300])
+        self.assertEqual(len(mail.outbox), 1, "one act, one mail")
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)
+
+    def test_a_payout_the_reviewer_made_is_still_mailed_on_request(self):
+        statement = self.a_statement(with_mode(HANDOFF, "'self'"))
+        mail.outbox = []
+        response = self.confirm_and_send(statement)
+        self.assertEqual(response.status_code, 302, response.content[:300])
+        self.assertEqual(len(mail.outbox), 1, "the receipt somebody asked for")
+        self.assertTrue(Statement.objects.get(pk=statement.pk).confirmed)

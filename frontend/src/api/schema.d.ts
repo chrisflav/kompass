@@ -1965,7 +1965,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm Statement
-         * @description Confirm (pay out) a submitted statement, optionally mailing the summary.
+         * @description Release a submitted statement: pay it out, or hand it over to the office.
          */
         post: operations["finance_api_router_confirm_statement"];
         delete?: never;

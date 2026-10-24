@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from mailer.mailutils import send as send_mail
+from mailer.mailutils import SENT
 from members.models import Freizeit
 from members.models import Member
 from members.models import MUSKELKRAFT_ANREISE
@@ -1006,13 +1007,35 @@ class Statement(CommonModel):
         return False
 
     def _pay_out(self, confirmer=None):
-        """Flip to paid: the last step, once the signatures are in."""
+        """Flip to paid: the last step, once the signatures are in.
+
+        In a section whose Geschäftsstelle makes the transfers
+        (:attr:`payout_mode`) the last step is not a payment but a **handoff**,
+        and the handoff is the mail: the summary with its payment orders is
+        what the office works from. So the mail is sent here, from the one
+        funnel every release goes through — :meth:`approve` and
+        :meth:`override_approval` both end up here, and an endpoint that sent
+        it instead would leave the other two able to mark a statement handed
+        over with nothing handed over.
+
+        **And the status does not move until the mail has gone.** Nothing else
+        would be true: in handoff mode "Completed" asserts that somebody else
+        now has the instruction, and asserting it over a mail that was refused
+        is precisely the defect — a status that claims an act that did not
+        happen. A send that fails therefore leaves the statement submitted, and
+        leaves the signatures that are already in standing: pressing the button
+        again retries the handoff and records no second signature
+        (:meth:`_has_signed`), which is why the failure costs a click rather
+        than a statement.
+        """
         if self.rule_result.errors:
             # A statement whose rules report a problem has no settled payout to
             # pay out: its rows were never frozen, and `generate_transactions`
             # refused for the same reason.
             return False
         if not self.validity == Statement.VALID:
+            return False
+        if self.payout_handoff and not self.hand_over(confirmer):
             return False
         self._capture_settings_snapshot()
         self.status = self.CONFIRMED
@@ -1389,9 +1412,31 @@ class Statement(CommonModel):
             .annotate(amount=Sum("amount"))
         )
 
+    def hand_over(self, confirmer=None):
+        """Send the office the summary it makes the transfers from.
+
+        Only the handoff mode calls this, and only :meth:`_pay_out` does, right
+        before the status would move. The person releasing the statement is
+        copied in, which is the same courtesy the review screen's "Beleg
+        senden" has always given whoever pressed it.
+
+        Returns whether the mail was accepted for delivery.
+        :func:`mailer.mailutils.send` catches its own exceptions and answers
+        with a status, so "it did not go" is a value here rather than a
+        traceback — and it is the value the status of this statement hangs on.
+        """
+        cc = [confirmer.email] if confirmer is not None and confirmer.email else []
+        return self.send_summary(cc=cc) == SENT
+
     def send_summary(self, cc=None):
         """
         Sends a summary of the statement to the central office of the association.
+
+        Returns the :mod:`mailer.mailutils` status — ``SENT`` when the message
+        was handed to the mail server. Every caller but :meth:`hand_over`
+        ignores it, exactly as they did when it returned ``None``: in a section
+        that pays from the review screen the mail is a receipt for an act that
+        has already happened, and in one whose office pays it *is* the act.
         """
         excursion = self.excursion
         context = dict(statement=self.template_context(), excursion=excursion, settings=settings)
@@ -1402,7 +1447,7 @@ class Statement(CommonModel):
         filename = render_tex_with_attachments(
             pdf_filename, "finance/statement_summary.tex", context, attachments, save_only=True
         )
-        send_mail(
+        return send_mail(
             _("Statement summary for %(title)s") % {"title": self.title},
             settings.SEND_STATEMENT_SUMMARY.format(statement=self.title),
             sender=settings.DEFAULT_SENDING_MAIL,
