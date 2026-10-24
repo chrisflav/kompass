@@ -164,7 +164,7 @@ function TermineList() {
               { header: "Bis", cell: (t) => formatDate(t.end_date), sortKey: "end_date" },
               { header: "Gruppe", cell: (t) => t.group_display, sortKey: "group" },
               { header: "Kategorie", cell: (t) => t.category_display, sortKey: "category" },
-              { header: "Organisator:in", cell: (t) => t.responsible || "—", sortKey: "responsible" },
+              { header: "Organisator*in", cell: (t) => t.responsible || "—", sortKey: "responsible" },
             ]}
           />
         )}
@@ -349,7 +349,7 @@ function TerminDetailBody({
       ),
     },
     {
-      label: "Organisator:in",
+      label: "Organisator*in",
       field: "responsible",
       value: termin.responsible,
       edit: (

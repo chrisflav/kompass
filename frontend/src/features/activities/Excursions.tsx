@@ -303,7 +303,7 @@ function ExcursionCreateForm({ onDone }: { onDone: () => void }) {
           placeholder="Gruppe hinzufügen…"
         />
       </Field>
-      <Field group label="Jugendleiter*innen">
+      <Field group label="Leiter*innen">
         <MultiSelect
           options={memberOptions}
           selected={form.jugendleiter_ids}
@@ -605,7 +605,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
       ),
     },
     {
-      label: "Jugendleiter*innen",
+      label: "Leiter*innen",
       field: "jugendleiter",
       value: excursion.jugendleiter.length
         ? excursion.jugendleiter.map((j) => j.name).join(", ")
@@ -713,7 +713,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
       ),
     },
     {
-      label: "Zusätzliche Jugendleiter*innen",
+      label: "Zusätzliche Leiter*innen",
       field: "approved_extra_youth_leader_count",
       value: excursion.approved_extra_youth_leader_count,
       edit: (
@@ -1151,7 +1151,10 @@ function FinanceOverviewModal({
             <p>Erwartete Gesamtausgaben: {euro(o.total_bills_theoretic)}</p>
 
             <h3 className="fieldset-title">Zuschüsse durch den Verein</h3>
-            <p>{o.staff_count} Jugendleiter*in(nen) erhalten laut Richtlinien je:</p>
+            <p>
+              {o.staff_count === 1 ? "1 Leiter*in erhält" : `${o.staff_count} Leiter*innen erhalten`}{" "}
+              laut Richtlinien je:
+            </p>
             <ul>
               <li>
                 {o.nights} Übernachtungen à {euro(o.price_per_night)} = {euro(o.nights_per_yl)}
@@ -1178,7 +1181,7 @@ function FinanceOverviewModal({
             {!o.allowance_to_valid && (
               <p className="field-error">
                 Achtung: Die Empfänger*innen der Aufwandsentschädigung entsprechen nicht den
-                Vorgaben (evtl. mehr als die zulässige Anzahl Jugendleiter*innen).
+                Vorgaben (evtl. mehr als die zulässige Anzahl Leiter*innen).
               </p>
             )}
             {o.subsidy_to ? (

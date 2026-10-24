@@ -205,7 +205,7 @@ describe("mailer — E-Mail-Adressen", () => {
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "+ Teilnehmende hinzufügen" }));
     await user.click(dropdown().getByRole("button", { name: "Tobias Werner" }));
-    // Two rows offer "+ Gruppe hinzufügen"; the second is "Erlaubte Absender".
+    // Two rows offer "+ Gruppe hinzufügen"; the second is "Erlaubte Absender*innen".
     const groupPickers = screen.getAllByRole("button", { name: "+ Gruppe hinzufügen" });
     await user.click(groupPickers[groupPickers.length - 1]);
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
@@ -694,7 +694,7 @@ describe("mailer — Nachrichten", () => {
     await user.click(screen.getByRole("button", { name: "Senden" }));
 
     const confirmDialog = await screen.findByText(
-      "Nachricht jetzt an alle Empfänger versenden?",
+      "Nachricht jetzt an alle Empfänger*innen versenden?",
     );
     expect(confirmDialog).toBeInTheDocument();
     expect(submitted).toBe(false);
@@ -726,7 +726,7 @@ describe("mailer — Nachrichten", () => {
     await user.type(screen.getByLabelText("Inhalt"), "I");
     await user.click(screen.getByRole("button", { name: "Senden" }));
 
-    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger*innen versenden?");
     await user.click(
       within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
         name: "Abbrechen",
@@ -800,7 +800,7 @@ describe("mailer — Nachrichten", () => {
     await user.type(screen.getByLabelText("Inhalt"), "I");
     await user.click(screen.getByRole("button", { name: "Senden" }));
 
-    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger*innen versenden?");
     await user.click(
       within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
         name: "Bestätigen",
@@ -880,7 +880,7 @@ describe("mailer — Nachrichten", () => {
     await composeWithAttachment(user);
 
     await user.click(screen.getByRole("button", { name: "Senden" }));
-    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger*innen versenden?");
     await user.click(
       within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
         name: "Bestätigen",
@@ -914,7 +914,7 @@ describe("mailer — Nachrichten", () => {
     await composeWithAttachment(user);
 
     await user.click(screen.getByRole("button", { name: "Senden" }));
-    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger*innen versenden?");
     await user.click(
       within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
         name: "Bestätigen",
@@ -949,7 +949,7 @@ describe("mailer — Nachrichten", () => {
     await user.type(await screen.findByLabelText("Betreff"), "Sommerfahrt");
     await user.type(screen.getByLabelText("Inhalt"), "Bitte anmelden.");
     await user.click(screen.getByRole("button", { name: "Senden" }));
-    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger*innen versenden?");
     await user.click(
       within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
         name: "Bestätigen",
@@ -1054,7 +1054,7 @@ describe("mailer — Nachrichten", () => {
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Versenden" }));
 
-    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger*innen versenden?");
     await user.click(
       within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
         name: "Bestätigen",
@@ -1074,7 +1074,7 @@ describe("mailer — Nachrichten", () => {
     const { user } = renderRoute("/kompass/mailer/messages/4");
     await user.click(await screen.findByRole("button", { name: /Aktionen/ }));
     await user.click(screen.getByRole("button", { name: "Versenden" }));
-    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger*innen versenden?");
     await user.click(
       within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
         name: "Bestätigen",

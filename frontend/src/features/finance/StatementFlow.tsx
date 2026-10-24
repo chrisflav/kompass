@@ -291,7 +291,7 @@ function StatementFlow({ statement }: { statement: StatementOut | null }) {
                 onClick={async () => {
                   const ok = await confirm({
                     title: "Abrechnung einreichen?",
-                    message: "Nach dem Einreichen kannst du die Abrechnung nicht mehr ändern. Die Kassenwartin prüft sie und zahlt aus.",
+                    message: "Nach dem Einreichen kannst du die Abrechnung nicht mehr ändern. Der*die Kassenwart*in prüft sie und zahlt aus.",
                     confirmLabel: "Einreichen",
                   });
                   if (ok) submitM.mutate(undefined);
@@ -433,7 +433,7 @@ function AnlassStep({
         )}
       </Field>
 
-      <Field label="Erklärung" hint="Optional. Was die Kassenwartin wissen sollte.">
+      <Field label="Erklärung" hint="Optional. Was der*die Kassenwart*in wissen sollte.">
         <textarea
           rows={3}
           value={draft.explanation}
@@ -610,8 +610,8 @@ function BelegeStep({
     <section className="flow-step flow-step-wide">
       <h2 className="flow-title">Belege</h2>
       <p className="flow-lead">
-        Alles, was jemand ausgelegt hat. Fotografiere den Kassenzettel — ohne Bild kann die
-        Kassenwartin den Beleg nicht anerkennen.
+        Alles, was jemand ausgelegt hat. Fotografiere den Kassenzettel — ohne Bild kann der*die
+        Kassenwart*in den Beleg nicht anerkennen.
       </p>
 
       <ul className="beleg-list">
@@ -639,7 +639,7 @@ function BelegeStep({
               <div className="beleg-main">
                 <span className="beleg-title">{b.short_description}</span>
                 <span className="beleg-sub">
-                  {b.paid_by ? `ausgelegt von ${b.paid_by.name}` : "kein Zahler eingetragen"}
+                  {b.paid_by ? `ausgelegt von ${b.paid_by.name}` : "kein*e Zahler*in eingetragen"}
                 </span>
               </div>
               <div className="beleg-proof">
@@ -938,7 +938,7 @@ function PayoutPreview({ statement }: { statement: StatementOut }) {
         </dl>
       )}
       <p className="payout-note">
-        Die Kassenwartin entscheidet noch, welche Belege übernommen werden. Der ausgezahlte Betrag
+        Der*die Kassenwart*in entscheidet noch, welche Belege übernommen werden. Der ausgezahlte Betrag
         kann darum kleiner ausfallen.
       </p>
     </div>
@@ -967,7 +967,7 @@ function AbschlussStep({ statement }: { statement: StatementOut }) {
           <>
             <p className="flow-lead">
               {preflight.ok
-                ? "Alles vollständig. Nach dem Einreichen übernimmt die Kassenwartin."
+                ? "Alles vollständig. Nach dem Einreichen übernimmt der*die Kassenwart*in."
                 : "Das fehlt noch, bevor du einreichen kannst."}
             </p>
             <Preflight>

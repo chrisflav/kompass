@@ -561,7 +561,7 @@ function MemberBulkActions({ members, onDone }: { members: MemberBrief[]; onDone
             busy={bulk.isPending}
             onClick={() =>
               run(
-                "Als Nutzer einladen",
+                "Als Nutzer*in einladen",
                 `${members.length} Teilnehmende einladen, einen Kompass-Zugang anzulegen?`,
                 (n) => `${n} Einladungen verschickt.`,
                 (id) =>
@@ -573,7 +573,7 @@ function MemberBulkActions({ members, onDone }: { members: MemberBrief[]; onDone
               )
             }
           >
-            Als Nutzer einladen
+            Als Nutzer*in einladen
           </Button>
         )}
         {can("members.add_membernotelist") && (
@@ -980,7 +980,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
     { enabled: editing },
   );
   const groupsQuery = useGroups({ enabled: editing });
-  // The "Nutzer" link is gated per field, exactly as in the admin; without the
+  // The "Nutzer*in" link is gated per field, exactly as in the admin; without the
   // permission the row stays read-only and its options are never fetched (the
   // endpoint would refuse them anyway).
   const maySetAuthUser = can("members.may_set_auth_user");
@@ -1172,7 +1172,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
     { label: "Aktiv", value: boolBadge(member.active), edit: check("active"), field: "active" },
     { label: "Echo erhalten", value: boolBadge(member.echoed) },
     {
-      label: "Nutzer",
+      label: "Nutzer*in",
       value: member.user_display || "—",
       edit: maySetAuthUser ? userEdit : undefined,
       field: "user",
@@ -2309,7 +2309,7 @@ function MemberActions({ member }: { member: MemberOut }) {
         ),
     ),
     action(
-      "Als Nutzer einladen",
+      "Als Nutzer*in einladen",
       `${member.name} per E-Mail an ${recipient} einladen, einen Kompass-Zugang anzulegen?`,
       `Einladung an ${recipient} verschickt.`,
       () =>

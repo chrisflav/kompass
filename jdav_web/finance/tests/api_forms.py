@@ -184,7 +184,7 @@ class FinanceFormApiTestCase(TestCase):
             **self.auth(self.owner_user),
         )
         self.assertEqual(r.status_code, 422, r.content)
-        self.assertIn("Jugendleiter", " ".join(r.json()["errors"]["subsidy_to"]))
+        self.assertIn("Leiter*innen", " ".join(r.json()["errors"]["subsidy_to"]))
 
     def _leaders(self, count):
         """``count`` extra youth leaders on the excursion, by ascending id."""
@@ -370,7 +370,7 @@ class FinanceFormApiTestCase(TestCase):
             **self.auth(self.owner_user),
         )
         self.assertEqual(r.status_code, 422, r.content)
-        self.assertIn("Jugendleiter", r.content.decode())
+        self.assertIn("Leiter*innen", r.content.decode())
 
     def test_more_recipients_than_the_section_approved(self):
         for index in range(3):

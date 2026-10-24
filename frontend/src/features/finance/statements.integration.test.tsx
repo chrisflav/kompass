@@ -343,7 +343,7 @@ describe("statements list — remaining paths", () => {
     await screen.findByRole("button", { name: "Weiter bearbeiten" });
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("tab", { name: "Empfänger" }));
+    await user.click(screen.getByRole("tab", { name: "Empfänger*innen" }));
     expect(screen.getByText(/Erstattungs-Schritt/)).toBeInTheDocument();
   });
 
@@ -605,7 +605,7 @@ describe("submission flow — Belege", () => {
     });
     renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
     expect(await screen.findByText("Bild fehlt")).toBeInTheDocument();
-    expect(screen.getByText("kein Zahler eingetragen")).toBeInTheDocument();
+    expect(screen.getByText("kein*e Zahler*in eingetragen")).toBeInTheDocument();
   });
 });
 
@@ -1161,7 +1161,7 @@ describe("statement detail — Empfänger tab", () => {
     detailReturns();
     const { user } = renderRoute("/kompass/finance/statements/1");
     await screen.findByRole("button", { name: "Weiter bearbeiten" });
-    await user.click(screen.getByRole("tab", { name: "Empfänger" }));
+    await user.click(screen.getByRole("tab", { name: "Empfänger*innen" }));
 
     // Read-only by design: recipients are chosen in the flow, which enforces
     // that only the trip's youth leaders may receive the money.
@@ -1172,7 +1172,7 @@ describe("statement detail — Empfänger tab", () => {
     detailReturns({ excursion: null });
     const { user } = renderRoute("/kompass/finance/statements/1");
     await screen.findByRole("button", { name: "Weiter bearbeiten" });
-    await user.click(screen.getByRole("tab", { name: "Empfänger" }));
+    await user.click(screen.getByRole("tab", { name: "Empfänger*innen" }));
 
     expect(
       screen.getByText(/gibt es nur für Abrechnungen, die zu einer Ausfahrt gehören/),
@@ -1323,7 +1323,7 @@ describe("review pipeline", () => {
     const twin = { ...TRANSACTION, id: 21, reference: "Verpflegung" };
     const { user } = openStage("bookings", {}, [TRANSACTION, twin]);
 
-    const merge = await screen.findByRole("button", { name: /zusammenfassen/ });
+    const merge = await screen.findByRole("button", { name: "1 Empfänger*in zusammenfassen" });
     let reduced = false;
     server.use(
       http.post(api("/api/finance/statements/1/reduce-transactions"), () => {
@@ -1333,6 +1333,19 @@ describe("review pipeline", () => {
     );
     await user.click(merge);
     await waitFor(() => expect(reduced).toBe(true));
+  });
+
+  it("counts the recipients to merge in the plural", async () => {
+    const other = { ...TRANSACTION, member: { id: 10, name: "Nils Ott" } };
+    openStage("bookings", {}, [
+      TRANSACTION,
+      { ...TRANSACTION, id: 21 },
+      { ...other, id: 22 },
+      { ...other, id: 23 },
+    ]);
+    expect(
+      await screen.findByRole("button", { name: "2 Empfänger*innen zusammenfassen" }),
+    ).toBeEnabled();
   });
 
   it("has nothing to merge for a single booking", async () => {

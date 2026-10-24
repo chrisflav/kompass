@@ -76,7 +76,7 @@ export function PermissionGroupsList() {
             columns={[
               { header: "Name", cell: (g) => g.name, sortKey: "name" },
               { header: "Rechte", cell: (g) => g.permission_count, sortKey: "permission_count" },
-              { header: "Benutzer", cell: (g) => g.user_count, sortKey: "user_count" },
+              { header: "Benutzer*innen", cell: (g) => g.user_count, sortKey: "user_count" },
             ]}
           />
         )}
@@ -248,7 +248,7 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
       value: group.name,
       edit: <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />,
     },
-    { label: "Benutzer in dieser Gruppe", value: group.user_count },
+    { label: "Benutzer*innen in dieser Gruppe", value: group.user_count },
     {
       label: "Rechte",
       field: "permissions",
@@ -308,7 +308,7 @@ function PermissionGroupDetailBody({ group }: { group: AuthGroupOut }) {
                   onClick={async () => {
                     if (
                       await confirm({
-                        message: `Rechtegruppe „${group.name}“ wirklich löschen? ${group.user_count} Benutzer verlieren die darin enthaltenen Rechte.`,
+                        message: `Rechtegruppe „${group.name}“ wirklich löschen? ${group.user_count} Benutzer*innen verlieren die darin enthaltenen Rechte.`,
                         danger: true,
                         confirmLabel: "Löschen",
                       })

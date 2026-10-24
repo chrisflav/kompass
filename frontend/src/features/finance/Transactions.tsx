@@ -114,7 +114,7 @@ export function TransactionsList() {
             sort={view.sort}
             onSort={view.toggleSort}
             columns={[
-              { header: "Empfänger", cell: (t) => t.member.name, sortKey: "member" },
+              { header: "Empfänger*in", cell: (t) => t.member.name, sortKey: "member" },
               { header: "Konto", cell: (t) => t.ledger?.name ?? "—", sortKey: "ledger" },
               { header: "Betrag", cell: (t) => euro(t.amount), sortKey: "amount" },
               { header: "Verwendungszweck", cell: (t) => t.reference, sortKey: "reference" },
@@ -176,7 +176,7 @@ export function TransactionDetailPage() {
         {(tx: TransactionOut) => (
           <DetailList
             items={[
-              ["Empfänger", tx.member.name],
+              ["Empfänger*in", tx.member.name],
               ["Betrag", euro(tx.amount)],
               ["Verwendungszweck", tx.reference],
               ["Konto", tx.ledger ? tx.ledger.name : "—"],

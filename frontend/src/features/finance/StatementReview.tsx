@@ -399,7 +399,7 @@ function PruefenStage({
                 <span className="beleg-main">
                   <span className="beleg-title">{b.short_description}</span>
                   <span className="beleg-sub">
-                    {b.paid_by ? `ausgelegt von ${b.paid_by.name}` : "kein Zahler eingetragen"}
+                    {b.paid_by ? `ausgelegt von ${b.paid_by.name}` : "kein*e Zahler*in eingetragen"}
                     {!b.has_proof && " · ohne Bild"}
                   </span>
                 </span>
@@ -700,7 +700,7 @@ function BuchungenStage({
             <Button variant="ghost" busy={busy} disabled={mergeable === 0} onClick={onReduce}>
               {mergeable === 0
                 ? "Nichts zusammenzufassen"
-                : `${mergeable} Empfänger*in zusammenfassen`}
+                : `${mergeable} ${mergeable === 1 ? "Empfänger*in" : "Empfänger*innen"} zusammenfassen`}
             </Button>
             {missingLedger > 0 && (
               <span className="stage-hint">

@@ -109,7 +109,7 @@ msgstr ""
 "wurden."
 
 msgid "Allowed sender"
-msgstr "Erlaubte Absender:innen"
+msgstr "Erlaubte Absender*innen"
 
 msgid ""
 "Only forward e-mails of members of selected groups. Leave empty to allow all "
@@ -166,7 +166,7 @@ msgid "created"
 msgstr "Erstellt"
 
 msgid "recipients"
-msgstr "Empfänger"
+msgstr "Empfänger*innen"
 
 msgid "message"
 msgstr "Nachricht"
@@ -231,10 +231,10 @@ msgid "local address"
 msgstr "Lokale Adresse"
 
 msgid "recipient"
-msgstr "Empfänger:in"
+msgstr "Empfänger*in"
 
 msgid "envelope sender"
-msgstr "Envelope-Absender:in"
+msgstr "Envelope-Absender*in"
 
 msgid "bounced"
 msgstr "Zustellfehler"

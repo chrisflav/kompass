@@ -170,7 +170,7 @@ export function MessagesList() {
                 cell: (m) => m.subject || "(ohne Betreff)",
                 sortKey: "subject",
               },
-              { header: "Empfänger", cell: (m) => m.recipients },
+              { header: "Empfänger*innen", cell: (m) => m.recipients },
               { header: "Erstellt", cell: (m) => formatDate(m.created_at), sortKey: "created" },
               {
                 header: "Status",
@@ -278,7 +278,7 @@ function MessageComposer() {
       toast.error("Betreff und Inhalt sind erforderlich.");
       return;
     }
-    if (send && !(await confirm("Nachricht jetzt an alle Empfänger versenden?"))) return;
+    if (send && !(await confirm("Nachricht jetzt an alle Empfänger*innen versenden?"))) return;
     setFieldErrors({});
     setBusy(true);
     try {
@@ -425,7 +425,7 @@ function useMessageRows(
               <Badge tone="warning">Entwurf</Badge>
             ),
           },
-          { label: "Empfänger", value: message.recipients },
+          { label: "Empfänger*innen", value: message.recipients },
           { label: "Erstellt von", value: message.created_by?.name ?? "—" },
         ]
       : []),
@@ -682,7 +682,7 @@ function SubmitAction({ message }: { message: MessageOut }) {
       variant="ghost"
       busy={mutation.isPending}
       onClick={async () => {
-        if (await confirm("Nachricht jetzt an alle Empfänger versenden?"))
+        if (await confirm("Nachricht jetzt an alle Empfänger*innen versenden?"))
           mutation.mutate(undefined);
       }}
     >

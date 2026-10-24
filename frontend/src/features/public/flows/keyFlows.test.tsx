@@ -764,7 +764,7 @@ describe("submit an event proposal", () => {
     await user.clear(screen.getByLabelText("Max. Teilnehmende"));
     await user.type(screen.getByLabelText("Max. Teilnehmende"), "8");
     await user.type(screen.getByLabelText("Beschreibung"), "Zwei Tage am Fels.");
-    await user.type(screen.getByLabelText("Organisator:in"), "Ingo Iller");
+    await user.type(screen.getByLabelText("Organisator*in"), "Ingo Iller");
     await user.type(screen.getByLabelText("E-Mail"), "ingo@example.org");
     await user.click(screen.getByRole("button", { name: "Termin einreichen" }));
 

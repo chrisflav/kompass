@@ -13,7 +13,7 @@ function LeaderGrid({ people }: { people: PublicMemberBrief[] }) {
   if (people.length === 0) return null;
   return (
     <section style={{ marginTop: "1.5rem" }}>
-      <h2>Jugendleiter:innen</h2>
+      <h2>Jugendleiter*innen</h2>
       <PortraitGrid people={people} />
     </section>
   );

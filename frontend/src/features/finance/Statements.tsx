@@ -213,12 +213,12 @@ function StatementDetailBody({ statement, crumbs }: { statement: StatementOut; c
           { id: "abrechnung", label: "Abrechnung", content: <DetailList items={mainRows} /> },
           {
             id: "empfaenger",
-            label: "Empfänger",
+            label: "Empfänger*innen",
             content: (
               <>
                 <p className="fieldset-help">
                   {statement.excursion
-                    ? "Aufwandsentschädigung, Zuschuss und LJP-Beitrag werden im Erstattungs-Schritt der Abrechnung gewählt — nur Jugendleiter*innen dieser Fahrt dürfen sie erhalten."
+                    ? "Aufwandsentschädigung, Zuschuss und LJP-Beitrag werden im Erstattungs-Schritt der Abrechnung gewählt — nur Leiter*innen dieser Fahrt dürfen sie erhalten."
                     : "Aufwandsentschädigung, Zuschuss und LJP-Beitrag gibt es nur für Abrechnungen, die zu einer Ausfahrt gehören."}
                 </p>
                 <DetailList items={recipientRows} />

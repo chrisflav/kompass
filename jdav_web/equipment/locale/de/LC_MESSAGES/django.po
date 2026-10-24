@@ -85,8 +85,7 @@ msgid "This reservation is someone else's."
 msgstr "Diese Reservierung gehört jemand anderem."
 
 msgid "Only the group's leaders decide on its material."
-msgstr ""
-"Über das Material einer Gruppe entscheiden nur ihre Jugendleiter*innen."
+msgstr "Über das Material einer Gruppe entscheiden nur ihre Leiter*innen."
 
 msgid "You can only return material you hold."
 msgstr "Du kannst nur Material zurückgeben, das du hast."

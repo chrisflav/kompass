@@ -589,7 +589,7 @@ describe("Gruppe detail", () => {
       path: "/gruppe/:name",
     });
 
-    await screen.findByRole("heading", { name: "Jugendleiter:innen" });
+    await screen.findByRole("heading", { name: "Jugendleiter*innen" });
     const tobias = screen.getByText("Tobias Werner").closest(".portrait-card") as HTMLElement;
     const box = tobias.querySelector(".portrait") as HTMLElement;
     // Same box as a photographed leader, so the grid keeps its rhythm.
@@ -635,7 +635,7 @@ describe("Gruppe detail", () => {
       path: "/gruppe/:name",
     });
 
-    await screen.findByRole("heading", { name: "Jugendleiter:innen" });
+    await screen.findByRole("heading", { name: "Jugendleiter*innen" });
     expect(screen.getByText("Ä")).toBeInTheDocument();
   });
 
@@ -659,7 +659,7 @@ describe("Gruppe detail", () => {
     expect(screen.queryByText("Jahrgang 2010–2013")).not.toBeInTheDocument();
     expect(screen.queryByText("kletter@example.org")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Zur Anmeldung/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Jugendleiter:innen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Jugendleiter*innen" })).not.toBeInTheDocument();
   });
 
   it("keeps the registration link off a group that has a password but hides it", async () => {

@@ -15,7 +15,7 @@ const FIELD_HELP: Record<string, Record<string, string>> = {
     postcode: "nur für einen LJP-Antrag relevant",
     destination: "z.B. ein Gipfel",
     approved_extra_youth_leader_count:
-      "Die Anzahl der genehmigten Jugendleiter*innen pro Ausfahrt wird grundsätzlich durch die Anzahl der Teilnehmer*innen festgelegt. In besonderen Fällen, zum Beispiel bei einer fachlich herausfordernden Ausfahrt, können zusätzliche Jugendleiter*innen genehmigt werden.",
+      "Die Anzahl der genehmigten Leiter*innen pro Ausfahrt wird grundsätzlich durch die Anzahl der Teilnehmer*innen festgelegt. In besonderen Fällen, zum Beispiel bei einer fachlich herausfordernden Ausfahrt, können zusätzliche Leiter*innen genehmigt werden.",
     kilometers_traveled:
       "Gesamte Fahrtstrecke (Hin- und Rückfahrt). Die Angabe ist relevant für die Berechnung der Zuschüsse durch den Jugendetat.",
     approved:
