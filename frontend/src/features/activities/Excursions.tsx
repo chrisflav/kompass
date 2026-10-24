@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, client, unwrap } from "../../api/http";
@@ -861,7 +861,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
         ]}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
@@ -871,9 +871,9 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
               >
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -975,7 +975,7 @@ function ExcursionDetailBody({ excursion }: { excursion: ExcursionOut }) {
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />

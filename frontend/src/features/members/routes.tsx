@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Link, Route, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import climberIcon from "../../assets/climber.png";
@@ -1375,16 +1375,16 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
         breadcrumbs={crumbs}
         actions={
           editing ? (
-            <>
+            <Fragment key="edit">
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Abbrechen
               </Button>
               <Button type="submit" busy={saving}>
                 Speichern
               </Button>
-            </>
+            </Fragment>
           ) : (
-            <>
+            <Fragment key="view">
               <Button type="button" variant="ghost" onClick={() => history.back()}>
                 Zurück
               </Button>
@@ -1411,7 +1411,7 @@ function MemberDetailBody({ member, crumbs }: { member: MemberOut; crumbs: Crumb
               <Button type="button" onClick={startEditing}>
                 Bearbeiten
               </Button>
-            </>
+            </Fragment>
           )
         }
       />
