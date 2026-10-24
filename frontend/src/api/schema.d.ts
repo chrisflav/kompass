@@ -6082,7 +6082,7 @@ export interface components {
             name: string;
             /**
              * Restrict to internal email addresses
-             * @description Only allow forwarding to this e-mail address from one of the following domains: example.org.
+             * @description Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *
              * @default false
              */
             internal_only: boolean;
@@ -6105,7 +6105,7 @@ export interface components {
             name: string;
             /**
              * Restrict to internal email addresses
-             * @description Only allow forwarding to this e-mail address from one of the following domains: example.org.
+             * @description Only allow forwarding to this e-mail address from one of the following domains: alpenverein-ludwigsburg.de, *
              * @default false
              */
             internal_only: boolean;
