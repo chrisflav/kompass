@@ -72,6 +72,9 @@ function statement(overrides: Record<string, unknown> = {}) {
     is_valid: true,
     validity: 0,
     validity_display: "Gültig",
+    // Who makes the transfers. The reference arrangement, so every test above
+    // describes the section Kompass shipped for.
+    payout_mode: "self",
     transaction_issues: [],
     excursion: { id: 3, code: "F26-01", name: "Skifreizeit" },
     created_by: { id: 7, name: "Hannah Beckers" },
@@ -2717,6 +2720,214 @@ describe("review pipeline", () => {
 
     const nav = within(document.querySelector(".flow-nav") as HTMLElement);
     await user.click(nav.getByRole("button", { name: "Zurück" }));
+    expect(await screen.findByRole("heading", { name: "Ausgaben prüfen" })).toBeInTheDocument();
+  });
+});
+
+/**
+ * The other arrangement: the Geschäftsstelle makes the transfers.
+ *
+ * Everything above describes a section whose reviewer transfers the money, and
+ * nothing in it may move — a sentence true in one arrangement is false in the
+ * other, so these tests are written against the strings the other one must
+ * *not* say as much as against the ones it must.
+ */
+describe("statement review — the office makes the transfers", () => {
+  const TRANSACTION = {
+    id: 20,
+    amount: 42.5,
+    confirmed: false,
+    confirmed_date: null,
+    confirmed_by: null,
+    statement_id: 1,
+    member: { id: 9, name: "Mila Nowak" },
+    ledger: { id: 1, name: "Jugendetat" },
+    code: "BCD\n001\n1\nSCT\n\nMila Nowak\nDE02120300000000202051\nEUR42.5\n\n\nFahrtkosten",
+    iban: "DE02120300000000202051",
+    iban_valid: true,
+    reference: "Fahrtkosten",
+    settlement_group: "",
+  };
+
+  const HANDOFF = {
+    submitted: true,
+    status: 1,
+    status_display: "Eingereicht",
+    payout_mode: "office",
+  };
+
+  function openStage(
+    stage: string,
+    overrides: Record<string, unknown> = {},
+    transactions: unknown[] = [TRANSACTION],
+  ) {
+    useMe({ permissions: ["finance.process_statementsubmitted"] });
+    detailReturns({ ...HANDOFF, ...overrides });
+    server.use(
+      http.get(api("/api/finance/statements/1/transactions"), () =>
+        HttpResponse.json(transactions),
+      ),
+    );
+    return renderRoute(`/kompass/finance/statements/1/review?stage=${stage}`);
+  }
+
+  it("asks nobody to claim a transfer they do not make", async () => {
+    openStage("payout");
+
+    expect(
+      await screen.findByRole("heading", { name: "Übergabe an die Geschäftsstelle" }),
+    ).toBeInTheDocument();
+    await screen.findByText("Mila Nowak");
+    expect(
+      screen.getByText(/Die Geschäftsstelle überweist die folgenden 1 Beträge an 1 Empfänger/),
+    ).toBeInTheDocument();
+    // The acknowledgement is the sentence with nobody who could truthfully
+    // tick it here, so it is not asked at all — and the button is not waiting
+    // for it.
+    expect(
+      screen.queryByLabelText(/Ich habe die aufgeführten Überweisungen ausgeführt/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zur Auszahlung übergeben" })).toBeEnabled();
+    expect(screen.queryByRole("heading", { name: "Auszahlung" })).not.toBeInTheDocument();
+  });
+
+  it("offers one act, not the pair that belongs to paying from here", async () => {
+    openStage("payout");
+    await screen.findByText("Mila Nowak");
+    // "Release without mailing" would be a status claiming a handoff with
+    // nothing handed over, so the mode does not offer it.
+    expect(screen.queryByRole("button", { name: "Nur bestätigen" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Bestätigen & Beleg senden" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("draws no QR code, because nobody here is going to scan one", async () => {
+    openStage("payout");
+
+    const row = (await screen.findByText("Mila Nowak")).closest(".payout-row") as HTMLElement;
+    // The account, the reference and the amount are still there: this is the
+    // last look at what is about to be handed over.
+    expect(within(row).getByText("DE02 1203 0000 0000 2020 51")).toBeInTheDocument();
+    expect(within(row).getByText("Fahrtkosten")).toBeInTheDocument();
+    expect(within(row).getByText("42,50 €")).toBeInTheDocument();
+    expect(row.querySelector(".payout-row-qr")).toBeNull();
+    expect(screen.queryByText("Scannen zum Überweisen")).not.toBeInTheDocument();
+  });
+
+  it("hands the statement over after a prompt, and the server sends the Beleg", async () => {
+    let sendQuery: string | null | undefined;
+    let posted = false;
+    server.use(
+      http.post(api("/api/finance/statements/1/confirm"), ({ request }) => {
+        posted = true;
+        sendQuery = new URL(request.url).searchParams.get("send");
+        return HttpResponse.json(
+          statement({ ...HANDOFF, confirmed: true, status: 2, status_display: "Abgeschlossen" }),
+        );
+      }),
+    );
+    const { user } = openStage("payout");
+    await screen.findByText("Mila Nowak");
+
+    await user.click(screen.getByRole("button", { name: "Zur Auszahlung übergeben" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/Der Beleg mit allen Überweisungsaufträgen geht an die/)).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Übergeben" }));
+
+    await waitFor(() => expect(posted).toBe(true));
+    // No `send` flag: the mail *is* the handoff, so the server sends it and
+    // asking for it here as well would be a second mail for one act.
+    expect(sendQuery).toBe(null);
+    expect(
+      await screen.findByText("Abrechnung zur Auszahlung übergeben."),
+    ).toBeInTheDocument();
+  });
+
+  it("says a released statement was handed over, not paid out", async () => {
+    openStage("payout", { confirmed: true, status: 2, status_display: "Abgeschlossen" });
+    expect(
+      await screen.findByText("Diese Abrechnung ist zur Auszahlung übergeben."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Diese Abrechnung ist bereits ausgezahlt.")).not.toBeInTheDocument();
+    // And so does the leg's readout on the rail.
+    expect(screen.getByText("übergeben")).toBeInTheDocument();
+    expect(screen.queryByText("ausgezahlt")).not.toBeInTheDocument();
+  });
+
+  it("locks the handover rather than the payout", async () => {
+    openStage("payout", {
+      is_valid: false,
+      validity: 1,
+      validity_display: "Die Buchungen passen nicht zu den Kosten.",
+    });
+    expect(await screen.findByRole("heading", { name: "Ausgaben prüfen" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Die Übergabe ist gesperrt: Die Buchungen passen nicht zu den Kosten\./),
+    ).toBeInTheDocument();
+  });
+
+  it("names the missing account rather than the missing QR code", async () => {
+    // The person making the transfer has the paper and nothing else, so an
+    // account they cannot act on has to be fixed before the handoff.
+    openStage("payout", {}, [{ ...TRANSACTION, code: "", iban: "DE00", iban_valid: false }]);
+
+    expect(await screen.findByText(/1 Buchung\(en\) ohne gültige IBAN/)).toBeInTheDocument();
+    expect(screen.getByText(/hinterlege die IBAN vor der Übergabe/)).toBeInTheDocument();
+    expect(screen.queryByText(/ohne QR-Code/)).not.toBeInTheDocument();
+  });
+
+  it("counts a booking of nothing as nothing to transfer", async () => {
+    // Zero euro needs no bank transfer under either arrangement, so it is not
+    // an account anybody has to go and fix.
+    openStage("payout", {}, [{ ...TRANSACTION, amount: 0, code: "", iban: "", iban_valid: false }]);
+    await screen.findByText("Mila Nowak");
+    expect(screen.queryByText(/ohne gültige IBAN/)).not.toBeInTheDocument();
+  });
+
+  it("says what the bookings leg is holding up", async () => {
+    openStage("bookings", {}, [{ ...TRANSACTION, ledger: null }]);
+    expect(
+      await screen.findByText(/Zusammenfassen und Übergeben brauchen es/),
+    ).toBeInTheDocument();
+  });
+
+  it("does not call a handed-over booking paid", async () => {
+    // `Transaction.confirmed` is set by the release, so here it means the
+    // booking was handed over. Kompass does not know whether it was paid.
+    openStage("bookings", {}, [{ ...TRANSACTION, confirmed: true }]);
+    expect(await screen.findByRole("columnheader", { name: "Übergeben" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Bezahlt" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("names the record rows after the act that filled them", async () => {
+    useMe({ permissions: ["finance.process_statementsubmitted"] });
+    detailReturns({
+      ...HANDOFF,
+      confirmed: true,
+      status: 2,
+      status_display: "Abgewickelt",
+      confirmed_by: { id: 7, name: "Hannah Beckers" },
+      confirmed_date: "2026-05-09",
+    });
+    renderRoute("/kompass/finance/statements/1");
+
+    expect(await screen.findByText("Übergeben von")).toBeInTheDocument();
+    expect(screen.getByText("Übergeben am")).toBeInTheDocument();
+    expect(screen.queryByText("Bezahlt von")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bezahlt am")).not.toBeInTheDocument();
+  });
+
+  it("names the door after what is behind it", async () => {
+    useMe({ permissions: ["finance.process_statementsubmitted"] });
+    detailReturns(HANDOFF);
+    const { user } = renderRoute("/kompass/finance/statements/1");
+
+    expect(await screen.findByRole("button", { name: "Prüfen & übergeben" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prüfen & auszahlen" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Prüfen & übergeben" }));
     expect(await screen.findByRole("heading", { name: "Ausgaben prüfen" })).toBeInTheDocument();
   });
 });

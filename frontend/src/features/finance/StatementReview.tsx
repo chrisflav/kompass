@@ -29,6 +29,7 @@ import {
   type StatementApprovalOut,
 } from "./approval";
 import { EtappenRail, type Etappe } from "./stages";
+import { payoutWords, type PayoutWords } from "./payout";
 import type { components } from "../../api/schema";
 
 type StatementOut = components["schemas"]["StatementOut"];
@@ -50,6 +51,13 @@ const QRCodeSVG = lazy(() => import("qrcode.react").then((m) => ({ default: m.QR
  * different screen, with the receipt nowhere in sight. This walks the three
  * things that genuinely happen in order: judge the expenses against their
  * evidence, build the bank transfers, then release the payout.
+ *
+ * What *releasing* is, the section declares: in Heidelberg the person on this
+ * screen makes the transfers and the statement ends up ausgezahlt; in
+ * Ludwigsburg the Geschäftsstelle makes them and the statement ends up zur
+ * Auszahlung übergeben. No sentence is true in both, so the last leg's wording,
+ * its acknowledgement, its QR codes and its buttons all come out of
+ * {@link payoutWords}.
  *
  * The last leg is also the approval record, which used to be a route of its
  * own. Two doors into one room, and this was the one that skipped the other:
@@ -83,7 +91,13 @@ function StatementReview({ statement }: { statement: StatementOut }) {
   const [params, setParams] = useSearchParams();
   // Confirming means "I have paid these" — the admin gated it on the same
   // acknowledgement, so the treasurer cannot confirm a payout they never made.
+  // Only where the reviewer *is* the payer; a handoff has nothing to
+  // acknowledge and `words.acknowledgement` is then null.
   const [executed, setExecuted] = useState(false);
+  // Who makes the transfers, and therefore what every sentence below says: the
+  // declaration of the rules this statement is bound to. See ./payout.
+  const words = payoutWords(statement);
+  const acknowledged = words.acknowledgement === null || executed;
 
   const txQuery = useApiQuery(["finance", "statements", statement.id, "transactions"], () =>
     unwrap(
@@ -149,7 +163,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
             ? "keine"
             : `${transactions.length} · ${euro(txTotal)}`
           : statement.confirmed
-            ? "ausgezahlt"
+            ? words.readout
             : statement.is_valid
               ? euro(statement.total)
               : "gesperrt",
@@ -253,6 +267,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
         {stage === "bookings" && (
           <BuchungenStage
             statement={statement}
+            words={words}
             transactions={transactions}
             coveredTotal={coveredTotal}
             busy={actionM.isPending}
@@ -289,6 +304,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
             completes={completes}
             executed={executed}
             onExecutedChange={setExecuted}
+            words={words}
             invalidate={invalidate}
           />
         )}
@@ -305,35 +321,49 @@ function StatementReview({ statement }: { statement: StatementOut }) {
         <div className="flow-nav-fwd">
           {stage === "payout" ? (
             /* Two acts, one button area, and the record decides which: a
-               signature that completes the quorum pays the statement out, so
-               it is `confirm` with the acknowledgement in front of it; one
-               short of the quorum only signs, so it is `approve`, which
-               answers with the record and can say what is still missing. */
+               signature that completes the quorum releases the statement, so
+               it is `confirm` with whatever the mode asks for in front of it;
+               one short of the quorum only signs, so it is `approve`, which
+               answers with the record and can say what is still missing.
+
+               What "release" means is the section's declaration, so the labels,
+               the dialog and the toast come out of `words`. Self-payment keeps
+               its pair of buttons, the `send` flag and the acknowledgement; a
+               handoff has one button and no flag, because its mail is not an
+               extra — `/confirm` sends it, and refuses to move the status if it
+               did not go. */
             completes ? (
               <>
+                {words.releaseOnly !== null && (
+                  <Button
+                    variant="ghost"
+                    busy={actionM.isPending}
+                    disabled={!statement.is_valid || !acknowledged}
+                    onClick={() =>
+                      run(
+                        () =>
+                          unwrap(
+                            client.POST("/api/finance/statements/{statement_id}/confirm", path),
+                          ),
+                        "Abrechnung bestätigt.",
+                        () => navigate(`${STATEMENTS}/${statement.id}`),
+                      )
+                    }
+                  >
+                    {words.releaseOnly}
+                  </Button>
+                )}
                 <Button
-                  variant="ghost"
                   busy={actionM.isPending}
-                  disabled={!statement.is_valid || !executed}
-                  onClick={() =>
-                    run(
-                      () =>
-                        unwrap(client.POST("/api/finance/statements/{statement_id}/confirm", path)),
-                      "Abrechnung bestätigt.",
-                      () => navigate(`${STATEMENTS}/${statement.id}`),
-                    )
-                  }
-                >
-                  Nur bestätigen
-                </Button>
-                <Button
-                  busy={actionM.isPending}
-                  disabled={!statement.is_valid || !executed}
+                  disabled={!statement.is_valid || !acknowledged}
                   onClick={async () => {
                     const ok = await confirm({
-                      title: "Auszahlung bestätigen?",
-                      message: `${euro(statement.total)} an ${payeeCount(transactions)} Empfänger*innen. Der Zuschussbeleg geht an die Geschäftsstelle.`,
-                      confirmLabel: "Bestätigen & senden",
+                      title: words.dialog.title,
+                      message: words.dialog.message(
+                        euro(statement.total),
+                        payeeCount(transactions),
+                      ),
+                      confirmLabel: words.dialog.confirm,
                     });
                     if (ok)
                       run(
@@ -342,16 +372,19 @@ function StatementReview({ statement }: { statement: StatementOut }) {
                             client.POST("/api/finance/statements/{statement_id}/confirm", {
                               params: {
                                 path: { statement_id: statement.id },
-                                query: { send: true },
+                                // The office's copy is the handoff itself, so
+                                // the server sends it; asking for it here as
+                                // well would be a second mail for one act.
+                                query: words.mailsItself ? {} : { send: true },
                               },
                             }),
                           ),
-                        "Abrechnung bestätigt und Beleg versendet.",
+                        words.done,
                         () => navigate(`${STATEMENTS}/${statement.id}`),
                       );
                   }}
                 >
-                  Bestätigen & Beleg senden
+                  {words.release}
                 </Button>
               </>
             ) : (
@@ -377,9 +410,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
       </div>
 
       {stage !== "payout" && !statement.is_valid && (
-        <p className="flow-block">
-          Auszahlen ist gesperrt: {statement.validity_display}
-        </p>
+        <p className="flow-block">{words.locked(statement.validity_display)}</p>
       )}
     </div>
   );
@@ -596,6 +627,7 @@ function BuchungenStage({
   busy,
   onGenerate,
   onReduce,
+  words,
   invalidate,
 }: {
   statement: StatementOut;
@@ -604,6 +636,7 @@ function BuchungenStage({
   busy: boolean;
   onGenerate: () => void;
   onReduce: () => void;
+  words: PayoutWords;
   invalidate: unknown[][];
 }) {
   const toast = useToast();
@@ -763,7 +796,7 @@ function BuchungenStage({
         ),
     },
     {
-      header: "Bezahlt",
+      header: words.booked,
       cell: (t: TransactionOut) => (t.confirmed ? <Badge tone="success">Ja</Badge> : "Nein"),
     },
     {
@@ -815,9 +848,7 @@ function BuchungenStage({
                 : `${mergeable} Empfänger*in zusammenfassen`}
             </Button>
             {missingLedger > 0 && (
-              <span className="stage-hint">
-                {missingLedger} Buchung(en) ohne Konto — Zusammenfassen und Auszahlen brauchen es.
-              </span>
+              <span className="stage-hint">{words.needsLedger(missingLedger)}</span>
             )}
           </div>
         </>
@@ -866,10 +897,14 @@ function formatIban(iban: string): string {
  * its label was the one that looked as though it skipped the other.
  *
  * The record comes first, because it is what decides whether the payout may
- * happen at all; the transfers follow, with each recipient's IBAN and the
- * EPC-QR the treasurer scans with their banking app, exactly as the admin's
- * confirm view did. Every control that could still change the outcome lives on
- * the legs behind this one.
+ * happen at all; the transfers follow, with each recipient's IBAN — and, where
+ * the person on this screen is the one making them, the EPC-QR they scan with
+ * their banking app, exactly as the admin's confirm view did. Every control
+ * that could still change the outcome lives on the legs behind this one.
+ *
+ * Where the Geschäftsstelle makes the transfers the same rows are a last look
+ * at what is about to be handed over, there is nothing to scan and nothing to
+ * acknowledge, and the one button hands it over.
  *
  * Where a section asks for a single signature the whole thing is one step and
  * reads as one: one card, one acknowledgement, the buttons that were always
@@ -883,6 +918,7 @@ function FreigabeStage({
   completes,
   executed,
   onExecutedChange,
+  words,
   invalidate,
 }: {
   statement: StatementOut;
@@ -892,10 +928,20 @@ function FreigabeStage({
   completes: boolean;
   executed: boolean;
   onExecutedChange: (v: boolean) => void;
+  words: PayoutWords;
   invalidate: unknown[][];
 }) {
   const total = transactions.reduce((s, t) => s + t.amount, 0);
-  const unpayable = transactions.filter((t) => !t.code);
+  // Which bookings nobody can transfer, asked the way the mode cares about.
+  // Where the reviewer pays, a missing QR code is the problem — they would have
+  // to type the transfer out by hand. Where the office pays, the QR code is
+  // nobody's business and the account is: a booking with no usable IBAN is one
+  // the office cannot act on and cannot ask about, so it has to be fixed before
+  // the handoff rather than after it. A booking of 0 € needs no transfer under
+  // either reading.
+  const unpayable = words.codes
+    ? transactions.filter((t) => !t.code)
+    : transactions.filter((t) => t.amount !== 0 && (!t.iban || !t.iban_valid));
 
   return (
     <section className="payout-final">
@@ -906,21 +952,15 @@ function FreigabeStage({
         <p className="muted">{approvalError ?? "Freigaben werden geladen …"}</p>
       )}
 
-      <h3 className="fieldset-title">Auszahlung</h3>
+      <h3 className="fieldset-title">{words.heading}</h3>
       <p className="flow-lead">
         {statement.confirmed
-          ? "Diese Abrechnung ist bereits ausgezahlt."
-          : `Überweise die folgenden ${transactions.length} Beträge an ${payeeCount(
-              transactions,
-            )} Empfänger*innen — scanne dazu den QR-Code mit deiner Banking-App — und bestätige die Abrechnung danach.`}
+          ? words.released
+          : words.lead(transactions.length, payeeCount(transactions))}
       </p>
 
       {unpayable.length > 0 && (
-        <p className="flow-block">
-          {unpayable.length} Buchung(en) ohne QR-Code:{" "}
-          {unpayable.map((t) => t.member.name).join(", ")}. Ohne gültige IBAN muss die Überweisung
-          von Hand erfasst werden.
-        </p>
+        <p className="flow-block">{words.unpayable(unpayable.map((t) => t.member.name))}</p>
       )}
 
       <ul className="payout-rows">
@@ -943,22 +983,30 @@ function FreigabeStage({
               </span>
             </div>
             <div className="payout-row-amount">{euro(t.amount)}</div>
-            <div className="payout-row-qr">
-              {t.code ? (
-                <>
-                  <ChunkBoundary>
-                    <Suspense fallback={<Spinner />}>
-                      <QRCodeSVG value={t.code} size={116} level="M" marginSize={1} />
-                    </Suspense>
-                  </ChunkBoundary>
-                  <span className="payout-qr-caption">Scannen zum Überweisen</span>
-                </>
-              ) : (
-                <span className="muted small">
-                  {t.amount === 0 ? "Betrag ist 0 €" : "Keine gültige IBAN"}
-                </span>
-              )}
-            </div>
+            {/* A code is an instrument for making a transfer here and now, so
+                only the mode that makes them draws one. In a handoff the rows
+                are a last look at what is about to be handed over — the
+                account, the reference, the amount — and a QR code nobody on
+                this screen will scan is noise beside them. The office gets the
+                same four facts on paper (`statement_summary.tex`). */}
+            {words.codes && (
+              <div className="payout-row-qr">
+                {t.code ? (
+                  <>
+                    <ChunkBoundary>
+                      <Suspense fallback={<Spinner />}>
+                        <QRCodeSVG value={t.code} size={116} level="M" marginSize={1} />
+                      </Suspense>
+                    </ChunkBoundary>
+                    <span className="payout-qr-caption">Scannen zum Überweisen</span>
+                  </>
+                ) : (
+                  <span className="muted small">
+                    {t.amount === 0 ? "Betrag ist 0 €" : "Keine gültige IBAN"}
+                  </span>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ul>
@@ -970,15 +1018,18 @@ function FreigabeStage({
 
       {/* The acknowledgement belongs to the payout, so it is asked for when the
           next click *is* the payout. Asking it of a first signature would make
-          somebody claim they had made transfers that nothing has released. */}
-      {!statement.confirmed && completes && (
+          somebody claim they had made transfers that nothing has released —
+          and asking it at all in a section whose office makes the transfers
+          would be the same false claim with nobody who could truthfully tick
+          it, which is why `words.acknowledgement` is null there. */}
+      {!statement.confirmed && completes && words.acknowledgement !== null && (
         <label className="payout-gate">
           <input
             type="checkbox"
             checked={executed}
             onChange={(e) => onExecutedChange(e.target.checked)}
           />
-          <span>Ich habe die aufgeführten Überweisungen ausgeführt.</span>
+          <span>{words.acknowledgement}</span>
         </label>
       )}
     </section>
