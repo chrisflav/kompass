@@ -1379,12 +1379,11 @@ function InterventionsInline({
     registerFlush,
   });
   const [adding, setAdding] = useState<InterventionData | null>(null);
-  // An activity opened in the large dialog: the row it belongs to and the text
-  // being edited there, written back only on "Übernehmen".
-  const [expanded, setExpanded] = useState<{
-    row: DraftRow<InterventionData>;
-    text: string;
-  } | null>(null);
+  // An activity opened in the large dialog: the key of the row it belongs to
+  // and the text being edited there, written back only on "Übernehmen". Only
+  // the key is kept, so applying merges into the row as it is then — a refetch
+  // while the dialog is open must not have its start or duration overwritten.
+  const [expanded, setExpanded] = useState<{ key: string; text: string } | null>(null);
 
   // A schedule is read in time order, so show it that way rather than in the
   // order the entries happened to be typed.
@@ -1497,7 +1496,7 @@ function InterventionsInline({
                     className="btn ghost icon"
                     aria-label="Aktion / Methode im großen Fenster bearbeiten"
                     title="Im großen Fenster bearbeiten"
-                    onClick={() => setExpanded({ row, text: row.data.activity })}
+                    onClick={() => setExpanded({ key: row.key, text: row.data.activity })}
                   >
                     ⤢
                   </button>
@@ -1562,6 +1561,11 @@ function InterventionsInline({
                 className="schedule-activity-large"
                 rows={16}
                 autoFocus
+                // Continue at the end of the text, not before it.
+                onFocus={(e) => {
+                  const end = e.currentTarget.value.length;
+                  e.currentTarget.setSelectionRange(end, end);
+                }}
                 value={expanded.text}
                 onChange={(e) => setExpanded({ ...expanded, text: e.target.value })}
               />
@@ -1570,7 +1574,8 @@ function InterventionsInline({
               <Button
                 type="button"
                 onClick={() => {
-                  setRow(expanded.row, { ...expanded.row.data, activity: expanded.text });
+                  const row = rows.find((r) => r.key === expanded.key);
+                  if (row) setRow(row, { ...row.data, activity: expanded.text });
                   setExpanded(null);
                 }}
               >

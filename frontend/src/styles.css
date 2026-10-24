@@ -3533,6 +3533,9 @@ button.etappe-body:hover {
 /* Grows with its text where the browser can, and can always be pulled taller. */
 .schedule-activity-edit textarea {
   flex: 1;
+  /* field-sizing would otherwise let the text widen it past the cell. */
+  min-width: 0;
+  width: 100%;
   min-height: 2.6rem;
   resize: vertical;
   field-sizing: content;

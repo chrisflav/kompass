@@ -8,6 +8,7 @@ from members.templatetags.tex_extras import add
 from members.templatetags.tex_extras import date_short
 from members.templatetags.tex_extras import date_vs
 from members.templatetags.tex_extras import datetime_short
+from members.templatetags.tex_extras import esc_lines
 from members.templatetags.tex_extras import index
 from members.templatetags.tex_extras import plus
 from members.templatetags.tex_extras import time_short
@@ -30,6 +31,10 @@ class TexExtrasTestCase(TestCase):
     def test_index_type_error(self):
         result = index(123, 1)
         self.assertEqual(result, "")
+
+    def test_esc_lines(self):
+        result = esc_lines("Seile & Gurte\nKnoten_kunde\r\n100%")
+        self.assertEqual(result, "Seile \\& Gurte\\par Knoten\\_kunde\\par 100\\%")
 
     def test_datetime_short(self):
         result = datetime_short(self.test_datetime)
