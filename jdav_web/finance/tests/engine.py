@@ -84,6 +84,7 @@ from finance.rules_api import RuleContext
 from finance.rules_api import RuleError
 from finance.rules_api import Ruleset
 from finance.rules_api import SECTION
+from finance.rules_api import SETTLEMENT_GROUP_LENGTH
 from finance.rules_api import split
 from finance.rules_api import StatementInfo
 from finance.rules_api import Transfer
@@ -760,6 +761,93 @@ class EvaluationTestCase(SimpleTestCase):
             with self.subTest(message=message):
                 result = evaluate(Fixed([candidate]), context())
                 self.assertIn(message, result.errors[0])
+
+    def test_a_settlement_group_that_cannot_be_stored_is_refused(self):
+        """Both ways a group token fails to survive being written down.
+
+        Not a style check. The token decides which amounts may **not** share a
+        bank transfer, so a value that does not reach the column intact — a
+        ``None`` that would be written as the string ``"None"``, a token cut to
+        the column's width — silently merges two payments the section wrote it
+        to keep apart. An error on the statement persists nothing and pays
+        nothing out; a truncation pays out wrongly. Neuter either branch and
+        this goes red.
+        """
+        member = Member(MemberId(1))
+        refused = [
+            (
+                "NoneType settlement group",
+                Transfer(SECTION, member, Decimal("1.00"), "x", rule_id="a", settlement_group=None),
+            ),
+            (
+                "settlement group of 51 characters",
+                Transfer(
+                    SECTION,
+                    member,
+                    Decimal("1.00"),
+                    "x",
+                    rule_id="b",
+                    settlement_group="s" * (SETTLEMENT_GROUP_LENGTH + 1),
+                ),
+            ),
+        ]
+        for message, candidate in refused:
+            with self.subTest(message=message):
+                result = evaluate(Fixed([candidate]), context())
+                self.assertEqual(result.rule_transfers, ())
+                self.assertIn(message, result.errors[0])
+
+    def test_a_settlement_group_exactly_as_long_as_the_column_is_kept(self):
+        """The boundary, from the side that must pass.
+
+        A token of exactly :data:`SETTLEMENT_GROUP_LENGTH` characters fits, so
+        refusing it would be the engine inventing a limit the column does not
+        have — and the off-by-one is the mistake this catches.
+        """
+        token = "s" * SETTLEMENT_GROUP_LENGTH
+        result = evaluate(
+            Fixed(
+                [
+                    Transfer(
+                        SECTION,
+                        Member(MemberId(1)),
+                        Decimal("1.00"),
+                        "x",
+                        rule_id="a",
+                        settlement_group=token,
+                    )
+                ]
+            ),
+            context(),
+        )
+        self.assertEqual(result.errors, ())
+        self.assertEqual(result.rule_transfers[0].settlement_group, token)
+
+    def test_the_balancing_transfer_is_in_no_settlement_group(self):
+        """The residue is the participants' contribution and nothing else.
+
+        Worth pinning: if the engine ever copied a group onto the balance, a
+        statement with one tax-relevant transfer would close its books inside
+        that group, and the one party a balance may name is not a person
+        anyway.
+        """
+        result = evaluate(
+            Fixed(
+                [
+                    Transfer(
+                        SECTION,
+                        Member(MemberId(1)),
+                        Decimal("10.00"),
+                        "tour_leader_fee",
+                        rule_id="fee",
+                        settlement_group="steuerrelevant",
+                    )
+                ]
+            ),
+            context(),
+        )
+        self.assertEqual(result.errors, ())
+        self.assertEqual(result.balance.settlement_group, "")
 
     def test_a_transfer_without_a_rule_id_is_still_named_in_the_error(self):
         result = evaluate(
@@ -1859,6 +1947,103 @@ class CasesTestCase(SimpleTestCase):
         seen = EveryWidgetCase()
         run_case(seen, case)
         self.assertEqual(seen.seen, (Decimal("0"), None, (), 0))
+
+    def test_a_case_pins_the_settlement_group_only_where_it_writes_one(self):
+        """The fifth element, from both sides, row by row.
+
+        Two claims at once, and the second is the one that keeps a section
+        honest. A row of **four** says nothing about the group, so every case
+        written before groups existed goes on passing — the first assertion.
+        A row of **five** is compared exactly, including ``""`` for *no
+        group* — the second and the third. Without the ``""`` half, a case
+        would go on passing after a later edit swept every transfer into one
+        token, at which point they merge again and the separation is gone with
+        every check green.
+
+        Neuter the width-aware comparison — render every transfer in full, or
+        cut everything to four — and one of the three goes red.
+        """
+        rules = Fixed(
+            [
+                Transfer(SECTION, Member(MemberId(1)), Decimal("10.00"), "travel", rule_id="t"),
+                Transfer(
+                    SECTION,
+                    Member(MemberId(1)),
+                    Decimal("5.00"),
+                    "fee",
+                    rule_id="f",
+                    settlement_group="steuerrelevant",
+                ),
+            ]
+        )
+        silent = parse_case(
+            {
+                "expect": {
+                    "transfers": [
+                        ["SECTION", "1", "10.00", "travel"],
+                        ["SECTION", "1", "5.00", "fee"],
+                        ["PARTICIPANTS", "SECTION", "15.00", "balance"],
+                    ]
+                }
+            },
+            name="silent",
+        )
+        self.assertEqual(run_case(rules, silent), [])
+        spoken = parse_case(
+            {
+                "expect": {
+                    "transfers": [
+                        ["SECTION", "1", "10.00", "travel", ""],
+                        ["SECTION", "1", "5.00", "fee", "steuerrelevant"],
+                        ["PARTICIPANTS", "SECTION", "15.00", "balance", ""],
+                    ]
+                }
+            },
+            name="spoken",
+        )
+        self.assertEqual(run_case(rules, spoken), [])
+        # The half that matters: the travel costs are in *no* group, and a case
+        # that says so fails when they are swept into the Vergütung's.
+        wrong = parse_case(
+            {
+                "expect": {
+                    "transfers": [
+                        ["SECTION", "1", "10.00", "travel", "steuerrelevant"],
+                        ["SECTION", "1", "5.00", "fee", "steuerrelevant"],
+                        ["PARTICIPANTS", "SECTION", "15.00", "balance", ""],
+                    ]
+                }
+            },
+            name="wrong",
+        )
+        failures = run_case(rules, wrong)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("steuerrelevant", failures[0])
+
+    def test_a_transfer_no_case_row_expected_is_shown_in_full(self):
+        """A produced transfer with nothing to be cut to shows everything.
+
+        The failure message is the whole value of a failing case, so a transfer
+        the file did not expect at all is rendered with its group: otherwise
+        the one difference a reader needs could be the one left out of the
+        message.
+        """
+        rules = Fixed(
+            [
+                Transfer(
+                    SECTION,
+                    Member(MemberId(1)),
+                    Decimal("5.00"),
+                    "fee",
+                    rule_id="f",
+                    settlement_group="steuerrelevant",
+                )
+            ]
+        )
+        case = parse_case({"expect": {"transfers": []}}, name="nothing expected")
+        failures = run_case(rules, case)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("steuerrelevant", failures[0])
 
 
 # --- the reference ruleset's own edges -------------------------------------

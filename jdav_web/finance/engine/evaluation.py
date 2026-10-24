@@ -34,6 +34,7 @@ from finance.rules_api import RuleContext
 from finance.rules_api import RuleError
 from finance.rules_api import Ruleset
 from finance.rules_api import Section
+from finance.rules_api import SETTLEMENT_GROUP_LENGTH
 from finance.rules_api import Transfer
 
 from .answers import EMPTY
@@ -158,7 +159,16 @@ def _is_cent_exact(amount: Decimal) -> bool:
 
 
 def _validate(transfers: Iterable[object]) -> tuple[list[Transfer], list[str]]:
-    """Accept what is a transfer of whole cents, and report the rest."""
+    """Accept what is a transfer of whole cents, and report the rest.
+
+    The settlement group is checked here as strictly as the amount, and for the
+    same kind of reason: it decides which amounts may *not* share a bank
+    transfer, so a token that does not survive being written down — anything
+    that is not a string, anything longer than the column — would quietly
+    merge two payments a section wrote it to keep apart. An error on the
+    statement persists nothing and pays nothing out; a truncation pays out
+    wrongly.
+    """
     accepted: list[Transfer] = []
     problems: list[str] = []
     for index, candidate in enumerate(transfers):
@@ -179,6 +189,17 @@ def _validate(transfers: Iterable[object]) -> tuple[list[Transfer], list[str]]:
             continue
         if not _is_cent_exact(candidate.amount):
             problems.append(f"{where} has the amount {candidate.amount}, which is not whole cents")
+            continue
+        group = candidate.settlement_group
+        if not isinstance(group, str):
+            problems.append(f"{where} has a {type(group).__name__} settlement group, not a string")
+            continue
+        if len(group) > SETTLEMENT_GROUP_LENGTH:
+            problems.append(
+                f"{where} has a settlement group of {len(group)} characters, and at most "
+                f"{SETTLEMENT_GROUP_LENGTH} are stored: a token that is cut short merges "
+                "amounts it was written to keep apart"
+            )
             continue
         accepted.append(replace(candidate, amount=candidate.amount.quantize(CENT)))
     return accepted, problems

@@ -88,6 +88,15 @@ CONTEXT_VERSION: Final = 1
 #: One cent — the resolution of every amount in a transfer.
 CENT: Final = Decimal("0.01")
 
+#: How long a :attr:`Transfer.settlement_group` token may be.
+#:
+#: The width of the column it is written to, on the obligation row and on the
+#: booking. Stated here rather than only on the models because it is part of
+#: what a ruleset may return: the engine reports a longer token as an error on
+#: the statement, since a token truncated on the way into the database would
+#: silently merge two amounts a section wrote it to keep apart.
+SETTLEMENT_GROUP_LENGTH: Final = 50
+
 MemberId = NewType("MemberId", int)
 """A member's primary key.
 
@@ -620,6 +629,31 @@ class Transfer:
     label: str = ""
     #: Room for the arithmetic, if it is worth showing: "4 Tage × 22 €".
     explanation: str = ""
+    #: Which **bank transfer** this amount may share, as a token of the
+    #: ruleset's own choosing — ``"steuerrelevant"``, ``"vorschuss"``, whatever
+    #: the section has to keep apart. Two amounts owed to the same person out
+    #: of the same account are bundled into one payment only when their tokens
+    #: are equal, so a transfer that names its own group is transferred on its
+    #: own, and two that name the same one still travel together.
+    #:
+    #: The default — no group at all — is what every ruleset had before this
+    #: existed, and amounts with no group go on being bundled with each other.
+    #: A token is therefore a statement about *separation*, and it never has to
+    #: be written for an amount that is happy to be merged.
+    #:
+    #: The one Ludwigsburg needs is the tax one: the Tourenleitervergütung is
+    #: tax-relevant under § 3 Nr. 26 EStG and has to reach the recipient as its
+    #: own transfer, although it is settled, approved and paid out as one
+    #: process with their travel costs. A token rather than a ``separate``
+    #: flag, because a flag can only say "this one stands alone" — it cannot
+    #: say "these three belong together but not with those", which costs
+    #: nothing more to express and is the shape the next separation will want.
+    #:
+    #: Free text, at most :data:`SETTLEMENT_GROUP_LENGTH` characters: it is
+    #: written to the obligation row and to the booking, so a token too long to
+    #: be stored is an error on the statement rather than a truncation that
+    #: merges what it was written to keep apart.
+    settlement_group: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -1257,6 +1291,7 @@ __all__ = [
     "OPTION_SOURCES",
     "PARTICIPANTS",
     "SECTION",
+    "SETTLEMENT_GROUP_LENGTH",
     "SOURCE_ROOTS",
     "Bill",
     "Check",
