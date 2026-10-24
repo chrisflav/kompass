@@ -66,6 +66,10 @@ class GroupInlineApiTestCase(TestCase):
             editor_user,
             "view_group",
             "change_group",
+            "view_permissiongroup",
+            "add_permissiongroup",
+            "change_permissiongroup",
+            "delete_permissiongroup",
             "view_klettertreff",
             "change_klettertreff",
             "view_global_memberwaitinglist",
@@ -196,6 +200,43 @@ class GroupInlineApiTestCase(TestCase):
             **self.auth(viewer_user),
         )
         self.assertEqual(r.status_code, 403)
+
+    def test_permission_group_needs_model_permissions(self):
+        # Changing the group is not enough: like the admin inline, the ACL also
+        # needs the PermissionGroup model permission for the operation.
+        group_editor, _group_editor = make_member_user("groupeditor")
+        group_editor = grant(group_editor, "view_group", "change_group")
+        r = self.client.get(
+            "/api/members/groups/{}/permission-groups".format(self.group.pk),
+            **self.auth(group_editor),
+        )
+        self.assertEqual(r.status_code, 403)
+
+        r = self.client.post(
+            "/api/members/groups/{}/permission-groups".format(self.group.pk),
+            data={"change_member_ids": [self.plain.pk]},
+            content_type="application/json",
+            **self.auth(group_editor),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(PermissionGroup.objects.filter(group=self.group).exists())
+
+        permission_group = PermissionGroup.objects.create(group=self.group)
+        r = self.client.patch(
+            "/api/members/permission-groups/{}".format(permission_group.pk),
+            data={"change_member_ids": [self.plain.pk]},
+            content_type="application/json",
+            **self.auth(group_editor),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(list(permission_group.change_members.all()), [])
+
+        r = self.client.delete(
+            "/api/members/permission-groups/{}".format(permission_group.pk),
+            **self.auth(group_editor),
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(PermissionGroup.objects.filter(pk=permission_group.pk).exists())
 
     # --- klettertreff attendees -------------------------------------------
 

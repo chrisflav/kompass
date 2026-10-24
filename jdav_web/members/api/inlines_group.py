@@ -13,7 +13,10 @@ same predicates the admin enforces:
   fields *grant* list/view/change/delete access to members and whole groups, so
   editing it hands out object permissions. It is deliberately gated on the same
   ``change_group`` permission the admin requires to open the group change view
-  (only users who may change the group may edit its ACL).
+  (only users who may change the group may edit its ACL), plus the global
+  ``PermissionGroup`` model permission the admin's plain ``StackedInline``
+  required for the operation (``view`` or ``change`` to list, ``add`` /
+  ``change`` / ``delete`` to write).
 * ``KlettertreffAttendee`` (``KlettertreffAttendeeInline`` on
   ``KlettertreffAdmin``) → ``members.change_klettertreff`` (plain model).
 * ``InvitationToGroup`` (``InvitationToGroupAdmin`` inline on the waiting-list
@@ -26,6 +29,7 @@ that router's single-segment ``/{member_id}`` route.
 """
 
 from contrib.api.perms import authorize
+from contrib.api.perms import authorize_any
 from contrib.api.perms import get_authorized
 from contrib.api.perms import partial_clean
 from django.shortcuts import get_object_or_404
@@ -259,6 +263,7 @@ def list_permission_groups(request, group_id: int):
     sensitive, so it is only readable by users who may edit the group.
     """
     authorize(request, "members.change_group")
+    authorize_any(request, "members.view_permissiongroup", "members.change_permissiongroup")
     group = get_object_or_404(Group, pk=group_id)
     return PermissionGroup.objects.filter(group=group).order_by("id")
 
@@ -275,6 +280,7 @@ def create_permission_group(request, group_id: int, payload: PermissionGroupUpda
     for a group that already has one (→ 422).
     """
     authorize(request, "members.change_group")
+    authorize(request, "members.add_permissiongroup")
     group = get_object_or_404(Group, pk=group_id)
     permission_group = PermissionGroup(group=group)
     permission_group.full_clean()
@@ -290,6 +296,7 @@ def update_permission_group(request, permission_group_id: int, payload: Permissi
     SENSITIVE: the supplied ``*_ids`` grant object permissions.
     """
     authorize(request, "members.change_group")
+    authorize(request, "members.change_permissiongroup")
     permission_group = get_object_or_404(PermissionGroup, pk=permission_group_id)
     _apply_permission_group_m2m(permission_group, payload.dict(exclude_unset=True))
     return permission_group
@@ -299,6 +306,7 @@ def update_permission_group(request, permission_group_id: int, payload: Permissi
 def delete_permission_group(request, permission_group_id: int):
     """Delete the group's ACL record (``members.change_group``). SENSITIVE."""
     authorize(request, "members.change_group")
+    authorize(request, "members.delete_permissiongroup")
     get_object_or_404(PermissionGroup, pk=permission_group_id).delete()
     return 204, None
 
