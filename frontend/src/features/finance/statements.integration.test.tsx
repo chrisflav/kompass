@@ -2281,6 +2281,7 @@ describe("review pipeline", () => {
     iban: "DE02120300000000202051",
     iban_valid: true,
     reference: "Fahrtkosten",
+    settlement_group: "",
   };
 
   const SUBMITTED = { submitted: true, status: 1, status_display: "Eingereicht" };
@@ -2427,6 +2428,68 @@ describe("review pipeline", () => {
     expect(
       await screen.findByRole("button", { name: "Nichts zusammenzufassen" }),
     ).toBeDisabled();
+  });
+
+  it("does not offer to merge two rows the rules keep apart", async () => {
+    // What becomes one transfer is `(member, ledger, settlement_group)`. Keyed
+    // on the first two, this pair read as one recipient to bundle, the POST
+    // ran and nothing merged — a button that did nothing and said nothing.
+    const vergütung = {
+      ...TRANSACTION,
+      id: 21,
+      reference: "Tourenleitervergütung",
+      settlement_group: "steuerrelevant",
+    };
+    openStage("bookings", {}, [TRANSACTION, vergütung]);
+
+    expect(
+      await screen.findByRole("button", { name: "Nichts zusammenzufassen" }),
+    ).toBeDisabled();
+  });
+
+  it("still offers to merge two rows inside the same group", async () => {
+    const twin = { ...TRANSACTION, id: 21, reference: "Tagegeld" };
+    openStage("bookings", {}, [
+      { ...TRANSACTION, settlement_group: "steuerrelevant" },
+      { ...twin, settlement_group: "steuerrelevant" },
+    ]);
+
+    expect(
+      await screen.findByRole("button", { name: "1 Empfänger*in zusammenfassen" }),
+    ).toBeEnabled();
+  });
+
+  it("says why one person has two rows, and names the group on hover", async () => {
+    // Otherwise the second row reads as a duplicate, and the finance officer
+    // hunts for the way to combine it that the rules have taken away.
+    openStage("bookings", {}, [
+      TRANSACTION,
+      {
+        ...TRANSACTION,
+        id: 21,
+        reference: "Tourenleitervergütung",
+        settlement_group: "steuerrelevant",
+      },
+    ]);
+
+    const marks = await screen.findAllByText("wird getrennt überwiesen");
+    expect(marks).toHaveLength(1);
+    // The token is the ruleset's own vocabulary, so it is offered rather than
+    // printed as prose.
+    expect(marks[0]).toHaveAttribute("title", "Abrechnungsgruppe: steuerrelevant");
+  });
+
+  it("marks the separated transfer on the payout list too", async () => {
+    openStage("payout", {}, [
+      {
+        ...TRANSACTION,
+        reference: "Tourenleitervergütung",
+        settlement_group: "steuerrelevant",
+      },
+    ]);
+
+    const row = (await screen.findByText("Mila Nowak")).closest(".payout-row") as HTMLElement;
+    expect(within(row).getByText("wird getrennt überwiesen")).toBeInTheDocument();
   });
 
   it("assigns an account straight from the row", async () => {

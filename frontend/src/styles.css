@@ -3144,6 +3144,35 @@ button.etappe-body:hover {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* Two rows to the same person can be deliberate: the rules keep one amount out
+   of every other transfer. Said in the instrument voice, because it is a
+   property of the money rather than a warning about it; the group's own token
+   is on the element's title, not in the line. */
+.settlement-mark {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-left: 2px solid var(--nord);
+  padding-left: 0.4rem;
+  cursor: help;
+  white-space: nowrap;
+}
+
+/* The bookings table puts the marker under the name rather than beside it: the
+   column is narrow and the name is what the eye scans down. */
+.recipient-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: flex-start;
 }
 
 /* Fixed columns so the amounts line up down the list even when a row has no

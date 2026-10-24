@@ -389,6 +389,28 @@ function payeeCount(transactions: TransactionOut[]): number {
   return new Set(transactions.map((t) => t.member.id)).size;
 }
 
+/**
+ * Why one person has two rows.
+ *
+ * The section's rules can keep an amount out of every other bank transfer — a
+ * Tourenleitervergütung is tax-relevant and has to arrive on its own — and the
+ * two rows then read as a duplicate somebody forgot to combine, which sends a
+ * finance officer hunting for the way to combine it that the rules have taken
+ * away. This says they are deliberate.
+ *
+ * The token stays on hover rather than in the line. It is the ruleset's own
+ * vocabulary: "steuerrelevant" happens to read as German, and another
+ * section's token may be an identifier nobody outside its rules file knows, so
+ * the screen states the consequence and offers the name.
+ */
+function SettlementMark({ group }: { group: string }) {
+  return (
+    <span className="settlement-mark" title={`Abrechnungsgruppe: ${group}`}>
+      wird getrennt überwiesen
+    </span>
+  );
+}
+
 /* --- stage 1: judge the expenses ----------------------------------------- */
 
 /**
@@ -657,12 +679,17 @@ function BuchungenStage({
   );
 
   const issues = statement.transaction_issues;
-  // Two rows to the same person from the same ledger become one bank transfer.
+  // What becomes one bank transfer is `(member, ledger, settlement_group)`, and
+  // the count on the button has to use the same key as the merge itself
+  // (`Statement.reduce_transactions`) or it offers work that cannot be done:
+  // keyed on the first two, a section that keeps a taxable Vergütung out of the
+  // travel costs read as one recipient to bundle, the POST ran, and nothing
+  // merged — a button that did nothing and said nothing about why.
   const mergeable = useMemo(() => {
     const seen = new Map<string, number>();
     for (const t of transactions) {
       if (!t.ledger) continue;
-      const key = `${t.member.id}:${t.ledger.id}`;
+      const key = `${t.member.id}:${t.ledger.id}:${t.settlement_group}`;
       seen.set(key, (seen.get(key) ?? 0) + 1);
     }
     return [...seen.values()].filter((n) => n > 1).length;
@@ -680,7 +707,10 @@ function BuchungenStage({
             options={(members.data ?? []).map((m) => ({ value: m.id, label: m.name }))}
           />
         ) : (
-          t.member.name
+          <span className="recipient-cell">
+            {t.member.name}
+            {t.settlement_group && <SettlementMark group={t.settlement_group} />}
+          </span>
         ),
     },
     {
@@ -907,7 +937,10 @@ function FreigabeStage({
                 {t.iban && !t.iban_valid && <Badge tone="danger">ungültig</Badge>}
               </span>
               <span className="payout-row-ref">{t.reference}</span>
-              <span className="payout-row-ledger">{t.ledger?.name ?? "—"}</span>
+              <span className="payout-row-ledger">
+                {t.ledger?.name ?? "—"}
+                {t.settlement_group && <SettlementMark group={t.settlement_group} />}
+              </span>
             </div>
             <div className="payout-row-amount">{euro(t.amount)}</div>
             <div className="payout-row-qr">

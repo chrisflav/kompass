@@ -301,6 +301,7 @@ const TRANSACTION: Record<string, unknown> = {
   ledger: { id: 1, name: "Jugendetat" },
   code: "T-20",
   reference: "Fahrtkosten",
+  settlement_group: "",
 };
 
 const STATEMENT_BRIEFS = [

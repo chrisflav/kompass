@@ -37,6 +37,7 @@ const TRANSACTION = {
   iban: "DE02120300000000202051",
   iban_valid: true,
   reference: "Material",
+  settlement_group: "",
 };
 
 /** Only what the review pipeline and the record view actually read. */
