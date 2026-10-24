@@ -2683,22 +2683,34 @@ describe("statement detail — submitted and confirmed", () => {
     expect(screen.queryByRole("button", { name: "Prüfen & auszahlen" })).not.toBeInTheDocument();
   });
 
-  it("points a handed-in statement at its approval record", async () => {
+  it("carries the approval record as a tab, read-only", async () => {
     // Not gated on the treasurer's permission, unlike the review pipeline:
     // what a statement is waiting for is what the person who handed it in most
-    // wants to know, and the page's own actions are gated there.
+    // wants to know. It used to be a page of its own with the signature on it,
+    // beside the review pipeline, which signs too — so the record stayed here
+    // and the act went where the payout it releases is shown.
     detailReturns({ submitted: true, status: 1, status_display: "Eingereicht" });
     const { user } = renderRoute("/kompass/finance/statements/1");
 
-    await user.click(await screen.findByRole("button", { name: "Freigabe" }));
-    expect(await screen.findByRole("heading", { name: "Freigabe" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("tab", { name: "Freigabe" }));
+    expect(
+      await screen.findByText("Eine Unterschrift aus der Finanzverwaltung"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Es fehlt noch eine Unterschrift.")).toBeInTheDocument();
+    // No signing and no override here: this is the record, not the act.
+    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Ohne Unterschrift freigeben" }),
+    ).not.toBeInTheDocument();
+    // And there is one door into the room, not two.
+    expect(screen.queryByRole("button", { name: "Freigabe" })).not.toBeInTheDocument();
   });
 
   it("does not offer the approval record for a draft", async () => {
     detailReturns();
     renderRoute("/kompass/finance/statements/1");
     await screen.findByText("Entwurf");
-    expect(screen.queryByRole("button", { name: "Freigabe" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Freigabe" })).not.toBeInTheDocument();
   });
 
   it("offers the summary PDF and an undo once confirmed", async () => {
