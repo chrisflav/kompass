@@ -1,3 +1,4 @@
+import { keepPreviousData } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -23,6 +24,7 @@ import {
   type DetailRow,
 } from "../../components/ui";
 import { useCart, WithCart } from "./cart";
+import { NewPartsModal } from "./Stock";
 import {
   BASE,
   DeficitModal,
@@ -42,6 +44,7 @@ import {
   useLocations,
   useMaterialRoles,
   Whereabouts,
+  type PartBrief,
   type PartOut,
 } from "./shared";
 
@@ -117,7 +120,9 @@ function PartDetailBody({ part }: { part: PartOut }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<PartForm>(() => toForm(part));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const [dialog, setDialog] = useState<"" | "return" | "transfer" | "inspect" | "deficit">("");
+  const [dialog, setDialog] = useState<
+    "" | "return" | "transfer" | "inspect" | "deficit" | "assemble" | "new-component"
+  >("");
 
   const memberId = me.data?.member_id ?? null;
   const mine = part.holder !== null && part.holder.id === memberId;
@@ -162,6 +167,25 @@ function PartDetailBody({ part }: { part: PartOut }) {
       },
     },
   );
+
+  // Takes a piece out of the one it is built into; it stays where that one is.
+  const detach = useApiMutation(
+    (piece: Pick<PartBrief, "id" | "label" | "product_type">) =>
+      unwrap(
+        client.PATCH("/api/material/parts/{part_id}", {
+          params: { path: { part_id: piece.id } },
+          body: { parent: null },
+        }),
+      ),
+    {
+      invalidate: [MATERIAL],
+      onSuccess: (piece) => toast.success(`${piece.product_type.name} ${piece.label} ausgebaut.`),
+      onError: (e) => toast.error(errorText(e)),
+    },
+  );
+  // Sets are put together from the top: pieces go into a piece that is in no
+  // other, while it is not out on loan. A lent set keeps its pieces.
+  const assemblable = part.status !== "retired" && part.lent_until === null && !part.parent;
 
   const remove = useApiMutation(
     () => unwrap(client.DELETE("/api/material/parts/{part_id}", { params: { path: { part_id: part.id } } })),
@@ -319,6 +343,24 @@ function PartDetailBody({ part }: { part: PartOut }) {
           columns={[
             { header: "Teil", cell: (c) => <PartLink part={c} /> },
             { header: "Status", cell: (c) => <PartStatus status={c.status} /> },
+            ...(roles.inventory && part.lent_until === null
+              ? [
+                  {
+                    header: "",
+                    className: "inline-actions",
+                    cell: (c: PartBrief) => (
+                      <Button
+                        variant="ghost"
+                        aria-label={`${c.product_type.name} ${c.label} ausbauen`}
+                        busy={detach.isPending && detach.variables?.id === c.id}
+                        onClick={() => detach.mutate(c)}
+                      >
+                        Ausbauen
+                      </Button>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       ),
@@ -412,6 +454,25 @@ function PartDetailBody({ part }: { part: PartOut }) {
                     Prüfung eintragen
                   </Button>
                 )}
+                {roles.inventory && assemblable && (
+                  <Button variant="ghost" onClick={() => setDialog("assemble")}>
+                    Teil einbauen
+                  </Button>
+                )}
+                {roles.inventory && assemblable && (
+                  <Button variant="ghost" onClick={() => setDialog("new-component")}>
+                    Neues Teil einbauen
+                  </Button>
+                )}
+                {roles.inventory && part.parent && (
+                  <Button
+                    variant="ghost"
+                    busy={detach.isPending && detach.variables?.id === part.id}
+                    onClick={() => detach.mutate(part)}
+                  >
+                    Ausbauen
+                  </Button>
+                )}
                 {roles.inventory && (
                   <Button
                     variant="ghost"
@@ -478,7 +539,87 @@ function PartDetailBody({ part }: { part: PartOut }) {
         <HandOverModal parts={[part]} onClose={() => setDialog("")} onDone={() => setDialog("")} />
       )}
       {dialog === "inspect" && <InspectionModal part={part} onClose={() => setDialog("")} />}
+      {dialog === "assemble" && <AssembleModal part={part} onClose={() => setDialog("")} />}
+      {dialog === "new-component" && <NewPartsModal parent={part} onClose={() => setDialog("")} />}
     </>
+  );
+}
+
+/** Find a piece in the stock and build it into ``part``. */
+function AssembleModal({ part, onClose }: { part: PartOut; onClose: () => void }) {
+  const toast = useToast();
+  const [q, setQ] = useState("");
+  const term = q.trim();
+  const found = useApiQuery(
+    ["material", "parts", "search", term],
+    () =>
+      unwrap(client.GET("/api/material/parts", { params: { query: { q: term, top_level: true } } })),
+    { enabled: term.length > 0, placeholderData: keepPreviousData },
+  );
+  // Only pieces in no other set: a piece is taken out of its set before it goes
+  // into another. Not the piece itself, and none out on loan.
+  const candidates = (found.data ?? []).filter((p) => p.id !== part.id && p.lent_until === null);
+  const mutation = useApiMutation(
+    (piece: PartBrief) =>
+      unwrap(
+        client.PATCH("/api/material/parts/{part_id}", {
+          params: { path: { part_id: piece.id } },
+          body: { parent: part.id },
+        }),
+      ),
+    {
+      invalidate: [MATERIAL],
+      onSuccess: (piece) => {
+        toast.success(`${piece.product_type.name} ${piece.label} eingebaut.`);
+        onClose();
+      },
+      onError: (e) => toast.error(errorText(e)),
+    },
+  );
+  return (
+    <Modal title={`In ${part.product_type.name} ${part.label} einbauen`} onClose={onClose}>
+      <div className="stack">
+        <Field label="Teil suchen">
+          <input
+            type="search"
+            autoFocus
+            placeholder="Typ, PSA-ID, Seriennummer…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </Field>
+        {term && (
+          <DataTable
+            rows={candidates}
+            rowKey={(p) => p.id}
+            empty={found.isFetching ? "Suche…" : "Kein passendes Teil."}
+            columns={[
+              { header: "Teil", cell: (p) => `${p.product_type.name} ${p.label}` },
+              { header: "Wo", cell: (p) => <Whereabouts part={p} /> },
+              {
+                header: "",
+                className: "inline-actions",
+                cell: (p) => (
+                  <Button
+                    variant="ghost"
+                    aria-label={`${p.product_type.name} ${p.label} einbauen`}
+                    busy={mutation.isPending && mutation.variables?.id === p.id}
+                    onClick={() => mutation.mutate(p)}
+                  >
+                    Einbauen
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        )}
+        <ModalActions>
+          <Button variant="ghost" onClick={onClose}>
+            Schließen
+          </Button>
+        </ModalActions>
+      </div>
+    </Modal>
   );
 }
 
