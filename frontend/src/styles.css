@@ -3062,14 +3062,30 @@ button.etappe-body:hover {
   margin: 0.4rem 0 0;
 }
 
-/* --- review: the payout --------------------------------------------------- */
+/* --- review: the approval and the payout --------------------------------- */
 
-/* The irreversible step carries only what is about to happen. Everything that
-   could still change the outcome lives on the stages behind it. */
+/* The last leg carries what the rules ask and what is about to happen, in that
+   order, because the first decides whether the second may. Everything that
+   could still change the outcome lives on the legs behind it. */
 .payout-final {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+}
+
+/* The column already spaces its children, so the heading between the approval
+   record and the transfers does not add its own margin on top of the gap. */
+.payout-final > .fieldset-title {
+  margin: 0.6rem 0 0;
+}
+
+/* The signatures as a short trail under the steps they advanced, not a table:
+   who signed, when, and whatever note they left. */
+.freigabe-signatures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
 }
 
 /* One transfer per row: who, which account, how much, and the EPC-QR that

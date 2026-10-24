@@ -4,13 +4,16 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { mediaUrl } from "../../api/client";
 import { ChunkBoundary } from "../../components/ChunkBoundary";
-import { client, unwrap } from "../../api/http";
+import { ApiError, client, unwrap } from "../../api/http";
 import { useApiMutation, useApiQuery } from "../../api/hooks";
+import { usePermissions } from "../../api/me";
 import { useMembers } from "../../api/queries";
 import {
   Badge,
   Button,
   DataTable,
+  Field,
+  Modal,
   PageHeader,
   QueryBoundary,
   Select,
@@ -19,6 +22,12 @@ import {
   useToast,
   euro,
 } from "../../components/ui";
+import {
+  ApprovalRecord,
+  outstandingText,
+  type ApprovalConstraintOut,
+  type StatementApprovalOut,
+} from "./approval";
 import { EtappenRail, type Etappe } from "./stages";
 import type { components } from "../../api/schema";
 
@@ -40,7 +49,15 @@ const QRCodeSVG = lazy(() => import("qrcode.react").then((m) => ({ default: m.QR
  * the central decision — which bills the section actually covers — on a
  * different screen, with the receipt nowhere in sight. This walks the three
  * things that genuinely happen in order: judge the expenses against their
- * evidence, build the bank transfers, then pay.
+ * evidence, build the bank transfers, then release the payout.
+ *
+ * The last leg is also the approval record, which used to be a route of its
+ * own. Two doors into one room, and this was the one that skipped the other:
+ * "Prüfen & auszahlen" posted `/confirm`, which is a signature like any other
+ * — so pressing it short of a quorum took the signature and answered "not
+ * ready to be confirmed", while a separate "Freigabe" page offered the same
+ * act under a different name. There is one surface now, and the act it offers
+ * is whichever one is actually left to do: see {@link FreigabeStage}.
  */
 export function StatementReviewPage() {
   const { id } = useParams();
@@ -81,6 +98,7 @@ function StatementReview({ statement }: { statement: StatementOut }) {
     ["finance", "statements"],
     ["finance", "statements", statement.id],
     ["finance", "statements", statement.id, "transactions"],
+    ["finance", "statements", statement.id, "approval"],
     ["finance", "bills"],
   ];
 
@@ -102,9 +120,27 @@ function StatementReview({ statement }: { statement: StatementOut }) {
   const stage: StageId = stages.includes(requested) && reachable[requested] ? requested : "expenses";
   const goto = (next: StageId) => setParams({ stage: next });
 
+  // Only the last leg needs the record, and it needs it before the button is
+  // offered: which act the button performs is the record's answer.
+  const approvalQuery = useApiQuery(
+    ["finance", "statements", statement.id, "approval"],
+    () =>
+      unwrap(
+        client.GET("/api/finance/statements/{statement_id}/approval", {
+          params: { path: { statement_id: statement.id } },
+        }),
+      ),
+    { enabled: stage === "payout" },
+  );
+  const approval = approvalQuery.data;
+  // A record that cannot be loaded must not take the payout with it: `confirm`
+  // is the act this leg always offered, and it now names which of its two
+  // refusals applies, so falling back to it is safe rather than silent.
+  const completes = approval ? approval.completes_approval : approvalQuery.isError;
+
   const etappen: Etappe[] = stages.map((s) => ({
     id: s,
-    label: { expenses: "Prüfen", bookings: "Buchungen", payout: "Auszahlen" }[s],
+    label: { expenses: "Prüfen", bookings: "Buchungen", payout: "Freigabe" }[s],
     readout:
       s === "expenses"
         ? `${covered.length}/${statement.bills.length} · ${euro(coveredTotal)}`
@@ -134,6 +170,31 @@ function StatementReview({ statement }: { statement: StatementOut }) {
     });
 
   const path = { params: { path: { statement_id: statement.id } } } as const;
+
+  // A signature that is not the last one. It stays on this page — there is
+  // nothing to go to, the statement is still waiting — and it says what it
+  // did and what is left, read off the record the endpoint answers with
+  // rather than guessed from a status code. The old route through `/confirm`
+  // took the signature and reported "Statement is not ready to be confirmed."
+  const signM = useApiMutation(
+    () =>
+      unwrap(
+        client.POST("/api/finance/statements/{statement_id}/approve", {
+          params: { path: { statement_id: statement.id } },
+          body: { note: "" },
+        }),
+      ),
+    {
+      invalidate,
+      onSuccess: (data: StatementApprovalOut) =>
+        toast.success(
+          data.approved
+            ? "Freigabe vermerkt. Alle Freigaben liegen jetzt vor."
+            : `Freigabe vermerkt. ${outstandingText(data)}`,
+        ),
+      onError: (e: Error) => toast.error(e.message),
+    },
+  );
 
   return (
     <div className="flow">
@@ -220,11 +281,15 @@ function StatementReview({ statement }: { statement: StatementOut }) {
           />
         )}
         {stage === "payout" && (
-          <AuszahlenStage
+          <FreigabeStage
             statement={statement}
             transactions={transactions}
+            approval={approval}
+            approvalError={approvalQuery.error?.message ?? null}
+            completes={completes}
             executed={executed}
             onExecutedChange={setExecuted}
+            invalidate={invalidate}
           />
         )}
       </div>
@@ -239,50 +304,67 @@ function StatementReview({ statement }: { statement: StatementOut }) {
         </div>
         <div className="flow-nav-fwd">
           {stage === "payout" ? (
-            <>
-              <Button
-                variant="ghost"
-                busy={actionM.isPending}
-                disabled={!statement.is_valid || !executed}
-                onClick={() =>
-                  run(
-                    () =>
-                      unwrap(client.POST("/api/finance/statements/{statement_id}/confirm", path)),
-                    "Abrechnung bestätigt.",
-                    () => navigate(`${STATEMENTS}/${statement.id}`),
-                  )
-                }
-              >
-                Nur bestätigen
-              </Button>
-              <Button
-                busy={actionM.isPending}
-                disabled={!statement.is_valid || !executed}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: "Auszahlung bestätigen?",
-                    message: `${euro(statement.total)} an ${payeeCount(transactions)} Empfänger*innen. Der Zuschussbeleg geht an die Geschäftsstelle.`,
-                    confirmLabel: "Bestätigen & senden",
-                  });
-                  if (ok)
+            /* Two acts, one button area, and the record decides which: a
+               signature that completes the quorum pays the statement out, so
+               it is `confirm` with the acknowledgement in front of it; one
+               short of the quorum only signs, so it is `approve`, which
+               answers with the record and can say what is still missing. */
+            completes ? (
+              <>
+                <Button
+                  variant="ghost"
+                  busy={actionM.isPending}
+                  disabled={!statement.is_valid || !executed}
+                  onClick={() =>
                     run(
                       () =>
-                        unwrap(
-                          client.POST("/api/finance/statements/{statement_id}/confirm", {
-                            params: {
-                              path: { statement_id: statement.id },
-                              query: { send: true },
-                            },
-                          }),
-                        ),
-                      "Abrechnung bestätigt und Beleg versendet.",
+                        unwrap(client.POST("/api/finance/statements/{statement_id}/confirm", path)),
+                      "Abrechnung bestätigt.",
                       () => navigate(`${STATEMENTS}/${statement.id}`),
-                    );
-                }}
-              >
-                Bestätigen & Beleg senden
-              </Button>
-            </>
+                    )
+                  }
+                >
+                  Nur bestätigen
+                </Button>
+                <Button
+                  busy={actionM.isPending}
+                  disabled={!statement.is_valid || !executed}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "Auszahlung bestätigen?",
+                      message: `${euro(statement.total)} an ${payeeCount(transactions)} Empfänger*innen. Der Zuschussbeleg geht an die Geschäftsstelle.`,
+                      confirmLabel: "Bestätigen & senden",
+                    });
+                    if (ok)
+                      run(
+                        () =>
+                          unwrap(
+                            client.POST("/api/finance/statements/{statement_id}/confirm", {
+                              params: {
+                                path: { statement_id: statement.id },
+                                query: { send: true },
+                              },
+                            }),
+                          ),
+                        "Abrechnung bestätigt und Beleg versendet.",
+                        () => navigate(`${STATEMENTS}/${statement.id}`),
+                      );
+                  }}
+                >
+                  Bestätigen & Beleg senden
+                </Button>
+              </>
+            ) : (
+              approval?.may_approve && (
+                <Button
+                  busy={signM.isPending}
+                  disabled={!statement.is_valid}
+                  onClick={() => signM.mutate(undefined)}
+                >
+                  Jetzt freigeben
+                </Button>
+              )
+            )
           ) : (
             <Button
               disabled={!reachable[stages[stages.indexOf(stage) + 1]]}
@@ -735,7 +817,7 @@ function BuchungenStage({
   );
 }
 
-/* --- stage 3: pay --------------------------------------------------------- */
+/* --- stage 3: release ----------------------------------------------------- */
 
 /** Group an IBAN in fours, the way it is printed on a bank statement. */
 function formatIban(iban: string): string {
@@ -743,31 +825,58 @@ function formatIban(iban: string): string {
 }
 
 /**
- * The payout, and nothing else.
+ * What the rules ask, who has signed — and the payout.
  *
- * This is the irreversible step, so the page carries only what is about to
- * happen — but it carries everything needed to *do* it: each recipient's IBAN
- * and an EPC-QR the treasurer scans with their banking app, exactly as the
- * admin's confirm view did. Every control that could still change the outcome
- * lives on the stages behind it.
+ * One surface, because there is one act. The signatures the section's rules
+ * ask for and the payout they release used to be two pages: this one, which
+ * posted `/confirm`, and a "Freigabe" page, which posted `/approve`. Both are
+ * `Statement.approve` underneath — a signature, which pays the statement out
+ * when it completes the quorum and is simply recorded when it does not — so
+ * the two pages were two names for one thing, and the one with "auszahlen" in
+ * its label was the one that looked as though it skipped the other.
+ *
+ * The record comes first, because it is what decides whether the payout may
+ * happen at all; the transfers follow, with each recipient's IBAN and the
+ * EPC-QR the treasurer scans with their banking app, exactly as the admin's
+ * confirm view did. Every control that could still change the outcome lives on
+ * the legs behind this one.
+ *
+ * Where a section asks for a single signature the whole thing is one step and
+ * reads as one: one card, one acknowledgement, the buttons that were always
+ * there.
  */
-function AuszahlenStage({
+function FreigabeStage({
   statement,
   transactions,
+  approval,
+  approvalError,
+  completes,
   executed,
   onExecutedChange,
+  invalidate,
 }: {
   statement: StatementOut;
   transactions: TransactionOut[];
+  approval: StatementApprovalOut | undefined;
+  approvalError: string | null;
+  completes: boolean;
   executed: boolean;
   onExecutedChange: (v: boolean) => void;
+  invalidate: unknown[][];
 }) {
   const total = transactions.reduce((s, t) => s + t.amount, 0);
   const unpayable = transactions.filter((t) => !t.code);
 
   return (
     <section className="payout-final">
-      <h2 className="flow-title">Auszahlung</h2>
+      <h2 className="flow-title">Freigabe</h2>
+      {approval ? (
+        <Freigaben statement={statement} approval={approval} invalidate={invalidate} />
+      ) : (
+        <p className="muted">{approvalError ?? "Freigaben werden geladen …"}</p>
+      )}
+
+      <h3 className="fieldset-title">Auszahlung</h3>
       <p className="flow-lead">
         {statement.confirmed
           ? "Diese Abrechnung ist bereits ausgezahlt."
@@ -826,7 +935,10 @@ function AuszahlenStage({
         <strong>{euro(total)}</strong>
       </div>
 
-      {!statement.confirmed && (
+      {/* The acknowledgement belongs to the payout, so it is asked for when the
+          next click *is* the payout. Asking it of a first signature would make
+          somebody claim they had made transfers that nothing has released. */}
+      {!statement.confirmed && completes && (
         <label className="payout-gate">
           <input
             type="checkbox"
@@ -837,5 +949,108 @@ function AuszahlenStage({
         </label>
       )}
     </section>
+  );
+}
+
+/**
+ * The signatures the rules ask for, where the signature is given.
+ *
+ * The sentence under the heading is the one the two-door interface never
+ * managed to say: how much is still missing, and from which step. It comes out
+ * of the record rather than out of a status code, so it is as true after a
+ * signature as before one.
+ */
+function Freigaben({
+  statement,
+  approval,
+  invalidate,
+}: {
+  statement: StatementOut;
+  approval: StatementApprovalOut;
+  invalidate: unknown[][];
+}) {
+  const toast = useToast();
+  const { can } = usePermissions();
+  const [overriding, setOverriding] = useState<ApprovalConstraintOut | null>(null);
+  const [reason, setReason] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
+
+  const overrideM = useApiMutation(
+    (vars: { name: string; reason: string }) =>
+      unwrap(
+        client.POST("/api/finance/statements/{statement_id}/override-approval", {
+          params: { path: { statement_id: statement.id } },
+          body: vars,
+        }),
+      ),
+    {
+      invalidate,
+      onSuccess: () => {
+        toast.success("Schritt übergangen und vermerkt.");
+        setOverriding(null);
+        setReason("");
+      },
+      onError: (e: Error) => {
+        // A refused override answers 422 with the reason it was refused — the
+        // dialog says so rather than closing as though it had worked.
+        const refusal = e instanceof ApiError ? e.fieldErrors.__all__ : undefined;
+        setErrors(refusal ?? [e.message]);
+        toast.error(e.message);
+      },
+    },
+  );
+
+  const idle = !statement.confirmed && !approval.completes_approval && !approval.may_approve;
+
+  return (
+    <>
+      <p className="flow-lead">
+        {statement.confirmed ? "Alle Freigaben liegen vor." : outstandingText(approval)}
+      </p>
+      <ApprovalRecord
+        approval={approval}
+        onOverride={
+          can("finance.process_statementsubmitted")
+            ? (constraint) => {
+                setErrors([]);
+                setReason("");
+                setOverriding(constraint);
+              }
+            : undefined
+        }
+      />
+      {idle && (
+        <p className="stage-hint">
+          Für dich ist hier nichts mehr zu tun — die Abrechnung wartet auf die fehlenden
+          Unterschriften.
+        </p>
+      )}
+
+      {overriding && (
+        <Modal title="Ohne Unterschrift freigeben" size="sm" onClose={() => setOverriding(null)}>
+          <div className="stack">
+            <p className="muted small">
+              „{overriding.description || overriding.name}" wird ohne die verlangten Unterschriften
+              freigegeben. Wer das tut und warum, bleibt dauerhaft vermerkt.
+            </p>
+            <Field label="Begründung">
+              <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
+              {errors.length > 0 && <div className="field-error">{errors.join(" ")}</div>}
+            </Field>
+            <div className="row-actions">
+              <Button
+                busy={overrideM.isPending}
+                onClick={() => overrideM.mutate({ name: overriding.name, reason })}
+              >
+                Übergehen
+              </Button>
+              <Button variant="ghost" onClick={() => setOverriding(null)}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }

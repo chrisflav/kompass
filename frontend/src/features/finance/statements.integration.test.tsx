@@ -246,6 +246,36 @@ const PREFLIGHT = {
   errors: [],
 };
 
+/** The approval record, as `/approval` sends it for a one-signature section. */
+const APPROVAL = {
+  statement_id: 1,
+  approved: false,
+  may_approve: false,
+  // One constraint satisfied by one signature: the next click is the payout,
+  // which is what keeps a section like Heidelberg reading as the single act it
+  // has always been.
+  completes_approval: true,
+  constraints: [
+    {
+      name: "Freigabe",
+      description: "Eine Unterschrift aus der Finanzverwaltung",
+      applicable: true,
+      required: 1,
+      satisfied: false,
+      overridden: false,
+      open: true,
+      missing: 1,
+      state_display: "Offen",
+      eligible: [LEADERS[0]],
+      signed_by: [],
+      excluded: [],
+      overridden_by: null,
+      override_reason: "",
+    },
+  ],
+  signatures: [],
+};
+
 /** Everything the detail page and its inlines fetch. */
 function detailReturns(data: Record<string, unknown> = {}) {
   const s = statement(data);
@@ -254,6 +284,9 @@ function detailReturns(data: Record<string, unknown> = {}) {
     http.get(api("/api/finance/statements/1/transactions"), () => HttpResponse.json([])),
     http.get(api("/api/finance/statements/1/form"), () => HttpResponse.json(FORM)),
     http.get(api("/api/finance/statements/1/preflight"), () => HttpResponse.json(PREFLIGHT)),
+    // The record is a tab of the statement and the review's last leg reads it
+    // to know which act it is offering, so both pages ask for it.
+    http.get(api("/api/finance/statements/1/approval"), () => HttpResponse.json(APPROVAL)),
     http.get(api("/api/members/"), () => HttpResponse.json(LEADERS)),
     http.get(api("/api/finance/ledgers/"), () => HttpResponse.json(LEDGERS)),
   );
@@ -2655,17 +2688,6 @@ describe("statement detail — submitted and confirmed", () => {
     // what a statement is waiting for is what the person who handed it in most
     // wants to know, and the page's own actions are gated there.
     detailReturns({ submitted: true, status: 1, status_display: "Eingereicht" });
-    server.use(
-      http.get(api("/api/finance/statements/1/approval"), () =>
-        HttpResponse.json({
-          statement_id: 1,
-          approved: false,
-          may_approve: false,
-          constraints: [],
-          signatures: [],
-        }),
-      ),
-    );
     const { user } = renderRoute("/kompass/finance/statements/1");
 
     await user.click(await screen.findByRole("button", { name: "Freigabe" }));
