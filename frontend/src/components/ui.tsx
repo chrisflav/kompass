@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -550,11 +551,28 @@ export function Field({
   label,
   children,
   hint,
+  group = false,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  /** The control is a composite of several buttons (e.g. a MultiSelect): name
+   * it as a group. A <label> would forward a click on its caption, or on any
+   * plain text inside it, to its first button, such as a badge's remove ×. */
+  group?: boolean;
 }) {
+  const id = useId();
+  if (group) {
+    return (
+      <div className="field" role="group" aria-labelledby={id}>
+        <span id={id} className="field-label">
+          {label}
+        </span>
+        {children}
+        {hint && <span className="field-hint">{hint}</span>}
+      </div>
+    );
+  }
   return (
     <label className="field">
       <span className="field-label">{label}</span>
@@ -726,27 +744,22 @@ export function MultiSelect({
   return (
     <div className="multiselect" ref={ref}>
       <div className="ms-badges">
-        {/* The toggle comes first in the DOM (CSS puts it after the badges):
-            inside a <Field>'s <label>, a click on the caption or on a badge's
-            text activates the label's first button. Were that a badge's ×, the
-            click would silently drop a selection; on the toggle it opens the
-            list. */}
-        <button type="button" className="ms-toggle" onClick={() => setOpen((o) => !o)}>
-          + {placeholder}
-        </button>
         {selected.map((v) => (
           <span className="badge ms-badge" key={v}>
             {byValue.get(v) ?? v}
             <button
               type="button"
               className="ms-remove"
-              aria-label="Entfernen"
+              aria-label={`${byValue.get(v) ?? v} entfernen`}
               onClick={() => toggle(v)}
             >
               ×
             </button>
           </span>
         ))}
+        <button type="button" className="ms-toggle" onClick={() => setOpen((o) => !o)}>
+          + {placeholder}
+        </button>
       </div>
       {open && (
         <AnchoredDropdown anchorRef={ref} panelRef={panelRef}>

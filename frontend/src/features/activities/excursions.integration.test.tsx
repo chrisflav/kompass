@@ -278,9 +278,9 @@ describe("activities — Ausfahrten list", () => {
     await user.click(dropdown().getByRole("button", { name: "schwer" }));
     await user.click(dialog.getByRole("button", { name: "Tourtyp" }));
     await user.click(dropdown().getByRole("button", { name: "Ausbildung" }));
-    await user.click(dialog.getByRole("button", { name: "Gruppen" }));
+    await user.click(dialog.getByRole("button", { name: "+ Gruppe hinzufügen…" }));
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
-    await user.click(dialog.getByRole("button", { name: /Jugendleiter/ }));
+    await user.click(dialog.getByRole("button", { name: "+ Leiter*in hinzufügen…" }));
     await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
 
@@ -301,8 +301,8 @@ describe("activities — Ausfahrten list", () => {
   });
 
   it("keeps the picked groups and leaders when their field is clicked", async () => {
-    // Feedback #13: the pickers sit inside the field's <label>, so a click on
-    // the label or a chip used to "activate" the first chip's remove button.
+    // Feedback #13: the pickers sat inside the field's <label>, so a click on
+    // its caption or on a picked name "activated" the first badge's remove ×.
     listReturns();
     let body: Record<string, unknown> | null = null;
     server.use(
@@ -317,28 +317,23 @@ describe("activities — Ausfahrten list", () => {
 
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText("Aktivität"), "Skifreizeit");
-    await user.click(dialog.getByRole("button", { name: "Gruppen" }));
+    await user.click(dialog.getByRole("button", { name: "+ Gruppe hinzufügen…" }));
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
     await user.click(dropdown().getByRole("button", { name: "Bouldergruppe" }));
-    await user.click(dialog.getByRole("button", { name: /Jugendleiter/ }));
+    await user.click(dialog.getByRole("button", { name: "+ Leiter*in hinzufügen…" }));
     await user.click(dropdown().getByRole("button", { name: "Anna Ärmel" }));
-
-    // Clicks on the field's caption and on a picked chip leave the picks alone.
-    await user.click(dialog.getByText("Gruppen"));
-    await user.click(dialog.getByText("Klettergruppe"));
-    await user.click(dialog.getByText("Jugendleiter*innen"));
-    await user.click(dialog.getByText("Anna Ärmel"));
     await user.click(dialog.getByLabelText("Aktivität"));
-    expect(dialog.getByText("Klettergruppe")).toBeInTheDocument();
-    expect(dialog.getByText("Bouldergruppe")).toBeInTheDocument();
-    expect(dialog.getByText("Anna Ärmel")).toBeInTheDocument();
-    // The field still names its add button, which says what it adds.
-    expect(dialog.getByRole("button", { name: /^Gruppen/ })).toHaveTextContent(
-      "+ Gruppe hinzufügen…",
-    );
-    expect(dialog.getByRole("button", { name: /^Jugendleiter/ })).toHaveTextContent(
-      "+ Jugendleiter*in hinzufügen…",
-    );
+
+    const groups = within(dialog.getByRole("group", { name: "Gruppen" }));
+    const leaders = within(dialog.getByRole("group", { name: "Jugendleiter*innen" }));
+    // Clicks on the field's caption and on a picked name leave the picks alone.
+    await user.click(dialog.getByText("Gruppen"));
+    await user.click(groups.getByText("Klettergruppe"));
+    await user.click(dialog.getByText("Jugendleiter*innen"));
+    await user.click(leaders.getByText("Anna Ärmel"));
+    expect(groups.getByRole("button", { name: "Klettergruppe entfernen" })).toBeInTheDocument();
+    expect(groups.getByRole("button", { name: "Bouldergruppe entfernen" })).toBeInTheDocument();
+    expect(leaders.getByRole("button", { name: "Anna Ärmel entfernen" })).toBeInTheDocument();
 
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
     await waitFor(() => expect(body).not.toBeNull());

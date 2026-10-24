@@ -133,7 +133,7 @@ function PostForm({
         />
         {errors.detailed && <div className="field-error">{errors.detailed.join(" ")}</div>}
       </Field>
-      <Field label="Gruppen">
+      <Field group label="Gruppen">
         <MultiSelect
           options={groups.map((g) => ({ value: g.id, label: g.name }))}
           selected={form.group_ids}
@@ -808,7 +808,7 @@ function PostPersonsInline({
       {adding && (
         <Modal title="Person hinzufügen" onClose={() => setAdding(null)} size="sm">
           <div className="stack">
-            <Field label="Teilnehmende">{memberSelect(adding, setAdding)}</Field>
+            <Field group label="Teilnehmende">{memberSelect(adding, setAdding)}</Field>
             <Field label="Beschreibung">
               <input
                 value={adding.description}

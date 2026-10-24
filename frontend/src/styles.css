@@ -999,7 +999,6 @@ input[type="radio"] {
 }
 
 .ms-toggle {
-  order: 1;
   background: none;
   border: 1px dashed var(--border);
   border-radius: 999px;

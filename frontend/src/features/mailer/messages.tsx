@@ -342,7 +342,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           <div className="field-error">{fieldErrors.content.join(" ")}</div>
         )}
       </Field>
-      <Field label="Empfänger-Gruppen">
+      <Field group label="Empfänger-Gruppen">
         <MultiSelect
           options={groupOptions}
           selected={form.to_groups}
@@ -350,7 +350,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           placeholder="Gruppe hinzufügen"
         />
       </Field>
-      <Field label="Empfänger-Teilnehmende">
+      <Field group label="Empfänger-Teilnehmende">
         <MultiSelect
           options={memberOptions}
           selected={form.to_members}
@@ -365,7 +365,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           onChange={(v) => setForm({ ...form, to_freizeit: v })}
         />
       </Field>
-      <Field label="Antwort an (Teilnehmende)">
+      <Field group label="Antwort an (Teilnehmende)">
         <MultiSelect
           options={memberOptions}
           selected={form.reply_to}
@@ -373,7 +373,7 @@ function MessageCreateDialog({ onClose }: { onClose: () => void }) {
           placeholder="Teilnehmende hinzufügen"
         />
       </Field>
-      <Field label="Antwort an (E-Mail-Adressen)">
+      <Field group label="Antwort an (E-Mail-Adressen)">
         <MultiSelect
           options={addressOptions}
           selected={form.reply_to_email_address}

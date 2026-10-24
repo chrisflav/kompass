@@ -116,9 +116,17 @@ describe("mailer — E-Mail-Adressen", () => {
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(dialog.getByLabelText(/^Name/), "vorstand");
     await user.click(dialog.getByLabelText(/Nur interne Absender/));
-    await user.click(dialog.getByRole("button", { name: /Weiterleiten an Gruppen/ }));
+    await user.click(
+      within(dialog.getByRole("group", { name: /Weiterleiten an Gruppen/ })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
-    await user.click(dialog.getByRole("button", { name: "Weiterleiten an Teilnehmende" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Weiterleiten an Teilnehmende" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Tobias Werner" }));
     await user.click(dialog.getByRole("button", { name: "Anlegen" }));
 
@@ -652,11 +660,19 @@ describe("mailer — Nachrichten", () => {
     const dialog = within(screen.getByRole("dialog"));
     await user.type(dialog.getByLabelText("Betreff"), "Sommerfahrt");
     await user.type(dialog.getByLabelText("Inhalt"), "Bitte anmelden.");
-    await user.click(dialog.getByRole("button", { name: "Empfänger-Gruppen" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Empfänger-Gruppen" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "Klettergruppe" }));
     await user.click(dialog.getByRole("button", { name: "Freizeit-Teilnehmer" }));
     await user.click(dropdown().getByRole("button", { name: "F26-01 · Skifreizeit" }));
-    await user.click(dialog.getByRole("button", { name: "Antwort an (E-Mail-Adressen)" }));
+    await user.click(
+      within(dialog.getByRole("group", { name: "Antwort an (E-Mail-Adressen)" })).getByRole("button", {
+        name: /^\+ /,
+      }),
+    );
     await user.click(dropdown().getByRole("button", { name: "jugend@example.org" }));
     await user.click(dialog.getByRole("button", { name: "Als Entwurf speichern" }));
 

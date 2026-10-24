@@ -48,25 +48,31 @@ describe("MultiSelect", () => {
     expect(screen.getByTestId("value")).toHaveTextContent("2");
   });
 
-  it("opens the list, not drops a pick, on a click on its field's caption or a badge", async () => {
+  it("keeps its picks on a click on its field's caption or a badge", async () => {
     function InField() {
       const [selected, setSelected] = useState([1, 2]);
       return (
         <>
           <span data-testid="value">{selected.join(",")}</span>
-          <Field label="Gruppen">
+          <Field group label="Gruppen">
             <MultiSelect options={OPTIONS} selected={selected} onChange={setSelected} />
           </Field>
         </>
       );
     }
     const { user } = renderWithApp(<InField />, { authenticated: false });
+    const group = screen.getByRole("group", { name: "Gruppen" });
+    const badges = within(group.querySelector(".ms-badges") as HTMLElement);
 
     await user.click(screen.getByText("Gruppen"));
-    expect(document.querySelector(".ms-dropdown")).toBeInTheDocument();
-    await user.click(screen.getAllByText("Klettergruppe")[0]);
-    await user.click(screen.getByText("Jugendleiter"));
+    await user.click(badges.getByText("Klettergruppe"));
+    await user.click(badges.getByText("Jugendleiter"));
     expect(screen.getByTestId("value")).toHaveTextContent("1,2");
+    expect(document.querySelector(".ms-dropdown")).toBeNull();
+
+    // Each badge's × names what it removes.
+    await user.click(badges.getByRole("button", { name: "Klettergruppe entfernen" }));
+    expect(screen.getByTestId("value")).toHaveTextContent("2");
   });
 
   it("shows the raw id for a value the options no longer contain", () => {
