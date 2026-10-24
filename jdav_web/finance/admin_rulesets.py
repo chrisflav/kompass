@@ -23,6 +23,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 
+from .engine import asking
 from .engine import configured_directory
 from .engine import evaluate_statement
 from .engine import import_from_directory
@@ -67,6 +68,7 @@ class ObligationInline(admin.TabularInline):
         "destination_display",
         "amount",
         "rule_id",
+        "settlement_group",
         "frozen_at",
     ]
     readonly_fields = fields
@@ -186,10 +188,14 @@ class RuleSetAdmin(ExtraButtonsMixin, admin.ModelAdmin):
             else:
                 result = evaluate_statement(statement, ruleset=loaded)
                 context = statement_context(statement, loaded, actors=True)
+                # `ask` rather than `loaded.inputs`, so the dry run shows the
+                # declarations as the form would serve them: the options of a
+                # question that names an option source filled in, and a derived
+                # question marked as one.
+                declarations = asking(loaded, context).vocabulary
                 # The same guard the real evaluation runs under: a dry run of a
                 # section's rules must not be the one place they may query.
                 with no_queries():
-                    declarations = tuple(loaded.inputs(context))
                     constraints = loaded.approval(context, list(result.transfers))[0]
         return render(
             request,

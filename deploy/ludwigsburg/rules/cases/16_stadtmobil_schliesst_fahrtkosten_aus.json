@@ -1,0 +1,27 @@
+{
+  "name": "Stadtmobil: die Sektion rechnet direkt ab, weitere Fahrtkosten gibt es nicht",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "stadtmobil": true,
+    "reisen": [
+      {"member": 1, "approach": "car", "kilometers": 180}
+    ]
+  },
+  "excursion": {
+    "duration": "1.0",
+    "nights": 0,
+    "kilometers": 180,
+    "approach": "car",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 1
+  },
+  "expect": {
+    "transfers": [
+      ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, false, true, true, true]
+  }
+}

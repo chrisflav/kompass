@@ -2442,6 +2442,245 @@ button.etappe-body:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* One group of questions, as the section's rules grouped them. Labelled
+   sections and not wizard pages: the form is already one leg of a wizard, and
+   a group with no label — a ruleset that named no steps — is the flat list the
+   form was before there were steps. */
+.answer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.answer-group-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The form's opening step, standing on its own because the rules are waiting
+   on it (`opensWithOneStep`). One question with nothing under it reads as a
+   page that failed to load, so the group is given an edge and a floor: a
+   contour hairline down the side says "a station on a route", and the dashed
+   rule above the note is the part of the route not walked yet. Nothing here
+   fires for a form that is not narrowed — a ruleset that named no steps comes
+   back as one *unlabelled* step and keeps the flat list it always had. */
+.answer-opening {
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--contour);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.answer-opening-note {
+  margin: 0;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* One question asked once per traveller: the mode of travel and the distance
+   belong to the same person, so they are a row. A grid rather than a stack of
+   labelled fields, because the columns are the same question asked again —
+   the heading says what a cell is once and every row answers it. */
+.rows-field {
+  gap: 0.4rem;
+}
+
+.rows-wrap {
+  /* Flush with the `.field-label` above rather than inset like a page table:
+     this is one answer on a form, not a datasheet of its own. */
+  margin-top: 0.25rem;
+}
+
+.rows-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rows-table th {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* A cell's own help, under its column heading — said once for the column and
+   not once per row. */
+.rows-th-help {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  white-space: normal;
+  max-width: 14rem;
+}
+
+.rows-table td {
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.rows-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* The row number: 1-based for the person, while the API's error paths are
+   0-based for the array they index into. The contour colour because it is a
+   margin annotation and not an answer. */
+.rows-num {
+  width: 2.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--contour);
+  text-align: right;
+}
+
+/* A refused cell, whatever its control is. The global `.has-error` rule reaches
+   the native ones; a picker is a button, so it is named here — a refused choice
+   has to look refused and not merely carry a sentence. */
+.rows-cell.has-error input,
+.rows-cell.has-error .ss-trigger,
+.rows-cell.has-error .ms-toggle {
+  border-color: var(--danger);
+}
+
+.rows-cell .field-error {
+  /* Narrower than the column, so one refused cell does not widen the grid. */
+  max-width: 14rem;
+}
+
+.rows-row-error td {
+  padding-top: 0;
+  background: var(--danger-weak);
+}
+
+.rows-drop {
+  width: 2.5rem;
+}
+
+.rows-remove {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+}
+
+.rows-remove:hover {
+  color: var(--danger);
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+
+/* An empty table is an unanswered question and never an error, so it says what
+   to do next rather than what is missing. */
+.rows-empty {
+  margin: 0.25rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.rows-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+/* Too narrow for a grid: each row becomes its own small stack, and the column
+   heading moves in beside the cell it names. */
+@media (max-width: 720px) {
+  .rows-wrap {
+    border: none;
+    background: none;
+    box-shadow: none;
+    overflow-x: visible;
+  }
+
+  .rows-table thead {
+    display: none;
+  }
+
+  .rows-table,
+  .rows-table tbody,
+  .rows-table tr,
+  .rows-table td {
+    display: block;
+    width: auto;
+  }
+
+  .rows-table tbody tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.6rem;
+    position: relative;
+  }
+
+  .rows-table tbody tr.rows-row-error {
+    border-color: var(--danger);
+    background: var(--danger-weak);
+  }
+
+  .rows-table td {
+    border-bottom: none;
+    padding: 0.3rem 0;
+  }
+
+  .rows-cell::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+  }
+
+  .rows-num {
+    width: auto;
+    text-align: left;
+  }
+
+  .rows-drop {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.4rem;
+    width: auto;
+  }
+}
+
 /* --- receipts ------------------------------------------------------------- */
 
 .beleg-list {
@@ -2850,14 +3089,30 @@ button.etappe-body:hover {
   margin: 0.4rem 0 0;
 }
 
-/* --- review: the payout --------------------------------------------------- */
+/* --- review: the approval and the payout --------------------------------- */
 
-/* The irreversible step carries only what is about to happen. Everything that
-   could still change the outcome lives on the stages behind it. */
+/* The last leg carries what the rules ask and what is about to happen, in that
+   order, because the first decides whether the second may. Everything that
+   could still change the outcome lives on the legs behind it. */
 .payout-final {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+}
+
+/* The column already spaces its children, so the heading between the approval
+   record and the transfers does not add its own margin on top of the gap. */
+.payout-final > .fieldset-title {
+  margin: 0.6rem 0 0;
+}
+
+/* The signatures as a short trail under the steps they advanced, not a table:
+   who signed, when, and whatever note they left. */
+.freigabe-signatures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
 }
 
 /* One transfer per row: who, which account, how much, and the EPC-QR that
@@ -2916,6 +3171,35 @@ button.etappe-body:hover {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* Two rows to the same person can be deliberate: the rules keep one amount out
+   of every other transfer. Said in the instrument voice, because it is a
+   property of the money rather than a warning about it; the group's own token
+   is on the element's title, not in the line. */
+.settlement-mark {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-left: 2px solid var(--nord);
+  padding-left: 0.4rem;
+  cursor: help;
+  white-space: nowrap;
+}
+
+/* The bookings table puts the marker under the name rather than beside it: the
+   column is narrow and the name is what the eye scans down. */
+.recipient-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: flex-start;
 }
 
 /* Fixed columns so the amounts line up down the list even when a row has no

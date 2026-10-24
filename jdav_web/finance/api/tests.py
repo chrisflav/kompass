@@ -875,6 +875,41 @@ class FinanceApiTestCase(TestCase):
         )
         self.assertEqual(r.status_code, 422, r.content)
 
+    def test_a_bookings_settlement_group_is_on_the_payload(self):
+        """The payout screen cannot explain two rows it cannot see.
+
+        What may be bundled into one bank transfer is
+        ``(member, ledger, settlement_group)``. A client that is served only
+        the first two counts a taxable Vergütung and a mileage claim as one
+        recipient to bundle, offers to do it, and then nothing happens —
+        which is why this field is on the payload and not only in the
+        database. Drop it from ``TransactionOut.Meta.fields`` and this goes
+        red.
+        """
+        statement = self.make_statement(self.manager)
+        Transaction.objects.create(
+            statement=statement,
+            member=self.manager,
+            amount=Decimal("15.00"),
+            reference="Tourenleitervergütung",
+            settlement_group="steuerrelevant",
+        )
+        Transaction.objects.create(
+            statement=statement,
+            member=self.manager,
+            amount=Decimal("24.00"),
+            reference="Fahrtkosten",
+        )
+        r = self.client.get(
+            "/api/finance/statements/{}/transactions".format(statement.pk),
+            **self.auth(self.manager_user),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(
+            {(t["reference"], t["settlement_group"]) for t in r.json()},
+            {("Tourenleitervergütung", "steuerrelevant"), ("Fahrtkosten", "")},
+        )
+
     def test_reduce_transactions_refuses_a_draft(self):
         statement = self.make_statement(self.manager)
         r = self.client.post(

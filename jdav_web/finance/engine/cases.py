@@ -17,6 +17,20 @@ and typed by the declaration that asks for it when the case runs
 (:func:`answered`), so a case can answer any input a ruleset declares and not
 only the four the reference ruleset happens to.
 
+A ``rows`` answer is written the way it is stored — a list of objects, one per
+row, keyed by the field keys the declaration names::
+
+    "inputs": {"reisen": [{"member": 7, "approach": "car", "kilometers": 120},
+                          {"member": 8, "approach": "public", "kilometers": 120}]}
+
+which needs nothing of its own here: :func:`answered` types a case's answers
+with the ruleset's declarations, and a table is one of those. That it needs
+nothing is the point rather than a happy accident — a worked case is what gates
+activation, so a type a case cannot express is a type a section cannot ship.
+A **seed** is not expressible and should not be: a seed is written when a
+person's statement gets an excursion, and a case file is a context with no edit
+history at all. What a case states is the row, as the answer it ends up being.
+
 A case file::
 
     {
@@ -39,6 +53,19 @@ order the rules produced them, and the engine's balancing transfer is the last
 one — a case that leaves it out fails, which is the point: it says out loud
 what the participants end up contributing. ``checks`` may list the expected
 state of each check; leaving it out means the case does not look at them.
+
+A transfer may be written with a **fifth** element, its settlement group — the
+token that decides which amounts may not share a bank transfer::
+
+    ["SECTION", "7", "15.00", "tour_leader_fee", "steuerrelevant"],
+    ["SECTION", "7", "24.00", "travel", ""]
+
+A row of four says nothing about the group, so every case written before groups
+existed goes on passing unchanged. A row of five pins it, and ``""`` pins
+*no group* — which is the half worth writing down: a case that states the
+Vergütung is separate and the travel costs are not is a case that fails if a
+later edit sweeps both into one token and merges somebody's taxable payment
+into their mileage.
 
 Only the keys a case cares about have to be there; everything else takes a
 quiet default — no bills, no trip, no answers, every parameter unset.
@@ -72,8 +99,8 @@ from finance.rules_api import StatementInfo
 from finance.rules_api import Transfer
 
 from .answers import typed_inputs
+from .declared import asking
 from .evaluation import evaluate
-from .guard import no_queries
 
 
 def party(value: Any) -> Party:
@@ -160,7 +187,11 @@ class Case:
     #: which key is money and which is a person is the ruleset's to say, and a
     #: case file is parsed without one.
     answers: Mapping[str, Any]
-    transfers: tuple[tuple[str, str, str, str], ...]
+    #: The expected transfers, each of four elements or of five. Four is
+    #: ``(source, destination, amount, category)``; the fifth, where the file
+    #: wrote one, is the settlement group. Ragged on purpose: a case pins what
+    #: it mentions, and the comparison is per row (:func:`run_case`).
+    transfers: tuple[tuple[str, ...], ...]
     errors: tuple[str, ...]
     checks: tuple[bool, ...] | None
 
@@ -192,8 +223,7 @@ def parse_case(data: Mapping[str, Any], *, name: str) -> Case:
         context=context,
         answers=answers,
         transfers=tuple(
-            (str(row[0]), str(row[1]), str(row[2]), str(row[3]))
-            for row in expected.get("transfers", ())
+            tuple(str(field) for field in row[:5]) for row in expected.get("transfers", ())
         ),
         errors=tuple(str(message) for message in expected.get("errors", ())),
         checks=None if checks is None else tuple(bool(value) for value in checks),
@@ -208,13 +238,20 @@ def load_cases(directory: Path) -> list[Case]:
     ]
 
 
-def _rendered(transfer: Transfer) -> tuple[str, str, str, str]:
+def _rendered(transfer: Transfer, width: int) -> tuple[str, ...]:
+    """``transfer`` as a case file writes it, cut to the width the file used.
+
+    Four elements, or five with the settlement group. ``width`` is what the
+    expected row said, so a case that does not mention the group is not
+    compared on it and a case that does is.
+    """
     return (
         party_name(transfer.source),
         party_name(transfer.destination),
         str(transfer.amount),
         transfer.category,
-    )
+        transfer.settlement_group,
+    )[:width]
 
 
 def answered(ruleset: Ruleset, case: Case) -> RuleContext:
@@ -234,10 +271,17 @@ def answered(ruleset: Ruleset, case: Case) -> RuleContext:
     """
     # Inside the guard like every other call into a section's own code, and
     # before `evaluate` opens its own: declaring the form is as much the
-    # ruleset's code as resolving the transfers.
-    with no_queries():
-        declarations = ruleset.inputs(case.context)
-    return replace(case.context, inputs=Inputs(typed_inputs(declarations, case.answers)))
+    # ruleset's code as resolving the transfers. `asking` is what opens it, and
+    # what fills in the parts of a declaration the engine serves — so a case
+    # answering a question whose options come from the trip is typed against
+    # the people the engine would really have offered, and a case answering a
+    # derived key is overruled by the context it describes, exactly as a real
+    # statement's stored answer is.
+    asked = asking(ruleset, case.context)
+    return replace(
+        case.context,
+        inputs=Inputs(typed_inputs(asked.vocabulary, case.answers, asked.supplied)),
+    )
 
 
 def run_case(ruleset: Ruleset, case: Case) -> list[str]:
@@ -247,7 +291,16 @@ def run_case(ruleset: Ruleset, case: Case) -> list[str]:
     """
     result = evaluate(ruleset, answered(ruleset, case))
     failures: list[str] = []
-    produced = tuple(_rendered(transfer) for transfer in result.transfers)
+    # Row by row, each cut to the width its expected row used, so that a case
+    # mentioning the settlement group on one transfer and not on another is
+    # read the way it is written. A transfer with no expected row at all is
+    # rendered in full: there is nothing saying what to leave out, and the
+    # failure message should show everything that was produced.
+    widths = [len(row) for row in case.transfers]
+    produced = tuple(
+        _rendered(transfer, widths[index] if index < len(widths) else 5)
+        for index, transfer in enumerate(result.transfers)
+    )
     if produced != case.transfers:
         failures.append(f"transfers\n  expected {case.transfers}\n  got      {produced}")
     if tuple(result.errors) != case.errors:

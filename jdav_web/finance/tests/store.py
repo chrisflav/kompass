@@ -36,6 +36,7 @@ from finance.engine import import_from_directory
 from finance.engine import materialise
 from finance.engine import read_sources
 from finance.engine import reference_directory
+from finance.engine import Result
 from finance.engine import result_from_rows
 from finance.engine import ruleset_directory
 from finance.engine import ruleset_for
@@ -58,6 +59,7 @@ from finance.engine.versions import version_hash
 from finance.models import Bill
 from finance.models import Statement
 from finance.models import Transaction
+from finance.rules_api import Choice
 from finance.rules_api import Input
 from finance.rules_api import Member as RuleMember
 from finance.rules_api import MemberId
@@ -932,6 +934,47 @@ class MaterialisationTestCase(TestCase):
     def test_an_unsaved_statement_has_nothing_to_write(self):
         self.assertEqual(materialise(Statement(short_description="Neu")), ())
 
+    def test_a_rows_settlement_group_survives_the_round_trip(self):
+        """The row is the record, so the separation has to be in it.
+
+        A submitted statement generates its bookings from
+        :func:`~finance.engine.result_from_rows` and never runs the rules
+        again. So a group that is resolved but not written down is a group that
+        exists until the statement is handed in and is gone afterwards —
+        exactly when the money is about to move. Neuter either half, the write
+        or the read, and this goes red.
+        """
+        payee = RuleMember(MemberId(self.member.pk))
+        resolved = Result(
+            transfers=(
+                Transfer(SECTION, payee, Decimal("12.34"), "bill", rule_id="bills", label="Seil"),
+                Transfer(
+                    SECTION,
+                    payee,
+                    Decimal("15.00"),
+                    "tour_leader_fee",
+                    rule_id="fee",
+                    label="Vergütung",
+                    settlement_group="steuerrelevant",
+                ),
+            ),
+            errors=(),
+            checks=(),
+            declarations=(),
+            balance=None,
+        )
+        with patch("finance.engine.statements.evaluate_statement", return_value=resolved):
+            rows = materialise(self.statement, freeze=True)
+        self.assertEqual(
+            [(row.rule_id, row.settlement_group) for row in rows],
+            [("bills", ""), ("fee", "steuerrelevant")],
+        )
+        read_back = result_from_rows(self.statement)
+        self.assertEqual(
+            [(t.rule_id, t.settlement_group) for t in read_back.transfers],
+            [("bills", ""), ("fee", "steuerrelevant")],
+        )
+
     def test_the_rows_read_back_as_the_transfers_they_came_from(self):
         self.statement.submit(submitter=self.member)
         result = result_from_rows(self.statement)
@@ -976,6 +1019,22 @@ class VerifyTestCase(TestCase):
 
     def test_a_statement_whose_payout_no_longer_reproduces(self):
         self.statement.obligation_set.filter(rule_id="bills").update(amount_cents=999)
+        problems = verify(Statement.objects.all())
+        self.assertTrue(any("does not reproduce" in p for p in problems))
+
+    def test_a_row_that_would_now_merge_differently_is_drift(self):
+        """The settlement group is part of what the row says.
+
+        Which amounts the rules kept out of each other's bank transfers is as
+        much a fact about a settled payout as who was paid how much: a replay
+        that would now sweep a taxable payment in with somebody's travel costs
+        is a change to the instruction, not an irrelevance. The figures here
+        are untouched, so without the group in the comparison this passes as
+        agreement — neuter it and the test goes red.
+        """
+        self.statement.obligation_set.filter(rule_id="bills").update(
+            settlement_group="steuerrelevant"
+        )
         problems = verify(Statement.objects.all())
         self.assertTrue(any("does not reproduce" in p for p in problems))
 
@@ -1042,10 +1101,23 @@ class FuzzTestCase(SimpleTestCase):
         self.assertEqual(fuzz(HeidelbergRules(), 200, seed=1), [])
 
     def test_a_random_statement_is_a_statement_somebody_could_have_handed_in(self):
+        """Including one that settles no trip, which is now one round in four.
+
+        This used to assert ``assertIsNotNone(context.excursion)``, and it was
+        true: every random statement had an excursion, so the arm of a
+        declaration that answers "and when there is no trip" was the one arm
+        nothing random ever reached. A purchase or a repair goes through it
+        every week. The invariants that hold in *both* arms are the ones below —
+        a receipt always has a payer, and the statement always names its
+        creator, so a party-valued question is answerable either way.
+        """
         context = random_context(Random(7), {"ALLOWANCE_PER_DAY": Decimal("22")})
-        self.assertIsNotNone(context.excursion)
         self.assertTrue(all(bill.payer is not None for bill in context.bills))
+        self.assertIsNotNone(context.statement.creator)
         self.assertEqual(context.params.ALLOWANCE_PER_DAY, Decimal("22"))
+        built = [random_context(Random(seed), {}) for seed in range(40)]
+        self.assertTrue([ctx for ctx in built if ctx.excursion is not None])
+        self.assertTrue([ctx for ctx in built if ctx.excursion is None])
 
     def test_an_answer_stays_inside_the_domain_the_rules_declared(self):
         rng = Random(3)
@@ -1061,7 +1133,12 @@ class FuzzTestCase(SimpleTestCase):
         picked = random_answer(rng, Input("g", "G", "member_set", options=options, max=1))
         self.assertLessEqual(len(picked), 1)
         self.assertEqual(random_answer(rng, Input("h", "H", "member_set")), ())
-        self.assertIsNone(random_answer(rng, Input("i", "I", "choice")))
+        # A choice comes out of the declaration's own alternatives, or empty —
+        # which is the state a form being filled in is in, and so one the rules
+        # have to survive.
+        alternatives = (Choice("ehrenamt", "Ehrenamt"), Choice("tour", "Tourenleitung"))
+        picked_choice = random_answer(rng, Input("i", "I", "choice", choices=alternatives))
+        self.assertIn(picked_choice, ("", "ehrenamt", "tour"))
         self.assertIsInstance(random_answer(rng, Input("j", "J", "int")), int)
 
     def test_a_balance_declared_the_wrong_way_round_is_refused(self):

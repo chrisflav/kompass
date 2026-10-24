@@ -13,6 +13,7 @@ from finance import signals
 from finance.engine import build_context
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
+from finance.engine import Result
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
@@ -26,6 +27,8 @@ from finance.models import StatementUnSubmittedManager
 from finance.models import Transaction
 from finance.models import TransactionIssue
 from finance.rules_api import Member as RuleMember
+from finance.rules_api import SECTION
+from finance.rules_api import Transfer
 from finance.rulesets.heidelberg import HeidelbergRules
 from finance.testing import also
 from finance.testing import answer
@@ -135,7 +138,7 @@ class StatementTestCase(TestCase):
             difficulty=1,
         )
         self.st3 = Statement.objects.create(
-            excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
+            excursion=ex, inputs={"night_cost": str(self.night_cost)}
         )
         for i in range(self.participant_count):
             m = Member.objects.create(
@@ -167,6 +170,28 @@ class StatementTestCase(TestCase):
             ex.jugendleiter.add(m)
             if i < self.allowance_to_count:
                 also(self.st3, "allowance_to", m)
+
+        # One more youth leader, who hands in no bill and takes no allowance:
+        # this trip's subsidy recipient. It used to be Fritz, who does not lead
+        # this trip at all — and an answer naming somebody the declaration does
+        # not offer now reads as unanswered on the way *out* as well as on the
+        # way in, so that described a statement the form would have refused and
+        # the rules would read as nobody.
+        #
+        # He is added last, so that the five who hand in bills keep positions
+        # 0..4 in `jugendleiter`, and he is deliberately not Fritz: Fritz has to
+        # stay a *foreign* youth leader for `test_allowance_to_valid`, which is
+        # the model-level `allowance_to_valid` gate this fixture exists for.
+        self.subsidy_leader = Member.objects.create(
+            prename="Zuschuss",
+            lastname="Walter",
+            birth_date=timezone.now().date(),
+            email=settings.TEST_MAIL,
+            gender=MALE,
+        )
+        self.subsidy_leader.group.add(self.jl)
+        ex.jugendleiter.add(self.subsidy_leader)
+        answer(self.st3, subsidy_to=self.subsidy_leader.pk)
 
         # Create a small excursion with < 5 theoretic LJP participants for LJP contribution test
         small_ex = Freizeit.objects.create(
@@ -205,6 +230,13 @@ class StatementTestCase(TestCase):
             tour_approach=MUSKELKRAFT_ANREISE,
             difficulty=2,
         )
+        # Fritz leads this trip, which is what makes him nameable as its
+        # subsidy recipient: Heidelberg offers the trip's youth leaders and
+        # nobody else, and an answer naming somebody a declaration does not
+        # offer now reads as unanswered on the way *out* as well as on the way
+        # in. A fixture that skipped this described a statement the API could
+        # not have produced and the form would have refused.
+        ex.jugendleiter.add(self.fritz)
         self.st4 = Statement.objects.create(
             excursion=ex, inputs={"night_cost": str(self.night_cost), "subsidy_to": self.fritz.pk}
         )
@@ -244,6 +276,22 @@ class StatementTestCase(TestCase):
             )
             mol = NewMemberOnList.objects.create(member=m, memberlist=ex)
             ex.membersonlist.add(mol)
+            if i == 0:
+                # One of the nine leads the trip, and is who the tests below
+                # name as its subsidy, allowance and LJP recipient. Heidelberg
+                # offers the trip's youth leaders and nobody else, and an
+                # answer naming somebody the declaration does not offer now
+                # reads as unanswered on the way *out* as well as on the way in
+                # — so naming Fritz, who does not lead this trip, described a
+                # statement the form would have refused.
+                #
+                # One of the trip's *own* nine rather than an extra person,
+                # because a youth leader counts towards the Landesjugendplan
+                # participant count: adding somebody from outside the list
+                # would have moved the LJP figure from nine participants to
+                # ten, and this fixture is about the LJP arithmetic.
+                self.st5_leader = m
+                ex.jugendleiter.add(m)
 
         ljpproposal = LJPProposal.objects.create(
             title="Test proposal",
@@ -309,7 +357,7 @@ class StatementTestCase(TestCase):
         self.assertIsNone(self.st5.org_fee_payant)
 
         # now collect subsidies
-        answer(self.st5, subsidy_to=self.fritz.pk)
+        answer(self.st5, subsidy_to=self.st5_leader.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -317,7 +365,7 @@ class StatementTestCase(TestCase):
         )
 
         # now collect allowances
-        also(self.st5, "allowance_to", self.fritz)
+        also(self.st5, "allowance_to", self.st5_leader)
         answer(self.st5, subsidy_to=None)
         self.assertEqual(
             self.st5.total_org_fee,
@@ -326,7 +374,7 @@ class StatementTestCase(TestCase):
         )
 
         # now collect both
-        answer(self.st5, subsidy_to=self.fritz.pk)
+        answer(self.st5, subsidy_to=self.st5_leader.pk)
         self.assertEqual(
             self.st5.total_org_fee,
             total_org,
@@ -335,13 +383,13 @@ class StatementTestCase(TestCase):
 
         self.assertEqual(
             self.st5.org_fee_payant,
-            self.fritz,
+            self.st5_leader,
             "Org fee payant should be the receiver allowances and subsidies.",
         )
 
         # return to previous state
         answer(self.st5, subsidy_to=None)
-        without(self.st5, "allowance_to", self.fritz)
+        without(self.st5, "allowance_to", self.st5_leader)
 
     def test_org_fee_zero_for_ljp_qualification(self):
         """Test that total_org_fee returns 0 for LJP_QUALIFICATION proposals.
@@ -393,7 +441,7 @@ class StatementTestCase(TestCase):
         )
 
         # now we want to pay out the LJP contributions
-        answer(self.st5, ljp_to=self.fritz.pk)
+        answer(self.st5, ljp_to=self.st5_leader.pk)
         self.assertEqual(
             self.st5.paid_ljp_contributions,
             expected_ljp,
@@ -473,6 +521,143 @@ class StatementTestCase(TestCase):
             "Transaction count did change after reducing a second time.",
         )
 
+    def test_a_settlement_group_keeps_its_amounts_out_of_the_others(self):
+        """Four bookings to one person on one ledger become **two**.
+
+        The feature, pinned on the amounts rather than on a count. A statement
+        can pay somebody a taxable Tourenleitervergütung and reimburse their
+        expenses in one process, and the two may not reach them as one bank
+        transfer: the Vergütung is an Ehrenamtspauschale under § 3 Nr. 26 EStG
+        and the section has to be able to point at the payment that carried it.
+
+        **A count would not say this**, which is why the first assertion is not
+        one. Two rows is also what merging the *wrong pair* produces — one
+        Vergütung swept in with the mileage and the other left on its own — so
+        what is pinned is the partition: 24 + 28 under no group, 15 + 10 under
+        the tax one, and the references itemising exactly their own halves.
+        Neuter the third element of the merge key and all four collapse into one
+        row of 77,00 €; neuter only the *sort* key, so that it stops agreeing
+        with the group key, and the interleaved order below breaks into four
+        runs of one. Both fail on the partition.
+        """
+        # Interleaved on purpose: ``groupby`` only sees a group as one run when
+        # the sort put it there, so an order that alternates is what makes the
+        # sort key and the group key have to agree.
+        for reference, amount, group in (
+            ("Fahrtkosten", "24.00", ""),
+            ("Tourenleitervergütung", "15.00", "steuerrelevant"),
+            ("Tagegeld", "28.00", ""),
+            ("Tourenleitervergütung Sonntag", "10.00", "steuerrelevant"),
+        ):
+            Transaction.objects.create(
+                statement=self.st2,
+                member=self.fritz,
+                ledger=self.personal_account,
+                amount=Decimal(amount),
+                reference=reference,
+                settlement_group=group,
+            )
+
+        self.st2.reduce_transactions()
+
+        # The expenses travelled together and the taxable payments travelled
+        # together, and neither crossed over.
+        self.assertEqual(
+            {(t.settlement_group, t.amount) for t in self.st2.transaction_set.all()},
+            {("", Decimal("52.00")), ("steuerrelevant", Decimal("25.00"))},
+        )
+        rows = {
+            transaction.settlement_group: transaction
+            for transaction in self.st2.transaction_set.all()
+        }
+        # And the reference of each says what its own transfer covers — which
+        # is what a Geschäftsstelle reads off the paper to make the payment.
+        self.assertIn("Fahrtkosten", rows[""].reference)
+        self.assertIn("Tagegeld", rows[""].reference)
+        self.assertNotIn("Vergütung", rows[""].reference)
+        self.assertIn("Tourenleitervergütung", rows["steuerrelevant"].reference)
+        self.assertNotIn("Fahrtkosten", rows["steuerrelevant"].reference)
+        self.assertNotIn("Tagegeld", rows["steuerrelevant"].reference)
+        # Reducing again is a no-op: there is nothing left that may be bundled.
+        self.st2.reduce_transactions()
+        self.assertEqual(self.st2.transaction_set.count(), 2)
+
+    def test_one_amount_in_a_group_of_its_own_keeps_its_own_reference(self):
+        """The separated row is the one the concatenation used to destroy.
+
+        One Vergütung beside one mileage claim: nothing merges at all, and the
+        taxable payment reaches its recipient under its own reference instead
+        of under ``"Fahrtkosten EUR 24.00, Tourenleitervergütung EUR 15.00"``,
+        which is not an instruction anybody with only the PDF can act on.
+        """
+        for reference, amount, group in (
+            ("Fahrtkosten", "24.00", ""),
+            ("Tourenleitervergütung", "15.00", "steuerrelevant"),
+        ):
+            Transaction.objects.create(
+                statement=self.st2,
+                member=self.fritz,
+                ledger=self.personal_account,
+                amount=Decimal(amount),
+                reference=reference,
+                settlement_group=group,
+            )
+
+        self.st2.reduce_transactions()
+
+        self.assertEqual(
+            {(t.reference, t.amount) for t in self.st2.transaction_set.all()},
+            {("Fahrtkosten", Decimal("24.00")), ("Tourenleitervergütung", Decimal("15.00"))},
+        )
+
+    def test_the_booking_carries_the_group_the_rules_put_on_the_transfer(self):
+        """``generate_transactions`` is where the token crosses over.
+
+        The decision is the ruleset's and the bundling happens days later on
+        the payout screen, so the token has to ride on the booking. Neuter the
+        hand-over and this goes red while the ruleset still says the right
+        thing — which is the failure mode worth a test: rules that declare the
+        separation and a payout that merges anyway.
+        """
+        taxed = Ledger.objects.create(name="Vergütungen")
+        statement = Statement.objects.create(short_description="Tourenleitung")
+        payee = RuleMember(self.fritz.pk)
+        resolved = Result(
+            transfers=(
+                Transfer(
+                    SECTION, payee, Decimal("24.00"), "travel", rule_id="travel", label="Fahrt"
+                ),
+                Transfer(
+                    SECTION,
+                    payee,
+                    Decimal("15.00"),
+                    "tour_leader_fee",
+                    rule_id="fee",
+                    label="Tourenleitervergütung",
+                    settlement_group="steuerrelevant",
+                ),
+            ),
+            errors=(),
+            checks=(),
+            declarations=(),
+            balance=None,
+        )
+        with patch.object(Statement, "rule_result", resolved):
+            self.assertTrue(statement.generate_transactions())
+            self.assertEqual(
+                {(t.reference, t.settlement_group) for t in statement.transaction_set.all()},
+                {("Fahrt", ""), ("Tourenleitervergütung", "steuerrelevant")},
+            )
+            # And the payload the API serves says it too, so a payout screen
+            # can explain why one person has two rows.
+            self.assertEqual(
+                {(row["label"], row["settlement_group"]) for row in statement.transfer_payload()},
+                {("Fahrt", ""), ("Tourenleitervergütung", "steuerrelevant")},
+            )
+        statement.transaction_set.update(ledger=taxed)
+        statement.reduce_transactions()
+        self.assertEqual(statement.transaction_set.count(), 2)
+
     def test_confirm_statement(self):
         self.assertFalse(
             self.st3.confirm(confirmer=self.fritz),
@@ -508,8 +693,10 @@ class StatementTestCase(TestCase):
     def test_excursion_statement(self):
         self.assertEqual(
             self.st3.excursion.staff_count,
-            self.staff_count,
-            "Calculated staff count is not constructed staff count.",
+            self.staff_count + 1,
+            "Calculated staff count is not constructed staff count: the five who each "
+            "hand in a bill, plus the sixth who takes the subsidy and hands in none. "
+            "Not Fritz, who leads no trip here on purpose — see the fixture.",
         )
         self.assertEqual(
             self.st3.excursion.participant_count,
@@ -670,11 +857,22 @@ class StatementTestCase(TestCase):
         # should be invalid
         self.assertFalse(self.st3.allowance_to_valid)
 
-        self.st3.generate_transactions()
-        for trans in self.st3.transaction_set.all():
-            trans.ledger = self.personal_account
-            trans.save()
+        # No transactions to settle first, as this used to do before asserting:
+        # the rules report the answer, so `materialise` retires the rows and
+        # `generate_transactions` has nothing to write. `validity` reaches the
+        # gate before it looks at transactions at all, which is the point.
+        # Still `INVALID_ALLOWANCE_TO`, and now for two reasons at once: the
+        # gate says so, and the engine reports the answer as one these rules no
+        # longer offer. `validity` asks the gate first precisely so that the
+        # sentence names the answer rather than the bookkeeping that follows
+        # from it — with the rows retired there are no transactions to match,
+        # and "the transactions do not match" is the symptom.
+        self.assertFalse(self.st3.is_valid())
         self.assertEqual(self.st3.validity, Statement.INVALID_ALLOWANCE_TO)
+        self.assertTrue(
+            any("allowance_to" in error for error in self.st3.rule_result.errors),
+            self.st3.rule_result.errors,
+        )
 
     def test_the_answers_are_read_from_one_field_by_the_rules_own_keys(self):
         """What the four columns used to be, as a reading of ``inputs``.
@@ -859,15 +1057,15 @@ class StatementTestCase(TestCase):
 
         So a section's bug must not propagate: it would poison that
         transaction, roll the deletion back and leave the member in place.
-        Neuter the ``try`` in ``signals._party_keys`` and this raises instead,
-        with the member still there.
+        Neuter the ``try`` in ``signals._party_answers`` and this raises
+        instead, with the member still there.
         """
         ghost = Member.objects.create(
             prename="Kaputt", lastname="Regeln", email=settings.TEST_MAIL, gender=0
         )
         answer(self.st6, subsidy_to=ghost.pk)
         gone = ghost.pk
-        with patch("finance.signals.party_keys", side_effect=RuntimeError("a section's bug")):
+        with patch("finance.signals.party_answers", side_effect=RuntimeError("a section's bug")):
             ghost.delete()
         self.assertFalse(Member.objects.filter(pk=gone).exists())
         # The id stays in the draft, which is the harmless half: the readout
@@ -877,7 +1075,7 @@ class StatementTestCase(TestCase):
         self.assertIsNone(self.st6.subsidy_to)
 
     def test_a_question_only_the_engine_still_reads_is_pruned_too(self):
-        """``party_keys`` asks ``inputs``, not ``relevant_inputs``.
+        """``party_answers`` asks ``inputs``, not ``relevant_inputs``.
 
         A ruleset may narrow the second to take a question off the form. The
         engine goes on reading the first, so pruning by the form's set would
@@ -1068,7 +1266,7 @@ class StatementTestCase(TestCase):
         self.assertIsInstance(issues, list)
 
     def test_transaction_issues_with_ljp(self):
-        answer(self.st3, ljp_to=self.fritz.pk)
+        answer(self.st3, ljp_to=self.subsidy_leader.pk)
         self.st3.save()
         issues = self.st3.transaction_issues
         self.assertIsInstance(issues, list)
@@ -1094,14 +1292,14 @@ class StatementTestCase(TestCase):
         self.assertIsNotNone(org_fee_transaction)
 
     def test_generate_transactions_ljp(self):
-        answer(self.st3, ljp_to=self.fritz.pk)
+        answer(self.st3, ljp_to=self.subsidy_leader.pk)
         self.st3.save()
         initial_count = Transaction.objects.count()
         self.st3.generate_transactions()
         final_count = Transaction.objects.count()
         self.assertGreater(final_count, initial_count)
         ljp_transaction = Transaction.objects.filter(
-            statement=self.st3, member=self.fritz, reference__icontains="LJP"
+            statement=self.st3, member=self.subsidy_leader, reference__icontains="LJP"
         ).first()
         self.assertIsNotNone(ljp_transaction)
 

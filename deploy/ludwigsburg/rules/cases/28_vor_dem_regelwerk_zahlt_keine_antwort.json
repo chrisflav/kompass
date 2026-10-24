@@ -1,0 +1,34 @@
+{
+  "name": "Solange das Regelwerk offen ist, ist es die einzige Frage — jede andere Antwort liegt da und zahlt nichts",
+  "inputs": {
+    "reisen": [
+      {"member": 1, "approach": "car", "kilometers": 300, "passengers": 3}
+    ],
+    "stadtmobil": true,
+    "participant_list_filed": true,
+    "sleeper_car": true,
+    "no_night_cost": true,
+    "nights_to": [1],
+    "country": "oesterreich",
+    "per_diem_to": [1],
+    "hours": 8,
+    "fee_to": 1,
+    "training_or_work": true
+  },
+  "excursion": {
+    "duration": "3.0",
+    "nights": 2,
+    "kilometers": 300,
+    "approach": "car",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 1
+  },
+  "expect": {
+    "transfers": [
+      ["PARTICIPANTS", "SECTION", "0.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, false, true, true, true, true]
+  }
+}

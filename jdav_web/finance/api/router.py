@@ -30,8 +30,9 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from finance.inputs import clean as clean_inputs
+from finance.inputs import form as statement_form_body
 from finance.inputs import party_keys
-from finance.inputs import rendered as rendered_inputs
+from finance.inputs import seeded as seeded_rows
 from finance.inputs import stored as stored_inputs
 from finance.models import Bill
 from finance.models import Ledger
@@ -179,7 +180,13 @@ def _statement_detail():
 
 @router.post("/statements", response=StatementOut)
 def create_statement(request, payload: StatementCreate):
-    """Create a draft statement (requires the global add permission)."""
+    """Create a draft statement (requires the global add permission).
+
+    A statement created *on* an excursion has its seeded tables filled in here
+    — one row, as the trip describes it, for the person to correct or to split
+    (:func:`finance.inputs.seeded`). This is one of the two moments a seed
+    applies; the other is an excursion being changed in ``update_statement``.
+    """
     authorize(request, "finance.add_global_statement")
     excursion = None
     if payload.excursion_id is not None:
@@ -188,12 +195,18 @@ def create_statement(request, payload: StatementCreate):
         # for the same excursion surfaces as a raw IntegrityError (500).
         if Statement.objects.filter(excursion=excursion).exists():
             raise ValidationError(_("This excursion already has a statement."))
-    statement = Statement.objects.create(
+    statement = Statement(
         short_description=payload.short_description,
         explanation=payload.explanation,
         excursion=excursion,
         created_by=get_member(request),
     )
+    # Resolved against the unsaved row, so the statement is written once: the
+    # declarations only need the excursion, and a statement with no bills yet is
+    # a context the engine already builds (``_bills`` answers ``()`` for an
+    # unsaved one, for the admin's inline).
+    statement.inputs = seeded_rows(statement)
+    statement.save()
     # Read the row back so every field carries its database-native type before
     # the computed money properties run during serialization.
     statement.refresh_from_db()
@@ -281,7 +294,18 @@ def statement_finance_overview(request, statement_id: int):
 
 @router.patch("/statements/{statement_id}", response=StatementOut)
 def update_statement(request, statement_id: int, payload: StatementUpdate):
-    """Update the editable subset of a draft statement, authorized per object."""
+    """Update the editable subset of a draft statement, authorized per object.
+
+    Changing the excursion does two things to the answers, for one reason: they
+    were given about a different trip. Every answer that names somebody goes,
+    because the people the rules offer are the incoming trip's; and every seeded
+    table is re-seeded, because the row it held carried the outgoing trip's
+    distance and mode. An answer restated **in this same request** wins over
+    both, so correcting the excursion and the table together is one call.
+
+    A refusal about a table is keyed per cell — ``"reisen[1].kilometers"`` —
+    rather than by the question; see :func:`finance.inputs.row_key`.
+    """
     statement = get_authorized(request, Statement, statement_id, "finance.change_obj_statement")
     # Match the admin, which freezes all fields once a statement is submitted
     # (StatementAdmin.get_readonly_fields / has_change_permission).
@@ -315,6 +339,11 @@ def update_statement(request, statement_id: int, payload: StatementUpdate):
         # it. Which answers those are is the declarations' business, not a list
         # of three keys the API happens to know.
         kept = {key: value for key, value in kept.items() if key not in party_keys(statement)}
+        # And every seeded table is **re-seeded**, on the same reasoning: the
+        # row it held described the outgoing trip — its distance, its mode — so
+        # keeping it would be this statement claiming a journey nobody made.
+        # Clearing the excursion seeds nothing, which empties the table.
+        kept = dict(kept, **seeded_rows(statement))
     with transaction.atomic():
         set_scalar_fields(statement, data, list(data.keys()))
         statement.inputs = dict(kept, **stored_inputs(cleaned))
@@ -395,6 +424,16 @@ def confirm_statement(request, statement_id: int, send: bool = False):
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.process_statementsubmitted")
     if not statement.confirm(get_member(request), user=request.user):
+        # Confirming is a signature, and a signature short of the quorum is
+        # *recorded* rather than refused — `approve` returns False having taken
+        # it. "Not ready to be confirmed" is then the wrong half of the truth:
+        # it reads as "nothing happened" over something that did. Which of the
+        # two refusals it was is a question the statement can answer, so say
+        # it; the clients that render the whole record say more (`/approval`).
+        if statement.submitted and not statement.fully_approved:
+            raise ValidationError(
+                _("The statement is still waiting for approvals and cannot be paid out yet.")
+            )
         raise ValidationError(_("Statement is not ready to be confirmed."))
     if send:
         member = get_member(request)
@@ -600,27 +639,29 @@ def statement_form(request, statement_id: int):
     ``answers`` is what the statement carries today, restricted to the keys
     this form asks for — so one request is a whole form, questions and answers
     together, and an answer the rules have since stopped asking for is not
-    handed back to be re-submitted.
+    handed back to be re-submitted. A *derived* answer is in there too, read
+    off the statement's own data rather than out of storage, which is why the
+    whole payload comes from one call: the questions, their grouping and the
+    answers are all resolved against one context.
     """
     statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
-    declarations = rendered_inputs(statement)
-    carried = statement.answers
-    return {
-        "statement_id": statement.pk,
-        "inputs": declarations,
-        "answers": {
-            declaration["key"]: carried.get(declaration["key"]) for declaration in declarations
-        },
-    }
+    return {"statement_id": statement.pk, **statement_form_body(statement)}
 
 
 @router.get("/statements/{statement_id}/preflight", response=PreflightOut)
 def statement_preflight(request, statement_id: int):
     """What stands between this statement and being handed in.
 
-    The ruleset's own checks, plus anything its ``transfers`` reported — the
-    two lists ``submit`` refuses on — so a client can show them before somebody
-    presses the button rather than after.
+    The ruleset's own checks, plus anything the evaluation reported, so that a
+    client can show them before somebody presses the button rather than after.
+
+    Neither list is what ``POST …/submit`` itself refuses on: that endpoint
+    reproduces the excursion overview's two guards (valid allowance recipients,
+    and a proof per bill when LJP contributions are claimed) and consults
+    neither ``checks`` nor ``errors``. What an error *does* do is stop the
+    statement resolving, so nothing is materialised and nothing is frozen —
+    which is why a client should read this before submitting and why a failing
+    check here is advice rather than a lock.
     """
     statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
     result = statement.rule_result
@@ -639,7 +680,7 @@ def statement_preflight(request, statement_id: int):
 def statement_approval(request, statement_id: int):
     """Who has to sign this statement off, and who has."""
     statement = get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
-    return approval_payload(statement, get_member(request))
+    return approval_payload(statement, get_member(request), request.user)
 
 
 @router.post("/statements/{statement_id}/approve", response=StatementApprovalOut)
@@ -657,7 +698,7 @@ def approve_statement(request, statement_id: int, payload: ApprovalCreate):
     # administrator with no member record is one signature from one person.
     statement.approve(member, note=payload.note, user=request.user)
     statement.refresh_from_db()
-    return approval_payload(statement, member)
+    return approval_payload(statement, member, request.user)
 
 
 @router.post("/statements/{statement_id}/override-approval", response=StatementApprovalOut)
@@ -686,4 +727,4 @@ def override_statement_approval(request, statement_id: int, payload: ApprovalOve
         raise ValidationError(refusal)
     statement.override_approval(payload.name, member, payload.reason)
     statement.refresh_from_db()
-    return approval_payload(statement, member)
+    return approval_payload(statement, member, request.user)

@@ -1,0 +1,26 @@
+{
+  "name": "Tourenleitervergütung: sechs Stunden zu 2,50 €",
+  "inputs": {
+    "regime": "tourenleitung",
+    "participant_list_filed": true,
+    "hours": 6,
+    "fee_to": 1
+  },
+  "excursion": {
+    "duration": "1.0",
+    "nights": 0,
+    "kilometers": 0,
+    "approach": "muscle",
+    "leaders": [1],
+    "staff_count": 1,
+    "approved_staff_count": 1
+  },
+  "expect": {
+    "transfers": [
+      ["SECTION", "1", "15.00", "tour_leader_fee"],
+      ["PARTICIPANTS", "SECTION", "15.00", "participant_contribution"]
+    ],
+    "errors": [],
+    "checks": [true, true, true, true, true, true]
+  }
+}

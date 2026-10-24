@@ -43,6 +43,7 @@ from .rules import may_approve
 from .rules import not_submitted
 from .rules_api import Member as RuleMember
 from .rules_api import SECTION
+from .rules_api import SETTLEMENT_GROUP_LENGTH
 from .store import Approval
 from .store import RuleSet
 
@@ -520,6 +521,7 @@ class Statement(CommonModel):
                 "label": str(transfer.label),
                 "explanation": str(transfer.explanation),
                 "reference": str(self._transfer_reference(transfer)),
+                "settlement_group": transfer.settlement_group,
             }
             for transfer in result.transfers
         ]
@@ -639,13 +641,21 @@ class Statement(CommonModel):
         statement used to report "everything is correct", which is exactly when
         it is not. `confirm` refuses on `is_valid`, so this is also what keeps
         money from moving on a statement the rules could not settle.
+
+        ``INVALID_ALLOWANCE_TO`` is asked **first**, by the same argument read
+        the other way. It is the only one of these about an *answer* rather
+        than about the bookkeeping that follows from one, and it names the
+        thing to go and change. Everything downstream of a bad answer — no
+        rows written, so no transactions, so a total that does not match — is a
+        symptom, and showing a symptom when the cause has a sentence of its own
+        is the mistake this ordering exists to avoid.
         """
+        if not self.allowance_to_valid:
+            return Statement.INVALID_ALLOWANCE_TO
         if not self.transactions_match_expenses:
             return Statement.NON_MATCHING_TRANSACTIONS
         if not self.ledgers_configured:
             return Statement.MISSING_LEDGER
-        if not self.allowance_to_valid:
-            return Statement.INVALID_ALLOWANCE_TO
         if not self.total_valid:
             return Statement.INVALID_TOTAL
         if self.rule_result.errors:
@@ -746,6 +756,42 @@ class Statement(CommonModel):
         if member is None or not self.submitted or self.confirmed:
             return False
         return may_sign(self.live_approval_states, member.pk)
+
+    def signature_completes_approval(self, member=None, user=None):
+        """Whether one signature from this signer would settle the last step.
+
+        The question an interface has to ask *before* the click, because
+        :meth:`approve` pays out on the signature that completes the quorum
+        and records one that does not — two different acts behind the same
+        call. A page that cannot tell them apart has to describe one of them
+        wrongly, and the one it described wrongly was the signature short of a
+        quorum: it reported "not ready to be confirmed" over a signature it had
+        just taken.
+
+        Asked of the *gate* rather than the record, with this signer's
+        signature added to the ones already in — as a member if they have a
+        member record, otherwise as their account, which is how
+        :attr:`finance.store.Approval.signer` counts them. A signer who has
+        already signed gets the honest answer for free: adding their signature
+        again changes nothing, so this is then simply whether the statement is
+        approved already.
+
+        Nobody — no member and no account — is not a signer, and the answer is
+        no rather than "whatever the statement says", because the point of the
+        question is what *this person's* next click does.
+        """
+        if not self.submitted or self.confirmed:
+            return False
+        if member is None and user is None:
+            return False
+        members, others = self._signatures()
+        if member is not None:
+            members = [*members, member.pk]
+        else:
+            others = {*others, ("user", user.pk)}
+        return fully_approved(
+            approval_states(current_constraint_rows(self), members, uncredited=others)
+        )
 
     def approve(self, member=None, note="", user=None):
         """Record a signature, and pay out once the last one is in.
@@ -974,6 +1020,11 @@ class Statement(CommonModel):
         behind. Money owed to a member is a transfer *to* them and money
         charged against their reimbursement a transfer *from* them, which is
         where the negative amount of an org-fee row comes from.
+
+        The transfer's settlement group rides along onto the booking, because
+        the rules decided it and :meth:`reduce_transactions` is what reads it
+        back: which amounts may not share a bank transfer is a property of the
+        money, not of the screen that bundles it.
         """
         result = self.rule_result
         if result.errors:
@@ -990,25 +1041,53 @@ class Statement(CommonModel):
                     amount=sign * transfer.amount,
                     confirmed=False,
                     reference=reference,
+                    settlement_group=transfer.settlement_group,
                 ).save()
         return True
 
     def reduce_transactions(self):
-        # to minimize the number of needed bank transactions, we bundle transactions from same ledger to
-        # same member
+        """Bundle what may share a bank transfer, and only that.
+
+        To minimise the number of transfers somebody has to make, bookings to
+        the same person out of the same ledger become one — *within one
+        settlement group*. The group is the token the section's rules put on
+        the transfer (:attr:`kompass.rules.Transfer.settlement_group`), carried
+        through to the booking, and it is the third part of the key here.
+
+        Which is the whole of the feature: the Tourenleitervergütung is
+        tax-relevant under § 3 Nr. 26 EStG and has to reach the recipient as
+        its own transfer, although it is one statement, one approval and one
+        process with their travel costs. Before, the two were added together
+        and paid out as one amount under a reference that concatenated both, so
+        the taxable part was not a payment anybody could point at. A ruleset
+        that names no group merges exactly as it always did.
+
+        **The reference text is deliberately unchanged.** A merged row still
+        itemises what it covers (``"Fahrtkosten EUR 24.00, Tagegeld EUR
+        28.00"``), which is what a reader reconciling one bank line against the
+        paper needs, and a row that stayed on its own still carries its own
+        transfer's reference verbatim — which is precisely what merging used to
+        destroy. The group token itself is *not* written into the reference: it
+        is the ruleset's internal vocabulary rather than German a stranger
+        reads, and what tells the reader the two rows are deliberate is that
+        each one says what it is for. The demanding reader is the one who gets
+        the statement as a PDF and was never in Kompass; "Tourenleitervergütung"
+        on its own line is an instruction they can act on, and the concatenation
+        was not.
+        """
         transactions = self.transaction_set.all()
         if any(t.ledger is None for t in transactions):
             return
 
         def sort_key(trans):
-            return (trans.member.pk, trans.ledger.pk)
+            return (trans.member.pk, trans.ledger.pk, trans.settlement_group)
 
         def group_key(trans):
-            return (trans.member, trans.ledger)
+            return (trans.member, trans.ledger, trans.settlement_group)
 
         transactions = sorted(transactions, key=sort_key)
-        for pair, transaction_group in groupby(transactions, group_key):
-            member, ledger = pair
+        for key, transaction_group in groupby(transactions, group_key):
+            member, ledger, settlement_group = key
             grp = list(transaction_group)
             if len(grp) == 1:
                 continue
@@ -1022,6 +1101,7 @@ class Statement(CommonModel):
                 confirmed=False,
                 reference=new_ref,
                 ledger=ledger,
+                settlement_group=settlement_group,
             ).save()
             for trans in grp:
                 trans.delete()
@@ -1488,6 +1568,18 @@ class Transaction(models.Model):
     reference = models.TextField(verbose_name=_("Reference"))
     amount = models.DecimalField(max_digits=6, decimal_places=2, verbose_name=_("Amount"))
     member = models.ForeignKey(Member, verbose_name=_("Recipient"), on_delete=models.CASCADE)
+    settlement_group = models.CharField(
+        verbose_name=_("Settlement group"),
+        max_length=SETTLEMENT_GROUP_LENGTH,
+        blank=True,
+        default="",
+        help_text=_(
+            "The group of bank transfers this booking may share, carried over "
+            "from the transfer the section's rules resolved. Bookings are "
+            "bundled into one payment only within one group, so an amount that "
+            "names its own is transferred separately. Empty means no group."
+        ),
+    )
     ledger = models.ForeignKey(
         Ledger,
         blank=False,

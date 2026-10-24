@@ -11,7 +11,7 @@ import {
   server,
   useMe,
 } from "../../test/server";
-import { renderRoute, sortByEveryColumn } from "../../test/utils";
+import { currentSearch, renderRoute, sortByEveryColumn } from "../../test/utils";
 
 const dropdown = () => within(document.querySelector(".ms-dropdown") as HTMLElement);
 
@@ -124,9 +124,82 @@ const LEADERS = [
   { id: 9, name: "Mila Nowak" },
 ];
 
+/** The alternatives a `choice` declaration offers, as `/form` sends them. */
+const REGIMES = [
+  { value: "ehrenamt", label: "Ehrenamtspauschale" },
+  { value: "uebungsleiter", label: "Übungsleiterpauschale" },
+];
+
 /** One declaration, with the fields `/form` always sends. */
-function declaration(overrides: Record<string, unknown>) {
-  return { required: false, help: "", max: null, options: [], ...overrides };
+function declaration(overrides: Record<string, unknown>): Record<string, unknown> {
+  return {
+    required: false,
+    help: "",
+    max: null,
+    options: [],
+    choices: [],
+    fields: [],
+    step: "",
+    derived: false,
+    ...overrides,
+  };
+}
+
+/**
+ * One cell of a `rows` declaration, with the fields `/form` always sends.
+ *
+ * No `options` of its own, and that is the contract rather than an omission:
+ * the people a party-valued cell may name are the *question's* options, stated
+ * once for the whole table, because one column served two different sets of
+ * people in two rows is not a thing a form can explain.
+ */
+function cell(overrides: Record<string, unknown>): Record<string, unknown> {
+  return { required: false, help: "", max: null, choices: [], ...overrides };
+}
+
+/** How a section's rules name the ways somebody got to the trip. */
+const APPROACHES = [
+  { value: "pkw", label: "PKW" },
+  { value: "bahn", label: "Bahn" },
+  { value: "rad", label: "Fahrrad" },
+];
+
+/**
+ * The repeating row, as `/form` declares one.
+ *
+ * `max` is the number of **rows**; the ceiling on a cell is on the cell. The
+ * people are on the question.
+ */
+const REISEN = declaration({
+  key: "reisen",
+  label: "Fahrten",
+  type: "rows",
+  help: "Für jede Person, die unterwegs war, eine Zeile.",
+  max: 3,
+  options: LEADERS,
+  fields: [
+    cell({ key: "member", label: "Person", type: "member" }),
+    cell({ key: "approach", label: "Verkehrsmittel", type: "choice", choices: APPROACHES }),
+    cell({ key: "kilometers", label: "Kilometer", type: "int", max: 2000 }),
+  ],
+});
+
+/**
+ * `inputs` partitioned into steps the way the API partitions them.
+ *
+ * `/form` always sends a partition of the whole form — a ruleset that named no
+ * steps comes back as one step labelled `""` — so a stub that says what the
+ * rules ask has to say how they group too. Computed the same way the backend
+ * computes it rather than written out beside every `inputs`, so a test about
+ * something else does not have to carry a grouping.
+ */
+function stepsOf(inputs: Record<string, unknown>[]) {
+  const grouped = new Map<string, string[]>();
+  for (const input of inputs) {
+    const label = String(input.step ?? "");
+    grouped.set(label, [...(grouped.get(label) ?? []), String(input.key)]);
+  }
+  return [...grouped].map(([label, keys]) => ({ label, keys }));
 }
 
 /**
@@ -136,29 +209,32 @@ function declaration(overrides: Record<string, unknown>) {
  * leg prints whatever `/preflight` finds — neither is a list of fields or a
  * list of checks written in the client any more, so both are stubbed.
  */
+const FORM_INPUTS = [
+  declaration({
+    key: "night_cost",
+    label: "Preis pro Übernachtung",
+    type: "money",
+    help: "Was eine Übernachtung pro Jugendleiter*in gekostet hat.",
+  }),
+  declaration({
+    key: "allowance_to",
+    label: "Aufwandsentschädigung an",
+    type: "member_set",
+    options: LEADERS,
+    max: 2,
+  }),
+  declaration({
+    key: "subsidy_to",
+    label: "Fahrt- und Übernachtungszuschuss an",
+    type: "member",
+    options: LEADERS,
+  }),
+];
+
 const FORM = {
   statement_id: 1,
-  inputs: [
-    declaration({
-      key: "night_cost",
-      label: "Preis pro Übernachtung",
-      type: "money",
-      help: "Was eine Übernachtung pro Jugendleiter*in gekostet hat.",
-    }),
-    declaration({
-      key: "allowance_to",
-      label: "Aufwandsentschädigung an",
-      type: "member_set",
-      options: LEADERS,
-      max: 2,
-    }),
-    declaration({
-      key: "subsidy_to",
-      label: "Fahrt- und Übernachtungszuschuss an",
-      type: "member",
-      options: LEADERS,
-    }),
-  ],
+  inputs: FORM_INPUTS,
+  steps: stepsOf(FORM_INPUTS),
   answers: { night_cost: "11.00", allowance_to: [], subsidy_to: null },
 };
 
@@ -170,6 +246,36 @@ const PREFLIGHT = {
   errors: [],
 };
 
+/** The approval record, as `/approval` sends it for a one-signature section. */
+const APPROVAL = {
+  statement_id: 1,
+  approved: false,
+  may_approve: false,
+  // One constraint satisfied by one signature: the next click is the payout,
+  // which is what keeps a section like Heidelberg reading as the single act it
+  // has always been.
+  completes_approval: true,
+  constraints: [
+    {
+      name: "Freigabe",
+      description: "Eine Unterschrift aus der Finanzverwaltung",
+      applicable: true,
+      required: 1,
+      satisfied: false,
+      overridden: false,
+      open: true,
+      missing: 1,
+      state_display: "Offen",
+      eligible: [LEADERS[0]],
+      signed_by: [],
+      excluded: [],
+      overridden_by: null,
+      override_reason: "",
+    },
+  ],
+  signatures: [],
+};
+
 /** Everything the detail page and its inlines fetch. */
 function detailReturns(data: Record<string, unknown> = {}) {
   const s = statement(data);
@@ -178,6 +284,9 @@ function detailReturns(data: Record<string, unknown> = {}) {
     http.get(api("/api/finance/statements/1/transactions"), () => HttpResponse.json([])),
     http.get(api("/api/finance/statements/1/form"), () => HttpResponse.json(FORM)),
     http.get(api("/api/finance/statements/1/preflight"), () => HttpResponse.json(PREFLIGHT)),
+    // The record is a tab of the statement and the review's last leg reads it
+    // to know which act it is offering, so both pages ask for it.
+    http.get(api("/api/finance/statements/1/approval"), () => HttpResponse.json(APPROVAL)),
     http.get(api("/api/members/"), () => HttpResponse.json(LEADERS)),
     http.get(api("/api/finance/ledgers/"), () => HttpResponse.json(LEDGERS)),
   );
@@ -607,6 +716,71 @@ describe("submission flow — Belege", () => {
     expect(await screen.findByText("Bild fehlt")).toBeInTheDocument();
     expect(screen.getByText("kein*e Zahler*in eingetragen")).toBeInTheDocument();
   });
+
+  it("refuses to move on while a receipt is still being entered", async () => {
+    // Reported from the running instance: a receipt typed into the form was
+    // gone after saving the draft. Nothing had posted it — the form is local
+    // state on a panel that `key={step}` throws away when the flow moves — so
+    // "Weiter" dropped what was typed without saying anything.
+    flowReturns();
+    detailReturns();
+    let posted = 0;
+    server.use(
+      http.post(api("/api/finance/bills"), () => {
+        posted += 1;
+        return HttpResponse.json({ id: 13 });
+      }),
+    );
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    expect(await screen.findByText(/Der Beleg ist noch nicht hinzugefügt/)).toBeInTheDocument();
+    // Still on the receipts leg, with what was typed still on screen — and
+    // nothing invented a receipt out of a half-filled form either.
+    expect(currentSearch()).toBe("?stage=receipts");
+    expect(screen.getByDisplayValue("Sprit")).toBeInTheDocument();
+    expect(posted).toBe(0);
+  });
+
+  it("moves on once the receipt is added", async () => {
+    // The other half of the guard: it must let go of the flow again, or the
+    // receipts leg becomes a dead end.
+    flowReturns();
+    detailReturns();
+    server.use(
+      http.post(api("/api/finance/bills"), () => HttpResponse.json({ id: 13 })),
+      http.patch(api("/api/finance/statements/1"), () => HttpResponse.json(statement())),
+    );
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    await user.click(screen.getByRole("button", { name: "Beleg hinzufügen" }));
+    await screen.findByText("Beleg hinzugefügt.");
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    await waitFor(() => expect(currentSearch()).toBe("?stage=reimbursement"));
+  });
+
+  it("lets a receipt being entered be abandoned deliberately", async () => {
+    flowReturns();
+    detailReturns();
+    server.use(http.patch(api("/api/finance/statements/1"), () => HttpResponse.json(statement())));
+    const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    await user.click(await screen.findByRole("button", { name: "+ Beleg hinzufügen" }));
+    await user.type(screen.getByLabelText("Wofür"), "Sprit");
+    // Scoped to the receipt form: the page header carries an "Abbrechen" too,
+    // and that one leaves the whole flow.
+    const form = within(document.querySelector(".beleg-form") as HTMLElement);
+    await user.click(form.getByRole("button", { name: "Abbrechen" }));
+    await user.click(screen.getByRole("button", { name: "Weiter" }));
+
+    await waitFor(() => expect(currentSearch()).toBe("?stage=reimbursement"));
+  });
 });
 
 describe("submission flow — Erstattung", () => {
@@ -626,10 +800,12 @@ describe("submission flow — Erstattung", () => {
   function openForm(form: Record<string, unknown> = {}) {
     flowReturns();
     detailReturns();
+    const body: Record<string, unknown> = { ...FORM, ...form };
+    // A stub that changes the questions gets the grouping that goes with them,
+    // because the API never serves one without the other.
+    if (!("steps" in form)) body.steps = stepsOf(body.inputs as Record<string, unknown>[]);
     server.use(
-      http.get(api("/api/finance/statements/1/form"), () =>
-        HttpResponse.json({ ...FORM, ...form }),
-      ),
+      http.get(api("/api/finance/statements/1/form"), () => HttpResponse.json(body)),
     );
     return renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
   }
@@ -655,16 +831,17 @@ describe("submission flow — Erstattung", () => {
         declaration({ key: "nights", label: "Nächte", type: "int", max: 9 }),
         declaration({ key: "catered", label: "Mit Verpflegung", type: "bool" }),
         declaration({ key: "note", label: "Anmerkung", type: "text" }),
-        declaration({ key: "pick", label: "Variante", type: "choice" }),
+        declaration({ key: "pick", label: "Variante", type: "choice", choices: REGIMES }),
       ],
-      answers: { nights: 3, catered: true, note: "eine Zeile", pick: "a" },
+      answers: { nights: 3, catered: true, note: "eine Zeile", pick: "ehrenamt" },
     });
 
     expect(await screen.findByText("Nächte")).toBeInTheDocument();
     expect(screen.getByDisplayValue("3")).toHaveAttribute("max", "9");
     expect(screen.getByRole("checkbox")).toBeChecked();
     expect(screen.getByDisplayValue("eine Zeile")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("a")).toBeInTheDocument();
+    // A picker showing the chosen alternative's label, not its stored value.
+    expect(pickerFor("Variante")).toHaveTextContent("Ehrenamtspauschale");
   });
 
   it("sends an answer under the key the rules declared", async () => {
@@ -681,10 +858,11 @@ describe("submission flow — Erstattung", () => {
     await user.click(pickerFor("Fahrt- und Übernachtungszuschuss an"));
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
 
+    // That key and nothing else: the API merges answers by key, and a body
+    // restating the questions nobody touched is how an answer the rules have
+    // since retired used to travel with an unrelated edit.
     await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toEqual({
-      inputs: { night_cost: "11.00", allowance_to: [], subsidy_to: 9 },
-    });
+    expect(patched).toEqual({ inputs: { subsidy_to: 9 } });
   });
 
   it("picks several people for a set-valued answer", async () => {
@@ -746,8 +924,10 @@ describe("submission flow — Erstattung", () => {
 
   it("sends back only the questions the form still asks", async () => {
     // A ruleset may retire a question once an earlier answer makes it moot, and
-    // the API refuses a key the rules do not ask for. Neuter it — send the
-    // whole local draft — and this goes red with a 422 on `retired`.
+    // the API refuses a key the rules do not ask for — `retired` here is an
+    // answer the form served without asking for it. Neuter it — send the whole
+    // local draft along with the edit — and this goes red with `retired` in the
+    // body, which is a 422 on the running instance.
     let patched: Record<string, unknown> | null = null;
     server.use(
       http.patch(api("/api/finance/statements/1"), async ({ request }) => {
@@ -764,9 +944,31 @@ describe("submission flow — Erstattung", () => {
     await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
 
     await waitFor(() => expect(patched).not.toBeNull());
-    expect(patched).toEqual({
-      inputs: { night_cost: "11.00", allowance_to: [], subsidy_to: 9 },
-    });
+    expect(patched).toEqual({ inputs: { subsidy_to: 9 } });
+  });
+
+  it("asks the ruleset's questions of a statement without a trip", async () => {
+    // Reported from the running instance: the flow offered no way to say which
+    // set of rules applies. The statement in question named no excursion — both
+    // trips already had one — and this leg, the only place the ruleset's
+    // questions are asked, was gated on there being a trip. A leftover from
+    // when the leg was four fields about a trip's allowances: the section's
+    // rules ask the same `regime` of a training as of a Freizeit.
+    flowReturns();
+    detailReturns({ excursion: null });
+    const inputs = [
+      declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+    ];
+    server.use(
+      http.get(api("/api/finance/statements/1/form"), () =>
+        HttpResponse.json({ ...FORM, inputs, steps: stepsOf(inputs), answers: { regime: null } }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
+
+    expect(await screen.findByText("Regelwerk")).toBeInTheDocument();
+    // And it is on the rail, so it is reachable without typing a URL.
+    expect(screen.getByRole("navigation", { name: "Etappen" })).toHaveTextContent("Erstattung");
   });
 
   it("says so when the rules ask for nothing", async () => {
@@ -774,6 +976,316 @@ describe("submission flow — Erstattung", () => {
     expect(
       await screen.findByText("Für diese Abrechnung fragen die Regeln nichts ab."),
     ).toBeInTheDocument();
+    // The leg a person is standing on is never retired under them: bouncing
+    // back to Anlass because a query landed is worse than a leg that says the
+    // rules ask nothing.
+    expect(screen.getByRole("navigation", { name: "Etappen" })).toHaveTextContent("Erstattung");
+  });
+
+  it("retires the leg on a statement whose rules ask nothing", async () => {
+    // The other side of the same coin: the leg follows what the rules ask, so
+    // it is neither pinned to the excursion nor simply always there.
+    flowReturns();
+    detailReturns({ excursion: null });
+    server.use(
+      http.get(api("/api/finance/statements/1/form"), () =>
+        HttpResponse.json({ ...FORM, inputs: [], steps: [], answers: {} }),
+      ),
+    );
+    renderRoute("/kompass/finance/statements/1/edit?stage=receipts");
+
+    const rail = await screen.findByRole("navigation", { name: "Etappen" });
+    await waitFor(() => expect(rail).not.toHaveTextContent("Erstattung"));
+    expect(rail).toHaveTextContent("Belege");
+  });
+
+  it("offers the alternatives the declaration names, and sends the one picked", async () => {
+    // `choice` used to be a free-text box, because a declaration had no way to
+    // name its alternatives (#573). Now it does, and the API refuses anything
+    // outside them — so typing is no longer a thing a client may offer.
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+      ],
+      answers: { regime: null },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    // Exactly the alternatives the rules offered, plus "not chosen yet" — which
+    // is an answer the API stores, not the absence of one.
+    expect(dropdown().getByText("— nicht gewählt —")).toBeInTheDocument();
+    expect(dropdown().getByText("Übungsleiterpauschale")).toBeInTheDocument();
+    await user.click(dropdown().getByRole("button", { name: "Übungsleiterpauschale" }));
+
+    // The stored value, not the label it was picked by.
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({ inputs: { regime: "uebungsleiter" } });
+  });
+
+  it("sends each pick of a choice at once, because clicking is not typing", async () => {
+    // `choice` was a text box, so it sat in the set of controls whose change
+    // waits for a pause — a keystroke must not be a request. A picker has no
+    // keystrokes: every pick is a whole answer, so two picks are two requests
+    // and not one, which is what going back on a choice has to amount to.
+    let patches = 0;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () => {
+        patches += 1;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+      ],
+      answers: { regime: null },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Übungsleiterpauschale" }));
+
+    await waitFor(() => expect(patches).toBe(2));
+  });
+
+  it("names the question a refused choice is about", async () => {
+    // An answer outside the declaration's own choices is a 422 keyed by that
+    // question, like any other refusal — not a toast over the whole form.
+    server.use(
+      http.patch(api("/api/finance/statements/1"), () =>
+        djangoValidation({ regime: ["Regelwerk ist keine der angebotenen Möglichkeiten."] }),
+      ),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "regime", label: "Regelwerk", type: "choice", choices: REGIMES }),
+        declaration({ key: "nights", label: "Nächte", type: "int" }),
+      ],
+      answers: { regime: null, nights: 2 },
+    });
+
+    await screen.findByText("Regelwerk");
+    await user.click(pickerFor("Regelwerk"));
+    await user.click(dropdown().getByRole("button", { name: "Ehrenamtspauschale" }));
+
+    // Under "Regelwerk", and not under the other question on the form — in a
+    // toast as well, like any refusal.
+    const messages = await screen.findAllByText(/keine der angebotenen Möglichkeiten/);
+    expect(messages.map((node) => node.className)).toContain("field-error");
+    const refused = screen.getByText("Regelwerk").closest(".field") as HTMLElement;
+    expect(within(refused).getByText(/keine der angebotenen Möglichkeiten/)).toBeInTheDocument();
+    const other = screen.getByText("Nächte").closest(".field") as HTMLElement;
+    expect(within(other).queryByText(/keine der angebotenen Möglichkeiten/)).toBeNull();
+  });
+
+  it("states a derived answer as a reading instead of asking for it", async () => {
+    // The engine resolves these from the statement's own data on every request.
+    // Rendered as a field they would read as something to fill in — and a
+    // disabled one as something broken.
+    openForm({
+      inputs: [
+        declaration({ key: "km", label: "Gefahrene Kilometer", type: "int", derived: true }),
+        declaration({ key: "fare", label: "Fahrtkosten", type: "money", derived: true }),
+        declaration({ key: "nights", label: "Nächte", type: "int" }),
+      ],
+      answers: { km: 120, fare: "36.00", nights: 2 },
+    });
+
+    const readout = (await screen.findByText("Gefahrene Kilometer")).closest(
+      ".readout",
+    ) as HTMLElement;
+    expect(readout).not.toBeNull();
+    // Where the figure comes from, in the same words the trip's own facts get.
+    expect(within(readout).getByText("Aus der Fahrt übernommen")).toBeInTheDocument();
+    expect(within(readout).getByText("120")).toBeInTheDocument();
+    // Money arrives as text, exactly as a stored answer does, and reads as money.
+    expect(within(readout).getByText("36,00 €")).toBeInTheDocument();
+    // Nothing to type into: not a control, not a disabled control.
+    expect(screen.queryByDisplayValue("120")).toBeNull();
+    expect(screen.queryByDisplayValue("36.00")).toBeNull();
+    // The question beside them is still a question.
+    expect(screen.getByDisplayValue("2")).toBeInTheDocument();
+  });
+
+  it("reads a derived answer in every shape a stored one comes in", async () => {
+    // `/form` hands a derived value over in the shape `Statement.inputs` holds
+    // it — money as text, a person as an id, a set of people as a list of ids —
+    // so one path reads both and a figure the engine supplied reads like a
+    // figure somebody answered.
+    openForm({
+      inputs: [
+        declaration({ key: "fare", label: "Fahrtkosten", type: "money", derived: true }),
+        declaration({ key: "catered", label: "Verpflegt", type: "bool", derived: true }),
+        declaration({ key: "warm", label: "Winterfahrt", type: "bool", derived: true }),
+        declaration({
+          key: "regime",
+          label: "Regelwerk",
+          type: "choice",
+          choices: REGIMES,
+          derived: true,
+        }),
+        declaration({
+          key: "regime_open",
+          label: "Zweitregelwerk",
+          type: "choice",
+          choices: REGIMES,
+          derived: true,
+        }),
+        declaration({
+          key: "lead",
+          label: "Fahrtenleitung",
+          type: "member",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "gone",
+          label: "Kassenwart",
+          type: "member",
+          options: [],
+          derived: true,
+        }),
+        declaration({
+          key: "nobody",
+          label: "Vertretung",
+          type: "member",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "crew",
+          label: "Anerkannte Leitung",
+          type: "member_set",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({
+          key: "extra",
+          label: "Begleitung",
+          type: "member_set",
+          options: LEADERS,
+          derived: true,
+        }),
+        declaration({ key: "note", label: "Vermerk", type: "text", derived: true }),
+      ],
+      answers: {
+        fare: "36.00",
+        catered: true,
+        warm: false,
+        regime: "ehrenamt",
+        regime_open: null,
+        lead: 9,
+        gone: 4,
+        nobody: null,
+        crew: [7, 9],
+        extra: [],
+        note: "",
+      },
+    });
+
+    const readout = (await screen.findByText("Fahrtkosten")).closest(".readout") as HTMLElement;
+    const read = (label: string) =>
+      (within(readout).getByText(label).nextElementSibling as HTMLElement).textContent;
+    expect(read("Fahrtkosten")).toBe("36,00 €");
+    expect(read("Verpflegt")).toBe("Ja");
+    expect(read("Winterfahrt")).toBe("Nein");
+    // A choice reads as the label it was offered under, not as its stored value.
+    expect(read("Regelwerk")).toBe("Ehrenamtspauschale");
+    expect(read("Zweitregelwerk")).toBe("—");
+    expect(read("Fahrtenleitung")).toBe("Mila Nowak");
+    // A person the rules no longer offer: an id with no name behind it.
+    expect(read("Kassenwart")).toBe("unbekannt");
+    expect(read("Vertretung")).toBe("—");
+    expect(read("Anerkannte Leitung")).toBe("Hannah Beckers, Mila Nowak");
+    expect(read("Begleitung")).toBe("—");
+    expect(read("Vermerk")).toBe("—");
+  });
+
+  it("never sends an answer for a derived question", async () => {
+    // `PATCH` refuses a value for a derived key, keyed by that question. The
+    // form serves the figure in `answers` like any other answer, so a client
+    // that echoes back what it was served gets a 422. Two locks: a derived
+    // declaration is a reading and never a control, so nothing can edit one,
+    // and the send filters against the questions the form asks. Neuter either —
+    // render the readings as fields, or send the whole draft — and this goes
+    // red with `km` in the body.
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(statement());
+      }),
+    );
+    const { user } = openForm({
+      inputs: [
+        declaration({ key: "km", label: "Gefahrene Kilometer", type: "int", derived: true }),
+        declaration({
+          key: "subsidy_to",
+          label: "Zuschuss an",
+          type: "member",
+          options: LEADERS,
+        }),
+      ],
+      answers: { km: 120, subsidy_to: null },
+    });
+
+    await screen.findByText("Zuschuss an");
+    await user.click(pickerFor("Zuschuss an"));
+    await user.click(dropdown().getByRole("button", { name: "Mila Nowak" }));
+
+    await waitFor(() => expect(patched).not.toBeNull());
+    expect(patched).toEqual({ inputs: { subsidy_to: 9 } });
+  });
+
+  it("groups the questions into the steps the rules named", async () => {
+    openForm({
+      inputs: [
+        declaration({
+          key: "regime",
+          label: "Regelwerk",
+          type: "choice",
+          choices: REGIMES,
+          step: "Grundlagen",
+        }),
+        declaration({ key: "km", label: "Kilometer", type: "int", step: "Fahrtkosten" }),
+        declaration({ key: "note", label: "Anmerkung", type: "text", step: "Fahrtkosten" }),
+      ],
+      answers: { regime: null, km: 120, note: "" },
+    });
+
+    const grundlagen = (await screen.findByText("Grundlagen")).closest(
+      ".answer-group",
+    ) as HTMLElement;
+    expect(within(grundlagen).getByText("Regelwerk")).toBeInTheDocument();
+    expect(within(grundlagen).queryByText("Kilometer")).toBeNull();
+
+    const fahrtkosten = screen.getByText("Fahrtkosten").closest(".answer-group") as HTMLElement;
+    expect(within(fahrtkosten).getByText("Kilometer")).toBeInTheDocument();
+    expect(within(fahrtkosten).getByText("Anmerkung")).toBeInTheDocument();
+    expect(within(fahrtkosten).queryByText("Regelwerk")).toBeNull();
+  });
+
+  it("reads as one flat list when the rules named no steps", async () => {
+    // A ruleset that named no steps comes back as a single step labelled `""`,
+    // and that degenerate case must not look like a multi-page flow: no
+    // heading, nothing announcing a group, just the questions.
+    openForm();
+
+    expect(await screen.findByText("Preis pro Übernachtung")).toBeInTheDocument();
+    expect(FORM.steps).toEqual([
+      { label: "", keys: ["night_cost", "allowance_to", "subsidy_to"] },
+    ]);
+    expect(document.querySelector(".answer-group-title")).toBeNull();
   });
 
   it("offers nobody when the rules offer nobody", async () => {
@@ -784,6 +1296,581 @@ describe("submission flow — Erstattung", () => {
     await screen.findByText("An");
     await user.click(pickerFor("An"));
     expect(dropdown().getByText("Hier bieten die Regeln niemanden an.")).toBeInTheDocument();
+  });
+
+  /**
+   * The repeating row.
+   *
+   * A statement settles a trip several people went on and they travelled
+   * differently — one drove, one took the train, one cycled — and whether
+   * somebody gets the rate per kilometre at all depends on *their* approach.
+   * So approach and distance belong to the same traveller, which is a row.
+   */
+  describe("Fahrten — eine Zeile pro Person", () => {
+    /** The table and nothing else, answered with `rows`. */
+    function openRows(rows: unknown, extra: Record<string, unknown>[] = []) {
+      return openForm({
+        inputs: [REISEN, ...extra],
+        answers: {
+          reisen: rows,
+          ...Object.fromEntries(extra.map((input) => [input.key as string, null])),
+        },
+      });
+    }
+
+    /** The control in the `label` column of the `index`-th row, 1-based. */
+    function cellAt(label: string, index: number) {
+      return screen.getByLabelText(`${label}, Zeile ${index}`);
+    }
+
+    /** What the last `PATCH` sent under `reisen`. */
+    function sentRows(patched: unknown) {
+      return (patched as { inputs: { reisen: unknown } }).inputs.reisen;
+    }
+
+    /** Record every `PATCH` body, and answer each one with a plain statement. */
+    function recordPatches() {
+      const seen: Record<string, unknown>[] = [];
+      server.use(
+        http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+          seen.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json(statement());
+        }),
+      );
+      return seen;
+    }
+
+    it("renders one row per answer, with the people the question offers", async () => {
+      openRows([
+        { member: 7, approach: "pkw", kilometers: 120 },
+        { member: 9, approach: "bahn", kilometers: 0 },
+      ]);
+
+      await screen.findByText("Fahrten");
+      // One column per declared field, said once above the grid rather than
+      // once per row.
+      const table = document.querySelector(".rows-table") as HTMLElement;
+      expect(within(table).getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+        "Nr.",
+        "Person",
+        "Verkehrsmittel",
+        "Kilometer",
+        "",
+      ]);
+      // Two answers, two rows — and each cell answered where its own row is.
+      expect(within(table).getAllByRole("row")).toHaveLength(3); // + the heading
+      expect(cellAt("Person", 1)).toHaveTextContent("Hannah Beckers");
+      expect(cellAt("Verkehrsmittel", 1)).toHaveTextContent("PKW");
+      expect(cellAt("Kilometer", 1)).toHaveValue(120);
+      expect(cellAt("Person", 2)).toHaveTextContent("Mila Nowak");
+      expect(cellAt("Verkehrsmittel", 2)).toHaveTextContent("Bahn");
+      expect(cellAt("Kilometer", 2)).toHaveValue(0);
+      // A cell's own ceiling is on the cell; the question's `max` is the row
+      // count and has nothing to do with it.
+      expect(cellAt("Kilometer", 1)).toHaveAttribute("max", "2000");
+    });
+
+    it("offers a party-valued cell the question's own people", async () => {
+      // The domain is stated once, on the declaration, because a `Field`
+      // carries no `options`. A renderer that looked for them on the field
+      // would offer an empty picker in every row.
+      const { user } = openRows([{ member: null, approach: "", kilometers: 0 }]);
+
+      await screen.findByText("Fahrten");
+      await user.click(cellAt("Person", 1));
+      expect(dropdown().getByRole("button", { name: "Hannah Beckers" })).toBeInTheDocument();
+      expect(dropdown().getByRole("button", { name: "Mila Nowak" })).toBeInTheDocument();
+    });
+
+    it("invites a first row instead of reading as broken", async () => {
+      // `[]`, an absent key and a table the rules have retired all mean the
+      // same thing — a question nobody has answered yet — so nothing here is a
+      // refusal, and there is something to do.
+      openRows([]);
+
+      expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+      expect(screen.getByText(/Noch keine Zeile/)).toBeInTheDocument();
+      expect(document.querySelector(".rows-table")).toBeNull();
+      expect(document.querySelector(".rows-field .field-error")).toBeNull();
+      expect(screen.getByRole("button", { name: "+ Zeile hinzufügen" })).toBeEnabled();
+    });
+
+    it("adds a row and sends the longer list", async () => {
+      const seen = recordPatches();
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 120 }]);
+
+      await screen.findByText("Fahrten");
+      await user.click(screen.getByRole("button", { name: "+ Zeile hinzufügen" }));
+
+      // The row is there to type into at once…
+      expect(cellAt("Kilometer", 2)).toBeInTheDocument();
+      // …and the answer that goes back is the whole list, the new row included.
+      // An empty object and not a row of blanks: the API fills every cell it
+      // asks for with its type's own empty value.
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+      expect(sentRows(seen[0])).toEqual([{ member: 7, approach: "pkw", kilometers: 120 }, {}]);
+    });
+
+    it("stops offering a row at the number of rows the question allows", async () => {
+      // `max` on a table bounds the rows. Read as a cell's ceiling instead, a
+      // three-row table would accept any number of them and the API would
+      // refuse the fourth.
+      recordPatches();
+      const { user } = openRows([
+        { member: 7, approach: "pkw", kilometers: 120 },
+        { member: 9, approach: "bahn", kilometers: 0 },
+      ]);
+
+      await screen.findByText("Fahrten");
+      const add = screen.getByRole("button", { name: "+ Zeile hinzufügen" });
+      expect(add).toBeEnabled();
+      await user.click(add);
+
+      await waitFor(() => expect(add).toBeDisabled());
+      expect(screen.getByText("Höchstens 3 Zeilen.")).toBeInTheDocument();
+    });
+
+    it("removes a row and sends what is left", async () => {
+      const seen = recordPatches();
+      const { user } = openRows([
+        { member: 7, approach: "pkw", kilometers: 120 },
+        { member: 9, approach: "bahn", kilometers: 0 },
+      ]);
+
+      await screen.findByText("Fahrten");
+      await user.click(screen.getByRole("button", { name: "Zeile 1 entfernen" }));
+
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+      expect(sentRows(seen[0])).toEqual([{ member: 9, approach: "bahn", kilometers: 0 }]);
+      // And the row that is left is the one that is left, renumbered.
+      expect(cellAt("Person", 1)).toHaveTextContent("Mila Nowak");
+      expect(screen.queryByLabelText("Person, Zeile 2")).toBeNull();
+    });
+
+    it("lets a seeded row be corrected, and sends the correction", async () => {
+      // The trip records one distance and one mode, and a seed writes them into
+      // the first row *once*. That is an answer and not a reading: it is
+      // stored, it does not follow the trip afterwards, and the whole point is
+      // that it can be edited — so it must not be rendered the way a `derived`
+      // value is.
+      const seen = recordPatches();
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 120 }]);
+
+      await screen.findByText("Fahrten");
+      // Not a reading: a control, and not a disabled one.
+      const km = cellAt("Kilometer", 1);
+      expect(km).toBeEnabled();
+      expect(document.querySelector(".rows-field .readout")).toBeNull();
+
+      await user.clear(km);
+      await user.type(km, "96");
+
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+      expect(sentRows(seen[seen.length - 1])).toEqual([
+        { member: 7, approach: "pkw", kilometers: "96" },
+      ]);
+    });
+
+    it("waits for a pause before a typed cell becomes a request", async () => {
+      // `TYPED_INTO` is keyed by the declaration's type, so a table left out of
+      // it makes every keystroke in every cell a `PATCH` — and a table goes
+      // back whole, so that is the entire table per character.
+      const seen = recordPatches();
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 0 }]);
+
+      await screen.findByText("Fahrten");
+      const km = cellAt("Kilometer", 1);
+      await user.clear(km);
+      await user.type(km, "120");
+
+      // Four edits, not four requests.
+      expect(seen).toHaveLength(0);
+      await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+    });
+
+    it("prints a refusal about a cell against that cell", async () => {
+      // The 422's keys are a path — `reisen[1].kilometers` — precisely so that
+      // an error about one person's kilometres does not surface under the whole
+      // table. Zero-based, in the order the request sent the rows.
+      server.use(
+        http.patch(api("/api/finance/statements/1"), () =>
+          djangoValidation({
+            "reisen[1].kilometers": ["Kilometer darf höchstens 2000 sein."],
+            "reisen[0].approach": ["Verkehrsmittel ist keine der angebotenen Möglichkeiten."],
+          }),
+        ),
+      );
+      // Provoked by correcting one cell, because a table goes back whole: the
+      // request carries every row, so cells nobody touched are refused along
+      // with the one that was.
+      const { user } = openRows([
+        { member: 7, approach: "flug", kilometers: 120 },
+        { member: 9, approach: "pkw", kilometers: 9000 },
+      ]);
+
+      await screen.findByText("Fahrten");
+      await user.click(cellAt("Verkehrsmittel", 1));
+      await user.click(dropdown().getByRole("button", { name: "Bahn" }));
+
+      // Every bad cell at once, each against the cell that caused it.
+      await screen.findByText("Kilometer darf höchstens 2000 sein.");
+      const refused = cellAt("Kilometer", 2).closest(".rows-cell") as HTMLElement;
+      expect(within(refused).getByText(/höchstens 2000/)).toBeInTheDocument();
+      // And marked, so the cell looks refused and not merely annotated.
+      expect(refused).toHaveClass("has-error");
+      const wrongMode = cellAt("Verkehrsmittel", 1).closest(".rows-cell") as HTMLElement;
+      expect(within(wrongMode).getByText(/keine der angebotenen/)).toBeInTheDocument();
+      expect(wrongMode).toHaveClass("has-error");
+
+      // And not under the whole table, nor against the row that is fine.
+      const table = document.querySelector(".rows-field") as HTMLElement;
+      expect(
+        [...table.querySelectorAll(":scope > .field-error")].map((n) => n.textContent),
+      ).toEqual([]);
+      const fine = cellAt("Kilometer", 1).closest(".rows-cell") as HTMLElement;
+      expect(within(fine).queryByText(/höchstens 2000/)).toBeNull();
+    });
+
+    it("prints a refusal about the table under the table", async () => {
+      // The other end of the path: too many rows, or an answer that is not a
+      // list of rows at all, is about the question and belongs under it.
+      server.use(
+        http.patch(api("/api/finance/statements/1"), () =>
+          djangoValidation({ reisen: ["Fahrten darf höchstens 3 Zeilen haben."] }),
+        ),
+      );
+      const { user } = openRows([{ member: 7, approach: "pkw", kilometers: 120 }]);
+
+      await screen.findByText("Fahrten");
+      await user.click(screen.getByRole("button", { name: "Zeile 1 entfernen" }));
+
+      const table = await waitFor(() => {
+        const field = document.querySelector(".rows-field") as HTMLElement;
+        expect(field.querySelector(":scope > .field-error")).not.toBeNull();
+        return field;
+      });
+      expect(within(table).getByText(/höchstens 3 Zeilen/)).toBeInTheDocument();
+    });
+
+    it("renders a row the rules no longer offer as an unanswered table", async () => {
+      // A table falls out of its domain whole: one cell naming somebody the
+      // rules no longer offer drops the table, and `/form` serves `null` for
+      // it, which is the shape an unanswered question comes in.
+      openRows(null);
+
+      expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+      expect(screen.getByText(/Noch keine Zeile/)).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * What answering the regime does to the rest of the form.
+   *
+   * `regime` decides which questions the rules ask at all:
+   * `participant_list_filed` is in Ludwigsburg's `TOURENLEITUNG_ONLY` set, so
+   * choosing Ehrenamt takes it off the form — and `PATCH` then *refuses* a body
+   * that still carries it, because a question the rules have retired must not
+   * move money (#579).
+   *
+   * Reported from the running instance: switching the Regelwerk back and forth
+   * produced "Diese Regeln fragen Teilnehmerliste nicht ab." — *sometimes*.
+   * What decided it was whether the refetched form had landed before the next
+   * edit went out, so these hold the refetch open rather than hope to lose the
+   * race.
+   */
+  describe("Regelwerk — ein Wechsel ändert, was gefragt wird", () => {
+    const REGELWERKE = [
+      { value: "ehrenamt", label: "Ehrenamt und Verwaltung" },
+      { value: "tourenleitung", label: "Tourenleitung" },
+    ];
+
+    const REGIME = declaration({
+      key: "regime",
+      label: "Regelwerk",
+      type: "choice",
+      choices: REGELWERKE,
+    });
+
+    /** Tourenleitung's question, and nobody else's. */
+    const LISTE = declaration({
+      key: "participant_list_filed",
+      label: "Teilnehmerliste lag vor Antritt vor",
+      type: "bool",
+    });
+
+    /**
+     * The two halves of the engine this is about, as a server.
+     *
+     * `GET …/form` answers with the questions the rules ask *of the answers as
+     * stored*, and `PATCH` refuses a key they do not ask — where
+     * `finance.inputs.clean` refuses it, against the declarations the stored
+     * answers imply rather than the ones the request would imply. A handler
+     * that merely recorded bodies could not go red on this bug: the refusal is
+     * the bug.
+     *
+     * `hold` is what makes the race a test rather than a coin toss. A form
+     * fetch taken while it is held does not answer until `release`, so the
+     * window between "the regime is saved" and "the client knows what the rules
+     * ask now" is as wide as the test needs.
+     */
+    function rulesBackend(
+      initial: Record<string, unknown>,
+      asking: (answers: Record<string, unknown>) => Record<string, unknown>[] = (answers) =>
+        answers.regime === "tourenleitung" ? [REGIME, LISTE] : [REGIME],
+    ) {
+      const stored: Record<string, unknown> = { ...initial };
+      const patches: Record<string, unknown>[] = [];
+      const refused: string[] = [];
+      let waiting = 0;
+      let held: Promise<void> | null = null;
+      let release = () => {};
+      const asked = () => asking(stored);
+      server.use(
+        http.get(api("/api/finance/statements/1/form"), async () => {
+          if (held) {
+            waiting += 1;
+            await held;
+          }
+          const inputs = asked();
+          return HttpResponse.json({
+            statement_id: 1,
+            inputs,
+            steps: stepsOf(inputs),
+            answers: Object.fromEntries(
+              inputs.map((input) => [input.key, stored[input.key as string] ?? null]),
+            ),
+          });
+        }),
+        http.patch(api("/api/finance/statements/1"), async ({ request }) => {
+          const body = (await request.json()) as { inputs: Record<string, unknown> };
+          patches.push(body.inputs);
+          const keys = asked().map((input) => input.key as string);
+          const stray = Object.keys(body.inputs).find((key) => !keys.includes(key));
+          if (stray !== undefined) {
+            refused.push(stray);
+            return djangoValidation({ __all__: [`Diese Regeln fragen ${stray} nicht ab.`] });
+          }
+          Object.assign(stored, body.inputs);
+          return HttpResponse.json(statement());
+        }),
+      );
+      return {
+        stored,
+        patches,
+        refused,
+        /**
+         * How many form fetches have run into the hold and are stuck in it.
+         *
+         * More than one is normal: a save invalidates three keys and the form's
+         * is a prefix of all three, so the refetch is started (and the previous
+         * one cancelled) once per key. One stuck fetch is already the thing
+         * these tests wait for — no form can have landed since the hold.
+         */
+        waiting: () => waiting,
+        /** Stop answering form fetches, so the client keeps the old questions. */
+        hold: () => {
+          held = new Promise<void>((resolve) => {
+            release = () => {
+              held = null;
+              resolve();
+            };
+          });
+        },
+        release: () => release(),
+      };
+    }
+
+    /** Open the reimbursement leg against a server that answers as the rules do. */
+    function openRules(
+      initial: Record<string, unknown>,
+      asking?: (answers: Record<string, unknown>) => Record<string, unknown>[],
+    ) {
+      flowReturns();
+      detailReturns();
+      const backend = rulesBackend(initial, asking);
+      const { user } = renderRoute("/kompass/finance/statements/1/edit?stage=reimbursement");
+      return { backend, user };
+    }
+
+    /** Pick `label` under the Regelwerk question. */
+    async function pickRegime(user: ReturnType<typeof renderRoute>["user"], label: string) {
+      await user.click(pickerFor("Regelwerk"));
+      await user.click(dropdown().getByRole("button", { name: label }));
+    }
+
+    it("never re-answers a question the regime has just retired", async () => {
+      // The reported bug as a sequence rather than as a stroke of luck: pick a
+      // regime, and before the form that goes with it has landed, pick the
+      // other one. The second request used to carry the whole answerable
+      // subset — the Teilnehmerliste nobody had touched included — against a
+      // statement that was by then not being asked about it at all.
+      const { backend, user } = openRules({
+        regime: "tourenleitung",
+        participant_list_filed: true,
+      });
+
+      await screen.findByText("Regelwerk");
+      expect(screen.getByRole("checkbox")).toBeChecked();
+
+      backend.hold();
+      await pickRegime(user, "Ehrenamt und Verwaltung");
+      await waitFor(() => expect(backend.patches).toHaveLength(1));
+      // The form that retires the Teilnehmerliste is in flight and stuck there,
+      // so the client is holding the questions of the regime it has just left.
+      await waitFor(() => expect(backend.waiting()).toBeGreaterThan(0));
+      expect(screen.getByRole("checkbox")).toBeInTheDocument();
+
+      await pickRegime(user, "Tourenleitung");
+      backend.release();
+
+      await waitFor(() => expect(backend.patches).toHaveLength(2));
+      // Nothing was refused, because nothing answered a retired question.
+      expect(backend.refused).toEqual([]);
+      expect(backend.stored.regime).toBe("tourenleitung");
+      // And switching away never dropped the answer: the question is back, and
+      // so is what was said about it — on the form and on the server.
+      expect(await screen.findByRole("checkbox")).toBeChecked();
+      expect(screen.getByText(/Teilnehmerliste/)).toBeInTheDocument();
+      expect(backend.stored.participant_list_filed).toBe(true);
+    });
+
+    it("holds an edit back until it is known whether the rules still ask it", async () => {
+      // The same window from the other side: the question is still on screen
+      // while the form that retires it is in flight, so it can still be
+      // answered — and that answer must not go out to rules that have stopped
+      // asking it.
+      const { backend, user } = openRules({
+        regime: "tourenleitung",
+        participant_list_filed: false,
+      });
+
+      await screen.findByText("Regelwerk");
+      backend.hold();
+      await pickRegime(user, "Ehrenamt und Verwaltung");
+      await waitFor(() => expect(backend.patches).toHaveLength(1));
+      await waitFor(() => expect(backend.waiting()).toBeGreaterThan(0));
+
+      // Answered inside the window, against questions that are already history.
+      await user.click(screen.getByRole("checkbox"));
+      backend.release();
+
+      // The form lands, the question is gone, and it was never answered.
+      await waitFor(() => expect(screen.queryByRole("checkbox")).toBeNull());
+      expect(backend.refused).toEqual([]);
+      expect(backend.stored.participant_list_filed).toBe(false);
+    });
+
+    it("shows the answer a question the rules have just revealed arrives with", async () => {
+      // The other end of the same narrowing, and a gap the holding fix left.
+      //
+      // A ruleset may narrow to its *first* question — Ludwigsburg asks only
+      // the Regelwerk until it has one, because a kilometre has two rates and
+      // a night two meanings until then — and the Fahrten table it then
+      // reveals comes with the row the excursion seeded at creation. The draft
+      // was seeded once, off the form this leg mounted on, so it had never
+      // heard of that key and rendered the table empty: the seeded row looked
+      // eaten by the question nobody had been asked yet.
+      //
+      // Neuter it — drop the effect that merges arriving keys — and the table
+      // appears with "Noch keine Zeile" over a row that is in storage.
+      const seeded = { member: null, approach: "pkw", kilometers: 120 };
+      const gated = (answers: Record<string, unknown>) =>
+        answers.regime ? [REGIME, REISEN] : [REGIME];
+      const { backend, user } = openRules({ reisen: [seeded] }, gated);
+
+      await screen.findByText("Regelwerk");
+      expect(screen.queryByText("Fahrten")).toBeNull();
+
+      await pickRegime(user, "Ehrenamt und Verwaltung");
+
+      expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+      expect(screen.getByLabelText("Kilometer, Zeile 1")).toHaveValue(120);
+      expect(screen.getByLabelText("Verkehrsmittel, Zeile 1")).toHaveTextContent("PKW");
+      // Revealing a question is not a refusal looking for somewhere to land:
+      // the question set changed under the client and nothing was re-asserted.
+      expect(backend.patches).toEqual([{ regime: "ehrenamt" }]);
+      expect(backend.refused).toEqual([]);
+    });
+
+    /**
+     * And it reads as the first step of a form rather than as a broken one.
+     *
+     * Nothing new reaches the client for this: `steps` already partitions the
+     * whole form into the groups the rules named, so **one named step is a
+     * form showing fewer groups than it has**, and that is what the leg lays
+     * out as its opening step (`opensWithOneStep`). A single question floating
+     * over an empty payout looks like a page that did not load; what it is, is
+     * the question that decides the others.
+     */
+    describe("zuerst ist sie die einzige Frage", () => {
+      /** The gate, in a step of its own, as a ruleset that groups declares it. */
+      const GATE = declaration({ ...REGIME, step: "Grundlagen" });
+
+      /** What the answer reveals — the seeded table, in a step of its own. */
+      const REVEALED = declaration({ ...REISEN, step: "Fahrt" });
+
+      /** The row the excursion seeded, sitting in storage while nothing asks. */
+      const SEEDED = { member: null, approach: "pkw", kilometers: 120 };
+
+      /** `relevant_inputs` as a gating ruleset writes it. */
+      const gated = (answers: Record<string, unknown>) =>
+        answers.regime ? [GATE, REVEALED] : [GATE];
+
+      it("asks nothing else, and says the rest is waiting on it", async () => {
+        // Neuter it — have `opensWithOneStep` return false — and this is one
+        // bare question under "Diese Fragen stellt die Finanzordnung", over a
+        // payout of nothing: a leg that reads as broken rather than as begun.
+        openRules({ reisen: [SEEDED] }, gated);
+
+        await screen.findByText("Regelwerk");
+        expect(screen.queryByText("Fahrten")).toBeNull();
+        expect(screen.getByText(/Die erste Frage entscheidet/)).toBeInTheDocument();
+        const group = screen.getByText("Grundlagen").closest(".answer-group") as HTMLElement;
+        expect(group).toHaveClass("answer-opening");
+        expect(within(group).getByText(/Die weiteren Fragen erscheinen/)).toBeInTheDocument();
+        // And no payout: every figure in it would be a reading of an answer
+        // nobody has been asked for, so "Noch nichts zu erstatten." here says
+        // "this pays nothing" where the truth is "not yet".
+        expect(document.querySelector(".payout")).toBeNull();
+      });
+
+      it("is a whole form again once the question is answered", async () => {
+        const { user } = openRules({ reisen: [SEEDED] }, gated);
+
+        await screen.findByText("Regelwerk");
+        await pickRegime(user, "Ehrenamt und Verwaltung");
+
+        expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+        expect(document.querySelector(".answer-opening")).toBeNull();
+        expect(screen.queryByText(/Die weiteren Fragen erscheinen/)).toBeNull();
+        expect(document.querySelector(".payout")).not.toBeNull();
+      });
+
+      it("opens on the whole form when the regime was answered before", async () => {
+        // No regression for the statements already in the database: the gate
+        // reads the stored answer, so there is no opening step to pass through
+        // and no second request to wait for.
+        openRules({ regime: "ehrenamt", reisen: [SEEDED] }, gated);
+
+        expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+        expect(document.querySelector(".answer-opening")).toBeNull();
+        expect(screen.getByText(/Diese Fragen stellt die Finanzordnung/)).toBeInTheDocument();
+      });
+
+      it("is no opening step for a ruleset that named no steps at all", async () => {
+        // The degenerate case, and the reason the *label* carries this rather
+        // than the count: Heidelberg names no steps, so its whole form comes
+        // back as one step labelled `""`. One question there is all there is,
+        // and nothing may promise more.
+        openForm({ inputs: [REGIME], answers: { regime: null } });
+
+        await screen.findByText("Regelwerk");
+        expect(document.querySelector(".answer-opening")).toBeNull();
+        expect(screen.queryByText(/Die weiteren Fragen erscheinen/)).toBeNull();
+        expect(screen.getByText(/Diese Fragen stellt die Finanzordnung/)).toBeInTheDocument();
+        expect(document.querySelector(".payout")).not.toBeNull();
+      });
+    });
   });
 });
 
@@ -1194,6 +2281,7 @@ describe("review pipeline", () => {
     iban: "DE02120300000000202051",
     iban_valid: true,
     reference: "Fahrtkosten",
+    settlement_group: "",
   };
 
   const SUBMITTED = { submitted: true, status: 1, status_display: "Eingereicht" };
@@ -1353,6 +2441,68 @@ describe("review pipeline", () => {
     expect(
       await screen.findByRole("button", { name: "Nichts zusammenzufassen" }),
     ).toBeDisabled();
+  });
+
+  it("does not offer to merge two rows the rules keep apart", async () => {
+    // What becomes one transfer is `(member, ledger, settlement_group)`. Keyed
+    // on the first two, this pair read as one recipient to bundle, the POST
+    // ran and nothing merged — a button that did nothing and said nothing.
+    const vergütung = {
+      ...TRANSACTION,
+      id: 21,
+      reference: "Tourenleitervergütung",
+      settlement_group: "steuerrelevant",
+    };
+    openStage("bookings", {}, [TRANSACTION, vergütung]);
+
+    expect(
+      await screen.findByRole("button", { name: "Nichts zusammenzufassen" }),
+    ).toBeDisabled();
+  });
+
+  it("still offers to merge two rows inside the same group", async () => {
+    const twin = { ...TRANSACTION, id: 21, reference: "Tagegeld" };
+    openStage("bookings", {}, [
+      { ...TRANSACTION, settlement_group: "steuerrelevant" },
+      { ...twin, settlement_group: "steuerrelevant" },
+    ]);
+
+    expect(
+      await screen.findByRole("button", { name: "1 Empfänger*in zusammenfassen" }),
+    ).toBeEnabled();
+  });
+
+  it("says why one person has two rows, and names the group on hover", async () => {
+    // Otherwise the second row reads as a duplicate, and the finance officer
+    // hunts for the way to combine it that the rules have taken away.
+    openStage("bookings", {}, [
+      TRANSACTION,
+      {
+        ...TRANSACTION,
+        id: 21,
+        reference: "Tourenleitervergütung",
+        settlement_group: "steuerrelevant",
+      },
+    ]);
+
+    const marks = await screen.findAllByText("wird getrennt überwiesen");
+    expect(marks).toHaveLength(1);
+    // The token is the ruleset's own vocabulary, so it is offered rather than
+    // printed as prose.
+    expect(marks[0]).toHaveAttribute("title", "Abrechnungsgruppe: steuerrelevant");
+  });
+
+  it("marks the separated transfer on the payout list too", async () => {
+    openStage("payout", {}, [
+      {
+        ...TRANSACTION,
+        reference: "Tourenleitervergütung",
+        settlement_group: "steuerrelevant",
+      },
+    ]);
+
+    const row = (await screen.findByText("Mila Nowak")).closest(".payout-row") as HTMLElement;
+    expect(within(row).getByText("wird getrennt überwiesen")).toBeInTheDocument();
   });
 
   it("assigns an account straight from the row", async () => {
@@ -1609,33 +2759,34 @@ describe("statement detail — submitted and confirmed", () => {
     expect(screen.queryByRole("button", { name: "Prüfen & auszahlen" })).not.toBeInTheDocument();
   });
 
-  it("points a handed-in statement at its approval record", async () => {
+  it("carries the approval record as a tab, read-only", async () => {
     // Not gated on the treasurer's permission, unlike the review pipeline:
     // what a statement is waiting for is what the person who handed it in most
-    // wants to know, and the page's own actions are gated there.
+    // wants to know. It used to be a page of its own with the signature on it,
+    // beside the review pipeline, which signs too — so the record stayed here
+    // and the act went where the payout it releases is shown.
     detailReturns({ submitted: true, status: 1, status_display: "Eingereicht" });
-    server.use(
-      http.get(api("/api/finance/statements/1/approval"), () =>
-        HttpResponse.json({
-          statement_id: 1,
-          approved: false,
-          may_approve: false,
-          constraints: [],
-          signatures: [],
-        }),
-      ),
-    );
     const { user } = renderRoute("/kompass/finance/statements/1");
 
-    await user.click(await screen.findByRole("button", { name: "Freigabe" }));
-    expect(await screen.findByRole("heading", { name: "Freigabe" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("tab", { name: "Freigabe" }));
+    expect(
+      await screen.findByText("Eine Unterschrift aus der Finanzverwaltung"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Es fehlt noch eine Unterschrift.")).toBeInTheDocument();
+    // No signing and no override here: this is the record, not the act.
+    expect(screen.queryByRole("button", { name: "Jetzt freigeben" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Ohne Unterschrift freigeben" }),
+    ).not.toBeInTheDocument();
+    // And there is one door into the room, not two.
+    expect(screen.queryByRole("button", { name: "Freigabe" })).not.toBeInTheDocument();
   });
 
   it("does not offer the approval record for a draft", async () => {
     detailReturns();
     renderRoute("/kompass/finance/statements/1");
     await screen.findByText("Entwurf");
-    expect(screen.queryByRole("button", { name: "Freigabe" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Freigabe" })).not.toBeInTheDocument();
   });
 
   it("offers the summary PDF and an undo once confirmed", async () => {

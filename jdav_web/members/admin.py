@@ -34,9 +34,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from finance.inputs import answerable
 from finance.inputs import clean_value
-from finance.inputs import declarations
+from finance.inputs import flat_messages
 from finance.inputs import form_field
+from finance.inputs import seeded as seeded_rows
 from finance.inputs import stored as stored_answers
 from finance.models import BillOnExcursionProxy
 from finance.models import Statement
@@ -1501,12 +1503,16 @@ class StatementOnListForm(forms.ModelForm):
 
     This was a ``ModelForm`` over four columns — the price per night and three
     recipients — with the eligible youth leaders assigned into three querysets
-    by hand. It is now derived: :func:`finance.inputs.declarations` says which
-    questions this statement's ruleset asks, :func:`finance.inputs.form_field`
-    turns each into a field with its own domain, and
-    :func:`finance.inputs.clean_value` checks what comes back against the
-    declaration it belongs to. The two messages this form used to raise itself
-    come from there now, which is why the wording is unchanged.
+    by hand. It is now derived: :func:`finance.inputs.answerable` says which
+    questions this statement's ruleset asks a *person*,
+    :func:`finance.inputs.form_field` turns each into a field with its own
+    domain, and :func:`finance.inputs.clean_value` checks what comes back
+    against the declaration it belongs to. The two messages this form used to
+    raise itself come from there now, which is why the wording is unchanged.
+
+    ``answerable`` and not ``declarations``: a question the engine derives from
+    the trip is not one this form may render, because every field it renders it
+    also writes.
 
     The fields are not on the class, because which fields there are depends on
     the excursion. :func:`statement_answer_form` builds a subclass per request
@@ -1530,6 +1536,14 @@ class StatementOnListForm(forms.ModelForm):
         # form needs it now, to show whom the rules offer.
         if self.instance.excursion_id is None:
             self.instance.excursion = excursion
+            # Setting the excursion is the one moment a seeded table is filled
+            # in, so a statement opened on a trip starts with the row that trip
+            # describes — and from here the row is the person's, exactly as it
+            # is through the API. Seeded onto the in-memory instance before
+            # ``initial`` is read below, so the field shows the seed; on a bound
+            # form whatever was submitted wins, which is what makes an edit
+            # survive rather than be written over.
+            self.instance.inputs = dict(self.instance.answers, **seeded_rows(self.instance))
         carried = self.instance.answers
         for declaration in self.answer_declarations:
             self.initial.setdefault(declaration.key, carried.get(declaration.key))
@@ -1550,7 +1564,12 @@ class StatementOnListForm(forms.ModelForm):
             try:
                 answers[declaration.key] = clean_value(declaration, cleaned.get(declaration.key))
             except ValidationError as problem:
-                self.add_error(declaration.key, problem)
+                # A table refuses per cell, keyed ``"reisen[1].kilometers"``, and
+                # this form has one field per question with nowhere to put that
+                # — so the paths are folded into the messages rather than
+                # dropped. ``add_error`` refuses a keyed error against a named
+                # field outright, so this is not a nicety either.
+                self.add_error(declaration.key, flat_messages(problem))
         self.answers = answers
         return cleaned
 
@@ -1565,7 +1584,7 @@ def statement_answer_form(statement):
     Built per request rather than per class, because the questions are the
     ruleset's and the domains are the trip's.
     """
-    declared = declarations(statement)
+    declared = answerable(statement)
     fields = {declaration.key: form_field(declaration) for declaration in declared}
     return type(
         "DerivedStatementOnListForm",
@@ -1593,7 +1612,7 @@ class StatementOnListInline(CommonAdminInlineMixin, nested_admin.NestedStackedIn
         """The declaration keys, which is what the derived form's fields are."""
         return [
             declaration.key
-            for declaration in declarations(self._asked_of(obj))
+            for declaration in answerable(self._asked_of(obj))
             if self.may_view_field(declaration.key, request, obj)
         ]
 

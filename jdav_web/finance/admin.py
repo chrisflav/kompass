@@ -400,7 +400,7 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
             object=statement,
             settings=settings,
             transaction_issues=statement.transaction_issues,
-            approval=approval_payload(statement, get_member(request)),
+            approval=approval_payload(statement, get_member(request), request.user),
             **statement.template_context(),
         )
 
@@ -497,9 +497,13 @@ class StatementAdmin(ExtraButtonsMixin, CommonAdminMixin, admin.ModelAdmin):
 
 class TransactionOnSubmittedStatementInline(admin.TabularInline):
     model = Transaction
-    fields = ["amount", "member", "reference", "text_length_warning", "ledger"]
+    # ``settlement_group`` is shown and not editable: it is the section's rules
+    # speaking, and it is the answer to "why does this person have two rows" —
+    # a taxable Vergütung may not share a bank transfer with a mileage claim,
+    # so the two stay apart however the amounts are bundled.
+    fields = ["amount", "member", "reference", "text_length_warning", "settlement_group", "ledger"]
     formfield_overrides = {TextField: {"widget": Textarea(attrs={"rows": 1, "cols": 40})}}
-    readonly_fields = ["text_length_warning"]
+    readonly_fields = ["text_length_warning", "settlement_group"]
     extra = 0
 
     def text_length_warning(self, obj):
@@ -536,6 +540,7 @@ class TransactionAdmin(admin.ModelAdmin):
         "ledger",
         "amount",
         "reference",
+        "settlement_group",
         "statement",
         "confirmed",
         "confirmed_date",
