@@ -32,6 +32,7 @@ from finance.models import Statement
 from ninja import Router
 
 from .schemas import TransactionOut
+from .schemas import transactions
 
 router = Router()
 
@@ -52,4 +53,4 @@ def list_statement_transactions(request, statement_id: int):
     """
     statement = get_object_or_404(Statement, pk=statement_id)
     authorize(request, "finance.view_obj_statement", statement)
-    return statement.transaction_set.all().order_by("id")
+    return transactions().filter(statement=statement).order_by("id")

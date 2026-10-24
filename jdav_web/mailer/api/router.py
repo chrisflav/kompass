@@ -36,9 +36,11 @@ from ninja.files import UploadedFile
 from utils import file_size_validator
 
 from .schemas import AttachmentOut
+from .schemas import email_address_detail
 from .schemas import EmailAddressBrief
 from .schemas import EmailAddressIn
 from .schemas import EmailAddressOut
+from .schemas import message_detail
 from .schemas import MessageBrief
 from .schemas import MessageIn
 from .schemas import MessageOut
@@ -60,7 +62,7 @@ def list_email_addresses(request):
 def retrieve_email_address(request, address_id: int):
     """Full alias detail with computed ``email`` and ``forwards``."""
     authorize(request, "mailer.view_emailaddress")
-    return get_object_or_404(EmailAddress, pk=address_id)
+    return get_object_or_404(email_address_detail(), pk=address_id)
 
 
 def _apply_email_address(address, payload):
@@ -123,7 +125,9 @@ def list_messages(request, since: datetime.date | None = None):
 @router.get("/messages/{message_id}", response=MessageOut)
 def retrieve_message(request, message_id: int):
     """Full message detail, authorized per object."""
-    return get_authorized(request, Message, message_id, "mailer.view_obj_message")
+    return get_authorized(
+        request, Message, message_id, "mailer.view_obj_message", queryset=message_detail()
+    )
 
 
 def _apply_message(message, payload):

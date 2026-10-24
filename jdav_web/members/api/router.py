@@ -27,6 +27,7 @@ from .schemas import ActivityCategoryOut
 from .schemas import ActivityCategoryUpdate
 from .schemas import AuthUserBrief
 from .schemas import EXCURSION_APPROVAL_FIELDS
+from .schemas import excursion_detail
 from .schemas import EXCURSION_UPDATE_SCALAR_FIELDS
 from .schemas import ExcursionBrief
 from .schemas import ExcursionCreate
@@ -65,6 +66,7 @@ from .schemas import TrainingOut
 from .schemas import WaiterBrief
 from .schemas import WaiterInviteIn
 from .schemas import WaiterOut
+from .schemas import waiters
 from .schemas import WaiterUpdate
 
 router = Router()
@@ -250,7 +252,13 @@ def create_excursion(request, payload: ExcursionCreate):
 @router.get("/excursions/{excursion_id}", response=ExcursionOut)
 def retrieve_excursion(request, excursion_id: int):
     """Full excursion detail with computed figures, authorized per object."""
-    return get_authorized(request, Freizeit, excursion_id, "members.view_obj_freizeit")
+    return get_authorized(
+        request,
+        Freizeit,
+        excursion_id,
+        "members.view_obj_freizeit",
+        queryset=excursion_detail(),
+    )
 
 
 @router.patch("/excursions/{excursion_id}", response=ExcursionOut)
@@ -650,7 +658,7 @@ def list_waiters(request):
     """Waiting-list applicants the user may list (leader of a relevant invitation)."""
     return scope_queryset(
         request.user,
-        MemberWaitingList.objects.all().order_by("application_date"),
+        waiters().order_by("application_date"),
         model=MemberWaitingList,
     )
 
@@ -659,7 +667,11 @@ def list_waiters(request):
 def retrieve_waiter(request, waiter_id: int):
     """Full waiting-list applicant detail, authorized per object."""
     return get_authorized(
-        request, MemberWaitingList, waiter_id, "members.view_obj_memberwaitinglist"
+        request,
+        MemberWaitingList,
+        waiter_id,
+        "members.view_obj_memberwaitinglist",
+        queryset=waiters(),
     )
 
 

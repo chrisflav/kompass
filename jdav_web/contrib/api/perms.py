@@ -74,9 +74,14 @@ def authorize(request, perm, obj=None):
         raise PermissionDenied(perm)
 
 
-def get_authorized(request, model, pk, perm, manager="objects"):
-    """Fetch ``model`` instance ``pk`` and authorize ``perm`` on it, or 403/404."""
-    queryset = getattr(model, manager).all()
+def get_authorized(request, model, pk, perm, manager="objects", queryset=None):
+    """Fetch ``model`` instance ``pk`` and authorize ``perm`` on it, or 403/404.
+
+    ``queryset`` replaces ``model``'s manager, so a detail endpoint can load the
+    relations its schema resolves in bulk.
+    """
+    if queryset is None:
+        queryset = getattr(model, manager).all()
     obj = get_object_or_404(queryset, pk=pk)
     authorize(request, perm, obj)
     return obj

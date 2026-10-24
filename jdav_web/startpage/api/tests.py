@@ -12,7 +12,9 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from members.models import DIVERSE
 from members.models import Group
@@ -206,6 +208,33 @@ class StartpageApiTestCase(TestCase):
         post.refresh_from_db()
         self.assertEqual(post.title, "Neu")
         self.assertEqual(list(post.groups.all()), [other_group])
+
+    def test_post_list_queries_do_not_grow_with_sections(self):
+        def add_posts(n):
+            for _ in range(n):
+                section = Section.objects.create(
+                    title="Rubrik", urlname="rubrik{}".format(Section.objects.count())
+                )
+                Post.objects.create(title="Tour", urlname="tour", section=section)
+
+        def count_queries():
+            with CaptureQueriesContext(connection) as queries:
+                r = self.client.get("/api/startpage/posts", **headers)
+            self.assertEqual(r.status_code, 200, r.content)
+            return r.json(), len(queries)
+
+        headers = self.auth(self.editor_user)
+        add_posts(2)
+        _, few = count_queries()
+        add_posts(4)
+        body, many = count_queries()
+        self.assertEqual(many, few)
+        self.assertEqual(len(body), 6)
+        self.assertEqual(
+            {row["section_id"] for row in body},
+            set(Section.objects.exclude(pk=self.section.pk).values_list("pk", flat=True)),
+        )
+        self.assertTrue(all(row["section_title"] == "Rubrik" for row in body))
 
     # --- faqs -------------------------------------------------------------
 

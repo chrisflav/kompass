@@ -270,6 +270,62 @@ class MailerApiTestCase(TestCase):
         path = "/api/mailer/messages?since={}".format(since.isoformat())
         self.assert_list_queries_do_not_grow(self.admin_user, self.admin, path)
 
+    def add_members_with_groups(self, manager, n):
+        """Add ``n`` new members, each in a group of its own, to ``manager``."""
+        for _member in range(n):
+            member = Member.objects.create(
+                prename="Empfänger",
+                lastname="Test",
+                birth_date=timezone.now().date(),
+                email=settings.TEST_MAIL,
+                gender=DIVERSE,
+            )
+            member.group.add(Group.objects.create(name="Gruppe {}".format(member.pk)))
+            manager.add(member)
+
+    def assert_detail_queries_do_not_grow(self, path, grow):
+        headers = self.auth(self.admin_user)
+        grow(2)
+        few, few_queries = self.list_messages_counting_queries(headers, path)
+        grow(4)
+        many, many_queries = self.list_messages_counting_queries(headers, path)
+        self.assertEqual(many_queries, few_queries)
+        return many
+
+    def test_message_detail_queries_do_not_grow_with_recipients(self):
+        self.make_recipient_messages(1, self.owner)
+        message = Message.objects.get()
+        message.reply_to_email_address.add(EmailAddress.objects.create(name="antwort"))
+
+        def grow(n):
+            self.add_members_with_groups(message.to_members, n)
+            self.add_members_with_groups(message.reply_to, n)
+
+        body = self.assert_detail_queries_do_not_grow(
+            "/api/mailer/messages/{}".format(message.pk), grow
+        )
+        self.assertEqual(len(body["to_members"]), 1 + 6)
+        self.assertEqual(len(body["reply_to"]), 6)
+        self.assertTrue(all(len(m["groups"]) == 1 for m in body["reply_to"]))
+        self.assertEqual(body["created_by"]["id"], self.owner.pk)
+        self.assertEqual(body["to_freizeit"]["name"], "Hüttentour")
+        self.assertEqual(len(body["reply_to_email_address"]), 1)
+        self.assertEqual(body["recipients"], message.get_recipients())
+
+    def test_email_address_detail_queries_do_not_grow_with_recipients(self):
+        address = EmailAddress.objects.create(name="verteiler")
+        address.to_groups.add(self.group)
+        address.allowed_senders.add(self.group)
+
+        body = self.assert_detail_queries_do_not_grow(
+            "/api/mailer/email-addresses/{}".format(address.pk),
+            lambda n: self.add_members_with_groups(address.to_members, n),
+        )
+        self.assertEqual(len(body["to_members"]), 6)
+        self.assertTrue(all(len(m["groups"]) == 1 for m in body["to_members"]))
+        self.assertEqual([g["id"] for g in body["to_groups"]], [self.group.pk])
+        self.assertEqual([g["id"] for g in body["allowed_senders"]], [self.group.pk])
+
     # --- message list window ----------------------------------------------
 
     def make_dated_message(self, subject, created_at, sent=True):

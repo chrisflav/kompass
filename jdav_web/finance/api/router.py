@@ -25,6 +25,7 @@ from contrib.api.perms import set_scalar_fields
 from contrib.permissions import scope_queryset
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
@@ -38,6 +39,7 @@ from finance.models import Statement
 from finance.models import Transaction
 from members.models import Freizeit
 from members.models import Member
+from members.models import NewMemberOnList
 from ninja import File
 from ninja import Form
 from ninja import Router
@@ -50,6 +52,7 @@ from .schemas import ApprovalOverride
 from .schemas import BillBrief
 from .schemas import BillCreate
 from .schemas import BillOut
+from .schemas import bills
 from .schemas import BillUpdate
 from .schemas import FinanceEnumsOut
 from .schemas import FinanceOverviewOut
@@ -62,6 +65,7 @@ from .schemas import StatementOut
 from .schemas import StatementUpdate
 from .schemas import TransactionBrief
 from .schemas import TransactionOut
+from .schemas import transactions
 
 router = Router()
 
@@ -142,7 +146,35 @@ def list_statements(request):
         )
         .order_by("-submitted_date")
     )
-    return scope_queryset(request.user, queryset, model=Statement)
+    # Each row reads its total twice; resolve it once.
+    return [
+        statement.pin_rule_result()
+        for statement in scope_queryset(request.user, queryset, model=Statement)
+    ]
+
+
+def _statement_detail():
+    """Statements with what :class:`StatementOut` resolves loaded in bulk.
+
+    The figures read the bills, transactions and excursion over and over, and
+    every bill and transaction names its members as :class:`MemberBrief` s.
+    """
+    return Statement.objects.select_related(
+        "created_by", "submitted_by", "confirmed_by", "excursion", "excursion__ljpproposal"
+    ).prefetch_related(
+        Prefetch("bill_set", queryset=bills()),
+        Prefetch("transaction_set", queryset=transactions()),
+        "obligation_set",
+        "created_by__group",
+        "submitted_by__group",
+        "confirmed_by__group",
+        "excursion__groups__leiters",
+        Prefetch("excursion__jugendleiter", queryset=Member.objects.prefetch_related("group")),
+        Prefetch(
+            "excursion__membersonlist", queryset=NewMemberOnList.objects.select_related("member")
+        ),
+        "excursion__ljpproposal__intervention_set",
+    )
 
 
 @router.post("/statements", response=StatementOut)
@@ -171,7 +203,11 @@ def create_statement(request, payload: StatementCreate):
 @router.get("/statements/{statement_id}", response=StatementOut)
 def retrieve_statement(request, statement_id: int):
     """Full statement detail with computed figures, authorized per object."""
-    return get_authorized(request, Statement, statement_id, "finance.view_obj_statement")
+    statement = get_authorized(
+        request, Statement, statement_id, "finance.view_obj_statement", queryset=_statement_detail()
+    )
+    # Every figure of the detail is read off the rules' result: resolve it once.
+    return statement.pin_rule_result()
 
 
 @router.get("/statements/{statement_id}/overview", response=FinanceOverviewOut)
@@ -402,7 +438,7 @@ def unconfirm_statement(request, statement_id: int):
 def list_bills(request):
     """Bills belonging to statements the user may list."""
     statements = scope_queryset(request.user, Statement.objects.all(), model=Statement)
-    return Bill.objects.filter(statement__in=statements).order_by("-id")
+    return bills().filter(statement__in=statements).order_by("-id")
 
 
 @router.post("/bills", response=BillOut)
@@ -487,14 +523,14 @@ def delete_bill(request, bill_id: int):
 def list_transactions(request):
     """List transactions (read-only; standard ``view_transaction`` perm)."""
     authorize(request, "finance.view_transaction")
-    return Transaction.objects.all().order_by("-id")
+    return transactions().order_by("-id")
 
 
 @router.get("/transactions/{transaction_id}", response=TransactionOut)
 def retrieve_transaction(request, transaction_id: int):
     """Transaction detail including its EPC-QR (``code``) payload."""
     authorize(request, "finance.view_transaction")
-    return get_object_or_404(Transaction, pk=transaction_id)
+    return get_object_or_404(transactions(), pk=transaction_id)
 
 
 class TransactionInlineUpdate(Schema):

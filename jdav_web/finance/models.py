@@ -413,6 +413,16 @@ class Statement(CommonModel):
             return self.__dict__["_frozen_result"]
         return evaluate_statement(self)
 
+    def pin_rule_result(self):
+        """Resolve this statement once and answer every later read from that.
+
+        For a caller that reads many figures off an instance it does not
+        change, such as an API response: each of them goes through
+        :attr:`rule_result`, which resolves a draft anew every time.
+        """
+        self.__dict__["_frozen_result"] = self.rule_result
+        return self
+
     @property
     def transfers(self):
         """The transfers this statement resolves to, balancing one last."""

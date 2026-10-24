@@ -120,7 +120,7 @@ def delete_section(request, section_id: int):
 @router.get("/posts", response=list[PostBrief])
 def list_posts(request):
     authorize(request, "startpage.view_post")
-    return Post.objects.all().order_by("-date")
+    return Post.objects.select_related("section").order_by("-date")
 
 
 @router.post("/posts", response=PostOut)

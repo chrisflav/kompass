@@ -20,10 +20,12 @@ from members.models import DIVERSE
 from members.models import Freizeit
 from members.models import GEMEINSCHAFTS_TOUR
 from members.models import Group
+from members.models import InvitationToGroup
 from members.models import Klettertreff
 from members.models import KlettertreffAttendee
 from members.models import Member
 from members.models import MemberTraining
+from members.models import MemberWaitingList
 from members.models import NewMemberOnList
 from members.models import PermissionGroup
 from members.models import PermissionMember
@@ -251,6 +253,113 @@ class MembersApiQueryCountTestCase(QueryCountMixin, TestCase):
         body = self.assertConstantQueries("/api/members/excursions", self.admin_user, make_rows)
         self.assertEqual(len(body), 9)
         self.assertTrue(all(len(e["participant_ids"]) == 2 for e in body))
+
+
+class ExcursionDetailQueryCountTestCase(QueryCountMixin, TestCase):
+    """The excursion detail, whose counts and youth leaders read its relations."""
+
+    def setUp(self):
+        super().setUp()
+        admin_user, _ = make_member_user("admin")
+        self.admin_user = grant(admin_user, "view_global_freizeit")
+
+    def test_retrieve_excursion(self):
+        excursion = self.make_excursion()
+        leaders = []
+
+        def make_rows(n):
+            for _ in range(n):
+                leader = self.make_member("leader")
+                leader.group.set([self.make_group(), self.make_group()])
+                leaders.append(leader)
+                excursion.jugendleiter.add(leader)
+                excursion.groups.add(self.make_group())
+                excursion.activity.add(self.make_activity())
+                participant = self.make_member()
+                NewMemberOnList.objects.create(
+                    member=participant,
+                    content_type=ContentType.objects.get_for_model(Freizeit),
+                    object_id=excursion.pk,
+                )
+                # A youth leader on the member list counts as staff, not twice.
+                NewMemberOnList.objects.create(
+                    member=leader,
+                    content_type=ContentType.objects.get_for_model(Freizeit),
+                    object_id=excursion.pk,
+                )
+
+        body = self.assertConstantQueries(
+            "/api/members/excursions/{}".format(excursion.pk), self.admin_user, make_rows
+        )
+        self.assertEqual(body["staff_count"], 9)
+        self.assertEqual(body["participant_count"], 9)
+        self.assertEqual(body["head_count"], 18)
+        self.assertEqual(len(body["groups"]), 9)
+        self.assertEqual(len(body["activity"]), 9)
+        self.assertIsNone(body["statement_id"])
+        self.assertEqual(
+            {leader["id"]: len(leader["groups"]) for leader in body["jugendleiter"]},
+            {leader.pk: 2 for leader in leaders},
+        )
+
+
+class WaitersQueryCountTestCase(QueryCountMixin, TestCase):
+    """The waiting list and a waiter's detail, which name their invitations' groups."""
+
+    def setUp(self):
+        super().setUp()
+        admin_user, _ = make_member_user("admin")
+        self.admin_user = grant(
+            admin_user, "list_global_memberwaitinglist", "view_global_memberwaitinglist"
+        )
+
+    def make_waiter(self):
+        self.counter += 1
+        return MemberWaitingList.objects.create(
+            prename="w{}".format(self.counter),
+            lastname="Test",
+            birth_date=datetime.date(2012, 1, 1),
+            email="w{}@example.org".format(self.counter),
+            gender=DIVERSE,
+        )
+
+    def invite(self, waiter):
+        return InvitationToGroup.objects.create(
+            waiter=waiter, group=self.make_group(), date=datetime.date.today()
+        )
+
+    def test_list_waiters(self):
+        latest = {self.make_waiter().pk: "-"}
+
+        def make_rows(n):
+            for _ in range(n):
+                waiter = self.make_waiter()
+                self.invite(waiter)
+                invitation = self.invite(waiter)
+                latest[waiter.pk] = "{}: {}".format(invitation.group.name, invitation.status())
+
+        body = self.assertConstantQueries("/api/members/waiters", self.admin_user, make_rows)
+        self.assertEqual({w["id"]: w["latest_group_invitation"] for w in body}, latest)
+
+    def test_retrieve_waiter(self):
+        waiter = self.make_waiter()
+
+        def make_rows(n):
+            for _ in range(n):
+                self.invite(waiter)
+
+        body = self.assertConstantQueries(
+            "/api/members/waiters/{}".format(waiter.pk), self.admin_user, make_rows
+        )
+        invitations = list(waiter.invitationtogroup_set.order_by("-pk"))
+        self.assertEqual([i["id"] for i in body["invitations"]], [i.pk for i in invitations])
+        self.assertEqual(
+            [i["group"]["name"] for i in body["invitations"]], [i.group.name for i in invitations]
+        )
+        self.assertEqual(
+            body["latest_group_invitation"],
+            "{}: {}".format(invitations[0].group.name, invitations[0].status()),
+        )
 
 
 class ScopedMembersApiQueryCountTestCase(QueryCountMixin, TestCase):
