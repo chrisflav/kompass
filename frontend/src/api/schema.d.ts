@@ -6509,6 +6509,11 @@ export interface components {
          *     list adds up to zero by construction.
          *
          *     ``reference`` is the text the generated bank transaction carries.
+         *
+         *     ``settlement_group`` is the token the rules put on the transfer to keep it
+         *     out of other bank transfers: two amounts to the same person out of the same
+         *     ledger are bundled into one payment only when it is equal, and an empty
+         *     string means no group at all.
          */
         TransferOut: {
             source: components["schemas"]["TransferPartyOut"];
@@ -6534,6 +6539,11 @@ export interface components {
              * @default
              */
             reference: string;
+            /**
+             * Settlement Group
+             * @default
+             */
+            settlement_group: string;
         };
         /**
          * TransferPartyOut
@@ -6862,6 +6872,11 @@ export interface components {
              * @default false
              */
             iban_valid: boolean;
+            /**
+             * Settlement Group
+             * @default
+             */
+            settlement_group: string;
             /** Reference */
             reference: string;
         };

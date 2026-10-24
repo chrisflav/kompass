@@ -65,6 +65,11 @@ class TransferOut(Schema):
     list adds up to zero by construction.
 
     ``reference`` is the text the generated bank transaction carries.
+
+    ``settlement_group`` is the token the rules put on the transfer to keep it
+    out of other bank transfers: two amounts to the same person out of the same
+    ledger are bundled into one payment only when it is equal, and an empty
+    string means no group at all.
     """
 
     source: TransferPartyOut
@@ -75,6 +80,7 @@ class TransferOut(Schema):
     label: str = ""
     explanation: str = ""
     reference: str = ""
+    settlement_group: str = ""
 
 
 class BillBrief(ModelSchema):
@@ -286,6 +292,16 @@ class TransactionOut(ModelSchema):
     # over the API) so bank details stay scoped to this screen's payload.
     iban: str = ""
     iban_valid: bool = False
+    # The payout screen has to be able to say *why* one person has two rows,
+    # and the count on its "bundle recipients" button is wrong without this:
+    # what may be bundled is ``(member, ledger, settlement_group)``, so a
+    # screen keying on the first two offers to merge a taxable payment with a
+    # mileage claim and then nothing happens. Annotated here rather than named
+    # in ``Meta.fields`` so that it is a plain ``string`` in the contract: the
+    # column is ``NOT NULL`` with an empty default, a blank model field comes
+    # out of ``ModelSchema`` as ``string | null``, and a client that has to
+    # handle a ``null`` that cannot occur would key its grouping on it.
+    settlement_group: str = ""
 
     class Meta:
         model = Transaction

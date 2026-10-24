@@ -17324,7 +17324,7 @@
         "type": "object"
       },
       "TransferOut": {
-        "description": "One movement of money the section's rules resolved.\n\nThe payout list, as the rules see it rather than as the statement's\ncolumns happen to be shaped: who owes whom how much, under which rule, and\nin which category. The last transfer of a statement is the engine's\nbalancing one — what the participants' contributions have to cover — so the\nlist adds up to zero by construction.\n\n``reference`` is the text the generated bank transaction carries.",
+        "description": "One movement of money the section's rules resolved.\n\nThe payout list, as the rules see it rather than as the statement's\ncolumns happen to be shaped: who owes whom how much, under which rule, and\nin which category. The last transfer of a statement is the engine's\nbalancing one — what the participants' contributions have to cover — so the\nlist adds up to zero by construction.\n\n``reference`` is the text the generated bank transaction carries.\n\n``settlement_group`` is the token the rules put on the transfer to keep it\nout of other bank transfers: two amounts to the same person out of the same\nledger are bundled into one payment only when it is equal, and an empty\nstring means no group at all.",
         "properties": {
           "source": {
             "$ref": "#/components/schemas/TransferPartyOut"
@@ -17357,6 +17357,11 @@
           "reference": {
             "default": "",
             "title": "Reference",
+            "type": "string"
+          },
+          "settlement_group": {
+            "default": "",
+            "title": "Settlement Group",
             "type": "string"
           }
         },
@@ -18109,6 +18114,11 @@
             "default": false,
             "title": "Iban Valid",
             "type": "boolean"
+          },
+          "settlement_group": {
+            "default": "",
+            "title": "Settlement Group",
+            "type": "string"
           },
           "reference": {
             "title": "Reference",
