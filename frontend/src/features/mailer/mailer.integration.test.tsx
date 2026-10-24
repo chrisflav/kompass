@@ -913,12 +913,106 @@ describe("mailer — Nachrichten", () => {
       }),
     );
 
-    expect(await screen.findByText(/Die Datei ist zu groß\./)).toBeInTheDocument();
+    expect(await screen.findByText(/„Programm\.pdf“: Die Datei ist zu groß\./)).toBeInTheDocument();
     // The draft exists, so a retry happens on its page rather than creating a
     // second one; and nothing went out without its attachment.
     expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
     expect(creates).toBe(1);
     expect(submitted).toBe(false);
+  });
+
+  it("carries on from the created draft when the send is refused", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    let creates = 0;
+    server.use(
+      http.post(api("/api/mailer/messages"), () => {
+        creates += 1;
+        return HttpResponse.json(MESSAGE);
+      }),
+      http.post(api("/api/mailer/messages/4/submit"), () =>
+        HttpResponse.json({ detail: "Keine Berechtigung zum Versenden." }, { status: 403 }),
+      ),
+      http.get(api("/api/mailer/messages/4"), () => HttpResponse.json(MESSAGE)),
+      http.get(api("/api/mailer/messages/4/attachments"), () => HttpResponse.json([])),
+    );
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    await user.type(await screen.findByLabelText("Betreff"), "Sommerfahrt");
+    await user.type(screen.getByLabelText("Inhalt"), "Bitte anmelden.");
+    await user.click(screen.getByRole("button", { name: "Senden" }));
+    const confirmText = await screen.findByText("Nachricht jetzt an alle Empfänger versenden?");
+    await user.click(
+      within(confirmText.closest(".modal") as HTMLElement).getByRole("button", {
+        name: "Bestätigen",
+      }),
+    );
+
+    expect(await screen.findByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
+    expect(creates).toBe(1);
+  });
+
+  it("asks before discarding a page whose only input is a staged attachment", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    await user.click(await screen.findByRole("tab", { name: "Anhänge" }));
+    await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.upload(
+      dialog.getByLabelText(/^Datei/),
+      new File(["x"], "Programm.pdf", { type: "application/pdf" }),
+    );
+    await user.click(dialog.getByRole("button", { name: "Hinzufügen" }));
+
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(await screen.findByText("Änderungen verwerfen?")).toBeInTheDocument();
+  });
+
+  it("warns before the tab is closed only while there is unsaved input", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    const unload = () => {
+      const e = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+
+    await user.type(await screen.findByLabelText("Betreff"), "Angefangen");
+    expect(unload()).toBe(true);
+  });
+
+  it("refuses an attachment over the 10 MiB limit when it is picked", async () => {
+    useMe({ permissions: ["mailer.add_global_message"] });
+    listReturns();
+    const { user } = renderRoute("/kompass/mailer/messages");
+    await user.click(await screen.findByRole("button", { name: "Neue Nachricht" }));
+    await user.click(await screen.findByRole("tab", { name: "Anhänge" }));
+    await user.click(await screen.findByRole("button", { name: "+ Anhang" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    const big = new File(["x"], "Video.mp4", { type: "video/mp4" });
+    Object.defineProperty(big, "size", { value: 12.5 * 1024 * 1024 });
+    await user.upload(dialog.getByLabelText(/^Datei/), big);
+
+    expect(
+      dialog.getByText("Die Datei ist 12,5 MiB groß; erlaubt sind höchstens 10 MiB."),
+    ).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Hinzufügen" })).toBeDisabled();
+  });
+
+  it("does not offer the compose page without the permission", async () => {
+    useMe({ permissions: [] });
+    listReturns();
+    renderRoute("/kompass/mailer/messages/new");
+    expect(
+      await screen.findByText("Du darfst keine Nachrichten verfassen."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Betreff")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Senden" })).not.toBeInTheDocument();
   });
 
   it("offers editing, sending and deleting on an unsent message", async () => {

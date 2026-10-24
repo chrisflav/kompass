@@ -5,7 +5,7 @@ import { mediaUrl } from "../api/client";
 import { client, unwrap } from "../api/http";
 import { useApiQuery } from "../api/hooks";
 import { useExcursions, useGroups } from "../api/queries";
-import { useMe } from "../api/me";
+import { useMe, usePermissions } from "../api/me";
 import { useSite } from "../api/site";
 import { ContourField, KompassMark } from "../components/Contour";
 import { Badge, useDocumentTitle } from "../components/ui";
@@ -116,6 +116,7 @@ function Row({
 export function Dashboard() {
   useDocumentTitle("Übersicht");
   const me = useMe();
+  const { can } = usePermissions();
   const site = useSite();
   const memberId = me.data?.member_id ?? null;
   const firstName = me.data?.name?.split(" ")[0];
@@ -159,13 +160,15 @@ export function Dashboard() {
           <p className="dash-hero-sub">Kompass · Verwaltung der {site.display_name}</p>
         </div>
         <div className="dash-hero-side">
-          <Link to="/kompass/mailer/messages/new" className="btn dash-hero-cta">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="m3 7 9 6 9-6" />
-            </svg>
-            Nachricht senden
-          </Link>
+          {can("mailer.add_global_message") && (
+            <Link to="/kompass/mailer/messages/new" className="btn dash-hero-cta">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="m3 7 9 6 9-6" />
+              </svg>
+              Nachricht senden
+            </Link>
+          )}
           <span className="dash-hero-meta">Stand · {today}</span>
         </div>
       </header>

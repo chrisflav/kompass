@@ -1,5 +1,5 @@
-import { keepPreviousData } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { API_BASE } from "../../api/client";
@@ -21,6 +21,7 @@ import {
   Button,
   DataTable,
   EditableDetail,
+  EmptyState,
   Field,
   formatDate,
   Menu,
@@ -199,14 +200,35 @@ export function MessagesList() {
  * (create and upload only) and "Abbrechen" (confirms discarding any input).
  */
 export function MessageComposePage() {
+  const { can, loaded } = usePermissions();
+  if (!loaded) return null;
+  if (!can("mailer.add_global_message")) {
+    return (
+      <div>
+        <PageHeader breadcrumbs={COMPOSE_CRUMBS} />
+        <EmptyState>Du darfst keine Nachrichten verfassen.</EmptyState>
+      </div>
+    );
+  }
+  return <MessageComposer />;
+}
+
+const COMPOSE_CRUMBS: Crumb[] = [
+  { label: "Nachrichten", to: "/kompass/mailer/messages" },
+  { label: "Neue Nachricht" },
+];
+
+function MessageComposer() {
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirmDialog();
   const [form, setForm] = useState<MessageFormState>(() => emptyMessage());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [busy, setBusy] = useState(false);
+  const [staged, setStaged] = useState(0);
   const { getRegistrar, runFlushes } = useFlushRegistry();
-  // The staged attachments are uploaded to the message Save just created.
+  // Save creates the message first and stores its id here; the staged
+  // attachments are then uploaded to it.
   const createdId = useRef<number | null>(null);
 
   const create = useApiMutation(
@@ -233,7 +255,18 @@ export function MessageComposePage() {
     form.to_members.length > 0 ||
     form.to_freizeit !== null ||
     form.reply_to.length > 0 ||
-    form.reply_to_email_address.length > 0;
+    form.reply_to_email_address.length > 0 ||
+    staged > 0;
+
+  // Closing or reloading the tab asks first while there is unsaved input. (The
+  // app runs on a <BrowserRouter>, where react-router's useBlocker is not
+  // available, so in-app navigation away is not intercepted.)
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   async function requestCancel() {
     if (dirty && !(await confirm("Änderungen verwerfen?"))) return;
@@ -271,10 +304,7 @@ export function MessageComposePage() {
   return (
     <div>
       <PageHeader
-        breadcrumbs={[
-          { label: "Nachrichten", to: "/kompass/mailer/messages" },
-          { label: "Neue Nachricht" },
-        ]}
+        breadcrumbs={COMPOSE_CRUMBS}
         actions={
           <>
             <Button type="button" variant="ghost" disabled={busy} onClick={requestCancel}>
@@ -301,10 +331,10 @@ export function MessageComposePage() {
             label: "Anhänge",
             content: (
               <Attachments
-                messageId={null}
-                uploadTo={() => createdId.current as number}
+                message={createdId}
                 editing
                 registerFlush={getRegistrar("attachments")}
+                onStagedChange={setStaged}
               />
             ),
           },
@@ -367,6 +397,20 @@ function useMessageRows(
           aria-label="Betreff"
           value={form.subject}
           onChange={(e) => setForm({ ...form, subject: e.target.value })}
+          required
+        />
+      ),
+    },
+    {
+      label: "Inhalt",
+      field: "content",
+      value: <span style={{ whiteSpace: "pre-wrap" }}>{message?.content}</span>,
+      edit: (
+        <textarea
+          aria-label="Inhalt"
+          rows={14}
+          value={form.content}
+          onChange={(e) => setForm({ ...form, content: e.target.value })}
           required
         />
       ),
@@ -448,20 +492,6 @@ function useMessageRows(
           selected={form.reply_to_email_address}
           onChange={(v) => setForm({ ...form, reply_to_email_address: v })}
           placeholder="Adresse hinzufügen"
-        />
-      ),
-    },
-    {
-      label: "Inhalt",
-      field: "content",
-      value: <span style={{ whiteSpace: "pre-wrap" }}>{message?.content}</span>,
-      edit: (
-        <textarea
-          aria-label="Inhalt"
-          rows={14}
-          value={form.content}
-          onChange={(e) => setForm({ ...form, content: e.target.value })}
-          required
         />
       ),
     },
@@ -619,7 +649,7 @@ function MessageDetailBody({ message, crumbs }: { message: MessageOut; crumbs: C
           {
             id: "anhaenge",
             label: "Anhänge",
-            content: <Attachments messageId={message.id} editing={editing} registerFlush={getRegistrar("attachments")} />,
+            content: <Attachments message={message.id} editing={editing} registerFlush={getRegistrar("attachments")} />,
           },
         ]}
       />
@@ -665,23 +695,30 @@ function SubmitAction({ message }: { message: MessageOut }) {
 
 type AttachmentData = { filename: string; file: File | null; url: string | null };
 
+/** The backend's cap on an attachment (`file_size_validator(10)`, in MiB). */
+const MAX_ATTACHMENT_MIB = 10;
+
 /**
- * The message's attachments, staged while editing and applied on Save. While
- * composing there is no message yet (`messageId` null): nothing is loaded, and
- * the staged files are uploaded to the message `uploadTo` names once Save has
- * created it.
+ * The message's attachments, staged while editing and applied on Save.
+ *
+ * `message` is the id of the message they belong to — or, while composing, a
+ * ref that Save fills with the id of the message it has just created before it
+ * runs the flushes; until then there is nothing to load and the staged files
+ * only wait. `onStagedChange` reports how many files are waiting.
  */
 function Attachments({
-  messageId,
-  uploadTo = () => messageId as number,
+  message,
   editing,
   registerFlush,
+  onStagedChange,
 }: {
-  messageId: number | null;
-  uploadTo?: () => number;
+  message: number | RefObject<number | null>;
   editing: boolean;
   registerFlush: (fn: () => Promise<void>) => void;
+  onStagedChange?: (count: number) => void;
 }) {
+  const qc = useQueryClient();
+  const messageId = typeof message === "number" ? message : null;
   const query = useApiQuery(
     ["mailer", "messages", messageId, "attachments"],
     () =>
@@ -692,15 +729,21 @@ function Attachments({
       ),
     { enabled: messageId !== null },
   );
-  const invalidate = [
-    ["mailer", "messages", messageId, "attachments"],
-    ["mailer", "messages", messageId],
-  ];
+  /** The message to upload to: known up front, or created by Save just now. */
+  const target = (): number => {
+    const id = typeof message === "number" ? message : message.current;
+    if (id === null) throw new Error("Die Nachricht ist noch nicht gespeichert.");
+    return id;
+  };
+  const refresh = (id: number) => {
+    qc.invalidateQueries({ queryKey: ["mailer", "messages", id, "attachments"] });
+    qc.invalidateQueries({ queryKey: ["mailer", "messages", id] });
+  };
   const uploadM = useApiMutation(
-    (file: File) =>
+    ({ id, file }: { id: number; file: File }) =>
       unwrap(
         client.POST("/api/mailer/messages/{message_id}/attachments", {
-          params: { path: { message_id: uploadTo() } },
+          params: { path: { message_id: id } },
           // Multipart upload: the field name is `f`; a custom serializer builds
           // the FormData because openapi-fetch would otherwise JSON-encode it.
           body: { f: file as unknown as string },
@@ -711,7 +754,7 @@ function Attachments({
           },
         }),
       ),
-    { invalidate },
+    { onSuccess: (_data, { id }) => refresh(id) },
   );
   const deleteM = useApiMutation(
     (attachmentId: number) =>
@@ -720,8 +763,24 @@ function Attachments({
           params: { path: { attachment_id: attachmentId } },
         }),
       ),
-    { invalidate },
+    { onSuccess: () => refresh(target()) },
   );
+
+  // A failed upload names its file, so the user knows which one to add again.
+  async function upload(d: AttachmentData) {
+    if (!d.file) return;
+    try {
+      await uploadM.mutateAsync({ id: target(), file: d.file });
+    } catch (e) {
+      const detail =
+        e instanceof ApiError && Object.keys(e.fieldErrors).length
+          ? Object.values(e.fieldErrors).flat().join(" ")
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      throw new Error(`„${d.filename}“: ${detail}`);
+    }
+  }
 
   const serverRows = (query.data ?? []).map((a) => ({
     id: a.id,
@@ -730,13 +789,16 @@ function Attachments({
   const { rows, removeRow, addRow } = useInlineDraft<AttachmentData>({
     serverRows,
     editing,
-    create: (d) => (d.file ? uploadM.mutateAsync(d.file) : Promise.resolve()),
+    create: upload,
     update: () => Promise.resolve(),
     remove: (id) => deleteM.mutateAsync(id),
     registerFlush,
   });
+  const staged = rows.filter((r) => r.id === null).length;
+  useEffect(() => onStagedChange?.(staged), [onStagedChange, staged]);
   const [adding, setAdding] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const tooLarge = file !== null && file.size > MAX_ATTACHMENT_MIB * 1024 * 1024;
 
   return (
     <>
@@ -771,13 +833,21 @@ function Attachments({
       {adding && (
         <Modal title="Anhang hinzufügen" onClose={() => setAdding(false)} size="sm">
           <div className="stack">
-            <Field label="Datei" hint="Wird der Nachricht als Anhang beigelegt.">
+            <Field
+              label="Datei"
+              hint={`Wird der Nachricht als Anhang beigelegt (höchstens ${MAX_ATTACHMENT_MIB} MiB).`}
+            >
               <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              {tooLarge && file && (
+                <div className="field-error">
+                  {`Die Datei ist ${(file.size / 1024 / 1024).toFixed(1).replace(".", ",")} MiB groß; erlaubt sind höchstens ${MAX_ATTACHMENT_MIB} MiB.`}
+                </div>
+              )}
             </Field>
             <div className="row-actions">
               <Button
                 type="button"
-                disabled={!file}
+                disabled={!file || tooLarge}
                 onClick={() => {
                   if (file) addRow({ filename: file.name, file, url: null });
                   setAdding(false);
