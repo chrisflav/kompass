@@ -853,19 +853,57 @@ function BillForm({
  */
 function ErstattungStep({ statement }: { statement: StatementOut }) {
   const formQ = useStatementForm(statement);
+  // Whether the rules are, for now, asking only the form's opening step.
+  //
+  // Read off the query rather than from inside the boundary below, because the
+  // two things it changes are this leg's rather than the form's: what the lead
+  // says, and whether there is a payout worth previewing.
+  const opening = formQ.data !== undefined && opensWithOneStep(formQ.data);
   return (
     <section className="flow-step">
       <h2 className="flow-title">Wer bekommt was?</h2>
       <p className="flow-lead">
-        Diese Fragen stellt die Finanzordnung der Sektion. Die Beträge rechnet Kompass daraus
-        selbst aus.
+        {opening
+          ? "Die erste Frage entscheidet, was die Finanzordnung der Sektion danach fragt."
+          : "Diese Fragen stellt die Finanzordnung der Sektion. Die Beträge rechnet Kompass daraus selbst aus."}
       </p>
       <QueryBoundary query={formQ}>
         {(form) => <AnswerForm statement={statement} form={form} />}
       </QueryBoundary>
-      <PayoutPreview statement={statement} />
+      {/* No preview while the rules have not been told which rules. Every
+          figure is a reading of an answer nobody has given yet, so "Noch
+          nichts zu erstatten." beside the one unanswered question reads as
+          "this statement pays nothing" rather than as "not yet". */}
+      {!opening && <PayoutPreview statement={statement} />}
     </section>
   );
+}
+
+/**
+ * Whether `form` is the **opening step** of a longer form rather than all of it.
+ *
+ * A ruleset may narrow its own form down to the one question that decides what
+ * else is worth asking: Ludwigsburg settles under one of two travel-cost
+ * policies, and until that is answered a night is neither a receipt nor a
+ * Pauschale and a kilometre has no rate — so `relevant_inputs` asks that and
+ * nothing else. The backend needs nothing extra to say so and this needs
+ * nothing extra to read it: `steps` already partitions the whole form into the
+ * groups the rules named, so **one named step is a form that has more groups
+ * than it is currently showing**.
+ *
+ * The label is what carries it. A ruleset that names no steps comes back as a
+ * single step labelled `""` (Heidelberg, and every form that was a flat list
+ * before there were steps), and that is emphatically *not* an opening step —
+ * it is the whole form, and it is laid out exactly as it always was. So the
+ * degenerate case needs no branch of its own: it simply never matches.
+ *
+ * What this is not: a second wizard. It changes the wording and takes away a
+ * preview of figures that cannot exist yet. Weiter still goes where it went,
+ * because what may be handed in is `/preflight`'s answer and not this
+ * client's — the rules already refuse a statement with no Regelwerk, by name.
+ */
+function opensWithOneStep(form: StatementFormOut): boolean {
+  return form.steps.length === 1 && form.steps[0].label !== "";
 }
 
 /** How long a typed-into field waits before it becomes a request. */
@@ -1026,12 +1064,14 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
   if (form.inputs.length === 0) {
     return <p className="muted">Für diese Abrechnung fragen die Regeln nichts ab.</p>;
   }
+  const opening = opensWithOneStep(form);
   return (
     <>
       {form.steps.map((step) => (
         <AnswerGroup
           key={step.label}
           step={step}
+          opening={opening}
           form={form}
           answers={answers}
           errors={errors}
@@ -1059,15 +1099,23 @@ function AnswerForm({ statement, form }: { statement: StatementOut; form: Statem
  *
  * The readings come first within a group: what the trip says, then what it
  * leaves to be answered.
+ *
+ * `opening` says this group is the form's first step and the rest is waiting on
+ * it (`opensWithOneStep`). It is still a section and still not a page — what it
+ * adds is a frame and one sentence, because a form showing a single question
+ * with nothing under it reads as a page that failed to load rather than as a
+ * question that decides the others.
  */
 function AnswerGroup({
   step,
+  opening,
   form,
   answers,
   errors,
   onChange,
 }: {
   step: FormStepOut;
+  opening: boolean;
   form: StatementFormOut;
   answers: Answers;
   errors: Record<string, string[]>;
@@ -1079,7 +1127,7 @@ function AnswerGroup({
   const derived = declared.filter((declaration) => declaration.derived);
   const asked = declared.filter((declaration) => !declaration.derived);
   return (
-    <section className="answer-group">
+    <section className={opening ? "answer-group answer-opening" : "answer-group"}>
       {step.label && <h3 className="answer-group-title">{step.label}</h3>}
       {derived.length > 0 && (
         // Read from `form.answers` rather than from the draft: a derived figure
@@ -1099,6 +1147,11 @@ function AnswerGroup({
           onChange={(value) => onChange(declaration, value)}
         />
       ))}
+      {opening && (
+        <p className="answer-opening-note">
+          Die weiteren Fragen erscheinen, sobald dieser Schritt beantwortet ist.
+        </p>
+      )}
     </section>
   );
 }

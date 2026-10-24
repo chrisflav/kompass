@@ -1758,6 +1758,86 @@ describe("submission flow — Erstattung", () => {
       expect(backend.patches).toEqual([{ regime: "ehrenamt" }]);
       expect(backend.refused).toEqual([]);
     });
+
+    /**
+     * And it reads as the first step of a form rather than as a broken one.
+     *
+     * Nothing new reaches the client for this: `steps` already partitions the
+     * whole form into the groups the rules named, so **one named step is a
+     * form showing fewer groups than it has**, and that is what the leg lays
+     * out as its opening step (`opensWithOneStep`). A single question floating
+     * over an empty payout looks like a page that did not load; what it is, is
+     * the question that decides the others.
+     */
+    describe("zuerst ist sie die einzige Frage", () => {
+      /** The gate, in a step of its own, as a ruleset that groups declares it. */
+      const GATE = declaration({ ...REGIME, step: "Grundlagen" });
+
+      /** What the answer reveals — the seeded table, in a step of its own. */
+      const REVEALED = declaration({ ...REISEN, step: "Fahrt" });
+
+      /** The row the excursion seeded, sitting in storage while nothing asks. */
+      const SEEDED = { member: null, approach: "pkw", kilometers: 120 };
+
+      /** `relevant_inputs` as a gating ruleset writes it. */
+      const gated = (answers: Record<string, unknown>) =>
+        answers.regime ? [GATE, REVEALED] : [GATE];
+
+      it("asks nothing else, and says the rest is waiting on it", async () => {
+        // Neuter it — have `opensWithOneStep` return false — and this is one
+        // bare question under "Diese Fragen stellt die Finanzordnung", over a
+        // payout of nothing: a leg that reads as broken rather than as begun.
+        openRules({ reisen: [SEEDED] }, gated);
+
+        await screen.findByText("Regelwerk");
+        expect(screen.queryByText("Fahrten")).toBeNull();
+        expect(screen.getByText(/Die erste Frage entscheidet/)).toBeInTheDocument();
+        const group = screen.getByText("Grundlagen").closest(".answer-group") as HTMLElement;
+        expect(group).toHaveClass("answer-opening");
+        expect(within(group).getByText(/Die weiteren Fragen erscheinen/)).toBeInTheDocument();
+        // And no payout: every figure in it would be a reading of an answer
+        // nobody has been asked for, so "Noch nichts zu erstatten." here says
+        // "this pays nothing" where the truth is "not yet".
+        expect(document.querySelector(".payout")).toBeNull();
+      });
+
+      it("is a whole form again once the question is answered", async () => {
+        const { user } = openRules({ reisen: [SEEDED] }, gated);
+
+        await screen.findByText("Regelwerk");
+        await pickRegime(user, "Ehrenamt und Verwaltung");
+
+        expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+        expect(document.querySelector(".answer-opening")).toBeNull();
+        expect(screen.queryByText(/Die weiteren Fragen erscheinen/)).toBeNull();
+        expect(document.querySelector(".payout")).not.toBeNull();
+      });
+
+      it("opens on the whole form when the regime was answered before", async () => {
+        // No regression for the statements already in the database: the gate
+        // reads the stored answer, so there is no opening step to pass through
+        // and no second request to wait for.
+        openRules({ regime: "ehrenamt", reisen: [SEEDED] }, gated);
+
+        expect(await screen.findByText("Fahrten")).toBeInTheDocument();
+        expect(document.querySelector(".answer-opening")).toBeNull();
+        expect(screen.getByText(/Diese Fragen stellt die Finanzordnung/)).toBeInTheDocument();
+      });
+
+      it("is no opening step for a ruleset that named no steps at all", async () => {
+        // The degenerate case, and the reason the *label* carries this rather
+        // than the count: Heidelberg names no steps, so its whole form comes
+        // back as one step labelled `""`. One question there is all there is,
+        // and nothing may promise more.
+        openForm({ inputs: [REGIME], answers: { regime: null } });
+
+        await screen.findByText("Regelwerk");
+        expect(document.querySelector(".answer-opening")).toBeNull();
+        expect(screen.queryByText(/Die weiteren Fragen erscheinen/)).toBeNull();
+        expect(screen.getByText(/Diese Fragen stellt die Finanzordnung/)).toBeInTheDocument();
+        expect(document.querySelector(".payout")).not.toBeNull();
+      });
+    });
   });
 });
 

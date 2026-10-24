@@ -2437,6 +2437,29 @@ button.etappe-body:hover {
   border-bottom: 1px solid var(--border);
 }
 
+/* The form's opening step, standing on its own because the rules are waiting
+   on it (`opensWithOneStep`). One question with nothing under it reads as a
+   page that failed to load, so the group is given an edge and a floor: a
+   contour hairline down the side says "a station on a route", and the dashed
+   rule above the note is the part of the route not walked yet. Nothing here
+   fires for a form that is not narrowed — a ruleset that named no steps comes
+   back as one *unlabelled* step and keeps the flat list it always had. */
+.answer-opening {
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--contour);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.answer-opening-note {
+  margin: 0;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 /* One question asked once per traveller: the mode of travel and the distance
    belong to the same person, so they are a row. A grid rather than a stack of
    labelled fields, because the columns are the same question asked again —
