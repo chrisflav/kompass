@@ -68,6 +68,7 @@ class ObligationInline(admin.TabularInline):
         "destination_display",
         "amount",
         "rule_id",
+        "settlement_group",
         "frozen_at",
     ]
     readonly_fields = fields

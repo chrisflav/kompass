@@ -43,6 +43,7 @@ from .rules import may_approve
 from .rules import not_submitted
 from .rules_api import Member as RuleMember
 from .rules_api import SECTION
+from .rules_api import SETTLEMENT_GROUP_LENGTH
 from .store import Approval
 from .store import RuleSet
 
@@ -506,6 +507,7 @@ class Statement(CommonModel):
                 "label": str(transfer.label),
                 "explanation": str(transfer.explanation),
                 "reference": str(self._transfer_reference(transfer)),
+                "settlement_group": transfer.settlement_group,
             }
             for transfer in result.transfers
         ]
@@ -968,6 +970,11 @@ class Statement(CommonModel):
         behind. Money owed to a member is a transfer *to* them and money
         charged against their reimbursement a transfer *from* them, which is
         where the negative amount of an org-fee row comes from.
+
+        The transfer's settlement group rides along onto the booking, because
+        the rules decided it and :meth:`reduce_transactions` is what reads it
+        back: which amounts may not share a bank transfer is a property of the
+        money, not of the screen that bundles it.
         """
         result = self.rule_result
         if result.errors:
@@ -984,25 +991,53 @@ class Statement(CommonModel):
                     amount=sign * transfer.amount,
                     confirmed=False,
                     reference=reference,
+                    settlement_group=transfer.settlement_group,
                 ).save()
         return True
 
     def reduce_transactions(self):
-        # to minimize the number of needed bank transactions, we bundle transactions from same ledger to
-        # same member
+        """Bundle what may share a bank transfer, and only that.
+
+        To minimise the number of transfers somebody has to make, bookings to
+        the same person out of the same ledger become one — *within one
+        settlement group*. The group is the token the section's rules put on
+        the transfer (:attr:`kompass.rules.Transfer.settlement_group`), carried
+        through to the booking, and it is the third part of the key here.
+
+        Which is the whole of the feature: the Tourenleitervergütung is
+        tax-relevant under § 3 Nr. 26 EStG and has to reach the recipient as
+        its own transfer, although it is one statement, one approval and one
+        process with their travel costs. Before, the two were added together
+        and paid out as one amount under a reference that concatenated both, so
+        the taxable part was not a payment anybody could point at. A ruleset
+        that names no group merges exactly as it always did.
+
+        **The reference text is deliberately unchanged.** A merged row still
+        itemises what it covers (``"Fahrtkosten EUR 24.00, Tagegeld EUR
+        28.00"``), which is what a reader reconciling one bank line against the
+        paper needs, and a row that stayed on its own still carries its own
+        transfer's reference verbatim — which is precisely what merging used to
+        destroy. The group token itself is *not* written into the reference: it
+        is the ruleset's internal vocabulary rather than German a stranger
+        reads, and what tells the reader the two rows are deliberate is that
+        each one says what it is for. The demanding reader is the one who gets
+        the statement as a PDF and was never in Kompass; "Tourenleitervergütung"
+        on its own line is an instruction they can act on, and the concatenation
+        was not.
+        """
         transactions = self.transaction_set.all()
         if any(t.ledger is None for t in transactions):
             return
 
         def sort_key(trans):
-            return (trans.member.pk, trans.ledger.pk)
+            return (trans.member.pk, trans.ledger.pk, trans.settlement_group)
 
         def group_key(trans):
-            return (trans.member, trans.ledger)
+            return (trans.member, trans.ledger, trans.settlement_group)
 
         transactions = sorted(transactions, key=sort_key)
-        for pair, transaction_group in groupby(transactions, group_key):
-            member, ledger = pair
+        for key, transaction_group in groupby(transactions, group_key):
+            member, ledger, settlement_group = key
             grp = list(transaction_group)
             if len(grp) == 1:
                 continue
@@ -1016,6 +1051,7 @@ class Statement(CommonModel):
                 confirmed=False,
                 reference=new_ref,
                 ledger=ledger,
+                settlement_group=settlement_group,
             ).save()
             for trans in grp:
                 trans.delete()
@@ -1482,6 +1518,18 @@ class Transaction(models.Model):
     reference = models.TextField(verbose_name=_("Reference"))
     amount = models.DecimalField(max_digits=6, decimal_places=2, verbose_name=_("Amount"))
     member = models.ForeignKey(Member, verbose_name=_("Recipient"), on_delete=models.CASCADE)
+    settlement_group = models.CharField(
+        verbose_name=_("Settlement group"),
+        max_length=SETTLEMENT_GROUP_LENGTH,
+        blank=True,
+        default="",
+        help_text=_(
+            "The group of bank transfers this booking may share, carried over "
+            "from the transfer the section's rules resolved. Bookings are "
+            "bundled into one payment only within one group, so an amount that "
+            "names its own is transferred separately. Empty means no group."
+        ),
+    )
     ledger = models.ForeignKey(
         Ledger,
         blank=False,

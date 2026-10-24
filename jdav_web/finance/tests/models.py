@@ -13,6 +13,7 @@ from finance import signals
 from finance.engine import build_context
 from finance.engine import import_from_directory
 from finance.engine import reference_directory
+from finance.engine import Result
 from finance.models import Bill
 from finance.models import Ledger
 from finance.models import Statement
@@ -26,6 +27,8 @@ from finance.models import StatementUnSubmittedManager
 from finance.models import Transaction
 from finance.models import TransactionIssue
 from finance.rules_api import Member as RuleMember
+from finance.rules_api import SECTION
+from finance.rules_api import Transfer
 from finance.rulesets.heidelberg import HeidelbergRules
 from finance.testing import also
 from finance.testing import answer
@@ -517,6 +520,143 @@ class StatementTestCase(TestCase):
             self.staff_count + 1,
             "Transaction count did change after reducing a second time.",
         )
+
+    def test_a_settlement_group_keeps_its_amounts_out_of_the_others(self):
+        """Four bookings to one person on one ledger become **two**.
+
+        The feature, pinned on the amounts rather than on a count. A statement
+        can pay somebody a taxable Tourenleitervergütung and reimburse their
+        expenses in one process, and the two may not reach them as one bank
+        transfer: the Vergütung is an Ehrenamtspauschale under § 3 Nr. 26 EStG
+        and the section has to be able to point at the payment that carried it.
+
+        **A count would not say this**, which is why the first assertion is not
+        one. Two rows is also what merging the *wrong pair* produces — one
+        Vergütung swept in with the mileage and the other left on its own — so
+        what is pinned is the partition: 24 + 28 under no group, 15 + 10 under
+        the tax one, and the references itemising exactly their own halves.
+        Neuter the third element of the merge key and all four collapse into one
+        row of 77,00 €; neuter only the *sort* key, so that it stops agreeing
+        with the group key, and the interleaved order below breaks into four
+        runs of one. Both fail on the partition.
+        """
+        # Interleaved on purpose: ``groupby`` only sees a group as one run when
+        # the sort put it there, so an order that alternates is what makes the
+        # sort key and the group key have to agree.
+        for reference, amount, group in (
+            ("Fahrtkosten", "24.00", ""),
+            ("Tourenleitervergütung", "15.00", "steuerrelevant"),
+            ("Tagegeld", "28.00", ""),
+            ("Tourenleitervergütung Sonntag", "10.00", "steuerrelevant"),
+        ):
+            Transaction.objects.create(
+                statement=self.st2,
+                member=self.fritz,
+                ledger=self.personal_account,
+                amount=Decimal(amount),
+                reference=reference,
+                settlement_group=group,
+            )
+
+        self.st2.reduce_transactions()
+
+        # The expenses travelled together and the taxable payments travelled
+        # together, and neither crossed over.
+        self.assertEqual(
+            {(t.settlement_group, t.amount) for t in self.st2.transaction_set.all()},
+            {("", Decimal("52.00")), ("steuerrelevant", Decimal("25.00"))},
+        )
+        rows = {
+            transaction.settlement_group: transaction
+            for transaction in self.st2.transaction_set.all()
+        }
+        # And the reference of each says what its own transfer covers — which
+        # is what a Geschäftsstelle reads off the paper to make the payment.
+        self.assertIn("Fahrtkosten", rows[""].reference)
+        self.assertIn("Tagegeld", rows[""].reference)
+        self.assertNotIn("Vergütung", rows[""].reference)
+        self.assertIn("Tourenleitervergütung", rows["steuerrelevant"].reference)
+        self.assertNotIn("Fahrtkosten", rows["steuerrelevant"].reference)
+        self.assertNotIn("Tagegeld", rows["steuerrelevant"].reference)
+        # Reducing again is a no-op: there is nothing left that may be bundled.
+        self.st2.reduce_transactions()
+        self.assertEqual(self.st2.transaction_set.count(), 2)
+
+    def test_one_amount_in_a_group_of_its_own_keeps_its_own_reference(self):
+        """The separated row is the one the concatenation used to destroy.
+
+        One Vergütung beside one mileage claim: nothing merges at all, and the
+        taxable payment reaches its recipient under its own reference instead
+        of under ``"Fahrtkosten EUR 24.00, Tourenleitervergütung EUR 15.00"``,
+        which is not an instruction anybody with only the PDF can act on.
+        """
+        for reference, amount, group in (
+            ("Fahrtkosten", "24.00", ""),
+            ("Tourenleitervergütung", "15.00", "steuerrelevant"),
+        ):
+            Transaction.objects.create(
+                statement=self.st2,
+                member=self.fritz,
+                ledger=self.personal_account,
+                amount=Decimal(amount),
+                reference=reference,
+                settlement_group=group,
+            )
+
+        self.st2.reduce_transactions()
+
+        self.assertEqual(
+            {(t.reference, t.amount) for t in self.st2.transaction_set.all()},
+            {("Fahrtkosten", Decimal("24.00")), ("Tourenleitervergütung", Decimal("15.00"))},
+        )
+
+    def test_the_booking_carries_the_group_the_rules_put_on_the_transfer(self):
+        """``generate_transactions`` is where the token crosses over.
+
+        The decision is the ruleset's and the bundling happens days later on
+        the payout screen, so the token has to ride on the booking. Neuter the
+        hand-over and this goes red while the ruleset still says the right
+        thing — which is the failure mode worth a test: rules that declare the
+        separation and a payout that merges anyway.
+        """
+        taxed = Ledger.objects.create(name="Vergütungen")
+        statement = Statement.objects.create(short_description="Tourenleitung")
+        payee = RuleMember(self.fritz.pk)
+        resolved = Result(
+            transfers=(
+                Transfer(
+                    SECTION, payee, Decimal("24.00"), "travel", rule_id="travel", label="Fahrt"
+                ),
+                Transfer(
+                    SECTION,
+                    payee,
+                    Decimal("15.00"),
+                    "tour_leader_fee",
+                    rule_id="fee",
+                    label="Tourenleitervergütung",
+                    settlement_group="steuerrelevant",
+                ),
+            ),
+            errors=(),
+            checks=(),
+            declarations=(),
+            balance=None,
+        )
+        with patch.object(Statement, "rule_result", resolved):
+            self.assertTrue(statement.generate_transactions())
+            self.assertEqual(
+                {(t.reference, t.settlement_group) for t in statement.transaction_set.all()},
+                {("Fahrt", ""), ("Tourenleitervergütung", "steuerrelevant")},
+            )
+            # And the payload the API serves says it too, so a payout screen
+            # can explain why one person has two rows.
+            self.assertEqual(
+                {(row["label"], row["settlement_group"]) for row in statement.transfer_payload()},
+                {("Fahrt", ""), ("Tourenleitervergütung", "steuerrelevant")},
+            )
+        statement.transaction_set.update(ledger=taxed)
+        statement.reduce_transactions()
+        self.assertEqual(statement.transaction_set.count(), 2)
 
     def test_confirm_statement(self):
         self.assertFalse(

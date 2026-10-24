@@ -30,6 +30,7 @@
         <th>{% translate "Rule" %}</th>
         <th>{% translate "Label" %}</th>
         <th>{% translate "Explanation" %}</th>
+        <th>{% translate "Settlement group" %}</th>
     </tr>
     {% for transfer in result.transfers %}
     <tr>
@@ -40,6 +41,7 @@
         <td>{{ transfer.rule_id }}</td>
         <td>{{ transfer.label }}</td>
         <td>{{ transfer.explanation }}</td>
+        <td>{{ transfer.settlement_group }}</td>
     </tr>
     {% endfor %}
 </table>

@@ -36,6 +36,7 @@ from finance.engine import import_from_directory
 from finance.engine import materialise
 from finance.engine import read_sources
 from finance.engine import reference_directory
+from finance.engine import Result
 from finance.engine import result_from_rows
 from finance.engine import ruleset_directory
 from finance.engine import ruleset_for
@@ -933,6 +934,47 @@ class MaterialisationTestCase(TestCase):
     def test_an_unsaved_statement_has_nothing_to_write(self):
         self.assertEqual(materialise(Statement(short_description="Neu")), ())
 
+    def test_a_rows_settlement_group_survives_the_round_trip(self):
+        """The row is the record, so the separation has to be in it.
+
+        A submitted statement generates its bookings from
+        :func:`~finance.engine.result_from_rows` and never runs the rules
+        again. So a group that is resolved but not written down is a group that
+        exists until the statement is handed in and is gone afterwards —
+        exactly when the money is about to move. Neuter either half, the write
+        or the read, and this goes red.
+        """
+        payee = RuleMember(MemberId(self.member.pk))
+        resolved = Result(
+            transfers=(
+                Transfer(SECTION, payee, Decimal("12.34"), "bill", rule_id="bills", label="Seil"),
+                Transfer(
+                    SECTION,
+                    payee,
+                    Decimal("15.00"),
+                    "tour_leader_fee",
+                    rule_id="fee",
+                    label="Vergütung",
+                    settlement_group="steuerrelevant",
+                ),
+            ),
+            errors=(),
+            checks=(),
+            declarations=(),
+            balance=None,
+        )
+        with patch("finance.engine.statements.evaluate_statement", return_value=resolved):
+            rows = materialise(self.statement, freeze=True)
+        self.assertEqual(
+            [(row.rule_id, row.settlement_group) for row in rows],
+            [("bills", ""), ("fee", "steuerrelevant")],
+        )
+        read_back = result_from_rows(self.statement)
+        self.assertEqual(
+            [(t.rule_id, t.settlement_group) for t in read_back.transfers],
+            [("bills", ""), ("fee", "steuerrelevant")],
+        )
+
     def test_the_rows_read_back_as_the_transfers_they_came_from(self):
         self.statement.submit(submitter=self.member)
         result = result_from_rows(self.statement)
@@ -977,6 +1019,22 @@ class VerifyTestCase(TestCase):
 
     def test_a_statement_whose_payout_no_longer_reproduces(self):
         self.statement.obligation_set.filter(rule_id="bills").update(amount_cents=999)
+        problems = verify(Statement.objects.all())
+        self.assertTrue(any("does not reproduce" in p for p in problems))
+
+    def test_a_row_that_would_now_merge_differently_is_drift(self):
+        """The settlement group is part of what the row says.
+
+        Which amounts the rules kept out of each other's bank transfers is as
+        much a fact about a settled payout as who was paid how much: a replay
+        that would now sweep a taxable payment in with somebody's travel costs
+        is a change to the instruction, not an irrelevance. The figures here
+        are untouched, so without the group in the comparison this passes as
+        agreement — neuter it and the test goes red.
+        """
+        self.statement.obligation_set.filter(rule_id="bills").update(
+            settlement_group="steuerrelevant"
+        )
         problems = verify(Statement.objects.all())
         self.assertTrue(any("does not reproduce" in p for p in problems))
 

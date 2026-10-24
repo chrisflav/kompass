@@ -46,6 +46,7 @@ from django.utils.translation import gettext_lazy as _
 from finance.parties import MEMBER
 from finance.parties import PARTICIPANTS
 from finance.parties import SECTION
+from finance.rules_api import SETTLEMENT_GROUP_LENGTH
 from members.models import Member
 
 #: The fields of a :class:`RuleSet` row that may never change once it is
@@ -414,6 +415,18 @@ class Obligation(models.Model):
     label = models.CharField(verbose_name=_("Label"), max_length=200, blank=True, default="")
     explanation = models.TextField(verbose_name=_("Explanation"), blank=True, default="")
     rule_id = models.CharField(verbose_name=_("Rule"), max_length=100, blank=True, default="")
+    settlement_group = models.CharField(
+        verbose_name=_("Settlement group"),
+        max_length=SETTLEMENT_GROUP_LENGTH,
+        blank=True,
+        default="",
+        help_text=_(
+            "The group of bank transfers this amount may share, as the section's "
+            "rules named it. Two amounts owed to the same person out of the same "
+            "account are bundled into one payment only when this is equal. Empty "
+            "means no group, which is what bundles with everything else."
+        ),
+    )
     rule_version = models.CharField(
         verbose_name=_("Rule version"),
         max_length=64,

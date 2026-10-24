@@ -369,6 +369,7 @@ def materialise(statement: Any, *, freeze: bool = False) -> tuple[Obligation, ..
             label=str(transfer.label)[:200],
             explanation=str(transfer.explanation),
             rule_id=transfer.rule_id,
+            settlement_group=transfer.settlement_group,
             rule_version=version,
             frozen_at=frozen,
             **_party_fields(transfer.source, "source", names),
@@ -1040,6 +1041,7 @@ def row_as_transfer(row: Obligation) -> Transfer:
         rule_id=row.rule_id,
         label=row.label,
         explanation=row.explanation,
+        settlement_group=row.settlement_group,
     )
 
 
@@ -1136,6 +1138,11 @@ def verify(statements: Any, *, sample: int = 10) -> list[str]:
                 t.amount,
                 _party_key(t.source),
                 _party_key(t.destination),
+                # Which amounts the rules kept apart is part of what the row
+                # says: a replay that would now merge a taxable payment into
+                # somebody's travel costs is drift, and comparing only the
+                # figures reported it as agreement.
+                t.settlement_group,
             )
             for t in result.transfers
         ]
@@ -1146,6 +1153,7 @@ def verify(statements: Any, *, sample: int = 10) -> list[str]:
                 row.amount,
                 (row.source_kind, row.source_member_id),
                 (row.destination_kind, row.destination_member_id),
+                row.settlement_group,
             )
             for row in rows
         ]
